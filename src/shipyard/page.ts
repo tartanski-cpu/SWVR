@@ -640,9 +640,12 @@ function group(title: string, note = ''): void {
 }
 /** The deckhouse's width buttons and when each is the one chosen (they set two fields: dhWidth, dhNarrow). */
 const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
+/** The deckhouse's Width slider shown from the design (it sets two fields: set up with the slider). */
+let syncDhWidth: () => void = () => {};
+
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -781,36 +784,38 @@ section('2. Wheelhouse');
   measure('dhLength', 'Forward', (v) => (v ? m(v, 1) : 'none'), { off: 0.4 });
   measure('dhHeight', 'Height', (v) => m(v)).dataset.when = 'dhLength';
   {
-    // Its width: out to her sides, set in to leave side decks (how wide: below), or only as
-    // wide as the wheelhouse, forward of it (owner: her side decks clear, for a side door).
+    // Its width (owner, Oct 2026: "having this slider might help with the width of it"): one
+    // slider, from only as wide as the wheelhouse (forward of it: her side decks clear, for a
+    // side door), through set in from her sides leaving side decks (narrowing in 5 cm steps),
+    // to out to her sides: a raised deck, her bulwarks risen along it, its top always walked.
+    // It sets dhNarrow and dhWidth (the side decks' width, m), as the code has them.
+    const STEP = 0.05;
+    const N = Math.round(0.8 / STEP); // the widest side decks (MEASURES.dhWidth)
     const row = document.createElement('div');
-    row.className = 'row opts';
+    row.className = 'row';
     row.dataset.when = 'dhLength';
-    row.innerHTML = '<label>Width</label><div></div>';
-    const box = row.querySelector('div')!;
-    const kinds: [string, (d: ShipDesign) => boolean, Partial<ShipDesign>][] = [
-      ['To her sides', (d) => !d.dhNarrow && !d.dhWidth, { dhNarrow: 0, dhWidth: 0 }],
-      ['Side decks', (d) => !d.dhNarrow && d.dhWidth > 0, { dhNarrow: 0, dhWidth: 0.3 }],
-      ['As the wheelhouse', (d) => !!d.dhNarrow, { dhNarrow: 1 }],
-    ];
-    for (const [name, on, patch] of kinds) {
-      const c = document.createElement('span');
-      c.className = 'choice dhKind';
-      c.textContent = name;
-      c.onclick = () => change(name === 'Side decks' && design.dhWidth > 0 ? { dhNarrow: 0 } : patch);
-      dhKinds.push([c, on]);
-      box.appendChild(c);
-    }
+    row.innerHTML = `<label>Width</label><input type="range" min="0" max="${N + 1}" step="1"><output></output>`;
+    const input = row.querySelector('input')!;
+    const out = row.querySelector('output')!;
+    const toSlider = (d: ShipDesign) => (d.dhNarrow ? 0 : N + 1 - Math.round(Math.min(0.8, d.dhWidth) / STEP));
+    input.oninput = () => {
+      const v = Number(input.value);
+      change(v === 0 ? { dhNarrow: 1 } : { dhNarrow: 0, dhWidth: Math.round((N + 1 - v) * STEP * 100) / 100 });
+    };
+    syncDhWidth = () => {
+      input.value = String(toSlider(design));
+      out.textContent = design.dhNarrow ? 'as the wheelhouse' : design.dhWidth < 0.025 ? 'her full width' : `side decks ${design.dhWidth.toFixed(2)} m`;
+    };
     labels.dhNarrow = 'Deckhouse width';
     optionNames.dhNarrow = ['Set by Width', 'As the wheelhouse'];
+    labels.dhWidth = 'Deckhouse side decks';
     controls.appendChild(row);
   }
-  measure('dhWidth', 'Side decks', (v) => m(v), { min: 0.1 }).dataset.when = 'dhSideDecks';
   measure('dhRake', 'Front', (v) => (v < 0.5 ? 'upright' : `raked ${v.toFixed(0)}°`)).dataset.when = 'dhLength';
   // Its top walked (P2b): a rail round it and a ladder up from the deck.
-  options('dhWalk', 'Top', ['Not walked', 'Walked: rail and ladder']).dataset.when = 'dhLength';
+  options('dhWalk', 'Top', ['Not walked', 'Walked: rail and ladder']).dataset.when = 'dhTopChoice'; // (out to her sides it's always walked)
   // A cabin below it (P2c): the deck cut away, the sole sunk into her, a companionway down from the wheelhouse.
-  options('foreCabin', 'Inside', ['Solid', 'A cabin below']).dataset.when = 'dhLength';
+  options('foreCabin', 'Inside', ['Solid', 'A cabin below']).dataset.when = 'cabinBelow'; // (under a deckhouse, or a raised foredeck)
 }
 section('3. Deck gear');
 {
@@ -944,6 +949,7 @@ options('frames', 'Window frames', FRAME_COLOURS.map((f) => f.name));
 
 /** Show the design in the controls. */
 function syncControls(): void {
+  syncDhWidth();
   const likeHull = document.querySelector<HTMLElement>('.swatch.likeHull');
   if (likeHull) likeHull.style.background = hex(LIVERIES[design.paint].livery.topsides ?? 0xd9622b);
   const likeHouse = document.querySelector<HTMLElement>('.swatch.likeHouse');

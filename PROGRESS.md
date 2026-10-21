@@ -5561,6 +5561,33 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
 
+### Gillnetter: the wheelhouse forward by default (done, awaiting owner test)
+
+Owner, Oct 2026: the raised foredeck's sliders seemed to jump back while sliding. Why: the gillnetter's house started right aft (a bowpicker's, housePos 0), so almost any foredeck length put the break under the house. The break then ran on past the house (as built in "Raised foredeck"), nearly to the transom, and the deck looked to jump. The owner: "for this fishing boat type, I would place the wheelhouse at the front by default, not all the way at the front, but closer to the front."
+
+- **Now** (shipyard/parts/catalog.ts, DESIGN_HULLS gillnetter `defaults`): `housePos` 11 of 15 (0.73 of the free deck, forward of amidships), her working deck aft, as on the trawler she was shown with. Only a freshly picked hull is affected; saved designs and the game's fleet (their own files) keep their house where it is.
+- **Still so:** with the house forward, a foredeck ending 1 to 1.5 m aft of the bow stops forward of the house; longer ones run on under it to the landing aft of the house's door, and only the longest go further aft. Between, the slider moves the label but not the break. If that reads as broken, the label could show where the break really is.
+- **Checked:** headless Chromium, the Hull step: picking the gillnetter gives housePos 0.73; Raised foredeck swept 0 to 15: no jump to the transom (break forward of the house at 1.5 m, aft of it from 2 m). tests/raisedForedeck.test.ts: its "house forward of the break" case now sets the house aft itself. Full suite passes. **Not checked:** the Quest.
+
+### A cabin below under the raised foredeck (done, awaiting owner test)
+
+Owner, Oct 2026: "it also looks like the cabin below the raised poop deck doesn't work at the moment." (Confirmed: a fo'c'sle cabin under the raised foredeck.) It only went under a deckhouse.
+
+- **Now** (shipyard/parts/house.ts interiorPart): the cabin below goes under a deckhouse as before, or under a raised foredeck the wheelhouse stands on (the break aft of the house). There its "trunk" is the raised foredeck: from `deckhouse.fromStem` aft of the stem to the wheelhouse, its ceiling the raised deck at its lowest along the cabin (her sheer rises forward) less 8 cm; its walls inside her sides; her deck not cut away (it's the ceiling: no `deckOpening`). The same companionway down from the wheelhouse beside the helm, the same V-berth, the same rules (the engine not under the wheelhouse: pod drives, stern drives or outboards put it aft).
+- **Shipyard:** Inside (A cabin below) shows with a deckhouse or a raised foredeck. With the raised foredeck forward of the house, it says the house must stand on it.
+- The cabin is drawn without a deckhouse too (hullMesh.ts).
+- **Checked:** tests/raisedForedeck.test.ts: the fishing boat with outboards, the house on a 9 m raised foredeck: a cabin, no deck cut away, standing headroom, its ceiling under the raised deck, its sole walked; the house forward of the break: none, saying why. Shipyard tests pass; full suite passes. Headless Chromium: inside the fo'c'sle cabin (the berth, its walls and ceiling), beside the deckhouse cabin for comparison. **Not checked:** the Quest (going down the companionway).
+
+### Deckhouse: one Width slider; out to her sides it's a raised deck (done, awaiting owner test)
+
+Owner, Oct 2026: "the deck house implementation needs some rework. So when it comes up to the side, when you use the option to the side, you probably don't need railings... on the side, because you would kind of walk over the sides. And I think maybe having this slider might help with the width of it." (Confirmed: at full width her bulwarks and rails rise along it, no separate rail round its top's sides; the three width buttons become one slider.)
+
+- **Shipyard, Wheelhouse step, Deckhouse group, Width:** one slider: at the left "as the wheelhouse" (dhNarrow), then "side decks" from 0.8 m narrowing in 5 cm steps (dhWidth), at the right "her full width" (dhWidth 0). Sets the same two fields as before, so codes and saved boats are unchanged. The separate Side decks slider is gone.
+- **Out to her sides** (`DeckhouseLayout.full`, shipyard/parts/house.ts): a raised deck. Her bulwark plate and rail rise along it by its height over her deck (hullMesh.ts buildDeckFittings, split where it starts and ends; weighed with it); its top is always walked (where the wheelhouse leaves room: the Top row hides), out to just inside her bulwarks (deckhouse.ts `FULL_SIDE_MARGIN` 0.1 m); its own rail only across its front and aft edges, where you'd step down to the main deck. A walked top not asked for, and with no room round the house, is left off quietly.
+- A side door onto a full-width deckhouse with no room beside the house says to make the house narrower, or the deckhouse only as wide as it.
+- **Tests changed:** deckhouseTop's "not walked as before" cases now use a deckhouse set in from her sides (out to them it's walked, by the owner's decision).
+- **Checked:** tests/shipyard/deckhouseFull.test.ts (2): her bulwark risen by the deckhouse's height at full width, not when set in; its top walked out near her sides. Shipyard tests, the goldens and the fleet pass; full suite passes. Headless Chromium: the pilot boat's deckhouse at full width and with side decks. **Not checked:** the Quest.
+
 ### Raised foredeck: ladders at the sides, as on a real trawler (done, awaiting owner test)
 
 Owner, Oct 2026 (a screenshot of two flights of steps one behind the other on the centreline): "the modeler doesn't resolve stairs very well today. Maybe do a little bit of research on how stairs are in real life arranged when you have this kind of poop deck and a raised deck house."

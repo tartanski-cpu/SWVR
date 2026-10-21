@@ -29,13 +29,15 @@ describe('the walked deckhouse top', () => {
     expect(DEFAULT_DESIGN.dhWalk).toBe(0);
     expect(shortCode(wide)).toBeNull();
     expect(readDesign(designToken(wide))).toMatchObject({ design: wide, warnings: [] });
-    expect(buildDesign(type(PILOT)).hull.layout.deckhouse!.walk).toBeUndefined();
+    // (Set in from her sides; out to them it's a raised deck, always walked where there's room: owner, Oct 2026.)
+    expect(buildDesign(type(PILOT, { dhWidth: 0.3 })).hull.layout.deckhouse!.walk).toBeUndefined();
+    expect(buildDesign(type(PILOT, { houseWidth: 0.7 })).hull.layout.deckhouse!.walk).toBeDefined();
     const none = buildDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[PILOT].defaults, hull: PILOT, dhLength: 0, dhWalk: 1 });
     expect(none.warnings.join(' ')).toMatch(/needs a deckhouse/);
   });
 
   it('a ladder aft beside a narrower house, up the front beside a wide one; its rail and ladder weighed and priced', () => {
-    const plain = buildDesign(type(PILOT, { houseWidth: 0.7 }));
+    const plain = buildDesign(type(PILOT, { houseWidth: 0.7, dhWidth: 0.3 }));
     const b = buildDesign(wide);
     const dh = b.hull.layout.deckhouse!;
     const hw = b.hull.layout.wheelhouse!.halfWidth;
@@ -99,15 +101,15 @@ describe('the walked deckhouse top', () => {
     }
     expect(y).toBeCloseTo(dh.top, 3);
     // Without a walked top, as before: left off.
-    expect(buildDesign({ ...wide, dhWalk: 0, sideDoor: 1 }).warnings.join(' ')).toMatch(/isn’t walked/);
+    expect(buildDesign({ ...wide, dhWidth: 0.3, dhWalk: 0, sideDoor: 1 }).warnings.join(' ')).toMatch(/isn’t walked/);
   });
 
   it('is drawn: its rail on posts round the top, and the ladder', () => {
     useDesign(wide);
     const def = VESSEL_DEFS.design;
     const dh = def.layout.deckhouse!;
-    const plain = buildDesign(type(PILOT, { houseWidth: 0.7 }));
-    useDesign(type(PILOT, { houseWidth: 0.7 }));
+    const plain = buildDesign(type(PILOT, { houseWidth: 0.7, dhWidth: 0.3 }));
+    useDesign(type(PILOT, { houseWidth: 0.7, dhWidth: 0.3 }));
     const before = buildVesselMeshParts(VESSEL_DEFS.design.hull, VESSEL_DEFS.design.layout).house!.geometry.getAttribute('position').count;
     expect(plain.hull.layout.deckhouse!.walk).toBeUndefined();
     useDesign(wide);
