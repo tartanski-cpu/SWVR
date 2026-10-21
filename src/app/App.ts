@@ -113,7 +113,7 @@ import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
-import { footprintsOf, gearOf, useDesign, useStarterKit, useWorkboatFit } from '../boats/sims';
+import { footprintsOf, gearOf, useStarterKit, useWorkboatFit } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
 import { sosCondition, sosStatus } from '../rescue/sos';
 import { RodGame } from '../fishing/rodGame';
@@ -148,8 +148,8 @@ import { vesselReadout } from '../debug/vesselReadout';
 import { countBoatParts } from '../debug/boatParts';
 import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
-import { HULLS, LIBRARY, RECIPES } from '../boats/library';
-import { designToken, readDesign, sameDesign } from '../shipyard/designDoc';
+import { HULLS, LIBRARY, RECIPES, boatTokenOf, boatType, ensureBoatTypes, isBoatType } from '../boats/library';
+import { readDesign, sameDesign } from '../shipyard/designDoc';
 import { groupCode, ShipyardCodes } from '../shipyard/takeHer';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
@@ -231,17 +231,19 @@ const START_BOATS = [...FLEET_IDS, 'alaskan38'];
 let startDesignCode: string | null = null;
 
 function startBoat(): string | undefined {
-  // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts): the 'design' vessel type made her.
+  // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts).
   const code = new URLSearchParams(location.search).get('design');
   if (code) {
-    const read = readDesign(code);
-    if ('design' in read) {
-      useDesign(read.design);
-      startDesignCode = designToken(read.design);
-      return 'design';
+    // Her own vessel type, keyed by her token (multi-boat M1: boats/library.ts boatType).
+    const id = boatType(code);
+    if (id) {
+      startDesignCode = boatTokenOf(id);
+      return id;
     }
-    console.warn(`Shipyard code ${code}: ${read.error}`);
-    designCodeError = read.error;
+    const read = readDesign(code);
+    const error = 'error' in read ? read.error : 'cannot build her';
+    console.warn(`Shipyard code ${code}: ${error}`);
+    designCodeError = error;
   }
   const id = new URLSearchParams(location.search).get('boat');
   return id && RECIPES[id] && VESSEL_DEFS[id] && hasWheelhouse(VESSEL_DEFS[id]) ? id : undefined;
@@ -660,7 +662,7 @@ export class App {
     forgetStartParams();
     const created = createWorld(this.ids, boat, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
     this.world = created.world;
-    this.world.build = { ...(startDesignCode && boat === 'design' ? { design: startDesignCode } : {}), ...(without.length ? { without } : {}) };
+    this.world.build = { ...(startDesignCode && isBoatType(boat) ? { design: startDesignCode } : {}), ...(without.length ? { without } : {}) };
     this.builtAs = structuredClone(this.world.build);
     // Sent to crew with the boat, so a crew-mate on an older page knows (not part of her build).
     this.world.build.app = APP_BUILD;
@@ -2663,8 +2665,8 @@ export class App {
         if (defId === 'alaskan38') return 'The Alaskan 38';
         const fleet = FLEET.find((f) => f.id === defId);
         if (fleet) return `The ${fleet.name.toLowerCase()}`;
-        if (defId !== 'design') return defId;
-        const token = new URLSearchParams(location.search).get('design') ?? '';
+        if (!isBoatType(defId)) return defId;
+        const token = boatTokenOf(defId) ?? '';
         const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));
         const read = readDesign(token);
         return fav ? `${fav.name} (Shipyard)` : 'design' in read && read.name ? `${read.name} (Shipyard)` : `Shipyard boat ${groupCode(token)}`;
@@ -2704,6 +2706,8 @@ export class App {
     client.sendIntents(remote);
     const snap = client.latest;
     if (snap) {
+      // A boat new to this page (another player's, launched since): her type from her token.
+      ensureBoatTypes(snap);
       // All of it (the pots and the fuel hoses too: they were missed when listed one by
       // one), but our own body, which is ours.
       const w = this.world as unknown as Record<string, unknown>;
@@ -2987,6 +2991,8 @@ export class App {
       this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
       // The host's page is another version: reload this one, fresh, once (it may be the old one).
       if (!this.sameVersionAsHost(world)) return;
+      // The host's boats this page hasn't got: built from their tokens (multi-boat M1).
+      ensureBoatTypes(world);
       // The host's boat built here as theirs is (else we start again in hers and join again).
       if (!this.sameBoatAsHost(world)) return;
       // Same boats on both sides (tows come and go, so they don't count).
@@ -3144,11 +3150,13 @@ export class App {
     const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
     const theirs = home?.defId ?? 'workboat';
     const b = world.build ?? {};
+    // Her token: on her (multi-boat M1), or from an older host, on the world's build.
+    const token = home?.build ?? b.design;
     const ours = this.world.vessels[this.testVesselId]?.defId;
-    const same = theirs === ours && (b.design ?? '') === (this.builtAs.design ?? '') && (b.without ?? []).join(',') === (this.builtAs.without ?? []).join(',');
+    const same = theirs === ours && (token ?? '') === (this.builtAs.design ?? '') && (b.without ?? []).join(',') === (this.builtAs.without ?? []).join(',');
     if (same) return true;
     // Already rebuilt for this game once (or her code can't be read): a different version.
-    const buildable = (theirs !== 'design' || !!b.design) && !!RECIPES[theirs];
+    const buildable = (!isBoatType(theirs) || !!token) && !!RECIPES[theirs];
     if (START_JOIN === this.joinCode || !buildable) {
       this.netMessage = 'That game is a different version';
       this.leaveGame();
@@ -3156,7 +3164,7 @@ export class App {
     }
     const url = new URL(location.href);
     for (const k of ['design', 'boat', 'fit']) url.searchParams.delete(k);
-    if (theirs === 'design') url.searchParams.set('design', b.design!);
+    if (isBoatType(theirs)) url.searchParams.set('design', token!);
     else if (theirs !== CONFIG.career.boat) url.searchParams.set('boat', theirs);
     if (KIT_BOATS.includes(theirs)) {
       const fitted = CONFIG.career.upgrades.filter((u) => u.fit && !(b.without ?? []).includes(u.id)).map((u) => u.id);

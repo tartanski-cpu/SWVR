@@ -5250,6 +5250,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/starterBoat.test.ts` (+1): none to start; bought, the fenders, ring station and boat hook rack are aboard, no rubbing strake. `tests/starterWorkboat.test.ts`: the equipment list has the two more.
 - **Checked:** typecheck, `npm test`, headless: the beginner boat at Calder with fenders and the ring fitted (screenshot). **Not checked:** VR; buying them through the board in a live career (the same code path as the searchlight).
 
+### Multi-boat M1: boats by token (owner: "go ahead with the next step")
+
+- **The plan** (`docs/MULTI_BOAT.md`): M1 is the foundation for several boats in one Voyage game: a boat's type built from her design token on any page, so a boat can travel in a snapshot and be built by whoever gets it. Nothing visible changes yet.
+- **Boat types by token** (`boats/library.ts` `boatType`, `boatTypeId`, `boatTokenOf`, `boatTypeOf`, `isBoatType`, `ensureBoatTypes`): a Shipyard boat is a vessel type of her own, `boat:<hash>`, the hash from her token (her short code or her document token: a boat from a file travels whole), so every page gives her the same id. Built on first use: hull, recipe, vessel def and machinery, as the fleet's boats are. Any number of them at once: the game's one-at-a-time `'design'` slot is no longer what the game starts in (`?design=` makes her own type); the Shipyard page, its trials and the tests keep the `'design'` slot as it was.
+- **Her token on her** (`VesselState.build`): set when she's made (`createVesselState`), so every welcome and snapshot carries it; `world.build.design` is still set for older hosts. `VESSEL_DEFS` (vessel/vesselDef.ts) now resolves any id (a Proxy over the registry), and a type can be added one at a time (`putVesselDef`).
+- **Crew:** on the host's welcome and on every snapshot the page builds any boat it hasn't got from her token (`ensureBoatTypes`), so a boat launched later (M3) appears without a word. The crew's page still starts again to *become* the host's boat when hers is another type than theirs: that's the home-boat wiring in App.ts (the dash, sounds, gear mounts, bridge), which M2 moves to "the boat you're aboard"; the type itself no longer needs it.
+- **Tests:** `tests/boatTypes.test.ts` (+4): a token makes a type, the same id each time, her token on it, unknown tokens refused; two different Shipyard boats (one from a document token) in one world, both afloat, each her own type; a world from elsewhere with an unknown boat built from her token; a crew-mate's welcome and snapshots carry the token. The multiplayer, fleet, Shipyard-in-the-game, starter-boat and takeover tests as they were.
+- **Checked:** typecheck, `npm test`, headless: the career game started in a Shipyard boat by code (`career.html?design=CODE`) at Calder. **Not checked:** VR; a real two-page join across the broker with a boat from a file (the loopback test covers the token's travel).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

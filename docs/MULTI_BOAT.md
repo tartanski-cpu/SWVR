@@ -2,7 +2,7 @@
 
 The owner's brief (Oct 2026): up to four players (three is the likely case, Quest and desktop mixed), each driving their own boat, joined with the one game code as today. A spawn menu where each player picks a boat: one of the fleet, or a boat of their own from the Shipyard (a saved design, a code, or a file on their disk). Harbours get at least four parking places; the biggest boats spawn anchored in the bay instead; the rest on marked slots along the quay. Anyone can board and drive anyone's boat, so the crew can play as one boat, or as three. Physics and effects get a level of detail by distance: boats near you move in the waves exactly, far ones are simulated cheaply.
 
-This document is the plan. Nothing in it is built yet; the owner says go.
+This document is the plan. M1 is built (Oct 2026, see PROGRESS "Multi-boat M1"); M2 is next. The owner's answers to the questions at the end are still wanted before M3.
 
 ## What the engine does today, and what blocks the brief
 
@@ -26,10 +26,11 @@ Facts from the code (file references for the next session):
 
 Each lands on `/next/` for the owner to try, with tests, in this order. Rough size in sessions of work.
 
-### M1: boats by token (foundation; 1 to 2 sessions)
+### M1: boats by token (foundation; 1 to 2 sessions) — done
 - `VesselState.build` token on every player boat; a runtime registry of vessel types built from a token (`boat:<token>`), used by host and crew; `HULLS`, `RECIPES` and the sim cache keyed by it.
 - The welcome and snapshots carry the tokens; a crew-mate builds the host's boat in memory, no reload. The page's `?boat=` / `?design=` restart stays for solo only.
 - Test: join a host who is in a Shipyard boat from a file, without a reload; two different custom boats in one world in a test.
+- **As built:** `boats/library.ts` `boatType(token)` makes a vessel type `boat:<hash of the token>` (the same id on every page), her token on `VesselState.build`, `ensureBoatTypes(world)` builds any boat a welcome or snapshot brings; the game's `?design=` starts in such a type (the Shipyard page keeps its own 'design' slot). The crew's page still reloads to become the host's boat when hers is another type: the home-boat wiring in App.ts (M2) is what needs it, not the type any more.
 
 ### M2: your boat is the one you're aboard (2 sessions)
 - `myVesselId` (aboard) replaces `testVesselId` through `App.ts`; the dash, sounds, gear mounts, binoculars, towline, bridge wiring and interior culling move with you when you board another boat. The interaction system takes a boat's controls as her view is created.
