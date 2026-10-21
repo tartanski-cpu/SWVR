@@ -2,7 +2,7 @@
 
 The owner's brief (Oct 2026): up to four players (three is the likely case, Quest and desktop mixed), each driving their own boat, joined with the one game code as today. A spawn menu where each player picks a boat: one of the fleet, or a boat of their own from the Shipyard (a saved design, a code, or a file on their disk). Harbours get at least four parking places; the biggest boats spawn anchored in the bay instead; the rest on marked slots along the quay. Anyone can board and drive anyone's boat, so the crew can play as one boat, or as three. Physics and effects get a level of detail by distance: boats near you move in the waves exactly, far ones are simulated cheaply.
 
-This document is the plan. M1 and M2 are built (Oct 2026, see PROGRESS "Multi-boat M1" and "M2"); M3 is next, on the owner's answers at the end.
+This document is the plan. M1, M2 and M3 are built (Oct 2026, see PROGRESS "Multi-boat M1", "M2", "M3"); M4 is next. **Voyage mode only** to begin with (the owner, 21 Oct): the Career game stays one boat.
 
 ## What the engine does today, and what blocks the brief
 
@@ -39,10 +39,11 @@ Each lands on `/next/` for the owner to try, with tests, in this order. Rough si
 - Test: walk from your boat to the host's, take the wheel, drive; the dash and sounds are hers.
 - **As built:** `App.becomeAboard` follows `aboardVesselId` (any boat with a wheelhouse, not a tow or the skiff): her controls send plain channels (`BoatView.setHome`), the other's are routed to her; the towline lead, trawl warps, binoculars, hand gear and rods move to her (`mountOnHomeBoat`); her crane, whiteboard, wind sock, searchlight, chart, fire gauge, duty board and chart table are wired (`wireHomeBoat`); the interior detail is hers. Boats that come after the start get their controls (`InteractionSystem.addControls`). The board button takes the nearest boat within reach. `Debug > Boat > Second boat` (`spawnBoat` intent, core/spawnBoat.ts) puts a fleet boat alongside to try it. **Left for M3/M5:** the game systems that take `homeVessel(world)` (duties, rescue, fire, tow calls, traffic, forecast) still mean the host's start boat; the crew's one reload to become the host's boat on joining stays until the launch flow replaces it.
 
-### M3: slots and the launch menu (2 sessions)
+### M3: slots and the launch menu (2 sessions) — done
 - Region data: four slots per default harbour (Calder Haven first, then Loch Tarsk, Kvassvik, Ashby; Oban later) and the big-boat anchorage; drawn slot marks; occupancy in the world; `CONFIG.spawn`.
 - Crew tab "Your boat": fleet, saved designs, code, file; Launch and Hand her back; the host places her moored in a free slot or anchored in the bay; the lookout and the chart name crews' boats.
 - Test: three players each launch a boat at Calder, one big one anchors off; a fourth finds the last slot; leaving frees it.
+- **As built** (on the owner's answers): no hand-placed slots and no stored occupancy. A slot is any dockable berth of the game's harbour (`world/berths.ts allBerths`: the named ones and one per bollard pair along every face) whose quay face has room for her length plus a margin each end, with her draught and a metre under her whole hull, no block under any part of her, and no other boat along that stretch now (`world/slots.ts freeBerthFor`); a boat that leaves frees it. No face with room: she anchors off (`anchorSpotFor`: the port's anchorage circle, else 80 to 240 m off the port in 4 to 30 m of water, clear of the others). `core/launch.ts`: the `launchBoat` intent (ref: a fleet id or a design token) puts her there for the asking player (`VesselState.owner`); `withdrawBoat` hands her back; a player who leaves takes her with them. The menu: Crew → **Your boat** (Voyage only): the fleet, the Shipyard favourites, a code; **Hand her back**. The launching page boards her itself (App `followOwnBoat`). The lookout and chart naming crews' boats, and the "where a game starts" question, are left for M5.
 
 ### M4: level of detail (1 to 2 sessions)
 - Physics station LOD and tick decimation by distance to the nearest player (with the owner's rule: near boats move exactly in the waves); effects and view culling by distance; snapshot thinning for far boats.

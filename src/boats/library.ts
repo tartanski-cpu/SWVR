@@ -10,6 +10,7 @@ import { DEFAULT_DESIGN, type ShipDesign } from '../shipyard/design';
 import { readDesign, shortCode } from '../shipyard/designDoc';
 import { vesselDefFrom } from '../modular/vesselAssembly';
 import { putVesselDef, registerVesselDefs, vesselBuildToken } from '../vessel/vesselDef';
+import { setBoatResolver } from '../core/launch';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Mount, type Recipe } from '../modular/recipe';
 import { A_FRAME } from '../modules/aFrame';
 import { ANCHOR_WINDLASS } from '../modules/anchorWindlass';
@@ -152,6 +153,9 @@ export function boatType(token: string): string | null {
   putVesselDef(id, vesselDefFrom(id, RECIPES[id], LIBRARY), token.trim());
   return id;
 }
+
+// A launch by token (core/launch.ts) builds her type here.
+setBoatResolver(boatType);
 
 /** The design token a run-time boat type was built from (null for any other type). */
 export function boatTokenOf(defId: string): string | null {

@@ -7,7 +7,7 @@
  * build her view. Only a boat with a wheelhouse (one you can take the helm of).
  */
 import { CONFIG } from '../config';
-import { BERTHS } from '../world/archipelago';
+import { berthWithId } from '../world/berths';
 import { placeVessel } from '../vessel/vesselControl';
 import { hasWheelhouse, VESSEL_DEFS } from '../vessel/vesselDef';
 import { createVesselState } from '../vessel/vesselState';
@@ -31,7 +31,7 @@ export function applySpawnBoatIntent(world: WorldState, intent: Intent): void {
   const s = createVesselState(id, defId);
   // Her water side: away from the berth she's moored at, else to port.
   const h = headingOf(home.orientation);
-  const berth = home.mooring.phase === 'moored' ? BERTHS.find((b) => b.id === home.mooring.berthId) : undefined;
+  const berth = home.mooring.phase === 'moored' && home.mooring.berthId ? berthWithId(home.mooring.berthId) : undefined;
   const sideX = berth ? -berth.shoreX : -Math.cos(h);
   const sideZ = berth ? -berth.shoreZ : -Math.sin(h);
   const d = CONFIG.spawn.abeam + hullPlan(def).halfBeam(0) + hullPlan(VESSEL_DEFS[home.defId]).halfBeam(0);

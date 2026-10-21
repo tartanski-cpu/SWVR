@@ -4647,7 +4647,24 @@ export const CONFIG = {
    * boat; core/spawnBoat.ts): this much clear water between their sides (m). `boardReach`: from
    * ashore, the board button takes you to the nearest boat with a wheelhouse within this (m).
    */
-  spawn: { abeam: 6, boardReach: 40 },
+  spawn: {
+    abeam: 6,
+    boardReach: 40,
+    /**
+     * Launching your own boat (multi-boat M3; core/launch.ts, world/slots.ts): she's moored at
+     * a berth whose quay face has room for her length plus `slotMargin` m each end, clear of
+     * other boats (those within `nearFace` m of the face count), with her draught and `underKeel` m of
+     * water under her whole hull; else anchored off the harbour:
+     * in its anchorage, or `anchorOff` m from the port (tried outward) in `anchorDepth` m of
+     * water, `anchorClear` m from any other boat.
+     */
+    slotMargin: 1.5,
+    underKeel: 1,
+    nearFace: 10,
+    anchorOff: [80, 240] as [number, number],
+    anchorDepth: [4, 30] as [number, number],
+    anchorClear: 35,
+  },
 
   voyage: {
     boat: 'pilotBoat',
