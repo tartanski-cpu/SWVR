@@ -89,7 +89,7 @@ describe('a raised foredeck', () => {
     const walk = vesselWalkArea(VESSEL_DEFS.design, l);
     expect(walk.walkable(0, (c.z0 + c.ceiling.front) / 2 + 0.5, c.sole)).toBe(true);
     // The house forward of the break, not on it: no cabin there, saying why.
-    const off = useDesign({ ...netter, fcLength: 3, outboards: 1, foreCabin: 1 });
+    const off = useDesign({ ...netter, housePos: 0, fcLength: 3, outboards: 1, foreCabin: 1 });
     expect(VESSEL_DEFS.design.layout.cabin).toBeUndefined();
     expect(off.warnings.join(' ')).toMatch(/cabin below/);
   });

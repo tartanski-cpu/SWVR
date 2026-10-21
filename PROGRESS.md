@@ -5559,7 +5559,7 @@ Owner, Oct 2026: the raised foredeck's sliders seemed to jump back while sliding
 
 - **Now** (shipyard/parts/catalog.ts, DESIGN_HULLS gillnetter `defaults`): `housePos` 11 of 15 (0.73 of the free deck, forward of amidships), her working deck aft, as on the trawler she was shown with. Only a freshly picked hull is affected; saved designs and the game's fleet (their own files) keep their house where it is.
 - **Still so:** with the house forward, a foredeck ending 1 to 1.5 m aft of the bow stops forward of the house; longer ones run on under it to the landing aft of the house's door, and only the longest go further aft. Between, the slider moves the label but not the break. If that reads as broken, the label could show where the break really is.
-- **Checked:** headless Chromium, the Hull step: picking the gillnetter gives housePos 0.73; Raised foredeck swept 0 to 15: no jump to the transom (break forward of the house at 1.5 m, aft of it from 2 m). Full suite (below). **Not checked:** the Quest.
+- **Checked:** headless Chromium, the Hull step: picking the gillnetter gives housePos 0.73; Raised foredeck swept 0 to 15: no jump to the transom (break forward of the house at 1.5 m, aft of it from 2 m). tests/raisedForedeck.test.ts: its "house forward of the break" case now sets the house aft itself. Full suite passes. **Not checked:** the Quest.
 
 ### A cabin below under the raised foredeck (done, awaiting owner test)
 
