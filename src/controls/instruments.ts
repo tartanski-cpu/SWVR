@@ -18,10 +18,16 @@ import { formatPosition } from '../nav/geo';
  * display atlas they share.
  *
  * Modular boats (M3): each screen is its own instrument module (src/modules/screen), and
- * the screens a boat carries all share ONE canvas (an atlas of 512 x 256 regions) and ONE
- * merged mesh whose UVs map each screen to its region: one texture upload and one draw
- * call, redrawn at a modest rate (CONFIG.interaction.displayHz), cheap on the headset.
- * The assembler owns the atlas; a screen module claims a region with its painter.
+ * the screens a boat carries all share ONE canvas (an atlas) and ONE merged mesh whose UVs
+ * map each screen to its region: one texture upload and one draw call, redrawn at a modest
+ * rate (CONFIG.interaction.displayHz), cheap on the headset. The assembler owns the atlas;
+ * a screen module claims a region with its painter.
+ *
+ * Screen sizes (owner, Oct 2026: "a full size screen, and then there'll be a half size or
+ * a quarter size"): a screen is made of quarter cells (256 x 128 px: half a full screen's
+ * width and half its height): a full screen is 2 x 2 of them (512 x 256), a
+ * strip 2 x 1 (two quarters side by side: the TOW LINE), a quarter 1 x 1 (the ANCHOR). The
+ * atlas packs them in its grid of cells; the screen module sizes the glass to match.
  *
  * The atlas repaints (and re-uploads) only when something shown has changed: each screen
  * gives a key, its values rounded to what you could see change (a tenth of a knot, a
@@ -32,11 +38,13 @@ import { formatPosition } from '../nav/geo';
  * directly, as they always have. They only READ, like any other view.
  */
 const W = 1024;
-const H = 768;
-const RW = 512;
-const RH = 256;
-const COLS = W / RW;
-const MAX_REGIONS = (W / RW) * (H / RH);
+/** (1024 tall since the ANCHOR and TOW LINE screens: a tug with the advanced instruments carries six full screens, a strip and a quarter: 27 cells.) */
+const H = 1024;
+/** A quarter cell (px): half a full screen's width and height. */
+const CW = 256;
+const CH = 128;
+const COLS = W / CW;
+const ROWS = H / CH;
 const AMBER = '#ffb340';
 const DIM = '#6b4a1a';
 const BG = '#0d1210';
@@ -51,13 +59,41 @@ type ScreenKey = (s: VesselState, def: VesselDef, env: EnvironmentState | null) 
 export interface Screen {
   paint: Painter;
   key: ScreenKey;
+  /** Its size in quarter cells, across and down: [2, 2] a full screen (the default), [2, 1] a strip, [1, 1] a quarter. */
+  cells?: [1 | 2, 1 | 2];
 }
 
-/** A screen as fitted: its region, its circuit, its plane (vessel axes). */
+/** A screen's size in quarter cells. */
+export const cellsOf = (s: Screen): [number, number] => s.cells ?? [2, 2];
+
+/** A screen as fitted: its region's corner and size (atlas px), its circuit. */
 interface Region {
   screen: Screen;
   circuit: BreakerName;
-  index: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Where screens of these sizes (quarter cells, across and down) go in the atlas's grid, in
+ * turn: each at the first place, row by row, where all its cells are free. Throws if one
+ * doesn't fit (more screens than the atlas holds).
+ */
+export function packCells(sizes: [number, number][]): { col: number; row: number }[] {
+  const used = Array.from({ length: ROWS }, () => new Array<boolean>(COLS).fill(false));
+  return sizes.map(([w, h]) => {
+    for (let row = 0; row + h <= ROWS; row++)
+      for (let col = 0; col + w <= COLS; col++) {
+        let free = true;
+        for (let r = row; r < row + h && free; r++) for (let c = col; c < col + w && free; c++) free = !used[r][c];
+        if (!free) continue;
+        for (let r = row; r < row + h; r++) for (let c = col; c < col + w; c++) used[r][c] = true;
+        return { col, row };
+      }
+    throw new Error(`the display atlas is full (it holds ${COLS * ROWS} quarter cells)`);
+  });
 }
 
 export class DisplayAtlas {
@@ -86,13 +122,14 @@ export class DisplayAtlas {
    * they are remapped into the screen's region of the atlas.
    */
   add(screen: Screen, plane: THREE.BufferGeometry, circuit: BreakerName): void {
-    const index = this.regions.length;
-    if (index >= MAX_REGIONS) throw new Error(`the display atlas holds ${MAX_REGIONS} screens`);
-    const cx = (index % COLS) * RW;
-    const cy = Math.floor(index / COLS) * RH;
+    // Its place: packed with those before it (they keep theirs).
+    const sizes = [...this.regions.map((r) => [r.w / CW, r.h / CH] as [number, number]), cellsOf(screen)];
+    const at = packCells(sizes).at(-1)!;
+    const [cw, ch] = cellsOf(screen);
+    const region = { screen, circuit, x: at.col * CW, y: at.row * CH, w: cw * CW, h: ch * CH };
     const uv = plane.attributes.uv as THREE.BufferAttribute;
-    for (let k = 0; k < uv.count; k++) uv.setXY(k, (cx + uv.getX(k) * RW) / W, 1 - (cy + (1 - uv.getY(k)) * RH) / H);
-    this.regions.push({ screen, circuit, index });
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, (region.x + uv.getX(k) * region.w) / W, 1 - (region.y + (1 - uv.getY(k)) * region.h) / H);
+    this.regions.push(region);
     this.planes.push(plane);
   }
 
@@ -109,7 +146,7 @@ export class DisplayAtlas {
     this.sinceDraw += dt;
     if (this.sinceDraw < 1 / CONFIG.interaction.displayHz) return;
     this.sinceDraw = 0;
-    // Only repaint (and re-upload the 3 MB atlas) when something shown has changed: moored
+    // Only repaint (and re-upload the 4 MB atlas) when something shown has changed: moored
     // or drifting with the engine off, the screens cost nothing. No 12 V: black (drawn once).
     const powered = this.regions.map((r) => isPowered(state, r.circuit));
     const key = this.regions.map((r, i) => (powered[i] ? r.screen.key(state, def, env) : 'off')).join('#');
@@ -118,23 +155,24 @@ export class DisplayAtlas {
     const g = this.g;
     this.regions.forEach((r, i) => {
       g.save();
-      g.translate((r.index % COLS) * RW, Math.floor(r.index / COLS) * RH);
+      g.translate(r.x, r.y);
       g.beginPath();
-      g.rect(0, 0, RW, RH);
+      g.rect(0, 0, r.w, r.h);
       g.clip();
       if (!powered[i]) {
         g.fillStyle = '#020303';
-        g.fillRect(0, 0, RW, RH);
+        g.fillRect(0, 0, r.w, r.h);
         g.restore();
         return;
       }
       g.fillStyle = BG;
-      g.fillRect(0, 0, RW, RH);
+      g.fillRect(0, 0, r.w, r.h);
       r.screen.paint(g, state, def, env);
-      // Bezel.
+      // Bezel (thinner round a small screen).
+      const b = r.h < 2 * CH ? 6 : 10;
       g.strokeStyle = '#2b2f2c';
-      g.lineWidth = 10;
-      g.strokeRect(5, 5, RW - 10, RH - 10);
+      g.lineWidth = b;
+      g.strokeRect(b / 2, b / 2, r.w - b, r.h - b);
       g.restore();
     });
     this.texture.needsUpdate = true;
@@ -630,34 +668,38 @@ const paintNav: Painter = (g, s, def, env) => {
 
 /**
  * TOW LINE (owner, Oct 2026: the tension, and "how close it is to snapping"; on a boat that
- * can tow, with the advanced instruments): the line's pull in kN, and a bar of its load
- * toward parting (CONFIG.tow.gauge: the nearer of its tension to its breaking force and its
- * stretch to the most it takes), green, amber from half, red near breaking, with the highest
- * load lately held as a white mark (a snatch is over before you can look). Says SLACK, TAUT,
- * EASE OFF, PARTED, or NO LINE.
+ * can tow, with the advanced instruments). A strip, two quarter cells side by side (512 x
+ * 128; owner: "the instrument is too big"): the line's pull in kN and what it's doing (SLACK,
+ * TAUT, EASE OFF; PARTED or NO LINE), and a bar of its load toward parting (CONFIG.tow.gauge:
+ * the nearer of its tension to its breaking force and its stretch to the most it takes),
+ * green, amber from half, red near breaking, with the highest load lately held as a white
+ * mark (a snatch is over before you can look).
  */
 const paintTowline: Painter = (g, s) => {
   const t = s.towLine;
   const c = CONFIG.tow.gauge;
-  title(g, 'TOW LINE');
-  text(g, 'LOAD TO BREAKING', 492, 16, DIM, SMALL_PX, 'right');
+  g.fillStyle = DIM;
+  g.font = font(SMALL_PX);
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.fillText('TOW LINE', 14, 10);
   const load = t?.fast ? Math.min(1, t.load) : 0;
   const colour = load >= c.red ? RED : load >= c.amber ? AMBER : GREEN;
-  g.textAlign = 'left'; // (the big reading from the left edge, whatever was right-aligned above)
   if (!t?.fast) {
-    big(g, t?.parted ? 'PARTED' : 'NO LINE', 20, 92, 56, t?.parted ? RED : DIM);
+    big(g, t?.parted ? 'PARTED' : 'NO LINE', 14, 52, 36, t?.parted ? RED : DIM);
   } else {
-    big(g, (t.tension / 1000).toFixed(1), 20, 92, 72, AMBER);
-    text(g, 'kN', 20 + g.measureText((t.tension / 1000).toFixed(1)).width + 10, 104, DIM);
+    g.textAlign = 'left';
+    big(g, (t.tension / 1000).toFixed(1), 14, 52, 44, AMBER);
+    text(g, 'kN', 14 + g.measureText((t.tension / 1000).toFixed(1)).width + 8, 52, DIM, SMALL_PX);
     const state = t.tension < 50 ? 'SLACK' : load >= c.red ? 'EASE OFF' : 'TAUT';
-    text(g, state, 492, 76, state === 'EASE OFF' ? RED : state === 'SLACK' ? DIM : GREEN, 28, 'right');
-    text(g, `${Math.round(load * 100)} %`, 492, 112, colour, TEXT_PX, 'right');
+    text(g, state, 498, 30, state === 'EASE OFF' ? RED : state === 'SLACK' ? DIM : GREEN, 24, 'right');
+    text(g, `${Math.round(load * 100)} % OF BREAKING`, 498, 60, colour, SMALL_PX, 'right');
   }
   // The bar: its frame, the load, the amber and red marks, the peak held.
-  const x0 = 20;
-  const x1 = 492;
-  const y0 = 160;
-  const bh = 34;
+  const x0 = 14;
+  const x1 = 498;
+  const y0 = 88;
+  const bh = 24;
   g.strokeStyle = DIM;
   g.lineWidth = 2;
   g.strokeRect(x0, y0, x1 - x0, bh);
@@ -671,15 +713,70 @@ const paintTowline: Painter = (g, s) => {
   ] as const) {
     const x = x0 + (x1 - x0) * f;
     g.fillStyle = col;
-    g.fillRect(x - 1, y0 - 6, 3, bh + 12);
+    g.fillRect(x - 1, y0 - 4, 3, bh + 8);
   }
   if (t?.fast && t.peak > load + 0.02) {
     const x = x0 + (x1 - x0) * Math.min(1, t.peak);
     g.fillStyle = '#ffffff';
     g.fillRect(x - 2, y0 - 2, 4, bh + 4);
   }
-  text(g, '0', x0, y0 + bh + 10, DIM, SMALL_PX);
-  text(g, 'BREAK', x1, y0 + bh + 10, RED, SMALL_PX, 'right');
+};
+
+/**
+ * ANCHOR (owner, Oct 2026: from the helm "you need to know, is the chain going down? Is the
+ * anchor set? Is the chain going up? Is it in?"). A quarter screen (256 x 128) beside the
+ * speed screen: the chain out (m) and what the anchor's doing, with an arrow while the chain
+ * moves: ▼ LETTING GO, SET (holding; red DRAGGING), ▲ HEAVING IN, OFF THE BOTTOM (hanging:
+ * in too deep, or coming up), and HOUSED once it's stowed in the roller; a bar of the chain
+ * out against all she carries.
+ */
+const paintAnchorScreen: Painter = (g, s) => {
+  const a = s.anchor;
+  const chainM = gearOf(s, 'anchor')?.chainM ?? 0;
+  const flash = Math.floor(performance.now() / 500) % 2 === 0;
+  g.fillStyle = DIM;
+  g.font = font(SMALL_PX);
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.fillText('ANCHOR', 12, 10);
+  let state: string;
+  let colour = AMBER;
+  switch (a.phase) {
+    case 'stowed':
+      state = 'HOUSED';
+      colour = DIM;
+      break;
+    case 'paying':
+      state = '▼ LETTING GO';
+      colour = flash ? AMBER : DIM;
+      break;
+    case 'set':
+      state = a.dragging ? 'DRAGGING' : 'SET';
+      colour = a.dragging ? (flash ? RED : DIM) : GREEN;
+      break;
+    case 'weighing':
+      state = '▲ HEAVING IN';
+      colour = flash ? AMBER : DIM;
+      break;
+    default:
+      state = chainM && a.rodeM >= chainM ? 'NO BOTTOM' : 'OFF BOTTOM';
+      colour = AMBER;
+  }
+  g.textAlign = 'right';
+  big(g, a.phase === 'stowed' ? '0' : a.rodeM.toFixed(0), 168, 54, 44, a.phase === 'stowed' ? DIM : AMBER);
+  g.textAlign = 'left';
+  big(g, 'm', 174, 60, 20, DIM);
+  text(g, state, 12, 80, colour, 18);
+  // The chain out against all she carries.
+  if (chainM > 0) {
+    const x0 = 12;
+    const x1 = 244;
+    g.fillStyle = '#1f2a24';
+    g.fillRect(x0, 106, x1 - x0, 10);
+    g.fillStyle = a.phase === 'stowed' ? DIM : AMBER;
+    g.fillRect(x0, 106, (x1 - x0) * Math.min(1, a.rodeM / chainM), 10);
+    text(g, `${chainM.toFixed(0)}`, x1, 10, DIM, SMALL_PX, 'right');
+  }
 };
 
 /** The screens there are, for the screen module (modules/screen) to pick from. */
@@ -690,7 +787,16 @@ export const SCREENS = {
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
-  towline: { paint: paintTowline, key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
+  towline: { paint: paintTowline, cells: [2, 1], key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
+  anchor: {
+    paint: paintAnchorScreen,
+    cells: [1, 1],
+    key: (s) => {
+      const a = s.anchor;
+      const moving = a.phase === 'paying' || a.phase === 'weighing' || (a.phase === 'set' && a.dragging);
+      return [a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, moving ? Math.floor(performance.now() / 500) % 2 : 0].join('|');
+    },
+  },
 } satisfies Record<string, Screen>;
 
 export type ScreenName = keyof typeof SCREENS;

@@ -7,6 +7,7 @@ import { CONFIG } from '../../config';
 import landingCraftRecipe from '../../boats/landingCraft.json';
 import type { Mount, Recipe } from '../../modular/recipe';
 import { houseFlare } from '../../vessel/houseFlare';
+import { cellsOf, SCREENS, type ScreenName } from '../../controls/instruments';
 import { BASE_TORQUE, type BuildArgs, type V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
@@ -222,21 +223,38 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.slots.towline = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
     consoleMount.modules!.push({ socket: 'towline', module: 'instrument.screen', config: { screen: 'towline' } });
   }
-  const screens = ['speed', 'heading', 'rpm', 'engineMonitor', 'towline'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'rpm'].includes(id)));
-  // Each at its full size, side by side, if the row fits along the dash; if not (a small
-  // wheelhouse: owner, Oct 2026, the smallest landing craft's overlapped), all of them smaller
-  // together until it does. (Spacing them closer without shrinking them overlapped them.)
+  // ANCHOR (owner, Oct 2026: "is the chain going down? Is the anchor set? Is the chain going
+  // up? Is it in?"): a quarter screen beside the speed screen, on any boat with an anchor.
+  if (anchorAt) {
+    cc.slots.anchorScreen = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
+    consoleMount.modules!.push({ socket: 'anchorScreen', module: 'instrument.screen', config: { screen: 'anchor' } });
+  }
+  const screens = ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'anchorScreen', 'rpm'].includes(id)));
+  // Each its own size (a full screen, a strip or a quarter: instruments.ts `cells`), side by
+  // side, if the row fits along the dash; if not (a small wheelhouse: owner, Oct 2026, the
+  // smallest landing craft's overlapped), all of them smaller together until it does.
+  // (Spacing them closer without shrinking them overlapped them.)
   const sc = CONFIG.modules.screen.dash;
   const gap = CONFIG.shipyard.helm.screenGap;
+  const sizeOf = (id: string) => {
+    const name = (consoleMount.modules!.find((x) => x.socket === id)!.config as { screen: ScreenName }).screen;
+    const [cw, ch] = cellsOf(SCREENS[name]);
+    return { w: (sc.width * cw) / 2, h: (sc.height * ch) / 2, full: cw === 2 && ch === 2 };
+  };
+  const sizes = screens.map(sizeOf);
   const rowRoom = 2 * dashHalf - 2 * gap;
-  const shrink = Math.min(1, rowRoom / (screens.length * sc.width + (screens.length - 1) * gap));
-  const pitch = (sc.width + gap) * shrink;
+  const rowWidth = sizes.reduce((a, z) => a + z.w, 0) + (screens.length - 1) * gap;
+  const shrink = Math.min(1, rowRoom / rowWidth);
+  let x = (-rowWidth * shrink) / 2;
   screens.forEach((id, i) => {
     const slot = cc.slots[id] as { position: V3 };
-    slot.position = [Math.round((i - (screens.length - 1) / 2) * pitch * 1000) / 1000, slot.position[1], slot.position[2]];
-    if (shrink < 1) {
-      const m = consoleMount.modules!.find((x) => x.socket === id)!;
-      m.config = { ...m.config, width: Math.round(sc.width * shrink * 1000) / 1000, height: Math.round(sc.height * shrink * 1000) / 1000 };
+    const z = sizes[i];
+    slot.position = [Math.round((x + (z.w * shrink) / 2) * 1000) / 1000, slot.position[1], slot.position[2]];
+    x += (z.w + gap) * shrink;
+    // A strip or a quarter always says its size (the row test reads it); a full screen only when shrunk.
+    if (shrink < 1 || !z.full) {
+      const m = consoleMount.modules!.find((q) => q.socket === id)!;
+      m.config = { ...m.config, width: Math.round(z.w * shrink * 1000) / 1000, height: Math.round(z.h * shrink * 1000) / 1000 };
     }
   });
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
@@ -293,10 +311,10 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (stack) recipe.modules.push({ socket: 'exhaustStack', module: 'fitting.exhaust-stack', config: stack });
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
-    // depth, rpm, and the VHF (owner, Oct 2026: every boat answers calls, hears the forecasts
-    // and the harbours). No lights, searchlight, horn, wipers, heading, engine monitor or FM radio.
-    // The searchlight's and monitor's controls stay if they're worked from here.
-    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
+    // depth, rpm, the ANCHOR screen, and the VHF (owner, Oct 2026: every boat answers calls,
+    // hears the forecasts and the harbours). No lights, searchlight, horn, wipers, heading,
+    // engine monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
+    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE', 'DECK'].includes(gp.title));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
