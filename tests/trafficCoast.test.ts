@@ -2,7 +2,7 @@
  * AI traffic on the Voyage maps (owner, Oct 2026): in confined waters (Oban Bay, Loch Sween)
  * no ship can run the open-sea 4 km straight track, so ships are put on the longest clear
  * run found round the boat (traffic.ts confinedTrack), keep to water deep enough for their
- * type, and alter course (or go) when it shoals ahead.
+ * type, and alter course (or go) when it shoals ahead. All four maps are covered here.
  */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -31,6 +31,28 @@ async function load(map: string) {
   if (t.chunked) throw new Error('whole-mesh maps only here');
   const bin = readFileSync(join(root, 'public', t.dir, t.file));
   m.coast.registerCoastTerrain(map, bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) as ArrayBuffer, t, c.pkg.box, c.x, c.z);
+  return m;
+}
+
+/** A chunked map (the Clyde, Syros): its coarse grid is the ground until its chunks stream in. */
+async function loadChunked(map: string) {
+  vi.stubGlobal('location', { pathname: '/voyage.html', search: `?map=${map}`, href: `https://localhost/voyage.html?map=${map}` });
+  vi.resetModules();
+  const dir = join(root, 'public', 'regions', map);
+  const cr = await import('../src/world/coastRegion');
+  cr.setRemotePackage(JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')));
+  const m = {
+    regions: await import('../src/world/regions'),
+    coast: await import('../src/world/coastTerrain'),
+    traffic: await import('../src/traffic/traffic'),
+    world: await import('../src/core/world'),
+    ids: await import('../src/core/ids'),
+  };
+  const c = m.regions.regionById(map)!.coast!;
+  const t = c.pkg.terrain;
+  if (!t.chunked) throw new Error('chunked maps only here');
+  const bin = readFileSync(join(dir, t.coarse.file));
+  m.coast.registerChunkedCoast(map, bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) as ArrayBuffer, t, c.pkg.box, c.x, c.z);
   return m;
 }
 
@@ -81,6 +103,18 @@ describe('traffic on the Voyage maps', { timeout: 60000 }, () => {
     expect(seen).toBeGreaterThanOrEqual(2);
     expect(ids.size).toBeGreaterThanOrEqual(3);
     expect(v).toBeTruthy();
+  });
+
+  it('on the big chunked maps (the Clyde at Rothesay, Syros at Ermoupoli) ships are called from the start', async () => {
+    for (const map of ['clyde', 'syros']) {
+      const m = await loadChunked(map);
+      const { world, vesselId } = m.world.createWorld(new m.ids.IdFactory(), 'pilotBoat', { harbour: true });
+      const v = world.vessels[vesselId];
+      const t = m.traffic.createTraffic(0);
+      let ok = 0;
+      for (let i = 0; i < 10; i++) if (m.traffic.spawnShip(world, t, v)) ok++;
+      expect(ok, map).toBeGreaterThanOrEqual(8);
+    }
   });
 
   it('in Loch Sween (Tayvallich) ships of less draught find a run', async () => {
