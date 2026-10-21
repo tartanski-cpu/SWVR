@@ -5553,6 +5553,16 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
 
+### Deckhouse: one Width slider; out to her sides it's a raised deck (done, awaiting owner test)
+
+Owner, Oct 2026: "the deck house implementation needs some rework. So when it comes up to the side, when you use the option to the side, you probably don't need railings... on the side, because you would kind of walk over the sides. And I think maybe having this slider might help with the width of it." (Confirmed: at full width her bulwarks and rails rise along it, no separate rail round its top's sides; the three width buttons become one slider.)
+
+- **Shipyard, Wheelhouse step, Deckhouse group, Width:** one slider: at the left "as the wheelhouse" (dhNarrow), then "side decks" from 0.8 m narrowing in 5 cm steps (dhWidth), at the right "her full width" (dhWidth 0). Sets the same two fields as before, so codes and saved boats are unchanged. The separate Side decks slider is gone.
+- **Out to her sides** (`DeckhouseLayout.full`, shipyard/parts/house.ts): a raised deck. Her bulwark plate and rail rise along it by its height over her deck (hullMesh.ts buildDeckFittings, split where it starts and ends; weighed with it); its top is always walked (where the wheelhouse leaves room: the Top row hides), out to just inside her bulwarks (deckhouse.ts `FULL_SIDE_MARGIN` 0.1 m); its own rail only across its front and aft edges, where you'd step down to the main deck. A walked top not asked for, and with no room round the house, is left off quietly.
+- A side door onto a full-width deckhouse with no room beside the house says to make the house narrower, or the deckhouse only as wide as it.
+- **Tests changed:** deckhouseTop's "not walked as before" cases now use a deckhouse set in from her sides (out to them it's walked, by the owner's decision).
+- **Checked:** tests/shipyard/deckhouseFull.test.ts (2): her bulwark risen by the deckhouse's height at full width, not when set in; its top walked out near her sides. Shipyard tests, the goldens and the fleet pass; full suite passes. Headless Chromium: the pilot boat's deckhouse at full width and with side decks. **Not checked:** the Quest.
+
 ### Raised foredeck: ladders at the sides, as on a real trawler (done, awaiting owner test)
 
 Owner, Oct 2026 (a screenshot of two flights of steps one behind the other on the centreline): "the modeler doesn't resolve stairs very well today. Maybe do a little bit of research on how stairs are in real life arranged when you have this kind of poop deck and a raised deck house."

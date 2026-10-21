@@ -25,6 +25,12 @@ export interface DeckhouseLayout {
   well?: { halfWidth: number; z0: number };
   /** Its top walked (parametric boats P2b, design.dhWalk): see DeckhouseWalk. */
   walk?: DeckhouseWalk;
+  /**
+   * Out to her sides (owner, Oct 2026: then "you would kind of walk over the sides"): a raised
+   * deck, really. Her bulwarks and rails rise along it (hullMesh.ts buildDeckFittings), its top
+   * is always walked out to them, and its own rail runs only across its front and aft edges.
+   */
+  full?: boolean;
 }
 
 /**
@@ -45,13 +51,17 @@ export interface DeckhouseWalk {
   ladder: { face: 'aft' | 'front'; x: number; width: number; depth: number };
 }
 
+/** How far in from a full-width deckhouse's side its top is walked (m): just inside her risen bulwark. */
+const FULL_SIDE_MARGIN = 0.1;
+
 /** Is (x, z) on its walked top (`pad` further in from its edge)? Not checked against the wheelhouse standing on it. */
 export function onDeckhouseTop(dh: DeckhouseLayout, x: number, z: number, pad = 0): boolean {
   const w = dh.walk;
   if (!w) return false;
   const m = w.margin + pad;
   if (z < w.z0 + m || z > dh.z1 - m) return false;
-  return Math.abs(x) <= deckhouseHalfWidth(dh, z) - m;
+  // (Out to her sides: right out to her bulwarks, risen along it.)
+  return Math.abs(x) <= deckhouseHalfWidth(dh, z) - (dh.full ? FULL_SIDE_MARGIN + pad : m);
 }
 
 /** The ladder's climbing zone in plan: x across, z along (from the face out onto the deck, or up a raked front's slope). */

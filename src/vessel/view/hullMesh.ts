@@ -361,6 +361,10 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
   // The working-deck gate (layout.sideGate): its bulwark and rail section is a separate,
   // moving part (controls/SideGate.ts); here the gap is left, with a post at each end.
   const gate = layout.sideGate;
+  // A deckhouse out to her sides (a raised deck, owner): along it her bulwark plate and rail
+  // rise by as much as its top stands over her deck, so they guard its top as they do the deck.
+  const dh = layout.deckhouse?.full ? layout.deckhouse : undefined;
+  const risen = (z: number) => !!dh && z > dh.z0 && z < dh.z1;
   for (const side of [-1, 1]) {
     for (let i = 0; i < st.length - 1; i++) {
       const a = edge(i, side, 0);
@@ -373,15 +377,27 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
         const hi = Math.min(1, Math.max(f(gate.z0), f(gate.z1)));
         if (hi > lo) pieces = [[0, lo], [hi, 1]].filter(([u, v]) => v - u > 1e-3) as [number, number][];
       }
+      // (Split where a full-width deckhouse starts and ends: its bulwark is risen between.)
+      if (dh) {
+        const f = (z: number) => (z - a.z) / (b.z - a.z);
+        const cuts = [f(dh.z0), f(dh.z1)].filter((t) => t > 1e-3 && t < 1 - 1e-3);
+        pieces = pieces.flatMap(([u, v]) => {
+          const ts = [u, ...cuts.filter((t) => t > u && t < v).sort((x, y) => x - y), v];
+          return ts.slice(1).map((t, k): [number, number] => [ts[k], t]);
+        });
+      }
       for (const [u, v] of pieces) {
         const p0 = a.clone().lerp(b, u);
         const p1 = a.clone().lerp(b, v);
+        // Risen along a full-width deckhouse: the deck under her plate here is its top.
+        const up = risen((p0.z + p1.z) / 2) ? dh!.top - (p0.y + p1.y) / 2 : 0;
         // Bulwark plate (a thin bar standing on the deck edge).
-        parts.push(bar(p0.clone().setY(p0.y + bh / 2), p1.clone().setY(p1.y + bh / 2), 0.05, bh, col.topsides));
-        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + rh), p1.clone().setY(p1.y + rh), 0.05, 0.05, col.rail));
+        parts.push(bar(p0.clone().setY(p0.y + (bh + up) / 2), p1.clone().setY(p1.y + (bh + up) / 2), 0.05, bh + up, col.topsides));
+        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + up + rh), p1.clone().setY(p1.y + up + rh), 0.05, 0.05, col.rail));
       }
       const inGap = !!gate && side === gate.side && a.z > gate.z0 && a.z < gate.z1;
-      if (rh > 0 && !inGap) parts.push(bar(edge(i, side, bh), edge(i, side, rh), 0.04, 0.04, col.rail));
+      const upAt = risen(a.z) ? dh!.top - a.y : 0;
+      if (rh > 0 && !inGap) parts.push(bar(edge(i, side, bh + upAt), edge(i, side, rh + upAt), 0.04, 0.04, col.rail));
     }
   }
   if (gate) {
@@ -932,7 +948,8 @@ function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => nu
   };
   // Along each side: through its plan's points from the flat top aft.
   const zs = [w.z0, ...dh.plan.map(([z]) => z).filter((z) => z > w.z0 + 0.05 && z < dh.z1 - 0.05), dh.z1 - inset];
-  for (const sg of [-1, 1]) railAlong(zs.map((z): [number, number] => [sg * half(z), z]));
+  // (Out to her sides: none; her bulwarks are risen along it.)
+  if (!dh.full) for (const sg of [-1, 1]) railAlong(zs.map((z): [number, number] => [sg * half(z), z]));
   // Across the front.
   const zf = w.z0 + inset;
   gap(-half(w.z0), half(w.z0), zf, lad.face === 'front');

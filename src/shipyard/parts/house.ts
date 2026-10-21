@@ -176,6 +176,8 @@ export function housePart(a: BuildArgs, p: HullPart) {
     // (As wide as a faceted house: on to its angled corners, so they stand on it.)
     const z1 = narrow ? front + 0.03 + (facet?.depth ?? 0) : aft - 0.02;
     const side = d.dhWidth;
+    // Out to her sides (no side decks): a raised deck (owner, Oct 2026), its top always walked.
+    const full = !narrow && side < 0.025;
     const plainAt = (z: number) => (narrow ? Math.max(0.3, Math.min(hw, q.halfBeam(z) - dhc.edge)) : Math.max(z >= front - 0.01 ? hw : 0.3, q.halfBeam(z) - Math.max(dhc.edge, side)));
     // Faceted as the house is (owner): its front square across the middle, its corners cut
     // back at the same angle from its own front (always ahead of the house's, so wider).
@@ -188,11 +190,13 @@ export function housePart(a: BuildArgs, p: HullPart) {
     zs.sort((a, b) => a - b);
     const plan = zs.map((z): [number, number] => [rnd(z), rnd(halfAt(z))]);
     const top = rnd(Math.max(...zs.map((z) => q.deckY(z))) + d.dhHeight);
-    deckhouse = { z0: rnd(z0), z1: rnd(z1), top, rakeDeg: d.dhRake, plan };
+    deckhouse = { z0: rnd(z0), z1: rnd(z1), top, rakeDeg: d.dhRake, plan, ...(full ? { full: true } : {}) };
     // Its plate: the two sides, the top, the front and the aft face (m²), for its weight and price.
     const h = d.dhHeight;
     for (let i = 1; i < plan.length; i++) dhArea += (plan[i][0] - plan[i - 1][0]) * (2 * h + plan[i][1] + plan[i - 1][1]);
     dhArea += 2 * plan[0][1] * h + 2 * plan[plan.length - 1][1] * h;
+    // Out to her sides: her bulwarks risen along it too.
+    if (full) dhArea += 2 * (z1 - z0) * h;
   }
   // The floor: with a deckhouse, from its top (owner, Oct 2026: level with it, raised, or
   // sunk into it, the house's walls going down inside it and its top open over the cabin);
@@ -218,7 +222,8 @@ export function housePart(a: BuildArgs, p: HullPart) {
   let foreEndAt = front;
   if (d.dhWalk && !deckhouse) warnings.push('The walked deckhouse top needs a deckhouse: none.');
   if (deckhouse) foreEndAt = Math.min(front, deckhouse.z0);
-  if (d.dhWalk && deckhouse) {
+  // (Out to her sides, always: it's a raised deck you cross to get forward.)
+  if ((d.dhWalk || deckhouse?.full) && deckhouse) {
     const wk = dhc.walk;
     // Its top is flat aft of the front's rake (hullMesh.ts buildDeckhouse: the same slope).
     const foot = q.deckY(deckhouse.z0) - 0.06;
@@ -226,7 +231,10 @@ export function housePart(a: BuildArgs, p: HullPart) {
     const fore = front - flat - 2 * wk.margin;
     const stripAft = deckhouseHalfWidth(deckhouse, deckhouse.z1) - hw;
     const roomAft = !d.dhNarrow && stripAft - wk.margin >= wk.ladder.width + 0.1;
-    if (fore < wk.minFore && !roomAft) warnings.push('The deckhouse’s top has no room to walk round the wheelhouse (make it reach further forward, or wider than the house): not walked.');
+    if (fore < wk.minFore && !roomAft) {
+      // (Only said when asked for: out to her sides it's walked if there's room, quietly not if the house fills it.)
+      if (d.dhWalk) warnings.push('The deckhouse’s top has no room to walk round the wheelhouse (make it reach further forward, or wider than the house): not walked.');
+    }
     else {
       const ladder = roomAft
         ? { face: 'aft' as const, x: rnd(hw + (stripAft - wk.margin) / 2 + 0.05), width: wk.ladder.width, depth: wk.ladder.depth }
@@ -235,7 +243,8 @@ export function housePart(a: BuildArgs, p: HullPart) {
       // The rail's run: both sides from the flat top's front aft (beside the house too), and across the front.
       const w0 = deckhouseHalfWidth(deckhouse, flat);
       if (ladder.face === 'front') foreEndAt = deckhouse.z0 - ladder.depth;
-      dhRailM = 2 * (deckhouse.z1 - flat) + 2 * w0 + (roomAft ? 2 * stripAft : 0);
+      // (Out to her sides: no rail along them; her bulwarks are risen there.)
+      dhRailM = (deckhouse.full ? 0 : 2 * (deckhouse.z1 - flat)) + 2 * w0 + (roomAft ? 2 * stripAft : 0);
     }
   }
   const roofY = floorY + headroom;
@@ -482,7 +491,7 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     if (d.flare) warnings.push('The side door slides along an upright wall: it needs upright side windows (not raked out all round): left off.');
     else if (deckhouse && !d.dhNarrow && !deckhouse.walk) warnings.push('The side door would open onto the deckhouse’s top, which isn’t walked (walk its top, or make the deckhouse as wide as the wheelhouse): left off.');
     else if (deckhouse?.walk && !d.dhNarrow && Math.abs(floorY - deckhouse.top) > 0.35) warnings.push('The wheelhouse floor is too far from the deckhouse’s top for a side door onto it (bring its floor level with the top): left off.');
-    else if (deckhouse?.walk && !d.dhNarrow && deckhouseHalfWidth(deckhouse, z0 + sdc.width / 2) - hw - deckhouse.walk.margin < sdc.sideDeck) warnings.push('The deckhouse’s top is too narrow beside the wheelhouse to step out of a side door onto (set its side decks narrower): left off.');
+    else if (deckhouse?.walk && !d.dhNarrow && deckhouseHalfWidth(deckhouse, z0 + sdc.width / 2) - hw - deckhouse.walk.margin < sdc.sideDeck) warnings.push('The deckhouse’s top is too narrow beside the wheelhouse to step out of a side door onto (a narrower wheelhouse, or a deckhouse only as wide as the wheelhouse): left off.');
     else if (zEnd - z0 < sdc.width) warnings.push(`Her wheelhouse is too short for a side door between the helm and ${chartTableAt ? 'the chart table' : 'the aft wall'}: left off.`);
     else if (deckOutside < sdc.sideDeck) warnings.push('There\'s no side deck outside her wheelhouse to step out onto (a narrower house leaves one): the side door is left off.');
     else if (height < 1.7) warnings.push('Her wheelhouse is too low inside for a side door: left off.');
