@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { fitPaint, mergeParts, paintLocal, part } from '../src/render/geometryUtils';
-import { PAINTS, TILE, paintIndex, paintPixels } from '../src/render/pixelPaint';
+import { PAINTS, TILE, TINTED, paintIndex, paintPixels } from '../src/render/pixelPaint';
 
 describe('pixel painting', () => {
-  it('each tile is mid-grey on average (it adds detail, not a darker or lighter colour), and the same every time', () => {
+  it('each tile is mid-grey on average (it adds detail, not a darker or lighter colour), and the same every time (but the tinted ones)', () => {
     const px = paintPixels();
     PAINTS.forEach((name, k) => {
+      if (TINTED.includes(name)) return; // made for one colour (the beamed liners): their own test
       const base = (k + 1) * TILE * TILE * 4;
       let sum = 0;
       for (let i = 0; i < TILE * TILE; i++) sum += px[base + i * 4];

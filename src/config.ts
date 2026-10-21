@@ -65,6 +65,19 @@ const PONTOON_LCB = 3.17;
 const LC_FLOOR = 0.77;
 /** The Alaskan 38's house floor (m above the DWL): her pilothouse's, a step up from the cockpit deck (1.02 at the door). */
 const A38_FLOOR = 1.25;
+/**
+ * The ceiling liners' colours (CONFIG.interiors, CONFIG.cabinBeams): their beams are painted
+ * into the liner's tile (render/pixelPaint.ts), which is made for its liner's colour, so both
+ * read these.
+ */
+const LINER_LIGHT = 0xe2e1db;
+const LINER_DARK = 0x3c4044;
+/**
+ * The dark liner's ceiling is a mid grey under its tile: a tile can at most double the colour
+ * under it, too little to bring a wood-brown beam up from charcoal, so the tile darkens the
+ * liner from this and lightens the beams.
+ */
+const LINER_DARK_BASE = 0x8a8a8a;
 
 export const CONFIG = {
   sim: {
@@ -95,7 +108,7 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4, facade: 3 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4, facade: 3, beamsLight: 1.68, beamsDark: 1.68 },
     /**
      * The house fronts' windows at night (the house kit): the share of windows lit, their
      * glow (colour, its brightness is the strength), and how dark it must be before they
@@ -112,9 +125,9 @@ export const CONFIG = {
    * then, from photos of real ones: "quite often there's a wood floor and then... either a
    * light ceiling liner or a dark ceiling liner... and I like this one with the wooden beams
    * across it"; chosen in the Shipyard, Wheelhouse step, Lining). Each is a colour and a tile
-   * (pixelPaint) for the walls' inside faces and for the ceiling, and whether varnished wooden
-   * battens run across the ceiling (`beams`, at `beamPitch` m, `beamWidth` x `beamDepth`,
-   * with a wood trim strip round its edge, `trimDepth` deep: CONFIG.cabinTrim):
+   * (pixelPaint) for the walls' inside faces and for the ceiling. The liners' varnished wooden
+   * battens across the ceiling are painted into their ceiling tile (`beamsLight`, `beamsDark`;
+   * owner: "you can just paint those with textures, they don't need to be 3D"): CONFIG.cabinBeams.
    * - wood: the planked lining every boat had before (first, so a boat with no choice keeps it);
    * - light liner: a pale speckled vinyl headliner between the battens, dark charcoal walls
    *   (the aluminium pilothouse in the owner's photos);
@@ -124,15 +137,27 @@ export const CONFIG = {
    * - bare aluminium: the plain workboat's, the hull's own sheet left bare.
    */
   interiors: [
-    { name: 'Wood lining', walls: 0x8a5d3c, wallTile: 'wood', ceiling: 0x8a5d3c, ceilingTile: 'wood', beams: false },
-    { name: 'Light liner, beams', walls: 0x34383c, wallTile: 'mat', ceiling: 0xe2e1db, ceilingTile: 'mat', beams: true },
-    { name: 'Dark liner, beams', walls: 0x34383c, wallTile: 'mat', ceiling: 0x3c4044, ceilingTile: 'mat', beams: true },
-    { name: 'Light all round, beams', walls: 0xc8cac6, wallTile: 'mat', ceiling: 0xe2e1db, ceilingTile: 'mat', beams: true },
-    { name: 'Painted steel', walls: 0xb9c9ae, wallTile: 'steel', ceiling: 0xe2e2d6, ceilingTile: 'steel', beams: false },
-    { name: 'Bare aluminium', walls: 0xc3c8cd, wallTile: 'brushed', ceiling: 0xc2c5c8, ceilingTile: 'brushed', beams: false },
+    { name: 'Wood lining', walls: 0x8a5d3c, wallTile: 'wood', ceiling: 0x8a5d3c, ceilingTile: 'wood' },
+    { name: 'Light liner, beams', walls: 0x34383c, wallTile: 'mat', ceiling: LINER_LIGHT, ceilingTile: 'beamsLight' },
+    { name: 'Dark liner, beams', walls: 0x34383c, wallTile: 'mat', ceiling: LINER_DARK_BASE, ceilingTile: 'beamsDark' },
+    { name: 'Light all round, beams', walls: 0xc8cac6, wallTile: 'mat', ceiling: LINER_LIGHT, ceilingTile: 'beamsLight' },
+    { name: 'Painted steel', walls: 0xb9c9ae, wallTile: 'steel', ceiling: 0xe2e2d6, ceilingTile: 'steel' },
+    { name: 'Bare aluminium', walls: 0xc3c8cd, wallTile: 'brushed', ceiling: 0xc2c5c8, ceilingTile: 'brushed' },
   ] as const,
-  /** The ceiling's battens and trim (CONFIG.interiors' `beams`): varnished wood, sizes in m. */
-  cabinTrim: { colour: 0x8e5a32, beamPitch: 0.42, beamWidth: 0.045, beamDepth: 0.035, trimDepth: 0.06 },
+  /**
+   * The liners' beams, painted into the ceiling's tile (pixelPaint `beamsLight` / `beamsDark`):
+   * the varnished wood's colour; for each tile, the ceiling colour it's made to go over (as in
+   * CONFIG.interiors: the tile multiplies it) and the liner's colour to show; and the beams'
+   * spacing and width in the tile's pixels (the tile repeats every 1.68 m, pixelPaint.tileMetres:
+   * 16 pixels is 0.42 m between beams, 3 pixels ~8 cm wide), each with a pixel of shadow beside.
+   */
+  cabinBeams: {
+    colour: 0xa86c3c,
+    light: { ceiling: LINER_LIGHT, liner: LINER_LIGHT },
+    dark: { ceiling: LINER_DARK_BASE, liner: LINER_DARK },
+    pitchPx: 16,
+    widthPx: 3,
+  },
   /**
    * The wheelhouse floor (owner, Oct 2026, from photos: a wood floor, or "a grippy deck kind of
    * utility floor"; Shipyard, Wheelhouse step, Floor): its colour (null: the livery's floor
