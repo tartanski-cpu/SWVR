@@ -6922,6 +6922,16 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
 
+- **Coast maps, queued after the harbour boats (settlements milestone 6)** (owner, Oct 2026: "Do 1, 2 and 8 after the harbour boats"; from a list of cheap additions to the map pipeline), one round:
+  1. **Fish farms on the coast maps:** the pipeline already reads marine farms (`tools/coast/src/nav.ts`, `seamark:type=marine_farm`) but doesn't pass them to the game. Package them and draw them with the hand-built Fjord's farms (`src/world/farms.ts`). Instanced rings, a few draw calls.
+  2. **Sound placed from the map:**
+     - foghorns at lights the data says carry a fog signal (`seamark:fog_signal`), sounding their charted pattern in fog;
+     - a church bell on the hour from the church buildings;
+     - gulls over harbours and fish quays, livestock faintly from farmland, surf on exposed rocky shores.
+     - Only the few sources near the player play; nothing is drawn.
+  3. **A pipeline check for overlapping piers:** the report warns where quay or pier blocks overlap at different deck heights (Rothesay's start spot, fixed in the game by "Fix: put ashore under the pier at Rothesay").
+- **Suggested and not chosen yet** (the same list): the shore's material (sand, shingle, rock, cliff) tinting the land and deciding where a landing craft may beach; place names on the chartplotter and paper chart; landmarks with lights (castles, masts, wind turbines); AI ferries on the real ferry routes; charted hazards in play (wrecks for salvage, cables where anchoring snags, overhead cables' clearance); tides (open data to check first). Steered away from: cars on the roads, running rivers, building interiors.
+
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 
 1. **Owner VR test** of fuel and temperatures, harbours, anchoring and refuelling. Then tune contact stiffness, the shelter factors and the menu size and placement.
