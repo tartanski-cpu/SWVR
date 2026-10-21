@@ -110,6 +110,18 @@ export class WorldView {
     }
   }
 
+  /**
+   * A hand-built region's drawn terrain, once built (xyz per corner, three corners a
+   * triangle), for the chartplotter's sharp coastline (nav/chartLand.ts); null until it is,
+   * or for a coast region (its mesh is in world/coastTerrain.ts).
+   */
+  terrainPositions(regionId: string): Float32Array | null {
+    const v = this.views.find((x) => x.region.id === regionId);
+    const mesh = v?.full.getObjectByName('terrain') as THREE.Mesh | undefined;
+    const attr = mesh?.geometry.getAttribute('position');
+    return attr ? (attr.array as Float32Array) : null;
+  }
+
   /** One line per region for the debug overlay: state and distance. */
   status(): string {
     return this.views

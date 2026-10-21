@@ -206,6 +206,7 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 | Clear the chart | Hold the eraser's trigger 2 s | Menu → Voyage → Clear marks |
 
 - Marks are kept in chart coordinates, so a route you plot lines up with the real places. They show faintly on the chartplotter too.
+- **The plotter's coastline is drawn from the ground itself** on every map, the career archipelago as well as the Voyage maps: land, beach and the shallows under 6 m are cut from the terrain's own triangles, so they stay sharp however far you zoom in. A region's outline appears once her view has built the ground as you near it; until then the plotter shows its coarser sampled picture.
 - Marks are saved in the browser, so a route plotted before leaving is still there after a reload.
 - In multiplayer, crewmates see the marks appear as you draw, and several people can draw at once.
 - **Plot it yourself** (Menu → Settings → Game → Rescue position, or `rescue.plotYourself` in the config; off by default): rescue calls give only the last known position in latitude and longitude, and the chartplotter doesn't show the search area. Plot it on the paper chart, using the latitude and longitude scale on the chart's edges.

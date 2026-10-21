@@ -5200,6 +5200,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/takeover.test.ts` (+1): the election picks the earliest-joined by number (player-3 before player-10), never the host, the same from the same world.
 - **Checked:** typecheck, `npm test`. **Not checked:** through the broker with real devices (the sandbox can't): the timing of the old room's release against the successor's hosting attempt; a host lost during a boat change.
 
+### The chartplotter's sharp coast on the career map; Voyage starts in the pilot boat (owner)
+
+- **The owner:** bring the new chart technology (the plotter's coastline cut from the ground's mesh, done for the coast maps) to the hand-built career map; and make the pilot boat (the fast patrol boat) Voyage mode's default.
+- **The chart** (`nav/chartLand.ts` `MeshArrays`, `terrainMesh`; `nav/chartPlotter.ts` `setLandSource`, `landMeshes`; `world/view/worldView.ts` `terrainPositions`): the cutting took a coast map's mesh; it now takes any mesh with corners and faces, and a hand-built region's drawn terrain (`terrainMesh.ts buildTerrainArrays`: 6 m cells at the coast, three corners a triangle) is one. The plotter asks the world view for a region's built terrain (the view builds it as the boat nears the region, well inside the plotter's reach; home at start) and cuts it into 2 km squares and outlines at the chart's three depths exactly as a coast map's, nearest squares first within the same 4 ms a redraw. Until a region's view has built it, and for the far ones, the sampled picture stays as before. No rebuild of the terrain for the chart: the fjord's would cost 1.4 s on the main thread; the view's arrays are the same ones the ground is drawn from.
+- **Voyage's boat** (`CONFIG.voyage.boat`): `pilotBoat`.
+- **Tests:** `tests/chartLand.test.ts` (+1): home's terrain cut into squares, Calder Haven's square with faces and a path at every depth, deep squares empty.
+- **Checked:** typecheck, `npm test`, headless: the plotter's screen at Calder zoomed in, before (the sampled picture) and after (the outlines). **Not checked:** VR; the first-look cost of the biggest hand-built region's outlines (the fjord: 55,000 triangles, cut within the 4 ms budget over a few redraws).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

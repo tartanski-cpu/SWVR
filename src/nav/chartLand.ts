@@ -13,7 +13,25 @@
  *
  * The cutting is plain numbers (tested); the plotter turns the outlines into canvas paths.
  */
-import type { CoastPiece } from '../world/coastTerrain';
+
+/**
+ * What the cutting needs of a mesh: vertices (x, y, z) and faces (a, b, c). A coast map's
+ * piece (world/coastTerrain.ts) is one; so is a hand-built region's drawn terrain
+ * (world/view/terrainMesh.ts, three corners a triangle: owner, Oct 2026, the same sharp
+ * chart on the career map), as `terrainMesh()` below makes it.
+ */
+export interface MeshArrays {
+  V: Float32Array;
+  F: Uint32Array;
+}
+
+/** A non-indexed terrain (xyz per corner, three corners a triangle) as a mesh to cut. */
+export function terrainMesh(position: Float32Array): MeshArrays {
+  const n = position.length / 3;
+  const F = new Uint32Array(n);
+  for (let i = 0; i < n; i++) F[i] = i;
+  return { V: position, F };
+}
 
 /** The depths the chart's colours change at (m, + up): the shallows (under 6 m of water), the beach, the land. */
 export const CHART_LEVELS = [-6, 0, 3] as const;
@@ -77,7 +95,7 @@ const isDeep = (V: Float32Array, F: Uint32Array, f: number) => Math.max(V[F[3 * 
  * A mesh's squares: one, `box`, for a big map's streamed square (all its faces in it); else
  * squares of CHART_CELL on the world's grid (a whole map's mesh, so only those in view are drawn).
  */
-export function chartCells(p: CoastPiece, box?: { x0: number; z0: number; size: number }): ChartCell[] {
+export function chartCells(p: MeshArrays, box?: { x0: number; z0: number; size: number }): ChartCell[] {
   const { V, F } = p;
   const nf = F.length / 3;
   const lists = new Map<string, { x0: number; z0: number; size: number; faces: number[] }>();
@@ -111,7 +129,7 @@ export function chartCells(p: CoastPiece, box?: { x0: number; z0: number; size: 
  * drawing a hundred thousand corners one call at a time). A face wholly above the next level
  * up gives nothing for this one: it'd be hidden under it.
  */
-export function cellOutlines(p: CoastPiece, cell: ChartCell): string[] {
+export function cellOutlines(p: MeshArrays, cell: ChartCell): string[] {
   const { V, F } = p;
   const tri = new Float32Array(9);
   const scratch: number[] = [];

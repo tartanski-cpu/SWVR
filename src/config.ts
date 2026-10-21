@@ -4482,7 +4482,7 @@ export const CONFIG = {
    * code or a design file), fitted out in full.
    */
   voyage: {
-    boat: 'fishingBoat',
+    boat: 'pilotBoat',
   },
 
   start: {
