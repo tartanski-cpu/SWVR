@@ -54,7 +54,7 @@ import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
-import { physicsStations } from '../hullForm';
+import { physicsStations, type Station } from '../hullForm';
 import { contactAt, guardContactAt, hullContactPoints, type ContactResult, type GuardMaterial } from './contacts';
 import { localSeaAt } from '../../ocean/waves';
 
@@ -207,6 +207,8 @@ export function stepVessel(
   payload: readonly { mass: number; pos: THREE.Vector3 }[] = [],
   /** Other forces this tick (world force at a world point): another boat's hull against this one. */
   external: readonly ExternalForce[] = [],
+  /** The stations to float her on: all of them, or a far boat's few (core/lod.ts). */
+  stations: readonly Station[] = physicsStations(def.hull),
 ): void {
   const rho = CONFIG.ocean.density;
   const g = CONFIG.ocean.gravity;
@@ -253,7 +255,7 @@ export function stepVessel(
   // Σ of each station's lateral area times its half-beam squared: the roll damping her hull
   // gives as a lifting surface going ahead (below).
   let rollLiftArea = 0;
-  for (const st of physicsStations(def.hull)) {
+  for (const st of stations) {
     const b = Math.max(st.halfBeamChine, 0.05);
     // Water surface at port chine, centreline and starboard chine (at DWL height).
     toWorld(-b, 0, st.z, portW);

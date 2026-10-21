@@ -226,6 +226,8 @@ export interface VesselState {
   build?: string;
   /** The player she belongs to (multi-boat M3: launched by them, core/launch.ts); unset on the game's own boats. */
   owner?: EntityId;
+  /** How closely she's simulated this tick (multi-boat M4, core/lod.ts): by her distance to the nearest player. Set by the host. */
+  lod?: 'near' | 'mid' | 'far';
   /** World position of the vessel origin (centreline, amidships, DWL). */
   position: Vec3;
   /** Orientation, vessel -> world. */

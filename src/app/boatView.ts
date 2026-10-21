@@ -133,9 +133,29 @@ export class BoatView {
     this.dashAnchor = this.root.getObjectByName('dashAnchor') ?? null;
     const fixed = bakeFixedParts(this.root, modules.staticParts);
     if (fixed) this.root.add(fixed);
-    if (modules.labels.length) this.root.add(buildLabels(modules.labels));
-    if (modules.screens) this.root.add(modules.screens);
+    if (modules.labels.length) this.root.add((this.labels = buildLabels(modules.labels)));
+    if (modules.screens) this.root.add((this.screens = modules.screens));
     for (const m of modules.shared) this.root.add(m);
+    this.shared = modules.shared;
+  }
+
+  private labels: THREE.Object3D | null = null;
+  private screens: THREE.Object3D | null = null;
+  private shared: readonly THREE.Object3D[] = [];
+  private far = false;
+
+  /**
+   * Far from the viewer (multi-boat M4, beyond CONFIG.lod.far): her controls, labels, screens
+   * and the shared bats and caps aren't drawn (each is a draw call, none of them visible at
+   * that range); her hull, house, baked fixed parts and lights still are.
+   */
+  setFar(far: boolean): void {
+    if (far === this.far) return;
+    this.far = far;
+    for (const c of this.controls) c.root.visible = !far;
+    if (this.labels) this.labels.visible = !far;
+    if (this.screens) this.screens.visible = !far;
+    for (const m of this.shared) m.visible = !far;
   }
 
   /**

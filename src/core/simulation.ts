@@ -27,6 +27,7 @@ import { stepForecast } from '../environment/forecast';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
 import { applySpawnBoatIntent } from './spawnBoat';
 import { applyLaunchIntent, isLaunchIntent, stepLaunched } from './launch';
+import { heldInPlace, lodStations, vesselLod } from './lod';
 import { stepDuties } from '../duties/duties';
 import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
 import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
@@ -172,7 +173,10 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     const external = wind ? [...(ext ?? []), wind] : ext;
     // The autopilot (the helm assist panel) sets the wheel before her steering reads it.
     stepAutopilot(vessel);
-    stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, external);
+    // Her level of detail by the nearest player (core/lod.ts): far and free, every other tick at twice the step.
+    const lod = (vessel.lod = vesselLod(world, vessel));
+    const everyOther = lod === 'far' && CONFIG.lod.everyOtherTick && !heldInPlace(world, vessel, !!ext?.length);
+    if (!everyOther || world.tick % 2 === 0) stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, everyOther ? dt * 2 : dt, dbg, world.geography === 'archipelago', payload, external, lodStations(VESSEL_DEFS[vessel.defId].hull, lod));
     // In a running race, its whirl points knock her head and heel about.
     if (world.geography === 'archipelago') stepRaceKnocks(vessel, world.time, dt);
     // On a slipway (a bow-ramp boat landed): held where she lies, the waves no longer moving her.

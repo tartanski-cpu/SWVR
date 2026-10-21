@@ -1067,6 +1067,10 @@ export class App {
       for (const [id, boat] of this.boats) {
         const sv = this.world.vessels[id];
         if (id === this.testVesselId || !sv) continue;
+        // A boat beyond `mid` of the viewer (multi-boat M4): her controls and screens aren't moved; beyond `far`, not drawn.
+        const dv = Math.hypot(sv.position[0] - this.focus.x, sv.position[2] - this.focus.z);
+        boat.setFar(dv > CONFIG.lod.far);
+        if (dv > CONFIG.lod.mid) continue;
         boat.update(sv, dt, false, null, frame);
         const tiller = boat.api<TillerApi>('control.tiller')?.tiller;
         if (tiller) this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, tiller.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
@@ -1085,8 +1089,11 @@ export class App {
     let slam = 0;
     let lap = 0;
     for (const [id, fx] of this.effects) {
-      if (!this.world.vessels[id]) continue;
-      const hit = fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness, renderTime);
+      const v = this.world.vessels[id];
+      if (!v) continue;
+      // By the viewer's distance (multi-boat M4): smoke within `near`, wake and spray within `mid`.
+      const d = id === this.testVesselId ? 0 : Math.hypot(v.position[0] - this.focus.x, v.position[2] - this.focus.z);
+      const hit = fx.update(dt, v, this.renderWaves, this.focus, darkness, renderTime, d <= CONFIG.lod.near ? 'full' : d <= CONFIG.lod.mid ? 'noSmoke' : 'none');
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.towline.update(this.world, this.vesselRoots, this.testVesselId, this.renderWaves);
@@ -3368,6 +3375,9 @@ export class App {
     return fav ? fav.name : 'design' in read && read.name ? read.name : `Shipyard boat ${groupCode(token)}`;
   }
 
+  /** The other boats' interior detail (multi-boat M4), by vessel id. */
+  private readonly interiors = new Map<EntityId, InteriorDetail>();
+
   /** The boat you launched last (multi-boat M3), so a new one is boarded once. */
   private ownedSeen: EntityId | null = null;
 
@@ -3408,7 +3418,8 @@ export class App {
     this.boats.get(this.testVesselId)?.setHome(false);
     this.boats.get(id)?.setHome(true);
     this.interior?.showAll();
-    this.interior = null;
+    this.interior = this.interiors.get(id) ?? null;
+    this.interiors.delete(id);
     this.testVesselId = id;
     this.mountOnHomeBoat();
     this.wireHomeBoat();
@@ -4430,6 +4441,23 @@ export class App {
     // (owner: the buttons and joystick vanished at the helm after a cargo run).
     const eye = root.worldToLocal(this.camera.getWorldPosition(this.detailV));
     this.interior.update(eye);
+    // Every other boat with a wheelhouse the same way (multi-boat M4): her small parts only
+    // with the eye in her house; far off, none of them are drawn.
+    for (const [id, boat] of this.boats) {
+      if (id === this.testVesselId) continue;
+      const v = this.world.vessels[id];
+      const r = this.vesselRoots.get(id);
+      const def = v && VESSEL_DEFS[v.defId];
+      if (!r || !def || !hasWheelhouse(def) || def.tow) continue;
+      let detail = this.interiors.get(id);
+      if (!detail) {
+        detail = new InteriorDetail([boat.root, r], r, def);
+        this.interiors.set(id, detail);
+      }
+      const far = Math.hypot(v.position[0] - this.focus.x, v.position[2] - this.focus.z) > CONFIG.lod.mid;
+      detail.update(far ? null : r.worldToLocal(this.camera.getWorldPosition(this.detailV)));
+    }
+    for (const id of this.interiors.keys()) if (!this.boats.has(id)) this.interiors.delete(id);
     // The skiff's outboard and tiller, her painter cleat: under her tarpaulin in the cradle
     // (not drawn, not usable).
     for (const [id, boat] of this.boats) if (id !== this.testVesselId) boat.setCovered(this.world.vessels[id]?.tender?.phase === 'stowed');

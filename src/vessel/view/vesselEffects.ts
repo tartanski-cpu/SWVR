@@ -78,17 +78,25 @@ export class VesselEffects {
    * @param time     render time (s), the waves' clock
    * @returns slam and lap strengths 0..1 this frame (bow hitting the water), for sound and haptics
    */
-  update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number): { slam: number; lap: number } {
+  /** What's drawn by the viewer's distance (multi-boat M4): all; no smoke beyond `near`; no wake or spray either beyond `mid`. */
+  private level: 'full' | 'noSmoke' | 'none' = 'full';
+
+  update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number, level: 'full' | 'noSmoke' | 'none' = 'full'): { slam: number; lap: number } {
     const light = 1 - 0.8 * darkness;
     const e = this.equip;
-    if (e.smoke) {
+    if (level !== this.level) {
+      this.level = level;
+      if (e.smoke) e.smoke.view.root.visible = level === 'full';
+      this.wake.mesh.visible = this.spray.points.visible = level !== 'none';
+    }
+    if (e.smoke && level === 'full') {
       e.smoke.view.setLight(light);
       e.smoke.view.update(dt, s, e.smoke.exhaust, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
     }
     e.chain?.update(s, this.root);
     e.lines?.update(s, e.def, this.root);
-    // A tender in her cradle or on the crane throws no wake or spray.
-    if (s.tender && s.tender.phase !== 'free') return { slam: 0, lap: 0 };
+    // A tender in her cradle or on the crane throws no wake or spray; nor does a far boat.
+    if ((s.tender && s.tender.phase !== 'free') || level === 'none') return { slam: 0, lap: 0 };
     this.wake.update(s, this.root, waves, time);
     return this.spray.update(dt, s, this.root, waves, viewer, light);
   }
