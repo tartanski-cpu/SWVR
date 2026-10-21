@@ -4647,6 +4647,16 @@ export const CONFIG = {
    * boat; core/spawnBoat.ts): this much clear water between their sides (m). `boardReach`: from
    * ashore, the board button takes you to the nearest boat with a wheelhouse within this (m).
    */
+  /**
+   * Level of detail by distance to the nearest player (multi-boat M4; core/lod.ts). A boat
+   * within `near` m of a player (or with one aboard) is simulated in full every tick; within
+   * `mid` on every second station; beyond, on `farStations` stations and, when nothing holds
+   * her and `everyOtherTick` is on, every other tick at twice the step. The views draw wake and spray within `mid` of the viewer, smoke
+   * within `near`; beyond `far` a boat's controls, labels and screens aren't drawn at all (her
+   * hull, house and lights are).
+   */
+  lod: { near: 150, mid: 600, far: 1500, farStations: 4, everyOtherTick: true },
+
   spawn: {
     abeam: 6,
     boardReach: 40,

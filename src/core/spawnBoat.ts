@@ -34,7 +34,16 @@ export function applySpawnBoatIntent(world: WorldState, intent: Intent): void {
   const berth = home.mooring.phase === 'moored' && home.mooring.berthId ? berthWithId(home.mooring.berthId) : undefined;
   const sideX = berth ? -berth.shoreX : -Math.cos(h);
   const sideZ = berth ? -berth.shoreZ : -Math.sin(h);
-  const d = CONFIG.spawn.abeam + hullPlan(def).halfBeam(0) + hullPlan(VESSEL_DEFS[home.defId]).halfBeam(0);
+  // Her spot abeam: the first clear one outward (a second boat spawned on top of the first
+  // would be two hulls in one another's space, which the contact forces don't survive).
+  const room = (v: { defId: string }) => Math.abs(hullPlan(VESSEL_DEFS[v.defId]).halfBeam(0)) + CONFIG.spawn.abeam / 2;
+  let d = CONFIG.spawn.abeam + hullPlan(def).halfBeam(0) + hullPlan(VESSEL_DEFS[home.defId]).halfBeam(0);
+  for (let k = 0; k < 12; k++, d += 2 * room(s) + CONFIG.spawn.abeam) {
+    const x = home.position[0] + sideX * d;
+    const z = home.position[2] + sideZ * d;
+    const clear = Object.values(world.vessels).every((o) => o.id === home.id || Math.hypot(o.position[0] - x, o.position[2] - z) > room(o) + room(s) + Math.abs(hullPlan(VESSEL_DEFS[o.defId]).stem) / 2);
+    if (clear) break;
+  }
   placeVessel(s, home.position[0] + sideX * d, 0, home.position[2] + sideZ * d, (h * 180) / Math.PI);
   s.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
   world.vessels[id] = s;

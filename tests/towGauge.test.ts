@@ -90,15 +90,46 @@ describe('the tow line gauge', () => {
 });
 
 describe('the TOW LINE screen in the Shipyard', () => {
-  const screens = (d: typeof DEFAULT_DESIGN) => buildDesign(d).recipe.modules.find((m) => m.socket === 'helm')!.modules!.filter((m) => m.module === 'instrument.screen').map((m) => (m.config as { screen: string }).screen);
-  it('on a boat that can tow (a stern roller), with the advanced instruments: last in the row', () => {
+  /** Her console's screens, left to right. */
+  const screens = (d: typeof DEFAULT_DESIGN) => {
+    const helm = buildDesign(d).recipe.modules.find((m) => m.socket === 'helm')!;
+    const slots = (helm.config as { slots: Record<string, { position: number[] }> }).slots;
+    return helm.modules!.filter((m) => m.module === 'instrument.screen').sort((p, q) => slots[p.socket].position[0] - slots[q.socket].position[0]).map((m) => (m.config as { screen: string }).screen);
+  };
+  it('on a boat that can tow (a stern roller), with the advanced instruments: a strip along the bottom of the place beside the speed screen, the ANCHOR quarter above it', () => {
     const tug = FLEET.find((f) => f.id === 'smallTug')!.design;
     expect(tug.sternRoller).toBeTruthy();
-    expect(screens(tug).at(-1)).toBe('towline');
+    expect(screens(tug).slice(0, 3).sort()).toEqual(['anchor', 'speed', 'towline']);
+    const helm = buildDesign(tug).recipe.modules.find((m) => m.socket === 'helm')!;
+    const rise = (id: string) => (helm.modules!.find((m) => m.socket === id)!.config as { rise?: number }).rise ?? 0;
+    expect(rise('towline')).toBeLessThan(0);
+    expect(rise('anchorScreen')).toBeGreaterThan(0);
   });
   it('not without a stern roller, nor with the basic instruments', () => {
     const tug = FLEET.find((f) => f.id === 'smallTug')!.design;
     expect(screens({ ...tug, sternRoller: 0, towWinch: 0 })).not.toContain('towline');
     expect(screens({ ...tug, controls: 0 })).not.toContain('towline');
+  });
+});
+
+describe('screen sizes: full, strip and quarter (owner, Oct 2026)', () => {
+  it('pack into the atlas’s quarter cells without overlapping, in order, and say when it is full', async () => {
+    const { packCells, SCREENS, cellsOf } = await import('../src/controls/instruments');
+    expect(cellsOf(SCREENS.speed)).toEqual([2, 2]);
+    expect(cellsOf(SCREENS.towline)).toEqual([2, 1]);
+    expect(cellsOf(SCREENS.anchor)).toEqual([1, 1]);
+    // A full screen, a quarter, a strip, another full one, two quarters.
+    const at = packCells([[2, 2], [1, 1], [2, 1], [2, 2], [1, 1], [1, 1]]);
+    expect(at).toEqual([
+      { col: 0, row: 0 },
+      { col: 2, row: 0 },
+      { col: 2, row: 1 },
+      { col: 0, row: 2 },
+      { col: 3, row: 0 },
+      { col: 2, row: 2 },
+    ]);
+    // Eight full screens fill it (32 quarter cells); a ninth doesn't fit.
+    expect(() => packCells(Array.from({ length: 8 }, () => [2, 2] as [number, number]))).not.toThrow();
+    expect(() => packCells(Array.from({ length: 9 }, () => [2, 2] as [number, number]))).toThrow(/full/);
   });
 });

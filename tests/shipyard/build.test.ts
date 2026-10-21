@@ -66,7 +66,8 @@ describe('Shipyard: the boats it builds', () => {
     const basic = ids(0);
     const advanced = ids(1);
     for (const id of ['control.wheel', 'control.throttle-lever', 'control.key-switch', 'propulsion.diesel-inboard']) expect(basic).toContain(id);
-    expect(basic.filter((id) => id === 'instrument.screen').length).toBe(2);
+    // Speed and rpm, and the ANCHOR quarter screen (she has an anchor).
+    expect(basic.filter((id) => id === 'instrument.screen').length).toBe(3);
     // Every boat has a VHF (owner, Oct 2026): she answers calls, hears the forecasts.
     expect(basic).toContain('radio.vhf');
     for (const id of ['radio.fm', 'light.navigation', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {

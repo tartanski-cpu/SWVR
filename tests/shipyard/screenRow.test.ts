@@ -11,7 +11,10 @@ import { DEFAULT_DESIGN, type ShipDesign } from '../../src/shipyard/design';
 function row(d: ShipDesign) {
   const helm = buildDesign(d).recipe.modules.find((m) => m.socket === 'helm')!;
   const cc = helm.config as { dash: { halfWidth: number }; slots: Record<string, { position: number[] }> };
-  const screens = helm.modules!.filter((m) => m.module === 'instrument.screen').map((m) => ({ x: cc.slots[m.socket].position[0], w: (m.config as { width?: number }).width ?? CONFIG.modules.screen.dash.width }));
+  const screens = helm.modules!.filter((m) => m.module === 'instrument.screen').map((m) => {
+    const c = m.config as { width?: number; height?: number; rise?: number };
+    return { x: cc.slots[m.socket].position[0], w: c.width ?? CONFIG.modules.screen.dash.width, h: c.height ?? CONFIG.modules.screen.dash.height, rise: c.rise ?? 0 };
+  });
   return { half: cc.dash.halfWidth, screens: screens.sort((a, b) => a.x - b.x) };
 }
 
@@ -22,7 +25,13 @@ describe('the console screen row', () => {
       for (const size of [0, 15])
         for (const controls of [0, 1]) {
           const { half, screens } = row({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, length: size, beam: size, controls, sternRoller: 1 });
-          for (let i = 1; i < screens.length; i++) expect(screens[i].x - screens[i - 1].x, `hull ${hull} size ${size} controls ${controls}`).toBeGreaterThanOrEqual((screens[i].w + screens[i - 1].w) / 2 - 1e-6);
+          // No two overlap: apart along the row, or stacked one above the other (the half-height ones).
+          for (let i = 0; i < screens.length; i++)
+            for (let j = i + 1; j < screens.length; j++) {
+              const [a, b] = [screens[i], screens[j]];
+              const apart = Math.abs(a.x - b.x) >= (a.w + b.w) / 2 - 1e-6 || Math.abs(a.rise - b.rise) >= (a.h + b.h) / 2 - 1e-6;
+              expect(apart, `hull ${hull} size ${size} controls ${controls}`).toBe(true);
+            }
           const first = screens[0];
           const last = screens[screens.length - 1];
           expect(last.x + last.w / 2).toBeLessThanOrEqual(half + 1e-3);
