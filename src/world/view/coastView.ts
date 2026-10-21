@@ -29,6 +29,8 @@ import { flatVertexColorMaterial } from '../../render/geometryUtils';
 import { coastSample, coastTerrain, type CoastPiece, type CoastSample, type CoastTerrain } from '../coastTerrain';
 import type { BuildingDef, RegionDef } from '../defs';
 import type { TerrainArrays } from './terrainMesh';
+import { forestOf } from '../forest';
+import { TreesView } from './treesView';
 
 const S: CoastSample = { h: 0, r: 0, g: 0, b: 0, fine: false };
 
@@ -127,6 +129,8 @@ export class CoastTerrainView {
   }[] = [];
   private readonly mat = flatVertexColorMaterial();
   private readonly t: CoastTerrain;
+  /** Its trees near the viewer (treesView.ts), if it has a forest map. */
+  readonly trees: TreesView | null;
   /** Triangles drawn now (near and far), for the debug overlay. */
   triangles = 0;
   /** The chunks drawn far, as one mesh; which they are (their indices), and when it was last merged (ms). */
@@ -155,6 +159,9 @@ export class CoastTerrainView {
     const t = coastTerrain(region.id);
     if (!t) throw new Error(`coast region ${region.id}: its terrain isn't loaded`);
     this.t = t;
+    const forest = forestOf(region.id);
+    this.trees = forest ? new TreesView(forest) : null;
+    if (this.trees) this.root.add(this.trees.root);
     const list = t.layout ? t.layout.chunks.map((c) => ({ ...c, drawn: c.count })) : t.chunked!.chunks.map((c) => ({ ...c, start: 0, count: c.drawn }));
     list.forEach((ch, k) => {
       const x0 = ch.x0 + t.ox;
@@ -277,6 +284,10 @@ export class CoastTerrainView {
       }
     }
     if (this.farMesh) tris += count(this.farMesh);
+    if (this.trees) {
+      this.trees.update(x, z);
+      tris += this.trees.triangles;
+    }
     // The harbour kit, square by square.
     const hs = this.structureHalf;
     for (const sq of this.structures) {

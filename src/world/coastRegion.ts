@@ -9,6 +9,7 @@
  */
 import type { BerthDef, BlockDef, BuildingDef, CurrentZoneDef, FishingGroundDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SlipwayDef } from './defs';
 import { registerChunkedCoast, registerCoastTerrain, type ChunkedCoastLayout, type CoastTerrainLayout } from './coastTerrain';
+import { registerForest, type ForestLayout } from './forest';
 
 export type WholeCoastTerrain = CoastTerrainLayout & { dir: string; file: string; chunked?: undefined };
 export type ChunkedCoastTerrain = ChunkedCoastLayout & { dir: string };
@@ -20,6 +21,8 @@ export interface CoastPackage {
   name: string;
   /** A whole region's terrain.bin layout, or a chunked region's coarse grid and chunk files. */
   terrain: WholeCoastTerrain | ChunkedCoastTerrain;
+  /** Its forest map (tools/coast trees.ts), for the trees; absent in an older package. */
+  trees?: ForestLayout;
   box: { x0: number; x1: number; z0: number; z1: number };
   credits: string;
   licence: string;
@@ -112,6 +115,12 @@ export async function loadCoastTerrains(regions: readonly RegionDef[], base: str
       const bin = await res.arrayBuffer();
       if (t.chunked) registerChunkedCoast(r.id, bin, t, c.pkg.box, c.x, c.z);
       else registerCoastTerrain(r.id, bin, t, c.pkg.box, c.x, c.z);
+      // Its woods (drawing only: a missing map just means no trees).
+      const trees = c.pkg.trees;
+      if (trees) {
+        const f = await fetch(`${base}${t.dir}${trees.file}`).catch(() => null);
+        if (f?.ok) registerForest(r.id, await f.arrayBuffer(), trees, c.x, c.z);
+      }
     }),
   );
 }

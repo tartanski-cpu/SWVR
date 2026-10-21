@@ -27,6 +27,10 @@ The owner's brief, in short: generate playable regions of real coastline in the 
 
 The buildings step (`harbours.ts`, with `houses.ts`) gives each footprint near a harbour a type (cottage, house, terrace, shed, church, warehouse, boathouse, castle, ruin), floors, a roof shape and colours: from its OpenStreetMap tags where present, else by rules (footprint size and shape, shared walls, landuse, quays and shore). Theme defaults are in `themes.ts` `houses`. The game builds each type with its own generator (`src/world/view/houseKit.ts`), windows painted on (the `facade` tile, lit at night). The report's `houses` gives counts by type and the share from tags.
 
+## Trees
+
+The trees stage (`trees.ts`, after the mesh) writes `forest.bin`: a 20 m grid, a byte a cell (kind of wood in the high four bits, density in the low four), run-length packed, from OpenStreetMap's woods (`landuse=forest`, `natural=wood`, `natural=scrub`, `landuse=orchard`, by `leaf_type`) over the satellite land cover's trees and shrubs, cleared above the treeline, on steep ground, at the shore, on roads and round buildings. `trees.json` (in the package as `trees`) holds each kind's spacing, rows and species mix and the species' colours (`themes.ts` `forest`). The game scatters the trees near the viewer from it (`src/world/view/treesView.ts`).
+
 ## Names
 
 The game's names and ids are in the Latin alphabet. A feature's name is its `name:en`, else its `int_name`, else its own name transliterated (Greek, ELOT 743 simplified: `common.ts` `nameOf`, `latin`; ids from `slug`). Rename anything clumsy in the region's edits file (Syros: the harbours are named after their fishing shelters in the map data).

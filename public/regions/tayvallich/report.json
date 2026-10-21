@@ -225,7 +225,7 @@
   "landmarks": [
    "Cruach Lusach"
   ],
-  "bytes": 30747
+  "bytes": 31598
  },
  "houses": {
   "byType": {
@@ -241,5 +241,22 @@
   "fromTags": 80,
   "fromRules": 20,
   "plain": 43
+ },
+ "trees": {
+  "woodedKm2": {
+   "natural": 21.19,
+   "plantation": 11.72,
+   "mixed": 5.12,
+   "scrub": 2.22,
+   "broadleaf": 0.49
+  },
+  "mappedKm2": {
+   "scrub": 2.25,
+   "plantation": 12.08,
+   "mixed": 5.38,
+   "broadleaf": 0.52
+  },
+  "clearedCells": 9194,
+  "bytes": 76556
  }
 }

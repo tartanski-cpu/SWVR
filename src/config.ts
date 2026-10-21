@@ -4758,6 +4758,29 @@ export const CONFIG = {
    *   lightVisFactor  a light (a point) is seen through haze a little further than land:
    *                   out to this times the visibility
    */
+  /**
+   * A coast region's trees (the settlements brief, Part B; world/view/treesView.ts), scattered
+   * from its forest map near the viewer: every tree within `nearDistance` (m), nearest first,
+   * at most `maxNear` of them (the Quest's budget: each tree is 20-32 triangles), scattered
+   * a `tile` m square at a time, placed again when the viewer has moved `moveAgain` m or
+   * every `refresh` s (a chunk's ground streaming in). Each species: its height range (m),
+   * its crown's width as a share of its height, and how far it may lean (deg).
+   */
+  trees: {
+    nearDistance: 320,
+    maxNear: 1500,
+    tile: 100,
+    moveAgain: 15,
+    refresh: 2,
+    species: {
+      conifer: { height: [9, 17] as [number, number], width: [0.36, 0.48] as [number, number], lean: 2 },
+      broadleaf: { height: [6, 13] as [number, number], width: [0.75, 1.0] as [number, number], lean: 5 },
+      birch: { height: [6, 11] as [number, number], width: [0.42, 0.58] as [number, number], lean: 6 },
+      scrub: { height: [0.8, 2] as [number, number], width: [1.2, 2] as [number, number], lean: 0 },
+      pine: { height: [6, 12] as [number, number], width: [0.8, 1.1] as [number, number], lean: 7 },
+      olive: { height: [3.5, 6] as [number, number], width: [1.0, 1.4] as [number, number], lean: 6 },
+    },
+  },
   regions: {
     loadDistance: 2500,
     unloadDistance: 3500,

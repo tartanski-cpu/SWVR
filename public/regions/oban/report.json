@@ -169,7 +169,7 @@
    "Càrn Breugach",
    "Dunollie Fl(2)GWR.6s"
   ],
-  "bytes": 202362
+  "bytes": 203214
  },
  "houses": {
   "byType": {
@@ -185,5 +185,22 @@
   "fromTags": 23,
   "fromRules": 77,
   "plain": 451
+ },
+ "trees": {
+  "woodedKm2": {
+   "mixed": 3.24,
+   "scrub": 2.23,
+   "natural": 8.38,
+   "plantation": 8.71,
+   "broadleaf": 0.11
+  },
+  "mappedKm2": {
+   "scrub": 2.43,
+   "mixed": 3.46,
+   "plantation": 8.94,
+   "broadleaf": 0.11
+  },
+  "clearedCells": 9377,
+  "bytes": 52954
  }
 }

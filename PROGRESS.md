@@ -6325,6 +6325,88 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Settlements, part B: trees, milestone 4 (done, awaiting owner test)
+
+Owner: "Next milestone". The brief's milestone 4: tree placement and a tree library. Test: a woodland looks varied up close.
+
+**Where the woods are: a new pipeline stage** (`tools/coast/src/trees.ts`, in the build after the mesh; the package carries it as `trees`). It writes a forest map over the region, one byte per 20 m cell: the kind of wood and how thick it is.
+- **OpenStreetMap's woods:**
+  - `landuse=forest` with `leaf_type=needleleaved` is a plantation, as is an untagged forest in the West Highlands (the theme's `forestIs`);
+  - `natural=wood` by leaf type (mixed when untagged);
+  - `natural=scrub`, and `landuse=orchard` (Syros's olive groves);
+  - multipolygons have their outer ways joined into rings.
+- **Elsewhere:** the satellite land cover's tree cover is natural woodland, as thick as its share of tree pixels; its shrubland is sparse scrub.
+- **Cleared:**
+  - above the theme's treeline (320 m in the Hebrides, 700 m on Syros), thinning over its last 60 m;
+  - on slopes steeper than `steep`, thinned from `thin`;
+  - within 12 m of the coast or below 2 m;
+  - along roads and tracks, and round every building.
+- **Packed:** run-length, so Oban is 53 kB and the Clyde 501 kB, fetched with the terrain at start.
+
+| Map | Plantation | Natural | Mixed | Broadleaf | Scrub | Mapped woods |
+|---|---|---|---|---|---|---|
+| Oban | 8.7 km² | 8.4 | 3.2 | 0.1 | 2.2 | 214 |
+| Tayvallich | 11.7 | 21.2 | 5.1 | 0.5 | 2.2 | 298 |
+| Clyde | 98.7 | 79.2 | 38.7 | 5.2 | 6.4 | 2,564 |
+| Syros | | 3.7 | | | 16.4 (it is phrygana) | 613 |
+
+**What grows** (`themes.ts` `forest`; it goes into the package, so a region can override it):
+- **Each kind of wood:** a spacing, whether it's planted in rows, and a species mix.
+- **West Highlands:**
+  - plantations all conifer, in rows, 6 m apart;
+  - natural woods birch and oak with a few Scots pines;
+  - mixed woods, conifers and broadleaves;
+  - scrub of gorse with some birch.
+- **Syros:** pines and olives, olive groves in rows, grey-green scrub.
+- **Colours** per species: dark Sitka greens, oak greens, light birch, gorse with its yellow, grey-green olive.
+
+**The trees in the game** (`world/forest.ts` the map; `world/view/treesView.ts` the trees):
+- **Scatter:** each 100 m square (`trees.tile`) is scattered once and kept, seeded by the region and the square, so they're the same trees every visit.
+  - Woods: a Poisson-disc scatter, no grid, no two trees closer than the woods' spacing, thinned by the map's density.
+  - Plantations and orchards: rows, all one way across the region, a little jitter, much of a height.
+- **Five models**, flat-shaded:
+  - conifer (two cones on a trunk, 32 triangles);
+  - broadleaf (a faceted crown, 28; an olive is one, squat and grey-green);
+  - birch (narrow crown, pale trunk, 28);
+  - scrub (a low lumpy bush, 20);
+  - umbrella pine (a flat crown on a tall trunk, 28).
+- **Every tree is different:** each has its own height and crown width (`trees.species`: ranges per species), turn, lean (up to a few degrees; plantations nearly straight) and crown colour, lighter or darker. The tree's colour tints its crown only, so a birch keeps its pale trunk.
+- **Drawing:** one instanced mesh per model, at most five draw calls. They hold the trees within `trees.nearDistance` (320 m), nearest first, up to `trees.maxNear` (1,500), placed again after `moveAgain` (15 m) of movement or every `refresh` (2 s).
+  - Only on ground already streamed in (a big map's coarse ground would float them).
+  - No shadows, no colliders.
+
+**Cost** (headless):
+
+| Where | Trees | Tree triangles | Draw calls | Scene |
+|---|---|---|---|---|
+| Oban, Dunstaffnage | 726 | 23k | +3 to +5 | 176-183k triangles |
+| Rothesay | 105 | 3k | | |
+| Syros, Foinikas | 17 | | | |
+
+Rothesay and Foinikas are towns: gardens and roads clear the map there.
+
+**Tests:** `tests/trees.test.ts` (5):
+- Oban's map unpacked, with plantations, natural woods and scrub, none at sea;
+- the same tile gives the same trees;
+- a natural wood scattered no closer than its spacing, mixed species, each tree its own height and colour;
+- a plantation all conifers, much of a height;
+- every model under 50 triangles.
+
+**Checked headless:**
+- **At Dunstaffnage:** a dark conifer plantation on the slope behind the marina; birches, oaks and pines along the shore, each its own shape and shade.
+- **On Syros:** umbrella pines among the houses.
+- **No page errors** (a first try had a shader that didn't compile; fixed).
+
+**Not done yet:** the far woods.
+- Beyond 320 m there are no trees: the forest is only its dark green ground colour.
+- Milestone 5 brings the middle band and the canopy, so a forested hillside reads as forest from the sea.
+
+**Not checked:** the Quest.
+
+**Test steps:**
+- **VR:** Voyage → Oban and Lorn, Debug → World → To port → Dunstaffnage Marina. Look at the plantation behind and the trees along the shore; walk ashore to the woods if you like. Perf panel: frame time and draw calls.
+- **Desktop:** the same; then Tayvallich (the Taynish woods along Loch Sween) and Syros (pines and olives).
+
 ### Settlements, part A: houses (milestones 2 and 3, done, awaiting owner test)
 
 The owner's brief, resent: varied settlements instead of one house at every size. The open questions from milestone 1 were settled on my recommendations:

@@ -241,7 +241,7 @@
    "Pyrgos",
    "Nisis Dhidhimi FlW.6s"
   ],
-  "bytes": 501582
+  "bytes": 502308
  },
  "houses": {
   "byType": {
@@ -257,5 +257,23 @@
   "fromTags": 88,
   "fromRules": 12,
   "plain": 1392
+ },
+ "trees": {
+  "woodedKm2": {
+   "scrub": 16.36,
+   "natural": 3.7,
+   "mixed": 0.3,
+   "plantation": 0.06,
+   "orchard": 0.1
+  },
+  "mappedKm2": {
+   "scrub": 7.35,
+   "plantation": 0.09,
+   "orchard": 0.15,
+   "mixed": 0.53,
+   "broadleaf": 0
+  },
+  "clearedCells": 5169,
+  "bytes": 55958
  }
 }

@@ -1220,7 +1220,7 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1383466
+  "bytes": 1384321
  },
  "houses": {
   "byType": {
@@ -1236,5 +1236,24 @@
   "fromTags": 24,
   "fromRules": 76,
   "plain": 3928
+ },
+ "trees": {
+  "woodedKm2": {
+   "plantation": 98.7,
+   "natural": 79.16,
+   "broadleaf": 5.19,
+   "scrub": 6.41,
+   "mixed": 38.72,
+   "orchard": 0.02
+  },
+  "mappedKm2": {
+   "scrub": 7.31,
+   "plantation": 115.08,
+   "mixed": 41.1,
+   "broadleaf": 5.32,
+   "orchard": 0.02
+  },
+  "clearedCells": 136596,
+  "bytes": 501046
  }
 }

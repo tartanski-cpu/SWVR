@@ -19,7 +19,7 @@
  *              its tallest lighthouse).
  *   Terrain    where terrain.bin keeps what, the chunks, the box; the credits and licence.
  *
- * Run: node src/package.ts [requestId] (last, after mesh).
+ * Run: node src/package.ts [requestId] (last, after mesh and trees).
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -247,6 +247,8 @@ const pkg = {
   /** Where the terrain is, relative to the game's public folder, and how terrain.bin is laid out. */
   terrain: req.chunked ? { dir: `regions/${req.id}/`, ...region.terrain } : { dir: `regions/${req.id}/`, ...region.terrain, chunks: region.chunks },
   box,
+  /** The forest map (trees.ts), for the game's trees; absent if the trees stage hasn't run. */
+  ...(existsSync(join(D.out, 'trees.json')) ? { trees: JSON.parse(readFileSync(join(D.out, 'trees.json'), 'utf8')) } : {}),
   credits: region.credits,
   licence: region.licence,
   landmarks,

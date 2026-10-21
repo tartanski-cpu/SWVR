@@ -1,5 +1,32 @@
 import type { HouseStyle } from './houses.ts';
 
+/** The tree models the game has (world/view/treesView.ts). */
+export type TreeSpecies = 'conifer' | 'broadleaf' | 'birch' | 'scrub' | 'pine' | 'olive';
+
+/**
+ * A theme's woods (trees.ts writes the forest map; the game scatters the trees): what each
+ * kind of wood is made of, how far apart its trees stand, and their colours.
+ *   plantation  landuse=forest (needle-leaved, or untagged where `forestIs` says so): planted in rows
+ *   broadleaf   natural=wood or forest, broad-leaved
+ *   mixed       mixed, or untagged natural=wood
+ *   natural     tree cover in the satellite land cover with no wood mapped (scattered woods, gardens)
+ *   scrub       natural=scrub, and the land cover's shrubland (sparser)
+ *   orchard     landuse=orchard (olive groves on Syros)
+ */
+export interface ForestStyle {
+  /** No trees above this height (m), nor on slopes steeper than `steep` (rise over run), thinned from `thin`. */
+  treeline: number;
+  steep: number;
+  thin: number;
+  /** What an untagged landuse=forest and natural=wood are here. */
+  forestIs: 'plantation' | 'mixed' | 'broadleaf';
+  woodIs: 'mixed' | 'broadleaf';
+  /** Each kind: its trees' spacing (m, the closest two stand), in rows or scattered, and its species mix (weights). */
+  kinds: Record<'plantation' | 'broadleaf' | 'mixed' | 'natural' | 'scrub' | 'orchard', { spacing: number; rows?: boolean; species: [TreeSpecies, number][] }>;
+  /** Crown colours per species (one picked per tree, and shaded a little). */
+  colours: Record<TreeSpecies, number[]>;
+}
+
 /**
  * Region themes: the colours a region's ground takes from its land cover (ESA WorldCover
  * classes), flat per face, no textures. One per family of places; the request names it.
@@ -20,6 +47,7 @@ export interface Theme {
   deep: number;
   /** Buildings near harbours: colours, floors and roofs by type (houses.ts). */
   houses: HouseStyle;
+  forest: ForestStyle;
 }
 
 const NORTH_HEBRIDEAN: Theme = {
@@ -56,6 +84,32 @@ const NORTH_HEBRIDEAN: Theme = {
     levels: { cottage: 1.5, house: 2, terrace: 2, shed: 1, church: 2.5, warehouse: 2, boathouse: 1, castle: 4, ruin: 2 },
     roofShapes: { cottage: 'gabled', house: [['gabled', 4], ['hipped', 1]], terrace: 'gabled', shed: 'gabled', church: 'gabled', warehouse: 'gabled', boathouse: 'gabled', castle: 'flat', ruin: 'flat' },
     paintedShare: 0.5,
+  },
+  // West Highland woods: dark Sitka and larch plantations in blocks and rows; oak, birch and
+  // rowan in the gullies and along the shore, some Scots pine; gorse and birch scrub. Exposed
+  // to the Atlantic, the trees give out low (about 300 m).
+  forest: {
+    treeline: 320,
+    steep: 1.1,
+    thin: 0.7,
+    forestIs: 'plantation',
+    woodIs: 'mixed',
+    kinds: {
+      plantation: { spacing: 6, rows: true, species: [['conifer', 1]] },
+      broadleaf: { spacing: 7.5, species: [['broadleaf', 5], ['birch', 4], ['conifer', 1]] },
+      mixed: { spacing: 7.5, species: [['conifer', 4], ['broadleaf', 3], ['birch', 3]] },
+      natural: { spacing: 9, species: [['birch', 5], ['broadleaf', 4], ['conifer', 1.5]] },
+      scrub: { spacing: 7, species: [['scrub', 6], ['birch', 1]] },
+      orchard: { spacing: 8, rows: true, species: [['broadleaf', 1]] },
+    },
+    colours: {
+      conifer: [0x2a4a2e, 0x2f5233, 0x26422a, 0x3a5a34],
+      broadleaf: [0x4a6e32, 0x557a38, 0x3f6430, 0x5e7e3a],
+      birch: [0x7a9a44, 0x86a24a, 0x6e9040],
+      scrub: [0x4e6a34, 0x5a7238, 0x7a7a3a, 0xa89a3a],
+      pine: [0x3a5a34, 0x46663a],
+      olive: [0x7a8a6a, 0x8a9a78],
+    },
   },
 };
 
@@ -95,6 +149,31 @@ const AEGEAN: Theme = {
     levels: { cottage: 1, house: 2, terrace: 2, shed: 1, church: 2.5, warehouse: 2, boathouse: 1, castle: 4, ruin: 2 },
     roofShapes: { cottage: 'flat', house: [['flat', 3], ['hipped', 2]], terrace: [['flat', 1], ['hipped', 1]], shed: 'flat', church: 'gabled', warehouse: 'gabled', boathouse: 'flat', castle: 'flat', ruin: 'flat' },
     paintedShare: 0.6,
+  },
+  // The Aegean: Aleppo and stone pines in the valleys and on the north slopes, olive groves
+  // in rows on the terraces, grey-green phrygana scrub everywhere else.
+  forest: {
+    treeline: 700,
+    steep: 0.9,
+    thin: 0.6,
+    forestIs: 'mixed',
+    woodIs: 'mixed',
+    kinds: {
+      plantation: { spacing: 7, rows: true, species: [['pine', 1]] },
+      broadleaf: { spacing: 8, species: [['olive', 2], ['pine', 1]] },
+      mixed: { spacing: 8, species: [['pine', 3], ['olive', 1]] },
+      natural: { spacing: 10, species: [['pine', 2], ['olive', 2], ['scrub', 1]] },
+      scrub: { spacing: 7, species: [['scrub', 1]] },
+      orchard: { spacing: 7, rows: true, species: [['olive', 1]] },
+    },
+    colours: {
+      conifer: [0x3a5a34],
+      broadleaf: [0x5e7a40],
+      birch: [0x7a9a44],
+      scrub: [0x7a7a52, 0x8a8a5a, 0x6e7048],
+      pine: [0x3e5c32, 0x4a6838, 0x36522e],
+      olive: [0x7a8a68, 0x86967a, 0x6e7e60],
+    },
   },
 };
 

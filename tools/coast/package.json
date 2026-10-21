@@ -9,8 +9,9 @@
     "mesh": "node src/mesh.ts",
     "nav": "node src/nav.ts",
     "harbours": "node src/harbours.ts",
+    "trees": "node src/trees.ts",
     "package": "node src/package.ts",
-    "build": "node src/fetch.ts && node src/reconcile.ts && node src/nav.ts && node src/harbours.ts && node src/mesh.ts && node src/package.ts"
+    "build": "node src/fetch.ts && node src/reconcile.ts && node src/nav.ts && node src/harbours.ts && node src/mesh.ts && node src/trees.ts && node src/package.ts"
   },
   "devDependencies": {
     "geotiff": "2.1.3",
