@@ -124,4 +124,17 @@ describe('tree detail by device', () => {
     expect(treeSettings().nearDistance).toBe(CONFIG.trees.nearDistance);
     userSettings.treeDetail = 'auto';
   });
+
+  it("the canopy against shimmering far off: below the crowns, no scrub or orchards in it, drawn a little deeper", async () => {
+    const { canopyCellHeight } = await import('../src/world/view/treesView');
+    const { CONFIG } = await import('../src/config');
+    const t = CONFIG.trees;
+    expect(canopyCellHeight('scrub', 15)).toBe(0);
+    expect(canopyCellHeight('orchard', 15)).toBe(0);
+    // A full plantation's canopy stands below its trees' crowns, by at least a couple of metres.
+    expect(canopyCellHeight('plantation', 15)).toBeCloseTo(t.canopyHeight.plantation * t.canopyTop, 5);
+    expect(t.canopyHeight.plantation - canopyCellHeight('plantation', 15)).toBeGreaterThanOrEqual(2);
+    expect(t.canopyDepthOffset.factor).toBeGreaterThan(0);
+  });
 });
+

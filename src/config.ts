@@ -5106,7 +5106,11 @@ export const CONFIG = {
      * every `canopyRebuild` s). It isn't drawn within `canopyFrom` (m) of the viewer, where
      * the trees themselves stand, fading in over `canopyFade` m (dithered).
      */
-    canopyDistance: 5000,
+    // (Out to 1.5 km only: beyond, the woods are the ground's own colour, painted in when the
+    // map is made (tools/coast mesh.ts, from the forest map). Owner, testing on the Quest: far
+    // off a 3D canopy can't be told from flat colour, and a thin surface a few metres over the
+    // ground is what shimmered in the distance.)
+    canopyDistance: 1500,
     canopyCell: 40,
     canopySquare: 2000,
     canopyRebuild: 0.5,
@@ -5116,15 +5120,29 @@ export const CONFIG = {
     canopyBump: 3,
     canopyHeight: { plantation: 14, broadleaf: 11, mixed: 12, natural: 9, scrub: 1.4, orchard: 4 } as Record<string, number>,
     /**
+     * Against shimmering in the distance (owner, testing on the Quest: "a little bit of Z
+     * fighting ... where the forests areas are"). The camera's depth runs from 5 cm to 14 km,
+     * so far off it can't tell surfaces a metre or two apart (about 1 m at 1 km, 5 m at 2 km),
+     * and they flicker as the head moves. So: the canopy's top stands at `canopyTop` of its
+     * kind's crown height (the middle band's trees, standing in it, rise clear of it, not level
+     * with it); kinds lower than `canopyMinHeight` m (scrub, orchards) aren't in the canopy at
+     * all (a metre or four over the ground: the ground's own colour shows them from afar); and
+     * the canopy is drawn a little deeper than it is (`canopyDepthOffset`, polygon offset
+     * factor and units), so where a tree stands in it the tree always wins.
+     */
+    canopyTop: 0.8,
+    canopyMinHeight: 5,
+    canopyDepthOffset: { factor: 1, units: 4 },
+    /**
      * A desktop's graphics card (owner: "on my desktop it should be able to render the trees
      * from far away"; render/device.ts, Settings > Trees): the bands reach much farther, the
      * full trees to 900 m (up to 12,000 of them), the middle band to 3 km (up to 20,000: woods
-     * a mile or two off are trees, not only canopy), the canopy out to 9 km (the clearest
-     * day's haze hides all beyond 13.5 km); placed again after a longer move, there being
+     * a mile or two off are trees, not only canopy), the canopy out to 3.5 km (beyond, the
+     * woods are the ground's own colour, as on the Quest); placed again after a longer move, there being
      * more of them, with 4 ms a frame to place them in (a desktop processor has it to spare).
      * The values above are the Quest's.
      */
-    desktop: { nearDistance: 900, maxNear: 12000, midDistance: 3000, maxMid: 20000, canopyFrom: 870, canopyDistance: 9000, moveAgain: 30, midMoveAgain: 120, placeBudgetMs: 4 },
+    desktop: { nearDistance: 900, maxNear: 12000, midDistance: 3000, maxMid: 20000, canopyFrom: 870, canopyDistance: 3500, moveAgain: 30, midMoveAgain: 120, placeBudgetMs: 4 },
     species: {
       conifer: { height: [9, 17] as [number, number], width: [0.36, 0.48] as [number, number], lean: 2 },
       broadleaf: { height: [6, 13] as [number, number], width: [0.75, 1.0] as [number, number], lean: 5 },

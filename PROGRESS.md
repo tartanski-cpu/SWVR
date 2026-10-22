@@ -6600,6 +6600,28 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
 
+### Fix: shimmering in the distance by the woods; far woods as flat colour (owner, testing on the Quest)
+
+Owner, after a VR test of Oban harbour: the worst case is about 67 fps (13.x ms a frame), "still comfortable to use in VR ... I wouldn't want to drop too much more below that ... 65, I think, would be my sort of lower comfort level". Then: "a little bit of Z fighting ... in the distance or shimmering. I think it's where the forests areas are." And: "after a certain distance you can't see that that's 3D. It can literally become a flat vector color or vertex color."
+
+- **The budget from now on:** 65 fps on the Quest at the worst spot (Oban harbour, measured 67). Every later milestone (C5-C8) is held to it.
+- **Why it shimmered:**
+  - The camera's depth runs from 5 cm (so controls in front of your face draw) to 14 km. Far off it can't tell surfaces apart that are closer than about 1 m at 1 km, or 5 m at 2 km, and those flicker as the head moves.
+  - The far canopy sat at the height of the middle band's tree crowns, so the trees standing in it fought it.
+  - Scrub (1.4 m) and orchards (4 m) in the canopy fought the ground itself.
+- **Fixed** (`CONFIG.trees`):
+  - **The canopy stands lower:** its top at `canopyTop` 0.8 of the crown height, so the middle band's trees rise clear of it.
+  - **It's drawn a little deeper than it is** (`canopyDepthOffset`, a polygon offset), so a tree standing in it always draws in front.
+  - **Kinds under `canopyMinHeight` 5 m** (scrub, orchards) aren't in the canopy.
+- **Far woods as flat colour (the owner's idea):**
+  - **When a map is made,** the mesh stage colours the ground under each wood (density 6 of 15 or more) in that wood's own colour: its species' colours mixed by their shares, a shade darker, as the canopy is coloured. Scrub and orchards tint it part way (45%).
+  - The trees stage now runs before the mesh stage. All four maps were re-made; the shapes are unchanged.
+  - **In the game the 3D canopy reaches only `canopyDistance` 1.5 km** (it was 5 km; desktop 3.5 km, was 9 km). Beyond that the woods are the ground's own colour: nothing a few metres over the ground to shimmer, and no triangles.
+  - **The saving:** a mile off Dunstaffnage at the Quest setting, the canopy went from 21,300 triangles to 2,050, and the whole scene from 190,000 to 171,000. (The canopy was already one merged mesh, so draw calls are unchanged at 66.)
+- **Tests:** `tests/trees.test.ts` adds one: no scrub or orchard in the canopy, its top at least 2 m below a plantation's crowns, the depth offset set.
+- **Checked headless:** a mile off Dunstaffnage at the Quest setting, the wooded hills across the water read as darker green on the ground, clean-edged, with the turbines and trees in front. **Not checked:** the shimmer itself. Headless rendering doesn't show depth flicker the way the Quest does, so that's for your next VR test.
+- **Test steps (VR):** Voyage → Oban and Lorn, the same worst-case spot. Look across at the wooded hills while moving your head: no shimmering in the woods. Read the frame rate on the perf panel (B/Y); it should be the same or a little better than your 67.
+
 ### Coast extras C4: place names (done, awaiting owner test)
 
 Owner: "Do C4".

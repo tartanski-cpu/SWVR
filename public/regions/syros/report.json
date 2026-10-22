@@ -1,11 +1,11 @@
 {
  "warnings": [
   "only 3 buoys or beacons mapped (thin data?)",
-  "4 patches where the coastline's sides disagree (check the coast there)",
   "features: no fog signals mapped (C5 foghorns: none here)",
   "features: no wrecks mapped (C6: none here)",
   "features: 2 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)",
-  "achladi-pier: no berth with room for a boat (best blocked at 5 points): not a port"
+  "achladi-pier: no berth with room for a boat (best blocked at 5 points): not a port",
+  "4 patches where the coastline's sides disagree (check the coast there)"
  ],
  "nav": {
   "marks": 3,

@@ -197,6 +197,18 @@ export function midTreeGeometry(model: TreeModel): THREE.BufferGeometry {
 }
 
 /**
+ * A canopy cell's height over the ground (m): its kind's crown height, a little less where the
+ * wood is thinner, times `canopyTop` (below the crowns, so the middle band's trees rise clear
+ * of it); 0 for a kind lower than `canopyMinHeight` (scrub, orchards: not in the canopy).
+ */
+export function canopyCellHeight(kind: string | undefined, density: number): number {
+  const c = CONFIG.trees;
+  const crown = c.canopyHeight[kind ?? ''] ?? 10;
+  if (crown < c.canopyMinHeight) return 0;
+  return crown * (0.75 + (0.25 * density) / 15) * c.canopyTop;
+}
+
+/**
  * The far woods' canopy (milestone 5): over the wooded ground, a bumpy surface at the height
  * of the kind of wood (CONFIG.trees.canopyHeight), falling to the ground at the wood's edge
  * (each corner the mean of the four cells round it, and a skirt down to the ground along its
@@ -224,8 +236,9 @@ export function canopyArrays(f: Forest, x0: number, z0: number): { position: Flo
       const v = forestCell(f, x0 + (i + 0.5) * cell, z0 + (j + 0.5) * cell);
       const kind = v >> 4;
       const dens = v & 15;
-      if (!kind || dens < c.canopyMinDensity) continue;
-      hc[j * n + i] = (c.canopyHeight[L.kinds[kind - 1]] ?? 10) * (0.75 + (0.25 * dens) / 15);
+      const h = canopyCellHeight(L.kinds[kind - 1], dens);
+      if (!kind || dens < c.canopyMinDensity || !h) continue;
+      hc[j * n + i] = h;
       kc[j * n + i] = kind;
     }
   const cellH = (i: number, j: number) => (i < 0 || j < 0 || i >= n || j >= n ? forestH(i, j) : hc[j * n + i]);
@@ -233,7 +246,7 @@ export function canopyArrays(f: Forest, x0: number, z0: number): { position: Flo
   const forestH = (i: number, j: number) => {
     const v = forestCell(f, x0 + (i + 0.5) * cell, z0 + (j + 0.5) * cell);
     const kind = v >> 4;
-    return kind && (v & 15) >= c.canopyMinDensity ? (c.canopyHeight[L.kinds[kind - 1]] ?? 10) * (0.75 + (0.25 * (v & 15)) / 15) : 0;
+    return kind && (v & 15) >= c.canopyMinDensity ? canopyCellHeight(L.kinds[kind - 1], v & 15) : 0;
   };
   // The corners: the ground, and the canopy (the mean of the four cells round each) with a bump.
   const N = n + 1;
@@ -279,7 +292,9 @@ export function canopyArrays(f: Forest, x0: number, z0: number): { position: Flo
  * m by a dither (no transparency, so no sorting and no overdraw).
  */
 function canopyMaterial(uniforms: { canopyFrom: { value: number }; canopyFade: { value: number } }): THREE.MeshLambertMaterial {
-  const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
+  const o = CONFIG.trees.canopyDepthOffset;
+  // Drawn a little deeper than it is, so a tree standing in it always draws in front (config).
+  const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: o.factor, polygonOffsetUnits: o.units });
   m.onBeforeCompile = (shader) => {
     shader.uniforms.canopyFrom = uniforms.canopyFrom;
     shader.uniforms.canopyFade = uniforms.canopyFade;
