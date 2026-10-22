@@ -7820,3 +7820,27 @@ Owner, Oct 2026, with a 24 m stern trawler's general arrangement: "start buildin
 - **Test steps:**
   - **Desktop:** Shipyard, the gillnetter. Deck gear: **Fish hold: Under the deck**; her figures say how many boxes. ✂ Section, Buttock: the hold under her aft deck. Wheelhouse: Length 4.6 m. Furniture: add **Bunks**, **Shower** (port), **Mess table**, **Galley** (starboard). Deck gear: the A-frame. Into the game: on deck, press the hatch lid's ring to open it and look down; go trawling on a ground: the status line counts the hold; back in harbour press the yellow button on the coaming to lift a box out, carry it ashore.
   - **VR:** the same: lift the lid, look down into the hold, press LIFT; inside, lie down in the upper bunk, sit at the mess, step into the shower.
+
+### The Kort nozzle drawn on the Engine step (done, awaiting owner test)
+
+Owner, Oct 2026: "Can you do a visual preview of the cork nozzle on the tugboat in the engine page? Again, it doesn't need to appear in the 3D model in the game."
+
+- **Now** (shipyard/enginePreview.ts `buildNozzle`, drawn by `buildMachinery` when the engine's recipe has `nozzle`): a duct round each propeller, on its shaft line, turned from a foil section after the common 19A duct. Inside, the mouth flares wider forward and closes to a throat at the blade tips; outside, nearly straight. Its leading edge is thick and rounded, its trailing edge thin. A headbox plate carries it from her bottom. The rudder is drawn just aft of the outlet, allowing for the shaft's angle; on the tug that is a few centimetres aft of the rudder stock's design place (`rudderPos`, transom − 0.25), which sits inside the duct's length. The propeller's tag reads "in a Kort nozzle". Shipyard only: the game doesn't draw shafts, propellers or nozzles.
+- **Config** (`CONFIG.nozzle.look`, in propeller diameters D): `lengthD` 0.5, `tipGap` 0.01, `inletFlare` 0.15, `noseD` 0.1, `headbox` true.
+- **Checked:** tests/shipyard/enginePreview.test.ts: a twin installation with nozzles has one round each propeller, clear of the blade tips, the rudder aft of the outlet; none without. Headless Chromium: the tug's Engine step from ahead, the side and astern, single and twin. Full suite passes. **Not checked:** the Quest.
+
+### Fix: the deck floods hung on the roof edge, no light inside the wheelhouse (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the tug): "the forward deck and aft deck lights ... they're not positioned at the edge of the roof. And then, so when you're inside and you turn them on, you actually get some bleed into the cabin."
+
+- **Why:** the floods stood on the roof top, set in from its edges (on a reverse-raked front, behind the front wall's foot). The game's lights cast no shadows, so a beam passes through the roof and walls: with a 60° half-angle aimed at the middle of a short deck, nearly straight down, the wheelhouse floor lay inside the beam.
+- **Now** (shipyard/parts/places.ts): each lamp hangs `flood.out` beyond the roof's outer edge, half way up its thickness: forward, on the visor's edge (set back with a faceted front's corner); aft, on the roof's aft overhang. `floodAim` then aims each one. If the beam aimed at the middle of its deck clears the inside of the wheelhouse wall at that end by `margin`, it aims there. Otherwise it tilts outboard until it does (no flatter than `minBelowDeg` below the horizon; narrowed, never under `minAngleDeg`, only if that cap is reached). For the front wall, the inside points run up the wall to the sill, then up the glass to its head; for the aft wall, from the floor to the roof. The light.flood module takes each lamp's own `angleDeg`. On all five fleet boats the floods keep their full 60° beam, tilted out.
+- **Config** (`CONFIG.shipyard.workLights.flood`): `out` 0.07 (replaces `inset`), `margin` 4°, `minBelowDeg` 15, `minAngleDeg` 35.
+- **Checked:** headless Chromium in the game at night, the fleet tug, from inside the wheelhouse with the floods off and on: before, the floor lit up; now it doesn't change. The decks outside are lit. The Shipyard: the lamps on the roof's front and aft edges (the tug and the pilot boat). Full suite passes. **Not checked:** the Quest.
+
+### Fix: bulwarks along a full-width deckhouse, level, not a sawtooth (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the tug): "when the deck house ... is full width, it doesn't cut the bulwarks properly". Along a full-width deckhouse her bulwark is raised to guard its top. Each piece (station to station) was raised by the deckhouse top's height over her deck at the piece's middle, so its top followed her sheer and stepped back up at the next station: a sawtooth.
+
+- **Now** (vessel/view/hullMesh.ts `levelPlate`): along the deckhouse each piece is a plate whose foot follows her deck edge and whose top is level, at the deckhouse top plus her bulwark height; its rail is level at the deckhouse top plus the rail height (the stanchions were already right). Closed at its ends where it rises above her ordinary bulwark.
+- **Checked:** headless Chromium, the Shipyard: the tug with a full-width deckhouse from the starboard quarter and from port: the bulwark's top level along it. Full suite passes. **Not checked:** the Quest.

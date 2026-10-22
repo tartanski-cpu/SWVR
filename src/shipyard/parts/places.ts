@@ -14,7 +14,7 @@ import type { MachineryPart } from './engineRoom';
 /** The places inside and on the wheelhouse (vessel axes), as the landing craft's are from her cabin: the helm, the wall panels, what hangs under the roof, the floods, the cleats. */
 export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart) {
   const { d } = a;
-  const { F, FA, aft, bowRamp, bulwarkHeight, cf, consoleHalf, cx, engH, engMid, engTopAt, foreEndAt, front, hw, q, rnd, roofAt, roofFront, roofTopAt, roofY, sb, sill, stem, transom, wall } = p;
+  const { F, FA, aft, bowRamp, bulwarkHeight, cf, consoleHalf, cx, engH, engMid, engTopAt, foreEndAt, front, house, hw, q, rnd, roofAt, roofBack, roofFront, roofThickness, roofTopAt, roofY, sb, sill, stem, transom, wall, windowHead, zHead } = p;
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
   /** Where a unit hung from the roof out to port / starboard goes: toward that side (`out` m from the centreline), no further than in view from the wheel. */
   const toPort = (out: number) => Math.round(Math.max(-out, cx - CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
@@ -54,11 +54,47 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     searchlight: [0, roofTopAt(roofFront + 0.275) + 0.13, roofFront + 0.275] as V3,
     navLights: [0, roofTopAt(roofFront + 1.275), roofFront + 1.275] as V3,
     // The advanced interior's working lights (owner): the overhead switch panel over the helm
-    // (its face), and the deck floods on the roof's front and aft edges, off to port (the
-    // fore one set back with a faceted front's corner), each aimed at the middle of its deck.
+    // (its face), and the deck floods hung on the roof's outer front and aft edges, off to port
+    // (owner, Oct 2026: they stood set in on the roof, over the wheelhouse, and lit it inside),
+    // each aimed at the middle of its deck. The fore one on the visor's edge (half way up its
+    // chamfer, set back with a faceted front's corner), the aft one on the roof's aft edge
+    // (it overhangs the aft wall by the roof's `overhang`), each `out` beyond the edge.
     overhead: [cx, roofY - CONFIG.modules.overheadPanel.drop, cf + wl.overheadAft] as V3,
-    floodFore: [-wl.flood.x, roofTopAt(roofFront) + 0.07, roofFront + wl.flood.inset + sb(wl.flood.x + 0.11)] as V3,
-    floodAft: [-wl.flood.x, roofTopAt(aft) + 0.07, aft - wl.flood.inset] as V3,
+    floodFore: [-wl.flood.x, rnd(roofTopAt(front) - roofThickness / 2), rnd(zHead - house.visor + roofBack / 2 + sb(wl.flood.x + 0.11) - wl.flood.out)] as V3,
+    floodAft: [-wl.flood.x, rnd(roofTopAt(aft) - roofThickness / 2), rnd(aft + (p.layout.roof?.overhang ?? 0) + wl.flood.out)] as V3,
+  };
+  /**
+   * Where each flood aims and how wide its beam is (owner, Oct 2026: "you actually get some
+   * bleed into the cabin"): the game's lights cast no shadows, so the wheelhouse's walls and
+   * roof don't stop a beam; it must not reach inside them. In the fore-and-aft plane, angles
+   * from straight down, outboard (away from the house) positive: the inside of the wall at the
+   * lamp's end (`inside`) is at most `wallAt`. Aimed at the middle of its deck when its beam
+   * (the module's half-angle) then clears that by `margin`; else tilted outboard until it
+   * does, but no flatter than `minBelowDeg` below the horizon (the beam narrowed then, never
+   * under `minAngleDeg`). The aim point is where that line meets her deck's height there.
+   */
+  const floodAim = (lamp: V3, deckMid: V3, inside: [number, number][], out: 1 | -1): { target: V3; angleDeg: number } => {
+    const deg = 180 / Math.PI;
+    const from = (y: number, z: number) => Math.atan2((z - lamp[2]) * out, lamp[1] - y) * deg;
+    const wallAt = Math.max(...inside.map(([y, z]) => from(y, z)));
+    const full = CONFIG.vessels.workboat.deckLights.angleDeg;
+    const toMid = from(deckMid[1], deckMid[2]);
+    if (toMid - full >= wallAt + wl.flood.margin) return { target: deckMid, angleDeg: full };
+    const aim = Math.min(wallAt + wl.flood.margin + full, 90 - wl.flood.minBelowDeg);
+    const angleDeg = Math.round(Math.max(wl.flood.minAngleDeg, Math.min(full, aim - wallAt - wl.flood.margin)) * 10) / 10;
+    const drop = lamp[1] - deckMid[1];
+    const reach = drop * Math.tan(aim / deg);
+    return { target: [0, deckMid[1], rnd(lamp[2] + out * reach)], angleDeg };
+  };
+  const along = (a: [number, number], b: [number, number], n = 8) => Array.from({ length: n + 1 }, (_, i): [number, number] => [a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n]);
+  const zFore = (stem + front) / 2;
+  const zAftDeck = (aft + transom) / 2;
+  const frontIn = front + wall + sb(wl.flood.x);
+  const headIn = zHead + wall + sb(wl.flood.x);
+  /** The floods' lamps and aim points, each with its beam's half-angle (deg). */
+  const floodLamps = {
+    fore: { position: at.floodFore, ...floodAim(at.floodFore, [0, rnd(q.deckY(zFore)), rnd(zFore)], [...along([F, frontIn], [F + sill, frontIn]), ...along([F + sill, frontIn], [F + windowHead, headIn])], -1) },
+    aft: { position: at.floodAft, ...floodAim(at.floodAft, [0, rnd(q.deckY(zAftDeck)), rnd(zAftDeck)], along([FA, aft - wall], [roofAt(aft - wall), aft - wall]), 1) },
   };
   const bowCleat = stem + 0.5;
   const sternCleat = transom - 0.4;
@@ -101,6 +137,6 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTopAt(roofFront + 0.775), roofFront + 0.775] }, label: 'Cabin roof (nominal)' },
     { id: 'wipers', type: 'window.wiper', transform: { position: [0, roofY - 0.2, front] }, label: 'Over the front windows (nominal)' },
   ];
-  return { wheelhouseSockets, at, bowCleat, cleat, helmAssist, midCleat, rampBow, sternCleat, wl };
+  return { wheelhouseSockets, at, bowCleat, cleat, floodLamps, helmAssist, midCleat, rampBow, sternCleat, wl };
 }
 export type PlacesPart = ReturnType<typeof placesPart>;
