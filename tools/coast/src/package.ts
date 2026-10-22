@@ -28,6 +28,9 @@ import { addCoastChunk, coastHeight, coastTerrain, registerChunkedCoast, registe
 
 const T = {
   berthsPerPort: 10,
+  /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
+   * (the game puts you 2 m in): a pontoon (2.5 m) has; a narrower walkway's berths aren't chosen. */
+  namedDeck: 2.4,
   /**
    * A named berth must have room for a whole boat: clear water this far either way along the
    * face from the berth (m: the biggest boats are about 14 m long, and a margin) and out to
@@ -154,7 +157,7 @@ const buildings = hb.buildings.map(({ source: _s, base: _b, tagged: _t, ...b }: 
 
 // ── Ports ──
 type HB = { id: string; name: string; kind: string; x: number; z: number; berths: number; fetch: number; role?: string };
-type Berth = { id: string; source: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number; shoreDist: number; deckY: number };
+type Berth = { id: string; source: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number; shoreDist: number; deckY: number; deckW?: number };
 const harbours = (hb.harbours as HB[]).filter((h) => h.berths > 0 || h.kind === 'anchorage');
 const near = (h: HB, b: Berth) => Math.hypot(b.x - h.x, b.z - h.z);
 const ports: object[] = [];
@@ -211,7 +214,8 @@ const roomRank = (b: Berth) => {
   return n === 0 ? 0 : n <= 2 ? 1 : 2;
 };
 harbours.forEach((h, n) => {
-  const own = (hb.berths as Berth[]).filter((b) => pieceOf.get(b.source) === h.id);
+  // (Not on a deck too narrow to step ashore and stack goods on: a walkway's berths are moorings, not a port's.)
+  const own = (hb.berths as Berth[]).filter((b) => pieceOf.get(b.source) === h.id && (b.deckW ?? Infinity) >= T.namedDeck);
   // Room for a whole boat first (no bow on the rocks), then fixed faces (cargo wants a quay
   // or a pier) before pontoons, then nearest the harbour's middle.
   const rank = new Map(own.map((b) => [b, roomRank(b)]));
@@ -235,7 +239,10 @@ harbours.forEach((h, n) => {
     portFloods.push({ portId: h.id, x: stack.x, y: hAt(stack.x, stack.z) + 6, z: stack.z });
     return;
   }
-  if (!pick.length) return;
+  if (!pick.length) {
+    if ((hb.berths as Berth[]).some((b) => pieceOf.get(b.source) === h.id)) warnings.push(`${h.id}: its berths are all on decks under ${T.namedDeck} m wide: not a port`);
+    return;
+  }
   // No berth with room for a boat (a drying pier, say): drawn, but not a port the game sends work to.
   if (rank.get(pick[0]) === 2) {
     warnings.push(`${h.id}: no berth with room for a boat (best blocked at ${blocked(pick[0])} points): not a port`);

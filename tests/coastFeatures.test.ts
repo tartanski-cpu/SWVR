@@ -66,9 +66,13 @@ describe('coast features (C1)', () => {
     expect(f.ferries.routes.length).toBeGreaterThanOrEqual(5);
   });
 
-  it("the report names the piers drawn over each other: Rothesay's start spot", () => {
+  it('the report names the piers drawn over each other (Rothesay\'s start spot was, until its harbour pier was built along its outline)', () => {
     const report = json<{ warnings: string[] }>('public/regions/clyde/report.json');
-    expect(report.warnings.some((w) => w.startsWith('overlapping piers at rothesay-harbour'))).toBe(true);
+    // Rothesay's harbour pier, one box round its T, covered the low pier inside it (where
+    // the owner was stood "underneath the big wooden one"); built along its outline, it doesn't.
+    expect(report.warnings.some((w) => w.startsWith('overlapping piers at rothesay-harbour'))).toBe(false);
+    // The check itself still finds them where they are (Sandbank's pontoon under its pier).
+    expect(report.warnings.some((w) => w.startsWith('overlapping piers at sandbank'))).toBe(true);
     // Each warning once (the stage re-run doesn't pile them up).
     expect(new Set(report.warnings).size).toBe(report.warnings.length);
   });

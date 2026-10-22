@@ -108,3 +108,18 @@ describe('the Clyde: streaming its ground', () => {
     expect(r.coast!.pkg.terrain.chunked).toBe(true);
   });
 });
+
+describe('the Clyde: piers drawn as outlines (owner: Wemyss Bay pier "absolutely massive")', () => {
+  it('no pier or pontoon a slab over the water: an L, a T or a jetty outline is built along its shape', () => {
+    // (A slab: wide both ways. A long straight jetty, Hunterston's 442 x 33 m, is what it is.)
+    const slabs = (pkg.blocks ?? []).filter((b) => b.kind === 'pier' && b.halfWidth > 25);
+    expect(slabs.map((b) => `${Math.round(b.x)},${Math.round(b.z)} ${Math.round(2 * b.halfLength)}x${Math.round(2 * b.halfWidth)}`)).toEqual([]);
+  });
+
+  it('the jetty south of Inverkip is named for where it is, not after Wemyss Bay; Kip Marina is its own', () => {
+    const names = pkg.ports.map((p) => p.name);
+    expect(pkg.ports.find((p) => p.id === 'wemyss-bay-pier-2')?.name).toBe('Inverkip jetty');
+    expect(names.filter((n) => n === 'Wemyss Bay pier').length).toBe(1);
+    expect(names).toContain('Kip Marina');
+  });
+});

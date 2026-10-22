@@ -1,16 +1,10 @@
 {
  "warnings": [
   "7 patches where the coastline's sides disagree (check the coast there)",
-  "overlapping piers at rhu-marina (13233, -16303): decks 3.5 m and 0.5 m over 68 m²",
-  "overlapping piers at sandbank (2383, -13075): decks 2.4 m and 0.5 m over 48 m²",
-  "overlapping piers at sandbank (2392, -13106): decks 2.4 m and 0.5 m over 216 m²",
-  "overlapping piers at sandbank (2379, -13106): decks 2.4 m and 0.5 m over 144 m²",
-  "overlapping piers at sandbank (2404, -13148): decks 2.4 m and 0.5 m over 60 m²",
-  "overlapping piers at sandbank (2404, -13165): decks 2.4 m and 0.5 m over 44 m²",
-  "overlapping piers at rothesay-harbour (-4259, 2897): decks 2.4 m and 0.5 m over 228 m²",
+  "overlapping piers at sandbank (2405, -13165): decks 2.4 m and 0.5 m over 48 m²",
   "ormidale-lodge-pier: no berth with room for a boat (best blocked at 12 points): not a port",
   "kilchattan-bay-pier-2: no berth with room for a boat (best blocked at 4 points): not a port",
-  "the-lorn-pier-2: no berth with room for a boat (best blocked at 3 points): not a port"
+  "cammes-reinach-pier: no berth with room for a boat (best blocked at 6 points): not a port"
  ],
  "nav": {
   "marks": 97,
@@ -21,30 +15,68 @@
  },
  "harbours": {
   "harbours": 78,
-  "blocks": 219,
-  "berths": 1470,
+  "blocks": 308,
+  "berths": 1562,
   "slipways": 13,
-  "buildings": 5415,
-  "edits": 0,
+  "buildings": 5540,
+  "edits": 1,
+  "sparse": [
+   "way/25985153: 7244 m2 in a 59836 m2 box, 13.8 m thick",
+   "way/37016057: 1652 m2 in a 4033 m2 box, 11.6 m thick",
+   "way/38047229: 5173 m2 in a 15208 m2 box, 17.1 m thick",
+   "way/102118824: 3946 m2 in a 21898 m2 box, 12.1 m thick",
+   "way/102118826: 1146 m2 in a 3099 m2 box, 9.3 m thick",
+   "way/120695978: 400 m2 in a 737 m2 box, 7.4 m thick",
+   "way/128103983: 1860 m2 in a 6505 m2 box, 11.6 m thick",
+   "way/128106489 (Sandbank): 1676 m2 in a 7400 m2 box, 9.2 m thick",
+   "way/151832188: 650 m2 in a 1754 m2 box, 6.1 m thick",
+   "way/198082416: 865 m2 in a 2033 m2 box, 8.2 m thick",
+   "way/222928111 (Hunterston Pier): 1337 m2 in a 4523 m2 box, 6.6 m thick",
+   "way/248511504: 1525 m2 in a 6880 m2 box, 5.7 m thick",
+   "way/255707549: 3388 m2 in a 94921 m2 box, 4.0 m thick",
+   "way/316788422 (Blairmore): 381 m2 in a 1043 m2 box, 5.5 m thick",
+   "way/316816719: 232 m2 in a 921 m2 box, 3.4 m thick",
+   "way/318950714 (Old Tank Cleaning Berth): 1099 m2 in a 5271 m2 box, 6.9 m thick",
+   "way/318950715 (East Jetty): 1474 m2 in a 7198 m2 box, 7.8 m thick",
+   "way/318950716 (West Jetty): 1340 m2 in a 5206 m2 box, 8.5 m thick",
+   "way/784807358: 88 m2 in a 369 m2 box, 1.6 m thick",
+   "way/784807360 (Cammes Reinach Pier): 314 m2 in a 684 m2 box, 4.9 m thick",
+   "way/841351533: 340 m2 in a 916 m2 box, 5.5 m thick",
+   "way/842463365: 245 m2 in a 667 m2 box, 4.5 m thick",
+   "way/844324187: 29 m2 in a 94 m2 box, 1.1 m thick",
+   "way/844328327: 29 m2 in a 94 m2 box, 1.1 m thick",
+   "way/844328328: 29 m2 in a 94 m2 box, 1.1 m thick",
+   "way/1046111168: 407 m2 in a 1435 m2 box, 4.7 m thick",
+   "way/1051744473: 641 m2 in a 2146 m2 box, 5.9 m thick",
+   "way/1052218076: 113 m2 in a 298 m2 box, 3.1 m thick",
+   "way/1052219033: 856 m2 in a 4035 m2 box, 4.3 m thick",
+   "way/1052223416: 361 m2 in a 2584 m2 box, 3.2 m thick",
+   "way/1096919993: 401 m2 in a 888 m2 box, 7.2 m thick",
+   "way/1126931781: 513 m2 in a 1721 m2 box, 5.6 m thick",
+   "way/1144874250: 4306 m2 in a 20500 m2 box, 8.9 m thick",
+   "way/1395256232: 215 m2 in a 978 m2 box, 3.2 m thick",
+   "way/1494092678 (Rothesay Harbour): 9256 m2 in a 29148 m2 box, 26.7 m thick",
+   "way/1536028243: 6333 m2 in a 22863 m2 box, 19.9 m thick"
+  ],
   "roles": {
    "pier.exposed": "Portencross Pier",
    "harbour.sheltered": "James Watt Dock Marina",
    "anchorage": "Lochhead anchorage"
   }
  },
- "dredgedCells": 2114,
- "triangles": 787175,
- "deepTriangles": 7609,
- "vertices": 438843,
- "bytes": 19507166,
+ "dredgedCells": 1970,
+ "triangles": 787379,
+ "deepTriangles": 7985,
+ "vertices": 439077,
+ "bytes": 19519850,
  "chunks": [
   {
    "id": 0,
-   "triangles": 343
+   "triangles": 348
   },
   {
    "id": 1,
-   "triangles": 445
+   "triangles": 441
   },
   {
    "id": 2,
@@ -52,11 +84,11 @@
   },
   {
    "id": 3,
-   "triangles": 304
+   "triangles": 302
   },
   {
    "id": 4,
-   "triangles": 4065
+   "triangles": 4041
   },
   {
    "id": 5,
@@ -64,51 +96,51 @@
   },
   {
    "id": 6,
-   "triangles": 786
+   "triangles": 794
   },
   {
    "id": 7,
-   "triangles": 812
+   "triangles": 814
   },
   {
    "id": 8,
-   "triangles": 1370
+   "triangles": 1369
   },
   {
    "id": 9,
-   "triangles": 2457
+   "triangles": 2458
   },
   {
    "id": 10,
-   "triangles": 3274
+   "triangles": 3269
   },
   {
    "id": 11,
-   "triangles": 4526
+   "triangles": 4515
   },
   {
    "id": 12,
-   "triangles": 2757
+   "triangles": 2760
   },
   {
    "id": 13,
-   "triangles": 1634
+   "triangles": 1611
   },
   {
    "id": 14,
-   "triangles": 3316
+   "triangles": 3334
   },
   {
    "id": 15,
-   "triangles": 6771
+   "triangles": 6758
   },
   {
    "id": 16,
-   "triangles": 2321
+   "triangles": 2313
   },
   {
    "id": 17,
-   "triangles": 742
+   "triangles": 741
   },
   {
    "id": 18,
@@ -120,95 +152,95 @@
   },
   {
    "id": 20,
-   "triangles": 2519
+   "triangles": 2523
   },
   {
    "id": 21,
-   "triangles": 1679
+   "triangles": 1683
   },
   {
    "id": 22,
-   "triangles": 9954
+   "triangles": 9949
   },
   {
    "id": 23,
-   "triangles": 2852
+   "triangles": 2860
   },
   {
    "id": 24,
-   "triangles": 289
+   "triangles": 292
   },
   {
    "id": 25,
-   "triangles": 1067
+   "triangles": 1060
   },
   {
    "id": 26,
-   "triangles": 3078
+   "triangles": 3077
   },
   {
    "id": 27,
-   "triangles": 5231
+   "triangles": 5232
   },
   {
    "id": 28,
-   "triangles": 6595
+   "triangles": 6629
   },
   {
    "id": 29,
-   "triangles": 6178
+   "triangles": 6175
   },
   {
    "id": 30,
-   "triangles": 1695
+   "triangles": 1697
   },
   {
    "id": 31,
-   "triangles": 2537
+   "triangles": 2562
   },
   {
    "id": 32,
-   "triangles": 5711
+   "triangles": 5720
   },
   {
    "id": 33,
-   "triangles": 3907
+   "triangles": 3902
   },
   {
    "id": 34,
-   "triangles": 3661
+   "triangles": 3647
   },
   {
    "id": 35,
-   "triangles": 2878
+   "triangles": 2882
   },
   {
    "id": 36,
-   "triangles": 103
+   "triangles": 101
   },
   {
    "id": 37,
-   "triangles": 2706
+   "triangles": 2726
   },
   {
    "id": 38,
-   "triangles": 7286
+   "triangles": 7264
   },
   {
    "id": 39,
-   "triangles": 2504
+   "triangles": 2506
   },
   {
    "id": 40,
-   "triangles": 9278
+   "triangles": 9280
   },
   {
    "id": 41,
-   "triangles": 8300
+   "triangles": 8299
   },
   {
    "id": 42,
-   "triangles": 2280
+   "triangles": 2298
   },
   {
    "id": 43,
@@ -220,15 +252,15 @@
   },
   {
    "id": 45,
-   "triangles": 5913
+   "triangles": 5908
   },
   {
    "id": 46,
-   "triangles": 5587
+   "triangles": 5619
   },
   {
    "id": 47,
-   "triangles": 5112
+   "triangles": 5131
   },
   {
    "id": 48,
@@ -236,23 +268,23 @@
   },
   {
    "id": 49,
-   "triangles": 3685
+   "triangles": 3692
   },
   {
    "id": 50,
-   "triangles": 4352
+   "triangles": 4353
   },
   {
    "id": 51,
-   "triangles": 3417
+   "triangles": 3411
   },
   {
    "id": 52,
-   "triangles": 3
+   "triangles": 4
   },
   {
    "id": 53,
-   "triangles": 408
+   "triangles": 383
   },
   {
    "id": 54,
@@ -264,27 +296,27 @@
   },
   {
    "id": 56,
-   "triangles": 8759
+   "triangles": 8749
   },
   {
    "id": 57,
-   "triangles": 2362
+   "triangles": 2360
   },
   {
    "id": 58,
-   "triangles": 8398
+   "triangles": 8389
   },
   {
    "id": 59,
-   "triangles": 9355
+   "triangles": 9361
   },
   {
    "id": 60,
-   "triangles": 4256
+   "triangles": 4271
   },
   {
    "id": 61,
-   "triangles": 1314
+   "triangles": 1318
   },
   {
    "id": 62,
@@ -296,63 +328,63 @@
   },
   {
    "id": 64,
-   "triangles": 4475
+   "triangles": 4466
   },
   {
    "id": 65,
-   "triangles": 3335
+   "triangles": 3337
   },
   {
    "id": 67,
-   "triangles": 513
+   "triangles": 515
   },
   {
    "id": 68,
-   "triangles": 2219
+   "triangles": 2230
   },
   {
    "id": 69,
-   "triangles": 1267
+   "triangles": 1266
   },
   {
    "id": 70,
-   "triangles": 47
+   "triangles": 43
   },
   {
    "id": 71,
-   "triangles": 45
+   "triangles": 60
   },
   {
    "id": 72,
-   "triangles": 245
+   "triangles": 248
   },
   {
    "id": 73,
-   "triangles": 4676
+   "triangles": 4679
   },
   {
    "id": 74,
-   "triangles": 10366
+   "triangles": 10345
   },
   {
    "id": 75,
-   "triangles": 4702
+   "triangles": 4704
   },
   {
    "id": 76,
-   "triangles": 4281
+   "triangles": 4267
   },
   {
    "id": 77,
-   "triangles": 7659
+   "triangles": 7648
   },
   {
    "id": 78,
-   "triangles": 7070
+   "triangles": 7068
   },
   {
    "id": 79,
-   "triangles": 1385
+   "triangles": 1381
   },
   {
    "id": 80,
@@ -364,19 +396,19 @@
   },
   {
    "id": 82,
-   "triangles": 5841
+   "triangles": 5872
   },
   {
    "id": 83,
-   "triangles": 510
+   "triangles": 515
   },
   {
    "id": 84,
-   "triangles": 3597
+   "triangles": 3615
   },
   {
    "id": 85,
-   "triangles": 5241
+   "triangles": 5233
   },
   {
    "id": 86,
@@ -384,47 +416,47 @@
   },
   {
    "id": 87,
-   "triangles": 5116
+   "triangles": 5120
   },
   {
    "id": 88,
-   "triangles": 5544
+   "triangles": 5552
   },
   {
    "id": 89,
-   "triangles": 1775
+   "triangles": 1741
   },
   {
    "id": 90,
-   "triangles": 932
+   "triangles": 940
   },
   {
    "id": 91,
-   "triangles": 4893
+   "triangles": 4889
   },
   {
    "id": 92,
-   "triangles": 10490
+   "triangles": 10497
   },
   {
    "id": 93,
-   "triangles": 7573
+   "triangles": 7595
   },
   {
    "id": 94,
-   "triangles": 1926
+   "triangles": 1922
   },
   {
    "id": 95,
-   "triangles": 6252
+   "triangles": 6245
   },
   {
    "id": 96,
-   "triangles": 3955
+   "triangles": 3959
   },
   {
    "id": 97,
-   "triangles": 1774
+   "triangles": 1764
   },
   {
    "id": 98,
@@ -432,11 +464,11 @@
   },
   {
    "id": 99,
-   "triangles": 3204
+   "triangles": 3200
   },
   {
    "id": 100,
-   "triangles": 6415
+   "triangles": 6425
   },
   {
    "id": 101,
@@ -444,79 +476,79 @@
   },
   {
    "id": 102,
-   "triangles": 5536
+   "triangles": 5545
   },
   {
    "id": 103,
-   "triangles": 1192
+   "triangles": 1188
   },
   {
    "id": 104,
-   "triangles": 1271
+   "triangles": 1266
   },
   {
    "id": 105,
-   "triangles": 1627
+   "triangles": 1629
   },
   {
    "id": 106,
-   "triangles": 2741
+   "triangles": 2737
   },
   {
    "id": 107,
-   "triangles": 2465
+   "triangles": 2447
   },
   {
    "id": 108,
-   "triangles": 5397
+   "triangles": 5412
   },
   {
    "id": 109,
-   "triangles": 9207
+   "triangles": 9209
   },
   {
    "id": 110,
-   "triangles": 7766
+   "triangles": 7771
   },
   {
    "id": 111,
-   "triangles": 7443
+   "triangles": 7460
   },
   {
    "id": 112,
-   "triangles": 5758
+   "triangles": 5730
   },
   {
    "id": 113,
-   "triangles": 5393
+   "triangles": 5406
   },
   {
    "id": 114,
-   "triangles": 5321
+   "triangles": 5319
   },
   {
    "id": 115,
-   "triangles": 3952
+   "triangles": 3944
   },
   {
    "id": 116,
-   "triangles": 1546
+   "triangles": 1544
   },
   {
    "id": 117,
-   "triangles": 4479
+   "triangles": 4478
   },
   {
    "id": 118,
-   "triangles": 2871
+   "triangles": 2879
   },
   {
    "id": 120,
-   "triangles": 7643
+   "triangles": 7673
   },
   {
    "id": 121,
-   "triangles": 2096
+   "triangles": 2100
   },
   {
    "id": 122,
@@ -528,7 +560,7 @@
   },
   {
    "id": 124,
-   "triangles": 284
+   "triangles": 278
   },
   {
    "id": 125,
@@ -536,55 +568,55 @@
   },
   {
    "id": 126,
-   "triangles": 5075
+   "triangles": 5077
   },
   {
    "id": 127,
-   "triangles": 4630
+   "triangles": 4619
   },
   {
    "id": 128,
-   "triangles": 3170
+   "triangles": 3174
   },
   {
    "id": 129,
-   "triangles": 1083
+   "triangles": 1086
   },
   {
    "id": 130,
-   "triangles": 6114
+   "triangles": 6116
   },
   {
    "id": 131,
-   "triangles": 4528
+   "triangles": 4529
   },
   {
    "id": 132,
-   "triangles": 2759
+   "triangles": 2775
   },
   {
    "id": 133,
-   "triangles": 4854
+   "triangles": 4851
   },
   {
    "id": 134,
-   "triangles": 2439
+   "triangles": 2434
   },
   {
    "id": 135,
-   "triangles": 7562
+   "triangles": 7568
   },
   {
    "id": 136,
-   "triangles": 41
+   "triangles": 37
   },
   {
    "id": 137,
-   "triangles": 3445
+   "triangles": 3428
   },
   {
    "id": 138,
-   "triangles": 4444
+   "triangles": 4439
   },
   {
    "id": 139,
@@ -592,7 +624,7 @@
   },
   {
    "id": 140,
-   "triangles": 280
+   "triangles": 278
   },
   {
    "id": 141,
@@ -608,55 +640,55 @@
   },
   {
    "id": 144,
-   "triangles": 2943
+   "triangles": 2934
   },
   {
    "id": 145,
-   "triangles": 5613
+   "triangles": 5617
   },
   {
    "id": 146,
-   "triangles": 4111
+   "triangles": 4091
   },
   {
    "id": 147,
-   "triangles": 1007
+   "triangles": 1006
   },
   {
    "id": 148,
-   "triangles": 1535
+   "triangles": 1540
   },
   {
    "id": 149,
-   "triangles": 3742
+   "triangles": 3745
   },
   {
    "id": 150,
-   "triangles": 839
+   "triangles": 844
   },
   {
    "id": 151,
-   "triangles": 6233
+   "triangles": 6235
   },
   {
    "id": 152,
-   "triangles": 3426
+   "triangles": 3434
   },
   {
    "id": 153,
-   "triangles": 3874
+   "triangles": 3872
   },
   {
    "id": 155,
-   "triangles": 3257
+   "triangles": 3255
   },
   {
    "id": 156,
-   "triangles": 2622
+   "triangles": 2634
   },
   {
    "id": 157,
-   "triangles": 427
+   "triangles": 429
   },
   {
    "id": 158,
@@ -664,71 +696,71 @@
   },
   {
    "id": 159,
-   "triangles": 54
+   "triangles": 55
   },
   {
    "id": 160,
-   "triangles": 24
+   "triangles": 25
   },
   {
    "id": 161,
-   "triangles": 141
+   "triangles": 139
   },
   {
    "id": 162,
-   "triangles": 3879
+   "triangles": 3882
   },
   {
    "id": 163,
-   "triangles": 6648
+   "triangles": 6681
   },
   {
    "id": 164,
-   "triangles": 2045
+   "triangles": 2043
   },
   {
    "id": 165,
-   "triangles": 3707
+   "triangles": 3706
   },
   {
    "id": 166,
-   "triangles": 1724
+   "triangles": 1729
   },
   {
    "id": 167,
-   "triangles": 4403
+   "triangles": 4390
   },
   {
    "id": 168,
-   "triangles": 3397
+   "triangles": 3396
   },
   {
    "id": 169,
-   "triangles": 1168
+   "triangles": 1176
   },
   {
    "id": 170,
-   "triangles": 2809
+   "triangles": 2808
   },
   {
    "id": 171,
-   "triangles": 998
+   "triangles": 1001
   },
   {
    "id": 173,
-   "triangles": 2552
+   "triangles": 2554
   },
   {
    "id": 174,
-   "triangles": 2988
+   "triangles": 2986
   },
   {
    "id": 175,
-   "triangles": 689
+   "triangles": 701
   },
   {
    "id": 176,
-   "triangles": 425
+   "triangles": 426
   },
   {
    "id": 177,
@@ -744,39 +776,39 @@
   },
   {
    "id": 180,
-   "triangles": 2399
+   "triangles": 2398
   },
   {
    "id": 181,
-   "triangles": 4509
+   "triangles": 4510
   },
   {
    "id": 182,
-   "triangles": 933
+   "triangles": 934
   },
   {
    "id": 183,
-   "triangles": 1060
+   "triangles": 1065
   },
   {
    "id": 184,
-   "triangles": 3147
+   "triangles": 3149
   },
   {
    "id": 185,
-   "triangles": 1091
+   "triangles": 1089
   },
   {
    "id": 186,
-   "triangles": 5375
+   "triangles": 5399
   },
   {
    "id": 187,
-   "triangles": 5320
+   "triangles": 5311
   },
   {
    "id": 191,
-   "triangles": 2864
+   "triangles": 2840
   },
   {
    "id": 192,
@@ -784,11 +816,11 @@
   },
   {
    "id": 193,
-   "triangles": 1307
+   "triangles": 1306
   },
   {
    "id": 194,
-   "triangles": 503
+   "triangles": 515
   },
   {
    "id": 195,
@@ -800,15 +832,15 @@
   },
   {
    "id": 197,
-   "triangles": 118
+   "triangles": 120
   },
   {
    "id": 199,
-   "triangles": 1337
+   "triangles": 1338
   },
   {
    "id": 200,
-   "triangles": 582
+   "triangles": 579
   },
   {
    "id": 201,
@@ -816,31 +848,31 @@
   },
   {
    "id": 202,
-   "triangles": 3804
+   "triangles": 3790
   },
   {
    "id": 203,
-   "triangles": 1462
+   "triangles": 1454
   },
   {
    "id": 204,
-   "triangles": 2083
+   "triangles": 2087
   },
   {
    "id": 205,
-   "triangles": 5207
+   "triangles": 5222
   },
   {
    "id": 209,
-   "triangles": 2371
+   "triangles": 2376
   },
   {
    "id": 210,
-   "triangles": 3812
+   "triangles": 3831
   },
   {
    "id": 211,
-   "triangles": 1957
+   "triangles": 1955
   },
   {
    "id": 212,
@@ -848,39 +880,39 @@
   },
   {
    "id": 213,
-   "triangles": 63
+   "triangles": 64
   },
   {
    "id": 214,
-   "triangles": 52
+   "triangles": 53
   },
   {
    "id": 215,
-   "triangles": 144
+   "triangles": 149
   },
   {
    "id": 219,
-   "triangles": 1665
+   "triangles": 1663
   },
   {
    "id": 220,
-   "triangles": 4165
+   "triangles": 4179
   },
   {
    "id": 221,
-   "triangles": 1741
+   "triangles": 1735
   },
   {
    "id": 222,
-   "triangles": 1317
+   "triangles": 1299
   },
   {
    "id": 223,
-   "triangles": 6898
+   "triangles": 6925
   },
   {
    "id": 224,
-   "triangles": 225
+   "triangles": 226
   },
   {
    "id": 227,
@@ -888,11 +920,11 @@
   },
   {
    "id": 228,
-   "triangles": 4437
+   "triangles": 4433
   },
   {
    "id": 229,
-   "triangles": 1913
+   "triangles": 1905
   },
   {
    "id": 230,
@@ -904,7 +936,7 @@
   },
   {
    "id": 232,
-   "triangles": 92
+   "triangles": 95
   },
   {
    "id": 233,
@@ -912,7 +944,7 @@
   },
   {
    "id": 237,
-   "triangles": 3265
+   "triangles": 3261
   },
   {
    "id": 238,
@@ -920,35 +952,35 @@
   },
   {
    "id": 239,
-   "triangles": 3047
+   "triangles": 3057
   },
   {
    "id": 240,
-   "triangles": 1134
+   "triangles": 1138
   },
   {
    "id": 241,
-   "triangles": 5116
+   "triangles": 5123
   },
   {
    "id": 242,
-   "triangles": 2676
+   "triangles": 2670
   },
   {
    "id": 244,
-   "triangles": 2558
+   "triangles": 2553
   },
   {
    "id": 245,
-   "triangles": 4767
+   "triangles": 4776
   },
   {
    "id": 246,
-   "triangles": 3877
+   "triangles": 3872
   },
   {
    "id": 247,
-   "triangles": 3495
+   "triangles": 3479
   },
   {
    "id": 248,
@@ -972,39 +1004,39 @@
   },
   {
    "id": 256,
-   "triangles": 1798
+   "triangles": 1783
   },
   {
    "id": 257,
-   "triangles": 2473
+   "triangles": 2485
   },
   {
    "id": 258,
-   "triangles": 3017
+   "triangles": 2989
   },
   {
    "id": 259,
-   "triangles": 2729
+   "triangles": 2710
   },
   {
    "id": 260,
-   "triangles": 3341
+   "triangles": 3349
   },
   {
    "id": 262,
-   "triangles": 4963
+   "triangles": 4989
   },
   {
    "id": 263,
-   "triangles": 4571
+   "triangles": 4565
   },
   {
    "id": 264,
-   "triangles": 2879
+   "triangles": 2877
   },
   {
    "id": 265,
-   "triangles": 4482
+   "triangles": 4481
   },
   {
    "id": 266,
@@ -1016,19 +1048,19 @@
   },
   {
    "id": 268,
-   "triangles": 25
+   "triangles": 27
   },
   {
    "id": 269,
-   "triangles": 130
+   "triangles": 131
   },
   {
    "id": 276,
-   "triangles": 2925
+   "triangles": 2923
   },
   {
    "id": 277,
-   "triangles": 5210
+   "triangles": 5231
   },
   {
    "id": 278,
@@ -1036,27 +1068,27 @@
   },
   {
    "id": 279,
-   "triangles": 714
+   "triangles": 716
   },
   {
    "id": 280,
-   "triangles": 7748
+   "triangles": 7734
   },
   {
    "id": 281,
-   "triangles": 5703
+   "triangles": 5691
   },
   {
    "id": 282,
-   "triangles": 4526
+   "triangles": 4533
   },
   {
    "id": 283,
-   "triangles": 2978
+   "triangles": 3031
   },
   {
    "id": 284,
-   "triangles": 438
+   "triangles": 441
   },
   {
    "id": 285,
@@ -1076,39 +1108,39 @@
   },
   {
    "id": 294,
-   "triangles": 2980
+   "triangles": 2972
   },
   {
    "id": 295,
-   "triangles": 8494
+   "triangles": 8490
   },
   {
    "id": 296,
-   "triangles": 5180
+   "triangles": 5171
   },
   {
    "id": 297,
-   "triangles": 1704
+   "triangles": 1674
   },
   {
    "id": 298,
-   "triangles": 2397
+   "triangles": 2376
   },
   {
    "id": 299,
-   "triangles": 2280
+   "triangles": 2287
   },
   {
    "id": 300,
-   "triangles": 6404
+   "triangles": 6390
   },
   {
    "id": 301,
-   "triangles": 1982
+   "triangles": 1991
   },
   {
    "id": 302,
-   "triangles": 126
+   "triangles": 117
   },
   {
    "id": 303,
@@ -1120,31 +1152,31 @@
   },
   {
    "id": 305,
-   "triangles": 88
+   "triangles": 90
   },
   {
    "id": 306,
-   "triangles": 5085
+   "triangles": 5087
   },
   {
    "id": 307,
-   "triangles": 2658
+   "triangles": 2659
   },
   {
    "id": 313,
-   "triangles": 1371
+   "triangles": 1372
   },
   {
    "id": 315,
-   "triangles": 4516
+   "triangles": 4598
   },
   {
    "id": 316,
-   "triangles": 2151
+   "triangles": 2156
   },
   {
    "id": 317,
-   "triangles": 4737
+   "triangles": 4731
   },
   {
    "id": 318,
@@ -1152,7 +1184,7 @@
   },
   {
    "id": 319,
-   "triangles": 904
+   "triangles": 897
   },
   {
    "id": 320,
@@ -1176,7 +1208,7 @@
   },
   {
    "id": 325,
-   "triangles": 3065
+   "triangles": 3064
   },
   {
    "id": 326,
@@ -1184,15 +1216,15 @@
   },
   {
    "id": 335,
-   "triangles": 863
+   "triangles": 861
   },
   {
    "id": 336,
-   "triangles": 353
+   "triangles": 351
   },
   {
    "id": 337,
-   "triangles": 222
+   "triangles": 219
   },
   {
    "id": 338,
@@ -1200,7 +1232,7 @@
   },
   {
    "id": 339,
-   "triangles": 89
+   "triangles": 94
   },
   {
    "id": 340,
@@ -1218,9 +1250,9 @@
  "chunkBudget": 12000,
  "package": {
   "ports": 56,
-  "berths": 82,
-  "blocks": 219,
-  "buildings": 5415,
+  "berths": 81,
+  "blocks": 308,
+  "buildings": 5540,
   "marks": 81,
   "lights": 44,
   "slipways": 13,
@@ -1230,22 +1262,22 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1487363
+  "bytes": 1526988
  },
  "houses": {
   "byType": {
-   "warehouse": 270,
-   "house": 3782,
+   "warehouse": 274,
+   "house": 3886,
    "church": 32,
-   "terrace": 764,
-   "shed": 133,
-   "cottage": 309,
+   "terrace": 775,
+   "shed": 134,
+   "cottage": 314,
    "boathouse": 122,
    "castle": 3
   },
   "fromTags": 24,
   "fromRules": 76,
-  "plain": 3928
+  "plain": 4000
  },
  "trees": {
   "woodedKm2": {

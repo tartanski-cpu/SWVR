@@ -61,10 +61,20 @@ const T = {
   breakwaterWidth: 10,
   /** A quay wall's boxes reach this far inland from the quay face (m). */
   quayDepth: 10,
+  /** A pier drawn as an area that fills less than this share of its smallest box isn't a
+   * rectangle: an L or T, a jetty that bends, an outline round a jetty's trestle, head and
+   * dolphins. One box round it fills in the water inside it, so it's built along its outline's
+   * straight runs instead (sparsePieces). */
+  sparseFill: 0.55,
+  /** Its pieces are at most this thick (m): how far in from the outline it looks for the far side. */
+  sparseThick: 30,
   /** Runs of a line within this of straight make one box (m off the chord). */
   straightTol: 1.5,
   /** Berths: water at least this deep beside the face (m), one every so many metres, the boat's half-beam off the face. */
   berthDepth: 2,
+  /** No berth along a piece narrower than this (m): a catwalk to a dolphin, or a sliver of an
+   * outline (about 1 m), has no deck to step off onto (a pontoon, 2.5 m, or a walkway pier, has). */
+  berthMinWidth: 1.5,
   berthSpacing: 16,
   berthOff: 2.2,
   /** Pontoons float in shallower water (m). */
@@ -220,6 +230,81 @@ function runBox(a: [number, number], b: [number, number], width: number, side: n
   return { x: (a[0] + b[0]) / 2 + lx * off, z: (a[1] + b[1]) / 2 + lz * off, halfLength: L / 2 + extra, halfWidth: width / 2, yawDeg: bearing(ux, uz) % 180 };
 }
 
+/** A line's length (m). */
+function perimeter(p: [number, number][]): number {
+  let L = 0;
+  for (let i = 1; i < p.length; i++) L += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
+  return L;
+}
+
+/** A closed outline's area (m2, the shoelace formula). */
+function polyArea(p: [number, number][]): number {
+  let a = 0;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) a += p[j][0] * p[i][1] - p[i][0] * p[j][1];
+  return Math.abs(a) / 2;
+}
+
+/**
+ * A sparse outline (see T.sparseFill) as the narrow pieces it's drawn round: a box along each
+ * straight run of the outline, standing inside it, as thick as the outline is there (looking
+ * straight in for its far side, at most `sparseThick` m). The longest runs first; a box whose
+ * middle falls in one already made is the same piece seen from its other side (a finger's
+ * second side, or its end) and is left out.
+ */
+function sparsePieces(p: [number, number][]): Omit<Block, 'source' | 'kind' | 'top' | 'fendered'>[] {
+  const out: Omit<Block, 'source' | 'kind' | 'top' | 'fendered'>[] = [];
+  const inside = (b: (typeof out)[number], x: number, z: number) => {
+    const a = ((90 - b.yawDeg) * Math.PI) / 180; // the long axis (yawDeg a compass bearing)
+    const ux = Math.cos(a);
+    const uz = -Math.sin(a);
+    const dx = x - b.x;
+    const dz = z - b.z;
+    return Math.abs(dx * ux + dz * uz) <= b.halfLength && Math.abs(-dx * uz + dz * ux) <= b.halfWidth;
+  };
+  // (A closed ring's ends meet, which leaves runs nothing to measure from: split it in two at
+  // the point farthest from its start.)
+  let far = 0;
+  for (let i = 1; i < p.length; i++) if (Math.hypot(p[i][0] - p[0][0], p[i][1] - p[0][1]) > Math.hypot(p[far][0] - p[0][0], p[far][1] - p[0][1])) far = i;
+  const all = [...runs(p.slice(0, far + 1), T.straightTol), ...runs(p.slice(far), T.straightTol)].filter(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]) >= 1);
+  all.sort((r, q) => Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) - Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]));
+  for (const [a, b] of all) {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const mx = (a[0] + b[0]) / 2;
+    const mz = (a[1] + b[1]) / 2;
+    // Left of travel (as runBox). The run is the outline straightened (to `straightTol`), so
+    // it can lie a little off the outline itself: look across it, both ways, for where the
+    // outline's inside starts and ends, and stand the piece there.
+    const lx = (b[1] - a[1]) / L;
+    const lz = -(b[0] - a[0]) / L;
+    const isIn = (d: number) => inPoly(p, mx + lx * d, mz + lz * d);
+    const most = T.sparseThick + T.straightTol;
+    // From d, the first distance (in steps of a quarter metre, the way `dir` goes) whose
+    // inside-ness differs from `from`'s; or the farthest looked.
+    const until = (d: number, dir: 1 | -1, inside: boolean) => {
+      for (let k = d; Math.abs(k) <= most; k += dir * 0.25) if (isIn(k) !== inside) return k;
+      return dir * most;
+    };
+    let span: [number, number] | null = null;
+    if (isIn(0)) span = [until(0, -1, true), until(0, 1, true)];
+    else {
+      // The nearer side whose inside starts within twice the straightening's tolerance.
+      for (const dir of [1, -1] as const) {
+        const e0 = until(0, dir, false);
+        if (Math.abs(e0) > 2 * T.straightTol + 0.25) continue;
+        const e1 = until(e0, dir, true);
+        const sp: [number, number] = dir > 0 ? [e0, e1] : [e1, e0];
+        if (!span || Math.abs(e0) < Math.min(Math.abs(span[0]), Math.abs(span[1]))) span = sp;
+      }
+    }
+    if (!span) continue;
+    const mid = (span[0] + span[1]) / 2;
+    const box = { x: mx + lx * mid, z: mz + lz * mid, halfLength: L / 2, halfWidth: Math.max(0.5, (span[1] - span[0]) / 2), yawDeg: bearing(b[0] - a[0], b[1] - a[1]) % 180 };
+    if (out.some((o) => inside(o, box.x, box.z))) continue;
+    out.push(box);
+  }
+  return out;
+}
+
 /** Is (x, z) inside a polygon (even-odd rule)? */
 function inPoly(poly: [number, number][], x: number, z: number): boolean {
   let inside = false;
@@ -242,6 +327,10 @@ const slipways: { source: string; name: string; x: number; z: number; headingDeg
 const areas: { source: string; kind: string; name: string; x: number; z: number }[] = [];
 const walls: { x: number; z: number; halfLength: number; halfWidth: number; yawDeg: number; depth: number; wall: true }[] = [];
 const warnings: string[] = [];
+/** Pier areas built as their narrow pieces (sparsePieces), for the report. */
+const sparse: string[] = [];
+/** ... and where each is as a whole (its smallest box), so it joins the same harbour as when it was one box. */
+const sparseAt = new Map<string, { x: number; z: number; kind: Block['kind']; len: number; name: string }>();
 for (const [id, w] of Object.entries(osm.ways)) {
   const t = w.tags ?? {};
   const p = pts(w);
@@ -260,7 +349,12 @@ for (const [id, w] of Object.entries(osm.ways)) {
   if (t.man_made === 'pier' || t.man_made === 'breakwater' || t.man_made === 'groyne') {
     const kind: Block['kind'] = t.man_made !== 'pier' ? 'breakwater' : floating ? 'pontoon' : 'pier';
     const top = kind === 'pontoon' ? T.pontoonTop : kind === 'breakwater' ? T.breakwaterTop : T.pierTop;
-    if (closed && t.area !== 'no') {
+    if (closed && t.area !== 'no' && polyArea(p) < T.sparseFill * minBox(p).area) {
+      for (const b of sparsePieces(p)) blocks.push({ source, kind, ...b, top, fendered: kind !== 'breakwater', ...(name ? { name } : {}) });
+      const whole = minBox(p);
+      sparseAt.set(source, { x: whole.x, z: whole.z, kind, len: whole.halfLength * 2, name: name ?? '' });
+      sparse.push(`${source}${name ? ` (${name})` : ''}: ${Math.round(polyArea(p))} m2 in a ${Math.round(minBox(p).area)} m2 box, ${((2 * polyArea(p)) / perimeter(p)).toFixed(1)} m thick`);
+    } else if (closed && t.area !== 'no') {
       const b = minBox(p);
       blocks.push({ source, kind, x: b.x, z: b.z, halfLength: b.halfLength, halfWidth: Math.max(1, b.halfWidth), yawDeg: b.yawDeg, top, fendered: kind !== 'breakwater', ...(name ? { name } : {}) });
     } else {
@@ -330,9 +424,10 @@ dredge.forEach((p) => applyDredge(p, false));
 walls.forEach((p) => applyDredge(p, true));
 
 // ── Berths along the long faces with water beside them ──
-const berths: { id: string; source: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number; shoreDist: number; deckY: number }[] = [];
+/** Each with how wide her piece's deck is (m: `deckW`), for the package's choice of cargo and fuel berths. */
+const berths: { id: string; source: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number; shoreDist: number; deckY: number; deckW: number }[] = [];
 for (const b of blocks) {
-  if (b.kind === 'breakwater') continue;
+  if (b.kind === 'breakwater' || 2 * b.halfWidth < T.berthMinWidth) continue;
   const a = (b.yawDeg * Math.PI) / 180;
   const ux = Math.sin(a);
   const uz = -Math.cos(a);
@@ -351,7 +446,7 @@ for (const b of blocks) {
       if ([1, 4, 8, 12].some((d) => isLand(fx + nx * d, fz + nz * d))) continue;
       // Not inside another piece (a face against a neighbouring pier or the quay).
       if (blocks.some((o) => o !== b && insideBlock(o, fx + nx * T.berthOff, fz + nz * T.berthOff, 1))) continue;
-      berths.push({ id: `${b.source}#${berths.length}`, source: b.source, x: r1(fx + nx * T.berthOff), z: r1(fz + nz * T.berthOff), headingDeg: Math.round(b.yawDeg), shoreX: r1(-nx), shoreZ: r1(-nz), shoreDist: T.berthOff, deckY: b.top });
+      berths.push({ id: `${b.source}#${berths.length}`, source: b.source, x: r1(fx + nx * T.berthOff), z: r1(fz + nz * T.berthOff), headingDeg: Math.round(b.yawDeg), shoreX: r1(-nx), shoreZ: r1(-nz), shoreDist: T.berthOff, deckY: b.top, deckW: r1(2 * b.halfWidth) });
     }
   }
 }
@@ -378,7 +473,13 @@ interface Harbour {
   role?: string;
 }
 const items = [
-  ...blocks.map((b) => ({ x: b.x, z: b.z, source: b.source, kind: b.kind, len: b.halfLength * 2, name: b.name ?? '' })),
+  // (A sparse outline as one piece where its box was, in its place in the list: it groups with
+  // the harbour it always did, and the harbours come out in the same order, so keep their ids.)
+  ...blocks.flatMap((b, i) => {
+    const c = sparseAt.get(b.source);
+    if (!c) return [{ x: b.x, z: b.z, source: b.source, kind: b.kind as string, len: b.halfLength * 2, name: b.name ?? '' }];
+    return blocks.findIndex((o) => o.source === b.source) === i ? [{ x: c.x, z: c.z, source: b.source, kind: c.kind as string, len: c.len, name: c.name }] : [];
+  }),
   ...slipways.map((s) => ({ x: s.x, z: s.z, source: s.source, kind: 'slipway', len: s.length, name: s.name })),
 ];
 const group = items.map((_, i) => i);
@@ -674,7 +775,7 @@ if (!out.harbours.some((h) => h.kind !== 'anchorage')) warnings.push('no harbour
 const reportPath = join(D.out, 'report.json');
 const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : {};
 report.houses = houseReport;
-report.harbours = { harbours: out.harbours.length, blocks: out.blocks.length, berths: out.berths.length, slipways: out.slipways.length, buildings: out.buildings.length, edits: editCount, roles: Object.fromEntries(out.harbours.filter((h) => h.role).map((h) => [h.role, h.name])) };
+report.harbours = { harbours: out.harbours.length, blocks: out.blocks.length, berths: out.berths.length, slipways: out.slipways.length, buildings: out.buildings.length, edits: editCount, sparse, roles: Object.fromEntries(out.harbours.filter((h) => h.role).map((h) => [h.role, h.name])) };
 report.warnings = [...(report.warnings ?? []).filter((w: string) => !/^(spine|anchorage|edit|no harbours|no sheltered)/.test(w)), ...warnings];
 writeFileSync(reportPath, JSON.stringify(report, null, 1));
 console.log(`harbours: ${out.harbours.length} harbours, ${out.blocks.length} kit blocks, ${out.berths.length} berths, ${out.slipways.length} slipways, ${out.buildings.length} buildings (${skippedFar} farther out left to the land cover), ${editCount} hand edits`);

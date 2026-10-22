@@ -6640,6 +6640,34 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
 
+### Fix: piers drawn as one huge box ("Wemyss Bay pier ... absolutely massive"), the Clyde
+
+Brought by the Main game session at the owner's request: Wemyss Bay pier "not where I would expect" and "absolutely massive"; the large one north of Wemyss Bay taken to be Kip Marina.
+
+- **What it really was:** OpenStreetMap way 255707549, 1.4 km south of Inverkip, where Inverkip power station stood: a jetty drawn as one outline round all its parts (a trestle out from the shore, a head, mooring dolphins on catwalks, a long berthing line). Tagged a pier area, it has no name. The harbours stage made every pier area its smallest box, so it became one solid pier 332 x 286 m (its real deck is about 3,400 m2, 4% of that), named after the nearest place: "Wemyss Bay pier", the same as the real ferry pier 2.4 km south. **It isn't Kip Marina:** that's mapped and named at Inverkip itself (its own harbour, unchanged).
+- **The same fault elsewhere:** any pier drawn as an L, a T or a bending jetty got one box round it, filling in the water inside the bend: Rothesay's harbour pier (224 x 130 m over the inner harbour, and the low pier inside it, where the owner was stood "underneath the big wooden one"), Fairlie's (396 x 151 m), Dunoon's, Hunterston's, Greenock West's and others; 36 outlines on the Clyde in all.
+- **Fixed in the pipeline** (`tools/coast/src/harbours.ts`):
+  - **a pier area filling less than `sparseFill` 0.55 of its smallest box** is built along its outline's straight runs instead: a piece on each run, standing inside the outline, as thick as the outline is there (looked for across the run, both ways, up to `sparseThick` 30 m), the same piece seen from its other side left out. Rectangular piers are one box, as before.
+  - **It still joins the harbour it always did,** grouped by where its box was, in its old place in the list, so every harbour keeps its id, name and place.
+  - **No berth along a piece under `berthMinWidth` 1.5 m** (a catwalk to a dolphin has no deck to step off onto; a walkway pier, 1.8 m, and a pontoon, 2.5 m, have).
+  - **Cargo and fuel berths only on a deck at least `namedDeck` 2.4 m wide** (`tools/coast/src/package.ts`: the game puts you ashore 2 m in from the face).
+  - (On the way: the straight-runs finder now handles a closed outline, which it saw as no runs at all.)
+- **The name** (`tools/coast/requests/clyde.edits.yaml`, new): the jetty's harbour is **"Inverkip jetty"**. Its id stays `wemyss-bay-pier-2`, so nothing saved breaks.
+- **The Clyde rebuilt** (harbours to package). What changed in the game:
+  - pier pieces 219 → 308 (the outlines' parts). Headless at the jetty and at Rothesay: 79 and 85 draw calls (not measured at those spots before, so not a before-and-after);
+  - all 78 harbours and all 82 named berths keep their ids; cargo and fuel berths moved 10-180 m onto the piers' real faces;
+  - ports 56, as before, but one out and one in: **Cammes Reinach Pier** (Hunter's Quay) is no longer a cargo port (its berths with room for a boat are all on a 1.8 m walkway; it was a port only because the box gave it a false 8 m deck: you can still moor there), and **The Lorn's second pier** is now one (it has room);
+  - about 125 more harbour buildings, at the landward ends of the piers built along their outlines (within `buildingReach` of a piece);
+  - the overlapping-pier warning at Rothesay's start is gone (the box was the overlap); Sandbank's pontoon under its pier is still reported.
+  - The ground was rebuilt with it (the basins follow the pieces), which shifts the mesh a little everywhere, as every rebuild does.
+- **Not yet done:** Oban has one outline like this (the Kerrera ferry terminal) and Syros seven (one a 17,000 m2 box in Ermoupoli harbour); they need their maps rebuilt, which I've left for the owner to say. The pipeline's quay boxes overlapping at their ends (125 pairs on the Clyde, drawn apart in the game by the Main game session's `blockSteps`) are also left as they are.
+- **Tests:** `tests/coastClyde.test.ts` (2 new): no pier on the Clyde wider than 50 m both ways (Hunterston's long straight 442 x 33 m jetty is what it is); the jetty named Inverkip jetty, one Wemyss Bay pier, Kip Marina its own. `tests/coastFeatures.test.ts`: no overlap reported at Rothesay now, Sandbank's still. `tests/voyageBerths.test.ts` (as before): every berth's spot ashore on its own deck.
+- **Checked headless:** the jetty from 260 m off (a long low line across the water, no slab) and Rothesay harbour from the bay. Plots of the Rothesay, Inverkip and Fairlie outlines against the new pieces: they follow the shapes. **Not checked:** walking on the new pieces in VR.
+- **Test steps (VR and desktop):** Voyage → The Firth of Clyde.
+  1. Rothesay (you start there): the harbour pier is a T along the front with its stem, open water inside it, not a slab.
+  2. Menu → Debug → World → To port → **Inverkip jetty**: a long trestle out to a head with dolphins, not a 300 m block. Wemyss Bay pier (the ferry terminal) is the only one by that name.
+  3. Fairlie: an L-shaped pier.
+
 ### Fix: boats at anchor drifting from side to side (owner, testing)
 
 Owner: "the boats at anchor, they move laterally, so they move from side to side ... all I really want them to do is to bob up and down, and if it's not performance heavy, to point into wind."
