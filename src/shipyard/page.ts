@@ -928,9 +928,9 @@ section('6. Controls');
   // Three tiers of instruments (owner, Oct 2026: "old school (analogue), basic electronic, and
   // then advanced"): two design fields, the controls package and old school (with the basic).
   const tiers: { name: string; note: string; patch: Partial<ShipDesign> }[] = [
-    { name: 'Old school (analogue)', note: 'Wheel, throttle, key and start, the VHF radio, and round analogue gauges: a magnetic compass, the log, depth, the anchor chain counter, revs, temperature and fuel. The cheapest. (A link or file, not a code.)', patch: { controls: 0, oldSchool: 1 } },
-    { name: 'Basic electronic', note: 'Wheel, throttle, key and start, speed and depth, the anchor, rpm, and the VHF radio, on small screens.', patch: { controls: 0, oldSchool: 0 } },
-    { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, an overhead switch panel for the foredeck and aft deck floodlights, and the searchlight and fire monitor controls at the helm when they’re on poles.', patch: { controls: 1, oldSchool: 0 } },
+    { name: 'Old school (analogue)', note: 'Wheel, throttle, key and start, navigation lights, the VHF radio, and round analogue gauges: a magnetic compass, the log, depth, the anchor chain counter, revs, temperature and fuel. The cheapest. (A link or file, not a code.)', patch: { controls: 0, oldSchool: 1 } },
+    { name: 'Basic electronic', note: 'Wheel, throttle, key and start, navigation lights, speed and depth, the anchor, rpm and the time on small screens, and the VHF radio.', patch: { controls: 0, oldSchool: 0 } },
+    { name: 'Advanced', note: 'Adds the cabin light, wipers, horn, heading, engine monitor, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, an overhead switch panel for the foredeck and aft deck floodlights, and the searchlight and fire monitor controls at the helm when they’re on poles.', patch: { controls: 1, oldSchool: 0 } },
   ];
   const box = document.createElement('div');
   tiers.forEach((t, i) => {

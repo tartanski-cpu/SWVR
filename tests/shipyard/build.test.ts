@@ -58,7 +58,7 @@ describe('Shipyard: the boats it builds', () => {
       }
   });
 
-  it('basic controls are the wheel, throttle, starting, speed and depth, rpm and the VHF; advanced adds the rest', () => {
+  it('basic controls are the wheel, throttle, starting, nav lights, speed and depth, rpm and the VHF; advanced adds the rest', () => {
     const ids = (controls: number) => {
       useDesign({ ...DEFAULT_DESIGN, controls, searchlight: 0 });
       return flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id);
@@ -70,9 +70,16 @@ describe('Shipyard: the boats it builds', () => {
     expect(basic.filter((id) => id === 'instrument.screen').length).toBe(4);
     // Every boat has a VHF (owner, Oct 2026): she answers calls, hears the forecasts.
     expect(basic).toContain('radio.vhf');
-    for (const id of ['radio.fm', 'light.navigation', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {
+    for (const id of ['radio.fm', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {
       expect(basic).not.toContain(id);
       expect(advanced).toContain(id);
+    }
+    // Navigation lights, and their switch at the helm, in every tier (owner, Oct 2026).
+    for (const patch of [{ controls: 0, oldSchool: 1 }, { controls: 0, oldSchool: 0 }, { controls: 1 }]) {
+      useDesign({ ...DEFAULT_DESIGN, searchlight: 0, ...patch });
+      const mounted = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+      expect(mounted.some((m) => m.def.id === 'light.navigation'), JSON.stringify(patch)).toBe(true);
+      expect(mounted.some((m) => m.path === 'helm/navLights'), JSON.stringify(patch)).toBe(true);
     }
   });
 

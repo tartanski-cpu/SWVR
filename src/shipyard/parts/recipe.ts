@@ -361,12 +361,13 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm, the ANCHOR screen, and the VHF (owner, Oct 2026: every boat answers calls,
-    // hears the forecasts and the harbours). No lights, searchlight, horn, wipers, heading,
-    // engine monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
-    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
+    // hears the forecasts and the harbours), and her navigation lights and their switch (owner,
+    // Oct 2026: in every tier). No cabin light, searchlight, horn, wipers, heading, engine
+    // monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
+    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
-    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
+    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
   }
   // The switch panel as a row of switch cells (dynamic console sockets CS2; consoleGrid.ts
   // packPanel): LIGHTS, then SEARCH / FIRE, in from the port end; ENGINE, then DECK (the
