@@ -301,11 +301,18 @@ function showDisplays(view: ReturnType<typeof assembleView>, def: typeof VESSEL_
 function addSkiff(root: THREE.Group): void {
   const crane = gearOf({ defId: 'design' }, 'tenderCrane');
   if (!crane) return;
-  const sk = VESSEL_DEFS.skiff;
+  // The boat her crane carries (the dinghy, or the rescue boat), and her tubes (modules/tubes),
+  // as the game draws them; the rescue boat's console too (her modules' fixed parts).
+  const id = crane.tenderDefId;
+  const sk = VESSEL_DEFS[id];
   const mesh = buildVesselMesh(sk.hull, sk.layout, wetOutlet(sk), sk.livery);
-  // Her tubes (the dinghy's: modules/tubes), as the game draws them.
-  const tubes = RECIPES.skiff.modules.find((m) => m.module === 'hull.tubes');
+  const tubes = RECIPES[id].modules.find((m) => m.module === 'hull.tubes');
   if (tubes) mesh.add(new THREE.Mesh(mergeParts(tubeParts(hullQueries(sk), { ...CONFIG.modules.tubes.dinghy, ...(tubes.config as object) })), flatVertexColorMaterial()));
+  if (id !== 'skiff') {
+    const built = assembleView(RECIPES[id], sk, LIBRARY);
+    for (const m of built.modules) mesh.add(m.root);
+    if (built.staticParts.length) mesh.add(new THREE.Mesh(mergeParts(built.staticParts), flatVertexColorMaterial()));
+  }
   mesh.position.set(...crane.stow);
   mesh.name = 'skiff';
   root.add(mesh);
@@ -968,6 +975,11 @@ section('3. Deck gear');
   const box = document.createElement('div');
   box.id = 'fromPins';
   // A fish hold under her deck (parts/hold.ts): where it goes is worked out for her.
+  // The ship's boat her skiff crane carries (design.rescueBoat): the dinghy, or the rescue boat.
+  optionTiles('rescueBoat', "Ship's boat (with the skiff crane)", [
+    { icon: HOUSE_ICONS.dinghy, name: 'Dinghy', info: 'The 3.25 m rubber dinghy with an electric outboard and a tiller: fits most boats (about 3.7 m of clear deck).' },
+    { icon: HOUSE_ICONS.ribBoat, name: 'Rescue boat', info: 'A 6 m fast rescue boat (a RIB): orange tubes, a centre console with a wheel, one 150 hp outboard, about 28 knots. On a bigger crane: she needs about 6.8 m by 4.4 m of clear deck, so a big boat (the stern trawler, the small tug at her longest, the big landing craft). Travels as a link or file.' },
+  ]);
   optionTiles('fishHold', 'Fish hold', [
     { icon: HOUSE_ICONS.noHold, name: 'None', info: 'No fish hold.' },
     { icon: HOUSE_ICONS.hold, name: 'Under the deck', info: 'An insulated hold in her hull under the open deck (where there’s most room, clear of the engine and the houses), its hatch on deck; the catch goes down into it in boxes, and the yellow button on the hatch lifts one out.' },

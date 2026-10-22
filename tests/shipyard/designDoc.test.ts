@@ -35,7 +35,7 @@ function designs(): ShipDesign[] {
   });
 }
 /** The choices her short code holds: all but the helm assist panel, the cockpit overhead, the walked deckhouse top, the cabin below, extra sheer and a raised foredeck (a design with one travels as a document). */
-const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', 'foreCabin', 'fishHold', 'netDrum', 'trawlWinches', 'sheer', 'fcLength', 'fcHeight', 'oldSchool', 'touch', 'consoleLen', 'houseX', ...FURNITURE_FIELDS.map((f) => f.key), ...CONSOLE_FIELDS.map((f) => f.key)];
+const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', 'foreCabin', 'fishHold', 'rescueBoat', 'netDrum', 'trawlWinches', 'sheer', 'fcLength', 'fcHeight', 'oldSchool', 'touch', 'consoleLen', 'houseX', ...FURNITURE_FIELDS.map((f) => f.key), ...CONSOLE_FIELDS.map((f) => f.key)];
 const CODE_FIELDS = ALL_FIELDS.filter((f) => !NOT_IN_CODE.includes(f.key));
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];

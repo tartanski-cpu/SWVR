@@ -217,6 +217,10 @@ export const HOUSE_ICONS = {
   cabin: svg('<path d="M3 20h42l-4 7H7zM14 20v-8h20v8"/><path d="M15 26v-9h18v9" stroke-dasharray="2 1.5"/><path d="M26 23h6"/>'),
   // Her hull cut through: no hold, or a hold under the deck.
   noHold: svg('<path d="M4 9h40l-6 17H10zM4 9h40"/>'),
+  // The ship's boat, side on: the dinghy (fat tubes, a small motor), or the rescue boat (a
+  // longer RIB with her console and a big outboard).
+  dinghy: svg('<rect x="9" y="15" width="26" height="6" rx="3"/><path d="M11 21l3 4h17l3-4M35 14v9h3"/>'),
+  ribBoat: svg('<rect x="3" y="16" width="36" height="6" rx="3"/><path d="M5 22l4 4h27l3-4M20 16v-7h6l1 7M39 12v12h4v-12z"/>'),
   hold: svg('<path d="M4 9h40l-6 17H10z"/><path d="M14 11h20l-3 11H17z" fill="currentColor" fill-opacity=".35"/>'),
 };
 

@@ -246,7 +246,9 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   // is off the centreline toward the crane's side, as the deck crane is (owner: not central;
   // the skiff and crane together over to the side picked), as far over as fits; only if
   // there's no room off the centreline does it sit nearer the middle.
-  const tc = CONFIG.vessels.workboat.tenderCrane;
+  // (The dinghy's crane, or the rescue boat's bigger one: design.rescueBoat.)
+  const tc = d.rescueBoat ? CONFIG.vessels.rib.crane : CONFIG.vessels.workboat.tenderCrane;
+  const boatName = d.rescueBoat ? "the rescue boat's" : "the skiff's";
   let skiffAt: V3 | null = null;
   if (d.skiff) {
     const fore = d.skiff <= 2;
@@ -283,7 +285,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
             break search;
           }
         }
-    if (!skiffAt) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the skiff's cradle (${(ahead + 0.3).toFixed(1)} m long, ${(2 * tc.cradle.halfWidth + outset).toFixed(1)} m across with the crane) clear of her other gear: move the wheelhouse ${fore ? 'aft' : 'forward'}, or make her longer. Left off.`);
+    if (!skiffAt) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for ${boatName} cradle (${(ahead + 0.3).toFixed(1)} m long, ${(2 * tc.cradle.halfWidth + outset).toFixed(1)} m across with the crane) clear of her other gear: move the wheelhouse ${fore ? 'aft' : 'forward'}, or make her longer. Left off.`);
   }
 
   // The searchlight and the fire monitor: placed by hand, on the roof if the pin's on it

@@ -76,6 +76,9 @@ import landingCraft from './landingCraft.json';
 import { LANDING_CRAFT_HULL } from './landingCraftHull';
 import skiff from './skiff.json';
 import { SKIFF_HULL } from './skiffHull';
+import { RIB_HULL } from './ribHull';
+import { RIB_RECIPE } from './rib';
+import { RIB_CONSOLE } from '../modules/ribConsole';
 import starterWorkboat from './starterWorkboat.json';
 import towBarge from './tow-barge.json';
 import towDerelict from './tow-derelict.json';
@@ -98,7 +101,7 @@ import { NET_DRUM } from '../modules/netDrum';
 import { TRAWL_WINCHES } from '../modules/trawlWinches';
 import { FLEET } from './fleet';
 
-const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, CAGE_HULL, COASTER_HULL, LANDING_CRAFT_HULL, ALASKAN_38_HULL]);
+const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, RIB_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, CAGE_HULL, COASTER_HULL, LANDING_CRAFT_HULL, ALASKAN_38_HULL]);
 
 /**
  * The Shipyard's designed boat (shipyard/build.ts): one at a time, the vessel type 'design',
@@ -195,7 +198,7 @@ export const MODULES = createModuleLibrary([
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
   DIESEL_INBOARD, OUTBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
   TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
-  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, TUBES, FENDERS, HULL_GUARD, PUSH_FENDER, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
+  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, TUBES, RIB_CONSOLE, FENDERS, HULL_GUARD, PUSH_FENDER, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
   ELECTRIC_OUTBOARD, ROD_RACK, HELM_ASSIST, PODS, HELM_JOYSTICK, EXHAUST_STACK, FURNITURE, REST_SPOT, FISH_HOLD, NET_DRUM, TRAWL_WINCHES,
   NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);
@@ -215,6 +218,7 @@ export function loadRecipe(json: unknown): Recipe {
 export const RECIPES: Record<string, Recipe> = {
   workboat: loadRecipe(starterWorkboat),
   skiff: loadRecipe(skiff),
+  rib: loadRecipe(RIB_RECIPE),
   derelict: loadRecipe(towDerelict),
   logRaft: loadRecipe(towLogRaft),
   barge: loadRecipe(towBarge),

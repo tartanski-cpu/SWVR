@@ -29,6 +29,8 @@ import { SurfAudio } from '../audio/surfAudio';
 export class SoundBoard {
   /** The diesel (and the shared AudioContext). */
   readonly engine = new EngineAudio();
+  /** A tender's engine (the rescue boat's outboard: your own boat's engine is `engine`). */
+  readonly tenderEngine = new EngineAudio();
   /** The electric horn and the console alarm. */
   readonly horn = new HornAudio();
   readonly alarm = new AlarmAudio();
@@ -67,6 +69,7 @@ export class SoundBoard {
   unlock(): void {
     this.engine.unlock();
     const ctx = this.engine.context;
+    this.tenderEngine.attach(ctx);
     for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.handset, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race, this.surf]) s.attach(ctx);
     watchVoices();
   }

@@ -8126,3 +8126,64 @@ Owner, Oct 2026: "take the existing skiff and crane and make the boat slightly s
     2. Into the game: SKIFF CRANE on the dash (engine running, DECK HYD on). Watch her go over the side.
     3. Board her and drive her. Tie her up at a quay with both cleats.
   - **VR:** the same. Stand in her by the tiller: the tubes are your gunwale. Load three crates.
+
+### The fast rescue boat: a 6 m RIB on a bigger crane, in the Shipyard (done, awaiting owner test)
+
+Owner, Oct 2026: "a slightly bigger one, which should be rigid inflatable boat type. So fast lifeboat type of boat ... the crane can be the same potentially ... a central seating position with a wheel and an outboard motor ... one of the motors from the main boat ... 28 knots ... similar sea keeping to one of the smaller planing boats". Agreed: 6 m, a 150 hp outboard (not the 400 hp V8: on a 1.4 t boat that would be over 40 kn, and its weight would squat her stern), Shipyard only, not sold in the career. Part 2 of the plan, after the dinghy.
+
+- **The boat** (`CONFIG.vessels.rib`, `boats/ribHull.ts`, recipe `boats/rib.ts`, vessel type `rib`):
+  - A 6 × 2 m hard-chine deep-V from the game's hull generator, about 20° deadrise aft.
+  - Orange tubes (`hull.tubes`, `CONFIG.modules.tubes.rib`: radius 0.26 m).
+  - 1.39 t as she floats. Mass and centre of gravity set so she lies level on her design waterline. GM 0.76 m.
+- **Her helm:**
+  - The new module `deck.rib-console` draws the centre console and the leaning post (`CONFIG.vessels.rib.console`), merged with her fixed parts. You walk round them.
+  - On the console's top, the standard helm console module (`console.standard`) with her own small layout: the wheel on its aft face, the throttle to starboard, the key and START to port, and the speed and rev screens.
+- **Her outboard:** the main boats' outboard module (`propulsion.outboard`, the V8's look and steering), as one smaller unit (`CONFIG.vessels.rib.motor`):
+  - 112 kW (150 hp), the V8's torque curve scaled 0.373, a lighter flywheel, a cooler sized to it;
+  - a 0.34 m high-pitch propeller (`j0` 1.5: a fast boat's 13 × 19 in) on 2.0:1 gears;
+  - 210 kg; 150 L of fuel in the console.
+- **Speed: 27.9 kn flat out** at 5,090 rpm, 132 nm range flat out. Reached by sea trial:
+  - The V8's prop (`j0` 1.25) gave 25 kn.
+  - More gearing made her slower.
+  - The high-pitch prop gave 27.3 kn, but held the engine down; a slightly smaller one let it rev.
+  - Her planing drag: past the hump her wave resistance levels off at resistance/weight 0.10 rather than the landing craft's 0.115. A light deep-V planes cleaner, and planing craft run about 0.08–0.12.
+- **Seakeeping:** set up exactly as the Shipyard's planing hulls are (`shipyard/parts/trim.ts`) for her size and deadrise:
+  - the landing craft's per-area damping;
+  - roll at 28% of critical; pitch and yaw scaled by mass × length²;
+  - a deep vee's gentle slamming (`verticalCd` 0.73);
+  - leaning into her turns (`planing.lean` 1.04 = 0.7 + sin 20°).
+
+  The test throws her hard over at full speed and checks she leans in.
+- **Her crane** (`CONFIG.vessels.rib.crane`): the same tender crane module and controls as the dinghy's, sized for a 1.4 t boat.
+  - A 2.7 m column, longer arms, a 6.45 m cradle, slower moves.
+  - The crane's settings now name the boat it carries (`tenderDefId`: `skiff` or `rib`), so the world gives a boat the right tender.
+  - Whether she's under a tarpaulin in her cradle (`cover`): the rescue boat sits uncovered, console and all.
+  - How tall the cradle's footprint is (`tender.height`).
+- **Where she fits** (about 6.8 × 4.4 m of clear deck):
+  - the stern trawler at her standard 20 m and longer (not at 16 m), on her aft deck alongside all her trawl gear, with no warnings;
+  - the small tug at her longest;
+  - the big landing craft.
+
+  The fishing boat and the pilot boat can't take her, and the Shipyard says so ("no room ... for the rescue boat's cradle").
+- **In the Shipyard:**
+  - Deck gear → **Ship's boat (with the skiff crane)**: Dinghy / Rescue boat, a new design field `rescueBoat` with two small drawings. The skiff's card places either.
+  - She weighs 2.1 t with her crane and costs £78,000 (`CONFIG.shipyard.weights.gear.rescueBoat`, `deckGear.price.rescueBoat`).
+  - Not in the short code: a design with her travels as a link or file.
+- **In the game:**
+  - The crane's buttons and remote work her as they work the dinghy.
+  - The driving keys drive the boat you're standing in.
+  - The quick-start key now starts the boat you're in if she has an engine (before, always your own).
+  - Her outboard has its own engine voice (`soundBoard.tenderEngine`, a second engine sound on the same audio context); the game only voiced your own boat's engine.
+  - She isn't your "home" boat when aboard. Like the dinghy she's driven from where you stand, and her screens aren't lit until you're at them.
+- **Tests:** `tests/rescueBoat.test.ts`:
+  - recipe, level flotation, weight, GM, her 150 hp outboard;
+  - the stern trawler carries her with no warnings, a link or file only, too big for the fishing boat;
+  - at sea: launched by her crane, started, 26.5–30 kn after 40 s at full throttle, leaning into a hard turn, recovered to her cradle.
+- **Not done:** she isn't in the career's yard (as agreed); no fleet boat carries her yet.
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard: Stern trawler. Deck gear → Ship's boat: **Rescue boat**. Skiff and crane → Place on the aft deck. No warnings.
+    2. Trials & handover → the game. Engine on, DECK HYD on, SKIFF CRANE. Watch her go over the side.
+    3. Board her, press the quick-start key (or turn the key and hold START on her console), then full throttle with the driving keys. About 28 kn; put the wheel hard over and feel her lean in.
+    4. Bring her back alongside under the crane, slow, and press the remote on the post by her console.
+  - **VR:** the same. Stand at her helm against the leaning post, the wheel in front of you, the throttle to your right.

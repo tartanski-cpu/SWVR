@@ -935,12 +935,17 @@ export const CONFIG = {
         chargeMinutes: 5,
         fold: { slewDeg: -90, boomDeg: -8, jibDeg: 165 },
         /**
-         * The boat it carries (her axes; the dinghy's, CONFIG.vessels.skiff): her keel's
-         * height (`keelY`), the cradle's two saddles under her (`saddles`: their z, and
-         * `saddleWidth` across), and the bridle's four lifting eyes (`legs`: on her tubes'
-         * tops, forward and aft).
+         * The boat it carries (`tenderDefId`, her vessel type: the dinghy, 'skiff'), and in her
+         * axes her keel's height (`keelY`), the cradle's two saddles under her (`saddles`: their
+         * z, and `saddleWidth` across), and the bridle's four lifting eyes (`legs`: on her
+         * tubes' tops, forward and aft).
          */
+        tenderDefId: 'skiff' as string,
+        /** In her cradle she's under a tarpaulin (her motor and fittings not drawn). */
+        cover: true,
         tender: {
+          /** Her top above her origin (the tubes' and outboard's): the cradle's footprint is that tall. */
+          height: 0.6,
           keelY: -0.13,
           saddles: [-0.99, 0.9],
           saddleWidth: 0.95,
@@ -1725,6 +1730,183 @@ export const CONFIG = {
       spawn: { x: 0, z: -15, dropHeight: 0.3, headingDeg: 90 },
       /** Her colours: a grey floor and hull under grey tubes. */
       livery: { topsides: 0x4b5157, bottom: 0x33373b, deck: 0x6a6f73 },
+    },
+
+    /**
+     * The fast rescue boat (owner, Oct 2026: "a slightly bigger one, which should be rigid
+     * inflatable boat type. So fast lifeboat type of boat ... a central seating position with
+     * a wheel and an outboard motor ... 28 knots ... similar sea keeping to one of the smaller
+     * planing boats"; 6 m and a 150 hp outboard agreed; in the Shipyard only, not sold in the
+     * career). A ship's tender like the skiff, carried in a cradle and put over the side by a
+     * bigger crane (`crane`), for the bigger boats.
+     *
+     * A 6 m deep-V RIB: a hard-chine planing hull (the generator's, as the workboat's), about
+     * 20 deg of deadrise aft, under orange tubes (modules/tubes, `CONFIG.modules.tubes.rib`).
+     * A centre console amidships with the wheel, the throttle and the key; a leaning post aft of
+     * it to stand against at the helm; one 150 hp petrol outboard on her transom (the main
+     * boats' outboard module, one smaller unit: `outboard`). As her deck and walk areas see
+     * her: the deck to the tubes' centre, the tubes' top her gunwale (`layout.bulwarkHeight`).
+     *
+     * Her handling is set up as the Shipyard's planing hulls are (shipyard/parts/trim.ts, for
+     * her size and deadrise): the landing craft's per-area damping, her roll at 28 % of
+     * critical, pitch and yaw scaled from the landing craft's by mass x length², a deep vee's
+     * gentle slamming (`verticalCd`), and leaning into her turns (`planing.lean`, the formula's
+     * 0.7 + sin 20 deg). Mass chosen to float at the DWL (tests/rescueBoat.test.ts).
+     */
+    rib: {
+      hull: {
+        length: 6.0,
+        beamDeck: 2.0,
+        beamChine: 1.75,
+        keelY: -0.38,
+        chineYAft: -0.06,
+        chineYBow: 0.25,
+        deckYAft: 0.42,
+        deckYBow: 0.78,
+        stations: 13,
+        deckParallel: 0.4,
+      },
+      /** Hull, tubes, console, fuel and outboard (kg): what her lines displace at the DWL. */
+      mass: 1360,
+      /** z = LCB so she floats level; the outboard aft and the console high. */
+      cg: [0, 0.3, 1.18] as [number, number, number],
+      gyradius: { roll: 0.78, pitch: 1.67, yaw: 1.74 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 1300, verticalCd: 0.73, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 1850, pitch: 730, yaw: 310, rollLift: 0.3 },
+      /**
+       * As the Shipyard's planing hulls' (the landing craft's curve on her own waterline), but
+       * past the hump her wave term levels off at R/Delta = 0.10, not 0.115: a light deep-V RIB
+       * planes cleaner than the landing craft's flatter, heavier box (planing craft run about
+       * 0.08-0.12 at speed). With it she makes 28 kn on her 150 hp.
+       */
+      resistance: { lwl: 5.6, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.1, asternFactor: 3.6, y: -0.15 },
+      planing: { lean: 1.04, fnStart: 0.3, fnFull: 0.7 },
+      layout: {
+        /** Her tubes' top above her deck edge (their radius: modules.tubes.rib). */
+        bulwarkHeight: 0.26,
+        railHeight: 0,
+        /** The tubes' inner face is this far in from her deck edge. */
+        deckEdgeMargin: 0.42,
+        bodyRadius: BODY_RADIUS,
+      },
+      /**
+       * Cargo on her deck forward of the console (a survivor, a stretcher, gear): kept
+       * `bowClear` from the stem and `aftClear` from the transom (the console, the leaning post
+       * and the motor's well take her after half), `edge` m in under the tubes.
+       */
+      cargo: { maxPayloadKg: 600, slots: 0, bowClear: 0.9, aftClear: 3.15, edge: 0.32, fixed: true },
+      /** Her cleats (modules/boatCleat): on her bow over the tubes' nose, and on the port quarter's tube. */
+      cleats: {
+        bow: [0, 1.04, -2.55] as [number, number, number],
+        stern: [-0.8, 0.68, 2.6] as [number, number, number],
+        lineY: 0.06,
+        /** At a quay berth: her half beam with the tubes ~1.1 m, against the workboat's 2.3 (CONFIG.docking.fenderClear). */
+        inshore: 1.2,
+      },
+      /** Side-on her tubes ~6 x 0.7 m and the console ~0.6 x 1.0; end-on 2.3 x 0.7 and 0.7 x 1.0 (m²). */
+      windage: { side: 4.8, front: 2.3, center: [0, 0.75, 0.2] as [number, number, number] },
+      /** Where a player stands after boarding: at the helm, between the console and the leaning post. */
+      boardingSpot: [0, 0.47, 0.85] as [number, number, number],
+      spawn: { x: 0, z: -15, dropHeight: 0.3, headingDeg: 90 },
+      /** Her colours: a dark grey hull and deck under orange tubes. */
+      livery: { topsides: 0x3c4146, bottom: 0x2c3034, deck: 0x6a6f73 },
+      /**
+       * The centre console and the leaning post (modules/ribConsole), boat axes: the
+       * console's body across `halfWidth` from `front` to `aft` and up to `top` (its top,
+       * where the dash and the controls are: the helm console's socket, on its aft face);
+       * a small windscreen on it; the leaning post's padded bolster across `post.halfWidth`
+       * from `post.front` to `post.aft`, up to `post.top`, with a grab rail round its back.
+       */
+      console: {
+        halfWidth: 0.36,
+        front: -0.25,
+        aft: 0.4,
+        top: 1.5,
+        screen: { height: 0.32, rake: 0.3 },
+        post: { halfWidth: 0.32, front: 1.2, aft: 1.6, top: 1.32 },
+      },
+      /**
+       * The crane that carries her (the tender crane, modules/tenderCrane: the same crane and
+       * controls as the dinghy's, sized for her), in the starting workboat's axes as the
+       * dinghy's is (CONFIG.vessels.workboat.tenderCrane: see there for each figure; the
+       * Shipyard stands it where it fits). She weighs about 1.4 t to the dinghy's 0.24: a taller
+       * column and longer arms to lift her clear and swing her out past the ship's side, a 6.4 m
+       * cradle, slower moves. Her bridle's apex is high over her CG, its legs clear of the
+       * console; the remote to call a recovery is on a post beside her console.
+       */
+      crane: {
+        column: [1.55, -2.25] as [number, number],
+        columnRadius: 0.17,
+        shoulderY: 3.9,
+        boom: 1.9,
+        jib: 1.8,
+        deckAtColumn: 1.2099609375,
+        stow: [0, 1.99, -5.45] as [number, number, number],
+        cradle: { halfWidth: 1.2, z0: -8.5, z1: -2.05 },
+        lift: [0, 2.3, 1.16] as [number, number, number],
+        clear: 1.0,
+        outboard: [3.9, -2.55] as [number, number],
+        waterY: 0.0,
+        rigTime: 3,
+        hoistTime: 4,
+        slewTime: 8,
+        lowerTime: 7,
+        alignTime: 3,
+        recoverRange: 3.5,
+        recoverSpeed: 1.2,
+        chargeMinutes: 5,
+        fold: { slewDeg: -90, boomDeg: -8, jibDeg: 165 },
+        tenderDefId: 'rib' as string,
+        /** No tarpaulin: a rescue boat sits in her cradle uncovered, ready to go, console and all. */
+        cover: false,
+        tender: {
+          height: 1.85,
+          keelY: -0.38,
+          saddles: [-1.5, 1.6],
+          saddleWidth: 1.3,
+          legs: [
+            [-0.71, 0.89, -1.6],
+            [0.71, 0.89, -1.6],
+            [-0.83, 0.69, 2.3],
+            [0.83, 0.69, 2.3],
+          ] as [number, number, number][],
+        },
+        button: [1.8, 2.3, -2.25] as [number, number, number],
+        remote: { x: 0.45, z: 0.15, height: 1.35 },
+        stepOff: [
+          [-1.6, -3.0],
+          [2.1, -2.9],
+          [-1.6, -4.2],
+          [2.1, -4.0],
+        ] as [number, number][],
+      },
+      /**
+       * Her outboard (`motor`): the main boats' petrol outboard (CONFIG.modules.outboard, the V8's
+       * module and look) as one smaller unit (owner: 150 hp). 112 kW at 5800 rpm: the V8's
+       * torque curve times 0.373 (its peak ~210 Nm, as a 150 hp four-stroke's), a lighter
+       * flywheel, a cooler sized to it, a 14 in propeller, a 25 in shaft; 210 kg dry. Her
+       * tank in the console: 150 L.
+       */
+      motor: {
+        powerKw: 112,
+        torqueScale: 0.373,
+        inertia: 0.15,
+        exchangerKwPerK: 1.3,
+        propellerM: 0.34,
+        /**
+         * Its pitch, as the propeller model's zero-thrust advance ratio (`j0`, and `jq0` for its
+         * torque): a fast boat's high-pitch prop (14 x 19 in, P/D ~1.35), more than the V8's 1.25.
+         */
+        j0: 1.5,
+        jq0: 1.6,
+        /** Her lower unit's gears (engine to propeller), matched by sea trial so she reaches her rated revs flat out. */
+        gearRatio: 2.0,
+        massKg: 210,
+        alternatorAmps: 35,
+        starterAmps: 80,
+        tankL: 150,
+        look: { cowlWidth: 0.42, cowlHeight: 0.6, cowlLength: 0.65, legWidth: 0.2, shaftLength: 0.64, gearDrop: 0.2, pivotAft: 0.12, propAft: 0.6 },
+      },
     },
 
     /**
@@ -3104,7 +3286,7 @@ export const CONFIG = {
       fuelDensity: 0.84,
       crewKg: 170,
       storesKg: 150,
-      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150, rodRack: 12, netDrum: 380, trawlWinches: 520 },
+      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, rescueBoat: 2_100, anchor: 150, rodRack: 12, netDrum: 380, trawlWinches: 520 },
     },
     engineHatch: { endRoom: 0.1, sideRoom: 0.2, minLength: 0.8, maxLength: 1.8, minWidth: 0.6, helmRoom: 0.1, deckMargin: 0.35, soleClear: 0.08 },
     /**
@@ -3323,7 +3505,7 @@ export const CONFIG = {
        * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
        */
       midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000 },
     },
     /**
      * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and
@@ -4415,6 +4597,8 @@ export const CONFIG = {
      */
     tubes: {
       dinghy: { radius: 0.2, inset: 0.12, aft: 0.25, segments: 40, round: 8, colour: 0x5b6168 },
+      /** The rescue boat's: bigger, longer past her transom, rescue orange. */
+      rib: { radius: 0.26, inset: 0.14, aft: 0.35, segments: 56, round: 8, colour: 0xe2601e },
     },
 
     /**

@@ -642,7 +642,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (skiffAt && cc.slots.skiffCrane) {
     // Its SKIFF CRANE button on the dash, starboard of the wheel (beside the ANCHOR switch).
     const [bx, , bz] = cc.slots.skiffCrane.position as V3;
-    recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))] } });
+    // (The rescue boat's bigger crane, for her: design.rescueBoat.)
+    recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { ...(d.rescueBoat ? CONFIG.vessels.rib.crane : {}), consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))] } });
   }
   if (craneAt || winchAt || skiffAt || aFrame) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });

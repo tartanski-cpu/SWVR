@@ -153,9 +153,13 @@ export class TenderCraneView {
     this.remote.add(post, remote.root);
     this.buttons = helm ? [column, helm, remote] : [column, remote];
     this.remoteButton = remote;
-    this.cover = new THREE.Mesh(tarpaulin(tenderDef, c), flatVertexColorMaterial());
-    this.cover.name = 'skiffCover';
-    this.root.add(column.root, this.cover);
+    // Her tarpaulin, if she has one in her cradle (the dinghy; the rescue boat sits uncovered).
+    if (c.cover) {
+      this.cover = new THREE.Mesh(tarpaulin(tenderDef, c), flatVertexColorMaterial());
+      this.cover.name = 'skiffCover';
+      this.root.add(this.cover);
+    }
+    this.root.add(column.root);
     if (helm) this.root.add(helm.root);
   }
 

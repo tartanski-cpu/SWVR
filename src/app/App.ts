@@ -1092,6 +1092,10 @@ export class App {
         boat.update(sv, dt, false, null, frame);
         const tiller = boat.api<TillerApi>('control.tiller')?.tiller;
         if (tiller) this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, tiller.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+        // A tender with an engine (the rescue boat's outboard): her own engine voice, from her transom.
+        const ob = sv.tender && gearOf(sv, 'diesel');
+        const root = ob && this.vesselRoots.get(id);
+        if (ob && root) this.sound.tenderEngine.update(sv, root.localToWorld(this.tmpV.set(0, 0.5, VESSEL_DEFS[sv.defId].hull.stations[0].z)).distanceTo(this.focus));
       }
       const plotter = this.homeView.chart;
       if (plotter) {
@@ -2440,7 +2444,7 @@ export class App {
       toggleBoard: () => this.toggleBoard(),
       boardSkiff: () => {
         const skiff = this.skiff();
-        if (skiff?.tender?.phase === 'stowed') return this.overlay.notify('The skiff is under her cover in the cradle: launch her first (SKIFF CRANE)', 3);
+        if (skiff?.tender?.phase === 'stowed') return this.overlay.notify('The skiff is in her cradle: launch her first (SKIFF CRANE)', 3);
         if (skiff) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: skiff.id });
       },
       skiffBattery: () => this.skiff()?.battery ?? 0,
@@ -4636,7 +4640,13 @@ export class App {
     for (const id of this.interiors.keys()) if (!this.boats.has(id)) this.interiors.delete(id);
     // The skiff's outboard and tiller, her painter cleat: under her tarpaulin in the cradle
     // (not drawn, not usable).
-    for (const [id, boat] of this.boats) if (id !== this.testVesselId) boat.setCovered(this.world.vessels[id]?.tender?.phase === 'stowed');
+    // (Under her tarpaulin only if her crane has one: the dinghy's; the rescue boat sits uncovered.)
+    for (const [id, boat] of this.boats) {
+      if (id === this.testVesselId) continue;
+      const t = this.world.vessels[id]?.tender;
+      const host = t && this.world.vessels[t.hostId];
+      boat.setCovered(t?.phase === 'stowed' && (!host || (gearOf(host, 'tenderCrane')?.cover ?? true)));
+    }
   }
 
   /** Wind noise: the apparent wind where you are (minus your boat's way), muffled inside. */
@@ -4941,13 +4951,17 @@ export class App {
    * key, preheat, start) or stops her; otherwise it points to the real procedure.
    */
   private requestEngineStartStop(): void {
-    const v = this.world.vessels[this.testVesselId];
+    // The boat you're standing in if she has an engine (the rescue boat), else your own.
+    const driven = this.world.vessels[this.drivenVesselId()];
+    const id = driven && gearOf(driven, 'diesel') ? driven.id : this.testVesselId;
+    const v = this.world.vessels[id];
     if (!v) return;
+    const send = (control: string, value: number) => this.pushIntentTo(id, control, value);
     const diesel = gearOf(v, 'diesel');
     // Quick start is a session setting (CONFIG.vessels.workboat.electrics.quickStart), for a boat with batteries and a diesel.
     if (!diesel || !gearOf(v, 'batteries') || !CONFIG.vessels.workboat.electrics.quickStart) {
       if (v.engine.phase === 'off') this.overlay.notify('Start her properly: master, INSTR breaker, key, wait for the GLOW lamp, START (see the card). Menu > Tests > Quick start does it all.', 5);
-      else this.pushVesselIntent('key', 0);
+      else send('key', 0);
       return;
     }
     if (v.engine.phase === 'off') {
@@ -4955,10 +4969,10 @@ export class App {
         this.overlay.notify('Engine won\'t start: lever not in neutral');
         this.xrInput.pulse('right', 0.8, 150);
       }
-      this.pushVesselIntent('quickStart', 1);
+      send('quickStart', 1);
       return;
     }
-    this.pushVesselIntent('key', 0); // stop: key off
+    send('key', 0); // stop: key off
   }
 
   /**
@@ -5112,9 +5126,9 @@ export class App {
     return next !== here && RECIPES[next] ? next : null;
   }
 
-  /** The workboat's tender (the first outboard boat), if any. */
+  /** Our boat's tender (the skiff or the rescue boat), else the first tender there is. */
   private skiff(): VesselState | undefined {
-    return Object.values(this.world.vessels).find((v) => gearOf(v, 'outboard'));
+    return this.ourSkiff() ?? Object.values(this.world.vessels).find((v) => v.tender);
   }
 
   /** The boat the driving keys steer: the one you're standing in, else the workboat. */
