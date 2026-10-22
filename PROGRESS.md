@@ -6682,6 +6682,32 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
 
+### Fix: harbour names on the Clyde ("Largs Marina is named as Fairlie")
+
+Owner, in the Clyde map: "there's three Fairley piers, where actually one of them is Largs Marina ... So maybe just check the source in the map again there."
+
+- **Not from the pier pass before it:** these names were wrong from the start. The harbours stage named a harbour after a marina, ferry terminal or harbour only when the map drew it as an outline. Many are mapped as **a single point** (Largs Yacht Haven, Fairlie Quay's boatyard, Tighnabruaich Pier, Ardnadam Pier, Kilcreggan Pier) or **a relation** (Holy Loch Marina). With none found, a harbour took the nearest place's name, and near Fairlie that's a locality called "Fairlie Pier": hence three "Fairlie Pier pier"s.
+- **Fixed** (`tools/coast/src/harbours.ts`): points and relations count too, and a harbour's name is, most trusted first: its marina's or harbour's; its pier's own; its ferry terminal's (with "pier" added when that's only the town's name: "Wemyss Bay" → "Wemyss Bay pier"); the nearest place's.
+- **Three set by hand** (`tools/coast/requests/clyde.edits.yaml`): Rothesay Harbour (a marina point inside it would name it "Rothesay Marina"; Voyage starts you there by its id, `rothesay-harbour`, which stays); Largs pier (its ferry point is "Largs Slip", and two slipways are Largs slips already); Fairlie Quay (the map's point is "Fairlie Quay Boatyard & Shed").
+- **What changed** (the Clyde only, as the owner asked; harbours, boats and package re-run, the pieces and ground unchanged):
+
+  | was | now |
+  |---|---|
+  | Fairlie Pier pier (the long L south of Fairlie) | Fairlie Quay |
+  | Fairlie Pier pier (the pontoons south of Largs) | Largs Yacht Haven |
+  | Sandbank | Holy Loch Marina |
+  | Sandbank pier | Ardnadam Pier |
+  | Port Driseach pier | Tighnabruaich Pier |
+  | Cumbrae Ferry Terminal | Cumbrae Slip |
+  | Colintraive pier (on the Bute side) | Rhubodach pier |
+  | Colintraive pier (the other) | Colintraive pier |
+  | Kilcreggan pier | Kilcreggan Pier |
+
+  Their ids change with their names (`largs-yacht-haven` etc.): a Voyage saved at one of their berths starts at Rothesay once. The ferries' ends and the chart take the new names.
+- **Still sharing a name** (the map names none of them): two Dunoon piers (the old pier and the breakwater 300 m south), two Hunterston Jetty piers, two The Lorn piers 1.5 km apart. Left for the owner.
+- **Tests:** `tests/coastClyde.test.ts` (1 new): Largs Yacht Haven, Fairlie Quay, Largs pier, Holy Loch Marina, Rhubodach and Colintraive piers, Rothesay Harbour kept; no "Fairlie Pier pier". `tests/coastFeatures.test.ts`: the overlap at Sandbank is now reported as Holy Loch Marina's.
+- **Test steps (VR and desktop):** Voyage → The Firth of Clyde, Menu → Debug → World → To port: the list reads Largs pier, Largs Yacht Haven, Fairlie pier, Fairlie Quay; Holy Loch Marina; Rhubodach and Colintraive at the narrows. The chartplotter's port names match.
+
 ### Fix: piers drawn as one huge box ("Wemyss Bay pier ... absolutely massive"), the Clyde
 
 Brought by the Main game session at the owner's request: Wemyss Bay pier "not where I would expect" and "absolutely massive"; the large one north of Wemyss Bay taken to be Kip Marina.

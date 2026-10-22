@@ -22,7 +22,8 @@
  *   Berths     Along every long face of a pier, pontoon or quay that looks onto open water
  *              (that depth `pocketReach` m off it, no land between), one every `berthSpacing` m.
  *   Harbours   Kit pieces within `clusterGap` m of each other make one harbour, named after
- *              its marina, ferry terminal or named pier, else the nearest place. Its kind:
+ *              its marina or harbour (an outline, a point or a relation in the map), else
+ *              its pier's own name, else its ferry terminal, else the nearest place. Its kind:
  *              harbour (quays, a marina, or a big pier), else pier.
  *              Every harbour found is modelled (the owner's rule, Oct 2026: a real-coast map is
  *              not cut down to the hand-built regions' three harbours); the package makes each
@@ -397,6 +398,28 @@ for (const [id, w] of Object.entries(osm.ways)) {
   }
 }
 
+// Marinas, ferry terminals and harbours mapped as a single point, or as a relation (several
+// outlines), name their harbours too: Largs Yacht Haven is a point, Holy Loch Marina a relation.
+{
+  const kindOf = (t: Record<string, string>) => (t.leisure === 'marina' ? 'marina' : t.amenity === 'ferry_terminal' ? 'ferry terminal' : 'harbour');
+  const isArea = (t: Record<string, string>) => t.leisure === 'marina' || t.amenity === 'ferry_terminal' || t.landuse === 'harbour' || t['seamark:type'] === 'harbour';
+  for (const [id, t] of Object.entries(osm.nodeTags)) {
+    const ll = osm.nodes[id];
+    if (!ll || !t.name || !isArea(t)) continue;
+    const [x, z] = P.fwd(ll[0], ll[1]);
+    if (inBox(x, z)) areas.push({ source: `node/${id}`, kind: kindOf(t), name: nameOf(t), x, z });
+  }
+  for (const [id, r] of Object.entries(osm.relations ?? {}) as [string, { members: { type: string; ref: number; role: string }[]; tags?: Record<string, string> }][]) {
+    const t = r.tags ?? {};
+    if (!t.name || !isArea(t)) continue;
+    const ps = r.members.filter((m) => m.type === 'way' && osm.ways[m.ref]).flatMap((m) => pts(osm.ways[m.ref]));
+    if (!ps.length) continue;
+    const x = ps.reduce((a, q) => a + q[0], 0) / ps.length;
+    const z = ps.reduce((a, q) => a + q[1], 0) / ps.length;
+    if (inBox(x, z)) areas.push({ source: `relation/${id}`, kind: kindOf(t), name: nameOf(t), x, z });
+  }
+}
+
 // ── The harbour basins: dredged round the pieces ──
 // Water within `basinReach` m of a pier, quay or pontoon is at least deep enough to work in
 // (a working harbour is dredged; the pipeline's procedural shelf would make it a beach).
@@ -518,10 +541,16 @@ for (const list of clusters.values()) {
   if (!solid.length && list.every((it) => it.len < 30)) continue; // a lone small slip: not a harbour
   const cx = list.reduce((s, it) => s + it.x, 0) / list.length;
   const cz = list.reduce((s, it) => s + it.z, 0) / list.length;
-  const area = areas.filter((a) => Math.hypot(a.x - cx, a.z - cz) < T.clusterGap * 1.5).sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))[0];
+  const near = areas.filter((a) => a.name && Math.hypot(a.x - cx, a.z - cz) < T.clusterGap * 1.5).sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz));
+  const area = near[0];
   const named = list.find((it) => it.name);
   const place = places.sort((a, b) => Math.hypot(a.at[0] - cx, a.at[1] - cz) - Math.hypot(b.at[0] - cx, b.at[1] - cz))[0];
-  const name = area?.name || named?.name || (place ? `${place.name} ${solid.length ? 'pier' : 'slip'}` : 'Harbour');
+  // Its name, most trusted first: a marina's or harbour's; the pier's own; a ferry terminal's
+  // (often just the town's, "Wemyss Bay": then "Wemyss Bay pier"); the nearest place's.
+  const marina = near.find((a) => a.kind !== 'ferry terminal');
+  const terminal = near.find((a) => a.kind === 'ferry terminal');
+  const terminalName = terminal && (/\b(pier|terminal|slip|harbour|quay|jetty|port)\b/i.test(terminal.name) ? terminal.name : `${terminal.name} pier`);
+  const name = marina?.name || named?.name || terminalName || (place ? `${place.name} ${solid.length ? 'pier' : 'slip'}` : 'Harbour');
   const isHarbour = list.some((it) => it.kind === 'quay') || !!area || solid.reduce((s, it) => s + it.len, 0) > 120;
   const sources = list.map((it) => it.source);
   const nb = berths.filter((b) => sources.includes(b.source));

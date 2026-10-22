@@ -1,7 +1,7 @@
 {
  "warnings": [
   "7 patches where the coastline's sides disagree (check the coast there)",
-  "overlapping piers at sandbank (2405, -13165): decks 2.4 m and 0.5 m over 48 m²",
+  "overlapping piers at holy-loch-marina (2405, -13165): decks 2.4 m and 0.5 m over 48 m²",
   "ormidale-lodge-pier: no berth with room for a boat (best blocked at 12 points): not a port",
   "kilchattan-bay-pier-2: no berth with room for a boat (best blocked at 4 points): not a port",
   "cammes-reinach-pier: no berth with room for a boat (best blocked at 6 points): not a port"
@@ -19,7 +19,7 @@
   "berths": 1562,
   "slipways": 13,
   "buildings": 5540,
-  "edits": 1,
+  "edits": 4,
   "sparse": [
    "way/25985153: 7244 m2 in a 59836 m2 box, 13.8 m thick",
    "way/37016057: 1652 m2 in a 4033 m2 box, 11.6 m thick",
@@ -1250,7 +1250,7 @@
  "chunkBudget": 12000,
  "package": {
   "ports": 56,
-  "berths": 81,
+  "berths": 86,
   "blocks": 308,
   "buildings": 5540,
   "marks": 81,
@@ -1262,7 +1262,7 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1526988
+  "bytes": 1528909
  },
  "houses": {
   "byType": {

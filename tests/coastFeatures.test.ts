@@ -71,8 +71,8 @@ describe('coast features (C1)', () => {
     // Rothesay's harbour pier, one box round its T, covered the low pier inside it (where
     // the owner was stood "underneath the big wooden one"); built along its outline, it doesn't.
     expect(report.warnings.some((w) => w.startsWith('overlapping piers at rothesay-harbour'))).toBe(false);
-    // The check itself still finds them where they are (Sandbank's pontoon under its pier).
-    expect(report.warnings.some((w) => w.startsWith('overlapping piers at sandbank'))).toBe(true);
+    // The check itself still finds them where they are (Holy Loch Marina's pontoon under its pier, at Sandbank).
+    expect(report.warnings.some((w) => w.startsWith('overlapping piers at holy-loch-marina'))).toBe(true);
     // Each warning once (the stage re-run doesn't pile them up).
     expect(new Set(report.warnings).size).toBe(report.warnings.length);
   });
