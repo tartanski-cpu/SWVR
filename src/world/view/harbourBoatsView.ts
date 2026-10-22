@@ -104,7 +104,7 @@ export class HarbourBoatsView {
     const bob2 = c.bobDistance * c.bobDistance;
     for (const b of this.shown) {
       const k = c.kinds[b.kind];
-      const s = harbourBoatPose(b, from, speed, world.time, this.pose);
+      const s = harbourBoatPose(b, from, speed, this.pose);
       const fx = Math.sin(s.heading);
       const fz = -Math.cos(s.heading);
       const h = surfaceHeight(waves, s.x, s.z);

@@ -5176,9 +5176,10 @@ export const CONFIG = {
    *   kinds            each design's length, beam, draught and freeboard (m): her hull's box
    *                    for the collision; the drawing is made to the same size
    *   pennant          a moored boat lies this far beyond her length's half from the buoy
-   *                    (m: the mooring pennant and the riser's scope); at anchor `anchorScope`
-   *                    x the depth (the chain out)
-   *   wanderDeg / wanderPeriod  how far she yaws about her lie (deg) and how slowly (s)
+   *                    (m: the mooring pennant and the riser's scope)
+   *   anchorPivot      at anchor she swings about where her chain lies on the seabed, this far
+   *                    ahead of her bow (m, [least, most]; the owner: 15-20 m): `anchorScope`
+   *                    x the depth, kept within it
    *   calmWind         below this wind (m/s) she lies more and more to her own whim (the tide)
    *   stepReach        the collision follows the boats within this of any vessel (m)
    *   drawDistance / maxShown  drawn within this of the viewer (m), the nearest this many;
@@ -5200,8 +5201,7 @@ export const CONFIG = {
     } as Record<'creel' | 'yacht' | 'cruiser' | 'rib' | 'caique', { length: number; beam: number; draught: number; freeboard: number }>,
     pennant: 3,
     anchorScope: 3,
-    wanderDeg: 14,
-    wanderPeriod: 45,
+    anchorPivot: [15, 20] as [number, number],
     calmWind: 3,
     stepReach: 250,
     drawDistance: 1500,

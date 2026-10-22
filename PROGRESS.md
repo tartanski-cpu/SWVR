@@ -6640,6 +6640,19 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
 
+### Fix: boats at anchor drifting from side to side (owner, testing)
+
+Owner: "the boats at anchor, they move laterally, so they move from side to side ... all I really want them to do is to bob up and down, and if it's not performance heavy, to point into wind."
+
+- **Why:** each boat on a mooring or at anchor had a slow yaw about her lie (14° either way over 45 s), and I swung her about her buoy or anchor rather than about her own middle. A boat at anchor lies up to 40 m from her anchor, so that swept her about 10 m from side to side.
+- **Now:** she lies head to wind and stays on that spot, only bobbing on the waves (rise, pitch and roll, as before). When the wind shifts (the weather turns it gradually) she swings round to it. In light airs (below `calmWind` 3 m/s) she still lies more and more her own way, as boats held by the tide do.
+- **Where she swings about** (the owner: "it shouldn't pivot around the center of the boat, it should pivot around a point let's say 15 to 20 meters in front of the boat, because it's where the anchor hits the seabed"):
+  - **at anchor**, the spot where her chain lies on the seabed, `anchorPivot` 15-20 m ahead of her bow (`anchorScope` 3 x the depth, kept within that: 15 m in shallow water, 20 m in deep). It was up to 40 m, the anchor itself;
+  - **on a mooring**, her buoy, `pennant` 3 m ahead of her bow, as before.
+- **Cost:** none added; slightly less work than before. `CONFIG.harbourBoats.wanderDeg` and `wanderPeriod` are gone; `anchorPivot` is new.
+- **Tests:** `tests/harbourBoats.test.ts`: a moored boat now points within 1° of the wind (it allowed the wander before); a boat at anchor swings about a point 15 m ahead of her bow in shallow water and 20 m in deep, her bow on it whichever way the wind blows.
+- **Not checked headless:** the motion itself (a still picture can't show it). **Test steps (VR and desktop):** Voyage → Oban and Lorn or the Clyde. Watch a field of moored yachts or a boat at anchor for a minute: she bobs but stays put, bow to the wind. With Menu → Debug → Weather, change the weather: as the wind comes round, they swing to it together, a boat at anchor turning about a point 15-20 m ahead of her bow.
+
 ### Coast extras C5: surf on the shore (done, owner approved)
 
 **Owner's test (22 Oct 2026):** "The surf sounds really good. I'm very happy with that." The levels stay as they are.
