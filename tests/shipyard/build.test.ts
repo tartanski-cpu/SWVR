@@ -29,13 +29,14 @@ describe('Shipyard: the boats it builds', () => {
         const h = uprightHydrostatics(VESSEL_DEFS.design);
         expect(Math.abs(h.sinkage), `${hull}/${engine} sinkage`).toBeLessThan(0.02);
         expect(Math.abs(h.lcgMinusLcb), `${hull}/${engine} trim`).toBeLessThan(0.02);
-        // Stable; a tender one (a heavy engine high in a light hull) is told so.
-        expect(h.gmt, `${hull}/${engine} GM`).toBeGreaterThan(0.3);
+        // Stable; a tender one (a heavy engine high in a light hull) is told so. (The 750 kW
+        // diesel, nearly 5 t, makes the smallest hulls tender: still stable, and told.)
+        expect(h.gmt, `${hull}/${engine} GM`).toBeGreaterThan(engine === 4 ? 0.1 : 0.3);
         if (h.gmt < 0.5) expect(boat.warnings.some((w) => w.startsWith('Her stability is low')), `${hull}/${engine}`).toBe(true);
         expect(gearOf({ defId: 'design' }, 'diesel')!.engine.powerKw).toBe(ENGINES[engine].kw);
-        // The tall tug diesel doesn't fit under a shallow hull's floor (machinery.ts): said so,
-        // and nothing else. (It fits the tug, below.)
-        if (engine === 3) expect(boat.warnings.filter((w) => !w.startsWith('The 450 kW slow-revving tug diesel doesn’t fit') && !w.startsWith("The 450 kW slow-revving tug diesel doesn't fit") && !w.startsWith('Her stability is low')), `${hull}/${engine}`).toEqual([]);
+        // The tall tug diesel and the 750 kW don't fit under a shallow hull's floor
+        // (machinery.ts): said so, and nothing else. (They fit the tug and the trawler, below.)
+        if (engine >= 3) expect(boat.warnings.filter((w) => !/^The (450|750) kW .* doesn(’|')t fit/.test(w) && !w.startsWith('Her stability is low')), `${hull}/${engine}`).toEqual([]);
         else expect(boat.warnings, `${hull}/${engine}`).toEqual([]);
       }
   });

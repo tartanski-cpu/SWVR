@@ -997,8 +997,8 @@ section('5. Engine');
 // As pictures (owner, Oct 2026: "too much text ... more pictorial"; tiles.ts): each choice a
 // drawing, its name and one line, the full description behind its ⓘ button.
 {
-  const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug];
-  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel'];
+  const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug, ENGINE_ICONS.medium];
+  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six'];
   pickTiles(
     controls,
     'engine',

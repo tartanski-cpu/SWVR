@@ -106,18 +106,24 @@ export const CODE_HULLS = 5;
 const MORE_HULLS = CODE_HULLS - BASE_HULLS + 1;
 
 /** How many engines there are (build.ts ENGINES); the first 16 characters hold the first three, the rest ride in the extension (version 18). */
-export const ENGINE_TYPES = 4;
+export const ENGINE_TYPES = 5;
 const BASE_ENGINES = 3;
+/**
+ * Engines the code holds at all: the first four. Later ones (the 750 kW diesel, Oct 2026) aren't
+ * in it, as more of them would change the extension's number base and how every earlier code
+ * reads (as CODE_HULLS): a boat with one travels as a link or file.
+ */
+export const CODE_ENGINES = 4;
 /** The extension's engine number: 0 for one of the first three, n for engine BASE_ENGINES - 1 + n. */
-const MORE_ENGINES = ENGINE_TYPES - BASE_ENGINES + 1;
+const MORE_ENGINES = CODE_ENGINES - BASE_ENGINES + 1;
 /**
  * Engines that only go in singly: a twin choice is built with one. None now: the slow-revving
  * tug diesel was (owner), until the owner asked for more power for the tugs (Oct 2026): two of
  * them on two screws, as a twin-screw harbour tug.
  */
 export const SINGLE_ONLY_ENGINES: readonly number[] = [];
-/** Engines that go on a shaft only (no stern drive or pod drives): the tug diesel, for its big slow propeller. */
-export const SHAFT_ONLY_ENGINES: readonly number[] = [3];
+/** Engines that go on a shaft only (no stern drive or pod drives): the tug diesel and the 750 kW diesel, for their big slow propellers. */
+export const SHAFT_ONLY_ENGINES: readonly number[] = [3, 4];
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign extends Record<FurnitureKey, number>, Record<ConsoleKey, number> {
@@ -852,6 +858,7 @@ export function encodeDesign(design: ShipDesign): string {
   const more = d.hull >= BASE_HULLS ? d.hull - BASE_HULLS + 1 : 0;
   // An engine after the first three: the same way.
   if (!Number.isInteger(d.engine) || d.engine < 0 || d.engine >= ENGINE_TYPES) throw new Error(`design engine ${d.engine} is off its scale (0..${ENGINE_TYPES - 1})`);
+  if (d.engine >= CODE_ENGINES) throw new Error('this engine isn’t in the code: she travels as a link or file');
   const moreEngine = d.engine >= BASE_ENGINES ? d.engine - BASE_ENGINES + 1 : 0;
   const base = pack({ ...d, ...(more ? { hull: 0 } : {}), ...(moreEngine ? { engine: 0 } : {}) }, FIELDS);
   // No handrails first (most significant: 0 with them), hull protection (0 without any), the deckhouse (0 without one),

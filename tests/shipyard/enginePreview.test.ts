@@ -20,10 +20,11 @@ const ceiling = () => 0; // the floor 1 m over her bottom
 const lay = (engine: number, x = 0, propX = 0) => layShaft(form, ENGINES[engine].size, x, { x: propX, z: 3.5, d: 0.9 }, ceiling, 10);
 const base = { form, twinX: 1.1, propD: 0.9, propZ: 3.5, rudderZ: 3.9 };
 describe('engine previews', () => {
-  it('has a look for every engine, the tug diesel the biggest', () => {
+  it('has a look for every engine, the 750 kW the biggest and the tug diesel next', () => {
     expect(ENGINE_LOOKS).toHaveLength(ENGINES.length);
     const lengths = ENGINES.map((_, i) => buildEngine(i).length);
-    expect(Math.max(...lengths)).toBe(lengths[3]);
+    expect(Math.max(...lengths)).toBe(lengths[4]);
+    expect(Math.max(...lengths.slice(0, 4))).toBe(lengths[3]);
     // The gearbox's output flange is the engine's origin: the engine is all forward of it.
     expect(new THREE.Box3().setFromObject(buildEngine(1).group).max.z).toBeLessThan(0.05);
   });

@@ -8213,3 +8213,15 @@ Owner, Oct 2026: "a slightly bigger one, which should be rigid inflatable boat t
     3. Board her, press the quick-start key (or turn the key and hold START on her console), then full throttle with the driving keys. About 28 kn; put the wheel hard over and feel her lean in.
     4. Bring her back alongside under the crane, slow, and press the remote on the post by her console.
   - **VR:** the same. Stand at her helm against the leaning post, the wheel in front of you, the throttle to your right.
+
+### A 750 kW diesel, the stern trawler's (done, awaiting owner test)
+
+Owner, Oct 2026: "It looks like the 24-meter trawler is going to need a bigger engine ... let's go for a 750 kilowatt engine based on the straight six diesel."
+
+- **The engine** (catalog.ts ENGINES, the fifth): a medium-speed straight six, 750 kW at 1000 rpm (the tug diesel's revs, bigger cylinders), idling at 420, 4.8 t with its gearbox, 3.3 × 1.15 × 1.7 m, a propeller up to 1.9 m (`propMaxM`), £180 a kW, the straight six's voice. Shaft only (design.ts SHAFT_ONLY_ENGINES), single or twin. Drawn as the tug diesel (engineModels.ts ENGINE_LOOKS, its own colour); its own picture tile on the Engine step (tiles.ts ENGINE_ICONS.medium).
+- **The stern trawler's as she comes** (catalog.ts defaults `engine: 4`).
+- **What it does for her** (sea trials, her gearbox matched as the Shipyard does it): at 20 m, about 10.5 kn flat out and an 11.2 t bollard pull, against the 450 kW tug diesel's 9.2 kn and 6.6 t. She's near her hull speed (a 20 m hull's waves hold her to about 10 to 11 kn), so the extra power shows mostly as pull on her net or a tow, not speed. On the small tug it gives 10.2 kn (the tug diesel 8.8).
+- **Where it fits:** a single one fits the trawler at every length. Twins stand 10 to 20 cm too tall on their off-centre shafts at the shorter lengths; the Shipyard says so. On a small hull (the landing craft) it doesn't fit and makes her tender (GM about 0.16 m), and the Shipyard says both.
+- **The engine bed** takes up to 1500 kW now (engineRoom.ts, the `engine.bay` socket's `maxPowerKw`): twin 750s.
+- **Not in the short code** (design.ts `CODE_ENGINES` 4, as `CODE_HULLS`): another engine in it would change how every earlier code reads, so a boat with it travels as a link or file.
+- **Checked:** tests/shipyard/bigEngine.test.ts (the trawler's as she comes, fits under her deck; faster and a far harder pull than the tug diesel, at its rated revs); the engine tests updated for a fifth engine (brief, build, designDoc, enginePreview, tugEngine, tugVoice). Headless Chromium: the Engine step on the trawler (the tile, her engine on its shaft). Full suite passes. **Not checked:** the Quest; its sound in the game.

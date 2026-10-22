@@ -115,6 +115,8 @@ export const ENGINE_ICONS = {
   v8big: svg('<path d="M11 14h24v10H11zM13 24l2 4h16l2-4M11 14l-3-7h11l2 7M35 14l3-7H27l-2 7"/><circle cx="42" cy="11" r="3"/><circle cx="5" cy="11" r="2.5"/><path d="M39 12h-4M7.5 12H11"/>'),
   // The tug diesel: a tall heavy block, six covers, a big flywheel.
   tug: svg('<path d="M13 9h27v16H13zM15 25l2 4h21l2-4M14 9V7h3v2M18.5 9V7h3v2M23 9V7h3v2M27.5 9V7h3v2M32 9V7h3v2M36.5 9V7h3v2"/><circle cx="8" cy="17" r="6"/><circle cx="8" cy="17" r="1.5"/>'),
+  // The 750 kW diesel: taller still, filling the tile, a turbocharger on top, the biggest flywheel.
+  medium: svg('<path d="M14 7h31v20H14zM16 27l2 3h24l2-3M18 7V4h22v3M32 4V1h6v3"/><circle cx="8" cy="17" r="7"/><circle cx="8" cy="17" r="1.5"/>'),
   // Two engines side by side (from above), a shaft and propeller each.
   twin: svg('<path d="M5 5h16v8H5zM5 19h16v8H5zM21 9h17M21 23h17M40 6v6M40 20v6"/>'),
   // Her stern from the side: the engine against the transom, the leg through it, its propeller.

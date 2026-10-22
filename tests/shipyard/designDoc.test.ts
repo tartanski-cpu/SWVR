@@ -4,7 +4,7 @@
  * and says so; a field a document lacks is the starting design's.
  */
 import { describe, expect, it } from 'vitest';
-import { ALL_FIELDS, CONSOLE_FIELDS, DEFAULT_DESIGN, FURNITURE_FIELDS, CODE_HULLS, decodeDesign, encodeDesign, type ShipDesign, fromSteps, toSteps } from '../../src/shipyard/design';
+import { ALL_FIELDS, CONSOLE_FIELDS, DEFAULT_DESIGN, FURNITURE_FIELDS, CODE_ENGINES, CODE_HULLS, decodeDesign, encodeDesign, type ShipDesign, fromSteps, toSteps } from '../../src/shipyard/design';
 import {
   DOC_FIELDS,
   designDoc,
@@ -39,8 +39,8 @@ const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', '
 const CODE_FIELDS = ALL_FIELDS.filter((f) => !NOT_IN_CODE.includes(f.key));
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];
-  // (The hull field's steps include the types beyond the code: the stern trawler travels as a document.)
-  const top = (f: (typeof CODE_FIELDS)[number]) => (f.key === 'hull' ? CODE_HULLS : f.steps);
+  // (The hull and engine fields' steps include the types beyond the code: the stern trawler and the 750 kW diesel travel as a document.)
+  const top = (f: (typeof CODE_FIELDS)[number]) => (f.key === 'hull' ? CODE_HULLS : f.key === 'engine' ? CODE_ENGINES : f.steps);
   for (const f of CODE_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: top(f) - 1 }) });
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);

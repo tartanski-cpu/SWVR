@@ -4,7 +4,7 @@ import { gearOf, useDesign } from '../../src/boats/sims';
 import { LIBRARY, RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
 import { DESIGN_HULLS, ENGINES } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, ENGINE_TYPES, type ShipDesign } from '../../src/shipyard/design';
+import { CODE_ENGINES, decodeDesign, DEFAULT_DESIGN, encodeDesign, ENGINE_TYPES, type ShipDesign } from '../../src/shipyard/design';
 import { fakeCanvas } from '../modular/fakes';
 
 beforeAll(fakeCanvas);
@@ -16,7 +16,9 @@ const tug = (engine: number, twin = 0): ShipDesign => ({ ...BASE, hull: TUG, ...
 describe('the tug engine: codes', () => {
   it('every engine reads back; the first three keep their 17-character codes as before', () => {
     expect(ENGINE_TYPES).toBe(ENGINES.length);
-    for (let engine = 0; engine < ENGINE_TYPES; engine++)
+    // (The 750 kW diesel, after the code's four, travels as a link or file.)
+    expect(() => encodeDesign({ ...BASE, engine: CODE_ENGINES })).toThrow(/engine isn’t in the code/);
+    for (let engine = 0; engine < CODE_ENGINES; engine++)
       for (const hull of [0, TUG]) {
         const d = { ...BASE, hull, engine };
         expect(decodeDesign(encodeDesign(d)), `${engine} ${hull}`).toEqual({ design: d });

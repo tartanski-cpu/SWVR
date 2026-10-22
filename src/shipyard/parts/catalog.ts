@@ -353,9 +353,10 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 6.0,
     foredeck: 2.0,
     // A trawler's: the wheelhouse forward of amidships on the whaleback, which runs aft under
-    // it; one slow-revving diesel turning a big propeller in a Kort nozzle; the trawl gear,
+    // it; one slow-revving diesel (the 750 kW, owner, Oct 2026: she needed a bigger engine)
+    // turning a big propeller in a Kort nozzle; the trawl gear,
     // its net drum and winches, and a fish hold; fishing green.
-    defaults: { ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 7, bow: 2, housePos: 12, houseLength: 12, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 3 }), nozzle: 1, fcLength: 2, fcHeight: 2, aFrame: 1, netDrum: 1, trawlWinches: 1, fishHold: 1, sternRoller: 0 },
+    defaults: { ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 7, bow: 2, housePos: 12, houseLength: 12, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 4, twin: 0, paint: 3 }), nozzle: 1, fcLength: 2, fcHeight: 2, aFrame: 1, netDrum: 1, trawlWinches: 1, fishHold: 1, sternRoller: 0 },
   },
 ];
 
@@ -383,6 +384,11 @@ export const ENGINES = [
   { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.32, 0.86, 0.8] as const },
   { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.52, 0.96, 0.9] as const },
   { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm)', kw: 450, kg: 2200, voice: 'inlineSix' as const, /* owner, Oct 2026: tried the big-six voice (CONFIG.engineVoices.bigSix) and preferred this one */ rackRise: 1.0, ratedRpm: 1000, idleRpm: 450, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
+  // A bigger one of the same kind (owner, Oct 2026: "the 24-metre trawler is going to need a
+  // bigger engine ... 750 kilowatt ... based on the straight six"): a medium-speed straight six,
+  // the tug diesel's revs, with bigger cylinders; it turns the biggest propeller, for a stern
+  // trawler towing her net or a big tug. Shaft only, as the tug diesel.
+  { name: '750 kW medium-speed diesel (big straight six, 1000 rpm)', kw: 750, kg: 4800, voice: 'inlineSix' as const, rackRise: 0.9, ratedRpm: 1000, idleRpm: 420, propMaxM: 1.9, pricePerKw: 180, size: [3.3, 1.15, 1.7] as const, about: 'The biggest, for a trawler or a big tug: a medium-speed straight six turning the biggest, slowest propeller, for a hard pull on a net or a tow. Heavy and tall: it wants a long, deep hull.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */
