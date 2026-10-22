@@ -12,9 +12,12 @@
  *   kinds      by the region's mix (its theme: creel boats and yachts in the West Highlands,
  *              caiques in the Aegean), one hull colour each from its palette
  *
- * A boat on a mooring or at anchor swings to the wind: her bow to it, her middle downwind
- * of the buoy (or anchor) by half her length and the pennant (or the chain's scope); a
- * slow yaw about that lie (`wanderDeg`, `wanderPeriod`); in light airs (below `calmWind`)
+ * A boat on a mooring or at anchor lies head to wind: her bow to it, her middle downwind
+ * of the buoy by half her length and the pennant, or at anchor of the spot where her chain
+ * lies on the seabed (`anchorPivot`, 15-20 m ahead of her bow), which she swings about; she
+ * keeps that spot, only bobbing on the waves (the view), and swings round with the wind
+ * as it changes. (She used to yaw slowly about her lie, but about the buoy that swept her
+ * metres from side to side; the owner wanted her still.) In light airs (below `calmWind`)
  * she lies more and more to her own whim, as boats do when the tide holds them.
  *
  * Solid: each boat is a box (her length and beam, the bow tapered; from her keel to her
@@ -43,10 +46,9 @@ export interface HarbourBoat {
   x: number;
   z: number;
   heading: number;
-  /** Moored or anchored: her middle's distance from the buoy or anchor (m), her lie in a calm (rad), her yaw's phase. */
+  /** Moored or anchored: her middle's distance from the buoy or anchor (m), her lie in a calm (rad). */
   r: number;
   calm: number;
-  phase: number;
   /** Alongside: the berth she's in. */
   berthId?: string;
   /** Her own 0-1, for the drawing's small differences. */
@@ -100,9 +102,10 @@ export function buildHarbourBoats(regions: readonly RegionDef[], berths: readonl
         x: s.x,
         z: s.z,
         heading: 0,
-        r: L / 2 + (moored ? c.pennant : Math.min(40, c.anchorScope * s.depth)),
+        // At anchor she swings about where her chain lies on the seabed, `anchorPivot` m ahead
+        // of her bow (more in deeper water), not about the anchor itself further off.
+        r: L / 2 + (moored ? c.pennant : Math.min(c.anchorPivot[1], Math.max(c.anchorPivot[0], c.anchorScope * s.depth))),
         calm: hash('calm', s.x, s.z) * Math.PI * 2,
-        phase: hash('phase', s.x, s.z) * Math.PI * 2,
         seed: hash('seed', s.x, s.z),
       });
     }
@@ -120,7 +123,6 @@ export function buildHarbourBoats(regions: readonly RegionDef[], berths: readonl
         heading: ((b.headingDeg + (hash('way', b.id) < 0.5 ? 0 : 180)) * Math.PI) / 180,
         r: 0,
         calm: 0,
-        phase: 0,
         berthId: b.id,
         seed: hash('seed', b.id),
       });
@@ -130,10 +132,10 @@ export function buildHarbourBoats(regions: readonly RegionDef[], berths: readonl
 }
 
 /**
- * Where a boat lies now: alongside, where she was put; on a mooring or at anchor, swung to
- * the wind (`windFrom` deg, `wind` m/s) at time `t` (s).
+ * Where a boat lies now: alongside, where she was put; on a mooring or at anchor, head to
+ * the wind (`windFrom` deg, `wind` m/s).
  */
-export function harbourBoatPose(b: HarbourBoat, windFrom: number, wind: number, t: number, out: HarbourBoatPose): HarbourBoatPose {
+export function harbourBoatPose(b: HarbourBoat, windFrom: number, wind: number, out: HarbourBoatPose): HarbourBoatPose {
   if (b.how === 'alongside') {
     out.x = b.x;
     out.z = b.z;
@@ -146,8 +148,7 @@ export function harbourBoatPose(b: HarbourBoat, windFrom: number, wind: number, 
   const a = (windFrom * Math.PI) / 180;
   const hx = Math.sin(a) * w + Math.sin(b.calm) * (1 - w);
   const hz = -Math.cos(a) * w - Math.cos(b.calm) * (1 - w);
-  const yaw = ((c.wanderDeg * Math.PI) / 180) * Math.sin((2 * Math.PI * t) / c.wanderPeriod + b.phase);
-  const heading = Math.atan2(hx, -hz) + yaw;
+  const heading = Math.atan2(hx, -hz);
   // Her middle downwind of the buoy: back from it along her heading.
   out.heading = heading;
   out.x = b.x - Math.sin(heading) * b.r;
@@ -246,7 +247,7 @@ export function stepHarbourBoats(world: WorldState): void {
     for (const b of list) {
       if (posedAt[b.index] === tick || Math.abs(b.x - vx) > reach || Math.abs(b.z - vz) > reach) continue;
       if (harbourBoatDisplaced(b, world)) continue;
-      harbourBoatPose(b, from, speed, world.time, poses[b.index]);
+      harbourBoatPose(b, from, speed, poses[b.index]);
       posedAt[b.index] = tick;
     }
   }

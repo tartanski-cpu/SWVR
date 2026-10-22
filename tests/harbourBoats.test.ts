@@ -91,13 +91,13 @@ describe('harbour boats: the rules', () => {
     const b = buildHarbourBoats([region], [], []).find((x) => x.how === 'moored') as HarbourBoat;
     const pose = { x: 0, z: 0, heading: 0 };
     // A westerly (from 270 deg), strong: her bow points west, her middle east of the buoy.
-    harbourBoatPose(b, 270, 10, 0, pose);
+    harbourBoatPose(b, 270, 10, pose);
     const head = ((pose.heading * 180) / Math.PI + 360) % 360;
-    expect(Math.abs(head - 270)).toBeLessThan(CONFIG.harbourBoats.wanderDeg + 1);
+    expect(Math.abs(head - 270)).toBeLessThan(1);
     expect(pose.x).toBeGreaterThan(b.x + b.r * 0.9);
     expect(Math.hypot(pose.x - b.x, pose.z - b.z)).toBeCloseTo(b.r, 5);
     // The wind backs to the south: she swings round.
-    harbourBoatPose(b, 180, 10, 0, pose);
+    harbourBoatPose(b, 180, 10, pose);
     expect(pose.z).toBeLessThan(b.z - b.r * 0.9);
   });
 
@@ -136,7 +136,7 @@ describe('harbour boats: the rules', () => {
     expect(at).not.toBeNull();
     const [x, z] = at!;
     // A yacht on a mooring 30 m east of her, lying north-south in a calm (no weather here).
-    const yacht: HarbourBoat = { index: 0, kind: 'yacht', how: 'alongside', colour: 0xffffff, x: x + 30, z, heading: 0, r: 0, calm: 0, phase: 0, seed: 0 };
+    const yacht: HarbourBoat = { index: 0, kind: 'yacht', how: 'alongside', colour: 0xffffff, x: x + 30, z, heading: 0, r: 0, calm: 0, seed: 0 };
     useHarbourBoats([yacht]);
     v.mooring.phase = 'free';
     v.position[0] = x;
@@ -153,4 +153,35 @@ describe('harbour boats: the rules', () => {
     // She's still on her own side: her middle west of the yacht's side by at least her own half-beam or so.
     expect(v.position[0]).toBeLessThan(yacht.x - CONFIG.harbourBoats.kinds.yacht.beam / 2);
   }, 60000);
+});
+
+describe('at anchor (owner)', () => {
+  it('she swings about where her chain lies, 15-20 m ahead of her bow, keeping that spot as the wind goes round', () => {
+    const region = {
+      id: 'a',
+      bounds: { x0: -1000, x1: 1000, z0: -1000, z1: 1000 },
+      harbourBoats: {
+        style: { alongside: [['creel', 1]], moored: [['yacht', 1]], anchored: [['yacht', 1]], hulls: [0x123456], moorings: 1 },
+        // A shallow anchorage and a deep one.
+        spots: [{ x: 100, z: 100, depth: 3, harbour: 'h', kind: 'anchorage' }, { x: 400, z: 100, depth: 12, harbour: 'h', kind: 'anchorage' }],
+      },
+    } as unknown as RegionDef;
+    const both = buildHarbourBoats([region], [], []).filter((x) => x.how === 'anchored');
+    expect(both.length).toBe(2);
+    const L = CONFIG.harbourBoats.kinds[both[0].kind].length;
+    // Shallow: the least; deep: the most (not 36 m, the chain's scope).
+    expect(both.map((x) => x.r - L / 2)).toEqual(CONFIG.harbourBoats.anchorPivot);
+    const b = both[1];
+    const ahead = b.r - L / 2;
+    expect(ahead).toBeGreaterThanOrEqual(CONFIG.harbourBoats.anchorPivot[0]);
+    expect(ahead).toBeLessThanOrEqual(CONFIG.harbourBoats.anchorPivot[1]);
+    const pose = { x: 0, z: 0, heading: 0 };
+    for (const from of [0, 90, 200, 300]) {
+      harbourBoatPose(b, from, 10, pose);
+      // Her bow points at the pivot, half her length plus that much from her middle.
+      const bowX = pose.x + Math.sin(pose.heading) * (L / 2 + ahead);
+      const bowZ = pose.z - Math.cos(pose.heading) * (L / 2 + ahead);
+      expect(Math.hypot(bowX - b.x, bowZ - b.z)).toBeLessThan(1e-6);
+    }
+  });
 });
