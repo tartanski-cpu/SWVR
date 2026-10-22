@@ -124,7 +124,10 @@ export type GearKind =
   // The helm assist panel (owner, Oct 2026)
   | 'autopilot'
   // A fish hold (owner, Oct 2026)
-  | 'fishHold';
+  | 'fishHold'
+  // The trawl deck gear (owner, Oct 2026)
+  | 'netDrum'
+  | 'trawlWinches';
 
 /** What the world's systems need to know about each kind of gear (the boat's axes, m). */
 export interface GearFacts {
@@ -172,6 +175,10 @@ export interface GearFacts {
    * coaming's top middle, and the opening's extent).
    */
   fishHold: { slots: [number, number, number][]; hatch: { centre: [number, number, number]; x0: number; x1: number; z0: number; z1: number } };
+  /** The net drum: where the net leads off it (the top of a full roll, her axes). */
+  netDrum: { lead: [number, number, number] };
+  /** The trawl winches: where the starboard warp leaves its drum (port is -x). */
+  trawlWinches: { lead: [number, number, number] };
   /** The boat hook: in its clips at (x, y), from z0 to z1. */
   boatHook: { stow: [number, number, number, number] };
   /** The fishing rods' rack (owner, Oct 2026): each rod's butt (it stands upright there), the wall's facing (deg, 0 aft), the bucket on deck, which side (-1 port, 1 starboard). */

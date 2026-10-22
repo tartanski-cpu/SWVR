@@ -8,6 +8,7 @@ import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { codendAt, luffOf, luffPoint } from './codend';
 import { aFrameOf, heapAt } from './fishing';
+import { gearOf } from '../boats/sims';
 
 const FLOATS = 7;
 /** The net's rings along it, and the lines along it (its meshes). */
@@ -62,7 +63,12 @@ export class TrawlView {
   private af: GearFacts['trawlGantry'] | null = null;
   /** Her stern roller's top (where the net comes over the stern, her axes) and her deck along her. */
   private stern = new THREE.Vector3();
+  /** Her trawl winches' starboard lead (port is -x), if she has them; her net drum's lead, if she has one. */
+  private winch: [number, number, number] | null = null;
+  private drum: THREE.Vector3 | null = null;
   private deckY: (z: number) => number = () => 0;
+  /** Where the doors hang when the net's in: against her quarters, outboard (starboard; port its mirror). */
+  private doorHang: [number, number, number] = [1, 0, 0];
   /** Where the catch is emptied on deck (fishing.ts heapAt). */
   private heap: [number, number] = [0, 0];
   /** What's shown in the codend (boxes' worth), easing after the simulation as the fish pour, and how much there was when they began to. */
@@ -79,7 +85,8 @@ export class TrawlView {
   constructor() {
     this.root.name = 'trawl';
     const wg = new THREE.BufferGeometry();
-    wg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
+    // (Two warps, and with trawl winches two more lengths from their drums up to the blocks.)
+    wg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(24), 3));
     this.warps = new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: 0x1a1a1a }));
     this.floats = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshLambertMaterial({ color: 0xff7a1a }), FLOATS);
     // A trawl door: a steel plate with a heavy shoe along its bottom, its bracket on its face.
@@ -122,7 +129,12 @@ export class TrawlView {
     const plan = hullPlan(VESSEL_DEFS[v.defId]);
     this.deckY = (z) => plan.deckY(z);
     this.stern.set(0, plan.deckY(plan.transom) + 0.25, plan.transom);
+    this.winch = gearOf(v, 'trawlWinches')?.lead ?? null;
+    const nd = gearOf(v, 'netDrum');
+    this.drum = nd ? new THREE.Vector3(...nd.lead) : null;
     this.heap = heapAt(v);
+    const qz = plan.transom - 0.45;
+    this.doorHang = [plan.halfBeam(qz) + 0.08, plan.deckY(qz) - 0.4, qz];
   }
 
   update(world: WorldState, boat: THREE.Object3D | null, waves: readonly PreparedWave[], t: number): void {
@@ -154,12 +166,17 @@ export class TrawlView {
     [-1, 1].forEach((s, i) => {
       const block = luffPoint(af, luff, [s * af.blockX, af.top - 0.22, af.headZ]);
       // Hung up on the stern quarters (out of the way as the net comes aboard), or astern and down at the end of its warp.
-      const hang = [s * (af.x + 0.05), af.deck - 0.15, af.headZ - 0.15];
+      const hang = [s * this.doorHang[0], this.doorHang[1], this.doorHang[2]];
       const far = [s * (af.blockX + 1.5 * out), -down, af.headZ + back];
       boat.localToWorld(this.a.set(hang[0] + (far[0] - hang[0]) * k, hang[1] + (far[1] - hang[1]) * k, hang[2] + (far[2] - hang[2]) * k));
       boat.localToWorld(this.b.set(...block));
       pos.setXYZ(2 * i, this.b.x, this.b.y, this.b.z);
       pos.setXYZ(2 * i + 1, this.a.x, this.a.y + 0.33, this.a.z);
+      // With trawl winches: the warp from its drum up to the block (else it comes off the tow winch, under the frame).
+      const w = this.winch;
+      if (w) boat.localToWorld(this.a.set(s * w[0], w[1], w[2]));
+      pos.setXYZ(4 + 2 * i, this.b.x, this.b.y, this.b.z);
+      pos.setXYZ(5 + 2 * i, w ? this.a.x : this.b.x, w ? this.a.y : this.b.y, w ? this.a.z : this.b.z);
       // Its face along her, splayed out a little in the water (spreading the net).
       boat.getWorldQuaternion(this.q).multiply(new THREE.Quaternion().setFromEuler(this.e.set(0, s * 0.35 * k, 0)));
       this.doors.setMatrixAt(i, this.m.compose(this.a, this.q, this.s.set(1, 1, 1)));
@@ -229,7 +246,8 @@ export class TrawlView {
   private drawNet(boat: THREE.Object3D, codend: readonly number[], r: number, lift: number): void {
     const pos = this.netting.geometry.attributes.position as THREE.BufferAttribute;
     const end = new THREE.Vector3(...codend);
-    const start = this.stern.clone();
+    // (Off her net drum, if she has one: over the top of its roll.)
+    const start = (this.drum ?? this.stern).clone();
     // Toward the codend, short of it by its radius.
     end.add(start.clone().sub(end).setLength(r * 0.9));
     // Sagging between: down into the water while it's astern, less as it comes up.
@@ -246,8 +264,9 @@ export class TrawlView {
       const along = point(Math.min(1, u + 0.02)).sub(point(Math.max(0, u - 0.02))).normalize();
       const side = new THREE.Vector3(1, 0, 0);
       const upv = new THREE.Vector3().crossVectors(along, side).normalize();
-      // Wide at the stern (the net bunched over the roller), narrowing to the codend's mouth.
-      const rad = 0.7 + (r * 0.8 - 0.7) * u;
+      // Wide at the stern (the net bunched over the roller) or the drum's width, narrowing to the codend's mouth.
+      const wide = this.drum ? 0.55 : 0.7;
+      const rad = wide + (r * 0.8 - wide) * u;
       rings.push(Array.from({ length: LONGS }, (_, j) => {
         const a = (j / LONGS) * Math.PI * 2;
         return boat.localToWorld(p.clone().addScaledVector(side, Math.cos(a) * rad).addScaledVector(upv, Math.sin(a) * rad * 0.6));

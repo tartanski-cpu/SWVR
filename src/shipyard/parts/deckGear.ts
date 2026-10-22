@@ -49,14 +49,20 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   // 1. The stern gear.
   const sternRoller = !!d.sternRoller;
   if (sternRoller) taken.push({ x0: -0.3, x1: 0.3, z0: transom - 0.3, z1: transom }); // the roller in the transom bulwark
-  const wantWinch = !!(d.towWinch || d.aFrame);
+  // (The A-frame's warps lead off the tow winch, unless she has trawl winches of her own.)
+  const wantWinch = !!(d.towWinch || (d.aFrame && !d.trawlWinches));
   const aFrameFeet: Rect[] = [];
   if (d.aFrame) {
     const fz = transom - afc.footFromTransom;
     const fx = q.halfBeam(fz) - afc.footInset;
     for (const sd of [-1, 1]) aFrameFeet.push({ x0: sd * fx - 0.2, x1: sd * fx + 0.2, z0: fz - 0.25, z1: fz + 0.25 });
+    // Its rams' feet forward of them, and its control box's post inboard of the starboard foot.
+    const rz = fz - afc.braceForward;
+    for (const sd of [-1, 1]) aFrameFeet.push({ x0: sd * fx - 0.15, x1: sd * fx + 0.15, z0: rz - 0.15, z1: rz + 0.15 });
+    aFrameFeet.push({ x0: fx - afc.box.inboard - 0.25, x1: fx - afc.box.inboard + 0.25, z0: fz - afc.box.forward - 0.4, z1: fz - afc.box.forward + 0.2 });
     taken.push(...aFrameFeet);
   }
+  if ((d.netDrum || d.trawlWinches) && !d.aFrame) warnings.push(`The ${d.netDrum && d.trawlWinches ? 'net drum and trawl winches need' : d.netDrum ? 'net drum needs' : 'trawl winches need'} the trawl A-frame: left off.`);
 
   // Plan shapes, in a piece's own axes (x to its starboard, z aft), turned by its facing
   // (quarter turns, as the socket's yaw: -90 deg each) and set at (x, z).
@@ -85,6 +91,42 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const foreEnd = foreEndAt;
   const onDeck = (r: Rect) => r.z0 > bowClear && r.z1 < transom - 0.15 && [r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15);
   const standsOnDeck = (rects: Rect[]) => rects.every((r) => onDeck(r) && !overlaps(r, houseRect) && !taken.some((o) => overlaps(o, r)));
+
+  // 1b. The trawl deck gear (owner, Oct 2026: step 2 toward a trawler), with the A-frame: the
+  // trawl winches at the deck edges forward of its rams' feet, then the net drum on the
+  // centreline forward of them; each moved forward in 10 cm steps until it stands clear.
+  const tdg = dg.trawlWinches;
+  const twm = CONFIG.modules.trawlWinches;
+  const ndm = CONFIG.modules.netDrum;
+  const ramZ = transom - afc.footFromTransom - afc.braceForward;
+  let trawlWinchesAt: { x: number; z: number; deck: number } | null = null;
+  if (d.aFrame && d.trawlWinches) {
+    // (Its motor stands outboard of its base: the drum's half width, the cheek and the motor.)
+    const outboard = twm.drumWidth / 2 + 0.21;
+    for (let z = ramZ - 0.15 - tdg.gap - twm.base.length / 2; z > ramZ - tdg.search; z -= 0.1) {
+      const x = q.halfBeam(z) - tdg.edge - outboard - 0.15;
+      const rects = [-1, 1].map((sd): Rect => ({ x0: sd * x - Math.max(twm.base.width / 2, sd < 0 ? outboard : 0), x1: sd * x + Math.max(twm.base.width / 2, sd > 0 ? outboard : 0), z0: z - twm.base.length / 2 - 0.05, z1: z + twm.base.length / 2 + 0.05 }));
+      if (x > 0.5 && standsOnDeck(rects)) {
+        trawlWinchesAt = { x: r2(x), z: r2(z), deck: q.deckY(z) };
+        taken.push(...rects);
+        break;
+      }
+    }
+    if (!trawlWinchesAt) warnings.push('There\'s no room at her deck edges forward of the A-frame for the trawl winches: left off (the warps lead off the tow winch).');
+  }
+  let netDrumAt: V3 | null = null;
+  if (d.aFrame && d.netDrum) {
+    const half = ndm.length / 2 + ndm.stand + 0.3;
+    for (let z = ramZ - 0.15 - dg.netDrum.gap - ndm.flange; z > ramZ - dg.netDrum.search; z -= 0.1) {
+      const rect: Rect = { x0: -half, x1: half, z0: z - ndm.flange - 0.05, z1: z + ndm.flange + 0.05 };
+      if (standsOnDeck([rect])) {
+        netDrumAt = [0, q.deckY(z), r2(z)];
+        taken.push(rect);
+        break;
+      }
+    }
+    if (!netDrumAt) warnings.push('There\'s no room on her aft deck forward of the A-frame for the net drum: left off.');
+  }
   // The roof: its edges, the masthead light's pole and the horn, and what's already on it.
   const roofTaken: [number, number, number][] = [
     [0, roofFront + 0.475, 0.45],
@@ -158,10 +200,10 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     // stand at its buttons, clear of the house's door.
     const z = transom - dg.winchFromTransom;
     if (standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 0)))) winchAt = [0, q.deckY(z), r2(z)];
-    else warnings.push(`Her aft deck is too short for the tow winch${d.aFrame ? ' (the A-frame’s warps lead off it, so the A-frame is left off too)' : ''}: left off.`);
+    else warnings.push(`Her aft deck is too short for the tow winch${d.aFrame && !trawlWinchesAt ? ' (the A-frame’s warps lead off it, so the A-frame is left off too)' : ''}: left off.`);
   }
   if (winchAt) taken.push(...winchShape.map((r) => placeRect(r, winchAt![0], winchAt![2], winchFace)));
-  const aFrame = !!d.aFrame && !!winchAt;
+  const aFrame = !!d.aFrame && (!!winchAt || !!trawlWinchesAt);
 
   // The deck crane: its socket where its column stands, so the crane module keeps it there
   // (placed by hand: 'socket'; at the deck edge: its 'auto' keeps an off-centre socket), and
@@ -380,7 +422,9 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(aFrame
       ? [
           { id: 'aFrame', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, across the quarters: the A-frame' },
-          { id: 'trawl', type: 'deck.equipment' as const, transform: { position: winchAt! }, label: 'Aft deck: the net (nominal)' },
+          { id: 'trawl', type: 'deck.equipment' as const, transform: { position: netDrumAt ?? winchAt ?? [0, q.deckY(transom - 1), transom - 1] }, label: 'Aft deck: the net (nominal)' },
+          ...(netDrumAt ? [{ id: 'netDrum', type: 'deck.equipment' as const, transform: { position: netDrumAt }, label: 'Aft deck, centreline, forward of the A-frame: the net drum' }] : []),
+          ...(trawlWinchesAt ? [{ id: 'trawlWinches', type: 'deck.equipment' as const, transform: { position: [trawlWinchesAt.x, trawlWinchesAt.deck, trawlWinchesAt.z] as V3 }, label: 'Aft deck, at her edges forward of the A-frame: the trawl winches (starboard; port its mirror)' }] : []),
         ]
       : []),
     ...(craneAt
@@ -395,7 +439,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
     ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
   ];
-  return { towHook, deckSockets, aFrame, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
+  return { towHook, deckSockets, aFrame, netDrumAt: aFrame ? netDrumAt : null, trawlWinchesAt: aFrame ? trawlWinchesAt : null, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
 }
 export type DeckGearPart = ReturnType<typeof deckGearPart>;
 

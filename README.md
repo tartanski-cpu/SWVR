@@ -485,6 +485,8 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 6. **RELEASE** on the A-frame's box empties the codend: the fish pour out onto the deck in a heap, and the crew box them, a box every few seconds (into the **fish hold** first, if she has one; else on deck by the heap). Then the A-frame swings back out and the net goes back on its drum. Shoot again with the codend still full and it goes back out with the fish in it.
 7. **Carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the heap waits until there's room.
 
+**Trawl deck gear** (a Shipyard boat with the A-frame; Deck gear → Fishing): a **net drum**, a big blue hydraulic drum on the centreline forward of the A-frame, the net wound on it in a green roll; it turns as the net comes off it when you shoot and back on as it comes up the stern. **Trawl winches**: a pair at the deck edges forward of the A-frame, each a drum of warp leading aft up to its block; they turn and the warp runs off and on as you shoot and haul, and with them she needs no tow winch to trawl. Both work on deck hydraulics like the rest.
+
 **Debug → Missions → Side jobs → Fishing ground** takes you to the nearest ground.
 
 ### Rod fishing (side job)

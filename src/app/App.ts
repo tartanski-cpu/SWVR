@@ -2324,7 +2324,9 @@ export class App {
     // is really moving under pressure (+1 coming in, -1 going out).
     const netIn = f?.net === 'hauling' || f?.net === 'lifting' || f?.net === 'stowing' || ((c.netIn ?? 0) > 0.5 && f?.net !== 'stowed');
     const drum = this.homeView?.api<TowWinchApi>('deck.tow-winch');
-    if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun ? (netIn ? 1 : -1) : 0;
+    // (With trawl winches of her own, the warps are theirs: the tow winch only tows.)
+    const ownWinches = !!gearOf(v, 'trawlWinches');
+    if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun && !ownWinches ? (netIn ? 1 : -1) : 0;
     const af = aFrameOf(v);
     this.sound.hydraulics.update(
       {

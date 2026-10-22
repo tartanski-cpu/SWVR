@@ -3061,7 +3061,7 @@ export const CONFIG = {
       fuelDensity: 0.84,
       crewKg: 170,
       storesKg: 150,
-      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150, rodRack: 12 },
+      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150, rodRack: 12, netDrum: 380, trawlWinches: 520 },
     },
     engineHatch: { endRoom: 0.1, sideRoom: 0.2, minLength: 0.8, maxLength: 1.8, minWidth: 0.6, helmRoom: 0.1, deckMargin: 0.35, soleClear: 0.08 },
     /**
@@ -3239,6 +3239,15 @@ export const CONFIG = {
       winchFromTransom: 0.75,
       standRoom: 0.6,
       /**
+       * The trawl deck gear's places (owner, Oct 2026; both with the A-frame only): the net
+       * drum on the centreline `netDrum.gap` forward of the A-frame's rams' feet, moved forward
+       * in 10 cm steps until it stands clear (at most `netDrum.search` m); the trawl winches
+       * at the deck edges, `trawlWinches.gap` forward of the rams' feet, `trawlWinches.edge` in
+       * from it, moved forward the same way.
+       */
+      netDrum: { gap: 0.35, search: 2.5 },
+      trawlWinches: { gap: 0.3, edge: 0.15, search: 2.5 },
+      /**
        * A tug (the tug hull; owner, Oct 2026: "move the towline position to midships on the
        * tugs"; "tugs should always have the wheelhouse forward"). Her tow point is a towing
        * hook on a pedestal on the centreline near amidships, not the stern roller: a line
@@ -3269,7 +3278,7 @@ export const CONFIG = {
        * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
        */
       midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rodRack: 700 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000 },
     },
     /**
      * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and
@@ -4227,6 +4236,21 @@ export const CONFIG = {
      * The workboat's fire-monitor joystick pans at 40 deg/s (her recipe).
      */
     joystick: { panRateDeg: 50, tiltRateDeg: 22 },
+
+    /**
+     * Trawl deck gear (owner, Oct 2026: step 2 toward a trawler; modules/netDrum, modules/trawlWinches).
+     * deck.net-drum: the net wound on a hydraulic drum on the centreline forward of the
+     * A-frame, its axle across her `axleHeight` over the deck on two stands; flanges `flange`
+     * in radius, the core `core`, `length` between the flanges; the net on it as a packed roll
+     * up to `fullRadius` when it's all aboard. It turns as the net comes off or on
+     * (`turnsPerNet` turns from full to empty). Its hydraulic motor on the starboard stand.
+     * deck.trawl-winches: a split pair, one each side at the deck edge forward of the A-frame's
+     * feet, each a drum of warp (`drumRadius`, `drumWidth`, flanges `flange`; full of warp to
+     * `fullRadius`) on a base, its motor outboard; the warp leads aft to its block on the
+     * A-frame; `turns` of the drum to pay the warp right out. Colours: drums and frames.
+     */
+    netDrum: { length: 1.3, flange: 0.5, core: 0.18, fullRadius: 0.44, axleHeight: 0.62, stand: 0.12, turnsPerNet: 5, colours: { frame: 0x2f6aa8, net: 0x2e5a3a, flange: 0x2f6aa8, motor: 0x30343a } },
+    trawlWinches: { drumRadius: 0.12, drumWidth: 0.3, flange: 0.22, fullRadius: 0.2, axleHeight: 0.38, base: { width: 0.55, length: 0.5 }, turns: 30, colours: { frame: 0x2f6aa8, warp: 0x22262a, motor: 0x30343a } },
 
     /**
      * deck.crane (modules/deckCrane): a placeable hydraulic deck crane for cargo (owner),

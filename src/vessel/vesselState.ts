@@ -233,6 +233,8 @@ export interface VesselState {
    * they went down: each one's species ('' if it isn't named). Absent: none in it (or no hold).
    */
   hold?: { boxes: string[] };
+  /** Her trawl's warps out (0..1) and its net on its drum (0..1): what the trawl winches and net drum show (fishing.ts). Absent: in, and all on the drum. */
+  trawlGear?: { warp: number; net: number };
   /** How far her A-frame has swung inboard on its rams (0 raked aft over the stern, 1 in over the deck; fishing/codend.ts). Absent: 0. */
   aFrameLuff?: number;
   /**

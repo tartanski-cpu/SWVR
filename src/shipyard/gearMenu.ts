@@ -25,7 +25,7 @@ export interface GearGroup {
 export const GEAR_GROUPS: GearGroup[] = [
   { name: 'Rescue and firefighting', items: ['skiff', 'lifeRing', 'searchlight', 'fireMonitor'] },
   { name: 'Towing', items: ['towWinch', 'sternRoller'] },
-  { name: 'Fishing', items: ['aFrame', 'rodRack'] },
+  { name: 'Fishing', items: ['aFrame', 'netDrum', 'trawlWinches', 'rodRack'] },
   { name: 'Cargo', items: ['deckCrane'] },
   { name: 'Her fittings', items: ['anchor', 'sideDoor'] },
 ];
@@ -40,6 +40,8 @@ export const GEAR_ABOUT: Record<string, string> = {
   towWinch: 'A powered drum for the tow line: tows things far heavier than she is.',
   sternRoller: 'A roller in the transom for the tow line or a net to run over.',
   aFrame: 'An A-frame over the transom with a trawl net and its winch.',
+  netDrum: 'The net wound on a big hydraulic drum forward of the A-frame: it comes off as you shoot and winds back on as you haul. Needs the A-frame.',
+  trawlWinches: 'A pair of winches at the deck edges for the trawl warps, leading aft to the A-frame\'s blocks: she needs no tow winch to trawl. Needs the A-frame.',
   deckCrane: 'A small crane for lifting cargo on and off her deck.',
   anchor: 'An anchor and its windlass, to hold her in one place. Every boat should have one.',
   sideDoor: 'A sliding door in the wheelhouse’s port wall, out to the side deck.',
@@ -95,6 +97,10 @@ export const GEAR_ICONS: Record<string, string> = {
   // The roller in a notch of the transom, the line running over it.
   sternRoller: svg('<circle cx="12" cy="13" r="2.6"/><path d="M3 19.5h18M4.5 19.5V9h4.5v4.5M19.5 19.5V9H15v4.5M12 10.4V3.5M12 3.5l-1.8 1.8M12 3.5l1.8 1.8"/>'),
   // The A-frame, its block, the net hanging under it.
+  // The drum seen end on, the net on it, and its stand.
+  netDrum: svg('<circle cx="12" cy="10" r="7"/><circle cx="12" cy="10" r="4.5"/><circle cx="12" cy="10" r="1.5"/><path d="M8 17l-2 4h12l-2-4M19 10h3"/>'),
+  // Two winch drums at the deck edges, their warps leading aft to a block.
+  trawlWinches: svg('<circle cx="5" cy="15" r="2.5"/><circle cx="19" cy="15" r="2.5"/><path d="M5 12.5L11 4M19 12.5L13 4M10 4h4M2.5 20h5M16.5 20h5"/>'),
   aFrame: svg('<path d="M5 21L12 3l7 18M8.2 13h7.6M12 3v7M9.5 10h5l-1 8.5h-3zM10 13h4M10.4 15.8h3.2M11 10l-.5 8.5M13 10l.5 8.5"/>'),
   // A door with its window and handle.
   sideDoor: svg('<rect x="6.5" y="3" width="11" height="18" rx="1"/><rect x="8.5" y="5" width="7" height="5" rx=".5"/><path d="M14.5 13.5h1.2"/>'),

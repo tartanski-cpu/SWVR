@@ -627,6 +627,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // A tug's tow point is her towing hook near amidships (deckGear.ts towHook), not the roller.
   if (sternRoller) recipe.modules.push({ socket: 'sternRoller', module: 'deck.stern-roller', ...(towHook ? { config: { hook: towHook } } : {}) });
   if (aFrame) recipe.modules.push({ socket: 'aFrame', module: 'deck.a-frame' }, { socket: 'trawl', module: 'fishing.trawl' });
+  // The trawl deck gear (step 2 toward a trawler), with the A-frame.
+  if (p.netDrumAt) recipe.modules.push({ socket: 'netDrum', module: 'deck.net-drum' });
+  if (p.trawlWinchesAt) recipe.modules.push({ socket: 'trawlWinches', module: 'deck.trawl-winches', config: { ...p.trawlWinchesAt } });
   if (ring) recipe.modules.push({ socket: 'lifeRing', module: 'rescue.life-ring-station', config: { stow: ring.stow, cleat: ring.cleat } }, { socket: 'boatHook', module: 'rescue.boat-hook-rack', config: { stow: ring.hook } });
   if (rodRack) recipe.modules.push({ socket: 'rodRack', module: 'deck.rod-rack', config: rodRack });
   if (sideDoor)
@@ -640,7 +643,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     const [bx, , bz] = cc.slots.skiffCrane.position as V3;
     recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))] } });
   }
-  if (craneAt || winchAt || skiffAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
+  if (craneAt || winchAt || skiffAt || aFrame) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
   if (pushFender) recipe.modules.push({ socket: 'pushFender', module: 'hull.push-fender', config: pushFender });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });

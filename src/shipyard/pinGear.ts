@@ -45,6 +45,8 @@ export const EQUIPMENT: Equipment[] = [
   { id: 'towWinch', name: 'Tow winch', how: 'grid', field: 'towWinch', key: 'winchAt', turns: true },
   { id: 'sternRoller', name: 'Stern roller (tow point)', how: 'transom', field: 'sternRoller' },
   { id: 'aFrame', name: 'Trawl A-frame and net', how: 'transom', field: 'aFrame' },
+  { id: 'netDrum', name: 'Net drum (with the A-frame)', how: 'transom', field: 'netDrum' },
+  { id: 'trawlWinches', name: 'Trawl winches (with the A-frame)', how: 'transom', field: 'trawlWinches' },
   { id: 'rodRack', name: 'Fishing rods and bucket', how: 'rack', field: 'rodRack' },
   { id: 'lifeRing', name: 'Life ring and boat hook', how: 'side', field: 'lifeRing' },
   { id: 'sideDoor', name: 'Side door (port wall)', how: 'wall', field: 'sideDoor' },

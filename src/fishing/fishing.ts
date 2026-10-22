@@ -75,7 +75,19 @@ export interface FishingState {
   boxT?: number;
   /** The heap's boxes found no room on deck (the status says so). */
   deckFull?: boolean;
+  /**
+   * How much of the net is wound on its drum (a net drum's, modules/netDrum; drawn whether
+   * she has one or not), 0 .. 1: all of it stowed; it comes off over the first quarter of a
+   * shoot, back on as it comes up the stern (to `drumAboard`, the codend still hanging), and
+   * the rest as it's stowed. Absent: 1 if stowed, else 0.
+   */
+  drum?: number;
 }
+
+/** The share of the net on its drum with the codend hanging aboard (the rest is the codend and its throat). */
+const drumAboard = 0.85;
+/** How far out the warps are when the last of the net comes off the drum shooting. */
+const drumOff = 0.25;
 
 export function createFishingState(): FishingState {
   return { net: 'stowed', t: 0, fill: 0, status: 'stowed', ground: null, caught: 0, landed: 0, seq: 0 };
@@ -159,10 +171,14 @@ export function stepFishing(world: WorldState, dt: number): void {
   if (!hydraulicsOn(v) && moving) {
     if (f.status !== 'fouled') f.status = 'noHydraulics';
     v.aFrameLuff = luffOf(f.lift);
+    v.trawlGear = { warp: f.t, net: f.drum ?? 1 };
     return;
   }
   stepNet(f, v, jog, dt);
+  stepDrum(f);
   v.aFrameLuff = luffOf(f.lift);
+  // What the net drum and the trawl winches show (modules/netDrum, modules/trawlWinches).
+  v.trawlGear = { warp: f.t, net: f.drum ?? 1 };
   if (f.net !== 'down') return;
   // Down: fishing, or why not.
   const depth = -groundHeight(v.position[0], v.position[2]);
@@ -254,6 +270,22 @@ function stepNet(f: FishingState, v: VesselState, jog: number, dt: number): void
       f.status = 'stowed';
       return;
   }
+}
+
+/**
+ * The net on its drum: paid off over the first quarter of the warps going out; wound back on
+ * as the net comes up the stern, to `drumAboard` with the codend hanging over the deck; the
+ * rest wound on as it's stowed; off again as the codend is lowered back over the stern.
+ */
+function stepDrum(f: FishingState): void {
+  const lift = f.lift ?? 0;
+  let drum = (f.drum ??= f.net === 'stowed' ? 1 : 0);
+  if (f.net === 'stowed') drum = 1;
+  else if (f.net === 'stowing') drum = Math.max(drum, drumAboard + (1 - drumAboard) * (1 - lift));
+  else if (f.t > 0) drum = Math.min(drum, Math.max(0, 1 - f.t / drumOff));
+  // (Warps in: as far up the stern as the net is; at the stern with none of it up, as it was.)
+  else if (lift > 0) drum = drumAboard * Math.min(1, lift / CONFIG.fishing.codend.hangAt);
+  f.drum = drum;
 }
 
 /** The catch emptied on deck, boxed a box every `boxTime` s: into the fish hold if it has room, else on deck by the heap. */

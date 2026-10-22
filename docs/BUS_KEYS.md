@@ -239,6 +239,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `trawl.shoot` | on / off | player sets; also set by fishing | legacy | `trawl` | TRAWL switch: shoot the net (on) / haul it (off). It follows the net when worked by hand. |
+| `trawl.warpOut` | 0..1 | read only | legacy |  | How far the trawl's warps are paid out, 0 (in) .. 1 (fishing): what the trawl winches' drums show (fishing.ts). |
+| `trawl.netOnDrum` | 0..1 | read only | legacy |  | How much of the trawl net is wound on its drum, 0 .. 1 (all of it, stowed): what the net drum shows (fishing.ts). |
 
 ## net
 

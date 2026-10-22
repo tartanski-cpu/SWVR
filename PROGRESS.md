@@ -7958,3 +7958,58 @@ Owner, Oct 2026: "I'd like the A-frame trawling equipment to have a more advance
 - **Test steps:**
   - **Desktop:** a boat with the trawl gear (the Shipyard gillnetter with the A-frame, or the workboat). On a fishing ground, TRAWL on, tow at 2-4.5 kn for a couple of minutes: the status line counts the codend. TRAWL off: watch from the aft deck as the doors come up, the codend comes up the stern and the A-frame swings it in over the deck. Press **RELEASE** on the A-frame's box (the post by the starboard foot): the fish pour onto the deck and are boxed one by one (into the hold, if she has one with the lid open or not). The A-frame swings back out.
   - **VR:** the same, standing on the aft deck clear of the A-frame's swing: watch the codend come in overhead, press RELEASE, pick up a box from beside the heap.
+
+### Step 2 toward a trawler: the trawl deck gear, a net drum and trawl winches (done, awaiting owner test)
+
+Owner, Oct 2026: "go to step 2, the trawl deck gear". From the plan: a net drum, trawl winches, a gantry, a net crane and a forward boom. The gantry is already done: the A-frame swings on its rams (the change set above), and it does the net crane's job of bringing the codend in. So this step is the **net drum** and the **trawl winches**. The landing boom is left for when the owner wants it; the Shipyard's deck crane can already be fitted for lifting.
+
+- **Shipyard** (Deck gear → Fishing, each "with the A-frame"; design.netDrum, design.trawlWinches; not in the short code): fitted, not placed.
+  - **Placement** (shipyard/parts/deckGear.ts): the trawl winches go at her deck edges `deckGear.trawlWinches.gap` forward of the A-frame's rams' feet, `edge` in from the edge. The net drum goes on the centreline `deckGear.netDrum.gap` forward of them. Each moves forward in 10 cm steps until it stands clear (`search` m at most), else it's left off saying why.
+  - **Clear deck:** the A-frame's rams' feet and its control box's post are now kept clear on deck too.
+  - **Without the A-frame:** left off, saying "need the trawl A-frame".
+  - **No tow winch needed:** with the trawl winches, the warps lead off them; without them, off the tow winch as before.
+  - **Hydraulics:** any boat with the A-frame now gets the deck hydraulic pump, which the trawl needs. Before, it came with the tow winch.
+  - **Weight and price:** `CONFIG.shipyard.weights.gear.netDrum` / `.trawlWinches` and `deckGear.price.netDrum` / `.trawlWinches`.
+- **modules/netDrum** (`deck.net-drum`):
+  - Two blue stands, a cross-member and the hydraulic motor on the starboard stand.
+  - The drum has flanges with spokes, so you see it turn.
+  - The net on it is a green roll whose radius follows the net's volume (an annulus). It turns `turnsPerNet` times from full to empty as the net comes off or on (`trawl.netOnDrum`).
+  - Config: `CONFIG.modules.netDrum { length, flange, core, fullRadius, axleHeight, stand, turnsPerNet, colours }`.
+  - Gear `netDrum` gives where the net leads off it: the net in the water is now drawn from the drum's top.
+- **modules/trawlWinches** (`deck.trawl-winches`):
+  - A mirrored pair, each a base, two cheeks, a drum of warp and its motor outboard.
+  - The warp's roll runs down as the warps go out and the drum turns (`trawl.warpOut`, `turns` from full to empty).
+  - Config: `CONFIG.modules.trawlWinches { drumRadius, drumWidth, flange, fullRadius, axleHeight, base, turns, colours }`.
+  - Gear `trawlWinches` gives the warp's lead: the warps are drawn from the winch drums up to the A-frame's blocks, then on to the doors.
+- **The net on its drum** (fishing.ts `drum`):
+  - All on it stowed.
+  - Off over the first quarter of the warps going out.
+  - Back on as the net comes up the stern, to 0.85 with the codend hanging aboard.
+  - The rest as it's stowed.
+  - Off again as the codend is lowered back. Written to `VesselState.trawlGear { warp, net }` for the modules.
+- **The trawl doors** now hang outboard against her quarters when the net's in, instead of on the deck side of the bulwark.
+- With trawl winches, the tow winch's drum no longer turns for the trawl. The hydraulic sound is unchanged.
+- **Keys:** `trawl.warpOut`, `trawl.netOnDrum` (docs/BUS_KEYS.md).
+- **Goldens:** re-recorded. Checked that every recorded value is identical apart from the two new keys.
+- **Checked:**
+  - Typecheck.
+  - tests/shipyard/trawlGear.test.ts (4):
+    - link/file only, and needs the A-frame;
+    - on the gillnetter: the winches at the edges and the drum on the centreline forward of the rams, no tow winch, the recipe valid with its pump, weighed and priced;
+    - every hull type's recipe holds or the gear is left off saying why;
+    - at sea: the net off the drum part way through the shoot, all off fishing, still out with the warps in, back on up the stern, all on stowed.
+  - The gear menu's fitted list and the pin list updated. Full suite passes.
+  - Headless Chromium, the gillnetter with the A-frame, drum, winches and a fish hold:
+    - stowed (the drum's green roll full);
+    - fishing (the drum bare, the warps from the winches up to the blocks and out astern);
+    - the net coming in (the netting from the drum to the codend);
+    - a winch close up;
+    - the Shipyard's Stern ¾ view with both, and the Fishing cards.
+- **Not checked:** the Quest.
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard, the gillnetter. Deck gear → Fishing: the A-frame, then **Net drum** and **Trawl winches**. She needs no tow winch.
+    2. Into the game, on a fishing ground: TRAWL on. Watch the drum turn as the net comes off it, and the winches' warp run out.
+    3. Haul: the winches wind the warps in, then the drum winds the net back on as it comes up the stern.
+    4. RELEASE, then watch the rest of the net wind on as it's stowed.
+  - **VR:** the same, standing on the aft deck between the winches: the drums turning, the warps leading past you up to the blocks.
