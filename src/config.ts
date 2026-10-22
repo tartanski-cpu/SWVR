@@ -3840,10 +3840,12 @@ export const CONFIG = {
     desktopRigidTime: 0.5,
     /**
      * The smoothing on top of the coupling: its time constant at coupling 0 (s), shrinking
-     * with (1 - coupling)^2 to nothing at 1, so the slider runs evenly from "the boat moves
+     * with (1 - coupling) to nothing at 1, so the slider runs evenly from "the boat moves
      * all her motion past you" to rigid, with no step at 100 % (owner, Oct 2026: 0-90 % felt
-     * alike, 100 % locked). In an 8 deg, 5 s roll the boat moves past you 8.0, 6.9, 5.2, 3.4,
-     * 1.6, 0.8 and 0 deg at 0, 20, 40, 60, 80, 90 and 100 %. (Was 1.6 s, with a 0.12 s floor.)
+     * alike, 100 % locked; 90 % should be "a very gentle smoothing of bumps"). In an 8 deg,
+     * 5 s roll the boat moves past you about 6.4, 5.0, 3.1, 2.1, 1.1 and 0 deg at 30, 50,
+     * 70, 80, 90 and 100 %; a sharp 4 deg slam is felt as 1.4, 2.0 and 2.8 deg at 70, 80
+     * and 90 %. (Was 1.6 s, with a 0.12 s floor.)
      */
     maxTimeConstant: 0.4,
     /** Time constant (s) of the very slow reference height that heave is measured from. */
