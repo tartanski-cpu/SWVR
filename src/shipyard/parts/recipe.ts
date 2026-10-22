@@ -317,11 +317,49 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   /** Each screen at its place on the dash: the automatic row (centred, smaller together if it's long), or placed by hand on the whole grid. */
   const faceAt: Record<string, { x: number; rise: number; width: number; height: number }> = {};
   let dashScale = 1;
-  const fit = (places: GridPlace[], cols: number, p: number, snap: boolean) => {
+  // A faceted front's dash (CS6 fix; owner, Oct 2026, the pilot boat: "some of the instruments
+  // are effectively clipped"): its wings are set back and turned, so a screen straddling a
+  // wing's corner was half buried in the wing. Laid out facet by facet instead: the middle
+  // face's columns centred over the wheel, each wing's from its corner outward along its
+  // face, the columns split between them only where no screen spans; all smaller together if
+  // they don't fit (facetPlan).
+  const facet = house.facet ? { c: house.facet.centre, k: house.facet.depth / (hw - house.facet.centre) } : null;
+  const facetCos = facet ? Math.cos(Math.atan(facet.k)) : 1;
+  type FacetPlan = { a: number; b: number; k: number };
+  const facetPlan = (places: GridPlace[], cols: number): FacetPlan | null => {
+    if (!facet) return null;
+    const splits = [0, cols, ...Array.from({ length: cols }, (_, i) => i).filter((i) => i > 0 && i % 2 === 0)].filter((i) => !places.some((q) => q.col < i && i < q.col + q.w));
+    const wingRoom = (dashHalf - facet.c) / facetCos - 0.01;
+    for (let k = 1; k >= 0.3; k -= 0.01) {
+      const p = pitch * k;
+      let best: FacetPlan | null = null;
+      let bestScore = -Infinity;
+      for (const a of splits)
+        for (const b of splits) {
+          if (b < a) continue;
+          if (b > a && (b - a) * p - gap * k > 2 * facet.c - 0.02) continue;
+          if (a * p > wingRoom || (cols - b) * p > wingRoom) continue;
+          const score = (b - a) * 100 - Math.abs(a - (cols - b));
+          if (score > bestScore) [best, bestScore] = [{ a, b, k }, score];
+        }
+      if (best) return best;
+    }
+    return null;
+  };
+  /** A column position (in columns, the row's left edge 0) to x on the faceted dash. */
+  const facetX = (u: number, plan: FacetPlan) => {
+    const p = pitch * plan.k;
+    const gk = gap * plan.k;
+    if (u >= plan.a && u <= plan.b) return (u - (plan.a + plan.b) / 2) * p;
+    const s = (u < plan.a ? plan.a - u : u - plan.b) * p + gk / 2;
+    return (u < plan.a ? -1 : 1) * (facet!.c + s * facetCos);
+  };
+  const fit = (places: GridPlace[], cols: number, p: number, snap: boolean, plan: FacetPlan | null = null) => {
     const k = p / pitch;
     dashScale = k;
     for (const gp of places) {
       const at = placeOnDash(gp, places, cols, ROWS, p, gap * k, (sc.height / 2) * k, snap);
+      if (plan) at.x = facetX((at.x - (-cols * p + gap * k) / 2 + (gap * k) / 2) / p, plan);
       // (A switch strip on the face: its switches are placed on the leaning face below.)
       if (gp.id.startsWith('sw:')) {
         faceAt[gp.id] = at;
@@ -339,8 +377,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   };
   let shown: GridPlace[];
   if (!byHand) {
-    const shrink = Math.min(1, rowRoom / (grid.cols * pitch - gap));
-    fit(grid.places, grid.cols, pitch * shrink, true);
+    const plan = facetPlan(grid.places, grid.cols);
+    const shrink = plan ? plan.k : Math.min(1, rowRoom / (grid.cols * pitch - gap));
+    fit(grid.places, grid.cols, pitch * shrink, true, plan);
     // (On the whole grid, for the Shipyard: the row in its middle.)
     const off = Math.floor((whole.cap - grid.cols) / 2);
     shown = grid.places.map((gp) => ({ ...gp, col: gp.col + off }));
@@ -389,7 +428,10 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     for (const m of consoleMount.modules!) {
       const conf = m.config as { mount?: string; screen?: string } | undefined;
       if (m.module !== 'instrument.screen' || conf?.mount === 'hung' || !cc.slots[m.socket]) continue;
-      m.config = { ...m.config, tiltDeg: cc.leanDeg, faceBack: r3((cc.slots[m.socket].position[1] - dd.bottom) * lean) };
+      // (On a faceted dash's wing, turned with it: the sheared wing face leans less in the wing's own frame, by its cosine.)
+      const onWing = facet && Math.abs(cc.slots[m.socket].position[0]) > facet.c + 1e-6;
+      const l = onWing ? lean * facetCos : lean;
+      m.config = { ...m.config, tiltDeg: r3((Math.atan(l) * 180) / Math.PI), faceBack: r3((cc.slots[m.socket].position[1] - dd.bottom) * l) };
     }
     // The switch strips on the face (CS6): each group's switches across its cells, a little below
     // the strip's middle (its coloured strip and title above them, their labels below), standing out square from the leaning face;

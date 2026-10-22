@@ -4,7 +4,11 @@
  * the upright part as well"): the console as long as set, the switch groups that don't fit its
  * flat panel up on the dash face beside the screens, and wheelhouses down to 1.2 m inside.
  */
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { transformMatrix } from '../../src/modular/assemble';
+import { CONSOLE } from '../../src/modules/console';
+import { SCREEN } from '../../src/modules/screen';
 import { LIBRARY, RECIPES } from '../../src/boats/library';
 import { useDesign } from '../../src/boats/sims';
 import { CONFIG } from '../../src/config';
@@ -85,6 +89,34 @@ describe('a narrow console', () => {
       const inside = 2 * (wh.halfWidth - wh.wall);
       expect(inside, DESIGN_HULLS[hull].name).toBeGreaterThanOrEqual(CONFIG.shipyard.helm.minInside - 1e-3);
       expect(inside, DESIGN_HULLS[hull].name).toBeLessThan(1.7);
+    }
+  });
+});
+
+describe('a faceted front’s dash (owner, Oct 2026, the pilot boat: "some of the instruments are effectively clipped")', () => {
+  it('on every hull type, basic and advanced: every dash screen lies on one facet, flat on its face, none buried across a wing’s corner', () => {
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      if (DESIGN_HULLS[hull].retired) continue;
+      for (const controls of [0, 1]) {
+        const { helm, cc } = helmOf(type(hull, { controls, facets: 1 }));
+        const c = cc as unknown as Helm & { wrap?: { centre: number; k: number } };
+        if (!c.wrap) continue;
+        const lean = Math.tan(((c.leanDeg ?? 0) * Math.PI) / 180);
+        const setback = (x: number) => Math.max(0, Math.abs(x) - c.wrap!.centre) * c.wrap!.k;
+        const sockets = CONSOLE.sockets!(helm.config as never);
+        for (const m of helm.modules!) {
+          if (m.module !== 'instrument.screen') continue;
+          let plane: THREE.BufferGeometry | null = null;
+          SCREEN.view!.build({ config: { mount: 'dash', ...(m.config as object) }, display: (_s: unknown, p: THREE.BufferGeometry) => (plane = p) } as never);
+          (plane as unknown as THREE.BufferGeometry).applyMatrix4(transformMatrix(sockets.find((s) => s.id === m.socket)!.transform));
+          const pos = (plane as unknown as THREE.BufferGeometry).attributes.position as THREE.BufferAttribute;
+          for (let i = 0; i < pos.count; i++) {
+            const gap = pos.getZ(i) - (c.dash.aft + setback(pos.getX(i)) - (pos.getY(i) - c.dash.bottom) * lean);
+            expect(gap, `hull ${hull} controls ${controls} ${m.socket}`).toBeGreaterThan(0.002);
+            expect(gap, `hull ${hull} controls ${controls} ${m.socket}`).toBeLessThan(0.012);
+          }
+        }
+      }
     }
   });
 });
