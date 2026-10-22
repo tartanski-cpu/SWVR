@@ -8139,3 +8139,17 @@ Owner, Oct 2026: "take the existing skiff and crane and make the boat slightly s
     2. Into the game: SKIFF CRANE on the dash (engine running, DECK HYD on). Watch her go over the side.
     3. Board her and drive her. Tie her up at a quay with both cleats.
   - **VR:** the same. Stand in her by the tiller: the tubes are your gunwale. Load three crates.
+
+### Deck gear up on a raised foredeck (done, awaiting owner test)
+
+Owner, Oct 2026: "the skiff and the crane don't respect the raised foredeck. So they place on the main deck underneath it, not on the raised foredeck."
+
+- **Was:** deckGear.ts placed the foredeck gear "just forward of the house", which with the break forward of the house is the lower deck between them; their heights were right for where they stood, but nothing knew about the break or the ladders, so the skiff's cradle could reach across the break and a crane could stand on a ladder.
+- **Now (shipyard/parts/deckGear.ts):** with a raised foredeck (house.ts `foredeck.z`, the break):
+  - every piece stands wholly on one deck or the other: its plan shape (which has about 10 cm margin) may reach at most `CONFIG.shipyard.foredeck.gearReach` (0.08 m) past the break;
+  - the ladders (`layout.deckSteps`, plus 10 cm) are taken, so nothing stands on them;
+  - when the break lies forward of the house: the foredeck **deck crane** goes up on the raised deck as near its break as it stands clear, else on the deck below, as near the house as it stands clear, else left off, saying why; the foredeck **skiff** tries the raised deck first, then the deck below (warned);
+  - a searchlight or monitor pole on the foredeck tries further forward, and just inboard of the ladders, before it's left off.
+  - When the raised foredeck runs on under the house, nothing changes: all the foredeck is raised.
+- **What changes for existing boats:** a few designs whose crane stood on a ladder or straddled the break (e.g. a small tug with a short raised foredeck) now lose it, with a warning saying a longer raised foredeck or the wheelhouse further aft makes room. Checked by comparing every placement across the fishing boat, tug and trawler with raised foredecks of 0 to 9 m, before and after.
+- **Checked:** tests/raisedForedeck.test.ts (the gillnetter's crane up on it at its height; the stern trawler's skiff and its crane up on it, no warnings, a valid recipe; the small tug's crane left off, saying why). Headless Chromium: the gillnetter's crane on the raised foredeck; the trawler's skiff, skiff crane and deck crane on it, the skiff launching (hoisted and swung out over her side). Full suite passes. **Not checked:** the Quest; recovering the skiff onto the raised deck.
