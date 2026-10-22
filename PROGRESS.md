@@ -5369,6 +5369,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** typecheck, `npm test`, `npm run crewcheck` (19 of 19), headless Chromium (Tayvallich: the table on the pontoon, stops and waypoints pressed on its chart through its controls, named; zoomed in; the boat's arrow; the plotter steering "WAYPOINT 1 018° 0.51 nm"; Oban, Clyde, Syros: the table found its spot). **Not checked:** VR (the ray and the tip on the chart, reading it from the quay); a real two-player plan by hand.
 - **Not in it yet (ideas):** pencil marks on it as on the boat's chart table; a point dragged to move it; the plan on the boat's paper chart.
 
+### Save the boat you're aboard to your favourites; favourites listed by name (owner, Oct 2026)
+
+- **Why** (owner: "it's not very easy to get a saved ship from another player saved in VR ... a button that allows you to save the ship that you're currently on to your favourites"): the Shipyard is a desktop page, and the favourites are kept per browser, so the Quest's list and the desktop's differ.
+- **Boat tab → Favourite** (`ui/mainMenu.ts`; `App` `boatFavourite`, `canSaveBoat`, `saveBoatFavourite`): the boat you're aboard, by name, and **Save her**. Ashore it says to step aboard; an old hand-built type (the workboat, the landing craft) says she isn't a Shipyard design. Her design code (`boats/library.ts designCodeOf`: a fleet boat's from her design file, a Shipyard boat's her token, the same code the Shipyard saves) goes into this browser's favourites (`shipyard/takeHer.ts ShipyardCodes.saveBoat`, `saveBoatFavourite`) with her name (the fleet boat's, the design's, or "Bosun's boat"), a line of her figures (length, weight, engine; no top speed, which is the Shipyard's sea trial) and no picture. The same design already saved: said so, nothing added. A name already taken by another design gets a number. She can then be launched from Crew → Your boat (Voyage) or taken from Office → Your boats (Career).
+- **Favourites by name only** (owner, from a screenshot: "too long to read in this menu, shorten it to the name"): Crew → Your boat's Shipyard favourites and Office → Your boats show the name alone; the Shipyard page still shows the figures.
+- **Tests:** `tests/saveBoat.test.ts` (+3): every fleet boat and Shipyard boat has her code, the old types none; saved, again (said, unchanged), a name taken (numbered); into the browser's storage and read back, storage that won't take it said. `tests/menu.test.ts`: the favourites listed by name.
+- **Checked:** typecheck, `npm test`, headless Chromium (Tayvallich: ashore "Step aboard"; aboard the Boat tab's row "Pilot boat 11.2 m" with Save her; saved, saved again "already, as ..."; the Crew tab listing her by name). **Not checked:** VR.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

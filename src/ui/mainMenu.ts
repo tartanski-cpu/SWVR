@@ -199,6 +199,13 @@ export interface MenuHost {
   toggleShowTargets(): void;
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
   teleportToPort(i: number): void;
+  /**
+   * The boat you're aboard as a favourite (Boat tab): a line about her (or what saving did),
+   * whether she can be saved (a Shipyard design), and save her to this browser's favourites.
+   */
+  boatFavourite(): string;
+  canSaveBoat(): boolean;
+  saveBoatFavourite(): void;
   /** Voyage mode: the plan's next point ("Next: Stop 2: Rothesay, 3.1 nm"), and put me ashore by the planning table. */
   planLine(): string;
   goPlanTable(): void;
@@ -375,6 +382,8 @@ export function mainMenu(h: MenuHost): MainMenu {
   ];
 
   const boat: MenuRow[] = [
+    // The boat you're aboard, into this browser's favourites (from VR, without the Shipyard).
+    { label: 'Favourite', buttons: [{ text: () => h.boatFavourite(), weight: 2.4 }, { text: () => (h.canSaveBoat() ? 'Save her' : ''), press: () => h.saveBoatFavourite() }] },
     { heading: 'Deck' },
     {
       label: 'SOS',
@@ -903,7 +912,8 @@ function yourBoat(h: MenuHost): MenuRow[] {
   const fav = (i: number): MenuRow => ({
     label: '',
     buttons: [
-      { text: () => (c().favouriteAt(i) ? `${c().favouriteAt(i)!.name}${c().favouriteAt(i)!.summary ? ` · ${c().favouriteAt(i)!.summary}` : ''}` : i === 0 ? 'None saved in this browser' : ''), weight: 2.6 },
+      // Her name only (owner: the figures made the line too long to read here).
+      { text: () => c().favouriteAt(i)?.name ?? (i === 0 ? 'None saved in this browser' : ''), weight: 2.6 },
       { text: () => (c().favouriteAt(i) ? 'Launch' : ''), press: () => c().favouriteAt(i) && h.launchBoat(c().favouriteAt(i)!.code) },
     ],
   });
@@ -935,7 +945,7 @@ function yourBoats(h: MenuHost): MenuRow[] {
   const fav = (i: number): MenuRow => ({
     label: '',
     buttons: [
-      { text: () => (c().favouriteAt(i) ? `${c().favouriteAt(i)!.name}${c().favouriteAt(i)!.summary ? ` · ${c().favouriteAt(i)!.summary}` : ''}` : i === 0 ? 'None saved: in the Shipyard, save her as a favourite' : ''), weight: 3.2 },
+      { text: () => c().favouriteAt(i)?.name ?? (i === 0 ? 'None saved: in the Shipyard, or Boat > Save her' : ''), weight: 3.2 },
       { text: () => (c().favouriteAt(i) ? 'Take her' : ''), press: () => c().favouriteAt(i) && h.takeDesign(c().favouriteAt(i)!.code) },
     ],
   });

@@ -156,7 +156,8 @@ import { vesselReadout } from '../debug/vesselReadout';
 import { countBoatParts } from '../debug/boatParts';
 import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
-import { HULLS, LIBRARY, RECIPES, boatTokenOf, boatType, ensureBoatTypes, isBoatType } from '../boats/library';
+import { HULLS, LIBRARY, RECIPES, boatTokenOf, boatType, boatTypeOf, designCodeOf, ensureBoatTypes, isBoatType } from '../boats/library';
+import { buildDesign } from '../shipyard/build';
 import { readDesign, sameDesign } from '../shipyard/designDoc';
 import { groupCode, ShipyardCodes } from '../shipyard/takeHer';
 import { DesktopPointer } from './desktopPointer';
@@ -3049,6 +3050,31 @@ export class App {
         const names = Object.values(this.world.players).map((p) => (p.id === this.localPlayerId ? `${p.name} (you)` : p.name));
         return names.length > 1 ? `Aboard: ${names.join(', ')}` : 'Just you';
       },
+      boatFavourite: () => {
+        if (this.boatSaved && performance.now() < this.boatSaved.until) return this.boatSaved.text;
+        const v = this.boatAboard();
+        if (!v) return 'Step aboard a boat to save her to your favourites';
+        return designCodeOf(v.defId) ? this.boatFavName(v) : `${this.boatLabel(v.defId)}: not a Shipyard design, can't be saved`;
+      },
+      canSaveBoat: () => {
+        const v = this.boatAboard();
+        return !!v && !!designCodeOf(v.defId);
+      },
+      saveBoatFavourite: () => {
+        const v = this.boatAboard();
+        const code = v && designCodeOf(v.defId);
+        if (!v || !code) return;
+        const read = readDesign(code);
+        let summary = '';
+        if ('design' in read) {
+          // Her figures: a Shipyard boat's already built; a fleet boat's built from her design once.
+          const f = (boatTypeOf(v.defId) ?? buildDesign(read.design, code, 'favourite')).figures;
+          summary = [`${f.lengthM.toFixed(1)} m`, `${f.massT.toFixed(1)} t`, f.engine].join(' · ');
+        }
+        const text = this.shipyardCodes.saveBoat(code, this.boatFavName(v), summary);
+        this.boatSaved = { text, until: performance.now() + 6000 };
+        this.overlay.notify(text, 4);
+      },
       planLine: () => {
         const n = nextPoint(this.world);
         const v = this.world.vessels[this.testVesselId];
@@ -3451,6 +3477,27 @@ export class App {
     const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));
     const read = readDesign(token);
     return fav ? fav.name : 'design' in read && read.name ? read.name : `Shipyard boat ${groupCode(token)}`;
+  }
+
+  /** What Boat > Save her last did, shown on its row a few seconds. */
+  private boatSaved: { text: string; until: number } | null = null;
+
+  /** The boat you're aboard (to save her as a favourite), or null ashore. */
+  private boatAboard(): VesselState | null {
+    const id = this.world.players[this.localPlayerId]?.aboardVesselId;
+    return (id && this.world.vessels[id]) || null;
+  }
+
+  /**
+   * Her name as a favourite: the fleet boat's own, a Shipyard design's (or the favourite she
+   * already is), else whose she is: "Bosun's boat".
+   */
+  private boatFavName(v: VesselState): string {
+    const fleet = FLEET.find((f) => f.id === v.defId);
+    if (fleet) return fleet.name;
+    const label = this.boatLabel(v.defId);
+    if (!label.startsWith('Shipyard boat')) return label;
+    return v.owner && v.owner !== this.localPlayerId ? `${this.world.players[v.owner]?.name ?? 'A crew-mate'}'s boat` : label;
   }
 
   /** The other boats' interior detail (multi-boat M4), by vessel id. */
