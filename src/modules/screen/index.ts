@@ -56,11 +56,16 @@ export const SCREEN: ModuleDefinition<ScreenConfig> = {
       if (config.mount === 'dash') {
         // Tilted back, the screen's top edge leans toward the dash: stand it off the face
         // far enough that the whole screen stays in front of it.
-        // (Raised along the tilted face: up, and back toward the dash as the face leans.)
+        // (Raised along the tilted face: up, and back toward the dash as the face leans. The dash's
+        // face is upright, so stand it off as if it were part of a screen centred on its slot and
+        // reaching as far out as its own outer edge: that one's top edge just clears the face, and
+        // stacked screens lie in the plane of a full one. Standing it off by its own height alone
+        // put a raised quarter's top edge inside the dash, its top third hidden: CS4, Oct 2026.)
         const rise = config.rise ?? 0;
+        const reach = h / 2 + Math.abs(rise);
         plane = new THREE.PlaneGeometry(w, h)
           .rotateX(-tilt)
-          .translate(0, rise * Math.cos(tilt), 0.006 + (h / 2) * Math.sin(tilt) - rise * Math.sin(tilt));
+          .translate(0, rise * Math.cos(tilt), 0.006 + reach * Math.sin(tilt) - rise * Math.sin(tilt));
       } else {
         const bracket = config.bracket ?? CONFIG.modules.screen.hung.bracket;
         plane = new THREE.PlaneGeometry(w, h).rotateX(tilt);

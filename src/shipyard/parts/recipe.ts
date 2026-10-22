@@ -219,7 +219,19 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.slots.anchorScreen = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
     consoleMount.modules!.push({ socket: 'anchorScreen', module: 'instrument.screen', config: { screen: 'anchor' } });
   }
-  const screens = ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'anchorScreen', 'rpm'].includes(id)));
+  // Old school (design.oldSchool, with the basic controls; owner, Oct 2026: "three tiers of
+  // instruments"): round analogue gauges, each a quarter, in place of the screens: the compass
+  // and the log, depth and the chain counter (with an anchor), revs, temperature and fuel.
+  const oldSchool = !!d.oldSchool && !d.controls;
+  const dials = ['dialCompass', 'dialSpeed', 'dialDepth', ...(anchorAt ? ['dialChain'] : []), 'dialRpm', 'dialTemp', 'dialFuel'];
+  if (oldSchool) {
+    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'rpm', 'anchorScreen'].includes(m.socket));
+    for (const id of dials) {
+      cc.slots[id] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
+      consoleMount.modules!.push({ socket: id, module: 'instrument.screen', config: { screen: id } });
+    }
+  }
+  const screens = (oldSchool ? dials : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline']).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
   // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
   // by its rules in this order, the half-height ones stacked two high in one screen's place
@@ -330,7 +342,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     // depth, rpm, the ANCHOR screen, and the VHF (owner, Oct 2026: every boat answers calls,
     // hears the forecasts and the harbours). No lights, searchlight, horn, wipers, heading,
     // engine monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
-    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
+    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));

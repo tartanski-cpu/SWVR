@@ -76,6 +76,21 @@ describe('Shipyard: the boats it builds', () => {
     }
   });
 
+  it('three tiers (owner, Oct 2026): old school swaps the basic screens for round analogue gauges; advanced ignores it', () => {
+    const screens = (patch: Partial<ShipDesign>) => {
+      useDesign({ ...DEFAULT_DESIGN, searchlight: 0, ...patch });
+      expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+      const mods = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+      return mods.filter((m) => m.def.id === 'instrument.screen').map((m) => (m.config as { screen: string }).screen).sort();
+    };
+    const old = screens({ controls: 0, oldSchool: 1 });
+    // She has an anchor, so a chain counter too.
+    expect(old).toEqual(['dialChain', 'dialCompass', 'dialDepth', 'dialFuel', 'dialRpm', 'dialSpeed', 'dialTemp']);
+    expect(screens({ controls: 0, oldSchool: 0 })).toEqual(['anchor', 'rpm', 'speed']);
+    // The advanced tier keeps its screens whatever the old-school flag says.
+    expect(screens({ controls: 1, oldSchool: 1 })).toEqual(screens({ controls: 1, oldSchool: 0 }));
+  });
+
   it('the bow choice, a stem raked 0 (plumb) to 50 deg, each hull: more rake cuts away more forefoot, but only near the stem (not a push bow or a landing bow)', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
       const mass: number[] = [];
