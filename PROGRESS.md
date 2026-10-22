@@ -6619,7 +6619,9 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
 
-### Coast extras C5: surf on the shore (done, awaiting owner test)
+### Coast extras C5: surf on the shore (done, owner approved)
+
+**Owner's test (22 Oct 2026):** "The surf sounds really good. I'm very happy with that." The levels stay as they are.
 
 Owner: "the only sounds I think that really make sense are surf, if the wave's height over a certain height, let's say, and your engine's off, because you don't hear most of the sounds when your engine's on." Then "Next milestone?".
 
