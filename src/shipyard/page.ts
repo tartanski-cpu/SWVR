@@ -924,10 +924,25 @@ options('stackStyle', 'Exhaust stacks', [...STACK_STYLES]).dataset.when = 'tugSt
   choices('outboards', OUTBOARDS.map((name) => ({ name })));
 }
 section('6. Controls');
-choices('controls', [
-  { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm, and the VHF radio.' },
-  { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, an overhead switch panel for the foredeck and aft deck floodlights, and the searchlight and fire monitor controls at the helm when they’re on poles.' },
-]);
+{
+  // Three tiers of instruments (owner, Oct 2026: "old school (analogue), basic electronic, and
+  // then advanced"): two design fields, the controls package and old school (with the basic).
+  const tiers: { name: string; note: string; patch: Partial<ShipDesign> }[] = [
+    { name: 'Old school (analogue)', note: 'Wheel, throttle, key and start, the VHF radio, and round analogue gauges: a magnetic compass, the log, depth, the anchor chain counter, revs, temperature and fuel. The cheapest. (A link or file, not a code.)', patch: { controls: 0, oldSchool: 1 } },
+    { name: 'Basic electronic', note: 'Wheel, throttle, key and start, speed and depth, the anchor, rpm, and the VHF radio, on small screens.', patch: { controls: 0, oldSchool: 0 } },
+    { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, an overhead switch panel for the foredeck and aft deck floodlights, and the searchlight and fire monitor controls at the helm when they’re on poles.', patch: { controls: 1, oldSchool: 0 } },
+  ];
+  const box = document.createElement('div');
+  tiers.forEach((t, i) => {
+    const c = document.createElement('div');
+    c.className = 'choice';
+    c.dataset.tier = String(i);
+    c.innerHTML = `<b>${t.name}</b><div style="font-size:12px;color:var(--muted)">${t.note}</div>`;
+    c.onclick = () => change(t.patch);
+    box.appendChild(c);
+  });
+  controls.appendChild(box);
+}
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
 options('helmAssist', 'Helm assist', ['None', 'Autopilot, dock, auto start']).dataset.when = 'controls';
 {
@@ -1019,6 +1034,9 @@ function syncControls(): void {
   document.querySelectorAll<HTMLElement>('[data-when]').forEach((el) => (el.style.display = rowApplies(el.dataset.when!) ? '' : 'none'));
   document.querySelectorAll<HTMLElement>('[data-unless]').forEach((el) => (el.style.display = rowApplies(el.dataset.unless!) ? 'none' : ''));
   for (const [el, on] of dhKinds) el.classList.toggle('on', on(design));
+  // The instruments' tier: old school, basic electronic, advanced.
+  const tier = design.controls ? 2 : design.oldSchool ? 0 : 1;
+  document.querySelectorAll<HTMLElement>('[data-tier]').forEach((el) => el.classList.toggle('on', Number(el.dataset.tier) === tier));
   document.querySelectorAll<HTMLOutputElement>('output[data-key]').forEach((el) => {
     const k = el.dataset.key as keyof ShipDesign;
     el.textContent = outputs[k]!(design[k]);
@@ -1070,7 +1088,7 @@ function syncControls(): void {
 // everything where it stands, so the rest stay put; Automatic puts it all back to the rules.
 // What's placed goes in the design (DASH_SLOTS, PANEL_SLOTS); the builder keeps it if it fits.
 type DashGrid = { cap: number; rows: number; pitch: number; byHand: boolean; places: { id: string; col: number; row: number; w: number; h: number }[] };
-type PanelGrid = { cap: number; cell: number; byHand: boolean; runs: { key: string; title: string; color: number; members: string[]; n: number; start: number }[] };
+type PanelGrid = { cap: number; cell: number; byHand: boolean; runs: { key: string; title: string; color: number; members: string[]; n: number; start: number; x: [number, number] }[] };
 let consolePick: { kind: 'dash' | 'panel'; id: string } | null = null;
 function showConsoleEditor(): void {
   const box = document.getElementById('consoleEditor');
@@ -1097,7 +1115,7 @@ function showConsoleEditor(): void {
   const panelY = dashY + dg.rows * cellH + 26;
   const panelH = 34;
   const H = panelY + panelH + 14;
-  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', towline: 'TOW LINE' };
+  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', towline: 'TOW LINE', dialCompass: 'COMPASS', dialSpeed: 'LOG', dialDepth: 'DEPTH', dialChain: 'CHAIN', dialRpm: 'REVS', dialTemp: 'TEMP', dialFuel: 'FUEL' };
   const picked = (kind: string, id: string) => consolePick?.kind === kind && consolePick.id === id;
   let svg = `<svg viewBox="0 0 ${W} ${H}" class="consoleSvg">`;
   // The dash's cells, then its screens.
@@ -1107,8 +1125,11 @@ function showConsoleEditor(): void {
   const pc = pg.cell * U;
   for (let k = 0; k < pg.cap; k++) svg += `<rect class="cell" data-kind="panel" data-cell="${k}" x="${panelX + k * pc + 1}" y="${panelY}" width="${pc - 2}" height="${panelH}"/>`;
   for (const r of pg.runs) {
-    const x = panelX + r.start * pc + 2;
-    svg += `<g class="item${picked('panel', r.key) ? ' picked' : ''}" data-kind="panel" data-id="${r.key}"><rect x="${x}" y="${panelY + 2}" width="${r.n * pc - 4}" height="${panelH - 4}" rx="3"/><rect class="stripe" x="${x}" y="${panelY + 2}" width="${r.n * pc - 4}" height="5" fill="${r.title ? hex(r.color) : '#888'}"/><text x="${x + (r.n * pc - 4) / 2}" y="${panelY + panelH / 2 + 6}">${esc(r.title || 'HORN')}</text></g>`;
+    // Where it really is (m from the middle): closed up by the rules, a run is narrower than its
+    // cells, and two runs can share a cell (CS4 fix: drawn by their cells, DECK and ENGINE overlapped).
+    const x = mid + r.x[0] * U + 2;
+    const w = (r.x[1] - r.x[0]) * U - 4;
+    svg += `<g class="item${picked('panel', r.key) ? ' picked' : ''}" data-kind="panel" data-id="${r.key}"><rect x="${x}" y="${panelY + 2}" width="${w}" height="${panelH - 4}" rx="3"/><rect class="stripe" x="${x}" y="${panelY + 2}" width="${w}" height="5" fill="${r.title ? hex(r.color) : '#888'}"/><text x="${x + w / 2}" y="${panelY + panelH / 2 + 6}">${esc(r.title || 'HORN')}</text></g>`;
   }
   // The wheel, over the panel at the console's middle.
   svg += `<circle class="wheel" cx="${mid}" cy="${panelY + panelH / 2}" r="${0.22 * U}"/>`;
@@ -3166,7 +3187,8 @@ function describe(k: keyof ShipDesign, d: ShipDesign, b: DesignedBoat): string {
   if (k === 'hull') return DESIGN_HULLS[v].name.split(':')[0];
   if (k === 'engine') return ENGINES[v].name;
   if (k === 'twin') return v ? 'Twin' : 'Single';
-  if (k === 'controls') return v ? 'Advanced' : 'Basic';
+  if (k === 'controls') return v ? 'Advanced' : d.oldSchool ? 'Old school (analogue)' : 'Basic electronic';
+  if (k === 'oldSchool') return v ? 'Analogue gauges' : 'Screens';
   if (k === 'paint') return LIVERIES[v]?.name ?? String(v);
   if (k === 'roofPaint') return ROOF_PAINTS[v]?.name ?? String(v);
   if (k === 'houseColour') return HOUSE_PAINTS[v]?.name ?? String(v);

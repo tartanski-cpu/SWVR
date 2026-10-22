@@ -779,6 +779,165 @@ const paintAnchorScreen: Painter = (g, s) => {
   }
 };
 
+// ── Old school (owner, Oct 2026: "three tiers of instruments, old school (analogue), basic
+// electronic, and then advanced") ──
+// Round analogue gauges, each a quarter cell (a dial in a black panel): cream faces, black
+// figures, an orange needle. Drawn on the same atlas as the screens (no more draw calls).
+
+const FACE = '#efe6cf';
+const INK = '#1b1a17';
+const NEEDLE = '#e2571f';
+
+/**
+ * A round gauge in a quarter cell (256 x 128): its face, `ticks` major marks from `min` to
+ * `max` round a 270 degree sweep (with figures at each, `fig` choosing what's written), a red
+ * arc from `red` up if given, its label and units, and the needle at `value`.
+ */
+function dial(g: CanvasRenderingContext2D, o: { min: number; max: number; value: number; ticks: number; label: string; units?: string; red?: number; fig?: (v: number) => string; note?: string; noteColour?: string }): void {
+  const cx = 128;
+  const cy = 64;
+  const r = 52;
+  // The rim and face.
+  g.fillStyle = '#3a3d3c';
+  g.beginPath();
+  g.arc(cx, cy, r + 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = FACE;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fill();
+  const a0 = (135 * Math.PI) / 180;
+  const sweep = (270 * Math.PI) / 180;
+  const angle = (v: number) => a0 + sweep * Math.max(0, Math.min(1, (v - o.min) / (o.max - o.min)));
+  if (o.red !== undefined) {
+    g.strokeStyle = '#c2321e';
+    g.lineWidth = 6;
+    g.beginPath();
+    g.arc(cx, cy, r - 6, angle(o.red), angle(o.max));
+    g.stroke();
+  }
+  g.strokeStyle = INK;
+  g.fillStyle = INK;
+  g.font = font(13);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (let k = 0; k <= o.ticks; k++) {
+    const v = o.min + ((o.max - o.min) * k) / o.ticks;
+    const a = angle(v);
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * (r - 3), cy + Math.sin(a) * (r - 3));
+    g.lineTo(cx + Math.cos(a) * (r - 12), cy + Math.sin(a) * (r - 12));
+    g.stroke();
+    g.fillText(o.fig ? o.fig(v) : String(Math.round(v)), cx + Math.cos(a) * (r - 22), cy + Math.sin(a) * (r - 22));
+  }
+  if (o.units) {
+    g.font = font(11);
+    // In the gap at the foot of the sweep.
+    g.fillText(o.units, cx, cy + 30);
+  }
+  // Its name on the plate to the left of the dial, clear of the figures.
+  g.fillStyle = FACE;
+  g.font = font(15);
+  g.fillText(o.label, 38, cy);
+  // The needle, and its boss.
+  const a = angle(o.value);
+  g.strokeStyle = NEEDLE;
+  g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(cx - Math.cos(a) * 8, cy - Math.sin(a) * 8);
+  g.lineTo(cx + Math.cos(a) * (r - 8), cy + Math.sin(a) * (r - 8));
+  g.stroke();
+  g.fillStyle = INK;
+  g.beginPath();
+  g.arc(cx, cy, 6, 0, Math.PI * 2);
+  g.fill();
+  // A word beside the dial (the chain counter's state), on the plate to its right.
+  if (o.note) {
+    g.fillStyle = o.noteColour ?? AMBER;
+    g.font = font(12);
+    g.fillText(o.note, 218, cy);
+  }
+}
+
+/** The rev counter: rpm in hundreds, red from her rated revs. */
+const paintDialRpm: Painter = (g, s) => {
+  const rated = gearOf(s, 'diesel')?.engine.ratedRpm ?? 3000;
+  const max = Math.ceil((rated * 1.15) / 500) * 500;
+  dial(g, { min: 0, max, value: s.engine.rpm, ticks: max / 500, label: 'RPM', units: 'x100', red: rated, fig: (v) => String(Math.round(v / 100)) });
+};
+/** The speed log: knots, 0 to 30. */
+const paintDialSpeed: Painter = (g, s) => dial(g, { min: 0, max: 30, value: knots(s), ticks: 6, label: 'LOG', units: 'kn' });
+/** The depth gauge: the water under her keel, 0 to 50 m (red under 2 m: a mark, as on an old sounder). */
+const paintDialDepth: Painter = (g, s, def) => dial(g, { min: 0, max: 50, value: depthUnderKeel(s, def), ticks: 5, label: 'DEPTH', units: 'm', note: depthUnderKeel(s, def) < 2 ? 'SHALLOW' : undefined, noteColour: RED });
+/** Coolant temperature, 40 to 120 C, red from her alarm. */
+const paintDialTemp: Painter = (g, s) => {
+  const alarm = gearOf(s, 'diesel')?.engine.thermal.alarmC ?? 95;
+  dial(g, { min: 40, max: 120, value: s.engine.coolantC, ticks: 4, label: 'TEMP', units: '°C', red: alarm });
+};
+/** Fuel, empty to full (E, half, F), red under her low-fuel mark. */
+const paintDialFuel: Painter = (g, s) => {
+  const diesel = gearOf(s, 'diesel');
+  const tank = s.engine.tankL ?? diesel?.engine.fuel.tankL ?? 1;
+  dial(g, { min: 0, max: 1, value: s.engine.fuelL / tank, ticks: 2, label: 'FUEL', fig: (v) => (v === 0 ? 'E' : v === 1 ? 'F' : '½') });
+};
+/**
+ * The magnetic compass: a card turning so her heading stands at the lubber line (top), its
+ * points marked; the heading in figures under it.
+ */
+const paintDialCompass: Painter = (g, s) => {
+  const cx = 128;
+  const cy = 64;
+  const r = 52;
+  const h = headingDeg(s);
+  g.fillStyle = '#3a3d3c';
+  g.beginPath();
+  g.arc(cx, cy, r + 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#20262a';
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = FACE;
+  g.strokeStyle = FACE;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (let d = 0; d < 360; d += 10) {
+    // The card turns the other way to her: her heading at the top.
+    const a = ((d - h - 90) * Math.PI) / 180;
+    const major = d % 30 === 0;
+    g.lineWidth = major ? 2.5 : 1.2;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2));
+    g.lineTo(cx + Math.cos(a) * (r - (major ? 11 : 7)), cy + Math.sin(a) * (r - (major ? 11 : 7)));
+    g.stroke();
+    if (d % 90 === 0) {
+      g.font = font(16);
+      g.fillStyle = d === 0 ? '#ff7a5a' : FACE;
+      g.fillText(['N', 'E', 'S', 'W'][d / 90], cx + Math.cos(a) * (r - 22), cy + Math.sin(a) * (r - 22));
+      g.fillStyle = FACE;
+    }
+  }
+  // The lubber line, and the heading in figures.
+  g.fillStyle = NEEDLE;
+  g.fillRect(cx - 2, cy - r - 4, 4, 16);
+  g.font = font(16);
+  g.fillStyle = AMBER;
+  g.fillText(bearing(h), cx, cy + 6);
+  g.fillStyle = FACE;
+  g.font = font(15);
+  g.fillText('HDG', 38, cy);
+};
+/** The chain counter: the chain out against all she carries, and what the anchor's doing. */
+const paintDialChain: Painter = (g, s) => {
+  const a = s.anchor;
+  const chainM = gearOf(s, 'anchor')?.chainM ?? 60;
+  const flash = Math.floor(performance.now() / 500) % 2 === 0;
+  const note = a.phase === 'stowed' ? 'HOUSED' : a.phase === 'paying' ? '▼ OUT' : a.phase === 'weighing' ? '▲ IN' : a.phase === 'set' ? (a.dragging ? 'DRAGGING' : 'SET') : 'HANGING';
+  const colour = a.phase === 'set' && !a.dragging ? GREEN : a.dragging ? (flash ? RED : DIM) : a.phase === 'stowed' ? DIM : flash ? AMBER : DIM;
+  dial(g, { min: 0, max: chainM, value: a.phase === 'stowed' ? 0 : a.rodeM, ticks: Math.max(2, Math.round(chainM / 20)), label: 'CHAIN', units: 'm', note, noteColour: colour });
+};
+
 /** The screens there are, for the screen module (modules/screen) to pick from. */
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
@@ -788,6 +947,22 @@ export const SCREENS = {
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
   towline: { paint: paintTowline, cells: [2, 1], key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
+  // Old school: the analogue gauges, each a quarter.
+  dialRpm: { paint: paintDialRpm, cells: [1, 1], key: (s) => String(Math.round(s.engine.rpm / 25)) },
+  dialSpeed: { paint: paintDialSpeed, cells: [1, 1], key: (s) => knots(s).toFixed(1) },
+  dialDepth: { paint: paintDialDepth, cells: [1, 1], key: (s, def) => Math.min(60, depthUnderKeel(s, def)).toFixed(1) },
+  dialTemp: { paint: paintDialTemp, cells: [1, 1], key: (s) => s.engine.coolantC.toFixed(0) },
+  dialFuel: { paint: paintDialFuel, cells: [1, 1], key: (s) => s.engine.fuelL.toFixed(0) },
+  dialCompass: { paint: paintDialCompass, cells: [1, 1], key: (s) => Math.round(headingDeg(s)).toString() },
+  dialChain: {
+    paint: paintDialChain,
+    cells: [1, 1],
+    key: (s) => {
+      const a = s.anchor;
+      const moving = a.phase === 'paying' || a.phase === 'weighing' || (a.phase === 'set' && a.dragging);
+      return [a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, moving ? Math.floor(performance.now() / 500) % 2 : 0].join('|');
+    },
+  },
   anchor: {
     paint: paintAnchorScreen,
     cells: [1, 1],

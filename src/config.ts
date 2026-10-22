@@ -3147,6 +3147,8 @@ export const CONFIG = {
      * side for each, abreast of her engines (CONFIG.effects.exhaust.water).
      */
     exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
+    /** Old school instruments (design.oldSchool): the analogue gauges' price (GBP; the basic screens are 6,000, the advanced 18,000). */
+    oldSchoolPrice: 4000,
     helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
