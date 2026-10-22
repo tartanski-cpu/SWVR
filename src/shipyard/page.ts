@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BoatView } from '../app/boatView';
+import { createVesselState } from '../vessel/vesselState';
 import { CONFIG } from '../config';
 import { LIBRARY, RECIPES } from '../boats/library';
 import { gearOf, useDesign } from '../boats/sims';
@@ -247,6 +248,7 @@ function drawBoat(): void {
   const isGuard = (m: { module: string }) => PROTECTION.has(m.module);
   const modules = assembleView({ ...recipe, modules: recipe.modules.filter((m) => !isGuard(m)) }, def, LIBRARY);
   const modulesRoot = new BoatView('design', def, modules, true).root;
+  showDisplays(modules, def);
   root.add(modulesRoot);
   // (Without her interlocks: they're between the controls of the rest.)
   const guard = guardView({ ...recipe, modules: recipe.modules.filter(isGuard), interlocks: [] }, def);
@@ -277,6 +279,21 @@ function drawBoat(): void {
  * The skiff in her cradle, if she carries one (the crane's tenderCrane gear): in the game
  * she's a boat of her own the crane holds (app); here just her hull, where she stows.
  */
+/**
+ * Her screens and gauges drawn once, as at the berth (owner, Oct 2026: picking the analogue
+ * gauges, "you don't get a preview of them"; the Shipyard never ran the instruments, so every
+ * display stood blank): a fresh boat of her design with the battery master and every breaker
+ * on, the engine stopped, the time noon.
+ */
+function showDisplays(view: ReturnType<typeof assembleView>, def: typeof VESSEL_DEFS.design): void {
+  const s = createVesselState('shipyard-preview', 'design');
+  if (s.electrics) {
+    s.electrics.master = 1;
+    for (const k of Object.keys(s.electrics.breakers) as (keyof typeof s.electrics.breakers)[]) s.electrics.breakers[k] = 1;
+  }
+  view.update(s, 1, { inView: true, def, env: null });
+}
+
 function addSkiff(root: THREE.Group): void {
   const crane = gearOf({ defId: 'design' }, 'tenderCrane');
   if (!crane) return;
@@ -3167,7 +3184,9 @@ function boatFor(d: ShipDesign): { root: THREE.Group; boat: DesignedBoat; room: 
   const def = VESSEL_DEFS.design;
   const root = new THREE.Group();
   root.add(buildVesselMesh(def.hull, def.layout, wetOutlet(def), def.livery));
-  root.add(new BoatView('design', def, assembleView(RECIPES.design, def, LIBRARY), true).root);
+  const view = assembleView(RECIPES.design, def, LIBRARY);
+  root.add(new BoatView('design', def, view, true).root);
+  showDisplays(view, def);
   addSkiff(root);
   boat = useDesign(design);
   return { root, boat: b, room };
