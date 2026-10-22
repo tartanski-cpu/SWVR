@@ -350,10 +350,10 @@ function stepFishingDuty(world: WorldState, d: DutiesState, v: VesselState | und
 /** Log salvage (a side mission): while there are logs on the beaches. */
 function stepSalvageDuty(world: WorldState, d: DutiesState): void {
   const logs = world.salvage?.logs ?? [];
-  const onLine = !!world.tow?.line?.target.startsWith('l:');
+  const onLine = Object.values(world.tow?.lines ?? {}).some((l) => l.target.startsWith('l:'));
   syncJob(d, 'salvage', logs.length ? 'salvage' : null, `Log salvage: ${logs.length} ${logs.length === 1 ? 'log' : 'logs'} washed up`, [
     { text: 'Find one (LOG on the plotter); stand off the beach, stern to it', done: onLine },
-    { text: 'Make the towline fast to it (hook, or menu Tow, within 30 m) and pull it off', done: onLine && logs.some((l) => l.afloat && world.tow?.line?.target === `l:${l.id}`) },
+    { text: 'Make the towline fast to it (hook, or menu Tow, within 30 m) and pull it off', done: onLine && logs.some((l) => l.afloat && Object.values(world.tow?.lines ?? {}).some((o) => o.target === `l:${l.id}`)) },
     { text: 'Tow it into any harbour, slow: the yard buys it', done: false },
   ], world.time);
 }

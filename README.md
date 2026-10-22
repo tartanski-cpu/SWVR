@@ -351,7 +351,14 @@ Unanswered calls go away after two minutes. The menu's Debug → Missions sectio
 - **any boat afloat**, at her bow, e.g. our own skiff once she's off the crane;
 - **floating debris** (the planks-and-drum hazards). Towed slowly into a harbour, it's cleared away, and the harbour thanks you.
 
-One thing at a time on the line. The menu's **Tow → Make fast** picks the nearest thing within 16 m of the stern roller. Floating crates from lost cargo still go on the boat hook, not the towline.
+One thing at a time on each boat's line. The menu's **Tow → Make fast** picks the nearest thing within 16 m of the stern roller. Floating crates from lost cargo still go on the boat hook, not the towline.
+
+**Several boats on one tow** (multiplayer, with crew-mates in their own boats; or Debug → Boat → Second boat). Every boat with a stern roller has her own towline, made fast the same way, and any number can be on the same tow, debris or log: their pulls add up. The first line goes on the tow's bow eye; a second boat's goes on the **bow fairlead on her side** of the tow, so the lines run nearly parallel. Each boat's status line says how many others are on her too, and a boat without her line on is told the tow is under way and she can add her pull. What it buys depends on the tow:
+- **A heavy tow** (the coaster, a pontoon) is held back by her own weight and the pull: two boats get the coaster going much faster (in tests, 2.6 m/s a minute after full ahead against 1.5 with one).
+- **A light tow** (a barge) is already towed about as fast as the boat herself goes: a second boat adds little.
+- **Steer:** two boats side by side on one tow sheer apart if left alone. Each line pulls her stern in toward the tow and swings her bow out. Hold your course with the wheel, and keep a bit of room between the boats.
+- **In tandem:** a boat can also tow the boat that's towing (make fast to her bow eye, ahead of her): the two pull in one straight line. Take up the strain gently; a snatch on a heavy tow parts the line.
+- **Pushing:** two tugs with their bows on a ship's side push her together (in tests, 27 m sideways in a minute against 17 with one), e.g. to lay the coaster alongside a quay.
 
 ### Career: money, reputation, contracts, upgrades
 

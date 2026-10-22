@@ -2028,6 +2028,21 @@ export const CONFIG = {
     callRepeat: 20,
     /** Towline: length (m), and the most the bow eye may be from our towing post to make it fast (m). */
     lineLength: 22,
+    /**
+     * Multi-boat towing: the most towlines drawn at once (every boat with a stern roller has
+     * her own; several may be on one tow). All in one instanced mesh, one draw call; past
+     * this many, the extra lines still pull but aren't drawn.
+     */
+    drawLines: 4,
+    /**
+     * Multi-boat towing: where a second (third) boat's line goes on a vessel already on a
+     * line: a bow fairlead on the side nearer her, this fraction of the tow's length aft of
+     * the stem, at the deck edge. (Two lines on the one centre eye converge: each pulls its
+     * boat's stern in toward the tow and her bow out, and the tow's head off her course. On
+     * the fairleads they run more nearly parallel, as two tugs' lines do on a ship's bows.)
+     * The first line always goes on the centre bow eye.
+     */
+    fairleadAft: 0.12,
     attachRange: 16,
     /**
      * The tow winch by the stern roller (hold-to-run): heave in / pay out speeds (m/s), the

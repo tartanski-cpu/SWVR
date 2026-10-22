@@ -5,7 +5,7 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { beachSpots, logOf, salvageStatus } from '../src/salvage/salvage';
-import { towReach } from '../src/tow/tow';
+import { lineOf, towReach } from '../src/tow/tow';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { PORTS } from '../src/world/archipelago';
 import { groundHeight } from '../src/world/terrain';
@@ -57,17 +57,17 @@ describe('log salvage', { timeout: 60000 }, () => {
     run(2);
     expect(towReach(world, `l:${log.id}`)).toBeLessThan(CONFIG.salvage.line.attach);
     send('towMake', 1, `l:${log.id}`);
-    expect(world.tow!.line?.target).toBe(`l:${log.id}`);
+    expect(lineOf(world)?.target).toBe(`l:${log.id}`);
     expect(salvageStatus(world)).toMatch(/beach/);
     // Ease ahead: the log stays put until the pull beats friction, then slides off and floats.
     send('engineStartStop');
     run(3);
     send('lever', 0.8);
     let maxT = 0;
-    run(90, () => (maxT = Math.max(maxT, world.tow?.line?.tension ?? 0)));
+    run(90, () => (maxT = Math.max(maxT, lineOf(world)?.tension ?? 0)));
     expect(maxT).toBeGreaterThan(CONFIG.salvage.frictionStatic * CONFIG.salvage.mass * 9.81);
     expect(logOf(world, `l:${log.id}`)?.afloat).toBe(true);
-    expect(world.tow!.line?.target).toBe(`l:${log.id}`); // the line held
+    expect(lineOf(world)?.target).toBe(`l:${log.id}`); // the line held
     // Into a harbour, stopped: sold.
     send('lever', 0);
     const port = PORTS.find((p) => p.id === 'calder')!;
@@ -79,7 +79,7 @@ describe('log salvage', { timeout: 60000 }, () => {
     run(CONFIG.tow.deliverTime + 1);
     expect(world.salvage!.logs.length).toBe(0);
     expect(world.salvage!.sold).toBe(1);
-    expect(world.tow!.line ?? null).toBeNull();
+    expect(lineOf(world) ?? null).toBeNull();
   });
 
   it('logs wash up by themselves (with a radio notice), far from the boat', () => {

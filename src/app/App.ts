@@ -128,7 +128,7 @@ import { LineGun } from '../tow/lineGun';
 import { FenderHands, type FenderHandsContext } from '../player/fenderHands';
 import type { FendersApi } from '../modules/fenders';
 import { LineGunView } from '../tow/lineGunView';
-import { lineLength, nearestTowTarget, towAlertT, towName, towPoint, towPostLocal, towStatus, towTargets, winchStalled } from '../tow/tow';
+import { lineLength, lineOf, nearestTowTarget, towAlertT, towName, towPoint, towPostLocal, towStatus, towTargets, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
@@ -1598,8 +1598,8 @@ export class App {
     const dir = this.tmpV2;
     gun.tipWorld(tip, dir);
     const held = !!gun.held;
-    const targets = held || this.lineGun.phase !== 'ready' ? towTargets(this.world).flatMap((key) => {
-      const p = towPoint(this.world, key, new THREE.Vector3());
+    const targets = held || this.lineGun.phase !== 'ready' ? towTargets(this.world, v.id).flatMap((key) => {
+      const p = towPoint(this.world, key, new THREE.Vector3(), v.id);
       return p ? [{ key, pos: { x: p.x, y: p.y, z: p.z } }] : [];
     }) : [];
     const wasFlying = this.lineGun.phase === 'flying';
@@ -1625,7 +1625,7 @@ export class App {
       case 'made': {
         const key = this.lineGun.madeKey;
         if (!key) break;
-        if (this.world.tow?.line) this.overlay.notify('Our towline is already fast: cast it off first', 3);
+        if (lineOf(this.world, this.testVesselId)) this.overlay.notify('Our towline is already fast: cast it off first', 3);
         else this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control: 'towMake', value: 1, ref: key, args: [1] });
         break;
       }
@@ -2277,11 +2277,11 @@ export class App {
     const cr = gearOf(v, 'tenderCrane');
     const craneRun = hyd && (tp === 'lowering' || tp === 'hoisting') ? 1 : 0;
     // Tow winch: a button held; stalled heaving against more pull than it has.
-    const line = this.world.tow?.line;
+    const line = lineOf(this.world, v.id);
     const c = v.controls;
     const heave = (c.winchHeave ?? 0) > 0.5;
     const payOut = (c.winchPayOut ?? 0) > 0.5;
-    const stalled = hyd && winchStalled(this.world);
+    const stalled = hyd && winchStalled(this.world, v.id);
     // The drum only turns while the line can still move (inside the winch's limits).
     const w = CONFIG.tow.winch;
     const L = line ? lineLength(line) : 0;
@@ -2546,11 +2546,11 @@ export class App {
       rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),
       rescueAboard: () => this.pushVesselIntent('rescueDebugAboard', 1),
       rescues: () => this.world.rescue?.completed ?? 0,
-      towStatus: () => towStatus(this.world),
-      towFast: () => !!this.world.tow?.line,
+      towStatus: () => towStatus(this.world, this.testVesselId),
+      towFast: () => !!lineOf(this.world, this.testVesselId),
       towToggle: () => {
         // Cast off whatever's on the line, or make fast to the nearest thing in reach.
-        if (!this.world.tow?.line && !nearestTowTarget(this.world)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our stern roller: back our stern up to a bow eye or debris`);
+        if (!lineOf(this.world, this.testVesselId) && !nearestTowTarget(this.world, this.testVesselId)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our stern roller: back our stern up to a bow eye or debris`);
         else this.pushVesselIntent('towToggle', 1);
       },
       towsDelivered: () => this.world.tow?.delivered ?? 0,

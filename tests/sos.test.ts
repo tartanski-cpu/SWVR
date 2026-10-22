@@ -45,7 +45,7 @@ describe('SOS', () => {
     v.engine.phase = 'running';
     v.engine.rpm = 1200;
     v.controls.lever = 0.6;
-    world.tow = { seq: 0, nextAt: null, job: null, delivered: 0, calls: false, line: { target: 'nothing', length: 30, tension: 0 } as never, cleared: 0 };
+    world.tow = { seq: 0, nextAt: null, job: null, delivered: 0, calls: false, lines: { [v.id]: { target: 'nothing', length: 30, tension: 0 } }, cleared: 0 };
     send('sos');
     const berth = BERTHS.find((b) => b.id === 'calder-cargo')!;
     expect(sosYard(v)?.yard.port).toBe('calder');
@@ -55,7 +55,7 @@ describe('SOS', () => {
     expect(v.engine.phase).toBe('off');
     expect(v.controls.lever).toBe(0);
     expect(v.anchor.phase).toBe('stowed');
-    expect(world.tow!.line).toBeNull();
+    expect(world.tow!.lines[v.id] ?? null).toBeNull();
     expect(world.rescue!.sos?.sent).toBe(1);
     expect(world.rescue!.radio?.text).toMatch(/righted her .* Calder Boatyard/);
   });
