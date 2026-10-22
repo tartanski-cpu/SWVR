@@ -65,11 +65,24 @@ export class VesselEffects {
   }
 
   /** Take the world-space effects out of the scene (a tow taken away; never the workboat). */
+  /**
+   * Her effects out of the world (she's gone, or rebuilt as another type): the wake and spray,
+   * and her smoke, anchor chain and mooring lines, which live in the world too. (Leaving those
+   * behind, owner Oct 2026: "when you change the boat, the docking lines stay attached to the
+   * quayside ... a kind of spider web of docking lines".)
+   */
   dispose(): void {
-    for (const o of [this.wake.mesh, this.spray.points] as THREE.Mesh[]) {
+    const e = this.equip;
+    for (const o of [this.wake.mesh, this.spray.points, e.smoke?.view.root, e.chain?.line, e.lines?.mesh]) {
+      if (!o) continue;
       o.removeFromParent();
-      o.geometry.dispose();
-      (o.material as THREE.Material).dispose();
+      o.traverse((x) => {
+        const m = x as THREE.Mesh;
+        m.geometry?.dispose();
+        const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(mat)) for (const k of mat) k.dispose();
+        else mat?.dispose();
+      });
     }
   }
 

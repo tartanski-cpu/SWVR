@@ -5406,6 +5406,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/comfortScale.test.ts` (+2): falling at every 10 % step, within 1.3 deg of (1 - coupling) of the roll, under 1.2 deg at 90 %, none at 100 %; a slam softened by about a third at 90 %, more at 70 %, taken whole at 100 %.
 - **Checked:** typecheck, `npm test`. **Not checked:** VR (how it feels), the desktop's default by eye.
 
+### Fix: a boat's mooring lines, chain and smoke left behind when she goes (owner: "when you change the boat, the docking lines stay attached to the quayside ... a kind of spider web")
+
+- **Cause:** a boat's view, when removed (handed back, a crew-mate gone, rebuilt as another type: `App.dropVesselView`), took her wake and spray out of the world, but not her smoke, anchor chain and mooring lines, which live in the world too (`vessel/view/vesselEffects.ts`, the `Equipment`). Each boat changed or handed back at a berth left her lines tied to the quay.
+- **Fix:** `VesselEffects.dispose` takes all five out (wake, spray, smoke, chain, lines) and frees their geometry and materials.
+- **And the pilot boat left behind:** that was a launch alone or hosting adding a boat instead of replacing yours, fixed in "Multiplayer fix: a launch replaces your boat" above (on `next`, not yet on the build the owner tried).
+- **Tests:** `tests/effectsDispose.test.ts` (+1): the pilot boat's five effects all gone when she goes (with the old dispose, three were left).
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye in the game.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
