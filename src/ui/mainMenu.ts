@@ -230,6 +230,8 @@ export interface MenuHost {
   launchBoat(ref: string): void;
   withdrawBoat(): void;
   myBoat(): string;
+  /** A boat you launched (crew) that you can hand back. */
+  canHandBack(): boolean;
   /** The boat you launched last time, remembered on this device (multi-boat M5): her name, or null. */
   lastBoat(): string | null;
   launchLast(): void;
@@ -919,7 +921,7 @@ function yourBoat(h: MenuHost): MenuRow[] {
   });
   return [
     { heading: 'Your boat' },
-    { label: '', buttons: [{ text: () => h.myBoat(), weight: 2.6 }, { text: () => (h.myBoat().startsWith('None') ? '' : 'Hand her back'), press: () => h.withdrawBoat() }] },
+    { label: '', buttons: [{ text: () => h.myBoat(), weight: 2.6 }, { text: () => (h.canHandBack() ? 'Hand her back' : ''), press: () => h.withdrawBoat() }] },
     { label: '', buttons: [{ text: () => (h.lastBoat() ? `Last time: ${h.lastBoat()}` : ''), weight: 2.6 }, { text: () => (h.lastBoat() ? 'Launch again' : ''), press: () => h.launchLast() }] },
     { label: 'Launch', buttons: FLEET.map((f) => ({ text: f.name, press: () => h.launchBoat(f.id) })) },
     { heading: 'Or a Shipyard favourite' },

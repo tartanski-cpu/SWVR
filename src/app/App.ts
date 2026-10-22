@@ -2617,9 +2617,17 @@ export class App {
       teleportToPort: (i) => {
         const port = PORTS[i];
         if (!port) return;
-        this.pushVesselIntent('teleportToPort', 1, port.id);
-        // Off the boat (ashore, swimming): come along, at the helm.
-        if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
+        // Your own boat goes (owner, Oct 2026: "everybody to be able to teleport their boat
+        // around"): alone or hosting, the game's own boat; crew, the one you launched (none
+        // yet: launch one first; the host's boat is the host's to send).
+        const mine = this.client ? ownedBoat(this.world, this.localPlayerId) : this.world.vessels[this.world.homeVesselId ?? ''];
+        if (!mine) {
+          this.overlay.notify('Launch a boat of your own first (Crew > Your boat): Go sends your boat, with you aboard', 4);
+          return;
+        }
+        this.intents.push({ playerId: this.localPlayerId, targetId: mine.id, control: 'teleportToPort', value: 1, ref: port.id });
+        // Wherever you are (ashore, swimming, aboard another boat): along with her, at the helm.
+        if (this.world.players[this.localPlayerId].aboardVesselId !== mine.id) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: mine.id });
         this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, make fast at the cleats` : `${port.name}: in the bay, let go the anchor`, 3);
       },
       homeBoat: () => {
@@ -2632,14 +2640,26 @@ export class App {
         this.pushEnvIntent('spawnBoat', 1, defId);
       },
       launchBoat: (ref) => {
-        this.pushEnvIntent('launchBoat', 1, ref);
-        this.launchAskedAt = performance.now();
-        this.overlay.notify('Asking the harbour for a berth for her...', 3);
         try {
           localStorage.setItem(LAST_BOAT_KEY, ref);
         } catch {
           // Not remembered.
         }
+        // Alone or hosting (owner, Oct 2026: launching a favourite added her beside the pilot
+        // boat instead of replacing her, and a crew-mate joining was put aboard the empty
+        // one): she replaces your boat, where you are. The page starts again in her, as the
+        // Office's Take her does (a host's crew follow); the place on the map is kept.
+        if (!this.client) {
+          const url = FLEET.some((f) => f.id === ref) ? restartIn(ref) : restartInDesign(ref);
+          url.searchParams.delete('start');
+          this.rememberVoyagePlace(Infinity);
+          this.overlay.notify('Starting again in her, where you are (in VR: enter VR again once she is loaded)', 4);
+          this.restartPage(url);
+          return;
+        }
+        this.pushEnvIntent('launchBoat', 1, ref);
+        this.launchAskedAt = performance.now();
+        this.overlay.notify('Asking the harbour for a berth for her...', 3);
       },
       lastBoat: () => {
         const ref = this.lastBoatRef();
@@ -2652,9 +2672,11 @@ export class App {
         if (ref) this.menuHost().launchBoat(ref);
       },
       withdrawBoat: () => this.pushEnvIntent('withdrawBoat', 1),
+      canHandBack: () => !!this.client && !!ownedBoat(this.world, this.localPlayerId),
       myBoat: () => {
-        const mine = ownedBoat(this.world, this.localPlayerId);
-        if (!mine) return 'None: you sail with the host';
+        // Alone or hosting, your boat is the game's own: a launch replaces her.
+        const mine = this.client ? ownedBoat(this.world, this.localPlayerId) : this.world.vessels[this.world.homeVesselId ?? ''];
+        if (!mine) return 'None yet: launch one of your own';
         const name = this.boatLabel(mine.defId);
         if (mine.mooring.phase === 'moored') return `${name}, moored at ${(mine.mooring.berthId && berthWithId(mine.mooring.berthId)?.name) ?? 'the quay'}`;
         return mine.anchor.phase === 'set' ? `${name}, at anchor off the harbour` : `${name}, under way`;
@@ -3124,12 +3146,13 @@ export class App {
       ensureBoatTypes(world);
       // The host's boats become ours to draw (multi-boat M5: no restart to become the host's
       // boat; a view here for a boat of another type is rebuilt for hers).
+      // Become the player the host made for us first (both pages start as player-1: taken
+      // under the old id, our own state wrote over the host's player in the copy).
+      this.movePlayer(playerId);
       this.adoptHostWorld(world);
       this.togetherTries = 0; // in: no more retries if this game ends
       this.inSharedGame = true;
       showGameOnAddress(this.joinCode);
-      // Become the player the host made for us; keep standing where we are.
-      this.movePlayer(playerId);
       this.overlay.notify('Joined: you are aboard the host\'s world', 3);
     };
     client.onClosed = (reason) => {
@@ -3295,13 +3318,14 @@ export class App {
       this.mountOnHomeBoat();
       this.wireHomeBoat();
     }
-    const home = world.homeVesselId && world.vessels[world.homeVesselId];
-    if (me && home) {
-      const at = myVessel ? home.position : me.position;
-      const far = Math.hypot(at[0] - home.position[0], at[2] - home.position[2]) > CONFIG.lod.near;
-      if ((myVessel && (myVessel === home.id ? rewire : !world.vessels[myVessel])) || (!myVessel && far)) {
-        this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: home.id });
-      }
+    // Aboard the boat the host is on (her own, or one she's stepped aboard), else the game's
+    // own: a page's own start boat has the same id as the host's, so it's always boarded anew.
+    const hostPeer = this.joinCode.length === 5 ? peerIdForRoom(this.joinCode) : '';
+    const host = Object.values(world.players).find((p) => p.peerId && p.peerId === hostPeer);
+    const hostBoat = host?.aboardVesselId && playerBoats(world).some((v) => v.id === host.aboardVesselId) ? world.vessels[host.aboardVesselId] : undefined;
+    const target = hostBoat ?? (world.homeVesselId ? world.vessels[world.homeVesselId] : undefined);
+    if (me && target && (rewire || myVessel !== target.id || !myVessel)) {
+      this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: target.id });
     }
   }
 

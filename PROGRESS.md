@@ -5384,6 +5384,21 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/voyagePlan.test.ts` (+1): the host's Go moves it, a crew-mate's doesn't, Go to the table lands there, kept in the save (an unknown port dropped).
 - **Checked:** typecheck, `npm test`, headless Chromium (Oban: Go to Brandy Rock pier, the table moved there, on the pier's timber deck, level; Go to the table put the player beside it). **Not checked:** VR; two players by hand.
 
+### Multiplayer fix: a launch replaces your boat; Go sends your own boat; joining puts you aboard the host's (owner, Oct 2026)
+
+- **What went wrong** (owner: "I spawned in randomly at an anchorage ... joined ... I couldn't see any other player boats ... the pilot boat appeared, but it wasn't in the place ... and there was no player inside it"; then the clue: "when I ... spawn in one of my favourites, it spawns it in addition. It doesn't replace the boat you're in"):
+  1. Alone or hosting, **Launch** added a second boat beside the game's own pilot boat (often at anchor, the harbour full), and you went aboard her.
+  2. A crew-mate joining was put aboard the game's own boat, the empty pilot boat, not the one the host was on.
+  3. The crew-mate's **Go** sent the boat the page called hers. Both pages start with the same ids (`vessel-1`, `player-1`), so that was the host's pilot boat, moved by someone else.
+  4. On joining, the crew page took the host's world while still under its own player id (`player-1`, the host's too), so its own state wrote over the host's player in its copy for a moment.
+- **Fixes** (`app/App.ts`):
+  - **Launch alone or hosting replaces your boat:** the page starts again in her where you are, as Office → Take her does (a fleet boat `?boat=`, a design `?design=`; `?start` dropped and the place remembered first, so she's where you were). A host's crew follow, as for any change of boat. As crew, Launch is as it was: a boat of your own.
+  - **Go sends your own boat, with you aboard:** alone or hosting, the game's own boat; crew, the one you launched. With none yet, it says to launch one and moves nothing.
+  - **Joining:** the crew page takes the host's id for its player first, then the host's world. It's then put aboard the boat the host is on (the host's player recognised by its network id), else the game's own.
+  - **Crew → Your boat:** alone or hosting, it names your boat (the game's own) instead of "you sail with the host"; **Hand her back** only for a boat you launched as crew (`MenuHost.canHandBack`).
+- **Two-browser check** (`npm run crewcheck`, now 25 checks): alone, the host launches the small tug and the page starts again in her, one boat; the crew (started in the fishing boat) joins and is aboard the host's boat; her Go with no boat of her own leaves the host's boat where it was; she launches, Go sends her boat 4.5 km to Keills pier with her aboard, the host's boat stays, both pages put her boat in the same place (0 m apart).
+- **Checked:** typecheck, `npm test`, `npm run crewcheck` (25 of 25). **Not checked:** VR, and a Quest joining a desktop host by hand.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

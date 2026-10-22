@@ -3,10 +3,15 @@
  * profiles, a host and a crew-mate, join one Voyage game through the real PeerJS broker,
  * exactly as two players would, and the multi-boat features are checked end to end:
  *
- *   1. join      the host starts a game; the crew page (started in another boat, the small
- *                tug) joins with the code, and takes the host's world without reloading;
+ *   0. launch    alone, the host launches the small tug: she replaces the pilot boat (the
+ *                page starts again in her), one boat in the world, not two;
+ *   1. join      the host starts a game; the crew page (started in another boat, the fishing
+ *                boat) joins with the code, takes the host's world without reloading, and
+ *                is aboard the boat the host is on;
  *   2. crew      both pages list both players; the host mutes and unmutes the crew-mate;
- *   3. launch    the crew launches her own boat: she's in both worlds, owned, the crew aboard;
+ *   3. launch    Go with no boat of her own moves nothing; the crew launches her own boat:
+ *                she's in both worlds, owned, the crew aboard; Go sends her (and the crew)
+ *                to another harbour, the host's boat stays, both pages agree where she is;
  *   4. tow       a barge astern of the crew's boat; the crew makes her towline fast to it
  *                from her own page: the host's world has her line, and her page shows it;
  *   5. plan      the crew presses a stop onto the planning table's chart from her page (its
@@ -61,9 +66,19 @@ const settle = async (ms = 4000) => {
 };
 
 try {
-  // ── 1. Join ──
+  // ── 0. The host's launch, alone: she replaces the boat ──
   await A.goto(`${BASE}/voyage.html?map=${MAP}&start`, { timeout: 240000 });
   await ready(A);
+  await Promise.all([A.waitForNavigation({ timeout: 240000 }), A.evaluate(() => window.app.menuHost().launchBoat('smallTug'))]);
+  await ready(A);
+  const alone = await A.evaluate(async () => {
+    const { playerBoats } = await import('/src/core/launch.ts');
+    const a = window.app;
+    return { home: a.world.vessels[a.world.homeVesselId]?.defId, boats: playerBoats(a.world).length, my: a.menuHost().myBoat() };
+  });
+  check('alone, a launch replaces your boat (the page starts again in her): one boat, hers', alone.home === 'smallTug' && alone.boats === 1, `${alone.home}, ${alone.boats} boat(s): ${alone.my}`);
+
+  // ── 1. Join ──
   await A.evaluate(() => window.app.menuHost().hostGame());
   let code = '';
   for (let i = 0; i < 40 && !code; i++) {
@@ -71,7 +86,7 @@ try {
     code = await A.evaluate(() => window.app.hostCode || '');
   }
   check('the host starts a game and gets a code', /^\d{5}$/.test(code), code);
-  await B.goto(`${BASE}/voyage.html?map=${MAP}&start&boat=smallTug`, { timeout: 240000 });
+  await B.goto(`${BASE}/voyage.html?map=${MAP}&start&boat=fishingBoat`, { timeout: 240000 });
   await ready(B);
   const crewBoatBefore = await B.evaluate(() => window.app.world.vessels[window.app.testVesselId]?.defId);
   // A mark on the page itself: gone if the page reloads (the game writes the code into the
@@ -98,6 +113,12 @@ try {
   check("the crew page took the host's world (her own start boat was another type)", joined.home === hostHome && crewBoatBefore !== hostHome, `crew started in ${crewBoatBefore}, host's boat ${hostHome}, crew now sees ${joined.home}`);
   const samePage = await B.evaluate(() => window.__crewCheck === 'same page');
   check('without reloading the page', samePage);
+  await settle();
+  const aboardHost = await B.evaluate(() => {
+    const a = window.app;
+    return { me: a.world.players[a.localPlayerId]?.aboardVesselId ?? null, home: a.world.homeVesselId };
+  });
+  check("the crew is aboard the host's boat", aboardHost.me === aboardHost.home, JSON.stringify(aboardHost));
 
   // ── 2. Crew list and mute ──
   const listA = await A.evaluate(() => [0, 1, 2].map((i) => window.app.menuHost().crewMember(i)));
@@ -110,7 +131,13 @@ try {
   const unmuted = await A.evaluate(() => !window.app.menuHost().crewMember(1)?.muted);
   check('the host mutes and unmutes the crew-mate', muted && unmuted);
 
-  // ── 3. Launch ──
+  // ── 3. Launch, and Go ──
+  const homeBefore = await A.evaluate(() => window.app.world.vessels[window.app.world.homeVesselId].position.map(Math.round));
+  const far = await B.evaluate(() => window.app.menuHost().ports().findIndex((p, i) => i > 0 && p));
+  await B.evaluate((i) => window.app.menuHost().teleportToPort(i), far);
+  await settle();
+  const homeStill = await A.evaluate(() => window.app.world.vessels[window.app.world.homeVesselId].position.map(Math.round));
+  check("the crew's Go with no boat of her own leaves the host's boat where she is", JSON.stringify(homeStill) === JSON.stringify(homeBefore), `${homeBefore} -> ${homeStill}`);
   await B.evaluate(() => window.app.menuHost().launchBoat('smallTug'));
   // Her page sees her new boat, then asks to board her: two round trips.
   await settle();
@@ -123,6 +150,21 @@ try {
   check("the crew's launch reaches the host: her own boat in the host's world", !!launched, launched?.id);
   const crewSees = await B.evaluate(() => ({ my: window.app.menuHost().myBoat(), aboard: window.app.world.players[window.app.localPlayerId]?.aboardVesselId }));
   check('the crew sees her boat and is aboard her', !!launched && crewSees.aboard === launched.id && !crewSees.my.startsWith('None'), crewSees.my);
+  if (launched) {
+    // Go to another harbour: her boat goes, with her aboard; the host's stays.
+    const ports = await B.evaluate(() => window.app.menuHost().ports().map((p) => p?.name ?? ''));
+    const to = ports.findIndex((n, i) => i > 2 && /pier|harbour|quay|marina/i.test(n));
+    await B.evaluate((i) => window.app.menuHost().teleportToPort(i), to);
+    await settle();
+    await settle();
+    const hostSide = await A.evaluate(([id, crewId]) => ({ boat: window.app.world.vessels[id].position.map(Math.round), aboard: window.app.world.players[crewId]?.aboardVesselId, home: window.app.world.vessels[window.app.world.homeVesselId].position.map(Math.round) }), [launched.id, crewId]);
+    const crewSide = await B.evaluate((id) => ({ boat: window.app.world.vessels[id]?.position.map(Math.round), aboard: window.app.world.players[window.app.localPlayerId]?.aboardVesselId }), launched.id);
+    const moved = Math.hypot(hostSide.boat[0] - hostSide.home[0], hostSide.boat[2] - hostSide.home[2]);
+    check(`the crew's Go sends her boat to ${ports[to]}, with her aboard (the host's world)`, moved > 200 && hostSide.aboard === launched.id, `${Math.round(moved)} m from the host's boat, crew aboard ${hostSide.aboard}`);
+    check("the host's boat stayed put", JSON.stringify(hostSide.home) === JSON.stringify(homeBefore), `${homeBefore} -> ${hostSide.home}`);
+    const apart = crewSide.boat ? Math.hypot(crewSide.boat[0] - hostSide.boat[0], crewSide.boat[2] - hostSide.boat[2]) : Infinity;
+    check("both pages agree where the crew's boat is, and that she's aboard", apart < 15 && crewSide.aboard === launched.id, `${Math.round(apart)} m apart`);
+  }
 
   // ── 4. Tow ──
   if (launched) {

@@ -149,6 +149,7 @@ function fakeHost() {
     tutorialRestart: () => calls.push('restart'),
     crewList: () => 'Just you',
     planLine: () => 'No plan yet',
+    canHandBack: () => false,
     boatFavourite: () => 'The small tug',
     canSaveBoat: () => true,
     saveBoatFavourite: () => calls.push('save boat'),
