@@ -5066,6 +5066,43 @@ export const CONFIG = {
     drawDistance: 9000,
   },
   /**
+   * Surf on the shore (the coast extras plan, C5; world/surf.ts, heard by audio/surfAudio.ts):
+   * the owner's rule, heard only with your engine off and the waves over a height.
+   *   minHs, fullHs  the surf's height (m, significant, after the shelter) where it starts to be
+   *             heard, and where it's at full
+   *   rays, radii  where it's looked for: this many bearings round you, at these distances (m)
+   *   near, hearRange  full within `near` m, fading to nothing at `hearRange`
+   *   lee       a shore with its back to the waves is this share as loud as one they run onto
+   *   spread    a long shore all round you is up to this much louder than one stretch
+   *   kinds     each shore kind's mix (the shore map, C3): boom (a low thump as a breaker
+   *             lands), wash (the broken water running up), hiss (spray, and shingle's
+   *             rattle on the backwash); 'none' where the map says nothing (and the
+   *             hand-built islands)
+   *   every     a whole look round takes this long (s; a few bearings a frame)
+   *   gain      its loudness at full (the Sea & effects bus)
+   *   engineFade  how fast it fades out when your engine starts and back when it stops (s)
+   */
+  surf: {
+    minHs: 0.4,
+    fullHs: 2.0,
+    rays: 24,
+    radii: [10, 25, 45, 70, 100, 140, 190, 250, 320, 400, 500],
+    near: 40,
+    hearRange: 500,
+    lee: 0.3,
+    spread: 0.3,
+    kinds: {
+      none: { boom: 0.5, wash: 0.8, hiss: 0.4 },
+      sand: { boom: 0.25, wash: 1, hiss: 0.3 },
+      shingle: { boom: 0.3, wash: 0.65, hiss: 1 },
+      rock: { boom: 1, wash: 0.6, hiss: 0.5 },
+      cliff: { boom: 1, wash: 0.45, hiss: 0.6 },
+    } as Record<'none' | 'sand' | 'shingle' | 'rock' | 'cliff', { boom: number; wash: number; hiss: number }>,
+    every: 0.5,
+    gain: 0.55,
+    engineFade: 1.5,
+  },
+  /**
    * Place names in the radio's calls (the coast extras plan, C4; world/places.ts): the nearest
    * name within `reach` m ("off Toward Point"), each rank down (a hamlet against a town) counting
    * `rankWeight` of its distance more; "in" a bay, sound or strait within `inside` m of its name.

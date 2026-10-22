@@ -6598,7 +6598,7 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Names on the chartplotter and the paper chart, thinned out by zoom (sounds and islands first, then bays and villages, then headlands and skerries), kept clear of the soundings and marks.
 - Radio calls and job messages give the nearest name ("a dinghy adrift off Toward Point") as well as the position.
 
-**C5. Sound from the map (owner's 2).**
+**C5. Sound from the map (owner's 2).** *Cut down by the owner to surf only (22 Oct 2026); done, see "Coast extras C5" below. The rest of this list was dropped.*
 - **Foghorns:** at lights the data says have a fog signal, sounding their charted pattern in fog, heard miles off.
 - **A church bell on the hour:** from the church buildings, heard across a calm harbour.
 - **Gulls and shore sounds:** gulls over harbours and fish quays; surf on exposed rocky shores (from C3's rock) in a swell; livestock faintly from farmland, where the wind carries it.
@@ -6618,6 +6618,30 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 **C8. Tuning across all maps (settlements milestone 7, moved here).**
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
+
+### Coast extras C5: surf on the shore (done, awaiting owner test)
+
+Owner: "the only sounds I think that really make sense are surf, if the wave's height over a certain height, let's say, and your engine's off, because you don't hear most of the sounds when your engine's on." Then "Next milestone?".
+
+- **Where it breaks** (`src/world/surf.ts`): waves break roughly where the water is shallower than 1.3 times their height. Looking out from you along `rays` 24 bearings to 500 m (`radii`), the first place each bearing crosses that depth is its surf line: from deep to shallow when you're afloat, from shore to sea when you're ashore. Aground or wading, it's right where you are.
+- **How loud:**
+  - **The surf's height:** the open sea's significant height times the shelter at that stretch of shore (the waves' amplitudes just seaward of the line against the open sea's). So a bay behind a headland, or a sea loch, stays quiet when the open coast is roaring. Nothing below `minHs` 0.4 m, full at `fullHs` 2 m. For scale: the Debug menu's Slight sea is 0.65 m (faint surf on an open shore), Moderate 1.3 m, Rough 2.3 m; the weather's Clear (5 m/s wind) builds 0.8 m, Squall 2.7 m.
+  - **Which way the shore faces:** a shore the waves run onto is at full; one with its back to them is `lee` 0.3 as loud.
+  - **Distance:** full within `near` 40 m, fading to nothing at `hearRange` 500 m.
+  - A long shore all round you is up to `spread` 0.3 louder than one stretch.
+- **Only with your engine off** (the owner's rule): it fades out over about `engineFade` 1.5 s when the engine of the boat you're aboard starts, and back when it stops. Ashore or in the water you always hear it. Muffled inside the wheelhouse, more with the doors shut, like the wind.
+- **What it sounds like** (`src/audio/surfAudio.ts`), made in code from noise, no sound files:
+  - each breaker comes in time with the biggest swell's period, give or take 15%, with every seventh one of a set bigger;
+  - three parts: a low **boom** as it lands, the **wash** running up the shore over a low murmur, and a **hiss** (spray at the crash, then the backwash);
+  - **mixed by what the shore is made of** (C3's shore map, `kinds`): rock and cliff boom; shingle rattles as the backwash drags the stones; sand washes long and soft; where the map says nothing (most of the Clyde's foreshore, and the hand-built islands), a middle mix;
+  - **placed where the surf is** (a panner at the shore, cheap equal-power panning), so you can tell which way the shore lies, in fog too.
+- **The cost:** no drawing. A whole look round costs about 0.05 ms in the browser, spread over half a second (`every` 0.5 s, a few bearings a frame); five noise filters and a panner in the audio.
+- **Works on every map,** the hand-built career islands too, where the ground is.
+- **Tests:** `tests/surf.test.ts` (6), on a stretch of the hand-built islands' shore facing open water: nothing in a calm or a slight sea; heard off the shore in a 1.5 m swell, louder nearer and in a bigger sea, nothing 700 m out; heard from the shore's side; a third as loud with the waves running off the shore; rock booms, sand washes and shingle hisses; spread over frames, the same answer.
+- **Checked headless:** at Oban (a rocky stretch, boom-heavy mix) and on the Clyde, aboard with a 1.8 m swell: the surf found 100-140 m off, its volume up with the engine off and down to nothing once the engine runs; no errors. **Not checked:** how it sounds. Headless has no ears, so the sound itself is for your test. The levels are first guesses (`CONFIG.surf.gain` and `kinds`).
+- **Test steps:**
+  - **Desktop:** Voyage → Oban and Lorn. Set a big sea: Menu → Debug → Sea → **Rough** (about 2.3 m), with Weather → **Fixed weather** so the wind doesn't take it back. Motor out of Oban Bay, then stop the engine within a couple of hundred metres of the rocks on the open side of Kerrera or the shore north of Ganavan: you should hear breakers in time with the swell, from the shore's side. Turn your head (or the view): the sound stays with the shore. Start the engine and it fades away. Then try a sand beach (Ganavan Bay) for the softer wash.
+  - **VR:** the same. Also step into the wheelhouse and shut the doors: the surf goes dull and quiet. Tell me if it's too loud, too quiet, or doesn't sound like surf; the levels are easy to change.
 
 ### Coast extras C7: ferries on the real routes (done, awaiting owner test)
 
@@ -7421,7 +7445,7 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
 
-- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6), C1-C4 and C7 (ferries) are done; C5 (surf only) is next, then C6, C8. The owner says "Next milestone" to advance, as before.
+- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6), C1-C5 and C7 are done (C5 as surf only, by the owner's choice); C6 (charted hazards) is next, then C8. The owner says "Next milestone" to advance, as before.
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 
