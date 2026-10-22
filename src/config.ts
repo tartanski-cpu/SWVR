@@ -3145,6 +3145,8 @@ export const CONFIG = {
      * that carries it.
      */
     shrink: { beam: 0.65, depth: 0.75 },
+    /** A wheelhouse offset across her (design.houseX): its outer wall kept this far (m) inside her deck edge, clear of her bulwark. */
+    offsetEdge: 0.08,
     /** Windows raked out all round (owner: a tug's or supply vessel's bridge): the side and aft windows lean out this far from vertical (deg), from their sill up to the roof. */
     flareDeg: 15,
     /** The roof's visor: how far it reaches forward of the top of the front windows (m), overlapping them. One set length now (owner: no slider for it; it was 0.15 to 0.75). */

@@ -8073,3 +8073,17 @@ Owner, Oct 2026: "go to step 3, the stern trawler hull". The Shipyard's sixth hu
     2. Slide Length from shortest to longest; no warnings.
     3. Trials & handover → into the game. On a fishing ground, TRAWL on, tow at 2–4.5 kn, haul. The boxes go down the hold.
   - **VR:** the same. Stand on her working deck between the winches, then go up into the wheelhouse on the whaleback and look aft over the deck.
+
+### The landing craft's wheelhouse offset to port or starboard (done, awaiting owner test)
+
+Owner, Oct 2026 (a plan view of a landing craft with the narrowest wheelhouse): "on the landing craft only, I would like the ability to offset the wheelhouse when it's narrow enough ... to the port or starboard".
+
+- **Design:** `houseX` (design.ts: step 20 the centreline, 5 cm a step, ±1 m; `houseOffsetM`). Not in the short code: a link or file. The Wheelhouse step's **Offset** slider (Size and place) shows only on a hull type with `offsetHouse` (catalog.ts: the landing craft), and says where it went.
+- **How far:** as far as leaves the house's outer wall `CONFIG.shipyard.offsetEdge` (0.08 m) inside her deck edge all along it (housePart, warned when it's less than asked: a 1.2 m-inside house on the default landing craft goes 0.61 m). Not with a deckhouse under it or an overhead aft (both built on her centreline): it stays there, and the Shipyard says why.
+- **One frame for the house:** `layout.wheelhouse.x` (vesselDef.ts `houseX`) says where the house's middle stands; everything else in the wheelhouse layout stays in the house's own frame (its walls at ±halfWidth, door, steps, console span, floor holes). Whatever reads it adds `x`:
+  - the mesh (hullMesh.ts: the house built as before, then moved across; the deck cut under a sunk floor follows it; the floor's hatch taken across into the house's frame);
+  - where you walk (layout.ts houseWalk: points taken across from its middle; her gear and the chart table stay in her axes);
+  - the player's walls (body.ts), cargo kept off it (cargo/deck.ts), the doors (boatView.ts), rain on the glass (rainGlass.ts), what's hidden from outside (interiorDetail.ts), App's checks (door, chart table, rain shelter, parts count).
+- **The Shipyard:** the house laid out as before from its own middle, then its places moved across with it: places.ts (every place in and on it, not the engine's), house.ts (the chart table, the side door's buttons and the side deck it opens onto), furniture.ts (laid out in the house's frame, the pins and the chart table and hatch taken across), engineRoom.ts (a hatch in the cabin floor within its moved walls, over the engine), deckGear.ts (the house's footprint deck gear keeps off, the roof gear stands on, the life ring and the rod rack), hullDef.ts (the extinguisher, torch, binoculars, line gun), recipe.ts (the nav lights), pinGear.ts (a pin on its roof).
+- **Not modelled:** an offset house's weight doesn't heel her (her weights have no athwartships centre).
+- **Checked:** tests/shipyard/houseOffset.test.ts (to port as far as her deck allows, its wall inside her deck edge, the helm, door buttons and cabin light moved with it, a valid recipe; to starboard: its floor walked inside, its wall solid, the side deck beside it walked, out of its aft door; only the landing craft, not with a deckhouse, not in the code). Headless Chromium: the Shipyard (plan, both sides) and the game (at the helm, looking aft out of the door, from the quay), to port and to starboard. Full suite passes. **Not checked:** the Quest (walking round it).

@@ -14,7 +14,7 @@ import type { MachineryPart } from './engineRoom';
 /** The places inside and on the wheelhouse (vessel axes), as the landing craft's are from her cabin: the helm, the wall panels, what hangs under the roof, the floods, the cleats. */
 export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart) {
   const { d } = a;
-  const { F, FA, aft, bowRamp, bulwarkHeight, cf, consoleHalf, cx, engH, engMid, engTopAt, foreEndAt, front, house, hw, q, rnd, roofAt, roofBack, roofFront, roofThickness, roofTopAt, roofY, sb, sill, stem, transom, wall, windowHead, zHead } = p;
+  const { F, FA, aft, bowRamp, bulwarkHeight, cf, consoleHalf, cx, engH, engMid, engTopAt, foreEndAt, front, house, hw, hx, q, rnd, roofAt, roofBack, roofFront, roofThickness, roofTopAt, roofY, sb, sill, stem, transom, wall, windowHead, zHead } = p;
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
   /** Where a unit hung from the roof out to port / starboard goes: toward that side (`out` m from the centreline), no further than in view from the wheel. */
   const toPort = (out: number) => Math.round(Math.max(-out, cx - CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
@@ -63,6 +63,9 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     floodFore: [-wl.flood.x, rnd(roofTopAt(front) - roofThickness / 2), rnd(zHead - house.visor + roofBack / 2 + sb(wl.flood.x + 0.11) - wl.flood.out)] as V3,
     floodAft: [-wl.flood.x, rnd(roofTopAt(aft) - roofThickness / 2), rnd(aft + (p.layout.roof?.overhang ?? 0) + wl.flood.out)] as V3,
   };
+  // A wheelhouse offset across her (housePart `hx`): its places were laid out from its own
+  // middle, so they move across with it (not her engine's).
+  if (hx) for (const [k, v] of Object.entries(at)) if (k !== 'engineBed' && k !== 'engineSpace') v[0] = rnd(v[0] + hx);
   /**
    * Where each flood aims and how wide its beam is (owner, Oct 2026: "you actually get some
    * bleed into the cabin"): the game's lights cast no shadows, so the wheelhouse's walls and
@@ -121,8 +124,8 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     { id: 'navDisplay', type: 'cabin.overhead', transform: { position: at.navDisplay }, label: 'Overhead, on the centreline ahead of the helm' },
     { id: 'whiteboard', type: 'cabin.overhead', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Under the roof by the aft wall, port of the door: the pull-down whiteboard' },
     { id: 'dutyBoard', type: 'wall.panel', transform: { position: at.dutyBoard, rotationDeg: [0, -90, 0] }, label: 'Starboard wall, aft' },
-    { id: 'doorIn', type: 'wall.panel', transform: { position: [0.45, FA + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
-    { id: 'doorOut', type: 'wall.panel', transform: { position: [0.45, FA + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
+    { id: 'doorIn', type: 'wall.panel', transform: { position: [rnd(hx + 0.45), FA + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
+    { id: 'doorOut', type: 'wall.panel', transform: { position: [rnd(hx + 0.45), FA + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
     ...(rampBow
       ? ([
           { id: 'rampCabin', type: 'wall.panel', transform: { position: at.rampButton, rotationDeg: [-90, -90, 0] }, label: 'Port wall, by the helm' },
@@ -134,8 +137,8 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     { id: 'floodFore', type: 'hull.light', transform: { position: at.floodFore }, label: 'Roof edge, forward: the foredeck flood' },
     { id: 'floodAft', type: 'hull.light', transform: { position: at.floodAft }, label: 'Roof edge, aft: the aft deck flood' },
     { id: 'navLights', type: 'hull.light', transform: { position: at.navLights }, label: 'Cabin roof: the navigation lights' },
-    { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTopAt(roofFront + 0.775), roofFront + 0.775] }, label: 'Cabin roof (nominal)' },
-    { id: 'wipers', type: 'window.wiper', transform: { position: [0, roofY - 0.2, front] }, label: 'Over the front windows (nominal)' },
+    { id: 'horn', type: 'roof.mount', transform: { position: [hx, roofTopAt(roofFront + 0.775), roofFront + 0.775] }, label: 'Cabin roof (nominal)' },
+    { id: 'wipers', type: 'window.wiper', transform: { position: [hx, roofY - 0.2, front] }, label: 'Over the front windows (nominal)' },
   ];
   return { wheelhouseSockets, at, bowCleat, cleat, floodLamps, helmAssist, midCleat, rampBow, sternCleat, wl };
 }

@@ -43,7 +43,7 @@ import type { FireMonitorApi } from '../modules/fireMonitor';
 import type { FireGauge } from '../fire/fireGauge';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { TenderCraneView } from '../controls/TenderCraneView';
-import { hasWheelhouse, houseFloorAt, houseFloorLow, housesOf, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
+import { hasWheelhouse, houseFloorAt, houseFloorLow, housesOf, houseX, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
 import { hullPlan, STEP_HEIGHT, vesselWalkArea, type WalkArea } from '../vessel/layout';
@@ -1513,7 +1513,7 @@ export class App {
     if (this.partsIn <= 0 && root) {
       this.partsIn = 0.5;
       const wh = this.testDef.layout.wheelhouse;
-      const n = countBoatParts(root, (p) => Math.abs(p.x) < wh.halfWidth && p.z > wh.front && p.z < wh.aft && p.y > wh.floorY - 0.2 && p.y < wh.roofY);
+      const n = countBoatParts(root, (p) => Math.abs(p.x - houseX(wh)) < wh.halfWidth && p.z > wh.front && p.z < wh.aft && p.y > wh.floorY - 0.2 && p.y < wh.roofY);
       const mods = this.homeView?.moduleList ?? [];
       const shared = Object.entries(this.homeView?.sharedCounts ?? {}).map(([k, c]) => `${c} ${k}`);
       this.partsText = `\nboat parts drawn ${n.drawn} (wheelhouse ${n.inside})${shared.length ? `\nshared parts (one draw each): ${shared.join(', ')}` : ''}\nmodules ${mods.length}: ${mods.join(', ') || 'none'}`;
@@ -2082,8 +2082,8 @@ export class App {
     const aftShut = v.controls.door <= 0.5;
     const sideShut = !!sd && (v.controls.sideDoor ?? 0) <= 0.5;
     if (!aftShut && !sideShut) return area;
-    const inAft = (x: number, z: number, y: number) => aftShut && Math.abs(x) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < houseFloorAt(wh, wh.aft) + 0.5;
-    const inSide = (x: number, z: number, y: number) => sideShut && !!sd && Math.abs(x + wh.halfWidth) < 0.3 && z > sd.z0 - 0.15 && z < sd.z1 + 0.15 && y < wh.floorY + 0.5;
+    const inAft = (x: number, z: number, y: number) => aftShut && Math.abs(x - houseX(wh)) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < houseFloorAt(wh, wh.aft) + 0.5;
+    const inSide = (x: number, z: number, y: number) => sideShut && !!sd && Math.abs(x - houseX(wh) + wh.halfWidth) < 0.3 && z > sd.z0 - 0.15 && z < sd.z1 + 0.15 && y < wh.floorY + 0.5;
     return { ...area, walkable: (x, z, y) => area.walkable(x, z, y) && !inAft(x, z, y) && !inSide(x, z, y) };
   }
 
@@ -4423,7 +4423,7 @@ export class App {
     const wh = this.testDef.layout.wheelhouse;
     const boat = this.vesselViews.get(this.testVesselId)?.root;
     const l = boat ? boat.worldToLocal(this.tableRef.copy(this.focus)) : this.tableRef.set(0, wh.floorY, 0); // the wheelhouse's frame
-    const near = Math.abs(l.x) < wh.halfWidth + 0.3 && l.z > wh.front - 0.3 && l.z < wh.aft + 0.6 && l.y > wh.floorY - 0.5;
+    const near = Math.abs(l.x - houseX(wh)) < wh.halfWidth + 0.3 && l.z > wh.front - 0.3 && l.z < wh.aft + 0.6 && l.y > wh.floorY - 0.5;
     this.chartTable.setDetail(near);
     if (this.chartTools) this.chartTools.root.visible = near;
     this.chartTools?.refresh(this.marks);
@@ -4644,7 +4644,7 @@ export class App {
     const ax = this.windV.x - (v?.linearVelocity[0] ?? 0);
     const az = this.windV.z - (v?.linearVelocity[2] ?? 0);
     // In any of her houses (P2a): the sound inside, out of the weather.
-    const inside = !!v && v.id === this.testVesselId && housesOf(this.testDef.layout).some((wh) => Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3);
+    const inside = !!v && v.id === this.testVesselId && housesOf(this.testDef.layout).some((wh) => Math.abs(p.position[0] - houseX(wh)) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3);
     this.insideHouse = inside;
     // How shut-in the wheelhouse is: the aft door decides.
     const home = this.homeView;
@@ -4682,8 +4682,8 @@ export class App {
       const hs = housesOf(this.testDef.layout);
       const ov = this.testDef.layout.roof.overhang;
       this.rainHouse.matrixWorld.copy(view.root.matrixWorld);
-      this.rainHouse.min.set(-Math.max(...hs.map((h) => h.halfWidth)) - ov, Math.min(...hs.map((h) => h.floorY)) - 1.5, Math.min(...hs.map((h) => h.front)) - ov);
-      this.rainHouse.max.set(Math.max(...hs.map((h) => h.halfWidth)) + ov, Math.max(...hs.map((h) => h.roofY)) + 0.3, Math.max(...hs.map((h) => h.aft)) + ov);
+      this.rainHouse.min.set(Math.min(...hs.map((h) => houseX(h) - h.halfWidth)) - ov, Math.min(...hs.map((h) => h.floorY)) - 1.5, Math.min(...hs.map((h) => h.front)) - ov);
+      this.rainHouse.max.set(Math.max(...hs.map((h) => houseX(h) + h.halfWidth)) + ov, Math.max(...hs.map((h) => h.roofY)) + 0.3, Math.max(...hs.map((h) => h.aft)) + ov);
       house = this.rainHouse;
     }
     windVector(env, this.windV);

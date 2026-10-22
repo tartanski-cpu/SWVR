@@ -723,7 +723,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -838,6 +838,12 @@ section('2. Wheelhouse');
   measure('houseLength', 'Length', (v) => m(v));
   // (Its share of the room between her side decks sets it; shown as what that comes to.)
   measure('houseWidth', 'Width', (v) => (v >= 0.995 ? `${m(houseW())}, full` : m(houseW())));
+  // Offset across her (owner, Oct 2026: the landing craft's narrow wheelhouse to port or
+  // starboard): shows where it went (as far as her deck allows).
+  slider('houseX', 'Offset', () => {
+    const x = boat.hull.layout.wheelhouse?.x ?? 0;
+    return Math.abs(x) < 0.005 ? 'centreline' : `${Math.abs(x).toFixed(2)} m ${x < 0 ? 'to port' : 'to stbd'}`;
+  }).dataset.when = 'offsetHouse';
   measure('headroom', 'Headroom', (v) => m(v));
   measure('floor', 'Floor height', () => {
     const f = boat.figures.floorM;
@@ -2416,7 +2422,7 @@ function addPin(gearPicked?: string): void {
  */
 function placeFromPins(): void {
   const wh = VESSEL_DEFS.design.layout.wheelhouse;
-  const house = wh ? { front: wh.front, aft: wh.aft, halfWidth: wh.halfWidth } : undefined;
+  const house = wh ? { front: wh.front, aft: wh.aft, halfWidth: wh.halfWidth, x: wh.x } : undefined;
   for (const p of todo(notes)) {
     const eq = equipmentOf(p.gear);
     if (!eq || p.placed || p.done) continue;

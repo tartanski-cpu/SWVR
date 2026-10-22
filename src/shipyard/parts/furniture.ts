@@ -62,7 +62,7 @@ export function furnitureName(kind: FurnitureKind, i: number): string {
  */
 export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & EngineHatchPart & InteriorPart & HullDefPart) {
   const { d } = a;
-  const { FA, aft, cf, chartTableAt, ctab, cx, floorY, helmAft, hull, hw, layout, levels, roofAt, saloonL, sb, sideDoor, stack, transom, warnings, wall } = p;
+  const { FA, aft, cf, chartTableAt, ctab, cx, floorY, helmAft, hull, hw, hx, layout, levels, roofAt, saloonL, sb, sideDoor, stack, transom, warnings, wall } = p;
   const fc = CONFIG.shipyard.furniture;
   const mf = CONFIG.modules.furniture;
   const r2 = (v: number) => Math.round(v * 1000) / 1000;
@@ -88,10 +88,11 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   inHouse([cx - fc.helmRoom.halfWidth, cx + fc.helmRoom.halfWidth, cf, cf + 0.5 + fc.helmRoom.depth]);
   inHouse([-fc.doorWay.halfWidth, fc.doorWay.halfWidth, aft - wall - fc.doorWay.depth, aft + 0.1]);
   if (sideDoor) inHouse([-inside - 0.1, -inside + fc.doorWay.depth, sideDoor.z0 - 0.15, sideDoor.z1 + 0.15]);
-  if (chartTableAt) inHouse([chartTableAt[0], chartTableAt[0] + ctab.width + fc.chartRoom, chartTableAt[2] - 0.05, chartTableAt[2] + ctab.depth + 0.05]);
+  // (Laid out in the house's own frame: what's in her axes, the chart table and the hatch, taken across into it; housePart `hx`.)
+  if (chartTableAt) inHouse([chartTableAt[0] - hx, chartTableAt[0] - hx + ctab.width + fc.chartRoom, chartTableAt[2] - 0.05, chartTableAt[2] + ctab.depth + 0.05]);
   for (const h of layout.wheelhouse?.floorHoles ?? []) inHouse([h.x0 - fc.holeClear, h.x1 + fc.holeClear, h.z0 - fc.holeClear, h.z1 + fc.holeClear + 0.4]);
   const eh = layout.engineHatch;
-  if (eh && eh.y === undefined) inHouse([eh.x0 - 0.1, eh.x1 + 0.1, eh.z0 - 0.1, eh.z1 + 0.1]);
+  if (eh && eh.y === undefined) inHouse([eh.x0 - hx - 0.1, eh.x1 - hx + 0.1, eh.z0 - 0.1, eh.z1 + 0.1]);
   for (const pipe of stack?.pipes ?? []) inHouse([pipe.x - 0.3, pipe.x + 0.3, pipe.z - 0.3, pipe.z + 0.3]);
 
   const furnitureSockets: Socket[] = [];
@@ -102,7 +103,8 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   for (const piece of PIECES) {
     const pin = furnitureAt(d[piece.key] ?? 0);
     if (!pin) continue;
-    const px = pin.x;
+    // (Its pin in her axes; the house's floors in its own frame: an offset house's, across from its middle.)
+    const px = pin.x - hx;
     const pz = transom - pin.fromTransom;
     const floor = floors.find((f) => pz >= f.z0 - 0.3 && pz <= f.z1 + 0.3 && Math.abs(px) <= f.half(Math.min(f.z1, Math.max(f.z0, pz))) + 0.3);
     if (!floor) {
@@ -185,11 +187,12 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     blocked.push({ rect: [x0 - 0.02, x1 + 0.02, z0 - 0.02, z1 + 0.02], house: onHouse });
     const id = piece.id;
     const where = `${floor.name[0].toUpperCase()}${floor.name.slice(1)}, ${found.wall === 'free' ? 'standing free' : `against the ${found.wall} wall`}`;
-    furnitureSockets.push({ id, type: 'cabin.furniture', transform: { position: mid, rotationDeg: [0, yaw, 0] }, label: `${where}: the ${piece.name}` });
+    const put: V3 = [r2(mid[0] + hx), mid[1], mid[2]];
+    furnitureSockets.push({ id, type: 'cabin.furniture', transform: { position: put, rotationDeg: [0, yaw, 0] }, label: `${where}: the ${piece.name}` });
     const config: FurnitureConfig = { kind: piece.kind, length: L, depth: D, height };
     furnitureMounts.push({ socket: id, module: 'furniture.piece', config: config as unknown as Record<string, unknown> });
     furnitureKg += size.kg;
-    furniturePlaced[piece.key] = { x: mid[0], z: mid[2], moved: Math.hypot(mid[0] - px, mid[2] - pz) > fc.movedOver };
+    furniturePlaced[piece.key] = { x: put[0], z: mid[2], moved: Math.hypot(mid[0] - px, mid[2] - pz) > fc.movedOver };
   }
   // The cabin below's V-berth (drawn with her, hullMesh.ts): a place to lie down in it and rest
   // (owner, Oct 2026: "the berth ... in the cabin which appears under the wheelhouse"; modules/furniture REST_SPOT).

@@ -24,7 +24,7 @@ import type { HoldPart } from './hold';
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
   const { code, d, id } = a;
-  const { towHook, aFrame, ac, anchorAt, at, basketAt, bowCleat, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
+  const { towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
   const recipe = structuredClone(landingCraftRecipe) as unknown as Recipe;
   recipe.id = `vessel.${id}`;
@@ -146,12 +146,13 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (monitorFoot) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: [monitorFoot[0], r2(monitorFoot[1] + dp.nozzleHeight), monitorFoot[2]], pole: { deckY: monitorFoot[1] } } });
   else if (hasMonitor) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: monitorRoof } }); // its gauge: on the console, below
   const fl = houseFlare(layout.wheelhouse!);
-  const onFlaredRoof = ([x, y, z]: V3): V3 => (fl ? fl.at(x, y, z) : [x, y, z]).map((v, i) => (i === 1 ? v : r2(v))) as V3;
+  // (In the house's frame, then across to where it stands: an offset house's middle, `hx`.)
+  const onFlaredRoof = ([x, y, z]: V3): V3 => (fl ? fl.at(x, y, z) : [x, y, z]).map((v, i) => (i === 0 ? r2(v + hx) : i === 1 ? v : r2(v))) as V3;
   bySocket(recipe.modules, 'navLights')!.config = {
     // The masthead light on its own pole from the roof (no signal mast on her).
     mast: { footY: roofTopAt(roofFront + 0.475) },
     lights: {
-      masthead: [0, roofTopAt(roofFront + 0.475) + 1.1, roofFront + 0.475],
+      masthead: [hx, roofTopAt(roofFront + 0.475) + 1.1, roofFront + 0.475],
       // The sidelights on the house sides, above the windows, just aft of the header.
       // The sidelights on the roof's edges (the windows run up to it), just aft of the front glass.
       // (On the chamfered side at mid-thickness, just proud of it.)

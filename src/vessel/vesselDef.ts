@@ -72,6 +72,11 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
   };
 
 /** Every house she has, the helm's first (none: an open boat). */
+/** Where a house's middle stands across her (m, + starboard): its layout's `x`, else the centreline. */
+export function houseX(wh: { x?: number }): number {
+  return wh.x ?? 0;
+}
+
 export function housesOf(layout: { wheelhouse?: WheelhouseLayout; houses?: WheelhouseLayout[] }): WheelhouseLayout[] {
   return [...(layout.wheelhouse ? [layout.wheelhouse] : []), ...(layout.houses ?? [])];
 }
@@ -206,6 +211,14 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
   Partial<Pick<WorkboatLayout['wheelhouse'], 'sideDoor' | 'sideRaise' | 'frontSill' | 'frontRakeDeg'>> & {
     /** A shaped house (the Shipyard's): drawn by its own builder (hullMesh.ts buildShapedHouse). */
     shape?: HouseShape;
+    /**
+     * Where the house's middle stands across her (m, + to starboard; owner, Oct 2026: a narrow
+     * wheelhouse offset to port or starboard on the landing craft). Everything else in this
+     * layout is in the house's own frame, across from that middle (its walls at ±halfWidth, its
+     * door, steps, console, floor holes); whatever reads it adds this (houseX). Unset: 0, on her
+     * centreline.
+     */
+    x?: number;
     /**
      * The walls, windows and roof are the boat's own geometry (boats/oneOffViews.ts, the
      * Alaskan 38): the hull mesh draws only her floor, console and door steps. Everything
