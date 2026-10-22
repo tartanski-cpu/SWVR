@@ -47,6 +47,7 @@ import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import { homeVessel, type WorldState } from './world';
 import { regionAt } from '../world/regions';
+import { applyPlanIntent, isPlanIntent, stepPlan } from '../voyage/plan';
 
 /** Optional per-vessel diagnostics written during a tick (not part of WorldState). */
 export type SimDebug = Map<EntityId, HydroDebug>;
@@ -101,6 +102,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyFireIntent(world, intent);
     } else if (isTowIntent(intent.control)) {
       applyTowIntent(world, intent);
+    } else if (isPlanIntent(intent.control)) {
+      applyPlanIntent(world, intent);
     } else if (isTutorialIntent(intent.control)) {
       applyTutorialIntent(world, intent);
     } else if (isCareerIntent(intent.control)) {
@@ -208,6 +211,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepForecast(world);
   stepTraffic(world, dt);
   stepLaunched(world);
+  stepPlan(world);
   stepDuties(world);
   stepRescue(world, dt, simWaves);
   stepTow(world, dt);

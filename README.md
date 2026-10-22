@@ -215,6 +215,17 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 - It's printed like a real chart: depth tints and contours, soundings in metres, a latitude and longitude scale in tenths of a minute around the edge, and a compass rose.
 - **At night** you need the chart table lamp (or the cabin light) to read the chart. The chart, the whiteboard and the task board go dim and red after dark, like the panels, so they don't dazzle you. The chart lamp, a black gooseneck reading lamp standing on the table (a round base with a rocker switch, a long arching neck, a spot head aimed down at the chart), is turned down to a dim red at night. With the white cabin light on they stay whitish, but dimmed.
 
+### Voyage planning table (Voyage mode)
+
+On the quay where a Voyage map starts, a few steps behind where you begin, stands a big chart table for planning a voyage together. Everyone in the game works the same table and sees the same chart.
+
+- **The keys** along its near edge pick what a press on the chart does: **Waypoint**, **Stop** (it takes the nearest harbour's name), **Look at** (it takes the name of the nearest castle, monument, tower, hill, wreck or light), **Remove** (the point nearest your press) and **Zoom in** (on the spot you press). **Zoom out**, **Whole map** and **Undo** work at once; **Clear** takes every point off when pressed twice.
+- **Pressing the chart:** VR, point the controller at it and pull the trigger, or touch it with the controller's tip; desktop, click it.
+- **On the chart:** the route joined up and numbered, stops as squares, things to look at as diamonds, the next point ringed, your boats as blue arrows, and what's next along the chart's foot.
+- **Afloat:** every boat's chartplotter draws the route, and when no job wants you it steers for the plan's next point ("STOP 2 ROTHESAY 045° 2.3 nm"). When any of your boats gets there, everyone's told, and the next point comes up. The radio's rescues, tows and fires still come along the way.
+- **Voyage tab → Voyage plan:** the next point and how far, and **Go to the table** to put you ashore beside it.
+- The host's browser keeps the plan for each map, so it's there next time.
+
 ### Transit jobs and closing up
 
 - **Fenders:** press the fender basket on the aft deck (starboard) to put all six out over the side, or take them in. Out, they cushion her against a quay: a knock coming alongside a bit fast does less damage to her hull (or none).

@@ -27,6 +27,7 @@ import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
 import { startBerthId } from '../world/startSpot';
 import type { BerthDef } from '../world/defs';
+import type { VoyagePlan } from '../voyage/plan';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -114,6 +115,8 @@ export interface WorldState {
   spawned?: number;
   /** Boats players have launched so far (core/launch.ts): their ids count up. */
   launched?: number;
+  /** The crew's voyage plan from the planning table (Voyage mode; voyage/plan.ts). */
+  plan?: VoyagePlan;
 }
 
 export function createWorld(

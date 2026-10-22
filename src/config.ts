@@ -4765,6 +4765,37 @@ export const CONFIG = {
     rememberEveryS: 5,
     /** A remembered spot afloat is only taken with this much water there (m); else the map's start. */
     rememberMinDepth: 2.5,
+    /**
+     * The voyage planning table (owner, Oct 2026: "in the harbour that you spawn in, a large
+     * map table with a chart laid out ... that you can cooperatively plan on"; voyage/plan.ts,
+     * voyage/planTable.ts). A big chart table on the quay at the map's start, behind where
+     * you begin; the crew plan a route on it together (waypoints, stops, things to look at),
+     * and every boat's chartplotter then shows the route and steers for its next point.
+     *   maxPoints   points in a plan at most
+     *   reach       how near any player's boat must come to a point (m) for it to count as
+     *               reached and the next to come up: a waypoint, a stop (in the harbour),
+     *               a thing to look at (seen from the water)
+     *   nameStopM   a stop takes the name of the nearest harbour within this (m), else
+     *               "off" the nearest town; `nameLookM` a thing to look at takes the name of
+     *               the nearest castle, monument, tower, hill, wreck or light within it,
+     *               else the nearest town
+     *   removeShare Remove takes the point nearest the press within this share of the
+     *               chart's width
+     *   minSpan     the table zoomed in as far as it goes: this much sea across (m)
+     *   drawPx      the chart drawn this many pixels across (sharper costs more to draw)
+     *   table       its top (m: width along the quay, depth, height), how far behind the
+     *               start spot it stands (m), its keys' row
+     */
+    plan: {
+      maxPoints: 30,
+      reach: { way: 150, stop: 300, look: 900 },
+      nameStopM: 1500,
+      nameLookM: 2500,
+      removeShare: 0.05,
+      minSpan: 1500,
+      drawPx: 2048,
+      table: { width: 2.4, depth: 1.6, height: 0.9, back: 3.2, keyDepth: 0.12 },
+    },
   },
 
   /**

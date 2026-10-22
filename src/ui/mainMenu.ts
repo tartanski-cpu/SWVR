@@ -199,6 +199,9 @@ export interface MenuHost {
   toggleShowTargets(): void;
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
   teleportToPort(i: number): void;
+  /** Voyage mode: the plan's next point ("Next: Stop 2: Rothesay, 3.1 nm"), and put me ashore by the planning table. */
+  planLine(): string;
+  goPlanTable(): void;
   /** Regions (debug): put the boat in a region, by id; the region map on the perf panel. */
   teleportToRegion(id: string): void;
   regionMap(): boolean;
@@ -327,6 +330,8 @@ export function mainMenu(h: MenuHost): MainMenu {
   };
 
   const voyage: MenuRow[] = [
+    // The crew's plan from the planning table on the start quay (voyage/planTable.ts).
+    ...(MODE === 'voyage' ? ([{ heading: 'Voyage plan' }, { label: '', buttons: [{ text: () => h.planLine(), weight: 2.6 }, { text: 'Go to the table', press: () => h.goPlanTable() }] }] as MenuRow[]) : []),
     { heading: 'Job' },
     { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
     { label: '', buttons: [{ text: () => h.runStatus() }] },

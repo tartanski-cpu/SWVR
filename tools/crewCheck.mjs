@@ -9,7 +9,10 @@
  *   3. launch    the crew launches her own boat: she's in both worlds, owned, the crew aboard;
  *   4. tow       a barge astern of the crew's boat; the crew makes her towline fast to it
  *                from her own page: the host's world has her line, and her page shows it;
- *   5. leave     the crew leaves: her boat goes with her, and her join box is empty.
+ *   5. plan      the crew presses a stop onto the planning table's chart from her page (its
+ *                chart control, as a click does): the host's plan has it, named, and both
+ *                pages' tables show it; the host's next press shows on the crew's page;
+ *   6. leave     the crew leaves: her boat goes with her, and her join box is empty.
  *
  * Not a unit test: it needs the dev server running (npm run dev) and Chromium with Playwright
  * (pre-installed in the cloud work containers; elsewhere set PLAYWRIGHT to its index.mjs).
@@ -141,7 +144,43 @@ try {
     check("the host's boat has no line of her own (each boat's line is hers)", !homeLine);
   }
 
-  // ── 5. Leave ──
+  // ── 5. Plan ──
+  /** Press the planning table's chart at shares (u, v) of its width and depth, as a click would, with a tool. */
+  const pressChart = (p, tool, u, v) =>
+    p.evaluate(
+      ([tool, u, v]) => {
+        const t = window.app.planTable;
+        if (!t) return false;
+        t.controls.find((c) => c.id === `plan-${tool}`).pressStart();
+        const surface = t.controls.find((c) => c.id === 'planChart');
+        const face = surface.hitObjects[0];
+        face.geometry.computeBoundingBox();
+        const bb = face.geometry.boundingBox;
+        const local = bb.min.clone();
+        local.x = bb.min.x + (bb.max.x - bb.min.x) * u;
+        local.y = (bb.min.y + bb.max.y) / 2;
+        local.z = bb.min.z + (bb.max.z - bb.min.z) * v;
+        surface.pressPoint = face.localToWorld(local);
+        surface.pressStart();
+        return true;
+      },
+      [tool, u, v],
+    );
+  const tables = await Promise.all([A, B].map((p) => p.evaluate(() => !!window.app.planTable)));
+  check('both pages have the planning table on the start quay', tables[0] && tables[1]);
+  await pressChart(B, 'stop', 0.5, 0.5);
+  await settle();
+  const hostPlan = await A.evaluate(() => window.app.world.plan?.points ?? []);
+  check("the crew's stop, pressed on her table, is in the host's plan, named", hostPlan.length === 1 && hostPlan[0].kind === 'stop' && hostPlan[0].name.length > 0, hostPlan[0]?.name);
+  await pressChart(A, 'way', 0.3, 0.4);
+  await hostStep();
+  await settle();
+  const crewPlan = await B.evaluate(() => (window.app.world.plan?.points ?? []).map((p) => p.kind));
+  check("the host's waypoint shows on the crew's page too", JSON.stringify(crewPlan) === JSON.stringify(['stop', 'way']), JSON.stringify(crewPlan));
+  const line = await B.evaluate(() => window.app.menuHost().planLine());
+  check("the crew's Voyage tab names the plan's next point", /^Next: Stop 1/.test(line), line);
+
+  // ── 6. Leave ──
   await B.evaluate(() => window.app.menuHost().leaveGame());
   await B.waitForTimeout(3000);
   for (let i = 0; i < 3; i++) await hostStep();

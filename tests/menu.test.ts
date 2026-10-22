@@ -148,6 +148,8 @@ function fakeHost() {
     tutorialSkip: () => calls.push('skip'),
     tutorialRestart: () => calls.push('restart'),
     crewList: () => 'Just you',
+    planLine: () => 'No plan yet',
+    goPlanTable: () => calls.push('plan table'),
     crewMember: (i: number) => (i === 0 ? { name: 'Skipper', you: true, host: false, muted: false } : null),
     toggleCrewMute: (i: number) => calls.push(`mute ${i}`),
     voiceStatus: () => '',
