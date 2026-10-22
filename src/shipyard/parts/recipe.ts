@@ -262,7 +262,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
       { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
       { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'key'].filter(has) },
-      { title: 'DECK', color: 0x8a6d2a, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
+      { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
     ];
   };
   // Switches up onto the dash face (CS6; owner, Oct 2026: "the switches can go on the upright
@@ -470,7 +470,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.wrap = {
       centre: house.facet.centre,
       k: Math.round((house.facet.depth / (hw - house.facet.centre)) * 1e4) / 1e4,
-      turn: consoleMount.modules!.filter((m) => m.module === 'instrument.screen').map((m) => m.socket),
+      // (And the warning lamps' row: on a wing it lies along it, as the plates do.)
+      turn: [...consoleMount.modules!.filter((m) => m.module === 'instrument.screen').map((m) => m.socket), 'lamps'],
       // The throttle stays beside the wheel where it is on a flat console (owner: set back with the wing it was out of reach in VR).
       fixed: ['throttle', 'podJoystick'],
     };
