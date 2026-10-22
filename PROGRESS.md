@@ -7959,6 +7959,20 @@ Owner, Oct 2026: "I'd like the A-frame trawling equipment to have a more advance
   - **Desktop:** a boat with the trawl gear (the Shipyard gillnetter with the A-frame, or the workboat). On a fishing ground, TRAWL on, tow at 2-4.5 kn for a couple of minutes: the status line counts the codend. TRAWL off: watch from the aft deck as the doors come up, the codend comes up the stern and the A-frame swings it in over the deck. Press **RELEASE** on the A-frame's box (the post by the starboard foot): the fish pour onto the deck and are boxed one by one (into the hold, if she has one with the lid open or not). The A-frame swings back out.
   - **VR:** the same, standing on the aft deck clear of the A-frame's swing: watch the codend come in overhead, press RELEASE, pick up a box from beside the heap.
 
+### Shipyard: every step as pictures (done, awaiting owner test)
+
+Owner, Oct 2026, after the Engine step's tiles: "yes, do the picture tiles for the other steps".
+
+- **Now** (shipyard/tiles.ts: new drawings `HULL_ICONS`, `HOUSE_ICONS`, `CONTROL_ICONS`, colour samples `liningIcon` and `floorIcon`, `aboutHeading`; page.ts `optionTiles`, `cardAbout`):
+  - **Hull:** the hull types as tiles, each drawn from the side (the landing craft's ramp, the gillnetter's house forward, the pilot boat's long house, the tug's sheer, push bow and stack), her length on the line under. Hull protection (none, fenders, strake, tyres, strake and fenders), rails and what she's built of, as tiles.
+  - **Wheelhouse:** front (flat, three facets), sides and aft, sills, console side, chart table, the deckhouse's top and inside, as drawn tiles. Lining and floor as colour samples (the ceiling over the walls, beams where it has them; the floor's planks or grip).
+  - **Deck gear / Furniture:** the cards keep their icons; each one's description is now behind an **i** by its name (and its tooltip). The fish hold as tiles.
+  - **Controls:** the three instrument tiers (a gauge, small screens, big screens over switches), the screens choice and helm assist as tiles.
+  - **Every step:** one line under its title, the rest behind an **i** (STEP_GUIDE, STEP_MORE); each group's long note (hull protection, the deckhouse, console layout) behind an **i** on its heading.
+  - **Paint** was already colour swatches: unchanged.
+- The old `choices()` list builder is gone; `options()` stays for Paint's two rows.
+- **Checked:** headless Chromium, every step's panel; clicking tiles changes the design (hull type, protection, rails, material, front, lining, fish hold, the tiers, one touchscreen), a card's **i** opens its description. Full suite passes. **Not checked:** the Quest's browser (the **i** buttons' size under the pointer).
+
 ### Step 2 toward a trawler: the trawl deck gear, a net drum and trawl winches (done, awaiting owner test)
 
 Owner, Oct 2026: "go to step 2, the trawl deck gear". From the plan: a net drum, trawl winches, a gantry, a net crane and a forward boom. The gantry is already done: the A-frame swings on its rams (the change set above), and it does the net crane's job of bringing the codend in. So this step is the **net drum** and the **trawl winches**. The landing boom is left for when the owner wants it; the Shipyard's deck crane can already be fitted for lifting.

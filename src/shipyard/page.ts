@@ -51,7 +51,7 @@ import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
-import { ENGINE_ICONS, pickTiles, toggleTiles } from './tiles';
+import { aboutHeading, CONTROL_ICONS, ENGINE_ICONS, floorIcon, HOUSE_ICONS, HULL_ICONS, liningIcon, pickTiles, toggleTiles, type Tile } from './tiles';
 import { GEAR_ABOUT, GEAR_GROUPS, GEAR_ICONS, gearKind } from './gearMenu';
 import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment } from './pinGear';
 import { FURNITURE_MENU, nextSlot, placedOf, placeFurniture, removeFurniture, slotOf } from './furnishing';
@@ -584,14 +584,25 @@ let hullMax = [1, 1, 1];
 
 // ── The controls ──
 /** A line of guidance for each step of choices (by its title). */
+/**
+ * Each step's line under its title; the rest of what it says (`STEP_MORE`) behind its ⓘ button
+ * (owner, Oct 2026: "too much text ... an information button").
+ */
 const STEP_GUIDE: Record<string, string> = {
-  Hull: 'Her type and proportions. Length and beam set her size and stability; depth her freeboard; a raked bow throws spray aside and takes a head sea more softly.',
-  Wheelhouse: 'Where the crew stand and what they can see. Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
-  Engine: 'Power for the speed in the brief. The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
-  Furniture: 'What’s inside her houses: berths, settees, a galley, seats, lockers and a head. <b>Add</b> a piece, then click where it goes. The view looks down on her cut just over the floor by the section tool (✂ Section to move the cut or turn it off); for the cabin below, click forward of the wheelhouse: it’s put against the nearest wall there, clear of the helm and the doorways. Add as many as fit, up to four of each (one head). Its weight and price are designed in.',
-  'Deck gear': 'Her equipment, by the work it’s for. <b>Place</b> it, then click on her where it goes: it’s put there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Gear with only one place on any boat (the anchor, the stern roller, the A-frame, the side door) is simply <b>Fit</b>ted. Its weight is designed in. <b>Fish hold</b>: an insulated hold in her hull under the open deck (where there’s most room, clear of the engine and the houses), its hatch on deck; the catch goes down into it in boxes, and the yellow button on the hatch lifts one out.',
+  Hull: 'Her type and proportions.',
+  Wheelhouse: 'Where the crew stand and what they can see.',
+  Engine: 'Power for the speed in the brief.',
+  Furniture: 'What’s inside her houses. <b>Add</b> a piece, then click where it goes.',
+  'Deck gear': 'Her equipment, by the work it’s for. <b>Place</b> it, then click on her where it goes.',
   Controls: 'What the skipper has at the helm.',
   Paint: 'Her colours, hull and roof.',
+};
+const STEP_MORE: Record<string, string> = {
+  Hull: 'Length and beam set her size and stability; depth her freeboard; a raked bow throws spray aside and takes a head sea more softly.',
+  Wheelhouse: 'Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
+  Engine: 'The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
+  Furniture: 'Berths, settees, a galley, seats, lockers and a head. The view looks down on her cut just over the floor by the section tool (✂ Section to move the cut or turn it off); for the cabin below, click forward of the wheelhouse: it’s put against the nearest wall there, clear of the helm and the doorways. Add as many as fit, up to four of each (one head). Its weight and price are designed in.',
+  'Deck gear': 'It’s put where you click (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Gear with only one place on any boat (the anchor, the stern roller, the A-frame, the side door) is simply <b>Fit</b>ted. Its weight is designed in. <b>Fish hold</b>: an insulated hold in her hull under the open deck (where there’s most room, clear of the engine and the houses), its hatch on deck; the catch goes down into it in boxes, and the yellow button on the hatch lifts one out.',
 };
 const stepBody = $('stepBody');
 const handoverStep = stepBody.querySelector<HTMLElement>('[data-step=handover]')!;
@@ -604,22 +615,11 @@ function section(title: string): HTMLElement {
   el.dataset.step = name.toLowerCase();
   el.dataset.title = name;
   el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}`;
+  const guide = el.querySelector<HTMLElement>('.guide');
+  if (guide && STEP_MORE[name]) aboutHeading(guide, STEP_MORE[name], true);
   stepBody.insertBefore(el, handoverStep);
   controls = el;
   return el;
-}
-function choices(key: keyof ShipDesign, items: { name: string; note?: string }[], patch: (i: number) => Partial<ShipDesign> = () => ({})): void {
-  const box = document.createElement('div');
-  items.forEach((it, i) => {
-    const c = document.createElement('div');
-    c.className = 'choice';
-    c.dataset.key = key;
-    c.dataset.i = String(i);
-    c.innerHTML = `<b>${it.name}</b>${it.note ? `<div style="font-size:12px;color:var(--muted)">${it.note}</div>` : ''}`;
-    c.onclick = () => change({ [key]: i, ...patch(i) });
-    box.appendChild(c);
-  });
-  controls.appendChild(box);
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
@@ -686,16 +686,35 @@ function valueOptions(key: MeasureKey, label: string, items: [number, string][])
   return row;
 }
 /** A group's heading within a step (the Wheelhouse's: Size and place, Windows...), and a line on it. */
-function group(title: string, note = ''): void {
+function group(title: string, note = ''): HTMLElement {
   const h = document.createElement('h2');
   h.textContent = title;
   controls.appendChild(h);
-  if (note) {
-    const p = document.createElement('p');
-    p.className = 'meta';
-    p.textContent = note;
-    controls.appendChild(p);
-  }
+  // (Its note behind an ⓘ on the heading: tiles.ts.)
+  if (note) aboutHeading(h, note);
+  return h;
+}
+/** A gear or furniture card's line on what it is: behind an ⓘ by its name, and its tooltip (owner, Oct 2026: less text). */
+function cardAbout(card: HTMLElement): void {
+  const about = card.querySelector<HTMLElement>('.gearText .meta');
+  const name = card.querySelector<HTMLElement>('.gearText b');
+  if (!about || !name || !about.textContent) return;
+  card.title = about.textContent;
+  about.remove();
+  aboutHeading(name, about.textContent);
+}
+/**
+ * A choice of a few as picture tiles (tiles.ts; owner, Oct 2026), each a drawing, a name and
+ * a line, its description behind ⓘ; for the compare list, its label and the tiles' names.
+ * Returns its wrapper (for `data-when`). Chosen hand-placed gear goes back to its usual place.
+ */
+function optionTiles(key: keyof ShipDesign, label: string, tiles: Tile[]): HTMLElement {
+  labels[key] ??= label;
+  optionNames[key] = tiles.map((t) => (t.sub ? `${t.name} (${t.sub})` : t.name));
+  const wrap = document.createElement('div');
+  pickTiles(wrap, key, tiles, (i) => change({ [key]: i, ...(PLACED_BY[key] ? { [PLACED_BY[key]!]: 0 } : {}) }), label);
+  controls.appendChild(wrap);
+  return wrap;
 }
 /** The deckhouse's width buttons and when each is the one chosen (they set two fields: dhWidth, dhNarrow). */
 const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
@@ -747,7 +766,21 @@ section('1. Hull');
   controls.append(b, m);
 }
 // Picking a hull starts her in her type's usual layout (the sliders then move it all).
-choices('hull', DESIGN_HULLS.map((h) => ({ name: h.name.split(':')[0], note: h.name.split(':')[1]?.trim() })), (i) => DESIGN_HULLS[i].defaults);
+// Her type, as pictures (each from the side; tiles.ts): its name, and its size on the line under.
+{
+  const looks = [HULL_ICONS.lander, HULL_ICONS.gillnetter, HULL_ICONS.workboat, HULL_ICONS.pilot, HULL_ICONS.tug];
+  const box = pickTiles(
+    controls,
+    'hull',
+    DESIGN_HULLS.map((h, i) => {
+      const [name, rest = ''] = h.name.split(':');
+      return { icon: looks[i] ?? HULL_ICONS.workboat, name: name.replace('Small tug', 'Tug'), sub: rest.trim().split(',')[0], info: h.name + '.' };
+    }),
+    (i) => change({ hull: i, ...DESIGN_HULLS[i].defaults }),
+  );
+  // (Four across: the retired workboat type shows only on a design already on her.)
+  box.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
+}
 slider('length', 'Length', () => `${boat.figures.lengthM.toFixed(2)} m`);
 slider('beam', 'Beam', () => `${boat.figures.beamM.toFixed(2)} m`);
 slider('depth', 'Depth', (v) => pct(SCALES.scale(v)));
@@ -758,17 +791,19 @@ slider('sheer', 'Sheer', (v) => (v ? `+${SCALES.sheer(v).toFixed(2)} m at the bo
 // A raised foredeck (owner, Oct 2026; the fishing boat only, for now): her deck stepped up forward of a break, steps up to it.
 slider('fcLength', 'Raised foredeck', (v) => (v ? `${SCALES.fcLength(v).toFixed(1)} m from the bow` : 'none')).dataset.when = 'raisedForedeck';
 slider('fcHeight', 'Its height', (v) => `${SCALES.fcHeight(v).toFixed(2)} m up`).dataset.when = 'foredeckHeight';
-{
-  // Hull protection (owner): what keeps her sides off a quay.
-  const h = document.createElement('h2');
-  h.textContent = 'Hull protection';
-  const p = document.createElement('p');
-  p.className = 'meta';
-  p.textContent = 'What keeps her sides off a quay. Fenders are the cheapest, but the crew must put them over the side coming alongside (the basket on deck) and take them in again. A rubber rubbing strake round her sheer, or tyres along her sides, are always there: the strake is firm, good for a rub or a moderate knock; tyres are soft and grippy, the best at a hard knock and for pushing, and add a little weight and drag.';
-  controls.append(h, p);
-}
-options('guard', 'Protection', [...GUARDS]);
-options('rails', 'Rails', [...RAILS]);
+// Hull protection (owner): what keeps her sides off a quay.
+group('Hull protection', 'What keeps her sides off a quay. Fenders are the cheapest, but the crew must put them over the side coming alongside (the basket on deck) and take them in again. A rubber rubbing strake round her sheer, or tyres along her sides, are always there: the strake is firm, good for a rub or a moderate knock; tyres are soft and grippy, the best at a hard knock and for pushing, and add a little weight and drag.');
+optionTiles('guard', 'Protection', [
+  { icon: HULL_ICONS.guardNone, name: GUARDS[0], info: 'No protection: her plating takes the knocks.' },
+  { icon: HULL_ICONS.guardFenders, name: GUARDS[1], sub: 'the cheapest', info: 'Fenders: the cheapest, but the crew must put them over the side coming alongside (the basket on deck) and take them in again.' },
+  { icon: HULL_ICONS.guardStrake, name: 'Strake', sub: 'firm', info: 'A rubber rubbing strake round her sheer: always there, firm, good for a rub or a moderate knock.' },
+  { icon: HULL_ICONS.guardTyres, name: GUARDS[3], sub: 'soft, grippy', info: 'Tyres along her sides: always there, soft and grippy, the best at a hard knock and for pushing; a little weight and drag.' },
+  { icon: HULL_ICONS.guardBoth, name: 'Strake + fenders', info: 'The rubbing strake, and fenders for coming alongside.' },
+]);
+optionTiles('rails', 'Rails', [
+  { icon: HULL_ICONS.rails, name: RAILS[0], info: 'Handrails on posts over her bulwarks.' },
+  { icon: HULL_ICONS.noRails, name: RAILS[1], info: 'No handrails: her bulwarks only.' },
+]);
 // What she's built of (owner, Oct 2026): a choice on the workboat hull; the others are their type's own.
 {
   const h = document.createElement('h2');
@@ -779,10 +814,15 @@ options('rails', 'Rails', [...RAILS]);
   controls.append(h, p);
   const al = CONFIG.shipyard.materials.aluminium;
   const fe = CONFIG.shipyard.materials.steel;
-  choices('material', [
-    { name: MATERIALS[0], note: `Light: about ${al.shellKgPerM2} kg a square metre of hull, so she floats higher and goes faster for her power. £${al.pricePerKg} a kilo built.` },
-    { name: MATERIALS[1], note: `Tough and cheaper to build (£${fe.pricePerKg} a kilo), but about ${fe.shellKgPerM2} kg a square metre: she sits deeper and is slower for her power.` },
-  ]);
+  pickTiles(
+    controls,
+    'material',
+    [
+      { icon: HULL_ICONS.aluminium, name: MATERIALS[0], sub: `light · £${al.pricePerKg}/kg`, info: `Light: about ${al.shellKgPerM2} kg a square metre of hull, so she floats higher and goes faster for her power. £${al.pricePerKg} a kilo built.` },
+      { icon: HULL_ICONS.steel, name: MATERIALS[1], sub: `tough · £${fe.pricePerKg}/kg`, info: `Tough and cheaper to build (£${fe.pricePerKg} a kilo), but about ${fe.shellKgPerM2} kg a square metre: she sits deeper and is slower for her power.` },
+    ],
+    (i) => change({ material: i }),
+  );
 }
 section('2. Wheelhouse');
 // Owner, Oct 2026: designs travel as documents now, so the wheelhouse's measurements are real
@@ -815,11 +855,20 @@ section('2. Wheelhouse');
   measure('saloonRoof', 'Roof', (v) => (v ? `${m(v)} lower` : 'as wheelhouse')).dataset.when = 'saloon';
 
   group('Windows');
-  options('facets', 'Front', ['Flat across', 'Three facets']);
+  optionTiles('facets', 'Front', [
+    { icon: HOUSE_ICONS.flat, name: 'Flat across', info: 'Her front windows flat across her.' },
+    { icon: HOUSE_ICONS.facets, name: 'Three facets', info: 'Three facets, as on a tug: the middle square across her, the outer two angled back to the sides, the dash wrapping round behind them.' },
+  ]);
   measure('windowRake', 'Front rake', (a) => (Math.abs(a) < 0.5 ? 'upright' : a > 0 ? `${a.toFixed(0)}° reverse` : `${(-a).toFixed(0)}° back`)).dataset.unless = 'flare';
   // (Raked out all round, the front leans out with them: its own rake stands aside.)
-  options('flare', 'Sides & aft', ['Upright', 'Raked out']);
-  options('sills', 'Sills', [...SILLS]);
+  optionTiles('flare', 'Sides & aft', [
+    { icon: HOUSE_ICONS.upright, name: 'Upright', info: 'Her side and aft windows upright.' },
+    { icon: HOUSE_ICONS.rakedOut, name: 'Raked out', info: 'Raked out all round, like a tug’s or supply vessel’s bridge: the front leans out with them, the aft door swings open on hinges, and there’s no side door.' },
+  ]);
+  optionTiles('sills', 'Sills', [
+    { icon: HOUSE_ICONS.sillStd, name: SILLS[0], info: 'The window sills at the standard height, one height all round.' },
+    { icon: HOUSE_ICONS.sillLow, name: 'Low', sub: 'below the console', info: 'Low sills, below the console: its upright panel comes off and its screens stand on stalks, so you can see down over the bow.' },
+  ]);
 
   // (Its colours are on the Paint step; no visor choice: the roof overhangs the windows by a set length, owner.)
   group('Roof');
@@ -832,7 +881,11 @@ section('2. Wheelhouse');
   // The helm console (owner): no longer than CONFIG.shipyard.helm.maxConsole, so on a wide
   // wheelhouse there's room beside it, and against the port or starboard wall if chosen.
   // (Only with a flat front: a faceted front's console wraps round its middle pane, so it stays there.)
-  options('consoleSide', 'Console', [...CONSOLE_SIDES]).dataset.unless = 'facets';
+  optionTiles('consoleSide', 'Console', [
+    { icon: HOUSE_ICONS.consoleMid, name: CONSOLE_SIDES[0], info: 'The helm console in the middle of the wheelhouse.' },
+    { icon: HOUSE_ICONS.consolePort, name: CONSOLE_SIDES[1], info: 'The helm console against the port wall.' },
+    { icon: HOUSE_ICONS.consoleStbd, name: CONSOLE_SIDES[2], info: 'The helm console against the starboard wall.' },
+  ]).dataset.unless = 'facets';
   // Its length (CS6): full, or shorter for a narrow wheelhouse (switches move up onto the dash face as needed).
   slider('consoleLen', 'Console length', (v) => (consoleLengthM(v) ? `${consoleLengthM(v)!.toFixed(2)} m` : 'Full width'));
   {
@@ -842,10 +895,13 @@ section('2. Wheelhouse');
     note.style.cssText = 'font-size:12px;color:var(--muted);margin:-4px 0 6px';
     controls.appendChild(note);
   }
-  options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
+  optionTiles('chartTable', 'Chart table', [
+    { icon: HOUSE_ICONS.noTable, name: 'None', info: 'No chart table.' },
+    { icon: HOUSE_ICONS.table, name: 'Port wall', sub: 'aft', info: 'A chart table against the port wall, aft.' },
+  ]);
   // The finish inside, walls and ceiling, and the floor (owner, Oct 2026; CONFIG.interiors, CONFIG.cabinFloors).
-  options('interior', 'Lining', CONFIG.interiors.map((f) => f.name));
-  options('cabinFloor', 'Floor', CONFIG.cabinFloors.map((f) => f.name));
+  optionTiles('interior', 'Lining', CONFIG.interiors.map((f) => ({ icon: liningIcon(f), name: f.name.split(',')[0], ...(f.name.includes(',') ? { sub: f.name.split(',')[1].trim() } : {}), info: `${f.name}: the wheelhouse’s walls and ceiling inside.` })));
+  optionTiles('cabinFloor', 'Floor', CONFIG.cabinFloors.map((f) => ({ icon: floorIcon(f), name: f.name, info: `${f.name}: the floor inside.` })));
 
   // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.
   group('Deckhouse', 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Its top can be walked, a deck round the wheelhouse with a rail and a ladder up from the main deck; inside, it can be the trunk of a cabin below, its floor sunk into her hull, with steps down from the wheelhouse and a V-berth forward.');
@@ -881,9 +937,15 @@ section('2. Wheelhouse');
   }
   measure('dhRake', 'Front', (v) => (v < 0.5 ? 'upright' : `raked ${v.toFixed(0)}°`)).dataset.when = 'dhLength';
   // Its top walked (P2b): a rail round it and a ladder up from the deck.
-  options('dhWalk', 'Top', ['Not walked', 'Walked: rail and ladder']).dataset.when = 'dhTopChoice'; // (out to her sides it's always walked)
+  optionTiles('dhWalk', 'Top', [
+    { icon: HOUSE_ICONS.notWalked, name: 'Not walked', info: 'The deckhouse’s top not walked.' },
+    { icon: HOUSE_ICONS.walked, name: 'Walked', sub: 'rail, ladder', info: 'Its top walked: a rail round it and a ladder up to it from the main deck, so you can walk round the raised wheelhouse.' },
+  ]).dataset.when = 'dhTopChoice'; // (out to her sides it's always walked)
   // A cabin below it (P2c): the deck cut away, the sole sunk into her, a companionway down from the wheelhouse.
-  options('foreCabin', 'Inside', ['Solid', 'A cabin below']).dataset.when = 'cabinBelow'; // (under a deckhouse, or a raised foredeck)
+  optionTiles('foreCabin', 'Inside', [
+    { icon: HOUSE_ICONS.solid, name: 'Solid', info: 'Nothing inside the deckhouse (or under the raised foredeck).' },
+    { icon: HOUSE_ICONS.cabin, name: 'Cabin below', info: 'A cabin below: its floor sunk into her hull so you can stand up, steps down from the wheelhouse floor beside the helm, and a V-berth in the bow. Needs the engine aft.' },
+  ]).dataset.when = 'cabinBelow'; // (under a deckhouse, or a raised foredeck)
 }
 section('3. Deck gear');
 {
@@ -895,7 +957,10 @@ section('3. Deck gear');
   const box = document.createElement('div');
   box.id = 'fromPins';
   // A fish hold under her deck (parts/hold.ts): where it goes is worked out for her.
-  options('fishHold', 'Fish hold', ['None', 'Under the deck']);
+  optionTiles('fishHold', 'Fish hold', [
+    { icon: HOUSE_ICONS.noHold, name: 'None', info: 'No fish hold.' },
+    { icon: HOUSE_ICONS.hold, name: 'Under the deck', info: 'An insulated hold in her hull under the open deck (where there’s most room, clear of the engine and the houses), its hatch on deck; the catch goes down into it in boxes, and the yellow button on the hatch lifts one out.' },
+  ]);
   controls.append(menu, box);
 }
 section('4. Furniture');
@@ -977,41 +1042,39 @@ section('6. Controls');
     { name: 'Basic electronic', note: 'Wheel, throttle, key and start, navigation lights, speed and depth, the anchor, rpm and the time on small screens, and the VHF radio.', patch: { controls: 0, oldSchool: 0 } },
     { name: 'Advanced', note: 'Adds the cabin light, wipers, horn, heading, engine monitor, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, an overhead switch panel for the foredeck and aft deck floodlights, and the searchlight and fire monitor controls at the helm when they’re on poles.', patch: { controls: 1, oldSchool: 0 } },
   ];
-  const box = document.createElement('div');
-  tiers.forEach((t, i) => {
-    const c = document.createElement('div');
-    c.className = 'choice';
-    c.dataset.tier = String(i);
-    c.innerHTML = `<b>${t.name}</b><div style="font-size:12px;color:var(--muted)">${t.note}</div>`;
-    c.onclick = () => change(t.patch);
-    box.appendChild(c);
+  // As pictures (tiles.ts): marked by `data-tier` (two design fields make a tier), not its key.
+  const looks = [CONTROL_ICONS.analogue, CONTROL_ICONS.basic, CONTROL_ICONS.advanced];
+  const subs = ['gauges · cheapest', 'small screens', 'the lot'];
+  const box = pickTiles(controls, 'tier', tiers.map((t, i) => ({ icon: looks[i], name: t.name.replace(' (analogue)', ''), sub: subs[i], info: t.note })), (i) => change(tiers[i].patch), 'Instruments');
+  box.querySelectorAll<HTMLElement>('.tile').forEach((el) => {
+    el.dataset.tier = el.dataset.i;
+    delete el.dataset.key;
+    delete el.dataset.i;
   });
-  controls.appendChild(box);
   // With the advanced package: her screens, or touchscreens with tabs (CS5; owner, Oct 2026:
   // "a much more narrow wheelhouse with a more narrow console and just one screen").
-  const head = document.createElement('div');
-  head.className = 'touchOnly';
-  head.style.marginTop = '10px';
-  head.innerHTML = '<b>Screens</b><div style="font-size:12px;color:var(--muted)">With the advanced package. A touchscreen shows one page at a time: press its tabs (speed, heading, engine, systems, anchor, tow line, wind) to flip between them. The whole crew sees the page you pick.</div>';
-  controls.appendChild(head);
-  choices('touch', [
-    { name: 'Separate screens', note: 'A screen for each, side by side over the wheel.' },
-    { name: 'One touchscreen', note: 'Everything on one screen with tabs: room for a short console in a narrow wheelhouse. (A link or file, not a code.)' },
-    { name: 'Two touchscreens', note: 'Side by side, each with every page: say speed on one, the engine on the other. (A link or file, not a code.)' },
-  ]);
-  (controls.lastElementChild as HTMLElement).classList.add('touchOnly');
+  const screens = document.createElement('div');
+  screens.className = 'touchOnly';
+  pickTiles(
+    screens,
+    'touch',
+    [
+      { icon: CONTROL_ICONS.separate, name: 'Separate', sub: 'a screen each', info: 'A screen for each, side by side over the wheel.' },
+      { icon: CONTROL_ICONS.oneTouch, name: 'One touch', sub: 'tabs', info: 'Everything on one touchscreen: press its tabs (speed, heading, engine, systems, anchor, tow line, wind) to flip between pages; the whole crew sees the page you pick. Room for a short console in a narrow wheelhouse. (A link or file, not a code.)' },
+      { icon: CONTROL_ICONS.twoTouch, name: 'Two touch', sub: 'side by side', info: 'Two touchscreens side by side, each with every page: say speed on one, the engine on the other. (A link or file, not a code.)' },
+    ],
+    (i) => change({ touch: i }),
+    'Screens',
+  );
+  controls.appendChild(screens);
 }
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
-options('helmAssist', 'Helm assist', ['None', 'Autopilot, dock, auto start']).dataset.when = 'controls';
-{
-  // Her console laid out by hand (dynamic console sockets CS3): in a panel under the view (showConsoleEditor).
-  const h = document.createElement('h2');
-  h.textContent = 'Console layout';
-  const p = document.createElement('p');
-  p.className = 'meta';
-  p.textContent = 'Under the view, her console from the helm: drag a screen or a switch group to where you want it. Your first move pins everything where it stands; Automatic puts it all back to the rules. Placed by hand, she travels as a link or file, not a code.';
-  controls.append(h, p);
-}
+optionTiles('helmAssist', 'Helm assist', [
+  { icon: CONTROL_ICONS.noAssist, name: 'None', info: 'No helm assist panel.' },
+  { icon: CONTROL_ICONS.assist, name: 'Assist', sub: 'autopilot, dock', info: 'A helm assist panel: an autopilot, docking help and an automatic engine start.' },
+]).dataset.when = 'controls';
+// Her console laid out by hand (dynamic console sockets CS3): in a panel under the view (showConsoleEditor).
+group('Console layout', 'Under the view, her console from the helm: drag a screen or a switch group to where you want it. Your first move pins everything where it stands; Automatic puts it all back to the rules. Placed by hand, she travels as a link or file, not a code.');
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 section('7. Paint');
 {
@@ -2454,6 +2517,7 @@ function showOnHer(): void {
       const card = document.createElement('div');
       card.className = `gearCard${has ? ' fitted' : ''}`;
       card.innerHTML = `${GEAR_ICONS[eq.id] ?? ''}<div class="gearText"><b>${esc(eq.name)}</b><span class="meta">${esc(GEAR_ABOUT[eq.id] ?? '')}</span><span class="gearState">${has ? `✓ On her: ${esc(whereOnHer(eq))}` : 'Not fitted'}</span></div><div class="gearActs"></div>`;
+      cardAbout(card);
       const acts = card.querySelector('.gearActs')!;
       const button = (text: string, title: string, go: () => void, primary = false) => {
         const b = document.createElement('button');
@@ -2507,6 +2571,7 @@ function showFurniture(): void {
     const card = document.createElement('div');
     card.className = `gearCard furnCard${on.length ? ' fitted' : ''}`;
     card.innerHTML = `${GEAR_ICONS[kind] ?? ''}<div class="gearText"><b>${esc(name)}</b><span class="meta">${esc(GEAR_ABOUT[kind] ?? '')}</span><span class="gearState">${on.length ? `✓ ${on.length} on her` : 'None on her'}</span></div><div class="gearActs"></div><div class="furnList"></div>`;
+    cardAbout(card);
     const button = (box: Element, text: string, title: string, go: () => void, primary = false) => {
       const b = document.createElement('button');
       b.textContent = text;

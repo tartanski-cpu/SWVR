@@ -133,3 +133,125 @@ export const ENGINE_ICONS = {
   stackRaked: svg('<path d="M8 28h32M17 28l4-14 6-6M25 28l4-14 6-6M26 6l3 3M34 6l3 3"/>'),
   stackStraight: svg('<path d="M8 28h32M18 28V6M24 28V6M28 28V6M34 28V6M17 6h8M27 6h8"/>'),
 };
+
+/**
+ * An ⓘ button on a heading (a step's or a group's) that opens its longer description under it
+ * (owner, Oct 2026: the description behind an information button, not always on the page).
+ */
+export function aboutHeading(heading: HTMLElement, text: string, html = false): HTMLElement {
+  const about = document.createElement('div');
+  about.className = 'tileInfo';
+  about.hidden = true;
+  if (html) about.innerHTML = text;
+  else about.textContent = text;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'tileAbout inline';
+  b.textContent = 'i';
+  b.title = about.textContent ?? '';
+  b.setAttribute('aria-label', 'More about this');
+  b.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    about.hidden = !about.hidden;
+    b.classList.toggle('open', !about.hidden);
+  };
+  heading.appendChild(b);
+  heading.after(about);
+  return about;
+}
+
+const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+/** A colour sample (filled shapes, not lines): `body` in its own fills. */
+const swatch = (body: string) => `<svg viewBox="0 0 48 32" width="48" height="32" aria-hidden="true">${body}</svg>`;
+
+/** The Hull step's drawings: each hull type from the side (bow to the right), her protection, rails, what she's built of. */
+export const HULL_ICONS = {
+  // The landing craft: a flat-bottomed box, the house right aft, the ramp raised at her square bow.
+  lander: svg('<path d="M3 15h37l3 7H6zM5 22l-2-7M6 15V9h8v6M40 15l4-10"/>'),
+  // The gillnetter: beamy and low, the house forward of amidships, her working deck aft.
+  gillnetter: svg('<path d="M3 16h41l-4 7H6zM6 23l-3-7M24 16V9h9v7M26 9V6"/>'),
+  // The (retired) workboat: a hard-chine hull, her house amidships.
+  workboat: svg('<path d="M3 15h38l5-3-4 11H7zM7 23l-4-8M18 15V8h11v7"/>'),
+  // The pilot boat: long and low, a long house with sloped front, a well-raked stem.
+  pilot: svg('<path d="M3 16h36l7-4c-2 6-4 9-8 11H8zM8 23l-5-7M11 16V10h17l5 6"/>'),
+  // The small tug: deep, a strong sheer up to her high square push bow, the house forward, a stack.
+  tug: svg('<path d="M3 18h22c7 0 13-3 18-8v15H7zM7 25l-4-7M25 18V8h9v8M29 8V3M43 11v13"/>'),
+  // Her sides from abeam, and what's on them.
+  guardNone: svg('<path d="M4 9h40l-2 15H6z"/>'),
+  guardFenders: svg('<path d="M4 9h40l-2 15H6zM13 9v4M24 9v4M35 9v4"/><rect x="11" y="13" width="4" height="8" rx="2"/><rect x="22" y="13" width="4" height="8" rx="2"/><rect x="33" y="13" width="4" height="8" rx="2"/>'),
+  guardStrake: svg('<path d="M4 9h40l-2 15H6z"/><path d="M4.5 13h39" stroke-width="3.2"/>'),
+  guardTyres: svg('<path d="M4 9h40l-2 15H6z"/><circle cx="12" cy="15" r="3.5"/><circle cx="24" cy="15" r="3.5"/><circle cx="36" cy="15" r="3.5"/>'),
+  guardBoth: svg('<path d="M4 9h40l-2 15H6zM18 9v6M30 9v6"/><path d="M4.5 12h39" stroke-width="3.2"/><rect x="16" y="15" width="4" height="7" rx="2"/><rect x="28" y="15" width="4" height="7" rx="2"/>'),
+  // Her bulwark, with handrails on posts over it, or bare.
+  rails: svg('<path d="M3 26h42M5 26v-6h38v6M8 20V9M18 20V9M28 20V9M38 20V9M6 9h36M6 14.5h36"/>'),
+  noRails: svg('<path d="M3 26h42M5 26v-6h38v6"/>'),
+  // A plate of each: light aluminium, heavy steel (an I-beam).
+  aluminium: svg('<path d="M8 10h32l-4 12H4z"/><text x="21" y="19.5" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">Al</text>'),
+  steel: svg('<path d="M10 6h28M10 26h28M24 6v20M10 6v3h28V6M10 26v-3h28v3"/>'),
+};
+
+/** The Wheelhouse step's drawings. */
+export const HOUSE_ICONS = {
+  // Her front windows from above: flat across, or in three facets.
+  flat: svg('<path d="M8 8h32v18H8zM8 8h32" stroke-width="2.4"/>'),
+  facets: svg('<path d="M8 14l6-6h20l6 6v12H8z"/><path d="M8 14l6-6h20l6 6" stroke-width="2.4"/>'),
+  // From ahead: the sides upright, or raked out (wider at the top).
+  upright: svg('<path d="M12 26V8h24v18M12 14h24M8 26h32"/>'),
+  rakedOut: svg('<path d="M14 26L9 6h30l-5 20M11 13h26M8 26h32"/>'),
+  // From the side: the window sill at the standard height, or low, below the console.
+  sillStd: svg('<path d="M6 26V6h36v20zM6 15h36M10 15V9h28v6"/><path d="M12 26v-5h8v5"/>'),
+  sillLow: svg('<path d="M6 26V6h36v20zM6 21h36M10 21V9h28v12"/><path d="M12 26v-8h8v8"/>'),
+  // Her helm from above: the console in the middle, to port or to starboard (bow up).
+  consoleMid: svg('<path d="M10 4h28v24H10z"/><rect x="18" y="7" width="12" height="5" fill="currentColor"/>'),
+  consolePort: svg('<path d="M10 4h28v24H10z"/><rect x="12" y="7" width="12" height="5" fill="currentColor"/>'),
+  consoleStbd: svg('<path d="M10 4h28v24H10z"/><rect x="24" y="7" width="12" height="5" fill="currentColor"/>'),
+  // From above: no chart table, or one against the port wall aft.
+  noTable: svg('<path d="M10 4h28v24H10zM18 7h12v4H18z"/>'),
+  table: svg('<path d="M10 4h28v24H10zM18 7h12v4H18z"/><rect x="11" y="18" width="7" height="8" fill="currentColor"/>'),
+  // The deckhouse's top: bare, or walked with a rail and a ladder.
+  notWalked: svg('<path d="M4 26h40M10 26V16h28v10M20 16V6h10v10"/>'),
+  walked: svg('<path d="M4 26h40M10 26V16h28v10M20 16V6h10v10M11 16v-5M37 16v-5M11 11h7M32 11h5M8 26v-9M5 18h3M5 22h3"/>'),
+  // Inside the deckhouse (cut through): solid, or a cabin below with its berth.
+  solid: svg('<path d="M3 20h42l-4 7H7zM14 20v-8h20v8"/>'),
+  cabin: svg('<path d="M3 20h42l-4 7H7zM14 20v-8h20v8"/><path d="M15 26v-9h18v9" stroke-dasharray="2 1.5"/><path d="M26 23h6"/>'),
+  // Her hull cut through: no hold, or a hold under the deck.
+  noHold: svg('<path d="M4 9h40l-6 17H10zM4 9h40"/>'),
+  hold: svg('<path d="M4 9h40l-6 17H10z"/><path d="M14 11h20l-3 11H17z" fill="currentColor" fill-opacity=".35"/>'),
+};
+
+/** Her lining (walls and ceiling) as a sample: the ceiling over the walls, beams across it where it has them. */
+export function liningIcon(f: { walls: number; ceiling: number; ceilingTile: string }): string {
+  const beams = f.ceilingTile.startsWith('beams') ? [10, 20, 30, 40].map((x) => `<rect x="${x}" y="3" width="2" height="9" fill="#a86c3c"/>`).join('') : '';
+  const grain = f.ceilingTile === 'wood' ? [6, 9, 18, 21, 27].map((y) => `<rect x="4" y="${y}" width="40" height="0.8" fill="#000" fill-opacity=".2"/>`).join('') : '';
+  return swatch(`<rect x="4" y="3" width="40" height="9" rx="1" fill="${hex(f.ceiling)}"/>${beams}<rect x="4" y="13" width="40" height="16" rx="1" fill="${hex(f.walls)}"/>${grain}`);
+}
+
+/** Her cabin floor as a sample: matting, teak planks with pale seams, a dark non-slip grip. */
+export function floorIcon(f: { colour: number | null; tile: string }): string {
+  const base = hex(f.colour ?? 0x8a8678);
+  const lines =
+    f.tile === 'deckTeak'
+      ? [9, 15, 21].map((y) => `<rect x="4" y="${y}" width="40" height="0.9" fill="#d8c8a8"/>`).join('')
+      : f.tile === 'nonSlip'
+        ? Array.from({ length: 24 }, (_, i) => `<circle cx="${8 + (i % 8) * 4.6}" cy="${8 + Math.floor(i / 8) * 7}" r="0.9" fill="#777"/>`).join('')
+        : [8, 14, 20, 26].map((x) => `<rect x="${x * 1.5}" y="4" width="0.8" height="23" fill="#000" fill-opacity=".15"/>`).join('');
+  return swatch(`<rect x="4" y="4" width="40" height="23" rx="1.5" fill="${base}"/>${lines}`);
+}
+
+/** The Controls step's drawings. */
+export const CONTROL_ICONS = {
+  // Old school: a round gauge with its needle.
+  analogue: svg('<circle cx="16" cy="16" r="10"/><circle cx="34" cy="18" r="7"/><path d="M16 16l5-5M34 18l-3-4M10 12l1.5 1M22 12l-1.5 1"/>'),
+  // Basic: two small screens with their figures.
+  basic: svg('<rect x="4" y="8" width="18" height="14" rx="1.5"/><rect x="26" y="8" width="18" height="14" rx="1.5"/><path d="M9 15h8M31 15h8"/>'),
+  // Advanced: big screens over a row of switches.
+  advanced: svg('<rect x="3" y="4" width="20" height="14" rx="1.5"/><rect x="25" y="4" width="20" height="14" rx="1.5"/><path d="M5 25h38M9 22v4M15 22v4M21 22v4M30 22v4M36 22v4"/>'),
+  // Screens: one for each, or touchscreens with tabs along the top.
+  separate: svg('<rect x="3" y="10" width="12" height="12" rx="1"/><rect x="18" y="10" width="12" height="12" rx="1"/><rect x="33" y="10" width="12" height="12" rx="1"/>'),
+  oneTouch: svg('<rect x="9" y="5" width="30" height="22" rx="1.5"/><path d="M9 10h30M16 5v5M23 5v5M30 5v5"/>'),
+  twoTouch: svg('<rect x="3" y="7" width="20" height="18" rx="1.5"/><rect x="25" y="7" width="20" height="18" rx="1.5"/><path d="M3 11h20M25 11h20M9 7v4M15 7v4M31 7v4M37 7v4"/>'),
+  // Helm assist: none, or the wheel with an A for the autopilot.
+  noAssist: svg('<circle cx="24" cy="16" r="10"/><circle cx="24" cy="16" r="2"/><path d="M24 6v8M14 16h8M26 16h8"/>'),
+  assist: svg('<circle cx="18" cy="16" r="10"/><circle cx="18" cy="16" r="2"/><path d="M18 6v8M8 16h8M20 16h8M34 24l5-14 5 14M36 19h6"/>'),
+};
