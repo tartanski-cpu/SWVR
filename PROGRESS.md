@@ -7844,3 +7844,15 @@ Owner, Oct 2026 (screenshot of the tug): "when the deck house ... is full width,
 
 - **Now** (vessel/view/hullMesh.ts `levelPlate`): along the deckhouse each piece is a plate whose foot follows her deck edge and whose top is level, at the deckhouse top plus her bulwark height; its rail is level at the deckhouse top plus the rail height (the stanchions were already right). Closed at its ends where it rises above her ordinary bulwark.
 - **Checked:** headless Chromium, the Shipyard: the tug with a full-width deckhouse from the starboard quarter and from port: the bulwark's top level along it. Full suite passes. **Not checked:** the Quest.
+
+### Shipyard: the Engine step as pictures (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the Engine step): "these side menus are still too much text. I'd like it to be more pictorial, so images. And it could be there's a tooltip to give you all that information, right? Or an information button."
+
+- **Now** (shipyard/tiles.ts, new; page.ts's Engine section; styles in shipyard.html): every choice on the Engine step is a picture tile: a small line drawing (drawn for the game, 48 × 32, in the text's colour), its name and one line. Its full description sits behind an **i** button and opens under the tiles, in place, so it works on a touchscreen and in the headset's browser too; it's also the tile's hover tooltip.
+  - **Engines:** the four as tiles ("150 kW", "diesel six · 600 kg"...), each drawn as its kind: a straight six, a V8, the bigger V8 with two turbos, the tug diesel with its flywheel.
+  - **Drive:** Twin, Stern drive, Pod drives, Kort nozzle, as on/off tiles. Each still has its checkbox inside, so page.ts ticks and disables them as before; the tile shows ticked or greyed out.
+  - **Exhaust stacks** (raked, straight) and **Or outboards** (none, two, three, four), as tiles.
+  - Up to four tiles stand in one row, no tile alone on a row.
+- `pickTiles` (one of several: `data-key`/`data-i`, marked `on` by syncControls as before) and `toggleTiles` (on/off fields) are for the other steps too, if the owner likes this one.
+- **Checked:** headless Chromium, the Engine step: the tug (the tug diesel and the nozzle chosen; Twin, Stern drive and Pod drives greyed out; the nozzle's description open) and the landing craft (Twin ticked by its tile, the 280 kW chosen by its tile: the design changed). Full suite passes. **Not checked:** the Quest's browser.
