@@ -44,6 +44,7 @@ npm run dev         # HTTPS dev server (self-signed; the Quest can join over the
 npm run typecheck
 npm test            # vitest, all tests
 npm run trials      # sea-trials report (speed, turning, stopping)
+npm run crewcheck   # two-browser multiplayer check (needs npm run dev running): join, crew list, launch, tow, leave
 npm run build
 ```
 

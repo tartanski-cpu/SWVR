@@ -58,6 +58,17 @@ function hullPlan(L: number, B: number, bottom: number, top: number, bow: number
   return part(g, c);
 }
 
+/**
+ * Her hull in horizontal slices, each its own colour, bottom to top ([bottom, top, colour]):
+ * the boot-topping, the hull, a band. One plan for all, stacked, so no two side faces lie on
+ * each other. (Painted on as a hair-larger copy of the hull, a band's sides and the hull's
+ * were a few centimetres apart, and from a few hundred metres the depth buffer can't tell
+ * them apart: they flickered, owner Oct 2026.)
+ */
+function hullBands(L: number, B: number, bow: number, stern: number, slices: [number, number, number][], both = false): THREE.BufferGeometry[] {
+  return slices.filter(([b, t]) => t > b).map(([b, t, c]) => hullPlan(L, B, b, t, bow, stern, c, both));
+}
+
 /** Rows of dark windows along both sides of a block (its middle at x `x0`, half-width `hw`), `n` rows from `y0` every `dy`, from z0 to z1. */
 function windows(hw: number, y0: number, dy: number, n: number, z0: number, z1: number, out: THREE.BufferGeometry[], x0 = 0): void {
   for (let r = 0; r < n; r++) for (const side of [-1, 1]) out.push(box(0.06, 0.9, z1 - z0, x0 + side * (hw + 0.03), y0 + r * dy, (z0 + z1) / 2, GLASS));
@@ -66,13 +77,12 @@ function windows(hw: number, y0: number, dy: number, n: number, z0: number, z1: 
 function large(L: number, B: number, d: number, fb: number, c: (typeof LIVERY)[Livery]): THREE.BufferGeometry[] {
   const car = fb + 5.4; // the top of the car deck's shell
   const p: THREE.BufferGeometry[] = [
-    hullPlan(L, B, -d, car, 0.22, 0.86, c.hull),
-    // Boot-topping at the waterline, a hair proud of the plating; an Aegean ferry's blue band under the deck edge.
-    hullPlan(L * 1.002, B * 1.006, -0.7, 0.5, 0.22, 0.86, c.boot),
-    ...(c.band !== c.hull ? [hullPlan(L * 1.002, B * 1.006, car - 1.6, car - 0.4, 0.22, 0.86, c.band)] : []),
+    // Boot-topping at the waterline; above the hull, the car deck's shell in the upper works'
+    // white, as the West Coast ferries are painted, or an Aegean ferry's blue band under the deck edge.
+    ...hullBands(L, B, 0.22, 0.86, c.band === c.hull
+      ? [[-d, -0.7, c.hull], [-0.7, 0.5, c.boot], [0.5, fb + 1.2, c.hull], [fb + 1.2, car, c.upper]]
+      : [[-d, -0.7, c.hull], [-0.7, 0.5, c.boot], [0.5, car - 1.6, c.hull], [car - 1.6, car - 0.4, c.band], [car - 0.4, car, c.hull]]),
     hullPlan(L * 0.996, B * 0.99, car, car + 0.08, 0.22, 0.86, DECK), // her weather deck, end to end
-    // The car deck's shell in the upper works' white above the dark hull, as the West Coast ferries are painted.
-    ...(c.band === c.hull ? [hullPlan(L * 1.002, B * 1.006, fb + 1.2, car, 0.22, 0.86, c.upper)] : []),
     // The bow visor's seam and the stern ramp.
     box(B * 0.5, 0.15, 0.2, 0, fb + 2.4, -L / 2 + L * 0.07, 0x0a0a0a),
     box(B * 0.66, 4.2, 0.25, 0, fb + 2.2, L / 2 - 0.05, GREY),
@@ -105,8 +115,7 @@ function large(L: number, B: number, d: number, fb: number, c: (typeof LIVERY)[L
 
 function small(L: number, B: number, d: number, fb: number, c: (typeof LIVERY)[Livery]): THREE.BufferGeometry[] {
   const p: THREE.BufferGeometry[] = [
-    hullPlan(L, B, -d, fb, 0.14, 0.86, c.hull, true),
-    hullPlan(L * 1.004, B * 1.008, -0.6, 0.4, 0.14, 0.86, c.boot, true),
+    ...hullBands(L, B, 0.14, 0.86, [[-d, -0.6, c.hull], [-0.6, 0.4, c.boot], [0.4, fb, c.hull]], true),
     hullPlan(L * 0.996, B * 0.99, fb, fb + 0.08, 0.14, 0.86, DECK, true), // the car deck, end to end
     // The car deck's bulwarks along both sides; the ramps at each end, raised.
     ...[-1, 1].map((s) => box(0.25, 1.2, L * 0.72, s * B * 0.46, fb + 0.6, 0, c.hull)),
@@ -125,8 +134,7 @@ function small(L: number, B: number, d: number, fb: number, c: (typeof LIVERY)[L
 
 function launch(L: number, B: number, d: number, fb: number, c: (typeof LIVERY)[Livery]): THREE.BufferGeometry[] {
   const p: THREE.BufferGeometry[] = [
-    hullPlan(L, B, -d, fb, 0.3, 0.84, c.hull),
-    hullPlan(L * 1.004, B * 1.01, -0.4, 0.3, 0.3, 0.84, c.boot),
+    ...hullBands(L, B, 0.3, 0.84, [[-d, -0.4, c.hull], [-0.4, 0.3, c.boot], [0.3, fb, c.hull]]),
     hullPlan(L * 0.996, B * 0.99, fb, fb + 0.06, 0.3, 0.84, DECK),
     box(B * 0.8, 2.2, L * 0.52, 0, fb + 1.1, -L * 0.05, c.upper),
   ];

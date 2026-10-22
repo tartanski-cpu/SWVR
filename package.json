@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "trials": "vitest run tests/seaTrials.test.ts --silent=false"
+    "trials": "vitest run tests/seaTrials.test.ts --silent=false",
+    "crewcheck": "node tools/crewCheck.mjs"
   },
   "dependencies": {
     "peerjs": "1.5.4",

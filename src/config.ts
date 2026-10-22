@@ -180,6 +180,13 @@ export const CONFIG = {
      * waterline only and nudged toward the camera (worldView.ts).
      */
     far: 14000,
+    /**
+     * Overlapping quay and pier blocks at one deck height (world/blockSteps.ts): each drawn
+     * this much lower and narrower per step (m), so their decks and sides aren't in one plane
+     * and don't flicker. Small enough not to see (a few overlapping need two or three steps);
+     * enough to keep them apart in the depth buffer out to about 100 m, where you stand on them.
+     */
+    blockStepM: 0.015,
   },
 
   xr: {

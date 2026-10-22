@@ -171,6 +171,13 @@ export interface MenuHost {
   tutorialSkip(): void;
   tutorialRestart(): void;
   crewList(): string;
+  /**
+   * Who's in the game, one by one (the Crew tab's list, owner Oct 2026), or null past the
+   * last: their name, whether it's you or the host, and whether you've muted their voice.
+   */
+  crewMember(i: number): { name: string; you: boolean; host: boolean; muted: boolean } | null;
+  /** Mute or unmute one crew-mate's voice, for you only. */
+  toggleCrewMute(i: number): void;
   /** Voice with the crew (net/voice.ts): a status line, and your microphone muted. */
   voiceStatus(): string;
   /** Voice chat and the handheld VHF on (off by default; a per-browser setting). */
@@ -512,15 +519,19 @@ export function mainMenu(h: MenuHost): MainMenu {
 
   const solo = () => h.netRole() === 'solo';
   const digit = (d: string) => ({ text: () => (solo() ? d : ''), press: () => h.typeDigit(d) });
+  // Who's aboard, one row each: their name, and Mute for a crew-mate's voice.
+  const member = (i: number): MenuRow => ({
+    label: '',
+    buttons: [
+      { text: () => { const m = h.crewMember(i); return m ? `${m.name}${m.you ? ' (you)' : ''}${m.host ? ' · host' : ''}` : ''; }, weight: 2.4 },
+      { text: () => { const m = h.crewMember(i); return !m || m.you ? '' : m.muted ? 'Muted' : 'Mute'; }, active: () => !!h.crewMember(i)?.muted, press: () => h.toggleCrewMute(i) },
+    ],
+  });
+  // In the order you need them (owner, Oct 2026): host or join first; then who's in the game,
+  // their voices and yours; then your boat; the recording camera last.
   const crew: MenuRow[] = [
     { heading: 'Crew (multiplayer)' },
     { label: '', buttons: [{ text: () => h.netStatus() }] },
-    { label: '', buttons: [{ text: () => h.crewList() }] },
-    ...(MODE === 'voyage' ? yourBoat(h) : []),
-    { label: 'Your name', buttons: [{ text: () => h.playerName(), weight: 1.6 }, { text: 'Change', press: () => h.nextPlayerName() }] },
-    { label: 'Voice chat', buttons: [choice('On', true, () => h.voiceChat(), (v) => h.setVoiceChat(v)), choice('Off', false, () => h.voiceChat(), (v) => h.setVoiceChat(v))] },
-    { label: 'Voice', buttons: [{ text: () => h.voiceStatus(), weight: 2 }] },
-    { label: 'Microphone', buttons: [choice('On', false, () => h.micMuted(), (v) => h.setMicMuted(v)), choice('Muted', true, () => h.micMuted(), (v) => h.setMicMuted(v))] },
     {
       label: '',
       buttons: [
@@ -528,17 +539,24 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => (solo() ? '' : h.netRole() === 'host' ? 'Stop hosting' : 'Leave game'), press: () => h.leaveGame() },
       ],
     },
-    { heading: 'Join a game' },
     {
-      label: 'Game code',
+      label: 'Or join: code',
       buttons: [
-        { text: () => (h.joinCode() + '_____').slice(0, 5).split('').join(' '), weight: 1.6 },
+        { text: () => (solo() ? (h.joinCode() + '_____').slice(0, 5).split('').join(' ') : ''), weight: 1.6 },
         { text: () => (solo() ? 'Join' : ''), active: () => h.joinCode().length === 5, press: () => h.joinGame() },
       ],
     },
     { label: '', buttons: ['1', '2', '3', '4', '5'].map(digit) },
     { label: '', buttons: ['6', '7', '8', '9', '0'].map(digit) },
     { label: '', buttons: [{ text: () => (solo() ? '⌫' : ''), press: () => h.backspace() }] },
+    { heading: 'Aboard' },
+    ...Array.from({ length: 4 }, (_, i) => member(i)),
+    { label: '', buttons: [{ text: () => (h.crewMember(4) ? h.crewList() : '') }] },
+    { label: 'Your name', buttons: [{ text: () => h.playerName(), weight: 1.6 }, { text: 'Change', press: () => h.nextPlayerName() }] },
+    { label: 'Voice chat', buttons: [choice('On', true, () => h.voiceChat(), (v) => h.setVoiceChat(v)), choice('Off', false, () => h.voiceChat(), (v) => h.setVoiceChat(v))] },
+    { label: 'Voice', buttons: [{ text: () => h.voiceStatus(), weight: 2 }] },
+    { label: 'Microphone', buttons: [choice('On', false, () => h.micMuted(), (v) => h.setMicMuted(v)), choice('Muted', true, () => h.micMuted(), (v) => h.setMicMuted(v))] },
+    ...(MODE === 'voyage' ? yourBoat(h) : []),
     { heading: 'Camera (for recording)' },
     { label: '', buttons: [{ text: () => h.cameraNote() }] },
     { label: 'Be the camera', buttons: [choice('On', true, () => h.camera().on, (v) => h.setCamera(v)), choice('Off', false, () => h.camera().on, (v) => h.setCamera(v))] },

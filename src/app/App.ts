@@ -181,7 +181,6 @@ import { fuelTankL } from '../vessel/fuelTank';
  */
 /** Where the host keeps the whiteboard's notes between visits. */
 const BOARD_KEY = 'swvr.board';
-const LAST_CODE_KEY = 'swvr.lastGameCode';
 /** ...and the pencil marks on the paper chart. */
 const CHART_KEY = 'swvr.chart';
 /** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
@@ -645,6 +644,8 @@ export class App {
   /** Hosting: waiting for the PeerJS server to register the room code. */
   private hostStarting = false;
   private joinCode = '';
+  /** Crew-mates whose voices you've muted (player ids; the Crew tab, this page only). */
+  private readonly mutedCrew = new Set<string>();
   /** How our home boat was built (world.build as it was made here): crew joining compare theirs. */
   private builtAs: NonNullable<WorldState['build']> = {};
   /** The workboat's equipment the career wanted when last looked (null: not looked yet); see checkRefit. */
@@ -1266,10 +1267,11 @@ export class App {
   private updateVoice(): void {
     const inGame = !!this.host || this.client?.status === 'connected';
     const ctx = this.sound.engine.context;
-    if (!inGame || !this.netPeer || !ctx || !userSettings.voiceChat) return;
-    // Hosting: our own network id, for the crew to call (in the snapshots with us).
+    // Hosting: our own network id, for the crew to call (in the snapshots with us), and for
+    // their Crew tab to tell which of them is the host. Whether voice chat is on or not.
     const me = this.world.players[this.localPlayerId];
     if (this.host && me) me.peerId = this.hostPeerId;
+    if (!inGame || !this.netPeer || !ctx || !userSettings.voiceChat) return;
     if (!this.voice) {
       this.voice = new VoiceChat(this.netPeer, ctx);
       this.voice.setMuted(this.voiceMuted);
@@ -1281,7 +1283,7 @@ export class App {
       const frame = (p.aboardVesselId && this.vesselRoots.get(p.aboardVesselId)) || this.scene;
       const h = p.avatar.head;
       const w = frame.localToWorld(new THREE.Vector3(h[0], h[1], h[2]));
-      list.push({ peerId: p.peerId, head: w, tx: !!p.avatar.radio?.tx });
+      list.push({ peerId: p.peerId, head: w, tx: !!p.avatar.radio?.tx, muted: this.mutedCrew.has(p.id) });
     }
     this.voice.update({ head: this.focus, tx: this.radio.tx }, list);
   }
@@ -2717,6 +2719,9 @@ export class App {
       leaveGame: () => {
         this.netMessage = '';
         this.leaveGame();
+        // The next game is typed afresh (owner: the old code was still in the box to delete).
+        this.joinCode = '';
+        this.mutedCrew.clear();
       },
       shipyardCodes: () => this.shipyardCodes,
       takeDesign: (code) => {
@@ -2979,11 +2984,6 @@ export class App {
       this.netMessage = 'Type the 5-digit game code first';
       return;
     }
-    try {
-      localStorage.setItem(LAST_CODE_KEY, this.joinCode);
-    } catch {
-      // Not remembered.
-    }
     const transport = new PeerClientTransport(this.joinCode);
     this.connectClient(transport);
     this.netPeer = transport.peer;
@@ -3039,6 +3039,23 @@ export class App {
       crewList: () => {
         const names = Object.values(this.world.players).map((p) => (p.id === this.localPlayerId ? `${p.name} (you)` : p.name));
         return names.length > 1 ? `Aboard: ${names.join(', ')}` : 'Just you';
+      },
+      crewMember: (i: number) => {
+        // You first, then the others in the order they came.
+        const all = Object.values(this.world.players);
+        const list = [...all.filter((p) => p.id === this.localPlayerId), ...all.filter((p) => p.id !== this.localPlayerId)];
+        const p = list[i];
+        if (!p) return null;
+        const hostPeer = this.host ? this.hostPeerId : this.client && this.joinCode.length === 5 ? peerIdForRoom(this.joinCode) : '';
+        // Your own name as you've set it (playing alone, the world's player still has the default).
+        return { name: p.id === this.localPlayerId ? userSettings.playerName : p.name, you: p.id === this.localPlayerId, host: !!p.peerId && p.peerId === hostPeer, muted: this.mutedCrew.has(p.id) };
+      },
+      toggleCrewMute: (i: number) => {
+        const all = Object.values(this.world.players).filter((p) => p.id !== this.localPlayerId);
+        const p = all[i - 1];
+        if (!p) return;
+        if (this.mutedCrew.has(p.id)) this.mutedCrew.delete(p.id);
+        else this.mutedCrew.add(p.id);
       },
     };
   }
@@ -3505,7 +3522,6 @@ export class App {
       // session here, in the slot last used. A first career starts with the first voyage.
       if (!this.client) this.career.restore();
       this.fitWanted = this.wantedFit();
-      this.joinCode = localStorage.getItem(LAST_CODE_KEY) ?? '';
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
       // Rescues completed in this browser so far (milestone 4).
