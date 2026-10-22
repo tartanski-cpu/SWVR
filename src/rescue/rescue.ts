@@ -19,6 +19,7 @@
  *
  * Random choices use a deterministic hash of a counter in the state, like the cargo code.
  */
+import { placePhrase } from '../world/places';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { isPowered } from '../vessel/electrics';
 import { formatPosition } from '../nav/geo';
@@ -261,7 +262,10 @@ export function startIncident(world: WorldState, v: VesselState, toward: string 
   const inc: Incident = { defId: def.id, phase: 'calling', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time, targets: placed.targets, ...(placed.prop ? { prop: placed.prop } : {}) };
   r.active = inc;
   // Plot-it-yourself mode: the call gives the position only; the crew plots it on the chart.
-  const call = cfg.plotYourself ? def.call.replace('bearing {bearing}, {range} miles from you', `last seen in position ${formatPosition(x, z)}`) : def.call;
+  const call0 = cfg.plotYourself ? def.call.replace('bearing {bearing}, {range} miles from you', `last seen in position ${formatPosition(x, z)}`) : def.call;
+  // Where, in words, on a coast map ("off Toward Point, bearing ..."; world/places.ts).
+  const phrase = placePhrase(x, z);
+  const call = phrase ? call0.replace(/bearing \{bearing\}|last seen in position/, (m) => `${phrase}, ${m}`) : call0;
   const text = call
     .replace('{bearing}', `${bearingDeg(bx, bz, x, z).toFixed(0).padStart(3, '0')}°`)
     .replace('{range}', (Math.hypot(x - bx, z - bz) / 1852).toFixed(1))

@@ -13,7 +13,7 @@
  * table): sized to be read from standing height on desktop without leaning in.
  */
 import { CONFIG } from '../config';
-import { CURRENTS, FARMS, LIGHTS, MARKS, MAX_DEPTH, PORTS, SKYLINE, WRECKS, type MarkKind } from '../world/archipelago';
+import { CURRENTS, FARMS, LIGHTS, MARKS, MAX_DEPTH, PLACES, PORTS, SKYLINE, WRECKS, type MarkKind } from '../world/archipelago';
 import { slackTimes } from '../world/currents';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
@@ -173,6 +173,32 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
       label(p.name, px(p.x) + Math.sign(dx) * 14 * u, pz(p.z), font, '#7a1f1a');
       g.textAlign = 'center';
     } else label(p.name, px(p.x), pz(p.z) + Math.sign(dz) * 26 * u, font, '#7a1f1a');
+  }
+
+  // Place names (a coast map's, the coast extras plan C4), as a chart letters them: the sea's
+  // own (bays, sounds, straits) in sloping blue capitals and lower case, islands in bold
+  // capitals, towns and villages upright; all ranks on a detail sheet, the first two on the
+  // overview. Most prominent first; one that would overprint another name is left out.
+  const PLACE_FONT = (kind: string, rank: number) => {
+    const size = (rank <= 1 ? 22 : rank === 2 ? 18 : 15) * u;
+    return kind === 'island' || kind === 'islet' || kind === 'archipelago' ? `bold ${size}px Georgia, serif` : kind === 'bay' || kind === 'strait' || kind === 'sea' ? `italic ${size}px Georgia, serif` : `${size}px Georgia, serif`;
+  };
+  // (The compass rose's place, bottom left, drawn later: kept clear of the names too.)
+  const roseBox: [number, number, number, number] = [W * 0.13, H * 0.79 - 20 * u, Math.min(W, H) * 0.1 + 10 * u, Math.min(W, H) * 0.1 + 30 * u];
+  for (const pl of [...PLACES].sort((a, b) => a.rank - b.rank)) {
+    if (pl.x < b.x0 || pl.x > b.x1 || pl.z < b.z0 || pl.z > b.z1) continue;
+    if (sheet.textScale < 1 && pl.rank > 2) continue;
+    const isle = pl.kind === 'island' || pl.kind === 'islet' || pl.kind === 'archipelago';
+    const water = pl.kind === 'bay' || pl.kind === 'strait' || pl.kind === 'sea';
+    const text = isle ? pl.name.toUpperCase() : pl.name;
+    const font = PLACE_FONT(pl.kind, pl.rank);
+    g.font = font;
+    const hw = g.measureText(text).width / 2;
+    const hh = parseFloat(font.replace(/^\D*/, '')) * 0.6;
+    const x = px(pl.x);
+    const y = pz(pl.z);
+    if ([...taken, roseBox].some(([cx, cy, w, h]) => Math.abs(cx - x) < w + hw && Math.abs(cy - y) < h + hh)) continue;
+    label(text, x, y, font, water ? '#2a4a7a' : '#3a2e1a');
   }
 
   // Wrecks: the dangerous-wreck symbol (a hull line crossed by three short strokes) in a

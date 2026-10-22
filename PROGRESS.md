@@ -6600,6 +6600,43 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
 
+### Coast extras C4: place names (done, awaiting owner test)
+
+Owner: "Do C4".
+
+- **The names** (the package's `places`, from C1's features): the map's towns, villages, hamlets, islands, islets, localities and the sea's own names (bays, sounds and straits, headlands, peninsulas), ranked:
+  - **1:** towns and the big waters;
+  - **2:** villages, islands, bays, sounds;
+  - **3:** hamlets, headlands;
+  - **4:** islets and small localities.
+  - **Left out:** farms, single houses and town quarters, which a chart doesn't print.
+  - **Also left out:** islands and archipelagos mostly outside the map. "GREAT BRITAIN" was printed on the mainland, and "Inner Hebrides" and "Hebrides" in a corner; in the map data their outlines are mostly beyond the download. The features stage now skips any relation more than half of whose outline is missing, or any island spanning over 60 km (`biggestIsland`).
+  - **How many:** Oban 69, Tayvallich 35, Syros 130 (in Latin letters), Clyde 268. That's 2-21 kB in each package.
+- **On the paper chart,** lettered as a chart does:
+  - the sea's names in sloping blue (Oban Bay, Ganavan Bay, Kyles of Bute, Loch Striven, Firth of Clyde);
+  - islands in bold capitals (KERRERA, BUTE, GREAT CUMBRAE);
+  - towns and villages upright, bigger by rank.
+  - All ranks on a map's own sheet, the first two on the overview. The most prominent go first, and any name that would overprint another name, a port's or the compass rose is left out. The soundings already keep clear of names.
+- **On the chartplotter** (`CONFIG.places.plotterSpan`): rank 1 shows on every range, rank 2 at 8 km across or less, rank 3 at 4 km, rank 4 at 2 km.
+  - Same lettering: the sea's names italic light blue, islands in capitals, towns plain.
+  - Port names keep their place, and a name that would overprint one is left out.
+- **In the radio's calls** (`world/places.ts` `placePhrase`; `CONFIG.places`): the rescue, tow and fire calls now say where in words, ahead of the bearing or the position. For example: "MAYDAY RELAY. Man overboard from a yacht ..., in Rothesay Bay, bearing 095°, 1.2 miles from you."
+  - The name is the nearest within `reach` 3 km. A more prominent name counts as nearer: each rank down adds `rankWeight` 0.3 of its distance, so a town beats a hamlet at the same distance.
+  - "In" for a bay, sound or strait within `inside` 900 m of its name; "off" for anything else.
+  - Where there's no name near, and on the hand-built career regions (no names), the call is as before.
+- **Tests:** `tests/places.test.ts` (2):
+  - "in" a bay near its name and "off" it farther out; "off" a headland; the town beats the bay halfway between; "in the Narrows"; nothing far away;
+  - Oban's "in Ganavan Bay" and the Clyde's "in Rothesay Bay";
+  - no farms or houses among the names.
+- **Checked headless:**
+  - Oban's paper chart (Ganavan Bay, Camas Bàn, Oban Bay, Dunbeg, Kerrera clear of the rose);
+  - the Clyde's paper chart (Kyles of Bute, Loch Striven, BUTE, the Bute bays, Firth of Clyde);
+  - the chartplotter at Rothesay on 2, 8 and 16 km (Rothesay Bay and Rothesay close in; the villages at 8 km; only the towns at 16 km).
+  - **Not checked:** a call on the air with a name in it (the test checks the words it would add); the Quest.
+- **Test steps:**
+  - **VR and desktop:** Voyage → The Firth of Clyde. Look at the chartplotter and zoom out with −: the names thin out from bays and villages to the towns. The paper chart on the chart table carries the full set.
+  - Take a rescue or tow call (Debug → Missions): it names where, "off ..." or "in ...", before the bearing.
+
 ### Coast extras C3: what the shore is made of (done, awaiting owner test)
 
 Owner: "Next milestone".
@@ -7301,7 +7338,7 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
 
-- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6), C1, C2 and C3 are done; C4 is next. The owner says "Next milestone" to advance, as before.
+- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6) and C1-C4 are done; C5 is next. The owner says "Next milestone" to advance, as before.
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 

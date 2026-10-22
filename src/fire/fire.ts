@@ -19,6 +19,7 @@
  *
  * Random choices use a deterministic hash of a counter in the state.
  */
+import { placePhrase } from '../world/places';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
@@ -261,9 +262,10 @@ export function startFireCall(world: WorldState, v: VesselState, kind?: FireKind
   const job: FireJob = { kind: real, x: spot.x, z: spot.z, y: spot.y, yawDeg: rand(f) * 360, intensity: c.startIntensity, wetting: 0, phase: 'calling', callT: world.time, alertT: world.time };
   f.job = job;
   const [bx, , bz] = v.position;
-  const where = CONFIG.rescue.plotYourself
+  const phrase = placePhrase(job.x, job.z); // where, in words, on a coast map (world/places.ts)
+  const where = (phrase ? `${phrase}, ` : '') + (CONFIG.rescue.plotYourself
     ? `in position ${formatPosition(job.x, job.z)}`
-    : `bearing ${bearing(bx, bz, job.x, job.z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(job.x - bx, job.z - bz) / 1852).toFixed(1)} miles from you`;
+    : `bearing ${bearing(bx, bz, job.x, job.z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(job.x - bx, job.z - bz) / 1852).toFixed(1)} miles from you`);
   sayRadio(world, 'distress', `PAN-PAN. Fire reported: ${KIND_NAME[real]}, ${where}. You have a fire monitor, skipper: can you attend?`);
   return job;
 }

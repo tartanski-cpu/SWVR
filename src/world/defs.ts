@@ -523,6 +523,19 @@ export interface FarmDef {
 }
 
 /**
+ * A place name from the map (the coast extras plan, C4; a coast map's): a town, village,
+ * island or islet, or the sea's own (a bay, a headland, a strait). On the charts by `rank`
+ * (1 shown farthest out, 4 only close in), and in the radio's calls (world/places.ts).
+ */
+export interface PlaceDef {
+  name: string;
+  kind: string;
+  x: number;
+  z: number;
+  rank: number;
+}
+
+/**
  * What stands up against the sky from the sea (the coast extras plan, C2; a coast map's,
  * from the map data): drawn by world/view/skylineView.ts, on the paper chart as a chart's
  * landmark symbols. `height` (m) where the map tags it, else the kind's own; `size` its
@@ -630,6 +643,8 @@ export interface RegionDef {
   /** What stands up against its sky (castles, masts, turbines...; a coast map's), and the region's look for them ('aegean': white chapels with domes). */
   skyline?: SkylineDef[];
   skylineStyle?: string;
+  /** Its place names (a coast map's, from the map data): charts and radio calls. */
+  places?: PlaceDef[];
   /** Boats lying in its harbours, on moorings and at anchor (a coast map's; world/harbourBoats.ts). */
   harbourBoats?: HarbourBoatsDef;
   gusts?: GustZoneDef[];

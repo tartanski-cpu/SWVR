@@ -130,9 +130,9 @@
  "shoreBandPoints": 6424,
  "warnings": [
   "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)",
+  "2 patches where the coastline's sides disagree (check the coast there)",
   "features: no fog signals mapped (C5 foghorns: none here)",
-  "features: no wrecks mapped (C6: none here)",
-  "2 patches where the coastline's sides disagree (check the coast there)"
+  "features: no wrecks mapped (C6: none here)"
  ],
  "nav": {
   "marks": 15,
@@ -171,7 +171,7 @@
    "Càrn Breugach",
    "Dunollie Fl(2)GWR.6s"
   ],
-  "bytes": 219083
+  "bytes": 223940
  },
  "houses": {
   "byType": {
@@ -237,9 +237,8 @@
    "suburb": 12,
    "quarter": 1,
    "islet": 9,
-   "island": 4,
-   "strait": 1,
-   "archipelago": 2
+   "island": 3,
+   "strait": 1
   },
   "fogSignals": 0,
   "wrecks": 0,

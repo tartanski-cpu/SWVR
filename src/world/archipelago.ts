@@ -27,6 +27,7 @@ import type {
   LampDef,
   LightDef,
   MarkDef,
+  PlaceDef,
   PortDef,
   PortFloodDef,
   PottingGround,
@@ -50,6 +51,8 @@ export const SHOALS: ShoalDef[] = REGIONS.flatMap((r) => r.shoals ?? []);
 export const FARMS: FarmDef[] = REGIONS.flatMap((r) => r.farms ?? []);
 /** What stands against a coast map's sky (castles, masts, turbines...: world/view/skylineView.ts). */
 export const SKYLINE: SkylineDef[] = REGIONS.flatMap((r) => r.skyline ?? []);
+/** A coast map's place names (charts, radio calls: world/places.ts). */
+export const PLACES: PlaceDef[] = REGIONS.flatMap((r) => r.places ?? []);
 export const SKYLINE_STYLE: string | undefined = REGIONS.find((r) => r.skylineStyle)?.skylineStyle;
 export const GUSTS: GustZoneDef[] = REGIONS.flatMap((r) => r.gusts ?? []);
 export const BUILDINGS: BuildingDef[] = REGIONS.flatMap((r) => r.buildings);

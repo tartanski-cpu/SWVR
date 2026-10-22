@@ -358,6 +358,12 @@ const skyline = ((F?.landmarks ?? []) as { kind: string; name: string; x: number
   .filter((l) => l.kind !== 'lighthouse' && !(l.kind === 'church' && kitChurch(l.x, l.z)))
   .map((l) => ({ kind: l.kind, name: l.name, x: l.x, z: l.z, ...(l.height ? { height: l.height } : {}), ...(l.size ? { size: l.size } : {}) }));
 const skylineStyle = req.theme;
+// Place names for the charts and the radio (the coast extras plan, C4): the map's towns,
+// villages, hamlets, islands, islets and the sea's own names (bays, headlands, straits),
+// ranked as features.ts ranks them (1 shown farthest out). Farms, single houses and town
+// quarters are left out: a chart doesn't print them.
+const PLACE_KINDS = new Set(['city', 'town', 'village', 'hamlet', 'suburb', 'island', 'islet', 'archipelago', 'sea', 'bay', 'cape', 'strait', 'peninsula', 'locality']);
+const places = ((F?.names ?? []) as { name: string; kind: string; x: number; z: number; rank: number }[]).filter((n) => PLACE_KINDS.has(n.kind));
 
 const currents = (nav.currents as { id: string; name: string; x: number; z: number; length: number; width: number; setDeg: number; peakKn: number; periodH: number }[]).map((c) => ({ id: c.id, name: c.name, x: c.x, z: c.z, length: c.length, width: c.width, setDeg: c.setDeg, peakKn: c.peakKn, periodH: c.periodH, phaseH: 0, waveFactor: 1.6, knocks: 3 }));
 
@@ -446,6 +452,7 @@ const pkg = {
   farms,
   skyline,
   skylineStyle,
+  places,
   shelters,
   ports,
   berths,

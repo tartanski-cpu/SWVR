@@ -1,10 +1,10 @@
 {
  "warnings": [
   "only 3 buoys or beacons mapped (thin data?)",
+  "4 patches where the coastline's sides disagree (check the coast there)",
   "features: no fog signals mapped (C5 foghorns: none here)",
   "features: no wrecks mapped (C6: none here)",
   "features: 2 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)",
-  "4 patches where the coastline's sides disagree (check the coast there)",
   "achladi-pier: no berth with room for a boat (best blocked at 5 points): not a port"
  ],
  "nav": {
@@ -245,7 +245,7 @@
    "Pyrgos",
    "Nisis Dhidhimi FlW.6s"
   ],
-  "bytes": 511707
+  "bytes": 520653
  },
  "houses": {
   "byType": {
@@ -307,8 +307,7 @@
    "hamlet": 42,
    "cape": 1,
    "islet": 7,
-   "island": 2,
-   "archipelago": 1
+   "island": 2
   },
   "fogSignals": 0,
   "wrecks": 0,

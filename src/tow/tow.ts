@@ -30,6 +30,7 @@
  *
  * Random choices use a deterministic hash of a counter in the state, like the rescues.
  */
+import { placePhrase } from '../world/places';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
@@ -520,9 +521,10 @@ export function startTowCall(world: WorldState, v: VesselState, defId?: string, 
   }
   const job = spawnTow(world, kind, x, z, 'calling');
   const name = opts.name ?? VESSEL_DEFS[kind].tow?.name ?? 'a vessel';
-  const where = CONFIG.rescue.plotYourself
+  const phrase = placePhrase(x, z); // where, in words, on a coast map (world/places.ts)
+  const where = (phrase ? `${phrase}, ` : '') + (CONFIG.rescue.plotYourself
     ? `in position ${formatPosition(x, z)}`
-    : `bearing ${bearing(bx, bz, x, z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(x - bx, z - bz) / 1852).toFixed(1)} miles from you`;
+    : `bearing ${bearing(bx, bz, x, z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(x - bx, z - bz) / 1852).toFixed(1)} miles from you`);
   const heavy = (VESSEL_DEFS[kind].tow?.lineFactor ?? 1) > 1 ? ' She is a big one: she will pass you her own heavy hawser. Take up the strain gently.' : '';
   const ship = VESSEL_DEFS[kind].tow?.needs === 'tug';
   sayRadio(world, 'distress', ship ? `PAN PAN. Tug wanted: ${name}, drifting ${where}. She needs a tug to bring her into harbour and lay her alongside a quay: tow her in, then push her onto the berth with your bow. Nothing smaller will shift her.${heavy}` : `SÉCURITÉ. Tow wanted: ${name}, adrift ${where}. Can you take her in tow to any harbour?${heavy}`);

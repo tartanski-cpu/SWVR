@@ -4,7 +4,10 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { CURRENTS, FISHING_GROUNDS, MARKS, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, MARKS, PLACES, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+
+/** The place names, most prominent first (they claim their room on the screen first). */
+const PLACES_BY_RANK = [...PLACES].sort((a, b) => a.rank - b.rank);
 import { raceReading } from '../world/currents';
 import { REGIONS } from '../world/regions';
 import type { RegionDef } from '../world/defs';
@@ -385,7 +388,8 @@ export class ChartPlotter {
       g.stroke();
     }
 
-    // Ports.
+    // Ports (their names' boxes kept, so the place names below keep clear of them).
+    const labels: [number, number, number, number][] = [];
     g.font = 'bold 18px system-ui, sans-serif';
     g.textBaseline = 'middle';
     for (const p of PORTS) {
@@ -404,7 +408,34 @@ export class ChartPlotter {
         g.stroke();
       }
       // Zoomed out wide, the names would pile up: only the destination's.
-      if (isDest || span <= 8000) g.fillText(p.name.replace(' (anchorage)', ''), px + 10, py - 12);
+      if (isDest || span <= 8000) {
+        const name = p.name.replace(' (anchorage)', '');
+        g.fillText(name, px + 10, py - 12);
+        labels.push([px + 10, py - 24, px + 10 + g.measureText(name).width, py]);
+      }
+    }
+
+    // Place names (a coast map's, the coast extras plan C4): rank 1 (towns, the big waters) on
+    // the widest ranges, down to rank 4 (islets, small points) close in (CONFIG.places
+    // plotterSpan); the sea's names in italic blue, islands in capitals, towns and villages
+    // plain; one that would overprint a port's name or another place's is left out.
+    const spans = CONFIG.places.plotterSpan;
+    for (const pl of PLACES_BY_RANK) {
+      if (span > (spans[pl.rank - 1] ?? 0)) continue;
+      const [px, py] = toPx(pl.x, pl.z);
+      if (px < -80 || px > W + 80 || py < -20 || py > H + 20) continue;
+      const water = pl.kind === 'bay' || pl.kind === 'strait' || pl.kind === 'sea';
+      const isle = pl.kind === 'island' || pl.kind === 'islet' || pl.kind === 'archipelago';
+      const text = isle ? pl.name.toUpperCase() : pl.name;
+      g.font = `${water ? 'italic ' : isle ? 'bold ' : ''}${pl.rank <= 2 ? 17 : 14}px system-ui, sans-serif`;
+      const w = g.measureText(text).width;
+      const box: [number, number, number, number] = [px - w / 2 - 3, py - 10, px + w / 2 + 3, py + 10];
+      if (labels.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+      labels.push(box);
+      g.textAlign = 'center';
+      g.fillStyle = water ? '#8ec8e8' : isle ? '#e8e2cc' : '#c8c2ae';
+      g.fillText(text, px, py);
+      g.textAlign = 'left';
     }
 
     // Tidal races (regions): the zone outlined, turned to its set, an arrow the way the water

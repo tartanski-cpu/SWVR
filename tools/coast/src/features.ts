@@ -36,6 +36,8 @@ const T = {
   simplify: 5,
   /** A span of a power line counts as over the water when at least this much of it is (m). */
   overWater: 30,
+  /** An island or archipelago whose outline spans more than this (m) isn't named: bigger than any map. */
+  biggestIsland: 60000,
 };
 
 const req = loadRequest(process.argv[2]);
@@ -136,6 +138,8 @@ interface Thing {
   kind: 'node' | 'way' | 'relation';
   /** Its lines (a node: one line of one point). */
   lines: XZ[][];
+  /** A relation whose outline lies mostly outside the map (most of its member ways not in the download). */
+  partial?: boolean;
 }
 const things: Thing[] = [];
 for (const [id, tags] of Object.entries(osm.nodeTags)) {
@@ -143,7 +147,12 @@ for (const [id, tags] of Object.entries(osm.nodeTags)) {
   if (p) things.push({ tags, kind: 'node', lines: [[p]] });
 }
 for (const w of Object.values(osm.ways)) if (w.tags) things.push({ tags: w.tags, kind: 'way', lines: [wayPts(w.nodes)] });
-for (const r of Object.values(osm.relations)) if (r.tags) things.push({ tags: r.tags, kind: 'relation', lines: r.tags.type === 'route' ? r.members.filter((m) => m.type === 'way' && osm.ways[m.ref]).map((m) => wayPts(osm.ways[m.ref].nodes)) : rings(r) });
+for (const r of Object.values(osm.relations)) {
+  if (!r.tags) continue;
+  const ways = r.members.filter((m) => m.type === 'way');
+  const partial = ways.filter((m) => !osm.ways[m.ref]).length > ways.length / 2;
+  things.push({ tags: r.tags, kind: 'relation', partial, lines: r.tags.type === 'route' ? ways.filter((m) => osm.ways[m.ref]).map((m) => wayPts(osm.ways[m.ref].nodes)) : rings(r) });
+}
 const allPts = (t: Thing) => t.lines.flat();
 const where = (t: Thing): XZ | null => {
   const ps = allPts(t);
@@ -231,6 +240,11 @@ for (const t of things) {
   const p = where(t);
   if (!name || !p || !inBox(p)) continue;
   if (names.some((n) => n.name === name && Math.hypot(n.x - p[0], n.z - p[1]) < 2000)) continue; // a place mapped twice (node and area)
+  // An island or archipelago far bigger than the map (Great Britain, the Inner Hebrides: most of
+  // its outline isn't in the map's download): its middle says nothing about where it is here,
+  // and a chart of the coast doesn't name it.
+  const ps = allPts(t);
+  if (t.partial || (ps.length > 1 && span(ps) > T.biggestIsland)) continue;
   names.push({ name, kind, x: r1(p[0]), z: r1(p[1]), rank: RANK[kind] });
 }
 

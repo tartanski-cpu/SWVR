@@ -4995,6 +4995,14 @@ export const CONFIG = {
    *                   out to this times the visibility
    */
   /**
+   * Place names in the radio's calls (the coast extras plan, C4; world/places.ts): the nearest
+   * name within `reach` m ("off Toward Point"), each rank down (a hamlet against a town) counting
+   * `rankWeight` of its distance more; "in" a bay, sound or strait within `inside` m of its name.
+   * On the chartplotter (nav/chartPlotter.ts) the names of rank r show when the screen spans at
+   * most `plotterSpan[r - 1]` m.
+   */
+  places: { reach: 3000, rankWeight: 0.3, inside: 900, plotterSpan: [32000, 8000, 4000, 2000] },
+  /**
    * A coast map's skyline (the coast extras plan, C2; world/view/skylineView.ts): castles,
    * towers, masts, chimneys, water towers, monuments, churches and wind turbines from the
    * map data, drawn wherever the fog allows.

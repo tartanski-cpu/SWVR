@@ -1230,7 +1230,7 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1466264
+  "bytes": 1485301
  },
  "houses": {
   "byType": {
@@ -1292,7 +1292,7 @@
   "names": {
    "town": 8,
    "village": 30,
-   "bay": 47,
+   "bay": 45,
    "hamlet": 45,
    "locality": 73,
    "suburb": 28,
@@ -1303,7 +1303,7 @@
    "farm": 8,
    "quarter": 2,
    "islet": 12,
-   "island": 6,
+   "island": 5,
    "archipelago": 2
   },
   "fogSignals": 1,
