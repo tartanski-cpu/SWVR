@@ -5399,6 +5399,21 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Two-browser check** (`npm run crewcheck`, now 25 checks): alone, the host launches the small tug and the page starts again in her, one boat; the crew (started in the fishing boat) joins and is aboard the host's boat; her Go with no boat of her own leaves the host's boat where it was; she launches, Go sends her boat 4.5 km to Keills pier with her aboard, the host's boat stays, both pages put her boat in the same place (0 m apart).
 - **Checked:** typecheck, `npm test`, `npm run crewcheck` (25 of 25). **Not checked:** VR, and a Quest joining a desktop host by hand.
 
+### Motion coupling runs evenly from 0 to 100 % (owner: "I don't notice any difference between 0 and 90 ... when I go to 100, it's locked")
+
+- **Measured** (`player/comfort.ts MotionDecoupler`, an 8 deg, 5 s roll and a 0.5 m heave): the boat moved past the view 8.0, 8.1 and 7.1 deg at 0, 30 and 50 % (alike), still 2.6 deg and 0.16 m of heave at 90 % and 2.3 deg at 95 %, then nothing at 100 % (a step). The smoothing caused both: a long lag at the bottom (up to 1.6 s) kept the view well behind the deck whatever the setting, and its 0.12 s floor kept a lag, and so a mismatch, right up to 99 %, until the rigid branch at 100 % dropped it at once.
+- **Fix:** the smoothing's time constant is `CONFIG.comfort.maxTimeConstant` (now 0.4 s, was 1.6 s) times (1 - coupling), shrinking to nothing at 100 % (`minTimeConstant` gone). The view takes the coupling's share of the deck's tilt and heave, with a light smoothing on top. The owner then added: "at 90 % there should just be a very gentle smoothing of bumps" (mostly for desktop players). With (1 - c) rather than (1 - c)^2, 90 % keeps some bump smoothing. In an 8 deg, 5 s roll the boat moves past you about 6.4, 5.0, 3.1, 2.1, 1.1 and 0 deg at 30, 50, 70, 80, 90 and 100 %, and a sharp 4 deg slam is felt as 1.4, 2.0 and 2.8 deg at 70, 80 and 90 %: even, with no step at the top. Heading and walking are untouched. The desktop's own setting (30 %) uses the same filter, so it now follows a little more of the boat's motion than before.
+- **Tests:** `tests/comfortScale.test.ts` (+2): falling at every 10 % step, within 1.3 deg of (1 - coupling) of the roll, under 1.2 deg at 90 %, none at 100 %; a slam softened by about a third at 90 %, more at 70 %, taken whole at 100 %.
+- **Checked:** typecheck, `npm test`. **Not checked:** VR (how it feels), the desktop's default by eye.
+
+### Fix: a boat's mooring lines, chain and smoke left behind when she goes (owner: "when you change the boat, the docking lines stay attached to the quayside ... a kind of spider web")
+
+- **Cause:** a boat's view, when removed (handed back, a crew-mate gone, rebuilt as another type: `App.dropVesselView`), took her wake and spray out of the world, but not her smoke, anchor chain and mooring lines, which live in the world too (`vessel/view/vesselEffects.ts`, the `Equipment`). Each boat changed or handed back at a berth left her lines tied to the quay.
+- **Fix:** `VesselEffects.dispose` takes all five out (wake, spray, smoke, chain, lines) and frees their geometry and materials.
+- **And the pilot boat left behind:** that was a launch alone or hosting adding a boat instead of replacing yours, fixed in "Multiplayer fix: a launch replaces your boat" above (on `next`, not yet on the build the owner tried).
+- **Tests:** `tests/effectsDispose.test.ts` (+1): the pilot boat's five effects all gone when she goes (with the old dispose, three were left).
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye in the game.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

@@ -90,9 +90,16 @@ export class MotionDecoupler {
       return 0;
     }
 
-    // Squared so the slider feels even: the filter and the coupling scale both reduce
-    // motion, and with a linear map almost everything happened in the top quarter.
-    const tau = cfg.minTimeConstant + (1 - c) ** 2 * (cfg.maxTimeConstant - cfg.minTimeConstant);
+    // The view takes `c` of the deck's tilt and heave; a light smoothing on top soaks up the
+    // jolts, its time constant shrinking to nothing as coupling nears 1 (owner, Oct 2026: "I
+    // don't notice any difference between 0 and 90, and at 100 it's locked"). With a
+    // minimum lag the filter itself let the boat move several degrees past you at 90-95 %,
+    // then the rigid step at 100 % took it all away at once; and the long lag low down made
+    // 0-50 % all feel the same. Now the boat moves past you about (1 - c) of her motion,
+    // and high up it's a gentle smoothing of bumps (owner: "at 90 % ... a very gentle
+    // smoothing of bumps"): at 90 % the waves' roll is followed to within a degree, a
+    // sharp slam softened by about a third.
+    const tau = cfg.maxTimeConstant * (1 - c);
     const omega = 1 / tau;
     const r = this.roll.step(deckRoll * c, omega, dt);
     const p = this.pitch.step(deckPitch * c, omega, dt);
