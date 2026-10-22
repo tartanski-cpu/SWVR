@@ -64,7 +64,8 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     { name: 'Fit-out: wiring, interior, windows, fittings, paint', kg: wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, y: deckMid + 0.3, z: shellM2z / shellM2 },
     { name: 'Fuel (half her tanks)', kg: tankL * wc.fuelShare * wc.fuelDensity, y: keelMid + 0.35 * (deckMid - keelMid), z: h.lcb },
     { name: 'Crew and stores', kg: wc.crewKg + wc.storesKg, y: deckMid + 0.8, z: (front + aft) / 2 },
-    { name: 'Ballast', kg: base.ballastKg ?? 0, y: keelMid + 0.15, z: h.lcb },
+    // (Scaled with her hull's volume: a smaller tug carries less; owner, Oct 2026.)
+    { name: 'Ballast', kg: (base.ballastKg ?? 0) * p.size.L * p.size.B * p.size.D, y: keelMid + 0.15, z: h.lcb },
   ]
     .filter((it) => it.kg > 0)
     .map((it) => ({ name: it.name, kg: Math.round(it.kg), y: Math.round(it.y * 1000) / 1000, z: Math.round(it.z * 1000) / 1000 }));

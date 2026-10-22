@@ -278,11 +278,26 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const groupsNow = panelGroups(fitted).filter((g) => g.members.length);
   const panelPinned = groupsNow.some((g) => d[PANEL_SLOTS[panelKey(g) as keyof typeof PANEL_SLOTS]]);
   const cellsOfGroup = (g: PanelGroup) => Math.max(g.cells ?? 0, g.members.length);
-  const panelFits = (half: number, moved: string[]) =>
-    (['port', 'starboard'] as const).every((side) => groupsNow.filter((g) => g.side === side && !moved.includes(panelKey(g))).reduce((a, g) => a + cellsOfGroup(g), 0) * hcfg.minPitch <= Math.max(0.01, half - hcfg.groupClear) + 1e-9);
+  /** The sides that don't fit on the flat panel (each side's groups at the closest pitch, `clear` of the wheel's middle; `centre`: in front of the wheel, the horn with the port side's). */
+  const overflowing = (half: number, moved: string[], centre = false) =>
+    (['port', 'starboard'] as const).filter((side) => groupsNow.filter((g) => (g.side === side || (centre && side === 'port' && g.side === 'wheelPort')) && !moved.includes(panelKey(g))).reduce((a, g) => a + cellsOfGroup(g), 0) * hcfg.minPitch > Math.max(0.01, half - (centre ? hcfg.centreClear : hcfg.groupClear)) + 1e-9);
+  const panelFits = (half: number, moved: string[]) => overflowing(half, moved).length === 0;
   const movable = hcfg.faceSwitchOrder.filter((key) => groupsNow.some((g) => panelKey(g) === key));
-  const toFace: string[] = [];
-  if (!d.sills && !panelPinned) for (const key of movable) if (!panelFits(dashHalf, toFace)) toFace.push(key);
+  // Clear of the wheel if they fit so; else in front of it too (`inFront`; owner, Oct 2026),
+  // and only then up onto the face, a group from a side that still doesn't fit at a time.
+  const switchesAt = (half: number) => {
+    const inFront = !d.sills && !panelPinned && !panelFits(half, []);
+    const moved: string[] = [];
+    if (inFront)
+      for (;;) {
+        const over = overflowing(half, moved, true);
+        const key = movable.find((k) => !moved.includes(k) && over.includes(groupsNow.find((g) => panelKey(g) === k)!.side as 'port' | 'starboard'));
+        if (!over.length || !key) break;
+        moved.push(key);
+      }
+    return { inFront, moved };
+  };
+  const { inFront, moved: toFace } = switchesAt(dashHalf);
   /** The face's switch strips (and ENGINE's lamps) as dash grid items: `sw:<group>`. */
   const faceItemsFor = (keys: string[]) =>
     keys.flatMap((key) => {
@@ -395,18 +410,20 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   }
   // Her dash's grid, for the Shipyard (CS3) and the tests: its whole size, each screen's cells on it, whether placed by hand.
   cc.dashGrid = { cap: whole.cap, rows: ROWS, pitch: r3(whole.pitch), places: shown, byHand };
-  // The shortest console that holds all of it full size (CS6, for the Shipyard): for each
-  // number of switch groups moved up onto the face (in their order), the longer of what the
-  // dash's grid needs at full pitch and what the flat panel's groups need; the least of those.
-  // Shorter, and the screens are drawn smaller together; the Shipyard says so.
+  // The shortest console that holds all of it full size (CS6, for the Shipyard): in 5 cm steps,
+  // the first whose dash holds its screens and the switch groups the rules move up onto its
+  // face (switchesAt) at full pitch, its flat panel the rest. Shorter, and the screens are
+  // drawn smaller together; the Shipyard says so.
   {
-    const panelNeed = (moved: string[]) =>
-      hcfg.groupClear + Math.max(...(['port', 'starboard'] as const).map((side) => groupsNow.filter((g) => g.side === side && !moved.includes(panelKey(g))).reduce((a, g) => a + cellsOfGroup(g), 0) * hcfg.minPitch));
-    const options = (d.sills || panelPinned ? [[]] : movable.map((_, k) => movable.slice(0, k)).concat([movable])).map((moved) => {
-      const cols = packDash([...screens.map((id) => ({ id, cells: cellsFor(id) })), ...faceItemsFor(moved)], ROWS).cols;
-      return Math.max((cols * pitch - gap) / 2 + gap, panelNeed(moved));
-    });
-    cc.consoleMin = Math.ceil(2 * (Math.min(...options) + 0.11) * 20) / 20;
+    const fullSize = (half: number) => {
+      const { moved } = switchesAt(half);
+      const up = !d.sills && !panelPinned && !moved.includes('ENGINE') && fitted('lamps') && 2 * (half + 0.11) < hcfg.lampsUpBelow;
+      const cols = packDash([...screens.map((id) => ({ id, cells: cellsFor(id) })), ...faceItemsFor(moved), ...(up ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])], ROWS).cols;
+      return (cols * pitch - gap) / 2 + gap <= half + 1e-9 && overflowing(half, moved, moved.length > 0 || !panelFits(half, [])).length === 0;
+    };
+    let len = 0.8;
+    while (len < hcfg.maxConsole && !fullSize(len / 2 - 0.11)) len = Math.round((len + 0.05) * 100) / 100;
+    cc.consoleMin = len;
     // (Only for a console shorter than any before CS6, set short or in a narrow wheelhouse: a long
     // row on a small boat was always drawn smaller together, quietly.)
     if ((d.consoleLen || 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow) && dashScale < 0.98) p.warnings.push(`Her console is too short to show her instruments full size: drawn at ${Math.round(dashScale * 100)}%. A console of ${(cc.consoleMin as number).toFixed(2)} m holds them full size${d.controls && !touch ? ' (or a touchscreen needs less)' : ''}.`);
@@ -533,7 +550,10 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     const hc = CONFIG.shipyard.helm;
     const has = (id: string) => consoleMount.modules!.some((m) => m.socket === id);
     // (Less the groups moved up onto the dash face.)
-    const panel: PanelGroup[] = panelGroups(has).filter((g) => !toFace.includes(panelKey(g)));
+    // (In front of the wheel too: the horn with the port side's groups, nearest the middle.)
+    const panel: PanelGroup[] = panelGroups(has)
+      .filter((g) => !toFace.includes(panelKey(g)))
+      .map((g) => (inFront && g.side === 'wheelPort' ? { ...g, side: 'port' as const } : g));
     const r3 = (v: number) => Math.round(v * 1000) / 1000;
     // The panel's whole row of cells, for placing by hand (CS3): as many as it has room for.
     const cap = Math.max(1, Math.floor((2 * dashHalf) / hc.switchPitch + 1e-9));
@@ -545,7 +565,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     const want = Object.fromEntries(panel.map((g) => [panelKey(g), cellOf(panelKey(g))]));
     const byHand = panel.some((g) => g.members.length && want[panelKey(g)] !== null);
     let laid: { at: Record<string, number>; runs: { group: PanelGroup; x0: number; x1: number }[]; pitch: number };
-    if (!byHand) laid = packPanel(panel, dashHalf, hc.switchPitch, hc.wheelClear, hc.groupClear, hc.minPitch);
+    if (!byHand) laid = packPanel(panel, dashHalf, hc.switchPitch, hc.wheelClear, inFront ? hc.centreClear : hc.groupClear, hc.minPitch);
     else {
       // Placed by hand: each group from its cell, its members a cell apart in the middle of its run.
       const put = placePanelByHand(panel, cap, want);

@@ -38,7 +38,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -1102,9 +1102,9 @@ function syncControls(): void {
   });
   const twinBox = document.querySelector('input[data-key=twin]') as HTMLInputElement;
   // Pod drives come in pairs: twin, and the box can't be unticked.
-  const podsOn = !!design.pods && !design.outboards && DESIGN_HULLS[design.hull].regime === 'planing' && !SINGLE_ONLY_ENGINES.includes(design.engine);
+  const podsOn = !!design.pods && !design.outboards && DESIGN_HULLS[design.hull].regime === 'planing' && !SHAFT_ONLY_ENGINES.includes(design.engine);
   twinBox.checked = !!design.twin || podsOn;
-  // The tug diesel goes in singly only; with outboards there's no inboard to twin.
+  // An engine that goes in singly can't be twinned; with outboards there's no inboard to twin.
   twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards || podsOn;
   // A hull type built of its own material: the choice stands aside, and says why.
   const ownMaterial = DESIGN_HULLS[design.hull].material;
@@ -1118,11 +1118,11 @@ function syncControls(): void {
   const sdBox = document.querySelector('input[data-key=sternDrive]') as HTMLInputElement;
   sdBox.checked = !!design.sternDrive;
   // The tug diesel goes on a shaft; with outboards there's no inboard.
-  sdBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards || podsOn;
+  sdBox.disabled = SHAFT_ONLY_ENGINES.includes(design.engine) || !!design.outboards || podsOn;
   // Pod drives: on a planing hull, not the tug diesel, not with outboards.
   const podBox = document.querySelector('input[data-key=pods]') as HTMLInputElement;
   podBox.checked = !!design.pods;
-  podBox.disabled = DESIGN_HULLS[design.hull].regime !== 'planing' || SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
+  podBox.disabled = DESIGN_HULLS[design.hull].regime !== 'planing' || SHAFT_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
   // A nozzle goes round a shaft-driven propeller: not with a stern drive or outboards.
   const nzBox = document.querySelector('input[data-key=nozzle]') as HTMLInputElement;
   nzBox.checked = !!design.nozzle;

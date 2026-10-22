@@ -141,6 +141,12 @@ export interface DesignHull {
    * proportions). Its lower half is as every hull's (SCALES.scale).
    */
   growsTo?: number;
+  /**
+   * Her size range shrinks below the usual (owner, Oct 2026: "a really tiny tug"): her length
+   * factor at the slider's first step (the usual is 0.8), up in equal ratios to her base size
+   * at step 8; her beam and depth shrink with it (CONFIG.shipyard.shrink).
+   */
+  shrinksTo?: number;
 }
 
 /** What a hull and its houses are built of (CONFIG.shipyard.materials). */
@@ -148,10 +154,12 @@ export type Material = 'aluminium' | 'steel';
 /**
  * Her length as a factor of her type's base (the length slider's step `i`): every hull's
  * 0.8 to 1.175 (SCALES.scale); a hull that `growsTo` more, the same up to her base size
- * (step 8), then up in equal ratios to `growsTo` at the top (step 15).
+ * (step 8), then up in equal ratios to `growsTo` at the top (step 15); a hull that
+ * `shrinksTo` less, from that at step 0 up in equal ratios to her base size at step 8.
  */
-export function sizeScale(base: Pick<DesignHull, 'growsTo'>, i: number): number {
+export function sizeScale(base: Pick<DesignHull, 'growsTo' | 'shrinksTo'>, i: number): number {
   const top = base.growsTo;
+  if (base.shrinksTo && i < 8) return Math.round(base.shrinksTo ** ((8 - i) / 8) * 1000) / 1000;
   if (!top || i <= 8) return SCALES.scale(i);
   return Math.round(top ** ((i - 8) / 7) * 1000) / 1000;
 }
@@ -306,6 +314,8 @@ export const DESIGN_HULLS: DesignHull[] = [
     material: 'steel',
     scantlings: 1.5,
     ballastKg: 18000,
+    // Down to a 7 m tug (owner, Oct 2026: "a really tiny tug").
+    shrinksTo: 0.54,
     // Her bow is her own (a square push plate, the bottom sweeping up to it): no bow choice.
     form: (L, B, D, _bow, sheer, forecastle) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null, false, sheer, forecastle) }),
     // A raised foredeck as the fishing boat's (owner, Oct 2026): a harbour tug's forecastle.
@@ -319,7 +329,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     // The owner's reference: a short house forward of amidships, raised to see over the
     // high bow, windows a little reverse-raked; a low towing deck aft; twin screws; a
     // rubbing strake; red and grey. One slow-revving tug diesel (owner: an engine with the
-    // tug in mind; single only).
+    // tug in mind; single or twin).
     defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 7, guard: 2 }),
   },
 ];
@@ -332,7 +342,8 @@ export const DESIGN_HULLS: DesignHull[] = [
  *              at 1000 rpm, 1.8 times a 1800 rpm engine's). Its torque curve, idle, governor
  *              droop and starter are the 1800 rpm engine's with every rpm scaled to it, so it
  *              is slower all through its range (owner): idling at 333 rpm, flat out near 1000.
- *              It goes in singly only (design.ts SINGLE_ONLY_ENGINES; owner).
+ *              It goes on a shaft only (design.ts SHAFT_ONLY_ENGINES), singly or as a twin
+ *              (owner, Oct 2026: more power for the tugs; it was single only).
  *   propMaxM   the biggest propeller it's given (m). Slow revs (and a lower gearbox ratio to
  *              suit) turn a bigger, slower propeller: it throws more water slower, which pulls
  *              harder for the same power, what a tug wants (see `propD` in buildDesign).
@@ -346,7 +357,7 @@ export const ENGINES = [
   { name: '150 kW diesel (straight six)', kw: 150, kg: 600, voice: 'inlineSix' as const, rackRise: 1.2, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.47, 0.62, 0.78] as const },
   { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.32, 0.86, 0.8] as const },
   { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.52, 0.96, 0.9] as const },
-  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)', kw: 450, kg: 2200, voice: 'inlineSix' as const, /* owner, Oct 2026: tried the big-six voice (CONFIG.engineVoices.bigSix) and preferred this one */ rackRise: 1.0, ratedRpm: 1000, idleRpm: 450, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
+  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm)', kw: 450, kg: 2200, voice: 'inlineSix' as const, /* owner, Oct 2026: tried the big-six voice (CONFIG.engineVoices.bigSix) and preferred this one */ rackRise: 1.0, ratedRpm: 1000, idleRpm: 450, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */

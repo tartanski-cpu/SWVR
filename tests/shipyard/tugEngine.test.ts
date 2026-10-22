@@ -43,10 +43,13 @@ describe('the tug engine: built', () => {
     expect(slow.warnings).toEqual([]);
   });
 
-  it('goes in singly only: a twin choice is built with one engine, and says so', () => {
+  it('goes in as a twin too (owner, Oct 2026: more power for the tugs), but on shafts only: no stern drive or pods', () => {
     const b = useDesign(tug(3, 1));
-    expect(gearOf({ defId: 'design' }, 'diesel')!.twin).toBeFalsy();
-    expect(b.figures.engine).not.toMatch(/^Twin/);
-    expect(b.warnings.join(' ')).toMatch(/goes in singly/);
+    expect(gearOf({ defId: 'design' }, 'diesel')!.twin).toBeTruthy();
+    expect(b.figures.engine).toMatch(/^Twin/);
+    expect(b.warnings.join(' ')).not.toMatch(/goes in singly/);
+    const sd = useDesign({ ...tug(3, 1), sternDrive: 1 });
+    expect(sd.warnings.join(' ')).toMatch(/goes on a shaft/);
+    expect(RECIPES.design.modules.some((m) => m.socket === 'sternDrive')).toBe(false);
   });
 });

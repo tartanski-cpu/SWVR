@@ -39,7 +39,14 @@ describe('a narrow console', () => {
     // Each switch on the face stands on it, square out from the leaning face, inside the dash.
     const lean = Math.tan(((cc.leanDeg ?? 0) * Math.PI) / 180);
     const onFace = SWITCHES.filter((id) => cc.slots[id]?.rotationDeg && helm.modules!.some((m) => m.socket === id));
-    expect(onFace.length).toBeGreaterThan(2);
+    expect(onFace.length).toBeGreaterThan(0);
+    // The flat panel in front of the wheel used first (owner, Oct 2026: "those buttons ...
+    // could be placed on the empty part of the console in front of the wheel"): switches
+    // nearer the wheel's middle than the usual clear band, and only the port side's group
+    // that still doesn't fit (SEARCH) up on the face, not all of them.
+    const onPanel = SWITCHES.filter((id) => cc.slots[id] && !cc.slots[id].rotationDeg && helm.modules!.some((m) => m.socket === id));
+    expect(onPanel.some((id) => Math.abs(cc.slots[id].position[0]) < CONFIG.shipyard.helm.groupClear), onPanel.join()).toBe(true);
+    expect(face.map((g) => g.title)).toEqual(['SEARCH']);
     for (const id of onFace) {
       const [x, y, z] = cc.slots[id].position;
       expect(z, id).toBeCloseTo(cc.dash.aft - (y - cc.dash.bottom) * lean, 2);

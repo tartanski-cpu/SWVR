@@ -5,7 +5,7 @@
  */
 import { bottomAt as bottomUnder, FLANGE_SHARE, halfSection, layShaft, sternDriveLine, twinEngineX } from '../machinery';
 import { CONFIG } from '../../config';
-import { outboardCount, SCALES, SINGLE_ONLY_ENGINES } from '../design';
+import { outboardCount, SCALES, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES } from '../design';
 import type { Socket } from '../../modular/socket';
 import type { BuildArgs, HatchZone, V3 } from './common';
 import { ENGINES, materialOf } from './catalog';
@@ -29,21 +29,23 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   // (An engine that only goes in singly is built single, whatever the twin choice says.)
   const singleOnly = SINGLE_ONLY_ENGINES.includes(d.engine);
   if (d.twin && singleOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes in singly: she has one.`);
+  // (The tug diesel goes on a shaft only: its big slow propeller.)
+  const shaftOnly = SHAFT_ONLY_ENGINES.includes(d.engine);
   // Pod drives (owner, Oct 2026; design.pods; CONFIG.modules.pods): two steerable pods under
   // her bottom, each with its own engine (so always twin). For a planing hull (a fast boat's
   // small, quick propellers); not the slow tug diesel; outboards, if chosen, instead.
   const pdc = CONFIG.modules.pods;
   if (d.pods && !outboardCount(d) && base.regime !== 'planing') warnings.push('Pod drives are for a planing hull (the landing craft, the gillnetter or the pilot boat): she has a shaft.');
-  else if (d.pods && !outboardCount(d) && singleOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no pod drives.`);
-  const pods = !!d.pods && !outboardCount(d) && base.regime === 'planing' && !singleOnly;
+  else if (d.pods && !outboardCount(d) && shaftOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no pod drives.`);
+  const pods = !!d.pods && !outboardCount(d) && base.regime === 'planing' && !shaftOnly;
   const twin = (!!d.twin || pods) && !singleOnly;
   // Stern drives (owner, Oct 2026; design.sternDrive): the engine against the transom, a
   // leg through it that swings to steer (CONFIG.modules.sternDrive). Not the slow tug
   // diesel (its big slow propeller wants a shaft); outboards, if chosen, instead.
   const sdc = CONFIG.modules.sternDrive;
-  if (d.sternDrive && singleOnly && !outboardCount(d)) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no stern drive.`);
+  if (d.sternDrive && shaftOnly && !outboardCount(d)) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no stern drive.`);
   if (d.sternDrive && pods) warnings.push('Pod drives in place of the stern drives.');
-  const sd = !!d.sternDrive && !singleOnly && !outboardCount(d) && !pods;
+  const sd = !!d.sternDrive && !shaftOnly && !outboardCount(d) && !pods;
   // A Kort nozzle (owner, Oct 2026; design.nozzle; CONFIG.nozzle): on a shaft-driven propeller only.
   if (d.nozzle && (sd || pods || outboardCount(d))) warnings.push(`A Kort nozzle goes round a shaft-driven propeller: none on ${outboardCount(d) ? 'outboards' : pods ? 'pod drives' : 'a stern drive'}.`);
   const nozzle = !!d.nozzle && !sd && !pods && !outboardCount(d);
@@ -192,7 +194,7 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const tankL = Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
-  return { batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, singleOnly, tankL, twin, twinX, wc };
+  return { batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };
 }
 export type MachineryPart = ReturnType<typeof machineryPart>;
 

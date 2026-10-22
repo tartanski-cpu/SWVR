@@ -104,8 +104,14 @@ export const ENGINE_TYPES = 4;
 const BASE_ENGINES = 3;
 /** The extension's engine number: 0 for one of the first three, n for engine BASE_ENGINES - 1 + n. */
 const MORE_ENGINES = ENGINE_TYPES - BASE_ENGINES + 1;
-/** Engines that only go in singly (owner: the slow-revving tug diesel is a single installation): a twin choice is built with one. */
-export const SINGLE_ONLY_ENGINES: readonly number[] = [3];
+/**
+ * Engines that only go in singly: a twin choice is built with one. None now: the slow-revving
+ * tug diesel was (owner), until the owner asked for more power for the tugs (Oct 2026): two of
+ * them on two screws, as a twin-screw harbour tug.
+ */
+export const SINGLE_ONLY_ENGINES: readonly number[] = [];
+/** Engines that go on a shaft only (no stern drive or pod drives): the tug diesel, for its big slow propeller. */
+export const SHAFT_ONLY_ENGINES: readonly number[] = [3];
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign extends Record<FurnitureKey, number>, Record<ConsoleKey, number> {
