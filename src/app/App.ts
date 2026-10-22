@@ -65,7 +65,7 @@ import { SurfListener } from '../world/surf';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
-import { nextPoint, parsePlan, pointLabel, savePlanText } from '../voyage/plan';
+import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthId } from '../voyage/plan';
 import { PlanTable, planTableSpot } from '../voyage/planTable';
 import { boatOwnerName, launchType, ownedBoat, playerBoats } from '../core/launch';
 import { berthWithId } from '../world/berths';
@@ -387,6 +387,8 @@ export class App {
   private planTable: PlanTable | null = null;
   private planSaved = -1;
   private planNoteT = -1;
+  /** The berth the table was placed by (null: the map's start). */
+  private planTableBerth: string | null = null;
   /** Seconds since the voyage place was last remembered (rememberVoyagePlace). */
   private rememberT = 0;
   private readonly trialsPanel = new TrialsPanel();
@@ -4766,7 +4768,8 @@ export class App {
       }
     }
     this.planSaved = this.world.plan?.seq ?? -1;
-    const at = planTableSpot();
+    this.planTableBerth = tableBerthId(this.world);
+    const at = planTableSpot(this.planTableBerth);
     if (!at) return;
     this.planTable = new PlanTable(at, {
       send: (ref, args) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'plan', value: 1, ref, ...(args ? { args } : {}) }),
@@ -4782,6 +4785,13 @@ export class App {
    */
   private updatePlan(): void {
     const plan = this.world.plan;
+    // The host went to another harbour with the Go button: the table goes there too.
+    const berth = tableBerthId(this.world);
+    if (berth !== this.planTableBerth && this.planTable) {
+      this.planTableBerth = berth;
+      const at = planTableSpot(berth);
+      if (at) this.planTable.moveTo(at);
+    }
     if (this.planTable && this.focus.distanceTo(this.planTable.root.position) < 250) this.planTable.update(this.world);
     if (plan?.note && plan.note.t !== this.planNoteT) {
       if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);

@@ -224,6 +224,7 @@ On the quay where a Voyage map starts, a few steps behind where you begin, stand
 - **On the chart:** the route joined up and numbered, stops as squares, things to look at as diamonds, the next point ringed, your boats as blue arrows, and what's next along the chart's foot.
 - **Afloat:** every boat's chartplotter draws the route, and when no job wants you it steers for the plan's next point ("STOP 2 ROTHESAY 045° 2.3 nm"). When any of your boats gets there, everyone's told, and the next point comes up. The radio's rescues, tows and fires still come along the way.
 - **Voyage tab → Voyage plan:** the next point and how far, and **Go to the table** to put you ashore beside it.
+- **The table follows the host:** when the host takes her boat to another harbour with the Voyage tab's **Go**, the table goes there too, on that harbour's quay.
 - The host's browser keeps the plan for each map, so it's there next time.
 
 ### Transit jobs and closing up

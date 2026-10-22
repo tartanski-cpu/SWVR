@@ -5377,6 +5377,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/saveBoat.test.ts` (+3): every fleet boat and Shipyard boat has her code, the old types none; saved, again (said, unchanged), a name taken (numbered); into the browser's storage and read back, storage that won't take it said. `tests/menu.test.ts`: the favourites listed by name.
 - **Checked:** typecheck, `npm test`, headless Chromium (Tayvallich: ashore "Step aboard"; aboard the Boat tab's row "Pilot boat 11.2 m" with Save her; saved, saved again "already, as ..."; the Crew tab listing her by name). **Not checked:** VR.
 
+### The planning table follows the host (owner: "a short-term fix where this collaborative planning table appears wherever the host teleports to")
+
+- **Why:** placed at the map's start only, the table could land in odd spots (a slope between a quay block and a warehouse, from the owner's screenshot), and was out of the way once the crew had moved on. The pub plan (`docs/HARBOUR_PUB.md`) is the longer answer; the owner's chosen workflow is recorded there (Voyage starts in the pub, the map is chosen there, then sail, or free roam).
+- **What:** the plan keeps the port the table stands at (`VoyagePlan.harbour`; `voyage/plan.ts tableFollows`, `tableBerthId`). The Go button sending the home boat (the host's) to a port sets it (`core/simulation.ts`, after `teleportToPortSlot`); a crew-mate's Go with her own boat leaves it. Every page moves its table there (`App.updatePlan`, `PlanTable.moveTo`, `planTableSpot(berthId)`: the same search, from that harbour's cargo berth's spot ashore). Go to the table (the `plan` intent `goto`) puts you ashore by that berth. Saved with the plan.
+- **Tests:** `tests/voyagePlan.test.ts` (+1): the host's Go moves it, a crew-mate's doesn't, Go to the table lands there, kept in the save (an unknown port dropped).
+- **Checked:** typecheck, `npm test`, headless Chromium (Oban: Go to Brandy Rock pier, the table moved there, on the pier's timber deck, level; Go to the table put the player beside it). **Not checked:** VR; two players by hand.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

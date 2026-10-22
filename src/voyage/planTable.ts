@@ -302,6 +302,13 @@ export class PlanTable {
     this.chartSurface.label = TOOLS[0].hover;
   }
 
+  /** Stand somewhere else (the host went to another harbour: voyage/plan.ts tableFollows). */
+  moveTo(at: { x: number; y: number; z: number; farHeading: number }): void {
+    this.root.position.set(at.x, at.y, at.z);
+    this.root.rotation.y = -at.farHeading;
+    this.root.updateMatrixWorld(true);
+  }
+
   /** A point on the chart's face (its own frame) -> chart metres; null off the chart. */
   private localToChart(l: THREE.Vector3): { x: number; z: number } | null {
     const u = l.x / this.cw + 0.5;
@@ -463,7 +470,8 @@ export class PlanTable {
 }
 
 /**
- * Where the table stands: the nearest spot to the map's start spot (where you begin on the
+ * Where the table stands (by a berth: the plan's harbour's, voyage/plan.ts tableBerthId;
+ * by default the map's start): the nearest spot to the spot ashore by that berth (where you begin on the
  * quay) with level ground under all four legs (a quay or pier deck, or flat land; within a
  * quarter metre of each other), clear of the buildings, at least `table.back` m from the
  * spot, out to 80 m. Its far edge (the chart's north) faces away from the start spot, so you
@@ -471,8 +479,8 @@ export class PlanTable {
  * water. (Tayvallich starts on a pontoon with water behind it: the table goes ashore.)
  * Null if none found (no table).
  */
-export function planTableSpot(): { x: number; y: number; z: number; farHeading: number } | null {
-  const b = berthWithId(startBerthId());
+export function planTableSpot(berthId?: string | null): { x: number; y: number; z: number; farHeading: number } | null {
+  const b = berthWithId(berthId ?? startBerthId());
   if (!b) return null;
   const q = quaySpot(b.id);
   const t = CONFIG.voyage.plan.table;

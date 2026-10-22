@@ -4,6 +4,23 @@ Owner, Oct 2026: "the placement of the co-op voyage planning table is a bit weir
 
 This is the plan. Nothing is built yet. The questions at the end are the owner's to answer before it starts.
 
+## The owner's decision (after reading this plan)
+
+> "The priority is to do a short-term fix where this collaborative planning table appears wherever the host teleports to. And then a second feature would be when you go to the voyage mode, you always start in the pub, and the pub then gives you the map, and you can choose which map you want to sail on. You can plan your route, and then you can go sail the route ... so you load in the pub, there should be ... an option to just go straight there, like free roam."
+
+1. **Done (short-term fix):** the table stands at the harbour the host last went to with the Go button (voyage/plan.ts `tableFollows`, PROGRESS "The planning table follows the host").
+2. **Next (this plan, reshaped):** Voyage starts in the pub.
+   - Arriving, you're in the pub, not on a quay.
+   - The pub's table first offers **the maps**: Oban and Lorn, Tayvallich, the Clyde, Syros. Choosing one puts its chart on the table to plan on, and the crew see the same choice.
+   - **Sail** puts everyone aboard at the map's start harbour (or the plan's first stop), and the route is on every plotter as now.
+   - **Free roam** goes straight to sea on the chosen map with no plan, for the quick start.
+   - The button on the quay then brings you back to the pub.
+
+   What it adds to the impacts below:
+   - Voyage's landing page and its map choice move into the game (`voyage.html?map=` today loads one map per page; choosing in the pub means the pub loads first and the map after, or the page reloads into the map with the plan carried over).
+   - The crew follow the host's map choice (a reload for everyone, as the host changing boat does now, or the map loaded in place: to be worked out first, it's the biggest piece).
+   - The remembered place on each map (`swvr.voyage.<map>`) and the plan per map are kept.
+
 ## Why the table looks odd now
 
 The table is placed by a search for level ground near where you start (`voyage/planTable.ts planTableSpot`). On a coast map that ground can be sloping terrain, the edge of a shingle beach, or a narrow pontoon, and nothing else on the quay belongs with it. The owner's screenshot shows it on a slope between a quay block and a warehouse. A pub moves the table indoors, where its place is fixed and chosen by hand.
