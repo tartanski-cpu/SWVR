@@ -352,6 +352,25 @@ function bar(p0: THREE.Vector3, p1: THREE.Vector3, w: number, h: number, color: 
   return part(g, color);
 }
 
+/**
+ * A plate `w` thick standing on the line from `p0` to `p1` (its foot following them) up to a
+ * level top at `topY`: its two faces, its top and its ends (a bulwark risen along a
+ * full-width deckhouse).
+ */
+function levelPlate(p0: THREE.Vector3, p1: THREE.Vector3, topY: number, w: number, color: number): THREE.BufferGeometry[] {
+  const along = new THREE.Vector3(p1.x - p0.x, 0, p1.z - p0.z).normalize();
+  const n = new THREE.Vector3(along.z, 0, -along.x).multiplyScalar(w / 2);
+  const c = (p: THREE.Vector3, s: number, top: boolean) => new THREE.Vector3(p.x + n.x * s, top ? topY : p.y, p.z + n.z * s);
+  const faces = [
+    [c(p0, 1, false), c(p1, 1, false), c(p1, 1, true), c(p0, 1, true)],
+    [c(p0, -1, false), c(p1, -1, false), c(p1, -1, true), c(p0, -1, true)],
+    [c(p0, 1, true), c(p1, 1, true), c(p1, -1, true), c(p0, -1, true)],
+    [c(p0, 1, false), c(p0, -1, false), c(p0, -1, true), c(p0, 1, true)],
+    [c(p1, 1, false), c(p1, -1, false), c(p1, -1, true), c(p1, 1, true)],
+  ];
+  return faces.map((f) => plate(f, color));
+}
+
 /** Bulwarks, and (if `railHeight` > 0) handrails and stanchions, along the deck edge and across the transom. */
 function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [];
@@ -393,11 +412,18 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
       for (const [u, v] of pieces) {
         const p0 = a.clone().lerp(b, u);
         const p1 = a.clone().lerp(b, v);
-        // Risen along a full-width deckhouse: the deck under her plate here is its top.
-        const up = risen((p0.z + p1.z) / 2) ? dh!.top - (p0.y + p1.y) / 2 : 0;
+        // Risen along a full-width deckhouse: the deck under her plate here is its top, which
+        // is level, so the plate's top and the rail are level too (owner, Oct 2026: raised by
+        // the height at each piece's middle, they followed her sheer and stepped back up at
+        // every station, a sawtooth). Its foot stays on her deck edge.
+        if (risen((p0.z + p1.z) / 2)) {
+          parts.push(...levelPlate(p0, p1, dh!.top + bh, 0.05, col.topsides));
+          if (rh > 0) parts.push(bar(p0.clone().setY(dh!.top + rh), p1.clone().setY(dh!.top + rh), 0.05, 0.05, col.rail));
+          continue;
+        }
         // Bulwark plate (a thin bar standing on the deck edge).
-        parts.push(bar(p0.clone().setY(p0.y + (bh + up) / 2), p1.clone().setY(p1.y + (bh + up) / 2), 0.05, bh + up, col.topsides));
-        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + up + rh), p1.clone().setY(p1.y + up + rh), 0.05, 0.05, col.rail));
+        parts.push(bar(p0.clone().setY(p0.y + bh / 2), p1.clone().setY(p1.y + bh / 2), 0.05, bh, col.topsides));
+        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + rh), p1.clone().setY(p1.y + rh), 0.05, 0.05, col.rail));
       }
       const inGap = !!gate && side === gate.side && a.z > gate.z0 && a.z < gate.z1;
       const upAt = risen(a.z) ? dh!.top - a.y : 0;

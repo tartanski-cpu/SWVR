@@ -3190,10 +3190,18 @@ export const CONFIG = {
      *                 centreline, just aft of the hung NAV / WIND screen and over the helm;
      *   flood.x       each flood this far to port of the centreline (m), clear of the
      *                 searchlight and the fire monitor at their usual centreline places;
-     *   flood.inset   in from the roof's front or aft edge (m);
+     *   flood.out     each lamp's middle this far out beyond the roof's front or aft edge (m):
+     *                 hung on the edge, as on a real wheelhouse (owner, Oct 2026: set in on
+     *                 the roof, they lit the wheelhouse inside);
+     *   flood.margin  each beam's edge this many degrees clear of the inside of the wheelhouse
+     *                 wall at its end: the game's lights cast no shadows, so the wall and roof
+     *                 don't stop a beam (shipyard/parts/places.ts floodAim); aimed at the middle
+     *                 of its deck if that clears, else tilted outboard until it does;
+     *   flood.minBelowDeg  tilted no flatter than this below the horizon (deg);
+     *   flood.minAngleDeg  the beam narrowed, if need be, never under this (deg);
      *   flood.keepClear  the roof round each flood that hand-placed roof gear keeps off (m).
      */
-    workLights: { overheadAft: 0.7, flood: { x: 0.35, inset: 0.1, keepClear: 0.3 } },
+    workLights: { overheadAft: 0.7, flood: { x: 0.35, out: 0.07, margin: 4, minBelowDeg: 15, minAngleDeg: 35, keepClear: 0.3 } },
     deckGear: {
       winchFromTransom: 0.75,
       standRoom: 0.6,
