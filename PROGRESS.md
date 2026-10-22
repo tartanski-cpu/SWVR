@@ -7812,3 +7812,11 @@ Owner, Oct 2026, with a 24 m stern trawler's general arrangement: "start buildin
 - **Test steps:**
   - **Desktop:** Shipyard, the gillnetter. Deck gear: **Fish hold: Under the deck**; her figures say how many boxes. ✂ Section, Buttock: the hold under her aft deck. Wheelhouse: Length 4.6 m. Furniture: add **Bunks**, **Shower** (port), **Mess table**, **Galley** (starboard). Deck gear: the A-frame. Into the game: on deck, press the hatch lid's ring to open it and look down; go trawling on a ground: the status line counts the hold; back in harbour press the yellow button on the coaming to lift a box out, carry it ashore.
   - **VR:** the same: lift the lid, look down into the hold, press LIFT; inside, lie down in the upper bunk, sit at the mess, step into the shower.
+
+### The Kort nozzle drawn on the Engine step (done, awaiting owner test)
+
+Owner, Oct 2026: "Can you do a visual preview of the cork nozzle on the tugboat in the engine page? Again, it doesn't need to appear in the 3D model in the game."
+
+- **Now** (shipyard/enginePreview.ts `buildNozzle`, drawn by `buildMachinery` when the engine's recipe has `nozzle`): a duct round each propeller, on its shaft line, turned from a foil section after the common 19A duct. Inside, the mouth flares wider forward and closes to a throat at the blade tips; outside, nearly straight. Its leading edge is thick and rounded, its trailing edge thin. A headbox plate carries it from her bottom. The rudder is drawn just aft of the outlet, allowing for the shaft's angle; on the tug that is a few centimetres aft of the rudder stock's design place (`rudderPos`, transom − 0.25), which sits inside the duct's length. The propeller's tag reads "in a Kort nozzle". Shipyard only: the game doesn't draw shafts, propellers or nozzles.
+- **Config** (`CONFIG.nozzle.look`, in propeller diameters D): `lengthD` 0.5, `tipGap` 0.01, `inletFlare` 0.15, `noseD` 0.1, `headbox` true.
+- **Checked:** tests/shipyard/enginePreview.test.ts: a twin installation with nozzles has one round each propeller, clear of the blade tips, the rudder aft of the outlet; none without. Headless Chromium: the tug's Engine step from ahead, the side and astern, single and twin. Full suite passes. **Not checked:** the Quest.

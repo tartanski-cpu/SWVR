@@ -2,6 +2,7 @@
 // with its shafts, propellers at her design's diameter, and rudders. Shipyard only.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { CONFIG } from '../../src/config';
 import { ENGINES } from '../../src/shipyard/build';
 import { buildEngine, buildMachinery, ENGINE_LOOKS } from '../../src/shipyard/enginePreview';
 import { bottomAt, CLEAR, FLANGE_SHARE, layShaft } from '../../src/shipyard/machinery';
@@ -37,6 +38,29 @@ describe('engine previews', () => {
     const d = size(props(single)[0]);
     expect(Math.max(d.x, d.y)).toBeGreaterThan(0.8);
     expect(Math.max(d.x, d.y)).toBeLessThanOrEqual(0.92);
+  });
+
+  it('a Kort nozzle round each propeller, clear of its blade tips, the rudder aft of its outlet', () => {
+    const g = buildMachinery({ ...base, shaft: lay(2, 0.9, 1.1), engine: 2, twin: true, nozzle: true });
+    const nozzles: THREE.Object3D[] = [];
+    g.traverse((o) => o.name === 'nozzle' && nozzles.push(o));
+    expect(nozzles).toHaveLength(2);
+    const k = CONFIG.nozzle.look;
+    g.updateMatrixWorld(true);
+    for (const [i, n] of nozzles.entries()) {
+      const b = new THREE.Box3().setFromObject(n);
+      const across = b.getSize(new THREE.Vector3()).x;
+      // Wider than the propeller by its tip gap and its section; about lengthD × D long.
+      expect(across).toBeGreaterThan(0.9 * (1 + 2 * k.tipGap));
+      expect(across).toBeLessThan(0.9 * 1.6);
+      expect(b.getCenter(new THREE.Vector3()).x).toBeCloseTo(i ? 1.1 : -1.1, 1);
+      const rudder = new THREE.Box3().setFromObject(g.children.filter((c) => c.name === 'rudder')[i]);
+      expect(rudder.min.z).toBeGreaterThan(b.max.z - 0.02);
+    }
+    // None without it.
+    const open: THREE.Object3D[] = [];
+    buildMachinery({ ...base, shaft: lay(0), engine: 0, twin: false }).traverse((o) => o.name === 'nozzle' && open.push(o));
+    expect(open).toHaveLength(0);
   });
 });
 

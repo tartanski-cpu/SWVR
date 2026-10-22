@@ -1952,8 +1952,14 @@ export const CONFIG = {
    *                backwards; tuned on the small tug to turn about half as hard astern as
    *                ahead at the same throttle, as nozzle-and-rudder tugs do)
    *   price        GBP, in the Shipyard
+   *   look         its drawing in the Shipyard's Engine step only (shipyard/enginePreview.ts; the
+   *                game doesn't draw it), in propeller diameters D, after the common 19A duct:
+   *                lengthD its length (0.5 D), tipGap the gap between blade tips and the duct
+   *                (1 % of D), inletFlare how much wider the mouth is than the throat, noseD
+   *                the thickness of its rounded leading edge (thin at the trailing edge), and
+   *                headbox a plate from its top up to her bottom that carries it
    */
-  nozzle: { thrustGain: 1.3, jFactor: 0.75, torqueGain: 1.08, asternGain: 0.85, steerGain: 1.5, asternSteer: 0.9, price: 12000 },
+  nozzle: { thrustGain: 1.3, jFactor: 0.75, torqueGain: 1.08, asternGain: 0.85, steerGain: 1.5, asternSteer: 0.9, price: 12000, look: { lengthD: 0.5, tipGap: 0.01, inletFlare: 0.15, noseD: 0.1, headbox: true } },
 
   docking: {
     /**
