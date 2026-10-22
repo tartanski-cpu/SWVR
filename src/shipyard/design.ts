@@ -93,11 +93,17 @@ export const DESIGN_VERSION = 32;
  * How many hull types there are (build.ts DESIGN_HULLS). The code's first 16 characters
  * hold the first four; the rest ride in its extension (MORE_HULLS, version 16).
  */
-export const HULL_TYPES = 5;
+export const HULL_TYPES = 6;
 /** Hull types the first 16 characters hold. */
 const BASE_HULLS = 4;
+/**
+ * Hull types the code holds at all: the first five. Later ones (the stern trawler, Oct 2026)
+ * aren't in it, as more of them would change the extension's number base and how every
+ * earlier code reads: such a boat travels as a link or file.
+ */
+export const CODE_HULLS = 5;
 /** The extension's hull number: 0 for one of the first four, n for type BASE_HULLS - 1 + n. */
-const MORE_HULLS = HULL_TYPES - BASE_HULLS + 1;
+const MORE_HULLS = CODE_HULLS - BASE_HULLS + 1;
 
 /** How many engines there are (build.ts ENGINES); the first 16 characters hold the first three, the rest ride in the extension (version 18). */
 export const ENGINE_TYPES = 4;
@@ -817,6 +823,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (d.touch) throw new Error('touchscreens aren’t in the code: she travels as a link or file');
   if (d.consoleLen) throw new Error('a console of a set length isn’t in the code: she travels as a link or file');
   if (!Number.isInteger(d.hull) || d.hull < 0 || d.hull >= HULL_TYPES) throw new Error(`design hull ${d.hull} is off its scale (0..${HULL_TYPES - 1})`);
+  if (d.hull >= CODE_HULLS) throw new Error('this hull type isn’t in the code: she travels as a link or file');
   // A hull type after the first four: 0 in the first 16 characters, its number in the extension.
   const more = d.hull >= BASE_HULLS ? d.hull - BASE_HULLS + 1 : 0;
   // An engine after the first three: the same way.

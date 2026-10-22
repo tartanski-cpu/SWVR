@@ -20,10 +20,10 @@ const DT = 1 / 60;
 const of = (id: string) => FLEET.find((f) => f.id === id)!;
 
 describe('the fleet', () => {
-  it('one of each hull type still offered, and the beginner boat on the fishing boat’s hull', () => {
+  it('one of each hull type still offered (but the stern trawler, not in the fleet yet), and the beginner boat on the fishing boat’s hull', () => {
     expect(FLEET.map((f) => f.id)).toEqual([...FLEET_IDS]);
     const types = FLEET.filter((f) => f.id !== 'starterBoat').map((f) => f.design.hull).sort();
-    expect(types).toEqual(DESIGN_HULLS.map((h, i) => (h.retired ? -1 : i)).filter((i) => i >= 0));
+    expect(types).toEqual(DESIGN_HULLS.map((h, i) => (h.retired || h.name.startsWith('Stern trawler') ? -1 : i)).filter((i) => i >= 0));
     expect(of('starterBoat').design.hull).toBe(of('fishingBoat').design.hull);
   });
 

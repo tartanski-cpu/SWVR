@@ -29,6 +29,12 @@
  *   - Small push tug (owner's reference render of a small tug, Oct 2026): ~13 x 5.4 m, L/B
  *     about 2.4, hard chine, a high square push bow with a rubber push fender, the bottom
  *     sweeping up to it; low aft deck, house forward of amidships, twin screws.
+ *   - Stern trawler (owner, Oct 2026, from a 24 m trawler's general arrangement: "so we can
+ *     eventually build something like this"): ~20 x 7 m, L/B about 2.9, B/T about 2.5; a
+ *     hard-chine steel hull (the game's stations take one chine), deep with a drag aft (more draught aft than forward) for a big
+ *     slow propeller in a nozzle, a high flared bow with a strong sheer and a whaleback
+ *     forward, the wheelhouse forward of amidships and a long working deck aft for the net
+ *     drum, the trawl winches and the gantry over the stern.
  */
 import type { HullDesign } from './loft';
 
@@ -678,5 +684,69 @@ export const DESIGNS: HullDesign[] = [
     ],
     wheelhouse: { z0: 1.0, z1: -2.0, halfWidth: 1.7, height: 2.2, frontRake: 0.25, sill: 1.0, head: 1.9, panesFront: 3, panesSide: 2, panesBack: 2, overhang: 0.25 },
     colours: { topsides: 0x6d6a66, bulwark: 0xd8352c, bottom: 0x25272a, boot: 0xd8352c, house: 0xf1f1ee, deck: 0x5d6a5e, roof: 0xd8352c },
+  },
+  {
+    id: 'sternTrawler',
+    name: 'Stern trawler (20 m type)',
+    blurb: 'North Sea-style stern trawler: a hard-chine steel hull (as many small steel trawlers are built), deep, with a drag aft for a big propeller in a nozzle; a high flared bow with a strong sheer under a whaleback; the wheelhouse forward of amidships and a long working deck aft for the net drum, the trawl winches and the gantry. 20.0 x 7.0 m, draught 2.8 m aft.',
+    length: 20.0,
+    // Full amidships and well aft (a wide working deck to the transom), a fine entry.
+    halfBeam: [
+      [0, 3.05],
+      [0.25, 3.45],
+      [0.55, 3.5],
+      [0.78, 3.05],
+      [0.93, 1.6],
+      [1, 0],
+    ],
+    // A low working deck aft, rising in a strong sheer to the bow.
+    sheer: [
+      [0, 0.95],
+      [0.4, 1.0],
+      [0.7, 1.35],
+      [1, 2.45],
+    ],
+    // A drag aft: deepest under the propeller, the keel rising forward to the forefoot and stem.
+    keel: [
+      [0, -2.2],
+      [0.1, -2.8],
+      [0.35, -2.7],
+      [0.65, -2.35],
+      [0.88, -1.6],
+      [1, 0.4],
+    ],
+    rake: [
+      [0, 0.15],
+      [0.6, 0],
+      [1, -0.5],
+    ],
+    // Hard chine (the game's stations take one chine): a full section, the chine well out
+    // and low amidships, near-upright sides, flaring forward.
+    section: {
+      chineBeam: [
+        [0, 0.82],
+        [0.5, 0.88],
+        [1, 0.35],
+      ],
+      chineHeight: [
+        [0, 0.38],
+        [0.5, 0.32],
+        [1, 0.5],
+      ],
+      flare: [
+        [0, 0.03],
+        [0.6, 0.06],
+        [1, 0.5],
+      ],
+    },
+    bulwark: [
+      [0, 1.1],
+      [0.6, 1.1],
+      [0.75, 1.0],
+      [1, 1.0],
+    ],
+    forecastle: { from: 0.72, raise: 1.4 },
+    wheelhouse: { z0: -1.0, z1: -5.2, halfWidth: 2.4, height: 2.3, frontRake: 0.3, sill: 1.0, head: 1.9, panesFront: 5, panesSide: 3, panesBack: 3, overhang: 0.25, above: 1.4 },
+    colours: { topsides: 0x2f5a3a, bulwark: 0x2f5a3a, bottom: 0x8c2a22, boot: 0xe8e4d8, house: 0xf1f0ea, deck: 0x5f6a62 },
   },
 ];

@@ -3323,6 +3323,14 @@ export const CONFIG = {
      * `boxGap` round each and `headGap` under the deck. Weighed as `kgPerM2` of insulated
      * lining over its inside plus the hatch's `hatch.kg`; priced at `pricePerM3` of hold.
      */
+    /**
+     * The stern trawler hull type (owner, Oct 2026; step 3 toward a trawler): her plating and
+     * framing `scantlings` times the steel's usual (heavy, as a trawler is built), and permanent ballast
+     * (kg) low in her hull, so she floats near her lines with her machinery, gear and a light
+     * load (a trawler carries hers in fuel, ice and fixed ballast: a deep hull for a big
+     * propeller, and a good GM with a heavy codend coming up over the stern).
+     */
+    sternTrawler: { scantlings: 1.8, ballastKg: 60000 },
     fishHold: { engineGap: 0.15, aftClear: 0.75, minLength: 1.2, minDepth: 0.55, soleClear: 0.1, shaftClear: 0.15, frame: 0.06, hatch: { length: 0.9, width: 0.9, min: 0.6, coaming: 0.3, clear: 0.15, kg: 70 }, boxGap: 0.02, headGap: 0.05, kgPerM2: 18, pricePerM3: 1100 },
     deckhouse: {
       kgPerM2: 35,

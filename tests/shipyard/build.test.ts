@@ -201,13 +201,15 @@ describe('Shipyard: the boats it builds', () => {
         useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...fromSteps({ floor }) });
         const def = VESSEL_DEFS.design;
         const wh = def.layout.wheelhouse!;
+        // Walking in from the deck aft of the door's steps (with a high floor they run more than 0.65 m aft of it).
+        const start = Math.max(wh.aft + 0.65, ...(wh.steps ?? []).map((s) => s.z1 + 0.1));
         const deck = hullPlan(def).deckY(wh.aft + 0.15);
         const levels = [deck, ...(wh.steps ?? []).map((s) => s.y), wh.floorY].sort((a, b) => a - b);
         for (let i = 1; i < levels.length; i++) expect(levels[i] - levels[i - 1], `hull ${hull} floor ${floor}`).toBeLessThanOrEqual(0.351);
         // Walking in at the door, along the centreline: each spot's floor within a step of the last.
         const walk = vesselWalkArea(def, def.layout);
         let y = deck;
-        for (let z = wh.aft + 0.65; z > wh.aft - 0.9; z -= 0.05) {
+        for (let z = start; z > wh.aft - 0.9; z -= 0.05) {
           const here = walk.floorsAt(0, z).filter((f) => Math.abs(f - y) <= 0.4);
           expect(here.length, `hull ${hull} floor ${floor} at z ${z.toFixed(2)}`).toBeGreaterThan(0);
           y = here.reduce((a, f) => (Math.abs(f - wh.floorY) < Math.abs(a - wh.floorY) ? f : a));

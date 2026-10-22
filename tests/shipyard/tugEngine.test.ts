@@ -10,7 +10,7 @@ import { fakeCanvas } from '../modular/fakes';
 beforeAll(fakeCanvas);
 
 const BASE: ShipDesign = { ...DEFAULT_DESIGN, guard: 0 };
-const TUG = DESIGN_HULLS.length - 1;
+const TUG = DESIGN_HULLS.findIndex((h) => h.pushBow);
 const tug = (engine: number, twin = 0): ShipDesign => ({ ...BASE, hull: TUG, ...DESIGN_HULLS[TUG].defaults, engine, twin });
 
 describe('the tug engine: codes', () => {

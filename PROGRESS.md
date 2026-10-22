@@ -8027,3 +8027,49 @@ Owner, Oct 2026: "go to step 2, the trawl deck gear". From the plan: a net drum,
     3. Haul: the winches wind the warps in, then the drum winds the net back on as it comes up the stern.
     4. RELEASE, then watch the rest of the net wind on as it's stowed.
   - **VR:** the same, standing on the aft deck between the winches: the drums turning, the warps leading past you up to the blocks.
+
+### Step 3 toward a trawler: the stern trawler hull type (done, awaiting owner test)
+
+Owner, Oct 2026: "go to step 3, the stern trawler hull". The Shipyard's sixth hull type, after the plan's 24 m reference GA.
+
+- **The hull** (`src/hulls/designs.ts` `sternTrawler`, also shown in `hulls.html`): 20 m, hard chine (the game's hull stations take one chine, not a round bilge), 7 m beam. A fine entrance with a raked stem. Full sections from amidships aft to a wide transom. A whaleback forecastle (the raised foredeck) with the wheelhouse forward on it. A long low working deck aft.
+- **In the Shipyard** (`parts/catalog.ts`, the last DESIGN_HULLS entry): steel, a displacement hull. She comes outfitted as a trawler:
+  - the A-frame, net drum and trawl winches;
+  - the fish hold;
+  - the slow tug diesel in a Kort nozzle;
+  - no stern roller.
+
+  The Length slider runs from 16 to 23.5 m.
+- **Weight and stability:** heavy scantlings (`CONFIG.shipyard.sternTrawler.scantlings` 1.8: plating weight against the standard) and fixed ballast (`ballastKg` 60 t) bring her down to a trawler's draught. Without them a steel hull this size floated high and light. "She floats at what she weighs" sets her lines from that weight:
+
+  | Length | Displacement | Draught | Freeboard amidships | GM | Speed |
+  |---|---|---|---|---|---|
+  | 16 m | 106 t | 2.2 m | 1.6 m | 2.0 m | 8.7 kn |
+  | 20 m | 129 t | 2.2 m | 1.6 m | 2.0 m | 9.2 kn |
+  | 23.5 m | 186 t | 2.3 m | 1.8 m | 2.8 m | 9.1 kn |
+
+  She builds with no warnings at any length.
+- **The short code:** the code holds five hull types (`CODE_HULLS` in `design.ts`; `HULL_TYPES` is now 6). She travels as a link or file, and every existing code reads exactly as before. A short code for her would need the code's hull field widened: a new code version, not worth it for one type.
+- **Brief:** her row in the "which type suits my brief" table (`typeFit.ts` `TYPE_FACTS`) was measured as the others were: bare hull, every engine fit on sea trial.
+  - Deck: 163 crates or 105 pots.
+  - Speed: 5.6 to 10.6 kn; range 35 to 54 nm.
+  - Price: about £0.5 M.
+  - Good for trawling and cargo.
+- **In the game:** she starts at the career berth alongside without touching the quay, sits level, and draws in the normal budget (53 draw calls in the harbour view).
+- **Tests:** `tests/shipyard/sternTrawler.test.ts` checks:
+  - her place in the lists;
+  - link or file only, with the earlier types still coding;
+  - her build: steel, about 20 m, heavy, deep, stable, level, no warnings, trawl gear and hold fitted, recipe holding;
+  - every length builds without warnings.
+  - Older tests that took the last hull type to be the tug, or ran every hull through the short code, now name the tug and stop at the code's five types. The fleet test leaves her out: she isn't one of the fleet's boats yet. The wheelhouse-steps walk test now starts aft of the outermost door step: at the highest floor she has four steps, running 1.1 m aft of the door.
+- **Not done yet**, from the plan's step 3:
+  - a shelter deck over the working deck;
+  - a landing boom.
+
+  Both are for when the owner wants them.
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard → Hull: pick the **Stern trawler**. Look her over with ✂ Section (Buttock) to see the engine room aft and the hold under the working deck.
+    2. Slide Length from shortest to longest; no warnings.
+    3. Trials & handover → into the game. On a fishing ground, TRAWL on, tow at 2–4.5 kn, haul. The boxes go down the hold.
+  - **VR:** the same. Stand on her working deck between the winches, then go up into the wheelhouse on the whaleback and look aft over the deck.

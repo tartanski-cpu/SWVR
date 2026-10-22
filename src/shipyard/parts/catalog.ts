@@ -332,6 +332,28 @@ export const DESIGN_HULLS: DesignHull[] = [
     // tug in mind; single or twin).
     defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 7, guard: 2 }),
   },
+  {
+    // Step 3 toward a trawler (owner, Oct 2026, from a 24 m trawler's general arrangement): a
+    // hull type of her own, 16 to 23.5 m (the length slider's usual 0.8 to 1.175 of 20 m). Not
+    // in the design code (a sixth type would change how every earlier code reads): she
+    // travels as a link or file.
+    name: 'Stern trawler: 20 m hard-chine steel, a whaleback forward, a long working deck aft',
+    material: 'steel',
+    scantlings: CONFIG.shipyard.sternTrawler.scantlings,
+    ballastKg: CONFIG.shipyard.sternTrawler.ballastKg,
+    form: (L, B, D, bow, sheer, forecastle) => ({ kind: 'lofted', design: scaledStudy(study('sternTrawler'), L, B, D, bow, false, sheer, forecastle) }),
+    // Her whaleback: a raised foredeck as the fishing boat's and the tug's, her wheelhouse standing on it.
+    raisedForedeck: true,
+    regime: 'displacement',
+    ramp: false,
+    // The working deck aft for the net drum, the trawl winches and the A-frame; the foredeck short under the whaleback.
+    cockpit: 6.0,
+    foredeck: 2.0,
+    // A trawler's: the wheelhouse forward of amidships on the whaleback, which runs aft under
+    // it; one slow-revving diesel turning a big propeller in a Kort nozzle; the trawl gear,
+    // its net drum and winches, and a fish hold; fishing green.
+    defaults: { ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 7, bow: 2, housePos: 12, houseLength: 12, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 3 }), nozzle: 1, fcLength: 2, fcHeight: 2, aFrame: 1, netDrum: 1, trawlWinches: 1, fishHold: 1, sternRoller: 0 },
+  },
 ];
 
 /**
