@@ -306,6 +306,26 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   }
   // Her dash's grid, for the Shipyard (CS3) and the tests: its whole size, each screen's cells on it, whether placed by hand.
   cc.dashGrid = { cap: whole.cap, rows: ROWS, pitch: r3(whole.pitch), places: shown, byHand };
+  // The dash's face leans back as far as its screens do (from its foot, so the switch panel in
+  // front stays as it was; never so far its top is under 2 cm deep), and the screens and gauges
+  // lie flat on it (owner, Oct 2026: "I'd certainly not like the gauges or the instruments
+  // floating"). Not with low sills: the dash comes off then, its screens on stalks.
+  if (!d.sills) {
+    const dd = cc.dash as { front: number; aft: number; bottom: number; top: number };
+    // (Raised a little first: the lower row's foot was behind the ledge in front of the dash.)
+    for (const m of consoleMount.modules!) if (m.module === 'instrument.screen' && (m.config as { mount?: string } | undefined)?.mount !== 'hung' && cc.slots[m.socket]) {
+      const p = cc.slots[m.socket].position as V3;
+      cc.slots[m.socket].position = [p[0], r3(p[1] + CONFIG.shipyard.helm.screenLift), p[2]];
+    }
+    const lean = Math.min(Math.tan((sc.tiltDeg * Math.PI) / 180), (dd.aft - dd.front - 0.02) / (dd.top - dd.bottom));
+    const leanDeg = (Math.atan(lean) * 180) / Math.PI;
+    cc.leanDeg = Math.round(leanDeg * 100) / 100;
+    for (const m of consoleMount.modules!) {
+      const conf = m.config as { mount?: string; screen?: string } | undefined;
+      if (m.module !== 'instrument.screen' || conf?.mount === 'hung' || !cc.slots[m.socket]) continue;
+      m.config = { ...m.config, tiltDeg: cc.leanDeg, faceBack: r3((cc.slots[m.socket].position[1] - dd.bottom) * lean) };
+    }
+  }
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
   if (house.facet)

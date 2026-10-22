@@ -29,7 +29,16 @@ import { LABEL_OFFSET } from '../../modular/module';
 import type { Socket } from '../../modular/socket';
 import { part } from '../../render/geometryUtils';
 
-export type ConsoleConfig = typeof CONFIG.modules.helmConsole & { wrap?: { centre: number; k: number; turn?: string[]; fixed?: string[] }; bare?: { screens: string[] } };
+export type ConsoleConfig = typeof CONFIG.modules.helmConsole & {
+  wrap?: { centre: number; k: number; turn?: string[]; fixed?: string[] };
+  bare?: { screens: string[] };
+  /**
+   * The dash's face leaning back from its foot (deg), as its screens and gauges do, so they lie
+   * flat on it rather than standing off an upright face (owner, Oct 2026: "I'd certainly not
+   * like the gauges or the instruments floating"). Upright when absent.
+   */
+  leanDeg?: number;
+};
 
 /** A wrapped dash's setback at x (m aft), and a wing's turn (deg about y): 0 across the middle. */
 const setback = (c: ConsoleConfig, x: number) => (c.wrap ? Math.max(0, Math.abs(x) - c.wrap.centre) * c.wrap.k : 0);
@@ -70,6 +79,15 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
     build({ config: c }) {
       const d = c.dash;
       const staticParts = c.bare ? [] : splits(c, -d.halfWidth, d.halfWidth).map(([a, b]) => box(b - a, d.top - d.bottom, d.aft - d.front, (a + b) / 2, (d.top + d.bottom) / 2, (d.front + d.aft) / 2, 0x30363b));
+      // Its face leaning back from its foot (`leanDeg`): the aft face's top edge set forward.
+      const lean = Math.tan(((c.leanDeg ?? 0) * Math.PI) / 180);
+      if (lean)
+        for (const g of staticParts) {
+          const p = g.attributes.position;
+          for (let i = 0; i < p.count; i++) if (p.getZ(i) > d.aft - 1e-6) p.setZ(i, p.getZ(i) - (p.getY(i) - d.bottom) * lean);
+          p.needsUpdate = true;
+          g.computeVertexNormals();
+        }
       // Bare: each screen on a stalk from the console top up to the middle of its back, and a foot.
       for (const id of c.bare?.screens ?? []) {
         const sl = c.slots[id];
@@ -106,7 +124,7 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
       // The middle of the dash's face: the app measures how far you are from the screens.
       const dashAnchor = new THREE.Object3D();
       dashAnchor.name = 'dashAnchor';
-      dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
+      dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft - ((d.top - d.bottom) / 2) * lean);
       return { staticParts, movingParts: [dashAnchor], controls: [], labels, update: () => {} };
     },
   },
