@@ -123,3 +123,19 @@ describe('the Clyde: piers drawn as outlines (owner: Wemyss Bay pier "absolutely
     expect(names).toContain('Kip Marina');
   });
 });
+
+describe('the Clyde: harbour names from the map (owner: "Largs Marina is named as Fairlie")', () => {
+  it('marinas and harbours mapped as a point or a relation name theirs; the ferry slips are named for their side', () => {
+    const byId = new Map(pkg.ports.map((p) => [p.id, p.name]));
+    expect(byId.get('largs-yacht-haven')).toBe('Largs Yacht Haven');
+    expect(byId.get('fairlie-quay')).toBe('Fairlie Quay');
+    expect(byId.get('largs-pier')).toBe('Largs pier');
+    expect(byId.get('holy-loch-marina')).toBe('Holy Loch Marina');
+    expect(byId.get('rhubodach-pier')).toBe('Rhubodach pier');
+    expect(byId.get('colintraive-pier')).toBe('Colintraive pier');
+    // The start (Voyage puts you at rothesay-harbour-cargo) keeps its name and id.
+    expect(byId.get('rothesay-harbour')).toBe('Rothesay Harbour');
+    // No more borrowing the "Fairlie Pier" locality's name.
+    expect(pkg.ports.filter((p) => p.name === 'Fairlie Pier pier')).toEqual([]);
+  });
+});
