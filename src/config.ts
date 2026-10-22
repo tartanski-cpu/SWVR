@@ -4102,9 +4102,10 @@ export const CONFIG = {
       pedestals: { x: [0.45, -0.45, -0.85], halfWidth: 0.13, front: -0.08, aft: 0.3, floor: -0.95 },
       groups: [
         { title: 'LIGHTS', x: [-1.32, -0.91] as [number, number], color: 0xd8b028 },
-        { title: 'SEARCH · FIRE', x: [-0.89, -0.38] as [number, number], color: 0xc0402a },
+        // (Strips light enough for their dark titles to read: owner, Oct 2026, "not very clear".)
+        { title: 'SEARCH · FIRE', x: [-0.89, -0.38] as [number, number], color: 0xe0664a },
         { title: 'DECK', x: [0.19, 0.72] as [number, number], color: 0x2f6fd0 },
-        { title: 'ENGINE', x: [0.74, 1.32] as [number, number], color: 0x3a9a4a },
+        { title: 'ENGINE', x: [0.74, 1.32] as [number, number], color: 0x5cc46c },
       ],
       plates: { front: -0.27, aft: -0.05 },
       slots: {
@@ -4122,7 +4123,8 @@ export const CONFIG = {
         heat: { position: [0.8, 0.01, -0.18] },
         start: { position: [0.94, 0.01, -0.18] },
         key: { position: [1.08, 0.01, -0.18] },
-        lamps: { position: [0.95, 0.015, -0.28] },
+        // (On the console body's step in front of the dash's foot, 0.12 m up: at -0.28 on the panel their names lay over the groups' title strips, owner, Oct 2026.)
+        lamps: { position: [0.95, 0.121, -0.315] },
         /**
          * The laminated start-up card: upright on the console's aft face below the ENGINE
          * group, facing the helmsman (owner: on the dash top it glowed white at night; down

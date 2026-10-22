@@ -110,7 +110,10 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
           staticParts.push(box(x1 - x0, 0.005, 0.028, (x0 + x1) / 2, top + 0.0025, c.plates.front + 0.014, g.color));
         }
         const mx = (g.x[0] + g.x[1]) / 2;
-        labels.push({ text: g.title, at: [mx, top + 0.004, c.plates.front + 0.014 - LABEL_OFFSET + setback(c, mx)] as const, title: true });
+        // (On a wing, read along it: the strip angles back with the wing.)
+        const yaw = (wingYaw(c, mx) * Math.PI) / 180;
+        const back = c.plates.front + 0.014 + setback(c, mx);
+        labels.push({ text: g.title, at: [mx - Math.sin(yaw) * LABEL_OFFSET, top + 0.004, back - Math.cos(yaw) * LABEL_OFFSET] as const, title: true, yaw });
       }
       // Switch groups up on the dash face (`faceGroups`): a plate lying on the leaning face, its
       // coloured strip along the top, the title on the strip, standing on the face.

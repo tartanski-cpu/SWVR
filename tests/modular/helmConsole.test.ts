@@ -72,10 +72,11 @@ describe('the helm console, as modules', () => {
     expect(e.x).toBeCloseTo((-22 * Math.PI) / 180, 6);
   });
 
-  it('the warning lamps stand where they stood, and the start-up card on the console\'s upright face, facing the helmsman', () => {
+  it('the warning lamps on the step in front of the dash, and the start-up card on the console\'s upright face, facing the helmsman', () => {
     const a = build();
     const at = (path: string) => a.modules.find((m) => m.path === path)!.root.position.toArray() as [number, number, number];
-    near(at('helm/lamps'), [0.95, 2.165, -1.6]);
+    // (Up on the console body's step in front of the dash since Oct 2026: on the panel their names lay over the groups' titles.)
+    near(at('helm/lamps'), [0.95, 2.271, -1.635]);
     // Where the dev branch put it (bridge.checklistCard, owner: not on the dash top at night).
     near(at('helm/card'), [1.12, 1.84, -1.315]);
     const card = a.modules.find((m) => m.path === 'helm/card')!.root.getObjectByName('checklistCard')!;
