@@ -8106,3 +8106,36 @@ Owner, Oct 2026 (a plan view of a landing craft with the narrowest wheelhouse): 
 - **The Shipyard:** the house laid out as before from its own middle, then its places moved across with it: places.ts (every place in and on it, not the engine's), house.ts (the chart table, the side door's buttons and the side deck it opens onto), furniture.ts (laid out in the house's frame, the pins and the chart table and hatch taken across), engineRoom.ts (a hatch in the cabin floor within its moved walls, over the engine), deckGear.ts (the house's footprint deck gear keeps off, the roof gear stands on, the life ring and the rod rack), hullDef.ts (the extinguisher, torch, binoculars, line gun), recipe.ts (the nav lights), pinGear.ts (a pin on its roof).
 - **Not modelled:** an offset house's weight doesn't heel her (her weights have no athwartships centre).
 - **Checked:** tests/shipyard/houseOffset.test.ts (to port as far as her deck allows, its wall inside her deck edge, the helm, door buttons and cabin light moved with it, a valid recipe; to starboard: its floor walked inside, its wall solid, the side deck beside it walked, out of its aft door; only the landing craft, not with a deckhouse, not in the code). Headless Chromium: the Shipyard (plan, both sides) and the game (at the helm, looking aft out of the door, from the quay), to port and to starboard. Full suite passes. **Not checked:** the Quest (walking round it).
+### The skiff becomes a rubber dinghy, 10 % smaller (done, awaiting owner test)
+
+Owner, Oct 2026: "take the existing skiff and crane and make the boat slightly smaller so it fits more easily on the smaller work boats ... turn it into a rubber dinghy ... maybe 10% smaller". This is part 1 of the plan agreed with the owner. Part 2, a 6 m fast rescue boat (a RIB, 150 hp, Shipyard only), follows.
+
+- **What was measured first:** none of the five fleet boats could take the old skiff and crane. The space needed is the cradle plus the crane column beside it, about 4.2 × 3.3 m with clearances. With it all scaled down 10%, the fishing boat (foredeck) and the small tug (aft deck) take her. 20% gained nothing more. 30% was needed for the landing craft. The pilot boat never could at her standard size.
+- **The dinghy** (`CONFIG.vessels.skiff`):
+  - The skiff's lines scaled 0.9: 3.25 × 1.45 m.
+  - 240 kg: the old 330 kg times 0.9³, so she floats at the same lines.
+  - Damping and radii of gyration scaled to her.
+  - Grey tubes (the new module `hull.tubes`, `CONFIG.modules.tubes.dinghy`: radius 0.2 m, 0.25 m past the transom). The tubes are merged with her fixed parts: no extra draw call.
+  - A grey hull and floor (her hull's `livery`), the same electric outboard and tiller.
+  - Her id stays `skiff`, for saves and multiplayer, and the game still calls her the skiff.
+  - The tubes are looks only: at rest a small inflatable floats on her floor and keel.
+- **Her cargo:** the floor between the tubes takes **three crates one behind another** (the skiff took five abreast), or two drums, up to 250 kg. Real 3.2 m inflatables are about 0.85 m wide inside. The helmsman's spot moved aft to the tiller's handle to make room (`boardingSpot`, `cargo.aftClear` 0.55, `cargo.edge` 0.18).
+- **The crane** (`CONFIG.vessels.workboat.tenderCrane`, the module's defaults): 10% smaller with her.
+  - Changed: the cradle, her place in it, the column's offset from her, the arms, and the column height.
+  - The carried boat's own figures moved out of the drawing code into the crane's settings (`tender`: her keel, the cradle saddles, the bridle's lifting eyes on her tubes). The fast rescue boat will need her own.
+  - Her tarpaulin now covers the tubes.
+- **A bug the light dinghy showed up:** at a quay, her mooring lines heeled her 30–60°.
+  - Why: the lines' stiffness and damping are set for the big boats. On a 240 kg boat with her lines made fast high on her tubes, each tick's damping push was more than her small roll inertia could take, so it overshot and grew.
+  - Fix: lines on a boat under `CONFIG.docking.lightBoatKg` (2 t: only the dinghy) are scaled down by her mass. The big boats are unchanged. She now lies level, resting on her tubes against the quay.
+- **Golden runs:** only the two that use the skiff moved (`crane`, `skiff`). The dinghy is a little quicker on the same motor and turns tighter. Every other boat's run is unchanged.
+- **Tests:**
+  - `tests/dinghy.test.ts`: her size, and that she fits the fishing boat and the small tug.
+  - Her tubes' path, and that they draw with her fixed parts.
+  - She lies level at a quay (`skiffLines`).
+  - Three crates (`cargo`).
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard: open the fishing boat (Projects, or the debug menu's design file). Deck gear → **Skiff and crane** → Place on the foredeck, starboard. She fits, with no warning.
+    2. Into the game: SKIFF CRANE on the dash (engine running, DECK HYD on). Watch her go over the side.
+    3. Board her and drive her. Tie her up at a quay with both cleats.
+  - **VR:** the same. Stand in her by the tiller: the tubes are your gunwale. Load three crates.

@@ -907,21 +907,23 @@ export const CONFIG = {
        * level (`boomDeg`), the jib folded back over it (`jibDeg`, its direction).
        */
       tenderCrane: {
-        column: [1.25, -2.25] as [number, number],
-        columnRadius: 0.13,
-        shoulderY: 2.45,
-        boom: 1.55,
-        jib: 1.45,
+        // (Oct 2026: 10 % smaller with her, the dinghy: the cradle and her place in it, and the
+        // column's offset from her, scaled 0.9 about the column; the arms and the column too.)
+        column: [1.125, -2.25] as [number, number],
+        columnRadius: 0.12,
+        shoulderY: 2.33,
+        boom: 1.4,
+        jib: 1.3,
         /**
          * The workboat's deck height at the column (m). Placed elsewhere (its socket is the
          * foot of the column), its heights move with the deck there.
          */
         deckAtColumn: 1.2099609375,
-        stow: [0, 1.75, -3.95] as [number, number, number],
-        cradle: { halfWidth: 0.9, z0: -5.85, z1: -2.05 },
-        lift: [0, 1.1, 0.76] as [number, number, number],
-        clear: 1.1,
-        outboard: [3.3, -2.6] as [number, number],
+        stow: [0, 1.74, -3.78] as [number, number, number],
+        cradle: { halfWidth: 0.81, z0: -5.49, z1: -2.07 },
+        lift: [0, 0.99, 0.68] as [number, number, number],
+        clear: 1.0,
+        outboard: [3.15, -2.55] as [number, number],
         waterY: 0.0,
         rigTime: 2.5,
         hoistTime: 3,
@@ -933,19 +935,36 @@ export const CONFIG = {
         chargeMinutes: 5,
         fold: { slewDeg: -90, boomDeg: -8, jibDeg: 165 },
         /**
+         * The boat it carries (her axes; the dinghy's, CONFIG.vessels.skiff): her keel's
+         * height (`keelY`), the cradle's two saddles under her (`saddles`: their z, and
+         * `saddleWidth` across), and the bridle's four lifting eyes (`legs`: on her tubes'
+         * tops, forward and aft).
+         */
+        tender: {
+          keelY: -0.13,
+          saddles: [-0.99, 0.9],
+          saddleWidth: 0.95,
+          legs: [
+            [-0.5, 0.52, -0.9],
+            [0.5, 0.52, -0.9],
+            [-0.58, 0.47, 1.4],
+            [0.58, 0.47, 1.4],
+          ] as [number, number, number][],
+        },
+        /**
          * LAUNCH / RECOVER buttons: on the column's control box, on its outboard side facing
          * starboard (reached from the starboard side deck); a SKIFF CRANE button on the
          * console (bridge.craneButton); and a remote on a post in the skiff by the helmsman
          * (`remote`: x, z in her axes, and its height), to call a recovery from the water.
          */
-        button: [1.47, 2.25, -2.25] as [number, number, number],
-        remote: { x: 0.55, z: 1.3, height: 0.95 },
+        button: [1.34, 2.15, -2.25] as [number, number, number],
+        remote: { x: 0.35, z: 1.17, height: 0.9 },
         /** Crew still in her when she's back in the cradle step out here (x, z on our foredeck). */
         stepOff: [
           [-1.25, -2.7],
-          [1.55, -2.9],
+          [1.45, -2.9],
           [-1.25, -3.4],
-          [1.45, -3.5],
+          [1.35, -3.5],
         ] as [number, number][],
       },
       /**
@@ -1578,33 +1597,44 @@ export const CONFIG = {
     },
 
     /**
-     * The workboat's tender: a 3.6 m flat-decked aluminium skiff (a punt with a low coaming)
-     * with a small electric outboard. Same axes and physics as the workboat; no wheelhouse,
-     * engine room, anchor or mooring - just a hull, a deck, an outboard and a tiller.
-     * Mass chosen to float at the DWL (tests/seaTrials.test.ts).
+     * The ship's tender (owner, Oct 2026: "make the boat slightly smaller so it fits more
+     * easily on the smaller work boats ... turn it into a rubber dinghy"): a 3.25 m inflatable,
+     * the old 3.6 m aluminium skiff's lines scaled 0.9 (so her crane and cradle are 10 %
+     * smaller too: the fishing boat and the small tug can now carry her). A flat floor and a
+     * shallow V under it (the hard-chine hull below, as before), her grey tubes round it
+     * (modules/tubes: drawn, merged with her fixed parts), a small electric outboard and a
+     * tiller. Same axes and physics as the workboat; no wheelhouse, engine room, anchor or
+     * mooring. Her id stays 'skiff' (saves and multiplayer), and the game still calls her the
+     * skiff. Mass chosen to float at the DWL (tests/seaTrials.test.ts).
+     *
+     * The tubes are modelled as looks only: at rest an inflatable this size floats on her
+     * floor and keel with her tubes just clear of the water, so the hull below is what floats
+     * her. Her deck's edge is the tubes' centre; their top (`layout.bulwarkHeight` above it)
+     * is her gunwale: what you step over, what her tarpaulin lies on. Inside the tubes her
+     * walkable floor and her cargo stop `deckEdgeMargin` / `cargo.edge` in from her deck edge.
      */
     skiff: {
       hull: {
-        length: 3.6,
-        beamDeck: 1.6,
-        beamChine: 1.4,
-        keelY: -0.14,
-        chineYAft: -0.1,
-        chineYBow: 0.1,
-        deckYAft: 0.3,
-        deckYBow: 0.42,
+        length: 3.25,
+        beamDeck: 1.45,
+        beamChine: 1.26,
+        keelY: -0.13,
+        chineYAft: -0.09,
+        chineYBow: 0.09,
+        deckYAft: 0.27,
+        deckYBow: 0.38,
         stations: 9,
         deckParallel: 0.45,
       },
-      /** Hull, decking, outboard and battery (kg). */
-      mass: 330,
+      /** Hull, floor, tubes, outboard and battery (kg): the skiff's 330 kg times 0.9³ (her displacement at the same lines, scaled). */
+      mass: 240,
       /** z = LCB so she floats level. */
-      cg: [0, 0.05, 0.76] as [number, number, number],
-      gyradius: { roll: 0.55, pitch: 0.95, yaw: 1.0 },
+      cg: [0, 0.045, 0.68] as [number, number, number],
+      gyradius: { roll: 0.5, pitch: 0.86, yaw: 0.9 },
       addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
       /**
-       * Same per-area coefficients as the workboat; the angular ones scaled to this boat's
-       * critical damping (~1 kN*m*s in roll: 15 %).
+       * Same per-area coefficients as the workboat; the angular ones the skiff's scaled to
+       * her mass x size² (0.9³ x 0.9² = 0.59 of them: the same fraction of critical damping).
        */
       damping: {
         vertical: 800,
@@ -1613,29 +1643,30 @@ export const CONFIG = {
         lateralLift: 1.2,
         lateralCd: 1.0,
         surgeLinear: 20,
-        roll: 150,
-        pitch: 120,
-        yaw: 120,
+        roll: 89,
+        pitch: 71,
+        yaw: 71,
       },
       resistance: {
-        lwl: 3.3,
+        lwl: 2.97,
         formFactor: 0.2,
         waveA: 1.0,
         waveB: 0.94,
         waveKnee: 0.3,
         waveCap: 0.115,
         asternFactor: 2.0,
-        y: -0.05,
+        y: -0.045,
       },
       /**
        * Electric outboard on the transom: thrust at the propeller (vessel axes), falling
        * linearly from `staticThrustN` at rest to zero at `zeroThrustSpeed` (m/s, ~the
        * propeller's pitch speed); astern a fraction of that. Steered by swinging the whole
        * motor on its tiller (thrust direction), up to `maxSteerDeg`. Draws up to `powerKw`
-       * from a `batteryKWh` battery, ~ |throttle|^1.5 (most of it near full).
+       * from a `batteryKWh` battery, ~ |throttle|^1.5 (most of it near full). The skiff's
+       * motor: lighter, she's a little quicker on it.
        */
       outboard: {
-        position: [0, -0.32, 1.95] as [number, number, number],
+        position: [0, -0.29, 1.76] as [number, number, number],
         staticThrustN: 750,
         zeroThrustSpeed: 5.5,
         asternFactor: 0.55,
@@ -1643,53 +1674,57 @@ export const CONFIG = {
         batteryKWh: 2,
         maxSteerDeg: 30,
         /** Tiller: pivot on top of the motor, handle length forward over the transom (m). */
-        tiller: { pivot: [0, 0.55, 1.85] as [number, number, number], length: 0.55 },
+        tiller: { pivot: [0, 0.5, 1.67] as [number, number, number], length: 0.5 },
       },
       layout: {
-        bulwarkHeight: 0.15,
+        /** Her tubes' top above her deck edge (their radius: modules.tubes.dinghy). */
+        bulwarkHeight: 0.2,
         railHeight: 0,
-        deckEdgeMargin: 0.12,
+        /** The tubes' inner face is this far in from her deck edge. */
+        deckEdgeMargin: 0.32,
         bodyRadius: BODY_RADIUS,
       },
       /**
-       * Cargo in her bottom between the bow (`bowClear`) and the helmsman's place by the
-       * tiller (`aftClear`), kept `edge` m inside her thin aluminium sides (owner: she should
-       * carry more). Her floor there is about 2.6 m² (2.1 m long, 1.2-1.4 m wide inside), which
-       * takes five crates side by side, one deep (cargo/deck.ts deckCapacity; a crate's
-       * 0.6 × 0.5 m stands in 0.6 m square), or two oil drums: no slot limit, just room and
-       * mass. `maxPayloadKg` 300: five crates (200 kg), or two drums and a crate, with her
-       * helmsman sink her about 10 cm (her waterplane ~3.8 m², ~39 kg/cm), leaving ~0.2 m of
-       * freeboard aft. Sitting low, wedged in, it doesn't slide about (`fixed`), and she has
-       * no D-rings.
+       * Cargo on her floor between the bow (`bowClear`) and the helmsman's place by the
+       * tiller (`aftClear`), kept `edge` m inside her deck edge (in under the tubes' curve).
+       * Her floor there is about 2.2 m long and 0.9-1.1 m wide: three crates one behind
+       * another (by hand; cargo/deck.ts deckCapacity's even rows count two), or two oil
+       * drums: no slot limit, just room and mass. `maxPayloadKg` 250: three crates
+       * (120 kg), or two drums, with her helmsman sink her
+       * about 10 cm (her waterplane ~3.1 m², ~32 kg/cm). Sitting low, wedged in against the
+       * tubes, it doesn't slide about (`fixed`), and she has no D-rings.
        */
       cargo: {
-        maxPayloadKg: 300,
+        maxPayloadKg: 250,
         slots: 0,
-        bowClear: 0.6,
-        aftClear: 0.9,
-        edge: 0.08,
+        bowClear: 0.4,
+        aftClear: 0.55,
+        edge: 0.18,
         fixed: true,
       },
       /**
        * Her cleats (modules/boatCleat; owner: tie her up front and back, to the ship or the
-       * quay): the bow cleat on her stem head, the stern cleat on the port quarter's coaming
-       * (clear of the outboard), each socket the cleat's base (x, y, z); the line pulls from
-       * `lineY` above it. Moored at a quay berth she lies `inshore` m closer to the quay than
-       * the berth's mark, which is set for the workboat's beam (her half beam 0.8 m and a
-       * little air, against the workboat's 2.1 m and fenders).
+       * quay): the bow cleat on her bow, on top of the tubes' nose, the stern cleat on the
+       * port quarter's tube (clear of the outboard), each socket the cleat's base (x, y, z);
+       * the line pulls from `lineY` above it. Moored at a quay berth she lies `inshore` m
+       * closer to the quay than the berth's mark, which is set for the workboat's beam (her
+       * half beam with her tubes 0.8 m and a little air, against the workboat's 2.1 m and
+       * fenders).
        */
       cleats: {
-        bow: [0, 0.444375, -1.55] as [number, number, number],
-        stern: [-0.74, 0.45, 1.6] as [number, number, number],
+        bow: [0, 0.58, -1.42] as [number, number, number],
+        stern: [-0.62, 0.47, 1.44] as [number, number, number],
         lineY: 0.06,
         inshore: 1.4,
       },
-      /** Windage (see the workboat's): low sides plus whoever is aboard. */
-      windage: { side: 2.4, front: 1.2, center: [0, 0.6, 0] as [number, number, number] },
-      /** Where a player stands after boarding: by the tiller, facing forward. */
-      boardingSpot: [0, 0.3, 1.1] as [number, number, number],
+      /** Windage (see the workboat's): low tubes plus whoever is aboard. */
+      windage: { side: 2.2, front: 1.1, center: [0, 0.55, 0] as [number, number, number] },
+      /** Where a player stands after boarding: right aft by the tiller's handle, facing forward. */
+      boardingSpot: [0, 0.27, 1.15] as [number, number, number],
       /** Starts floating off the workboat's starboard side (she starts heading east at z -22). */
       spawn: { x: 0, z: -15, dropHeight: 0.3, headingDeg: 90 },
+      /** Her colours: a grey floor and hull under grey tubes. */
+      livery: { topsides: 0x4b5157, bottom: 0x33373b, deck: 0x6a6f73 },
     },
 
     /**
@@ -1994,6 +2029,14 @@ export const CONFIG = {
     /** Line stiffness and damping per end (N/m, N*s/m) once made fast. */
     stiffness: 9000,
     damping: 14000,
+    /**
+     * A boat lighter than this (kg: only the dinghy today) has her lines' stiffness, damping
+     * and pull scaled down by her mass over it. Lines this stiff on a 240 kg boat, made fast
+     * high on her tubes, roll her over: each tick's damping push is more than her small roll
+     * inertia can take, so it overshoots and grows (Oct 2026: the dinghy heeled 30-60 deg at
+     * a quay). Scaled, she lies to them as a heavy boat does to hers.
+     */
+    lightBoatKg: 2000,
     /** Most a line pulls while warping in, and when moored (N); beyond `breakDist` m off, lines part. */
     warpForce: 7000,
     holdForce: 40000,
@@ -2184,7 +2227,7 @@ export const CONFIG = {
      */
     upgrades: [
       { id: 'trawlGear', name: 'Trawl gear', price: 2500, minRep: 5, fit: ['aFrame', 'trawl', 'helm/trawl'], desc: 'The A-frame over the transom, the net on its drum and the TRAWL switch' },
-      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
+      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The skiff (a rubber dinghy with an electric outboard) in her cradle on the foredeck, and the crane to launch her' },
       { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], design: { searchlight: 1 }, desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
       { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], design: { fireMonitor: 1 }, desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
       // Owner, Oct 2026: the beginner boat comes without these, and the yard sells them. (`fit` empty:
@@ -4357,6 +4400,21 @@ export const CONFIG = {
       box: { width: 0.36, depth: 0.22, height: 0.12 },
       fromHouse: 0.75,
       inset: 0.3,
+    },
+
+    /**
+     * hull.tubes (modules/tubes): an inflatable's tubes (owner, Oct 2026: the tender as a
+     * rubber dinghy; the fast rescue boat's too). Two tubes along her deck edges, joined in a
+     * round nose over her bow and running on `aft` m past her transom to rounded ends. Each
+     * tube's centre is on her deck edge, `inset` m in from it, so it overhangs her side by
+     * radius - inset and its top is `radius` above her deck (her layout's bulwarkHeight, her
+     * gunwale). Looks only: merged with her fixed parts, no draw call of its own.
+     *   radius      the tube's (m): about 0.2 on a 3 m dinghy, 0.25 on a 6 m RIB
+     *   segments    along the tubes, and round each (few: it's small and seen from close)
+     *   colour      the fabric's
+     */
+    tubes: {
+      dinghy: { radius: 0.2, inset: 0.12, aft: 0.25, segments: 40, round: 8, colour: 0x5b6168 },
     },
 
     /**

@@ -32,7 +32,7 @@ export const GEAR_GROUPS: GearGroup[] = [
 
 /** What each piece is for, in a line. */
 export const GEAR_ABOUT: Record<string, string> = {
-  skiff: 'A small boat on deck, with its own crane to launch and recover her: for reaching people in the water and running to the beach.',
+  skiff: 'A 3.25 m rubber dinghy with an electric outboard, in a cradle on deck, with its own crane to launch and recover her: for reaching people in the water and running goods to the beach (three crates). Needs about 3.7 m of clear deck.',
   lifeRing: 'Thrown on its line to someone in the water; the boat hook beside it to bring them alongside.',
   rodRack: 'Four handheld rods standing in a rack on a wall of the wheelhouse, a bucket beside them: cast over the side, play what bites, sell the bucket in port.',
   searchlight: 'A steerable lamp for searching at night.',
