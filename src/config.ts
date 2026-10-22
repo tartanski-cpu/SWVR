@@ -3358,9 +3358,13 @@ export const CONFIG = {
      * each rise at most `stepRise` (you walk up them: layout.ts STEP_HEIGHT is 0.4), treads
      * `tread` deep (about 55 degrees), a handrail on the inboard side `rail` high, `clear` of
      * deck kept at their foot. Run on aft under the wheelhouse, it ends at least `landing` m
-     * aft of the house's aft wall (more for a raised cabin floor's door steps).
+     * aft of the house's aft wall (more for a raised cabin floor's door steps). Deck gear
+     * (shipyard/parts/deckGear.ts) stands wholly on one deck or the other (its plan shape, which
+     * has a margin of about 10 cm round it, reaching at most `gearReach` m past the break), and
+     * off the ladders; the foredeck's crane and skiff go up on the raised deck
+     * when it has room (owner, Oct 2026: they were on the deck below it).
      */
-    foredeck: { stepRise: 0.3, tread: 0.2, clear: 0.3, width: 0.6, fromSide: 0.3, rail: 0.9, landing: 0.6 },
+    foredeck: { stepRise: 0.3, tread: 0.2, clear: 0.3, width: 0.6, fromSide: 0.3, rail: 0.9, landing: 0.6, gearReach: 0.08 },
     /**
      * A hull that shrinks below its base size (catalog.ts `shrinksTo`; owner, Oct 2026: "a
      * really tiny tug"): her beam and her depth shrink with her length, each to its power (a

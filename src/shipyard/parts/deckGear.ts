@@ -20,7 +20,7 @@ import type { PlacesPart } from './places';
 /** Her deck gear, each piece where it stands, clear of what's already placed: the winch, the A-frame, the deck crane, the skiff and its crane, the searchlight and fire monitor, the fender basket, the anchor. */
 export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart) {
   const { d } = a;
-  const { aft, at, bowCleat, bowRamp, cg, cleat, deckMid, deckhouse, foreEndAt, front, gyradius, hw, hx, mass, midCleat, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, sternCleat, transom, warnings, wl } = p;
+  const { aft, at, bowCleat, bowRamp, cg, cleat, deckMid, deckhouse, foreEndAt, foredeck, front, gyradius, hw, hx, layout, mass, midCleat, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, sternCleat, transom, warnings, wl } = p;
   // ── Hull definition ──
   const weighed = { massKg: mass, cg, inertia: inertiaFromGyradius(mass, gyradius) };
   const freeboard = deckMid;
@@ -45,10 +45,20 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1;
   const r2 = (v: number) => Math.round(v * 100) / 100;
   const bowClear = stem + (bowRamp ? 1.8 : 1.0);
+  // A raised foredeck (house.ts raisedForedeck): each piece stands wholly on one deck or the
+  // other (its plan shape's margin reaching at most `gearReach` past the break), and off the
+  // ladders up to it (taken below). `raisedAhead`: its break lies forward of the house, a lower
+  // deck between them.
+  const fdc = CONFIG.shipyard.foredeck;
+  const breakZ = foredeck?.z ?? null;
+  const onRaised = (r: { z1: number }) => breakZ !== null && r.z1 <= breakZ + fdc.gearReach;
+  const oneLevel = (r: { z0: number; z1: number }) => breakZ === null || onRaised(r) || r.z0 >= breakZ - fdc.gearReach;
+  const raisedAhead = breakZ !== null && breakZ < foreEndAt;
 
   // 1. The stern gear.
   const sternRoller = !!d.sternRoller;
   if (sternRoller) taken.push({ x0: -0.3, x1: 0.3, z0: transom - 0.3, z1: transom }); // the roller in the transom bulwark
+  for (const t of layout.deckSteps ?? []) taken.push({ x0: t.x0 - 0.1, x1: t.x1 + 0.1, z0: t.z0 - 0.1, z1: t.z1 + 0.1 }); // the ladders up to a raised foredeck
   // (The A-frame's warps lead off the tow winch, unless she has trawl winches of her own.)
   const wantWinch = !!(d.towWinch || (d.aFrame && !d.trawlWinches));
   const aFrameFeet: Rect[] = [];
@@ -90,7 +100,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const houseRect: Rect = { x0: hx - Math.max(hw, dhW) - 0.3, x1: hx + Math.max(hw, dhW) + 0.3, z0: foreEndAt - 0.3, z1: aft + 0.7 };
   /** The forward end of what stands on her deck amidships: the deckhouse's front, or the wheelhouse's. */
   const foreEnd = foreEndAt;
-  const onDeck = (r: Rect) => r.z0 > bowClear && r.z1 < transom - 0.15 && [r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15);
+  const onDeck = (r: Rect) => oneLevel(r) && r.z0 > bowClear && r.z1 < transom - 0.15 && [r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15);
   const standsOnDeck = (rects: Rect[]) => rects.every((r) => onDeck(r) && !overlaps(r, houseRect) && !taken.some((o) => overlaps(o, r)));
 
   // 1b. The trawl deck gear (owner, Oct 2026: step 2 toward a trawler), with the A-frame: the
@@ -225,12 +235,32 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   }
   if (d.deckCrane && !craneAt) {
     const fore = d.deckCrane === 1;
-    const z = fore ? foreEnd - 0.9 : aft + 0.9;
-    const x = (fore ? 1 : -1) * (q.halfBeam(z) - cr.edgeInset);
-    // At the edge its post stands inboard; the aft one faces aft (its boom resting over the aft deck, not the house).
-    const shape = craneShape(-Math.sign(x) * Math.abs(cr.post.x), (fore ? 1 : -1) * cr.post.z).map((r) => placeRect(r, x, z, 0));
+    const edgeShape = (z: number) => {
+      const x = (fore ? 1 : -1) * (q.halfBeam(z) - cr.edgeInset);
+      // At the edge its post stands inboard; the aft one faces aft (its boom resting over the aft deck, not the house).
+      return { x, shape: craneShape(-Math.sign(x) * Math.abs(cr.post.x), (fore ? 1 : -1) * cr.post.z).map((r) => placeRect(r, x, z, 0)) };
+    };
+    // On the foredeck, just forward of the house; with a raised foredeck forward of the house,
+    // up on it as near its break as it stands clear (else on the deck below it, as near the
+    // house as it stands clear of the break and the ladders).
+    let z = fore ? foreEnd - 0.9 : aft + 0.9;
+    let nowhere = false;
+    if (fore && raisedAhead) {
+      const clear = (zz: number, level: (r: Rect) => boolean) => zz - cr.plinthRadius - 0.3 > bowClear && edgeShape(zz).shape.every((r) => level(r) && !taken.some((o) => overlaps(o, r)));
+      let found: number | null = null;
+      for (let zz = breakZ!; zz - cr.plinthRadius - 0.3 > bowClear && found === null; zz -= 0.05) if (clear(zz, onRaised)) found = zz;
+      if (found === null) {
+        for (let zz = foreEnd - 0.9; zz > breakZ! && found === null; zz -= 0.05) if (clear(zz, (r) => r.z0 >= breakZ! - fdc.gearReach)) found = zz;
+        if (found !== null) warnings.push('There\'s no room up on her raised foredeck for the deck crane: it stands on the deck below it, forward of the wheelhouse.');
+      }
+      if (found !== null) z = r2(found);
+      else nowhere = true;
+    }
+    const { x, shape } = edgeShape(z);
     const room = fore ? z - cr.plinthRadius - 0.3 > bowClear : z + 0.4 < transom - 0.3;
-    if (!room) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the deck crane: left off.`);
+    if (nowhere) warnings.push('There\'s no room on her foredeck for the deck crane, up on the raised foredeck or on the deck below it clear of its ladders: left off (a longer raised foredeck, or the wheelhouse further aft, makes room).');
+    else if (!room) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the deck crane: left off.`);
+    else if (!shape.every(oneLevel)) warnings.push('The deck crane would stand across the break of her raised foredeck: left off.');
     else if (shape.some((r) => taken.some((o) => overlaps(o, r)))) warnings.push(`The deck crane would stand on her ${fore ? 'foredeck' : 'aft deck'} gear: left off.`);
     else {
       craneAt = [x, q.deckY(z), z];
@@ -265,10 +295,14 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     const body: Rect = { x0: hx - Math.max(hw, dhW) - 0.2, x1: hx + Math.max(hw, dhW) + 0.2, z0: foreEnd - 0.2, z1: aft + 0.15 };
     const doorway: Rect = { x0: hx - 0.6, x1: hx + 0.6, z0: aft, z1: aft + 0.3 + Math.max(0, ...steps.map((st) => st.z1 - aft)) };
     const fits = (r: Rect) =>
-      r.z0 > stem + 0.5 && r.z1 < transom - 0.15 && [r.z0, (r.z0 + r.z1) / 2, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15) && !overlaps(r, body) && !overlaps(r, doorway) && !taken.some((o) => overlaps(o, r));
-    const zs: number[] = [];
+      oneLevel(r) && r.z0 > stem + 0.5 && r.z1 < transom - 0.15 && [r.z0, (r.z0 + r.z1) / 2, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15) && !overlaps(r, body) && !overlaps(r, doorway) && !taken.some((o) => overlaps(o, r));
+    let zs: number[] = [];
     if (fore) for (let z = foreEnd - 0.55; z - ahead > stem + 0.5; z -= 0.25) zs.push(z);
     else for (let z = transom - 0.5; z - ahead > aft; z -= 0.25) zs.push(z);
+    // With a raised foredeck forward of the house: up on it first, as near its break as fits;
+    // on the deck below it only if there's no room up there.
+    const up = (z: number) => shape(0, z).every(onRaised);
+    if (fore && raisedAhead) zs = [...zs.filter(up), ...zs.filter((z) => !up(z))];
     // The cradle's middle shifted toward the column's side: as far over as fits (to 1.5 m),
     // at least `skiffOffset` off the centreline; nearer the middle only as a last resort.
     const least = CONFIG.shipyard.skiffOffset;
@@ -285,6 +319,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
             break search;
           }
         }
+    if (skiffAt && fore && raisedAhead && !up(skiffAt[2])) warnings.push(`There's no room up on her raised foredeck for ${boatName} cradle: it's on the deck below it, forward of the wheelhouse.`);
     if (!skiffAt) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for ${boatName} cradle (${(ahead + 0.3).toFixed(1)} m long, ${(2 * tc.cradle.halfWidth + outset).toFixed(1)} m across with the crane) clear of her other gear: move the wheelhouse ${fore ? 'aft' : 'forward'}, or make her longer. Left off.`);
   }
 
@@ -310,17 +345,24 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const lampByHand = !!(lampHand.pole || lampHand.roof);
   const monitorByHand = !!(monitorHand.pole || monitorHand.roof);
   /** A pole's foot on deck 1 (fore) or 2 (aft), starting on `side`; null (and a warning) if there's no room. */
+  /** The inboard edge of a raised foredeck's ladders, from her centreline (m); null without them. */
+  const ladderIn = layout.deckSteps?.length ? Math.min(...layout.deckSteps.map((t) => Math.min(Math.abs(t.x0), Math.abs(t.x1)))) : null;
   const poleFoot = (deck: number, side: number, what: string): V3 | null => {
-    for (const step of [0, 1])
+    // (Further forward, past a raised foredeck's ladders and up on it, if need be.)
+    for (const step of breakZ === null ? [0, 1] : [0, 1, 2, 3])
       for (const sd of [side, -side]) {
         const z = deck === 1 ? foreEnd - dp.fromHouse - 0.85 * step : aft + dp.fromHouse + 0.85 * step;
         const room = deck === 1 ? z - 0.2 > bowClear : z + dp.box.depth + 0.5 < transom - 0.2;
-        const x = sd * (q.halfBeam(z) - dp.inset);
-        if (!room || Math.abs(x) < 0.5) continue;
-        const rect = placeRect(poleShape[0], x, z, 0);
-        if (taken.some((o) => overlaps(o, rect))) continue;
-        taken.push(rect);
-        return [r2(x), q.deckY(z), r2(z)];
+        if (!room) continue;
+        // At the deck edge; else just inboard of a raised foredeck's ladders.
+        const xs = [sd * (q.halfBeam(z) - dp.inset), ...(ladderIn === null ? [] : [sd * (ladderIn - 0.15 - dp.box.width / 2 - 0.05)])];
+        for (const x of xs) {
+          if (Math.abs(x) < 0.5) continue;
+          const rect = placeRect(poleShape[0], x, z, 0);
+          if (!oneLevel(rect) || taken.some((o) => overlaps(o, rect))) continue;
+          taken.push(rect);
+          return [r2(x), q.deckY(z), r2(z)];
+        }
       }
     warnings.push(`There's no room on her ${deck === 1 ? 'foredeck' : 'aft deck'} for the ${what}'s pole: left off.`);
     return null;
