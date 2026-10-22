@@ -65,6 +65,8 @@ import { SurfListener } from '../world/surf';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
+import { nextPoint, parsePlan, pointLabel, savePlanText } from '../voyage/plan';
+import { PlanTable, planTableSpot } from '../voyage/planTable';
 import { boatOwnerName, launchType, ownedBoat, playerBoats } from '../core/launch';
 import { berthWithId } from '../world/berths';
 import { groundHeight } from '../world/terrain';
@@ -187,6 +189,8 @@ const CHART_KEY = 'swvr.chart';
 const BATTERY_KEY = 'swvr.battery';
 /** ...and the boat you launched last in a Voyage game (multi-boat M5). */
 const LAST_BOAT_KEY = 'swvr.voyage.lastBoat';
+/** Voyage mode: the crew's plan for a map, saved by the host (voyage/plan.ts). */
+const planKey = (map: string) => `swvr.voyage.plan.${map}`;
 
 /**
  * The boat the game starts in: the page's `?boat=` (Debug > Boat > Start in, modular boats
@@ -378,6 +382,10 @@ export class App {
   private touch: TouchControls | null = null;
   /** Board at the helm on the first frame (touch controls, CONFIG.touch.startAboard). */
   private boardOnStart = false;
+  /** Voyage mode: the planning table on the start quay (voyage/planTable.ts), the plan's changes saved, its last note shown. */
+  private planTable: PlanTable | null = null;
+  private planSaved = -1;
+  private planNoteT = -1;
   /** Seconds since the voyage place was last remembered (rememberVoyagePlace). */
   private rememberT = 0;
   private readonly trialsPanel = new TrialsPanel();
@@ -696,6 +704,7 @@ export class App {
     this.testVesselId = created.vesselId;
     this.startVesselId = created.vesselId;
     this.restoreVoyagePlace();
+    this.setupPlanTable();
     // Our own working clothes, as crew who join will see us (net/avatarOutfits.ts).
     this.world.players[this.localPlayerId].look = randomLook();
 
@@ -3040,6 +3049,15 @@ export class App {
         const names = Object.values(this.world.players).map((p) => (p.id === this.localPlayerId ? `${p.name} (you)` : p.name));
         return names.length > 1 ? `Aboard: ${names.join(', ')}` : 'Just you';
       },
+      planLine: () => {
+        const n = nextPoint(this.world);
+        const v = this.world.vessels[this.testVesselId];
+        if (!this.world.plan?.points.length) return 'No plan yet: plan one on the chart table on the start quay';
+        if (!n) return 'Plan done: every point reached';
+        const d = v ? Math.hypot(n.p.x - v.position[0], n.p.z - v.position[2]) / 1852 : 0;
+        return `Next: ${pointLabel(n.p, n.i)}, ${d.toFixed(1)} nm`;
+      },
+      goPlanTable: () => this.pushEnvIntent('plan', 1, 'goto'),
       crewMember: (i: number) => {
         // You first, then the others in the order they came.
         const all = Object.values(this.world.players);
@@ -3554,7 +3572,7 @@ export class App {
     this.interaction = new InteractionSystem(
       // Every boat's controls (the home boat's first), the crane's buttons, the gear brackets.
       // (Boats that come later, the tows, have none.)
-      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.filter((g) => g.aboard).map((g) => g.bracket)],
+      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.filter((g) => g.aboard).map((g) => g.bracket), ...(this.planTable?.controls ?? [])],
       (channel, value) => {
         // A berth: lie down in it, or get up (yours, not the boat's: nothing goes to her).
         if (channel === 'berthRest' || channel.endsWith(':berthRest')) return this.toggleRest();
@@ -4685,6 +4703,53 @@ export class App {
     window.addEventListener('pagehide', () => this.rememberVoyagePlace(Infinity));
   }
 
+  /**
+   * Voyage mode: the planning table on the start quay (voyage/planTable.ts), and the plan
+   * saved for this map last time (alone or hosting: the crew get the host's). Its saved
+   * note isn't news: it's not shown again.
+   */
+  private setupPlanTable(): void {
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
+    if (!this.client) {
+      try {
+        const saved = parsePlan(localStorage.getItem(planKey(VOYAGE_MAP_ID)));
+        if (saved) this.world.plan = saved;
+      } catch {
+        // Storage blocked: no saved plan.
+      }
+    }
+    this.planSaved = this.world.plan?.seq ?? -1;
+    const at = planTableSpot();
+    if (!at) return;
+    this.planTable = new PlanTable(at, {
+      send: (ref, args) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'plan', value: 1, ref, ...(args ? { args } : {}) }),
+      notify: (text) => this.overlay.notify(text, 3),
+    });
+    this.scene.add(this.planTable.root);
+    this.interaction?.addControls(this.planTable.controls);
+  }
+
+  /**
+   * Voyage mode, each frame: the planning table (only while you're near enough to see it),
+   * a point reached told once, and the plan saved when it changes (alone or hosting).
+   */
+  private updatePlan(): void {
+    const plan = this.world.plan;
+    if (this.planTable && this.focus.distanceTo(this.planTable.root.position) < 250) this.planTable.update(this.world);
+    if (plan?.note && plan.note.t !== this.planNoteT) {
+      if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);
+      this.planNoteT = plan.note.t;
+    }
+    if (plan && !this.client && VOYAGE_MAP_ID && plan.seq !== this.planSaved) {
+      this.planSaved = plan.seq;
+      try {
+        localStorage.setItem(planKey(VOYAGE_MAP_ID), savePlanText(plan));
+      } catch {
+        // Not saved.
+      }
+    }
+  }
+
   /** Voyage mode: remember where we are on this map, every few seconds and as the page closes (alone or hosting). */
   private rememberVoyagePlace(dt: number): void {
     if (MODE !== 'voyage' || !VOYAGE_MAP_ID || this.client) return;
@@ -4701,6 +4766,7 @@ export class App {
     this.harbourBoatsView.update(this.world, this.renderWaves, darkness, this.focus);
     this.skylineView.update(this.world, darkness, dt);
     this.rememberVoyagePlace(dt);
+    this.updatePlan();
     const t = this.world.traffic;
     if (!t) return;
     if (this.hornSeen >= 0 && t.hornSeq !== this.hornSeen && t.hornFrom) {
