@@ -5,6 +5,9 @@ import type { WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { lineLength, towFittingLocal, towPoint, towPostLocal, winchLeadLocal } from './tow';
+import { gearOf } from '../boats/sims';
+import { hullQueries } from '../modular/hull';
+import type { HullQueries } from '../modular/module';
 
 const SEGMENTS = 14;
 
@@ -26,6 +29,9 @@ export class TowlineView {
   private readonly p1 = new THREE.Vector3();
   private readonly m = new THREE.Matrix4();
   private lead: THREE.Mesh | null = null;
+  private readonly local = new THREE.Vector3();
+  /** Each towing boat type's hull queries (for a line from a hook amidships: kept above her deck). */
+  private readonly hulls = new Map<string, HullQueries>();
 
   constructor() {
     const geo = new THREE.CylinderGeometry(0.022, 0.022, 1, 5, 1, true).translate(0, 0.5, 0);
@@ -77,9 +83,25 @@ export class TowlineView {
       tug.localToWorld(this.a.fromArray(towPostLocal(tugS)));
       const d = this.a.distanceTo(this.b);
       const sag = sagOf(d, lineLength(line));
+      // From a tug's hook amidships the line crosses her own aft deck: a slack bight lies on
+      // the deck and goes out over the bulwark at her transom, not through them.
+      const hookDef = gearOf(tugS, 'towPoint')?.stern ? VESSEL_DEFS[tugS.defId] : undefined;
+      let hq: HullQueries | undefined;
+      if (hookDef) {
+        hq = this.hulls.get(tugS.defId);
+        if (!hq) this.hulls.set(tugS.defId, (hq = hullQueries(hookDef)));
+      }
       const point = (t: number, out: THREE.Vector3) => {
         out.lerpVectors(this.a, this.b, t);
-        return out.setY(Math.max(out.y - 4 * sag * t * (1 - t), surfaceHeight(waves, out.x, out.z) + 0.03));
+        out.setY(Math.max(out.y - 4 * sag * t * (1 - t), surfaceHeight(waves, out.x, out.z) + 0.03));
+        if (hq) {
+          const l = tug.worldToLocal(this.local.copy(out));
+          if (l.z > hq.stem && l.z < hq.transom + 0.1 && Math.abs(l.x) < hq.halfBeam(Math.min(l.z, hq.transom)) + 0.05) {
+            const floor = l.z > hq.transom - 0.4 ? hq.bulwarkTop(hq.transom) + 0.04 : hq.deckY(l.z) + 0.04;
+            if (l.y < floor) out.copy(tug.localToWorld(l.setY(floor)));
+          }
+        }
+        return out;
       };
       point(0, this.p0);
       for (let i = 0; i < SEGMENTS; i++) {

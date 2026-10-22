@@ -9,6 +9,7 @@ import { deckhouseHalfWidth } from '../../vessel/deckhouse';
 import { PLACE_GRID, placeOf, type PlaceKey } from '../design';
 import type { Socket } from '../../modular/socket';
 import type { BuildArgs, V3 } from './common';
+import { TUG_HULL } from './catalog';
 import type { DesignedBoat } from '../build';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
@@ -125,6 +126,28 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
       placed.winchAt = { x: s.x, z: s.z, moved: s.moved };
     } else usual('winchAt', 'tow winch');
   }
+  // A tug's towing hook (CONFIG.shipyard.deckGear.tug): her tow point near amidships, on a
+  // pedestal on the centreline, clear aft of her wheelhouse; her winch's usual place just
+  // forward of it, the line off the drum aft through the hook. Moved aft (both) until they
+  // stand clear of the house's door and what's placed; no room on her deck, she tows from
+  // the stern roller as other boats do.
+  let towHook: { z: number; height: number } | null = null;
+  let tugWinchZ: number | null = null;
+  if (sternRoller && d.hull === TUG_HULL) {
+    const tg = dg.tug.hook;
+    const hookRect = (z: number): Rect => ({ x0: -0.3, x1: 0.3, z0: z - 0.3, z1: z + 0.3 });
+    const winchHere = (z: number) => standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 0)));
+    const usualWinch = wantWinch && !winchAt;
+    for (let z = Math.max((stem + transom) / 2 + tg.aftOfMidships * (transom - stem), aft + tg.clearOfHouse); z < transom - 1.5; z += 0.1) {
+      if (!standsOnDeck([hookRect(z)]) || (usualWinch && !winchHere(z - tg.winchGap))) continue;
+      towHook = { z: r2(z), height: tg.height };
+      if (usualWinch) tugWinchZ = r2(z - tg.winchGap);
+      taken.push(hookRect(z));
+      break;
+    }
+    if (!towHook) warnings.push('There\'s no room on her deck for a towing hook aft of the wheelhouse: she tows from the stern roller.');
+  }
+  if (wantWinch && !winchAt && tugWinchZ !== null) winchAt = [0, q.deckY(tugWinchZ), tugWinchZ];
   if (wantWinch && !winchAt) {
     // Its usual place: on the centreline just forward of the transom, room forward of it to
     // stand at its buttons, clear of the house's door.
@@ -367,7 +390,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
     ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
   ];
-  return { deckSockets, aFrame, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
+  return { towHook, deckSockets, aFrame, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
 }
 export type DeckGearPart = ReturnType<typeof deckGearPart>;
 

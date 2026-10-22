@@ -130,7 +130,7 @@ import { LineGun } from '../tow/lineGun';
 import { FenderHands, type FenderHandsContext } from '../player/fenderHands';
 import type { FendersApi } from '../modules/fenders';
 import { LineGunView } from '../tow/lineGunView';
-import { lineLength, lineOf, nearestTowTarget, towAlertT, towName, towPoint, towPostLocal, towStatus, towTargets, winchStalled } from '../tow/tow';
+import { lineLength, lineOf, nearestTowTarget, sternLocal, towAlertT, towName, towPoint, towStatus, towTargets, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
@@ -1605,7 +1605,7 @@ export class App {
     if (!gun || !v) return;
     gun.tick(dt);
     const root = this.vesselRoots.get(v.id);
-    const stern = root ? root.localToWorld(this.tmpV.fromArray(towPostLocal(v))) : this.tmpV.fromArray(v.position);
+    const stern = root ? root.localToWorld(this.tmpV.fromArray(sternLocal(v))) : this.tmpV.fromArray(v.position);
     const tip = new THREE.Vector3();
     const dir = this.tmpV2;
     gun.tipWorld(tip, dir);

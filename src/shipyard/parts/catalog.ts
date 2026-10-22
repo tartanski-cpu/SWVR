@@ -239,6 +239,9 @@ export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: nu
   return { keel: ts.map((t) => [t, at(t)]), base: ts.map((t) => [t, line(t)]) };
 }
 
+/** The small tug's hull (its index in DESIGN_HULLS): a tug's wheelhouse kept forward, her towing hook amidships. */
+export const TUG_HULL = 4;
+
 export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Landing craft: 9 m aluminium, square landing bow with a ramp',

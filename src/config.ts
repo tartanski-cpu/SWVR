@@ -3184,6 +3184,28 @@ export const CONFIG = {
     deckGear: {
       winchFromTransom: 0.75,
       standRoom: 0.6,
+      /**
+       * A tug (the tug hull; owner, Oct 2026: "move the towline position to midships on the
+       * tugs"; "tugs should always have the wheelhouse forward"). Her tow point is a towing
+       * hook on a pedestal on the centreline near amidships, not the stern roller: a line
+       * pulling off to one side then has a short lever arm about her pivot point (near her
+       * middle), so she can still steer against it. From the transom roller the arm is half
+       * her length, and an off-centre pull swings her stern round faster than her rudder can
+       * hold her: girting, the tug hauled broadside by her own tow.
+       *   houseAftOfMidships  her wheelhouse (and saloon) ends no further aft than this
+       *                       fraction of her length aft of amidships: 0, amidships. Placed
+       *                       by her Shipyard house position as any boat's, and stopped
+       *                       there if it would lie further aft (a house that's forward
+       *                       already stays where it is).
+       *   hook.aftOfMidships  the hook this fraction of her length aft of amidships, near her
+       *                       centre of gravity (the small tug's is 0.06 L aft), at least
+       *                       `clearOfHouse` m aft of the wheelhouse;
+       *   hook.height         its top this high over the deck (m), so the line clears the aft
+       *                       bulwark on its way to the tow; `postRadius` its pedestal;
+       *   hook.winchGap       her tow winch's usual place on a tug: this far forward of the
+       *                       hook (m, drum to hook), the line off the drum aft through it.
+       */
+      tug: { houseAftOfMidships: 0, hook: { aftOfMidships: 0.12, clearOfHouse: 0.6, height: 1.4, postRadius: 0.1, winchGap: 0.7 } },
       sideDoor: { width: 0.75, fromConsole: 0.35, buttonHeight: 1.1, sideDeck: 0.5 },
       ringFromCorner: 0.4,
       anchor: { fromStem: 0.35, fromSide: 0.45, kedgeAft: 0.4 },
