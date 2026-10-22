@@ -142,6 +142,13 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'headDoor':
       s.controls.headDoor = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'holdHatch':
+      s.controls.holdHatch = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'holdLift':
+      // A press: set until the hold's tick lifts a box (fishing/fishHold.ts clears it).
+      if (intent.value > 0.5) s.controls.holdLift = 1;
+      break;
     case 'engineHatch':
       s.controls.engineHatch = intent.value > 0.5 ? 1 : 0;
       break;

@@ -12,7 +12,7 @@ import { footprintsOf, useDesign } from '../../src/boats/sims';
 import { CONFIG } from '../../src/config';
 import { hullFormOf } from '../../src/modular/hull';
 import { validateRecipe } from '../../src/modular/recipe';
-import { FURNITURE, FURNITURE_KINDS, type FurnitureConfig } from '../../src/modules/furniture';
+import { FURNITURE, type FurnitureConfig, type FurnitureKind } from '../../src/modules/furniture';
 import { buildDesign, DESIGN_HULLS } from '../../src/shipyard/build';
 import { DEFAULT_DESIGN, furnitureCell, type ShipDesign } from '../../src/shipyard/design';
 import { designToken, readDesign, shortCode } from '../../src/shipyard/designDoc';
@@ -85,7 +85,7 @@ describe('furniture', () => {
     expect(head.c.height).toBeGreaterThan(1.9);
     useDesign(furnished);
     expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
-    expect(b.weights.items.find((i) => i.name === 'Furniture')!.kg).toBe(FURNITURE_KINDS.reduce((a, k) => a + CONFIG.modules.furniture[k].kg, 0));
+    expect(b.weights.items.find((i) => i.name === 'Furniture')!.kg).toBe(ps.reduce((a, q) => a + CONFIG.modules.furniture[q.kind as FurnitureKind].kg, 0));
     expect(b.figures.price).toBeGreaterThan(plain.figures.price);
   });
 

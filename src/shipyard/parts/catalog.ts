@@ -87,7 +87,7 @@ export interface DesignHull {
   name: string;
   /** Her form, scaled (length, beam and depth factors), with her bow (its step: SCALES.bow, the stem's rake). */
   form(L: number, B: number, D: number, bow: number, sheer: number, forecastle?: { from: number; raise: number }): HullDefinition['form'];
-  /** A raised foredeck can be chosen (design.fcLength; owner, Oct 2026: the fishing boat only, for now). */
+  /** A raised foredeck can be chosen (design.fcLength; owner, Oct 2026: the fishing boat, then the tug). */
   raisedForedeck?: boolean;
   /**
    * How she rides at speed (CONFIG.shipyard.regimes): a planing hull (a fast boat's propeller,
@@ -307,7 +307,9 @@ export const DESIGN_HULLS: DesignHull[] = [
     scantlings: 1.5,
     ballastKg: 18000,
     // Her bow is her own (a square push plate, the bottom sweeping up to it): no bow choice.
-    form: (L, B, D, _bow, sheer) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null, false, sheer) }),
+    form: (L, B, D, _bow, sheer, forecastle) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null, false, sheer, forecastle) }),
+    // A raised foredeck as the fishing boat's (owner, Oct 2026): a harbour tug's forecastle.
+    raisedForedeck: true,
     regime: 'displacement',
     ramp: false,
     pushBow: true,

@@ -398,6 +398,9 @@ export const BUS_KEYS = {
   'ramp.bow.down': control('bowRamp', 'The bow ramp lowered (starts raised; the landing craft).', { aliases: ['bowRamp'] }),
   'hatch.engine.open': control('engineHatch', 'The engine hatch in the wheelhouse floor open.', { aliases: ['engineHatch'] }),
   'furniture.headDoor': control('headDoor', "The head's door open (starts shut; a Shipyard boat's furniture).", { aliases: ['headDoor'] }),
+  'hatch.hold.open': control('holdHatch', "The fish hold's hatch lid open (starts shut; a Shipyard boat's fish hold).", { aliases: ['holdHatch'] }),
+  'hold.lift': control('holdLift', "The fish hold's LIFT button: a box lifted out onto the deck by the hatch (the lid open; fishing/fishHold.ts).", { aliases: ['holdLift'] }),
+  'hold.boxes': state('number', (s) => s.hold?.boxes.length ?? 0, 'Fish boxes in the fish hold.', { unit: 'boxes' }),
   'chartTable.leafOpen': {
     ...control('chartLeaf', "The chart table's drop leaf unfolded (folded: against the wall).", { aliases: ['chartLeaf'], default: true }),
     bind: {

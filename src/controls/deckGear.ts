@@ -131,7 +131,7 @@ export class FendersView {
  */
 export class EngineHatch extends Control {
   readonly kind = 'press' as const;
-  readonly label = 'Engine hatch: open / shut';
+  readonly label: string = 'Engine hatch: open / shut';
   private readonly lid = new THREE.Group();
   private open = 0;
   private target = 0;

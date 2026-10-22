@@ -36,6 +36,7 @@ import { groundHeight } from '../world/terrain';
 import type { EntityId } from '../core/ids';
 import { hasUpgrade } from '../career/career';
 import { significantWaveHeight } from '../ocean/waves';
+import { holdOf, stowInHold } from './fishHold';
 
 export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'held' | 'noHydraulics' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full' | 'rough';
 
@@ -174,7 +175,8 @@ export function stepFishing(world: WorldState, dt: number): void {
     f.fill = Math.min(1, f.fill + (g.richness * dt) / every);
   }
   if (f.fill >= 1) {
-    if (landBox(world, v, f)) {
+    // Down into her fish hold if she has one with room (fishHold.ts), else on deck.
+    if (stowInHold(v, groundAt(v.position[0], v.position[2])?.species) || landBox(world, v, f)) {
       f.fill = 0;
       f.caught += 1;
     } else f.status = 'full';
@@ -228,7 +230,9 @@ export function trawlKnots(): string {
 export function fishingStatus(world: WorldState): string | null {
   const f = world.fishing;
   if (!f || f.net === 'stowed') return null;
-  const box = `net ${Math.round(f.fill * 100)} %`;
+  const v = trawler(world);
+  const hold = v ? holdOf(v) : null;
+  const box = `net ${Math.round(f.fill * 100)} %${hold ? `, hold ${v!.hold?.boxes.length ?? 0}/${hold.slots.length}` : ''}`;
   const where = f.ground ? ` on ${f.ground}` : '';
   switch (f.status) {
     case 'shooting':
@@ -252,7 +256,7 @@ export function fishingStatus(world: WorldState): string | null {
     case 'rough':
       return 'Too rough to fish: the net jumps off the bottom - haul it and wait for better weather';
     case 'full':
-      return 'Deck full: land your catch before more comes aboard';
+      return hold ? 'Hold and deck full: land your catch before more comes aboard' : 'Deck full: land your catch before more comes aboard';
     default:
       return null;
   }

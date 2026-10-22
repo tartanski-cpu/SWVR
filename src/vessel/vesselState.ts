@@ -65,6 +65,10 @@ export interface VesselControls {
   chartLeaf?: number;
   /** The head's door (a Shipyard boat's furniture, P5) open (1) or shut (0, or unset). */
   headDoor?: number;
+  /** A fish hold's hatch lid (modules/fishHold) open (1) or shut (0, or unset). */
+  holdHatch?: number;
+  /** The fish hold's LIFT button pressed (1 until the hold's tick has lifted a box out: fishing/fishHold.ts). */
+  holdLift?: number;
   /** Fire monitor on the roof: pump on (0/1), and its pan (deg, + to starboard) and elevation (deg). */
   firePump: number;
   monPan: number;
@@ -222,6 +226,11 @@ export interface EngineState {
 export interface VesselState {
   id: EntityId;
   defId: string;
+  /**
+   * What's in her fish hold (a Shipyard boat's, modules/fishHold), box by box in the order
+   * they went down: each one's species ('' if it isn't named). Absent: none in it (or no hold).
+   */
+  hold?: { boxes: string[] };
   /**
    * The design token her type was built from (multi-boat M1: a `boat:` type, boats/library.ts):
    * travels with her in every snapshot, so any page can build her type. Unset on the fixed types.

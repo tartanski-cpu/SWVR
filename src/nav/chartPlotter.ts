@@ -16,6 +16,7 @@ import { CONFIG } from '../config';
 import { MODE } from '../mode';
 import { ferriesInSight } from '../traffic/ferries';
 import { boatOwnerName, playerBoats } from '../core/launch';
+import { nextPoint, pointLabel } from '../voyage/plan';
 import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
@@ -301,6 +302,7 @@ export class ChartPlotter {
     const towS = job && job.phase === 'accepted' ? world.vessels[job.vesselId] : undefined;
     const tow = towS && !CONFIG.rescue.plotYourself ? towS : undefined;
     const fireJob = world.fire?.job && world.fire.job.phase !== 'calling' && !CONFIG.rescue.plotYourself ? world.fire.job : null;
+    const planNext = nextPoint(world);
     if (inc) {
       [fx, fz] = [inc.x, inc.z];
       label = 'SEARCH';
@@ -313,6 +315,10 @@ export class ChartPlotter {
     } else if (dest && !cargoPaused(world)) {
       [fx, fz] = [dest.x, dest.z];
       label = dest.name.replace(' (anchorage)', '');
+    } else if (planNext) {
+      // The crew's voyage plan (voyage/plan.ts): its next point, when no job wants us.
+      [fx, fz] = [planNext.p.x, planNext.p.z];
+      label = pointLabel(planNext.p, planNext.i).replace(/^(\w+) (\d+): /, '$1 $2 ').toUpperCase();
     } else {
       const near = [...PORTS].sort((a, b) => Math.hypot(a.x - sx, a.z - sz) - Math.hypot(b.x - sx, b.z - sz))[0];
       [fx, fz] = [near.x, near.z];
@@ -697,6 +703,48 @@ export class ChartPlotter {
       g.fillStyle = '#ffd27a';
       g.font = 'bold 14px system-ui, sans-serif';
       g.fillText(boatOwnerName(world, b).toUpperCase(), px + 10, py + 14);
+    }
+
+    // The voyage plan: the route joined up (legs done dashed grey), each point numbered, the next ringed.
+    const plan = world.plan;
+    if (plan?.points.length) {
+      const pts = plan.points;
+      g.lineWidth = 3;
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = toPx(pts[i - 1].x, pts[i - 1].z);
+        const [bx, by] = toPx(pts[i].x, pts[i].z);
+        g.strokeStyle = i <= plan.next ? '#8a8a8a' : '#e040a0';
+        g.setLineDash(i <= plan.next ? [8, 8] : []);
+        g.beginPath();
+        g.moveTo(ax, ay);
+        g.lineTo(bx, by);
+        g.stroke();
+      }
+      g.setLineDash([]);
+      g.font = 'bold 14px system-ui, sans-serif';
+      pts.forEach((p, i) => {
+        const [px, py] = toPx(p.x, p.z);
+        g.fillStyle = i < plan.next ? '#8a8a8a' : '#e040a0';
+        g.beginPath();
+        if (p.kind === 'stop') g.rect(px - 7, py - 7, 14, 14);
+        else if (p.kind === 'look') {
+          g.moveTo(px, py - 9);
+          g.lineTo(px + 9, py);
+          g.lineTo(px, py + 9);
+          g.lineTo(px - 9, py);
+          g.closePath();
+        } else g.arc(px, py, 6, 0, Math.PI * 2);
+        g.fill();
+        if (i === plan.next) {
+          g.strokeStyle = '#ffd23a';
+          g.lineWidth = 3;
+          g.beginPath();
+          g.arc(px, py, 14, 0, Math.PI * 2);
+          g.stroke();
+        }
+        g.fillStyle = '#ffe0f0';
+        g.fillText(`${i + 1}${p.name ? ` ${p.name.toUpperCase()}` : ''}`, px + 11, py - 9);
+      });
     }
 
     // Own ship: a triangle pointing along the heading.

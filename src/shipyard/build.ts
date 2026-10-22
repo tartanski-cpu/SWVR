@@ -41,6 +41,7 @@ import { placesPart } from './parts/places';
 import { deckGearPart, houseGearPart } from './parts/deckGear';
 import { hullDefPart } from './parts/hullDef';
 import { furniturePart } from './parts/furniture';
+import { holdPart } from './parts/hold';
 import { recipePart } from './parts/recipe';
 import { weightsPart } from './parts/weights';
 import { atDWL, type BuildArgs } from './parts/common';
@@ -128,6 +129,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const p10 = { ...p9, ...houseGearPart(a, p9) };
   const p11 = { ...p10, ...hullDefPart(a, p10) };
   const p12 = { ...p11, ...furniturePart(a, p11) };
-  const p13 = { ...p12, ...recipePart(a, p12) };
+  const p12b = { ...p12, ...holdPart(a, p12) };
+  const p13 = { ...p12b, ...recipePart(a, p12b) };
   return weightsPart(a, p13);
 }

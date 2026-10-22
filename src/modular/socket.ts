@@ -43,7 +43,8 @@ export type SocketType =
   | 'hull.side' //       along her sides: a rubbing strake or tyres
   | 'transom.mount' //  an outboard motor's bracket on the transom (M6a: the skiff's)
   | 'transom.outboards' // a row of outboards on a bracket off the transom (propulsion.outboard)
-  | 'hull.pods'; // pod drives under her bottom (propulsion.pods)
+  | 'hull.pods' // pod drives under her bottom (propulsion.pods)
+  | 'hold.fish'; // a fish hold in her hull under the deck, its hatch in it (hold.fish)
 
 /** Position (m) and rotation (deg, applied in the order Y, X, Z) relative to the parent. */
 export interface Transform {

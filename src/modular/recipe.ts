@@ -248,6 +248,7 @@ const GEAR_WORDS: Record<GearKind, string> = {
   trawlGantry: 'a trawl gantry (an A-frame)',
   trawl: 'a trawl',
   anchor: 'an anchor',
+  fishHold: 'a fish hold',
   searchlight: 'a searchlight',
   fireMonitor: 'a fire monitor',
   bowCleat: 'a bow cleat',

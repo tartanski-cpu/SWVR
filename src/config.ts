@@ -3252,6 +3252,22 @@ export const CONFIG = {
      * cut faces aren't filled in solid, as a hatched section on a drawing would be.
      */
     section: { step: 0.05, stationAt: 0.5 },
+    /**
+     * A fish hold (owner, Oct 2026: step 1 toward a trawler; design.fishHold, parts/hold.ts):
+     * an insulated hold in her hull under the open deck, aft of the wheelhouse (or forward of
+     * it if there's more room there), clear of the engine (`engineGap` from its ends), the
+     * propeller and rudder (`aftClear` from the transom), the cabin below and a raised foredeck.
+     * At least `minLength` long and `minDepth` deep, else left off saying why. Its floor
+     * (`soleClear` over her bottom, `shaftClear` over the propeller shaft running under it) and
+     * its sides (`frame` inside her hull at the floor) make a lined box, its ceiling the deck.
+     * The hatch over it: `hatch.length` x `hatch.width` (smaller to fit, to `hatch.min`), its
+     * coaming `hatch.coaming` high, clear of the deck gear by `hatch.clear`, as near the hold's
+     * middle as it fits (along her first, then off to one side).
+     * It holds as many fish boxes (CONFIG.cargo.kinds 'Fish box') as stack in it with
+     * `boxGap` round each and `headGap` under the deck. Weighed as `kgPerM2` of insulated
+     * lining over its inside plus the hatch's `hatch.kg`; priced at `pricePerM3` of hold.
+     */
+    fishHold: { engineGap: 0.15, aftClear: 0.75, minLength: 1.2, minDepth: 0.55, soleClear: 0.1, shaftClear: 0.15, frame: 0.06, hatch: { length: 0.9, width: 0.9, min: 0.6, coaming: 0.3, clear: 0.15, kg: 70 }, boxGap: 0.02, headGap: 0.05, kgPerM2: 18, pricePerM3: 1100 },
     deckhouse: {
       kgPerM2: 35,
       pricePerM2: 450,
@@ -4406,8 +4422,18 @@ export const CONFIG = {
       seat: { length: 0.5, depth: 0.5, seat: 0.62, back: 1.05, kg: 20 },
       locker: { length: 0.6, depth: 0.55, kg: 30 },
       head: { length: 1.0, depth: 1.0, wall: 0.04, door: 0.6, kg: 60 },
+      // Crew accommodation (owner, Oct 2026: "a little bit more interior accommodation,
+      // including like a kitchen and sleeping quarters"): two-high bunks (the lower's base
+      // `lower` high, the upper's `upper`, each with a `cushion`; a lee rail `rail` high along
+      // the upper's open side; it wants `sitUp` of headroom over the upper cushion); a crew mess
+      // (a table `table` high against the wall between two benches `bench` long, their seats at
+      // `seat` and backs to `back`); a shower stall (a tray, three walls to the ceiling and a
+      // curtain across its front, `wall` thick).
+      bunk: { length: 1.95, depth: 0.75, lower: 0.3, upper: 1.1, cushion: 0.1, rail: 0.18, sitUp: 0.55, kg: 95 },
+      mess: { length: 1.7, depth: 0.75, table: 0.74, bench: 0.45, seat: 0.45, back: 0.85, kg: 75 },
+      shower: { length: 0.85, depth: 0.85, wall: 0.04, kg: 45 },
       ceilingGap: 0.05,
-      colours: { joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30 },
+      colours: { joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30, curtain: 0x7fa8c0 },
     },
 
     /**
@@ -4765,6 +4791,37 @@ export const CONFIG = {
     rememberEveryS: 5,
     /** A remembered spot afloat is only taken with this much water there (m); else the map's start. */
     rememberMinDepth: 2.5,
+    /**
+     * The voyage planning table (owner, Oct 2026: "in the harbour that you spawn in, a large
+     * map table with a chart laid out ... that you can cooperatively plan on"; voyage/plan.ts,
+     * voyage/planTable.ts). A big chart table on the quay at the map's start, behind where
+     * you begin; the crew plan a route on it together (waypoints, stops, things to look at),
+     * and every boat's chartplotter then shows the route and steers for its next point.
+     *   maxPoints   points in a plan at most
+     *   reach       how near any player's boat must come to a point (m) for it to count as
+     *               reached and the next to come up: a waypoint, a stop (in the harbour),
+     *               a thing to look at (seen from the water)
+     *   nameStopM   a stop takes the name of the nearest harbour within this (m), else
+     *               "off" the nearest town; `nameLookM` a thing to look at takes the name of
+     *               the nearest castle, monument, tower, hill, wreck or light within it,
+     *               else the nearest town
+     *   removeShare Remove takes the point nearest the press within this share of the
+     *               chart's width
+     *   minSpan     the table zoomed in as far as it goes: this much sea across (m)
+     *   drawPx      the chart drawn this many pixels across (sharper costs more to draw)
+     *   table       its top (m: width along the quay, depth, height), how far behind the
+     *               start spot it stands (m), its keys' row
+     */
+    plan: {
+      maxPoints: 30,
+      reach: { way: 150, stop: 300, look: 900 },
+      nameStopM: 1500,
+      nameLookM: 2500,
+      removeShare: 0.05,
+      minSpan: 1500,
+      drawPx: 2048,
+      table: { width: 2.4, depth: 1.6, height: 0.9, back: 3.2, keyDepth: 0.12 },
+    },
   },
 
   /**

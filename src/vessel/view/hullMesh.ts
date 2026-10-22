@@ -141,9 +141,12 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // of the house) has its opening cut out, from x0 to x1 across. Each cut: the deck stays
   // outboard of its inner edge on each side (`inner`, by side -1 port, 1 starboard).
   const deckHatch = layout.engineHatch?.y !== undefined ? layout.engineHatch : undefined;
+  const holdHatch = layout.fishHold?.hatch;
   const deckCuts = [
     ...cuts.map((c) => ({ front: c.front, aft: c.aft, zs: c.zs ?? [], inner: (side: number, z: number) => side * c.halfWidth(z) })),
     ...(deckHatch ? [{ front: deckHatch.z0, aft: deckHatch.z1, zs: [] as number[], inner: (side: number) => (side < 0 ? deckHatch.x0 : deckHatch.x1) }] : []),
+    // ...and a fish hold's hatch (modules/fishHold: its coaming stands round the opening).
+    ...(holdHatch ? [{ front: holdHatch.z0, aft: holdHatch.z1, zs: [] as number[], inner: (side: number) => (side < 0 ? holdHatch.x0 : holdHatch.x1) }] : []),
   ];
   for (let i = 0; i < st.length - 1; i++) {
     // Interior reference midway between the two stations.
