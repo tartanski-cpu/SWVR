@@ -38,9 +38,11 @@ describe('every boat from her recipe', () => {
       const old = fromConfig(id, (CONFIG.vessels as unknown as Record<string, VesselConfig>)[id]);
       const now = VESSEL_DEFS[id];
       // (Her hand gear's places, `stowage`, are new with M7: before, the app had them.)
-      const { mass, cg, inertia, designVolume, stowage: _s, ...rest } = now;
-      const { mass: m0, cg: cg0, inertia: i0, designVolume: v0, ...rest0 } = old;
+      // (The dinghy's colours, `livery`, are her hull's since Oct 2026: before, she had the workboat's.)
+      const { mass, cg, inertia, designVolume, stowage: _s, livery, ...rest } = now;
+      const { mass: m0, cg: cg0, inertia: i0, designVolume: v0, livery: _l0, ...rest0 } = old;
       expect(rest, id).toEqual(rest0);
+      if (id === 'skiff') expect(livery).toEqual(CONFIG.vessels.skiff.livery);
       relClose(mass, m0);
       relClose(designVolume, v0);
       cg.forEach((x, i) => relClose(x, cg0[i]));
@@ -67,9 +69,9 @@ describe('every boat from her recipe', () => {
     expect(VESSEL_DEFS.barge.tow).toEqual(CONFIG.vessels.barge.tow);
   });
 
-  it('the tows are hulls with no modules; the skiff has her outboard', () => {
+  it('the tows are hulls with no modules; the skiff (the dinghy) has her outboard, cleats and tubes', () => {
     for (const id of ['derelict', 'logRaft', 'barge']) expect(RECIPES[id].modules, id).toEqual([]);
-    expect(RECIPES.skiff.modules.map((m) => m.module)).toEqual(['propulsion.electric-outboard', 'deck.boat-cleat', 'deck.boat-cleat']);
+    expect(RECIPES.skiff.modules.map((m) => m.module)).toEqual(['propulsion.electric-outboard', 'deck.boat-cleat', 'deck.boat-cleat', 'hull.tubes']);
   });
 
   it('a heavier battery bank makes a heavier workboat, her CG drawn toward it', () => {

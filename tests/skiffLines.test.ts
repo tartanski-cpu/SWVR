@@ -72,6 +72,9 @@ describe("the skiff's cleats", () => {
     // Alongside: her middle at the berth's mark brought in for her beam, lined up with it.
     const d = Math.hypot(skiff.position[0] - mark.x, skiff.position[2] - mark.z);
     expect(d).toBeLessThan(0.5);
+    // Level: her lines (scaled to a light boat, CONFIG.docking.lightBoatKg) don't lay her over.
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(new THREE.Quaternion(...skiff.orientation));
+    expect(up.y).toBeGreaterThan(Math.cos((5 * Math.PI) / 180));
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(new THREE.Quaternion(...skiff.orientation));
     const a = berthAxis(b, skiff.mooring.reversed);
     expect(Math.abs(fwd.x * a.x + fwd.z * a.z)).toBeGreaterThan(0.98);

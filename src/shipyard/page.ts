@@ -36,6 +36,8 @@ import { flatVertexColorMaterial, mergeParts } from '../render/geometryUtils';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
+import { tubeParts } from '../modules/tubes';
+import { hullQueries } from '../modular/hull';
 import { DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
 import { ALL_FIELDS, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
@@ -301,6 +303,9 @@ function addSkiff(root: THREE.Group): void {
   if (!crane) return;
   const sk = VESSEL_DEFS.skiff;
   const mesh = buildVesselMesh(sk.hull, sk.layout, wetOutlet(sk), sk.livery);
+  // Her tubes (the dinghy's: modules/tubes), as the game draws them.
+  const tubes = RECIPES.skiff.modules.find((m) => m.module === 'hull.tubes');
+  if (tubes) mesh.add(new THREE.Mesh(mergeParts(tubeParts(hullQueries(sk), { ...CONFIG.modules.tubes.dinghy, ...(tubes.config as object) })), flatVertexColorMaterial()));
   mesh.position.set(...crane.stow);
   mesh.name = 'skiff';
   root.add(mesh);

@@ -506,7 +506,7 @@ export function stepVessel(
       pointVelocity(lineBow, lineBowV);
       toWorld(sternCleat.x ?? 0, sternCleat.lineY, sternCleat.z, lineStern);
       pointVelocity(lineStern, lineSternV);
-      stepMooring(state, { bow: bowCleat.z, stern: sternCleat.z, inshore: bowCleat.inshore }, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
+      stepMooring(state, { bow: bowCleat.z, stern: sternCleat.z, inshore: bowCleat.inshore, massKg: def.mass }, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
       if (state.mooring.phase !== 'free') {
         addForceAt(cf.set(fBow.x, 0, fBow.z), lineBow);
         addForceAt(cf.set(fStern.x, 0, fStern.z), lineStern);

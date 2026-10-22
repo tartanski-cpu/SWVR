@@ -8073,3 +8073,37 @@ Owner, Oct 2026: "go to step 3, the stern trawler hull". The Shipyard's sixth hu
     2. Slide Length from shortest to longest; no warnings.
     3. Trials & handover → into the game. On a fishing ground, TRAWL on, tow at 2–4.5 kn, haul. The boxes go down the hold.
   - **VR:** the same. Stand on her working deck between the winches, then go up into the wheelhouse on the whaleback and look aft over the deck.
+
+### The skiff becomes a rubber dinghy, 10 % smaller (done, awaiting owner test)
+
+Owner, Oct 2026: "take the existing skiff and crane and make the boat slightly smaller so it fits more easily on the smaller work boats ... turn it into a rubber dinghy ... maybe 10% smaller". This is part 1 of the plan agreed with the owner. Part 2, a 6 m fast rescue boat (a RIB, 150 hp, Shipyard only), follows.
+
+- **What was measured first:** none of the five fleet boats could take the old skiff and crane. The space needed is the cradle plus the crane column beside it, about 4.2 × 3.3 m with clearances. With it all scaled down 10%, the fishing boat (foredeck) and the small tug (aft deck) take her. 20% gained nothing more. 30% was needed for the landing craft. The pilot boat never could at her standard size.
+- **The dinghy** (`CONFIG.vessels.skiff`):
+  - The skiff's lines scaled 0.9: 3.25 × 1.45 m.
+  - 240 kg: the old 330 kg times 0.9³, so she floats at the same lines.
+  - Damping and radii of gyration scaled to her.
+  - Grey tubes (the new module `hull.tubes`, `CONFIG.modules.tubes.dinghy`: radius 0.2 m, 0.25 m past the transom). The tubes are merged with her fixed parts: no extra draw call.
+  - A grey hull and floor (her hull's `livery`), the same electric outboard and tiller.
+  - Her id stays `skiff`, for saves and multiplayer, and the game still calls her the skiff.
+  - The tubes are looks only: at rest a small inflatable floats on her floor and keel.
+- **Her cargo:** the floor between the tubes takes **three crates one behind another** (the skiff took five abreast), or two drums, up to 250 kg. Real 3.2 m inflatables are about 0.85 m wide inside. The helmsman's spot moved aft to the tiller's handle to make room (`boardingSpot`, `cargo.aftClear` 0.55, `cargo.edge` 0.18).
+- **The crane** (`CONFIG.vessels.workboat.tenderCrane`, the module's defaults): 10% smaller with her.
+  - Changed: the cradle, her place in it, the column's offset from her, the arms, and the column height.
+  - The carried boat's own figures moved out of the drawing code into the crane's settings (`tender`: her keel, the cradle saddles, the bridle's lifting eyes on her tubes). The fast rescue boat will need her own.
+  - Her tarpaulin now covers the tubes.
+- **A bug the light dinghy showed up:** at a quay, her mooring lines heeled her 30–60°.
+  - Why: the lines' stiffness and damping are set for the big boats. On a 240 kg boat with her lines made fast high on her tubes, each tick's damping push was more than her small roll inertia could take, so it overshot and grew.
+  - Fix: lines on a boat under `CONFIG.docking.lightBoatKg` (2 t: only the dinghy) are scaled down by her mass. The big boats are unchanged. She now lies level, resting on her tubes against the quay.
+- **Golden runs:** only the two that use the skiff moved (`crane`, `skiff`). The dinghy is a little quicker on the same motor and turns tighter. Every other boat's run is unchanged.
+- **Tests:**
+  - `tests/dinghy.test.ts`: her size, and that she fits the fishing boat and the small tug.
+  - Her tubes' path, and that they draw with her fixed parts.
+  - She lies level at a quay (`skiffLines`).
+  - Three crates (`cargo`).
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard: open the fishing boat (Projects, or the debug menu's design file). Deck gear → **Skiff and crane** → Place on the foredeck, starboard. She fits, with no warning.
+    2. Into the game: SKIFF CRANE on the dash (engine running, DECK HYD on). Watch her go over the side.
+    3. Board her and drive her. Tie her up at a quay with both cleats.
+  - **VR:** the same. Stand in her by the tiller: the tubes are your gunwale. Load three crates.
