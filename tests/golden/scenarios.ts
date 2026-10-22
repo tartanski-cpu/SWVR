@@ -22,6 +22,7 @@ import { berthAxis } from '../../src/vessel/physics/mooring';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import type { VesselState } from '../../src/vessel/vesselState';
 import { BERTHS, FISHING_GROUNDS, PORTS } from '../../src/world/archipelago';
+import { lineOf } from '../../src/tow/tow';
 
 const DT = 1 / 60;
 
@@ -116,7 +117,7 @@ const ground = FISHING_GROUNDS[1];
 
 const skiffOf = (world: WorldState) => Object.values(world.vessels).find((x) => x.defId === 'skiff')!;
 const towLine = (world: WorldState): Record<string, Value> => {
-  const line = world.tow?.line;
+  const line = lineOf(world);
   const tv = world.tow?.job ? world.vessels[world.tow.job.vesselId] : undefined;
   return {
     lineOn: !!line,

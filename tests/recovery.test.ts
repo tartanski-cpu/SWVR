@@ -9,6 +9,7 @@ import { cargoPaused } from '../src/rescue/rescue';
 import { distanceToHull, stepRecovery, vesselToWorld } from '../src/rescue/recovery';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { lineOf } from '../src/tow/tow';
 
 const DT = 1 / 60;
 
@@ -298,11 +299,11 @@ describe('recovery: boat hook on a tow\'s bow eye (desktop)', () => {
       flush();
     };
     click();
-    expect(world.tow!.line?.target).toBe(`v:${job.vesselId}`);
+    expect(lineOf(world)?.target).toBe(`v:${job.vesselId}`);
     run(1.1);
     (hands as unknown as { clock: number }).clock += 1.1; // once a second at most (the frame loop's clock)
     click();
-    expect(world.tow!.line ?? null).toBeNull();
+    expect(lineOf(world) ?? null).toBeNull();
   });
 });
 

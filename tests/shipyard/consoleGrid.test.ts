@@ -171,14 +171,16 @@ describe('the console placed by hand (CS3)', () => {
   });
 
   it('a screen moved to a free cell goes there; Automatic is the rules again; it travels in her link, not her code', () => {
-    const pin = pinned(tug);
-    const { cc } = helmOf({ ...tug, ...pin });
+    // (With the basic controls: since the ship's clock (CS5) the tug's advanced dash has no cell free.)
+    const boat = { ...tug, controls: 0 };
+    const pin = pinned(boat);
+    const { cc } = helmOf({ ...boat, ...pin });
     // A free cell on the dash, for the ANCHOR quarter.
     const at = new Set(cc.dashGrid.places.flatMap((p) => Array.from({ length: p.w * p.h }, (_, i) => `${p.col + (i % p.w)},${p.row + Math.floor(i / p.w)}`)));
     let free: { col: number; row: number } | null = null;
     for (let c = 0; c < cc.dashGrid.cap && !free; c++) for (let r = 0; r < 2 && !free; r++) if (!at.has(`${c},${r}`)) free = { col: c, row: r };
     expect(free).not.toBeNull();
-    const d = { ...tug, ...pin, dashAnchor: dashValue(free!.col, free!.row) };
+    const d = { ...boat, ...pin, dashAnchor: dashValue(free!.col, free!.row) };
     const moved = helmOf(d).cc;
     expect(moved.dashGrid.places.find((p) => p.id === 'anchorScreen')).toMatchObject(free!);
     const back = helmOf({ ...d, ...CONSOLE_AUTO }).cc;

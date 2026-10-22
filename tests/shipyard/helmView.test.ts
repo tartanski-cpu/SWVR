@@ -17,7 +17,11 @@ const helmOf = (d: ShipDesign) => {
   const all = helm.modules!.filter((m) => m.module === 'instrument.screen');
   const screens = all.map((m) => cfg.slots[m.socket].position[0]);
   // Each with its width (a strip or a quarter says its own: the ANCHOR's), left to right.
-  const row = all.map((m) => ({ x: cfg.slots[m.socket].position[0], w: (m.config as { width?: number }).width ?? CONFIG.modules.screen.dash.width })).sort((p, q) => p.x - q.x);
+  // (Two stacked half-height ones, as the ANCHOR and the clock: one place in the row.)
+  const row = all
+    .map((m) => ({ x: cfg.slots[m.socket].position[0], w: (m.config as { width?: number }).width ?? CONFIG.modules.screen.dash.width }))
+    .sort((p, q) => p.x - q.x)
+    .filter((p, i, a) => i === 0 || Math.abs(p.x - a[i - 1].x) > 1e-6);
   return { b, cfg, helm, screens, row };
 };
 /** The row as on the reference console: each screen its width and the gap from the next, centred over the wheel. */
@@ -33,7 +37,7 @@ describe('the helm in view on a wide wheelhouse', () => {
   it('the screens stand in one row over the wheel, as on the reference console, however wide the dash', () => {
     for (const d of [type(2, { beam: 15, houseWidth: 1 }), type(4, { beam: 15, houseWidth: 1 }), type(2)]) {
       const { cfg, row } = helmOf(d);
-      // Speed, the ANCHOR quarter, heading, rpm, the engine monitor.
+      // Speed, the ANCHOR quarter (the clock quarter under it, CS5), heading, rpm, the engine monitor.
       expect(row).toHaveLength(5);
       inRow(row);
       expect(cfg.dash.halfWidth).toBeLessThanOrEqual(CONFIG.shipyard.helm.maxConsole / 2); // (cut short on a wide one)
@@ -42,9 +46,10 @@ describe('the helm in view on a wide wheelhouse', () => {
 
   it('with the basic controls, its two screens side by side over the wheel (the ANCHOR between)', () => {
     const { row } = helmOf(type(2, { beam: 15, houseWidth: 1, controls: 0 }));
-    // Speed and rpm, the ANCHOR quarter between them.
+    // Speed and rpm, the ANCHOR quarter between them (the clock quarter under it, CS5).
     // (A quarter: half a full screen, less half the gap, so two side by side keep the gap between.)
-    expect(row.map((r) => r.w)).toEqual([pitch - CONFIG.shipyard.helm.screenGap, (CONFIG.modules.screen.dash.width - CONFIG.shipyard.helm.screenGap) / 2, pitch - CONFIG.shipyard.helm.screenGap]);
+    const q = (CONFIG.modules.screen.dash.width - CONFIG.shipyard.helm.screenGap) / 2;
+    expect(row.map((r) => r.w)).toEqual([pitch - CONFIG.shipyard.helm.screenGap, q, pitch - CONFIG.shipyard.helm.screenGap]);
     inRow(row);
   });
 
@@ -65,7 +70,7 @@ describe('the helm in view on a wide wheelhouse', () => {
       expect(b.hull.helm.stand[0]).toBeCloseTo(cx, 3);
       expect(sock('navDisplay')?.[0] ?? cx).toBeCloseTo(cx, 3);
       expect(cfg.dash.halfWidth).toBeCloseTo(CONFIG.shipyard.helm.maxConsole / 2 - 0.11, 3);
-      expect(screens).toHaveLength(5);
+      expect(screens).toHaveLength(6);
       for (const id of ['vhf', 'chartplotter', 'fm']) {
         const p = sock(id);
         if (p) expect(Math.abs(p[0] - cx), id).toBeLessThanOrEqual(CONFIG.shipyard.helm.hungReach + 1e-6);

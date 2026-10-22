@@ -11,6 +11,7 @@ import { DESIGN_HULLS } from '../../src/shipyard/build';
 import { DEFAULT_DESIGN } from '../../src/shipyard/design';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import { startEngine } from '../helpers/engine';
+import { lineOf } from '../../src/tow/tow';
 
 const DT = 1 / 60;
 const WORKBOAT = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[2].defaults, hull: 2, towWinch: 1, sternRoller: 1, aFrame: 1 };
@@ -37,7 +38,7 @@ describe('a Shipyard boat with the working deck gear', () => {
     run(1);
     send('towDebugNear', 1);
     send('towMake');
-    const line = world.tow!.line!;
+    const line = lineOf(world)!;
     expect(line).toBeTruthy();
     const made = line.length!;
     send('winch.heaveIn', 1);

@@ -91,7 +91,7 @@ export function lodStations(hull: HullForm, lod: VesselLod): Station[] {
 /** Is she held by anything (moored, touching, on a slip or a crane, towed or towing)? Then she's stepped every tick whatever her level. */
 export function heldInPlace(world: WorldState, v: VesselState, touching: boolean): boolean {
   if (touching || v.mooring.phase !== 'free' || v.slip || (v.tender && v.tender.phase !== 'free')) return true;
-  const line = world.tow?.line;
-  if (line && (line.target === `v:${v.id}` || world.homeVesselId === v.id)) return true;
-  return false;
+  // On a towline: towing (her own) or towed (any boat's on her).
+  const lines = world.tow?.lines ?? {};
+  return !!lines[v.id] || Object.values(lines).some((l) => l.target === `v:${v.id}`);
 }

@@ -7,7 +7,7 @@ import { createWorld } from '../src/core/world';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { TOW_DEFS, VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { createVesselState } from '../src/vessel/vesselState';
-import { lineLength, towFast, towReach, towStatus, towTargets, towVessel, winchStalled } from '../src/tow/tow';
+import { lineLength, lineOf, towFast, towReach, towStatus, towTargets, towVessel, winchStalled } from '../src/tow/tow';
 import { runStatus } from '../src/rescue/rescue';
 import { PORTS } from '../src/world/archipelago';
 import { ClientSession } from '../src/net/clientSession';
@@ -112,12 +112,12 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(towFast(world)).toBe(true);
     // Under way together, northward (-z), the line taut but not snapping.
     expect(-tow.linearVelocity[2]).toBeGreaterThan(1.5);
-    expect((world.tow!.line?.tension ?? 0)).toBeGreaterThan(100);
+    expect((lineOf(world)?.tension ?? 0)).toBeGreaterThan(100);
     expect(maxReach).toBeLessThan(CONFIG.tow.lineLength + 6);
     // Cast off: no more pull.
     send('towCast');
     run(1);
-    expect((world.tow!.line?.tension ?? 0)).toBe(0);
+    expect((lineOf(world)?.tension ?? 0)).toBe(0);
   });
 
   it('too far off to make fast; a snatch parts the line', () => {
@@ -172,10 +172,10 @@ describe('towing missions', { timeout: 30000 }, () => {
     // Stretch it to 1.5x the ordinary breaking load (under twice), and hold it there a moment.
     const stretch = (1.5 * CONFIG.tow.breakForce) / CONFIG.tow.stiffness;
     const reach = towReach(world);
-    placeVessel(tow, tow.position[0], 0, tow.position[2] + (lineLength(world.tow!.line!) - reach) + stretch, 0);
+    placeVessel(tow, tow.position[0], 0, tow.position[2] + (lineLength(lineOf(world)!) - reach) + stretch, 0);
     run(0.1);
     expect(towFast(world)).toBe(true);
-    expect(world.tow!.line!.tension).toBeGreaterThan(CONFIG.tow.breakForce);
+    expect(lineOf(world)!.tension).toBeGreaterThan(CONFIG.tow.breakForce);
     // The same on a medium tow (an ordinary line) parts it.
     const b = setup();
     placeVessel(b.v, 0, 0, -400, 0);
@@ -184,7 +184,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     b.send('towMake');
     const barge = towVessel(b.world)!;
     const bReach = towReach(b.world);
-    placeVessel(barge, barge.position[0], 0, barge.position[2] + (lineLength(b.world.tow!.line!) - bReach) + stretch, 0);
+    placeVessel(barge, barge.position[0], 0, barge.position[2] + (lineLength(lineOf(b.world)!) - bReach) + stretch, 0);
     b.run(0.1);
     expect(towFast(b.world)).toBe(false);
   });
@@ -219,7 +219,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     world.traffic!.debris.push({ id: 'dx', x: 0, z: -380 });
     expect(towTargets(world)).toContain('d:dx');
     send('towMake', 1, 'd:dx');
-    expect(world.tow!.line?.target).toBe('d:dx');
+    expect(lineOf(world)?.target).toBe('d:dx');
     expect(towStatus(world)).toMatch(/Towing debris/);
     send('engineStartStop');
     run(3);
@@ -229,17 +229,17 @@ describe('towing missions', { timeout: 30000 }, () => {
     const d = world.traffic!.debris.find((o) => o.id === 'dx')!;
     expect(-380 - d.z).toBeGreaterThan(60); // came along northward with us
     expect(maxReach).toBeLessThan(CONFIG.tow.lineLength + 6);
-    expect(world.tow!.line?.tension ?? 0).toBeGreaterThan(50);
+    expect(lineOf(world)?.tension ?? 0).toBeGreaterThan(50);
     // Into harbour, stopped: cleared.
     send('lever', 0);
     const port = PORTS.find((p) => p.id === 'calder')!;
     placeVessel(v, port.x, 0, port.z - 20, 0);
     d.x = port.x;
     d.z = port.z;
-    world.tow!.line!.vel = [0, 0];
+    lineOf(world)!.vel = [0, 0];
     run(CONFIG.tow.deliverTime + 1);
     expect(world.traffic!.debris.some((o) => o.id === 'dx')).toBe(false);
-    expect(world.tow!.line ?? null).toBeNull();
+    expect(lineOf(world) ?? null).toBeNull();
     expect(world.tow!.cleared).toBe(1);
   });
 
@@ -254,15 +254,15 @@ describe('towing missions', { timeout: 30000 }, () => {
     stepWorld(world, [], DT);
     expect(towTargets(world)).not.toContain(`v:${skiff.id}`); // in her cradle
     send('towMake', `v:${skiff.id}`);
-    expect(world.tow!.line ?? null).toBeNull();
+    expect(lineOf(world) ?? null).toBeNull();
     skiff.tender!.phase = 'free';
     placeVessel(skiff, 0, 0, -400 + 18, 0);
     stepWorld(world, [], DT);
     send('towToggle');
-    expect(world.tow!.line?.target).toBe(`v:${skiff.id}`);
+    expect(lineOf(world)?.target).toBe(`v:${skiff.id}`);
     expect(towStatus(world)).toMatch(/Towing/);
     send('towToggle');
-    expect(world.tow!.line ?? null).toBeNull();
+    expect(lineOf(world) ?? null).toBeNull();
   });
 
   it('multiplayer: the tow and its line reach the crew; a crew-mate can make fast', async () => {
@@ -280,7 +280,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     for (const i of host.takeIntents()) stepWorld(world, [i], DT);
     host.tick(1);
     const job = c.latest!.tow!.job!;
-    expect(c.latest!.tow!.line?.target).toBe(`v:${job.vesselId}`);
+    expect(lineOf(c.latest!)?.target).toBe(`v:${job.vesselId}`);
     expect(c.latest!.vessels[job.vesselId].defId).toBe('barge');
   });
 });
@@ -297,9 +297,9 @@ describe('the tow winch', { timeout: 30000 }, () => {
     placeVessel(v, 0, 0, -400, 0);
     run(1);
     send('towDebugNear', 1, 'derelict');
-    const reach0 = towReach(world, world.tow!.line?.target ?? vesselKeyOfJob(world));
+    const reach0 = towReach(world, lineOf(world)?.target ?? vesselKeyOfJob(world));
     send('towMake');
-    const line = world.tow!.line!;
+    const line = lineOf(world)!;
     const w = CONFIG.tow.winch;
     // Made fast at the distance to her plus a little slack (not the full default length).
     const made = lineLength(line);

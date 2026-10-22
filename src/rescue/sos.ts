@@ -6,6 +6,7 @@ import { berthPose } from '../vessel/physics/mooring';
 import { placeVessel } from '../vessel/vesselControl';
 import { BERTHS } from '../world/archipelago';
 import { createRescueState, sayRadio } from './rescue';
+import { castOffBoat } from '../tow/tow';
 
 /**
  * SOS (owner, Oct 2026): when a boat has gone over (capsized) or under (sunk), the crew send
@@ -77,8 +78,8 @@ export function applySosIntent(world: WorldState, intent: Intent): void {
   s.controls.anchor = 0;
   s.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
   s.refuelling = false;
-  // Whatever was on her tow line is let go.
-  if (world.tow?.line) world.tow.line = null;
+  // Whatever was on her tow line is let go, and any line on her.
+  castOffBoat(world, s.id);
   const what = cond === 'sunk' ? 'raised her' : 'righted her';
   sayRadio(world, 'reply', `Coastguard: SOS received. The salvage tug has ${what} and brought you into ${to.yard.name}. Have the yard look her over before you sail.`);
 }

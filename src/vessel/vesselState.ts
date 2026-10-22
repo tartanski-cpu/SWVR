@@ -97,6 +97,9 @@ export interface VesselControls {
   joyMode?: number;
   /** The chartplotter's zoom (nav/chartPlotter.ts): 0 AUTO, k the k-th of CONFIG.chartPlotter.ranges. One for the boat: the crew see what the helmsman set. */
   chartZoom?: number;
+  /** Each advanced touchscreen's page (controls/instruments.ts `touchScreen`; CS5): the index of its tab. One for the boat, as the chartplotter's zoom: the crew see the page whoever pressed it chose. */
+  touchPage1?: number;
+  touchPage2?: number;
   joyX?: number;
   joyY?: number;
   joyR?: number;

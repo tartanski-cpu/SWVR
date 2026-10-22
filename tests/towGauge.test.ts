@@ -10,7 +10,7 @@ import { IdFactory } from '../src/core/ids';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { lineLength, towFast, towReach, towVessel } from '../src/tow/tow';
+import { lineLength, lineOf, towFast, towReach, towVessel } from '../src/tow/tow';
 import { FLEET } from '../src/boats/fleet';
 import { useDesign } from '../src/boats/sims';
 import { buildDesign } from '../src/shipyard/build';
@@ -34,7 +34,7 @@ function setup(kind = 'barge') {
   const tow = towVessel(world)!;
   /** Hold the tow `stretch` m beyond the line's length, still. */
   const stretchTo = (stretch: number) => {
-    placeVessel(tow, tow.position[0], 0, tow.position[2] + (lineLength(world.tow!.line!) - towReach(world)) + stretch, 0);
+    placeVessel(tow, tow.position[0], 0, tow.position[2] + (lineLength(lineOf(world)!) - towReach(world)) + stretch, 0);
   };
   return { world, v, send, run, tow, stretchTo };
 }
@@ -47,7 +47,7 @@ describe('the tow line gauge', () => {
     expect(v.towLine!.fast).toBe(true);
     stretchTo((0.5 * CONFIG.tow.breakForce) / CONFIG.tow.stiffness);
     run(0.05);
-    expect(v.towLine!.tension).toBeCloseTo(world.tow!.line!.tension, 0);
+    expect(v.towLine!.tension).toBeCloseTo(lineOf(world)!.tension, 0);
     expect(v.towLine!.load).toBeGreaterThan(0.4);
     expect(v.towLine!.load).toBeLessThan(0.6);
   });

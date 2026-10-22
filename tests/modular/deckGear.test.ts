@@ -19,7 +19,7 @@ import { drumAxleY, drumLead } from '../../src/mechanisms/drum';
 import { sagOf } from '../../src/mechanisms/line';
 import { hullQueries } from '../../src/modular/hull';
 import type { Recipe } from '../../src/modular/recipe';
-import { towReach } from '../../src/tow/tow';
+import { lineOf, towReach } from '../../src/tow/tow';
 import { hullPlan } from '../../src/vessel/layout';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -116,7 +116,7 @@ describe('take a module out and its job goes with it', { timeout: 30000 }, () =>
       run(1);
       send('towDebugNear', 1);
       send('towMake');
-      const line = world.tow!.line!;
+      const line = lineOf(world)!;
       const made = line.length!;
       send('winch.heaveIn', 1);
       run(3);
