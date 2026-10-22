@@ -335,6 +335,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `lamp.bilge` | off / on / blink | read only | legacy |  | BILGE lamp: blinking with the bilge over its alarm level. |
 | `lamp.hull` | off / on / blink | read only | legacy |  | HULL lamp: on with hull damage worth a repair, blinking when bad. |
 | `lamp.engine` | off / on / blink | read only | legacy |  | ENGINE lamp: on with engine wear worth an overhaul, blinking when bad. |
+| `lamp.temp` | off / on / blink | read only | legacy |  | TEMP lamp: blinking with the coolant over its alarm temperature. |
+| `lamp.fuel` | off / on / blink | read only | legacy |  | FUEL lamp: on with the fuel under its low mark. |
 
 ## nav
 

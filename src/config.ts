@@ -3149,6 +3149,8 @@ export const CONFIG = {
     exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
     /** Old school instruments (design.oldSchool): the analogue gauges' price (GBP; the basic screens are 6,000, the advanced 18,000). */
     oldSchoolPrice: 4000,
+    /** What each advanced touchscreen adds to her price (GBP; CS5: a big multifunction display, on top of the advanced package). */
+    touchPrice: 2500,
     helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
@@ -4232,8 +4234,8 @@ export const CONFIG = {
       tyres: { radius: 0.45, hole: 0.21, thickness: 0.28, drop: 0.4, spacing: 0.92, minBeam: 0.45, kgEach: 45, formFactorAdd: 0.03 },
     },
 
-    /** instrument.warning-lamps: the lamps' spacing (m). */
-    warningLamps: { spacing: 0.066 },
+    /** instrument.warning-lamps: the lamps' spacing (m). Closer since TEMP and FUEL joined (CS5: nine lamps, 0.5 m, about the row's old length). */
+    warningLamps: { spacing: 0.056 },
 
     /** furniture.start-card: the laminated start-up card (m). */
     startCard: { width: 0.19, height: 0.26 },

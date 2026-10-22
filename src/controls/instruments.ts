@@ -938,6 +938,82 @@ const paintDialChain: Painter = (g, s) => {
   dial(g, { min: 0, max: chainM, value: a.phase === 'stowed' ? 0 : a.rodeM, ticks: Math.max(2, Math.round(chainM / 20)), label: 'CHAIN', units: 'm', note, noteColour: colour });
 };
 
+// ── The ship's clock (CS5; owner, Oct 2026: "a ship's clock would be good") ──
+
+/** The time of day as hours and minutes (the world's clock; noon with no environment). */
+function clockOf(env: EnvironmentState | null): { h: number; m: number } {
+  const t = ((env?.timeOfDay ?? 12) % 24 + 24) % 24;
+  const h = Math.floor(t);
+  return { h, m: Math.floor((t - h) * 60) };
+}
+/** "14:05". */
+const hhmm = (env: EnvironmentState | null) => {
+  const { h, m } = clockOf(env);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+const clockKey: ScreenKey = (_s, _d, env) => hhmm(env);
+
+/** Old school: a brass-rimmed ship's clock, twelve hours, an hour and a minute hand. */
+const paintDialClock: Painter = (g, _s, _def, env) => {
+  const cx = 128;
+  const cy = 64;
+  const r = 52;
+  g.fillStyle = '#a8843a';
+  g.beginPath();
+  g.arc(cx, cy, r + 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = FACE;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = INK;
+  g.fillStyle = INK;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = font(12);
+  for (let k = 1; k <= 12; k++) {
+    const a = (k / 12) * Math.PI * 2 - Math.PI / 2;
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * (r - 3), cy + Math.sin(a) * (r - 3));
+    g.lineTo(cx + Math.cos(a) * (r - 9), cy + Math.sin(a) * (r - 9));
+    g.stroke();
+    g.fillText(String(k), cx + Math.cos(a) * (r - 18), cy + Math.sin(a) * (r - 18));
+  }
+  const { h, m } = clockOf(env);
+  const hand = (turns: number, len: number, width: number) => {
+    const a = turns * Math.PI * 2 - Math.PI / 2;
+    g.lineWidth = width;
+    g.beginPath();
+    g.moveTo(cx, cy);
+    g.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+    g.stroke();
+  };
+  g.strokeStyle = INK;
+  hand(((h % 12) + m / 60) / 12, r * 0.5, 5);
+  hand(m / 60, r * 0.78, 3);
+  g.beginPath();
+  g.arc(cx, cy, 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = FACE;
+  g.font = font(15);
+  g.fillText('TIME', 38, cy);
+};
+
+/** Basic electronic: the time in figures, 24 hours. */
+const paintClock: Painter = (g, _s, _def, env) => {
+  g.fillStyle = DIM;
+  g.font = font(SMALL_PX);
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.fillText('TIME', 12, 10);
+  g.fillStyle = AMBER;
+  g.font = font(54);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(hhmm(env), 128, 70);
+};
+
 /** The screens there are, for the screen module (modules/screen) to pick from. */
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
@@ -972,6 +1048,85 @@ export const SCREENS = {
       return [a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, moving ? Math.floor(performance.now() / 500) % 2 : 0].join('|');
     },
   },
+  // The ship's clock: in figures, or the old school's round clock.
+  clock: { paint: paintClock, cells: [1, 1], key: clockKey },
+  dialClock: { paint: paintDialClock, cells: [1, 1], key: clockKey },
+  // The advanced touchscreen (a full screen; the screen module makes each one with her own
+  // pages: touchScreen below). This one, every page, is what's listed.
+  touch: { paint: (g, s, def, env) => touchScreen([...TOUCH_PAGES], 'touchPage1', 0).paint(g, s, def, env), key: () => '' },
 } satisfies Record<string, Screen>;
 
 export type ScreenName = keyof typeof SCREENS;
+
+// ── The touchscreen (CS5; owner, Oct 2026: "with the advanced package ... just one screen that
+// you have tabs that you have to flip between to see the different information") ──
+
+/** The pages a touchscreen can show, in tab order: each is one of the screens above, drawn in it. */
+export const TOUCH_PAGES = ['speed', 'heading', 'rpm', 'engineMonitor', 'anchor', 'towline', 'nav'] as const;
+export type TouchPage = (typeof TOUCH_PAGES)[number];
+/** What each page's tab says. */
+export const TOUCH_TABS: Record<TouchPage, string> = { speed: 'SPEED', heading: 'HDG', rpm: 'ENGINE', engineMonitor: 'SYSTEMS', anchor: 'ANCHOR', towline: 'TOW', nav: 'WIND' };
+/**
+ * The tab bar and the page area, in the screen's own pixels (512 x 256; the bezel is the outer
+ * 10). The tabs are along the top: from the helm the wheel's rim hides a dash screen's foot.
+ */
+export const TOUCH_BAR = { y0: 12, y1: 42, x0: 12, x1: 420, clockX: 466 } as const;
+const TOUCH_PAGE = { y: 46, h: 210 } as const;
+/** Each tab's span across the bar (px), for `n` tabs: the screen draws them, the screen module presses them. */
+export function touchTabs(n: number): { x0: number; x1: number }[] {
+  const w = (TOUCH_BAR.x1 - TOUCH_BAR.x0) / Math.max(1, n);
+  return Array.from({ length: n }, (_, i) => ({ x0: TOUCH_BAR.x0 + i * w + 2, x1: TOUCH_BAR.x0 + (i + 1) * w - 2 }));
+}
+/** The page a touchscreen is on: the boat's (`channel` in her controls, so the whole crew sees the same page), else its first. */
+export function touchPageOf(s: VesselState, channel: 'touchPage1' | 'touchPage2', first: number, n: number): number {
+  return Math.max(0, Math.min(n - 1, Math.round(s.controls[channel] ?? first)));
+}
+
+/**
+ * A touchscreen with these pages: the page shown (any of the screens, scaled whole into the page
+ * area: a quarter or a strip drawn large) and the tab bar over it, the page's tab lit, the time
+ * at its end. Repainted only when the page, what it shows or the minute changes, like any screen.
+ */
+export function touchScreen(pages: readonly TouchPage[], channel: 'touchPage1' | 'touchPage2', first: number): Screen {
+  const at = (s: VesselState) => touchPageOf(s, channel, first, pages.length);
+  return {
+    cells: [2, 2],
+    key: (s, def, env) => {
+      const i = at(s);
+      return [i, SCREENS[pages[i]].key(s, def, env), hhmm(env)].join('#');
+    },
+    paint: (g, s, def, env) => {
+      const i = at(s);
+      const inner: Screen = SCREENS[pages[i]];
+      const [cw, ch] = cellsOf(inner);
+      const iw = cw * CW;
+      const ih = ch * CH;
+      const k = Math.min(512 / iw, TOUCH_PAGE.h / ih);
+      g.save();
+      g.beginPath();
+      g.rect(0, TOUCH_PAGE.y, 512, TOUCH_PAGE.h);
+      g.clip();
+      g.translate((512 - iw * k) / 2, TOUCH_PAGE.y + (TOUCH_PAGE.h - ih * k) / 2);
+      g.scale(k, k);
+      inner.paint(g, s, def, env);
+      g.restore();
+      // The tab bar.
+      g.fillStyle = '#16201b';
+      g.fillRect(0, 0, 512, TOUCH_BAR.y1 + 4);
+      g.font = font(13);
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      const ym = (TOUCH_BAR.y0 + TOUCH_BAR.y1) / 2;
+      touchTabs(pages.length).forEach((t, j) => {
+        const on = j === i;
+        g.fillStyle = on ? AMBER : '#24302a';
+        g.fillRect(t.x0, TOUCH_BAR.y0, t.x1 - t.x0, TOUCH_BAR.y1 - TOUCH_BAR.y0);
+        g.fillStyle = on ? BG : AMBER;
+        g.fillText(TOUCH_TABS[pages[j]], (t.x0 + t.x1) / 2, ym + 1);
+      });
+      g.fillStyle = AMBER;
+      g.font = font(18);
+      g.fillText(hhmm(env), TOUCH_BAR.clockX, ym + 1);
+    },
+  };
+}

@@ -7,7 +7,7 @@ import { CONFIG } from '../../config';
 import landingCraftRecipe from '../../boats/landingCraft.json';
 import type { Mount, Recipe } from '../../modular/recipe';
 import { houseFlare } from '../../vessel/houseFlare';
-import { cellsOf, SCREENS, type ScreenName } from '../../controls/instruments';
+import { cellsOf, SCREENS, type ScreenName, type TouchPage } from '../../controls/instruments';
 import { dashCap, packDash, packPanel, panelKey, placeDashByHand, placeOnDash, placePanelByHand, SCREEN_NAMES, type GridPlace, type PanelGroup } from './consoleGrid';
 import { DASH_SLOTS, dashCell, PANEL_SLOTS } from '../design';
 import { BASE_TORQUE, type BuildArgs, type V3 } from './common';
@@ -231,7 +231,28 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       consoleMount.modules!.push({ socket: id, module: 'instrument.screen', config: { screen: id } });
     }
   }
-  const screens = (oldSchool ? dials : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline']).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm'].includes(id)));
+  // Touchscreens (design.touch, with the advanced controls; CS5, owner, Oct 2026: "just one
+  // screen that you have tabs that you have to flip between"): one or two, in place of her
+  // separate console screens, each with every page she has (the anchor's with an anchor, the
+  // tow line's with a tow point); the first opens on SPEED, a second on ENGINE.
+  const touch = d.controls ? Math.max(0, Math.min(2, d.touch ?? 0)) : 0;
+  const touchIds = touch ? ['touch1', 'touch2'].slice(0, touch) : [];
+  if (touch) {
+    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
+    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline'].includes(m.socket));
+    touchIds.forEach((id, k) => {
+      cc.slots[id] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
+      consoleMount.modules!.push({ socket: id, module: 'instrument.screen', config: { screen: 'touch', pages, channel: k ? 'touchPage2' : 'touchPage1', first: k ? 2 : 0 } });
+    });
+  }
+  // The ship's clock (CS5; owner, Oct 2026: "a ship's clock would be good"): a quarter, last on
+  // the dash, round with the old school gauges. (A touchscreen has the time on its tab bar.)
+  const clockId = oldSchool ? 'dialClock' : 'clock';
+  if (!touch) {
+    cc.slots[clockId] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
+    consoleMount.modules!.push({ socket: clockId, module: 'instrument.screen', config: { screen: clockId } });
+  }
+  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
   // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
   // by its rules in this order, the half-height ones stacked two high in one screen's place
@@ -342,7 +363,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     // depth, rpm, the ANCHOR screen, and the VHF (owner, Oct 2026: every boat answers calls,
     // hears the forecasts and the harbours). No lights, searchlight, horn, wipers, heading,
     // engine monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
-    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials];
+    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));

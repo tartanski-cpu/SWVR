@@ -66,8 +66,8 @@ describe('Shipyard: the boats it builds', () => {
     const basic = ids(0);
     const advanced = ids(1);
     for (const id of ['control.wheel', 'control.throttle-lever', 'control.key-switch', 'propulsion.diesel-inboard']) expect(basic).toContain(id);
-    // Speed and rpm, and the ANCHOR quarter screen (she has an anchor).
-    expect(basic.filter((id) => id === 'instrument.screen').length).toBe(3);
+    // Speed and rpm, the ANCHOR quarter screen (she has an anchor), and the clock (CS5).
+    expect(basic.filter((id) => id === 'instrument.screen').length).toBe(4);
     // Every boat has a VHF (owner, Oct 2026): she answers calls, hears the forecasts.
     expect(basic).toContain('radio.vhf');
     for (const id of ['radio.fm', 'light.navigation', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {
@@ -85,10 +85,30 @@ describe('Shipyard: the boats it builds', () => {
     };
     const old = screens({ controls: 0, oldSchool: 1 });
     // She has an anchor, so a chain counter too.
-    expect(old).toEqual(['dialChain', 'dialCompass', 'dialDepth', 'dialFuel', 'dialRpm', 'dialSpeed', 'dialTemp']);
-    expect(screens({ controls: 0, oldSchool: 0 })).toEqual(['anchor', 'rpm', 'speed']);
+    expect(old).toEqual(['dialChain', 'dialClock', 'dialCompass', 'dialDepth', 'dialFuel', 'dialRpm', 'dialSpeed', 'dialTemp']);
+    expect(screens({ controls: 0, oldSchool: 0 })).toEqual(['anchor', 'clock', 'rpm', 'speed']);
     // The advanced tier keeps its screens whatever the old-school flag says.
     expect(screens({ controls: 1, oldSchool: 1 })).toEqual(screens({ controls: 1, oldSchool: 0 }));
+  });
+
+  it('touchscreens (CS5): with the advanced controls, one or two in place of her screens, a tab for each page she has; the basic ignore it', () => {
+    const touch = (patch: Partial<ShipDesign>) => {
+      useDesign({ ...DEFAULT_DESIGN, searchlight: 0, ...patch });
+      expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+      const flat = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+      const screens = flat.filter((m) => m.def.id === 'instrument.screen' && m.path.includes('helm'));
+      return { screens: screens.map((m) => m.config as { screen: string; pages?: string[]; channel?: string; first?: number }) };
+    };
+    const one = touch({ controls: 1, touch: 1 });
+    expect(one.screens.map((c) => c.screen)).toEqual(['touch']);
+    // She has an anchor: its page; no tow point on the default boat: no TOW page.
+    expect(one.screens[0].pages).toEqual(['speed', 'heading', 'rpm', 'engineMonitor', 'anchor', 'nav']);
+    const two = touch({ controls: 1, touch: 2 });
+    expect(two.screens.map((c) => [c.channel, c.first])).toEqual([['touchPage1', 0], ['touchPage2', 2]]);
+    // A tow point (her stern roller): the TOW page too.
+    expect(touch({ controls: 1, touch: 1, sternRoller: 1 }).screens[0].pages).toContain('towline');
+    // The basic controls: no touchscreen, whatever the field says.
+    expect(touch({ controls: 0, touch: 2 }).screens.map((c) => c.screen)).not.toContain('touch');
   });
 
   it('the bow choice, a stem raked 0 (plumb) to 50 deg, each hull: more rake cuts away more forefoot, but only near the stem (not a push bow or a landing bow)', () => {

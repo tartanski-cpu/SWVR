@@ -14,6 +14,7 @@
 import { CONFIG } from '../config';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
+import { engineAlarms } from '../vessel/physics/engineThermal';
 import { gearOf } from '../boats/sims';
 import { engageAutopilot, quickStart } from '../vessel/autopilot';
 import { toggleDock } from '../vessel/physics/mooring';
@@ -147,7 +148,7 @@ function circuitKeys(): Record<`circuit.${BreakerName}.live`, BusKeySpec> {
  */
 type Lamp = 'off' | 'on' | 'blink';
 const LAMP = ['off', 'on', 'blink'] as const;
-function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge' | 'hull' | 'engine'): Lamp | undefined {
+function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge' | 'hull' | 'engine' | 'temp' | 'fuel'): Lamp | undefined {
   const diesel = gearOf(s, 'diesel');
   if (!diesel) return undefined;
   const instr = isPowered(s, 'instruments');
@@ -176,6 +177,13 @@ function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bi
       const w = e.wear ?? 0;
       return !instr || w <= CONFIG.duties.wearAt ? 'off' : w > CONFIG.wear.badAt ? 'blink' : 'on';
     }
+    // Every tier's warnings (owner, Oct 2026: "some kind of warning light should be in all the
+    // packages"): the coolant over its alarm (blinking: stop her), the fuel under its low mark.
+    // Before, only the advanced engine monitor showed these two alarms.
+    case 'temp':
+      return instr && engineAlarms(s, diesel).highTemp ? 'blink' : 'off';
+    case 'fuel':
+      return instr && engineAlarms(s, diesel).lowFuel ? 'on' : 'off';
   }
 }
 
@@ -416,6 +424,8 @@ export const BUS_KEYS = {
   'lamp.bilge': state('enum', (s) => lamp(s, 'bilge'), 'BILGE lamp: blinking with the bilge over its alarm level.', { values: LAMP }),
   'lamp.hull': state('enum', (s) => lamp(s, 'hull'), 'HULL lamp: on with hull damage worth a repair, blinking when bad.', { values: LAMP }),
   'lamp.engine': state('enum', (s) => lamp(s, 'engine'), 'ENGINE lamp: on with engine wear worth an overhaul, blinking when bad.', { values: LAMP }),
+  'lamp.temp': state('enum', (s) => lamp(s, 'temp'), 'TEMP lamp: blinking with the coolant over its alarm temperature.', { values: LAMP }),
+  'lamp.fuel': state('enum', (s) => lamp(s, 'fuel'), 'FUEL lamp: on with the fuel under its low mark.', { values: LAMP }),
 
   // ── Navigation (from her motion) ──
   'nav.speedKts': state('number', (s) => Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) / KNOT, 'Speed over ground.', { unit: 'kn', writer: 'core' }),
