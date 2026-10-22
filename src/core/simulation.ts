@@ -40,6 +40,7 @@ import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { stepFishing, trawlForces } from '../fishing/fishing';
+import { holdPayload, stepHold } from '../fishing/fishHold';
 import { stepRodSale } from '../fishing/rod';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
@@ -174,6 +175,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       debug.set(vessel.id, dbg);
     }
     const payload = payloadOf(world, vessel.id);
+    // (The catch in her fish hold, where it stands: fishing/fishHold.ts.)
+    payload.push(...holdPayload(vessel));
     // Water in the bilge is weight low in the hull (vessel/wear.ts).
     if (vessel.bilge) payload.push({ mass: vessel.bilge * CONFIG.wear.bilgeMassFull, pos: new THREE.Vector3(0, VESSEL_DEFS[vessel.defId].hull.params.keelY + 0.35, 0) });
     const deckBefore = deckVelocitiesBefore(world, vessel);
@@ -218,6 +221,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepFire(world, dt);
   stepSalvage(world, dt);
   stepFishing(world, dt);
+  stepHold(world);
   stepCareer(world);
   stepTutorial(world);
   world.tick += 1;

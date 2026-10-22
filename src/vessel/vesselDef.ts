@@ -45,6 +45,13 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
     /** A cabin below the deck under the deckhouse (parametric boats P2c, a Shipyard design's): see CabinBelow. */
     cabin?: CabinBelow;
     /**
+     * A fish hold under the open deck (a Shipyard design's, modules/fishHold): its inside
+     * (x0..x1 across, z0..z1 along, its floor at `sole`), and its hatch's opening, which is cut
+     * out of the deck (hullMesh.ts). Below the deck is solid for walking as before: you work it
+     * from the deck through the hatch.
+     */
+    fishHold?: { x0: number; x1: number; z0: number; z1: number; sole: number; hatch: { x0: number; x1: number; z0: number; z1: number } };
+    /**
      * A cockpit overhead (parametric boats P2b, owner): the house's aft roof carried on aft over
      * the working deck, from `z0` (the house's aft wall) to `z1`, its underside at `y`, `thickness`
      * thick, out to `halfWidth` each side. It stands on a wing each side: a plate `wing` thick

@@ -3252,6 +3252,21 @@ export const CONFIG = {
      * cut faces aren't filled in solid, as a hatched section on a drawing would be.
      */
     section: { step: 0.05, stationAt: 0.5 },
+    /**
+     * A fish hold (owner, Oct 2026: step 1 toward a trawler; design.fishHold, parts/hold.ts):
+     * an insulated hold in her hull under the open deck, aft of the wheelhouse (or forward of
+     * it if there's more room there), clear of the engine (`engineGap` from its ends), the
+     * propeller and rudder (`aftClear` from the transom), the cabin below and a raised foredeck.
+     * At least `minLength` long and `minDepth` deep, else left off saying why. Its floor
+     * (`soleClear` over her bottom, `shaftClear` over the propeller shaft running under it) and
+     * its sides (`frame` inside her hull at the floor) make a lined box, its ceiling the deck.
+     * The hatch over it: `hatch.length` x `hatch.width` (smaller to fit), its coaming
+     * `hatch.coaming` high, clear of the deck gear by `hatch.clear`, near the hold's middle.
+     * It holds as many fish boxes (CONFIG.cargo.kinds 'Fish box') as stack in it with
+     * `boxGap` round each and `headGap` under the deck. Weighed as `kgPerM2` of insulated
+     * lining over its inside plus the hatch's `hatch.kg`; priced at `pricePerM3` of hold.
+     */
+    fishHold: { engineGap: 0.15, aftClear: 0.75, minLength: 1.2, minDepth: 0.55, soleClear: 0.1, shaftClear: 0.15, frame: 0.06, hatch: { length: 0.9, width: 0.9, coaming: 0.3, clear: 0.15, kg: 70 }, boxGap: 0.02, headGap: 0.05, kgPerM2: 18, pricePerM3: 1100 },
     deckhouse: {
       kgPerM2: 35,
       pricePerM2: 450,

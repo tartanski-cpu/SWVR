@@ -122,7 +122,9 @@ export type GearKind =
   | 'bilgePump'
   | 'chartTable'
   // The helm assist panel (owner, Oct 2026)
-  | 'autopilot';
+  | 'autopilot'
+  // A fish hold (owner, Oct 2026)
+  | 'fishHold';
 
 /** What the world's systems need to know about each kind of gear (the boat's axes, m). */
 export interface GearFacts {
@@ -164,6 +166,12 @@ export interface GearFacts {
   swimLadder: { x: number; z: number; bottom: number; top: number; deckX: number; range: number; width: number };
   /** The life ring: where it hangs stowed, and the cleat its line is made fast to. */
   lifeRing: { stow: [number, number, number]; cleat: [number, number, number] };
+  /**
+   * A fish hold (modules/fishHold): where each box stands in it (the boat's axes, its base
+   * middle, in the order they're stowed: its length is what it holds), and its hatch (the
+   * coaming's top middle, and the opening's extent).
+   */
+  fishHold: { slots: [number, number, number][]; hatch: { centre: [number, number, number]; x0: number; x1: number; z0: number; z1: number } };
   /** The boat hook: in its clips at (x, y), from z0 to z1. */
   boatHook: { stow: [number, number, number, number] };
   /** The fishing rods' rack (owner, Oct 2026): each rod's butt (it stands upright there), the wall's facing (deg, 0 aft), the bucket on deck, which side (-1 port, 1 starboard). */

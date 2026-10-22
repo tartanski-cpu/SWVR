@@ -290,12 +290,20 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `hatch.engine.open` | on / off | player sets | legacy | `engineHatch` | The engine hatch in the wheelhouse floor open. |
+| `hatch.hold.open` | on / off | player sets | legacy | `holdHatch` | The fish hold's hatch lid open (starts shut; a Shipyard boat's fish hold). |
 
 ## furniture
 
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `furniture.headDoor` | on / off | player sets | legacy | `headDoor` | The head's door open (starts shut; a Shipyard boat's furniture). |
+
+## hold
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `hold.lift` | on / off | player sets | legacy | `holdLift` | The fish hold's LIFT button: a box lifted out onto the deck by the hatch (the lid open; fishing/fishHold.ts). |
+| `hold.boxes` | boxes | read only | legacy |  | Fish boxes in the fish hold. |
 
 ## chartTable
 

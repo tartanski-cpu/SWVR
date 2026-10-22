@@ -19,9 +19,10 @@ import type { PlacesPart } from './places';
 import type { DeckGearPart, HouseGearPart } from './deckGear';
 import type { HullDefPart } from './hullDef';
 import type { FurniturePart } from './furniture';
+import type { HoldPart } from './hold';
 
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
-export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart) {
+export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
   const { code, d, id } = a;
   const { towHook, aFrame, ac, aft, anchorAt, at, basketAt, bowCleat, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, stem, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
@@ -629,6 +630,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
   // Her furniture (P5), each piece on its place.
   recipe.modules.push(...p.furnitureMounts);
+  // Her fish hold, if she has one.
+  if (p.holdMount) recipe.modules.push(p.holdMount);
 
   return { recipe };
 }

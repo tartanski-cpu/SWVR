@@ -56,6 +56,7 @@ import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment }
 import { FURNITURE_MENU, nextSlot, placedOf, placeFurniture, removeFurniture, slotOf } from './furnishing';
 import { furnitureName, furnitureSocketId } from './parts/furniture';
 import { SheetEditor } from './sheetEditor';
+import { holdSlots, type FishHoldConfig } from '../modules/fishHold';
 import { addProject, readProjects, removeProject, writeProjects, type Project } from './projects';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
@@ -587,7 +588,7 @@ const STEP_GUIDE: Record<string, string> = {
   Wheelhouse: 'Where the crew stand and what they can see. Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
   Engine: 'Power for the speed in the brief. The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
   Furniture: 'What’s inside her houses: berths, settees, a galley, seats, lockers and a head. <b>Add</b> a piece, then click where it goes. The view looks down on her cut just over the floor by the section tool (✂ Section to move the cut or turn it off); for the cabin below, click forward of the wheelhouse: it’s put against the nearest wall there, clear of the helm and the doorways. Add as many as fit, up to four of each (one head). Its weight and price are designed in.',
-  'Deck gear': 'Her equipment, by the work it’s for. <b>Place</b> it, then click on her where it goes: it’s put there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Gear with only one place on any boat (the anchor, the stern roller, the A-frame, the side door) is simply <b>Fit</b>ted. Its weight is designed in.',
+  'Deck gear': 'Her equipment, by the work it’s for. <b>Place</b> it, then click on her where it goes: it’s put there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Gear with only one place on any boat (the anchor, the stern roller, the A-frame, the side door) is simply <b>Fit</b>ted. Its weight is designed in. <b>Fish hold</b>: an insulated hold in her hull under the open deck (where there’s most room, clear of the engine and the houses), its hatch on deck; the catch goes down into it in boxes, and the yellow button on the hatch lifts one out.',
   Controls: 'What the skipper has at the helm.',
   Paint: 'Her colours, hull and roof.',
 };
@@ -892,6 +893,8 @@ section('3. Deck gear');
   menu.id = 'gearMenu';
   const box = document.createElement('div');
   box.id = 'fromPins';
+  // A fish hold under her deck (parts/hold.ts): where it goes is worked out for her.
+  options('fishHold', 'Fish hold', ['None', 'Under the deck']);
   controls.append(menu, box);
 }
 section('4. Furniture');
@@ -1331,6 +1334,8 @@ function showFigures(): void {
     figureGroup('deck', 'Deck', `${room.crates} crates`, [
       ['Deck cargo', deckWords(room)],
       ['Pots on deck', `${room.pots}`],
+      // (Her fish hold, if she has one: as many fish boxes as stack in it.)
+      ...(holdBoxes() ? [['Fish hold', `${holdBoxes()} fish boxes`] as [string, string]] : []),
     ]),
     figureGroup('machinery', 'Machinery', f.engine.split(',')[0], [
       ['Engine', f.engine],
@@ -1355,6 +1360,11 @@ function showFigures(): void {
 }
 
 /** "21 crates (2.1 t)", or why fewer than there's room for. */
+/** How many fish boxes her fish hold takes (0: none). */
+function holdBoxes(): number {
+  const m = boat.recipe.modules.find((x) => x.module === 'hold.fish');
+  return m ? holdSlots(m.config as unknown as FishHoldConfig).length : 0;
+}
 function deckWords(r: DeckRoom): string {
   const t = `${(r.payloadKg / 1000).toFixed(1)} t payload`;
   return r.crates < r.crateRoom ? `${r.crates} crates (room for ${r.crateRoom}; ${t})` : `${r.crates} crates (${t})`;
