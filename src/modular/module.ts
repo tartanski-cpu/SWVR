@@ -127,7 +127,8 @@ export type GearKind =
 /** What the world's systems need to know about each kind of gear (the boat's axes, m). */
 export interface GearFacts {
   /** Where the towline leaves her: the top of the stern roller. */
-  towPoint: { point: [number, number, number] };
+  /** `point`: where the line pulls on her; `stern`: where it's passed aboard (the roller), if not there (a tug's hook amidships). */
+  towPoint: { point: [number, number, number]; stern?: [number, number, number] };
   /** Where the wire comes off the winch drum. */
   towWinch: { lead: [number, number, number] };
   /** The A-frame: the starboard foot (port is -x) and head, the blocks' x, the brace feet, the control box height. */

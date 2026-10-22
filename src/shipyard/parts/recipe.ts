@@ -23,7 +23,7 @@ import type { FurniturePart } from './furniture';
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart) {
   const { code, d, id } = a;
-  const { aFrame, ac, aft, anchorAt, at, basketAt, bowCleat, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, stem, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
+  const { towHook, aFrame, ac, aft, anchorAt, at, basketAt, bowCleat, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, stem, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
   const recipe = structuredClone(landingCraftRecipe) as unknown as Recipe;
   recipe.id = `vessel.${id}`;
@@ -451,7 +451,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   }
   // The working deck gear (version 10), and a hydraulic pump for whatever needs one.
   if (winchAt) recipe.modules.push({ socket: 'towWinch', module: 'deck.tow-winch' });
-  if (sternRoller) recipe.modules.push({ socket: 'sternRoller', module: 'deck.stern-roller' });
+  // A tug's tow point is her towing hook near amidships (deckGear.ts towHook), not the roller.
+  if (sternRoller) recipe.modules.push({ socket: 'sternRoller', module: 'deck.stern-roller', ...(towHook ? { config: { hook: towHook } } : {}) });
   if (aFrame) recipe.modules.push({ socket: 'aFrame', module: 'deck.a-frame' }, { socket: 'trawl', module: 'fishing.trawl' });
   if (ring) recipe.modules.push({ socket: 'lifeRing', module: 'rescue.life-ring-station', config: { stow: ring.stow, cleat: ring.cleat } }, { socket: 'boatHook', module: 'rescue.boat-hook-rack', config: { stow: ring.hook } });
   if (rodRack) recipe.modules.push({ socket: 'rodRack', module: 'deck.rod-rack', config: rodRack });

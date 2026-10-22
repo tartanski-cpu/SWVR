@@ -10,7 +10,7 @@ import { deckhouseHalfWidth, type DeckhouseLayout } from '../../vessel/deckhouse
 import { MEASURES, SCALES } from '../design';
 import type { Socket } from '../../modular/socket';
 import { halfBreadthAt, type BuildArgs, type V3 } from './common';
-import { facetCentre, frontMullions, type DesignHull } from './catalog';
+import { facetCentre, frontMullions, TUG_HULL, type DesignHull } from './catalog';
 import { hullFormOf } from '../../modular/hull';
 import type { ShipDesign } from '../design';
 import type { HullPart } from './hull';
@@ -90,6 +90,10 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // ── The wheelhouse, within the deck free for it ──
   const queries = () => hullQueries({ hull: shape, layout: { bulwarkHeight, railHeight: 0, deckEdgeMargin: 0.25, bodyRadius: BODY_RADIUS } as LayoutConfig });
   let q = queries();
+  // A tug's wheelhouse is kept forward: its aft end no further aft than near amidships
+  // (CONFIG.shipyard.deckGear.tug), the aft deck clear for her towing hook and the towline.
+  // Placed as any other (housePos), then stopped there if it would lie further aft.
+  const tugAft = d.hull === TUG_HULL ? (stem + transom) / 2 + CONFIG.shipyard.deckGear.tug.houseAftOfMidships * (transom - stem) : Infinity;
   const zAft = transom - base.cockpit;
   const zFwd = stem + base.foredeck + (base.ramp ? 0.6 : 0);
   let houseL = d.houseLength;
@@ -111,7 +115,7 @@ export function housePart(a: BuildArgs, p: HullPart) {
   /** The wheelhouse's own length; `houseL` from here on is the whole house's, saloon and all. */
   const helmL = houseL;
   houseL += saloonL;
-  const aft = zAft - d.housePos * (zAft - zFwd - houseL);
+  const aft = Math.max(zFwd + houseL, Math.min(tugAft, zAft - d.housePos * (zAft - zFwd - houseL)));
   const front = aft - houseL;
   /** Where the wheelhouse ends and the saloon begins (the house's aft, without one). */
   const helmAft = front + helmL;
@@ -377,7 +381,7 @@ export type HousePart = ReturnType<typeof housePart>;
 /** Her bow ramp, if she has one, and her deck layout (the wheelhouse, roof, deckhouse, bulwarks and rails) for walking and drawing. */
 export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
   const { d } = a;
-  const { aft, base, bulwarkHeight, consoleBack, consoleHalf, cx, deckHi, deckhouse, doorHeight, floorY, foredeck, front, grownPlate, q, house, hw, levels, rnd, roofThickness, roofY, saloonDrop, saloonRoof, short, sill, st, stem, steps, wall, warnings, windowHead, windowRake } = p;
+  const { aft, base, bulwarkHeight, consoleBack, consoleHalf, cx, deckhouse, doorHeight, floorY, foredeck, front, grownPlate, q, house, hw, levels, rnd, roofThickness, roofY, saloonDrop, saloonRoof, short, sill, st, stem, steps, wall, warnings, windowHead, windowRake } = p;
 
   // Her bow ramp (the landing craft's), across her square bow.
   const bowHalf = st[st.length - 1].halfBeamDeck;
@@ -413,7 +417,11 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
     layout.deckSteps = treads;
     layout.extraFloors = [...(layout.extraFloors ?? []), ...treads];
   }
-  if (layout.wheelhouse && roofY - deckHi < 1.8) warnings.push('Her wheelhouse roof is low over the deck outside: the doorway will be a squeeze.');
+  // Her door is in the house's aft wall: what counts is the deck you step out onto just aft
+  // of it (not the highest deck under the house, which forward on a hull rising to her bow is
+  // well above it). The side door's own height is worked out below.
+  const doorDeck = Math.max(...[aft, aft + 0.3].map((z) => q.deckY(Math.min(z, st[0].z))));
+  if (layout.wheelhouse && roofY - doorDeck < 1.8) warnings.push('Her wheelhouse roof is low over the deck outside: the doorway will be a squeeze.');
 
   return { bowRamp, layout };
 }

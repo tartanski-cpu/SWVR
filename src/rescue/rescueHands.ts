@@ -210,7 +210,7 @@ export class RescueHands {
       return;
     }
     // The line runs over our stern roller: what we tow must be near enough our stern.
-    if (towReach(ctx.world, key, ctx.vesselId) > lineFor(key).attach) {
+    if (towReach(ctx.world, key, ctx.vesselId, undefined, true) > lineFor(key).attach) {
       ctx.notify(`Too far from our stern: bring the stern roller within ${lineFor(key).attach} m of it.`);
       return;
     }

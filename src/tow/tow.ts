@@ -211,6 +211,15 @@ export function towPostLocal(v: { defId: string }): [number, number, number] {
   return [0, plan.deckY(plan.transom), plan.transom];
 }
 
+/**
+ * Where a line is passed aboard her (vessel axes): her stern roller. The same as her tow
+ * point but on a tug, whose tow point is her towing hook amidships (modules/sternRoller):
+ * how near a tow must be to make fast is measured from here.
+ */
+export function sternLocal(v: { defId: string }): [number, number, number] {
+  return gearOf(v, 'towPoint')?.stern ?? towPostLocal(v);
+}
+
 /** Where the towline comes off her tow winch's drum (vessel axes), or null: no winch. */
 export function winchLeadLocal(v: { defId: string }): [number, number, number] | null {
   return gearOf(v, 'towWinch')?.lead ?? null;
@@ -408,11 +417,11 @@ export function towFast(world: WorldState, boatId?: EntityId): boolean {
  * Distance from a boat's towing post (by default the calls' boat's) to a target's tow point
  * (m), or Infinity: by default what her line is on, else the tow job's vessel.
  */
-export function towReach(world: WorldState, key?: string, boatId?: EntityId, at?: -1 | 0 | 1): number {
+export function towReach(world: WorldState, key?: string, boatId?: EntityId, at?: -1 | 0 | 1, fromStern = false): number {
   const v = towerFor(world, boatId);
   const k = key ?? (v && world.tow?.lines?.[v.id]?.target) ?? (world.tow?.job ? vesselKey(world.tow.job.vesselId) : undefined);
   if (!v || !k) return Infinity;
-  const a = toWorld(v, towPostLocal(v), new THREE.Vector3());
+  const a = toWorld(v, fromStern ? sternLocal(v) : towPostLocal(v), new THREE.Vector3());
   const b = towPoint(world, k, new THREE.Vector3(), v.id, at);
   return b ? a.distanceTo(b) : Infinity;
 }
@@ -422,11 +431,11 @@ export function nearestTowTarget(world: WorldState, boatId?: EntityId): string |
   const job = world.tow?.job;
   const v = towerFor(world, boatId);
   if (!v) return null;
-  if (job?.phase === 'accepted' && job.vesselId !== v.id && towReach(world, vesselKey(job.vesselId), v.id) <= CONFIG.tow.attachRange) return vesselKey(job.vesselId);
+  if (job?.phase === 'accepted' && job.vesselId !== v.id && towReach(world, vesselKey(job.vesselId), v.id, undefined, true) <= CONFIG.tow.attachRange) return vesselKey(job.vesselId);
   let best: string | null = null;
   let bd = Infinity;
   for (const k of towTargets(world, v.id)) {
-    const d = towReach(world, k, v.id);
+    const d = towReach(world, k, v.id, undefined, true);
     if (d <= lineFor(k).attach && d < bd) [best, bd] = [k, d];
   }
   return best;
@@ -851,7 +860,7 @@ export function applyTowIntent(world: WorldState, intent: Intent): void {
       if (job && key === vesselKey(job.vesselId) && job.phase !== 'accepted') break;
       // By the line gun (tow/lineGun.ts; args [1]): made fast at the gun's range, not the hook's.
       const byGun = (intent.args?.[0] ?? 0) > 0.5;
-      if (towReach(world, key, v.id) <= (byGun ? CONFIG.lineGun.range : lineFor(key).attach)) lines[v.id] = newLine(world, key, v.id);
+      if (towReach(world, key, v.id, undefined, true) <= (byGun ? CONFIG.lineGun.range : lineFor(key).attach)) lines[v.id] = newLine(world, key, v.id);
       break;
     }
     case 'towToggle': {
@@ -914,6 +923,6 @@ export function towStatus(world: WorldState, boatId?: EntityId): string | null {
   if (job.phase === 'delivered') return `Tow delivered to ${job.port ?? 'harbour'}`;
   if (towFast(world, boatId)) return isShipJob(job) ? `Towing the ship: into harbour, then cast off and push her onto a quay (${kN})` : `Towing: bring her into any harbour (${kN})`;
   if (job.phase === 'accepted' && towFast(world)) return 'Under tow by another boat: make fast to her bow eye too, to add your pull';
-  const d = towReach(world, undefined, boatId);
+  const d = towReach(world, undefined, boatId, undefined, true);
   return d <= CONFIG.tow.attachRange ? 'Tow alongside: hook her bow eye to make fast' : `Tow adrift ${Math.round(d)} m off: go and get her`;
 }

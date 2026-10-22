@@ -11,7 +11,7 @@ import { lightshipOf } from '../../modular/massProperties';
 import type { Socket } from '../../modular/socket';
 import { BREAKERS } from '../../vessel/vesselState';
 import { atDWL, type BuildArgs, type V3 } from './common';
-import { liveryOf } from './catalog';
+import { liveryOf, TUG_HULL } from './catalog';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
 import type { TrimPart } from './trim';
@@ -31,7 +31,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   // (theirs goes out through their legs). Only through a wheelhouse a pipe can stand in: one
   // at least a metre long and high.
   const esc = CONFIG.shipyard.exhaustStack;
-  const stack = d.hull === 4 && !nOb && aft - front >= 1 && roofTopAt(aft - 0.3) - F >= 1
+  const stack = d.hull === TUG_HULL && !nOb && aft - front >= 1 && roofTopAt(aft - 0.3) - F >= 1
     ? (() => {
         const r = esc.radius;
         const z = rnd(aft - wall - esc.inset - r);
@@ -140,7 +140,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
         extinguisher: [-(hw - 0.2 - portStack), F + 0.58, aft - 0.15],
         // A tug's line-throwing gun (CONFIG.lineGun): on the starboard wall aft, inside.
         // (Forward of the exhaust stack in that corner, if she has one.)
-        ...(d.hull === 4 || singleOnly ? { lineGun: [hw - 0.2, F + 1.0, aft - 0.35 - (stack ? 2 * esc.radius + 0.25 : 0)] as V3 } : {}),
+        ...(d.hull === TUG_HULL || singleOnly ? { lineGun: [hw - 0.2, F + 1.0, aft - 0.35 - (stack ? 2 * esc.radius + 0.25 : 0)] as V3 } : {}),
         torch: [-(hw - 0.45 - portStack), F + 0.68, aft - 0.12],
         binoculars: { at: [-(hw - 0.35), F + 1.35, cf + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
       },
