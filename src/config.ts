@@ -3188,6 +3188,8 @@ export const CONFIG = {
      * that carries it.
      */
     shrink: { beam: 0.65, depth: 0.75 },
+    /** A wheelhouse offset across her (design.houseX): its outer wall kept this far (m) inside her deck edge, clear of her bulwark. */
+    offsetEdge: 0.08,
     /** Windows raked out all round (owner: a tug's or supply vessel's bridge): the side and aft windows lean out this far from vertical (deg), from their sill up to the roof. */
     flareDeg: 15,
     /** The roof's visor: how far it reaches forward of the top of the front windows (m), overlapping them. One set length now (owner: no slider for it; it was 0.15 to 0.75). */
@@ -3868,6 +3870,13 @@ export const CONFIG = {
     heldTau: 0.08,
     grabRange: 0.2,
     lens: [0, 0.035, -0.08] as [number, number, number],
+    /**
+     * The grab camera held in a VR hand (player/cameraHold.ts): tilted this far forward
+     * (deg, about the hand's own side-to-side axis) from the controller's grip axis, which
+     * runs up out of the fist. Without it the camera looked at the ceiling with its body
+     * rotated back (owner, Oct 2026: "rotate it 85 degrees forward"). Negative tilts down.
+     */
+    holdPitchDeg: -85,
     preview: { width: 192, height: 108, rate: 12, far: 400, size: 0.13, above: 0.1 },
   },
 

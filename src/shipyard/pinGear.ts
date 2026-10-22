@@ -73,6 +73,8 @@ export interface HouseBox {
   front: number;
   aft: number;
   halfWidth: number;
+  /** Its middle across her (m, + starboard: an offset wheelhouse's; unset, her centreline). */
+  x?: number;
 }
 
 /**
@@ -85,7 +87,7 @@ export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox |
   const [x, , z] = p;
   const mid = house ? (house.front + house.aft) / 2 : 0;
   const fore = z < mid;
-  const roof = !!house && Math.abs(x) < house.halfWidth && z > house.front && z < house.aft;
+  const roof = !!house && Math.abs(x - (house.x ?? 0)) < house.halfWidth && z > house.front && z < house.aft;
   if (eq.how === 'grid' && eq.key) {
     const base = eq.field === 'deckCrane' ? (fore ? 1 : 2) : eq.field === 'towWinch' ? 1 : roof ? 1 : fore ? 2 : 3;
     const face = eq.field === 'deckCrane' && !fore ? 2 : 0;

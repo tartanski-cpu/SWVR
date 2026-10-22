@@ -20,7 +20,7 @@ import type { PlacesPart } from './places';
 /** Her deck gear, each piece where it stands, clear of what's already placed: the winch, the A-frame, the deck crane, the skiff and its crane, the searchlight and fire monitor, the fender basket, the anchor. */
 export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart) {
   const { d } = a;
-  const { aft, at, bowCleat, bowRamp, cg, cleat, deckMid, deckhouse, foreEndAt, front, gyradius, hw, mass, midCleat, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, sternCleat, transom, warnings, wl } = p;
+  const { aft, at, bowCleat, bowRamp, cg, cleat, deckMid, deckhouse, foreEndAt, front, gyradius, hw, hx, mass, midCleat, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, sternCleat, transom, warnings, wl } = p;
   // ── Hull definition ──
   const weighed = { massKg: mass, cg, inertia: inertiaFromGyradius(mass, gyradius) };
   const freeboard = deckMid;
@@ -86,7 +86,8 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const poleShape: Rect[] = [{ x0: -dp.box.width / 2 - 0.05, x1: dp.box.width / 2 + 0.05, z0: -0.12, z1: dp.box.depth + 0.45 }];
   // The house in plan with a margin, and its door's steps aft.
   const dhW = deckhouse ? Math.max(...deckhouse.plan.map(([, w]) => w)) : 0;
-  const houseRect: Rect = { x0: -Math.max(hw, dhW) - 0.3, x1: Math.max(hw, dhW) + 0.3, z0: foreEndAt - 0.3, z1: aft + 0.7 };
+  // (Across from its middle: a wheelhouse offset across her stands at `hx`; a deckhouse keeps it on her centreline.)
+  const houseRect: Rect = { x0: hx - Math.max(hw, dhW) - 0.3, x1: hx + Math.max(hw, dhW) + 0.3, z0: foreEndAt - 0.3, z1: aft + 0.7 };
   /** The forward end of what stands on her deck amidships: the deckhouse's front, or the wheelhouse's. */
   const foreEnd = foreEndAt;
   const onDeck = (r: Rect) => r.z0 > bowClear && r.z1 < transom - 0.15 && [r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15);
@@ -129,14 +130,14 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   }
   // The roof: its edges, the masthead light's pole and the horn, and what's already on it.
   const roofTaken: [number, number, number][] = [
-    [0, roofFront + 0.475, 0.45],
-    [0, roofFront + 0.775, 0.3],
+    [hx, roofFront + 0.475, 0.45],
+    [hx, roofFront + 0.775, 0.3],
     // The deck floods (advanced controls).
     ...(d.controls ? ([at.floodFore, at.floodAft].map(([x, , z]) => [x, z, wl.flood.keepClear]) as [number, number, number][]) : []),
   ];
-  const onRoof = (x: number, z: number) => Math.abs(x) < hw && z > front && z < aft;
+  const onRoof = (x: number, z: number) => Math.abs(x - hx) < hw && z > front && z < aft;
   // (Not on the step down to a lower saloon roof.)
-  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 + sb(Math.abs(x) + 0.2) && z <= aft - 0.2 && (!saloonRoof || Math.abs(z - saloonRoof.z) >= 0.3) && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
+  const standsOnRoof = (x: number, z: number) => Math.abs(x - hx) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 + sb(Math.abs(x - hx) + 0.2) && z <= aft - 0.2 && (!saloonRoof || Math.abs(z - saloonRoof.z) >= 0.3) && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
   /** The pinned cell, or the nearest within a metre where `stands` (x, z: boat axes); null if none. */
   const seat = (key: PlaceKey, stands: (x: number, z: number, face: number) => boolean): { x: number; z: number; face: number; moved: boolean } | null => {
     const p = placeOf(key, d[key]);
@@ -259,8 +260,8 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     // Its own check (the cradle is long): inside her beam at each end and the middle, 0.5 m
     // clear of the stem and 0.15 of the transom, clear of the house itself and of its aft
     // doorway (and the steps there, if any), and of her other gear.
-    const body: Rect = { x0: -Math.max(hw, dhW) - 0.2, x1: Math.max(hw, dhW) + 0.2, z0: foreEnd - 0.2, z1: aft + 0.15 };
-    const doorway: Rect = { x0: -0.6, x1: 0.6, z0: aft, z1: aft + 0.3 + Math.max(0, ...steps.map((st) => st.z1 - aft)) };
+    const body: Rect = { x0: hx - Math.max(hw, dhW) - 0.2, x1: hx + Math.max(hw, dhW) + 0.2, z0: foreEnd - 0.2, z1: aft + 0.15 };
+    const doorway: Rect = { x0: hx - 0.6, x1: hx + 0.6, z0: aft, z1: aft + 0.3 + Math.max(0, ...steps.map((st) => st.z1 - aft)) };
     const fits = (r: Rect) =>
       r.z0 > stem + 0.5 && r.z1 < transom - 0.15 && [r.z0, (r.z0 + r.z1) / 2, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15) && !overlaps(r, body) && !overlaps(r, doorway) && !taken.some((o) => overlaps(o, r));
     const zs: number[] = [];
@@ -332,7 +333,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   // On the roof: the searchlight forward on the centreline, the monitor centred aft of the
   // masthead light's pole, clear of its barrel's swing; or where they're placed.
   const lampRoof: V3 = lampHand.roof ? [lampHand.roof[0], r2(roofTopAt(lampHand.roof[1]) + 0.13), lampHand.roof[1]] : at.searchlight;
-  const monitorRoof: V3 = monitorHand.roof ? [monitorHand.roof[0], r2(roofTopAt(monitorHand.roof[1]) + 0.38), monitorHand.roof[1]] : [0, roofTopAt(0) + 0.38, r2(Math.min(roofFront + 1.25, aft - 0.3))];
+  const monitorRoof: V3 = monitorHand.roof ? [monitorHand.roof[0], r2(roofTopAt(monitorHand.roof[1]) + 0.38), monitorHand.roof[1]] : [hx, roofTopAt(0) + 0.38, r2(Math.min(roofFront + 1.25, aft - 0.3))];
   /** Where a deck piece is, in words: "Foredeck, port", "Aft deck, centreline". */
   const deckWords = (p: V3) => `${p[2] < front ? 'Foredeck' : p[2] > aft ? 'Aft deck' : 'Side deck'}, ${Math.abs(p[0]) < 0.2 ? 'centreline' : p[0] < 0 ? 'port' : 'starboard'}`;
 
@@ -384,7 +385,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
       const rect: Rect = bowRamp ? { x0: x - 0.25, x1: x + 0.25, z0: z - ac.kedgeAft - 0.15, z1: z } : { x0: -0.25, x1: 0.25, z0: z, z1: z + awc.aft + 0.15 };
       // Clear of the house and of its aft door's steps (only the doorway: the margin the
       // other gear keeps round the house is more than a windlass needs).
-      const clearOfHouse = !overlaps(rect, { ...houseRect, z1: aft + 0.15 }) && !overlaps(rect, { x0: -0.6, x1: 0.6, z0: aft, z1: aft + 0.8 });
+      const clearOfHouse = !overlaps(rect, { ...houseRect, z1: aft + 0.15 }) && !overlaps(rect, { x0: hx - 0.6, x1: hx + 0.6, z0: aft, z1: aft + 0.8 });
       if (!clearOfHouse || taken.some((o) => overlaps(o, rect))) continue;
       anchorAt = { at: [r2(x), r2(q.bulwarkTop(z)), r2(z)], yaw: bowRamp ? 180 : 0 };
       taken.push(rect);
@@ -446,14 +447,15 @@ export type DeckGearPart = ReturnType<typeof deckGearPart>;
 /** What hangs on the wheelhouse outside: the life ring and the boat-hook clips, the fishing rods' rack. */
 export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart) {
   const { d } = a;
-  const { F, FA, aft, bulwarkHeight, cleat, deckhouse, dg, front, hw, q, r2, sideDoor, sill, sternCleat, warnings } = p;
+  const { F, FA, aft, bulwarkHeight, cleat, deckhouse, dg, front, hw, hx, q, r2, sideDoor, sill, sternCleat, warnings } = p;
   // The life ring on the house's aft wall at the chosen side, its line made fast to that
   // quarter's cleat; the boat-hook clips along that bulwark, aft.
   const ringSide = d.lifeRing === 1 ? -1 : d.lifeRing === 2 ? 1 : 0;
   const ring = ringSide
     ? {
         // At hand height off the deck (on the deckhouse's aft face if she has one, the house's floor being up on it).
-        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(Math.min((deckhouse ? q.deckY(aft) : FA) + 1.15, F + sill - 0.3)), r2(aft + 0.06)] as V3,
+        // (Across from the house's middle: an offset house's, `hx`.)
+        stow: [r2(hx + ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(Math.min((deckhouse ? q.deckY(aft) : FA) + 1.15, F + sill - 0.3)), r2(aft + 0.06)] as V3,
         cleat: cleat(ringSide, sternCleat),
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
@@ -472,17 +474,18 @@ export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     // The side wall: the row's middle, aft of the door if the port door is there.
     let zc = aft - 0.9 - rackRow / 2;
     if (onSide && rodSide < 0 && sideDoor && zc - rackRow / 2 - 0.3 < sideDoor.z1 && zc + rackRow / 2 + 0.3 > sideDoor.z0) zc = sideDoor.z0 - 0.4 - rackRow / 2;
-    if (onSide && (q.halfBeam(zc) - hw < 0.25 || zc - rackRow / 2 < front + 0.2)) {
+    // (Its side deck: from that wall, `hx` across from her centreline, out to her deck edge.)
+    if (onSide && (q.halfBeam(zc) - hw - rodSide * hx < 0.25 || zc - rackRow / 2 < front + 0.2)) {
       warnings.push(`No room on the ${rodSide < 0 ? 'port' : 'starboard'} side deck for the rod rack: it's on the aft wall.`);
       onSide = false;
     }
     const rods: V3[] = [];
     if (onSide) {
-      const x = rodSide * (hw + 0.09);
+      const x = hx + rodSide * (hw + 0.09);
       for (let i = 0; i < rc.perRack; i++) rods.push([r2(x), r2(q.deckY(zc) + 0.02), r2(zc - rackRow / 2 + i * rc.spacing)]);
-      rodRack = { rods, yawDeg: rodSide * 90, bucket: [r2(rodSide * (hw + 0.25)), r2(q.deckY(zc + rackRow / 2 + 0.45)), r2(zc + rackRow / 2 + 0.45)], side: rodSide };
+      rodRack = { rods, yawDeg: rodSide * 90, bucket: [r2(hx + rodSide * (hw + 0.25)), r2(q.deckY(zc + rackRow / 2 + 0.45)), r2(zc + rackRow / 2 + 0.45)], side: rodSide };
     } else {
-      const xc = rodSide * Math.max(0.55 + rackRow / 2, hw - 0.3 - rackRow / 2);
+      const xc = hx + rodSide * Math.max(0.55 + rackRow / 2, hw - 0.3 - rackRow / 2);
       const y = r2((deckhouse ? q.deckY(aft + 0.1) : q.deckY(aft + 0.1)) + 0.02);
       for (let i = 0; i < rc.perRack; i++) rods.push([r2(xc - rodSide * rackRow / 2 + rodSide * i * rc.spacing), y, r2(aft + 0.09)]);
       rodRack = { rods, yawDeg: 0, bucket: [r2(xc + rodSide * (rackRow / 2 + 0.4)), r2(q.deckY(aft + 0.3)), r2(aft + 0.3)], side: rodSide };

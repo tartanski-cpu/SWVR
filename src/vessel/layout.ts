@@ -16,7 +16,7 @@ import { deckhouseLadderZone, inDeckhouse, onDeckhouseTop } from './deckhouse';
 import { gearOf } from '../boats/sims';
 import type { GearFootprint } from '../modular/module';
 import type { HullForm } from './hullForm';
-import { houseFloorAt, houseRoofAt, planHalfWidth, wingCurveY, type VesselDef } from './vesselDef';
+import { houseFloorAt, houseRoofAt, houseX, planHalfWidth, wingCurveY, type VesselDef } from './vesselDef';
 
 export interface Ladder {
   bottom: number;
@@ -151,7 +151,12 @@ function houseWalk(
   live: { leafFolded(): boolean },
 ): HouseWalk {
   const r = layout.bodyRadius;
-  // House boxes (x is symmetric about the centreline). A shaped house's front below the
+  // Where the house stands across her (houseX; a Shipyard house can stand off her centreline):
+  // its walls, door, steps, console and floor holes are in its own frame, so a point is taken
+  // across from its middle (`L`) for those; her gear and the chart table are in her axes.
+  const hx = houseX(wh);
+  const L = (x: number) => x - hx;
+  // House boxes (x is symmetric about the house's middle). A shaped house's front below the
   // windows leans forward (to the windows' foot): the deck is kept clear of all of it.
   const sh = wh.shape;
   const ahead = sh ? Math.max(0, wh.floorY + (wh.frontSill ?? wh.windowSill) - sh.lowerFromY) * Math.tan((sh.lowerRakeDeg * Math.PI) / 180) : 0;
@@ -171,8 +176,8 @@ function houseWalk(
   const floorAt = (z: number) => houseFloorAt(wh, Math.min(Math.max(z, wh.front), wh.aft));
   // Openings in the house floor (a companionway): the floor isn't there, to half a body in.
   const holes = wh.floorHoles ?? [];
-  const inHole = (x: number, z: number) => holes.some((o) => x > o.x0 - r * 0.5 && x < o.x1 + r * 0.5 && z > o.z0 - r * 0.5 && z < o.z1 + r * 0.5);
-  const inFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
+  const inHole = (x: number, z: number) => holes.some((o) => L(x) > o.x0 - r * 0.5 && L(x) < o.x1 + r * 0.5 && z > o.z0 - r * 0.5 && z < o.z1 + r * 0.5);
+  const inFootprint = (x: number, z: number) => Math.abs(L(x)) <= ext.x && z >= ext.z0 && z <= ext.z1;
   // A floor sunk more than a step below the deck at the door (a Shipyard design's): steps inside.
   const deepSunk = deckY(ext.z1) - floorAt(ext.z1) > 0.35;
   // Furniture on the helm house's floor: the chart table (if she has one: a module, its plan
@@ -193,10 +198,10 @@ function houseWalk(
   const steps = wh.steps ?? [];
   const stepsZ0 = Math.min(...steps.map((st) => st.z0));
   const stepsZ1 = Math.max(...steps.map((st) => st.z1));
-  const inSteps = (x: number, z: number) => steps.length > 0 && Math.abs(x) <= doorHalf + r * 0.5 && z >= stepsZ0 && z <= stepsZ1;
+  const inSteps = (x: number, z: number) => steps.length > 0 && Math.abs(L(x)) <= doorHalf + r * 0.5 && z >= stepsZ0 && z <= stepsZ1;
 
   return {
-    near: (x, z) => Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r,
+    near: (x, z) => Math.abs(L(x)) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r,
     inSteps,
     inFootprint,
     inLadder,
@@ -208,10 +213,10 @@ function houseWalk(
         height: (_x, z) => floorAt(z),
         contains: (x, z) =>
           // (Clear of her gear standing on it: furniture, a stack's casing; module footprints at this floor's height.)
-          (Math.abs(x) <= int.x - r && z >= (byConsole(x, r) ? consoleAftAt(Math.abs(x) + r) + r : int.z0 + r) && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z) && !onGear(gear, x, z, r, floorAt(z))) ||
-          (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
+          (Math.abs(L(x)) <= int.x - r && z >= (byConsole(L(x), r) ? consoleAftAt(Math.abs(L(x)) + r) + r : int.z0 + r) && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z) && !onGear(gear, x, z, r, floorAt(z))) ||
+          (Math.abs(L(x)) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
           // The port side door, out to the side deck.
-          (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
+          (!!sd && L(x) < -int.x + r + 0.02 && L(x) > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
       },
       {
         // The roof inside its rail, around what stands on it (the mast), plus the landing at
@@ -220,7 +225,7 @@ function houseWalk(
         contains: (x, z) => {
           if (!lad) return false;
           const m = roof.edgeMargin;
-          const onRoof = Math.abs(x) <= ext.x + roof.overhang - m && z >= ext.z0 - roof.overhang + m && z <= ext.z1 - m;
+          const onRoof = Math.abs(L(x)) <= ext.x + roof.overhang - m && z >= ext.z0 - roof.overhang + m && z <= ext.z1 - m;
           const landing = Math.abs(x - lad.x) <= lad.width / 2 && z > ext.z1 - 0.5 && z <= ext.z1 + 0.05;
           return (onRoof && !onGear(gear, x, z, 0, roofTop)) || landing;
         },
@@ -228,7 +233,7 @@ function houseWalk(
       // A deep sunk floor's threshold: the doorway at the deck's height, its steps inside.
       {
         height: (_x, z) => deckY(Math.max(z, ext.z1)),
-        contains: (x, z) => deepSunk && Math.abs(x) <= doorHalf - r * 0.6 && z >= int.z1 && z < ext.z1 + r + 0.02,
+        contains: (x, z) => deepSunk && Math.abs(L(x)) <= doorHalf - r * 0.6 && z >= int.z1 && z < ext.z1 + r + 0.02,
       },
     ],
     // The steps' treads, their full width (and as far out as the deck and floor are kept off
@@ -236,11 +241,11 @@ function houseWalk(
     steps: steps.map(
       (st): Surface => ({
         height: () => st.y,
-        contains: (x, z) => Math.abs(x) <= doorHalf + r * 0.5 && z >= st.z0 && z <= st.z1,
+        contains: (x, z) => Math.abs(L(x)) <= doorHalf + r * 0.5 && z >= st.z0 && z <= st.z1,
       }),
     ),
     solid(x, y, z) {
-      const ax = Math.abs(x);
+      const ax = Math.abs(L(x));
       if (y < floorAt(z) - 0.15) return true; // below the house floor
       // (A lower saloon roof aft of its step: houseRoofAt.)
       const under = houseRoofAt(wh, z);
@@ -250,12 +255,12 @@ function houseWalk(
       if (inInterior) {
         // The helm console across the front, and the furniture.
         if (atFurniture(x, z, 0, y)) return true;
-        return byConsole(x, 0) && z < consoleAftAt(x) && y < wh.floorY + wh.consoleHeight;
+        return byConsole(L(x), 0) && z < consoleAftAt(L(x)) && y < wh.floorY + wh.consoleHeight;
       }
       // In a wall: the doorway and window band are open.
       const hy = y - floorAt(z);
       if (z >= int.z1 && ax < doorHalf && hy < wh.doorHeight) return false;
-      if (sd && x < 0 && z > sd.z0 && z < sd.z1 && hy < sd.height) return false; // the port side doorway
+      if (sd && L(x) < 0 && z > sd.z0 && z < sd.z1 && hy < sd.height) return false; // the port side doorway
       // The front's glass starts higher (frontSill, level with the dash top).
       const raise = wh.sideRaise;
       const sillHere = z < int.z0 ? (wh.frontSill ?? wh.windowSill) : raise && z < raise.z1 ? raise.height : wh.windowSill;

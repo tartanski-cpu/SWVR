@@ -22,7 +22,7 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 /** Her hull definition: the exhaust stacks, every socket (the places her modules go), her rescue places, what she can carry, her handling, windage and fittings. */
 export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart) {
   const { code, d, id } = a;
-  const { F, aft, at, batteriesKg, beamDeck, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, shaftOnly, sideDoor, st, stem, transom, twin, tyres, wall, weighed, wheelhouseSockets } = p;
+  const { F, aft, at, batteriesKg, hx, beamDeck, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, shaftOnly, sideDoor, st, stem, transom, twin, tyres, wall, weighed, wheelhouseSockets } = p;
   // A tug's dry exhaust stacks (owner, Oct 2026; CONFIG.shipyard.exhaustStack): one per
   // engine, each in an aft corner of the wheelhouse (starboard; a twin's second to port), from
   // under the floor (down to her engine space) up through the roof and well over it, raked aft
@@ -137,12 +137,13 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
         : { position: [0.55, 0.2, transom + 0.05], direction: [0, -0.12, 1] },
       stowage: {
         // (Inboard of a twin's port exhaust stack, in that corner.)
-        extinguisher: [-(hw - 0.2 - portStack), F + 0.58, aft - 0.15],
+        // (Across from the house's middle: an offset house's, `hx`.)
+        extinguisher: [hx - (hw - 0.2 - portStack), F + 0.58, aft - 0.15],
         // A tug's line-throwing gun (CONFIG.lineGun): on the starboard wall aft, inside.
         // (Forward of the exhaust stack in that corner, if she has one.)
-        ...(d.hull === TUG_HULL || shaftOnly ? { lineGun: [hw - 0.2, F + 1.0, aft - 0.35 - (stack ? 2 * esc.radius + 0.25 : 0)] as V3 } : {}),
-        torch: [-(hw - 0.45 - portStack), F + 0.68, aft - 0.12],
-        binoculars: { at: [-(hw - 0.35), F + 1.35, cf + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
+        ...(d.hull === TUG_HULL || shaftOnly ? { lineGun: [hx + hw - 0.2, F + 1.0, aft - 0.35 - (stack ? 2 * esc.radius + 0.25 : 0)] as V3 } : {}),
+        torch: [hx - (hw - 0.45 - portStack), F + 0.68, aft - 0.12],
+        binoculars: { at: [hx - (hw - 0.35), F + 1.35, cf + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
       },
       livery: liveryOf(d),
       ...(rescueGear ? { rescueGear } : {}),

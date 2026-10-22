@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
-import { frontMullions, houseFloorAt, houseFloorLow, housesOf, planHalfWidth, wingCurveY, type CabinBelow, type Livery } from '../vesselDef';
+import { frontMullions, houseFloorAt, houseFloorLow, housesOf, houseX, planHalfWidth, wingCurveY, type CabinBelow, type Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
@@ -143,7 +143,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const deckHatch = layout.engineHatch?.y !== undefined ? layout.engineHatch : undefined;
   const holdHatch = layout.fishHold?.hatch;
   const deckCuts = [
-    ...cuts.map((c) => ({ front: c.front, aft: c.aft, zs: c.zs ?? [], inner: (side: number, z: number) => side * c.halfWidth(z) })),
+    ...cuts.map((c) => ({ front: c.front, aft: c.aft, zs: c.zs ?? [], inner: (side: number, z: number) => (c.x ?? 0) + side * c.halfWidth(z) })),
     ...(deckHatch ? [{ front: deckHatch.z0, aft: deckHatch.z1, zs: [] as number[], inner: (side: number) => (side < 0 ? deckHatch.x0 : deckHatch.x1) }] : []),
     // ...and a fish hold's hatch (modules/fishHold: its coaming stands round the opening).
     ...(holdHatch ? [{ front: holdHatch.z0, aft: holdHatch.z1, zs: [] as number[], inner: (side: number) => (side < 0 ? holdHatch.x0 : holdHatch.x1) }] : []),
@@ -270,6 +270,8 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       const low = Math.min(0.9, houseFloorLow(wh) - 0.15);
       // (With a cabin below under it, P2c: from its floor's underside, so they don't stand across the cabin.)
       const base = k === 0 && layout.cabin ? Math.max(low, wh.floorY - 0.12) : sunkHere ? low : Math.max(low, deckLo - 0.06);
+      // (Built in the house's own frame, then moved across to where it stands: houseX.)
+      const from = parts.length;
       if (wh.shell === 'oneOff') {
         // Her own walls, floors, console body and roof (boats/oneOffViews.ts): nothing here.
       } else parts.push(...(wh.shape ? buildShapedHouse(own, col, base) : buildWheelhouse(own, col, base)));
@@ -281,6 +283,8 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       for (const st of wh.steps ?? []) parts.push(box(-d, d, foot, st.y, st.z0, st.z1, col.deck, 'nonSlip'));
       // Stepping down into a sunken cabin: the step's face, from the deck down to the door sill.
       if (sunkHere) parts.push(box(-d, d, doorFloor, plan.deckY(wh.aft), wh.aft, wh.aft + 0.03, col.deck));
+      const hx = houseX(wh);
+      if (hx) for (let j = from; j < parts.length; j++) parts[j].translate(hx, 0, 0);
     }
   }
   return parts;
@@ -494,10 +498,10 @@ export function sunkenHouse(form: HullForm, layout: LayoutConfig): { front: numb
 }
 
 /** Where the deck is cut away for her houses (P2a: every house sunk below the deck; the helm's, `house` 0, with any deck opening forward of it). */
-export function sunkenHouses(form: HullForm, layout: LayoutConfig): { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number; zs?: number[] }[] {
+export function sunkenHouses(form: HullForm, layout: LayoutConfig): { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number; zs?: number[]; x?: number }[] {
   const plan = hullPlan({ hull: form });
-  // (`zs`: where its edge bends, a plan's points, so the deck's cut edge follows it.)
-  const out: { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number; zs?: number[] }[] = [];
+  // (`zs`: where its edge bends, a plan's points, so the deck's cut edge follows it; `x`: a house standing off her centreline, its middle.)
+  const out: { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number; zs?: number[]; x?: number }[] = [];
   for (const [k, wh] of housesOf(layout).entries()) {
     const helm = k === 0 && !!layout.wheelhouse;
     const deck = Math.max(plan.deckY(wh.front), plan.deckY(wh.aft));
@@ -510,7 +514,7 @@ export function sunkenHouses(form: HullForm, layout: LayoutConfig): { house: num
       out.push({ house: k, helm, front: plan[0][0], aft: plan[plan.length - 1][0], halfWidth: (z) => planHalfWidth(plan, z), zs: plan.map(([z]) => z) });
       if (houseFloorLow(wh) < deck) out.push({ house: k, helm: false, front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth });
     } else if (op) out.push({ house: k, helm, front: Math.min(wh.front, op.front), aft: wh.aft, halfWidth: (z) => (z < wh.front ? Math.max(0.2, plan.halfBeam(z) - op.inset) : wh.halfWidth) });
-    else if (houseFloorLow(wh) < deck) out.push({ house: k, helm, front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth });
+    else if (houseFloorLow(wh) < deck) out.push({ house: k, helm, front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth, ...(houseX(wh) ? { x: houseX(wh) } : {}) });
   }
   return out;
 }
@@ -1043,7 +1047,10 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
   const hw = wh.halfWidth;
   const w = wh.wall;
   // (A hatch in the deck instead, at its own height `y`, is the hull's: buildVesselMeshParts.)
-  const eh = layout.engineHatch?.y === undefined ? layout.engineHatch : undefined;
+  // The hatch is in her axes, the house drawn in its own frame (houseX): taken across into it.
+  const her = layout.engineHatch?.y === undefined ? layout.engineHatch : undefined;
+  const hx = houseX(wh);
+  const eh = her && hx ? { ...her, x0: her.x0 - hx, x1: her.x1 - hx, ...(her.space ? { space: { x0: her.space.x0 - hx, x1: her.space.x1 - hx } } : {}) } : her;
   const fx0 = -hw + w;
   const fx1 = hw - w;
   // A faceted front (facetDz): the floor from aft of its corners, and forward of that a

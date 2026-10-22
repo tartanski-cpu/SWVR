@@ -87,6 +87,8 @@ export interface DesignHull {
   name: string;
   /** Her form, scaled (length, beam and depth factors), with her bow (its step: SCALES.bow, the stem's rake). */
   form(L: number, B: number, D: number, bow: number, sheer: number, forecastle?: { from: number; raise: number }): HullDefinition['form'];
+  /** Her wheelhouse can be offset across her (design.houseX; owner, Oct 2026: the landing craft's, a narrow one to port or starboard). */
+  offsetHouse?: boolean;
   /** A raised foredeck can be chosen (design.fcLength; owner, Oct 2026: the fishing boat, then the tug). */
   raisedForedeck?: boolean;
   /**
@@ -260,6 +262,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     regime: 'planing',
     ramp: true,
     landingBow: true,
+    offsetHouse: true,
     cockpit: 1.0,
     foredeck: 1.6,
     defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 }),

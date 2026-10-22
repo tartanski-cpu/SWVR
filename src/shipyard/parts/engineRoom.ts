@@ -201,12 +201,13 @@ export type MachineryPart = ReturnType<typeof machineryPart>;
 /** The engine hatch and the space under it, now the deck gear has its places: in the deck or the cabin floor over most of the engine, the dipstick by it. */
 export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart) {
   const { d } = a;
-  const { aft, at, bowRamp, cf, craneAt, deckhouse, ehc, engHalf, engMid, engTopAt, engX, engZ0, engZ1, floorY, foreEndAt, helmAft, hw, inside, layout, nSteps, outboards, pods, q, rise, rnd, rudderPos, saloonDrop, sd, shape, skiffAt, stem, taken, transom, tread, twin, wall, winchAt } = p;
+  const { aft, at, bowRamp, cf, craneAt, deckhouse, ehc, engHalf, engMid, engTopAt, engX, engZ0, engZ1, floorY, foreEndAt, helmAft, hw, hx, inside, layout, nSteps, outboards, pods, q, rise, rnd, rudderPos, saloonDrop, sd, shape, skiffAt, stem, taken, transom, tread, twin, wall, winchAt } = p;
   // Her engine hatch (planned above, with the engine), now the deck gear has its places.
   const ctabW = d.chartTable ? CONFIG.modules.chartTable.width + 0.1 : 0;
   const zones: HatchZone[] = [];
   // (In the wheelhouse's floor: a saloon a step down has its own, at another height.)
-  if (!deckhouse) zones.push({ floor: true, z0: cf + 0.5 + ehc.helmRoom, z1: saloonDrop ? helmAft - 0.05 : aft - wall - inside - 0.05, x0: () => -(hw - wall) + 0.05 + ctabW, x1: () => hw - wall - 0.05 });
+  // (In her axes: an offset house's floor is across from its middle, `hx`.)
+  if (!deckhouse) zones.push({ floor: true, z0: cf + 0.5 + ehc.helmRoom, z1: saloonDrop ? helmAft - 0.05 : aft - wall - inside - 0.05, x0: () => hx - (hw - wall) + 0.05 + ctabW, x1: () => hx + hw - wall - 0.05 });
   const houseZ0 = foreEndAt - 0.3;
   const houseZ1 = aft + Math.max(0.7, (rise > 0 ? nSteps * tread : 0) + 0.3);
   const deckX = (z: number) => q.halfBeam(z) - ehc.deckMargin;
@@ -240,7 +241,7 @@ export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPa
   };
   const spot = zones.flatMap(hatchesIn).sort((a, b) => b.over - a.over || a.off - b.off)[0];
   // (Never without one in practice: a hull too short for any of these keeps it in the cabin floor, aft to starboard.)
-  const hs = spot ?? { zone: zones[0] ?? { floor: true }, x0: 0.15, x1: Math.min(0.85, hw - 0.2), z0: aft - 1.125 - inside, z1: aft - 0.325 - inside };
+  const hs = spot ?? { zone: zones[0] ?? { floor: true }, x0: hx + 0.15, x1: hx + Math.min(0.85, hw - 0.2), z0: aft - 1.125 - inside, z1: aft - 0.325 - inside };
   const hatchZ = (hs.z0 + hs.z1) / 2;
   /** The hatch's top: the cabin floor, or the deck there. */
   const hatchTop = hs.zone.floor ? floorY : q.deckY(hatchZ);
@@ -259,10 +260,12 @@ export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPa
   // The space: across both engines of a twin (each on its own shaft, either side), otherwise
   // the hatch's own width; no wider than her hull inside at the floor plates (less a frame).
   // (In the cabin floor, inside the house's walls too: its walls stand on the floor's edge.)
-  const roomHalf = Math.min(insideHalf(hs.z0, soleY), insideHalf(hs.z1, soleY), hs.zone.floor ? hw - wall : 99) - 0.05;
+  const roomHalf = Math.min(insideHalf(hs.z0, soleY), insideHalf(hs.z1, soleY)) - 0.05;
   const span = twin && !outboards ? engX + engHalf + ehc.sideRoom : 0;
-  const sx0 = Math.max(-roomHalf, Math.min(hs.x0, -span));
-  const sx1 = Math.min(roomHalf, Math.max(hs.x1, span));
+  // (In the cabin floor, inside the house's walls too: across from its middle, `hx`.)
+  const [lo, hi] = hs.zone.floor ? [Math.max(-roomHalf, hx - (hw - wall) + 0.05), Math.min(roomHalf, hx + hw - wall - 0.05)] : [-roomHalf, roomHalf];
+  const sx0 = Math.max(lo, Math.min(hs.x0, -span));
+  const sx1 = Math.min(hi, Math.max(hs.x1, span));
   const eh = {
     x0: rnd(Math.max(hs.x0, sx0)),
     x1: rnd(Math.min(hs.x1, sx1)),
