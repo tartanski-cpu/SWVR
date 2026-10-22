@@ -14,8 +14,8 @@ describe('the brief', () => {
     expect(b.jobs).toEqual([]);
     expect(b.hull).toBeNull();
     expect(b.gmM).toBeGreaterThan(0);
-    // Four engines, single and twin, but the tug diesel only single.
-    expect(engineOptions()).toHaveLength(7);
+    // Four engines, single and twin (the tug diesel too, since the owner asked for more power for the tugs).
+    expect(engineOptions()).toHaveLength(8);
   });
 
   it('a bare hull: the type’s layout and no deck gear (it’s pinned on her)', () => {

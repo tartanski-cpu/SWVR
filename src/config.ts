@@ -3116,6 +3116,15 @@ export const CONFIG = {
      * aft of the house's aft wall (more for a raised cabin floor's door steps).
      */
     foredeck: { stepRise: 0.3, tread: 0.2, clear: 0.3, width: 0.6, fromSide: 0.3, rail: 0.9, landing: 0.6 },
+    /**
+     * A hull that shrinks below its base size (catalog.ts `shrinksTo`; owner, Oct 2026: "a
+     * really tiny tug"): her beam and her depth shrink with her length, each to its power (a
+     * length factor of 0.54 takes her beam to 0.67 and her depth to 0.63: a small tug is
+     * relatively beamier and deeper than a big one, for her stability and her engine). Her
+     * ballast scales with her hull's volume (length × beam × depth factors) for every hull
+     * that carries it.
+     */
+    shrink: { beam: 0.65, depth: 0.75 },
     /** Windows raked out all round (owner: a tug's or supply vessel's bridge): the side and aft windows lean out this far from vertical (deg), from their sill up to the roof. */
     flareDeg: 15,
     /** The roof's visor: how far it reaches forward of the top of the front windows (m), overlapping them. One set length now (owner: no slider for it; it was 0.15 to 0.75). */
@@ -3156,7 +3165,11 @@ export const CONFIG = {
      * reach: the rim is 0.22 m, but the panel lies further from the eye than the wheel, so seen
      * from the helm the rim covers about 1.4 times that, and a switch's half width more);
      * closer together if there isn't room, but never under `minPitch` m apart (then the
-     * nearest group to the wheel reaches in under it).
+     * nearest group to the wheel reaches in under it). On a console too short for that, the
+     * groups use the panel in front of the wheel too (owner, Oct 2026: on a narrow console
+     * "those buttons ... could be placed on the empty part of the console in front of the
+     * wheel"): each side's groups up to `centreClear` m from the middle, the horn with the
+     * port side's; only what still doesn't fit goes up onto the dash face (faceSwitchOrder).
      */
     /**
      * A tug's dry exhaust stacks (owner, Oct 2026: "a nice beefy pipe... it comes out the roof...
@@ -3182,7 +3195,7 @@ export const CONFIG = {
     /** helm.screenLift: the dash screens and gauges raised this far up the (leaning) dash face (m), so the lower row's foot clears the ledge in front of it. */
     /** helm.minInside: the narrowest wheelhouse, inside (m; CS6: one at a short console). helm.faceSwitchOrder: on a console too short for its switch panel, the groups moved up onto the dash face, in this order, until the rest fit. */
     /** helm.lampsUpBelow: on a console shorter than this (m; the shortest before CS6), the warning lamps' row goes up onto the dash face, clear of the wheel's rim. */
-    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
+    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).

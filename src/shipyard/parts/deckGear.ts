@@ -138,12 +138,17 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     const hookRect = (z: number): Rect => ({ x0: -0.3, x1: 0.3, z0: z - 0.3, z1: z + 0.3 });
     const winchHere = (z: number) => standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 0)));
     const usualWinch = wantWinch && !winchAt;
-    for (let z = Math.max((stem + transom) / 2 + tg.aftOfMidships * (transom - stem), aft + tg.clearOfHouse); z < transom - 1.5; z += 0.1) {
-      if (!standsOnDeck([hookRect(z)]) || (usualWinch && !winchHere(z - tg.winchGap))) continue;
-      towHook = { z: r2(z), height: tg.height };
-      if (usualWinch) tugWinchZ = r2(z - tg.winchGap);
-      taken.push(hookRect(z));
-      break;
+    // With her winch just forward of it if both fit; else (a small tug's short deck, owner,
+    // Oct 2026) the hook alone, her winch finding its own place below.
+    for (const withWinch of usualWinch ? [true, false] : [false]) {
+      for (let z = Math.max((stem + transom) / 2 + tg.aftOfMidships * (transom - stem), aft + tg.clearOfHouse); z < transom - 1.5; z += 0.1) {
+        if (!standsOnDeck([hookRect(z)]) || (withWinch && !winchHere(z - tg.winchGap))) continue;
+        towHook = { z: r2(z), height: tg.height };
+        if (withWinch) tugWinchZ = r2(z - tg.winchGap);
+        taken.push(hookRect(z));
+        break;
+      }
+      if (towHook) break;
     }
     if (!towHook) warnings.push('There\'s no room on her deck for a towing hook aft of the wheelhouse: she tows from the stern roller.');
   }

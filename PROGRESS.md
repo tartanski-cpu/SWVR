@@ -7919,3 +7919,24 @@ Owner, Oct 2026 (screenshot of the Engine step): "these side menus are still too
   - Up to four tiles stand in one row, no tile alone on a row.
 - `pickTiles` (one of several: `data-key`/`data-i`, marked `on` by syncControls as before) and `toggleTiles` (on/off fields) are for the other steps too, if the owner likes this one.
 - **Checked:** headless Chromium, the Engine step: the tug (the tug diesel and the nozzle chosen; Twin, Stern drive and Pod drives greyed out; the nozzle's description open) and the landing craft (Twin ticked by its tile, the 280 kW chosen by its tile: the design changed). Full suite passes. **Not checked:** the Quest's browser.
+
+### Tugs: more power, lighter small ones, and a tiny tug down to 7 m (done, awaiting owner test)
+
+Owner, Oct 2026: "I'd like the big tug engine to power the tugs to a little bit higher speed ... the smallest one could be like 14, 15, and the biggest one, 12 ... I'd like to make a really tiny tug." Measured first, with the 450 kW tug diesel matched by trial: 10.4 m 8.3 kn, 13 m 9.0 kn, 15.3 m 8.9 kn. Flagged to the owner: the physics was about right. At 13 m, 12 kn is Fn ≈ 0.55, up the wave-making hump; doubling the power alone gave 10.5 kn. A smaller displacement tug is slower at the same Fn, not faster. Two real faults: the same fixed 18 t of ballast at every size, so the 10.4 m tug weighed 48 t; and her propeller is bounded by her draught. The owner chose "real physics, more power" and "down to about 7 m".
+
+- **Twin tug diesels** (design.ts: `SINGLE_ONLY_ENGINES` now empty; the tug diesel goes on a shaft only, `SHAFT_ONLY_ENGINES`, no stern drive or pods): two 450 kW engines on two screws, as a twin-screw harbour tug (her lines already have the twin propellers' raised run aft). Lifts the owner's earlier "single only".
+- **Ballast scales with her hull's volume** (weights.ts: `ballastKg` × length × beam × depth factors; hull.ts returns `size`).
+- **A tiny tug** (catalog.ts `shrinksTo` 0.54 on the small tug; `sizeScale`): her length slider's steps 0–8 run from 0.54 to 1.0 of her base in equal ratios (7.0 m to 13 m; steps 8–15 as before). Below her base size her beam and depth shrink too, to a power of the length factor (`CONFIG.shipyard.shrink`: beam 0.65, depth 0.75), so she stays beamy and deep. Tug designs saved at length steps 0–7 come out a little shorter and narrower than before; the fleet tug (step 8) is unchanged.
+- **Her towing hook on a short deck** (deckGear.ts): where the hook and her tow winch just forward of it don't both fit (the 7 m tug), the hook stands alone and the winch finds its own place.
+- **Results** (matched by trial, the fleet tug's layout): 7.0 × 3.6 m, 21 t, single 450 kW: 11.3 kn (GM 0.58 m; a twin doesn't fit under her floor); 8.2 m twin: 14.5 kn; 9.6 m single 9.6 kn, twin 13.6 kn; 13 m single 8.7 kn (the fleet tug, as before), twin 11.3 kn; 15.3 m single 8.7 kn, twin 10.7 kn.
+- **Checked:** the trials above (tests run in vitest); headless Chromium: the 7 m tug in the Shipyard (her hook, her winch aft). Full suite passes. **Not checked:** the Quest.
+
+### Narrow console: switches in front of the wheel before the dash face (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of a narrow console with two touchscreens): "This shouldn't really happen ... it's scaled all the screens down, but those buttons there could be placed on the empty part of the console in front of the wheel." On a short console every switch group had gone up onto the dash face (only the horn left on the flat panel), so the screens were drawn at 59 % and the face was crowded.
+
+- **Now** (shipyard/parts/recipe.ts `switchesAt`): on a console too short for its groups clear of the wheel (`groupClear`), they first close up onto the flat panel in front of the wheel too: each side's up to `centreClear` m (0.03) from the middle, the horn with the port side's, nearest the middle. Only then do groups go up onto the face, one at a time, each from a side that still doesn't fit (in `faceSwitchOrder`).
+- **The shortest console that holds it all full size** (`consoleMin`, the Shipyard's warning): worked out with the same rule, length by length in 5 cm steps.
+- On the landing craft with a 1.2 m console: two touchscreens, before all four groups were on the face and the screens at 59 %; now LIGHTS, the horn, DECK and ENGINE are on the panel, SEARCH and the warning lamps on the face, the screens at 80 %. One touchscreen: everything full size, no warning.
+- **Config:** `CONFIG.shipyard.helm.centreClear` 0.03.
+- **Checked:** tests/shipyard/narrowConsole.test.ts (switches in front of the wheel, only SEARCH on the face, no warning at `consoleMin`); headless Chromium: the Controls step's layout and the helm in the game, one and two touchscreens. Full suite passes. **Not checked:** the Quest (reaching switches behind the wheel's rim).
