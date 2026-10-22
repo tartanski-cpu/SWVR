@@ -83,7 +83,7 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
-  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 : d.oldSchool ? CONFIG.shipyard.oldSchoolPrice : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 + Math.min(2, d.touch ?? 0) * CONFIG.shipyard.touchPrice : d.oldSchool ? CONFIG.shipyard.oldSchoolPrice : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,
     recipe,

@@ -942,6 +942,19 @@ section('6. Controls');
     box.appendChild(c);
   });
   controls.appendChild(box);
+  // With the advanced package: her screens, or touchscreens with tabs (CS5; owner, Oct 2026:
+  // "a much more narrow wheelhouse with a more narrow console and just one screen").
+  const head = document.createElement('div');
+  head.className = 'touchOnly';
+  head.style.marginTop = '10px';
+  head.innerHTML = '<b>Screens</b><div style="font-size:12px;color:var(--muted)">With the advanced package. A touchscreen shows one page at a time: press its tabs (speed, heading, engine, systems, anchor, tow line, wind) to flip between them. The whole crew sees the page you pick.</div>';
+  controls.appendChild(head);
+  choices('touch', [
+    { name: 'Separate screens', note: 'A screen for each, side by side over the wheel.' },
+    { name: 'One touchscreen', note: 'Everything on one screen with tabs: room for a short console in a narrow wheelhouse. (A link or file, not a code.)' },
+    { name: 'Two touchscreens', note: 'Side by side, each with every page: say speed on one, the engine on the other. (A link or file, not a code.)' },
+  ]);
+  (controls.lastElementChild as HTMLElement).classList.add('touchOnly');
 }
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
 options('helmAssist', 'Helm assist', ['None', 'Autopilot, dock, auto start']).dataset.when = 'controls';
@@ -1037,6 +1050,7 @@ function syncControls(): void {
   // The instruments' tier: old school, basic electronic, advanced.
   const tier = design.controls ? 2 : design.oldSchool ? 0 : 1;
   document.querySelectorAll<HTMLElement>('[data-tier]').forEach((el) => el.classList.toggle('on', Number(el.dataset.tier) === tier));
+  document.querySelectorAll<HTMLElement>('.touchOnly').forEach((el) => (el.style.display = design.controls ? '' : 'none'));
   document.querySelectorAll<HTMLOutputElement>('output[data-key]').forEach((el) => {
     const k = el.dataset.key as keyof ShipDesign;
     el.textContent = outputs[k]!(design[k]);
@@ -1115,7 +1129,7 @@ function showConsoleEditor(): void {
   const panelY = dashY + dg.rows * cellH + 26;
   const panelH = 34;
   const H = panelY + panelH + 14;
-  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', towline: 'TOW LINE', dialCompass: 'COMPASS', dialSpeed: 'LOG', dialDepth: 'DEPTH', dialChain: 'CHAIN', dialRpm: 'REVS', dialTemp: 'TEMP', dialFuel: 'FUEL' };
+  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', towline: 'TOW LINE', dialCompass: 'COMPASS', dialSpeed: 'LOG', dialDepth: 'DEPTH', dialChain: 'CHAIN', dialRpm: 'REVS', dialTemp: 'TEMP', dialFuel: 'FUEL', clock: 'CLOCK', dialClock: 'CLOCK', touch1: 'TOUCH', touch2: 'TOUCH 2' };
   const picked = (kind: string, id: string) => consolePick?.kind === kind && consolePick.id === id;
   let svg = `<svg viewBox="0 0 ${W} ${H}" class="consoleSvg">`;
   // The dash's cells, then its screens.
@@ -3189,6 +3203,7 @@ function describe(k: keyof ShipDesign, d: ShipDesign, b: DesignedBoat): string {
   if (k === 'twin') return v ? 'Twin' : 'Single';
   if (k === 'controls') return v ? 'Advanced' : d.oldSchool ? 'Old school (analogue)' : 'Basic electronic';
   if (k === 'oldSchool') return v ? 'Analogue gauges' : 'Screens';
+  if (k === 'touch') return ['Separate screens', 'One touchscreen', 'Two touchscreens'][v] ?? 'Separate screens';
   if (k === 'paint') return LIVERIES[v]?.name ?? String(v);
   if (k === 'roofPaint') return ROOF_PAINTS[v]?.name ?? String(v);
   if (k === 'houseColour') return HOUSE_PAINTS[v]?.name ?? String(v);

@@ -42,7 +42,10 @@ describe('the console screen row', () => {
 
   it('the basic controls’ two screens keep their full size even on the smallest landing craft', () => {
     const { screens } = row({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[0].defaults, hull: 0, length: 0, beam: 0, controls: 0 });
-    expect(screens).toHaveLength(2);
-    for (const s of screens) expect(s.w).toBe(CONFIG.modules.screen.dash.width);
+    // The two, and the clock quarter (CS5) beside them.
+    expect(screens).toHaveLength(3);
+    const full = screens.filter((s) => s.w > CONFIG.modules.screen.dash.width / 2);
+    expect(full).toHaveLength(2);
+    for (const s of full) expect(s.w).toBe(CONFIG.modules.screen.dash.width);
   });
 });

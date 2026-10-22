@@ -16,7 +16,7 @@
  */
 
 /** The screens' names in words (the Shipyard's console editor, the warnings), by their console socket. */
-export const SCREEN_NAMES: Record<string, string> = { speed: 'Speed and depth', anchorScreen: 'Anchor', heading: 'Heading', rpm: 'Engine', engineMonitor: 'Engine monitor', towline: 'Tow line', dialCompass: 'Compass', dialSpeed: 'Log', dialDepth: 'Depth', dialChain: 'Chain counter', dialRpm: 'Rev counter', dialTemp: 'Temperature', dialFuel: 'Fuel' };
+export const SCREEN_NAMES: Record<string, string> = { speed: 'Speed and depth', anchorScreen: 'Anchor', heading: 'Heading', rpm: 'Engine', engineMonitor: 'Engine monitor', towline: 'Tow line', dialCompass: 'Compass', dialSpeed: 'Log', dialDepth: 'Depth', dialChain: 'Chain counter', dialRpm: 'Rev counter', dialTemp: 'Temperature', dialFuel: 'Fuel', clock: 'Clock', dialClock: 'Clock', touch1: 'Touchscreen', touch2: 'Second touchscreen' };
 
 /** A thing for the dash: its id and its size in cells (across, down). */
 export interface GridItem {
