@@ -5369,6 +5369,21 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** typecheck, `npm test`, `npm run crewcheck` (19 of 19), headless Chromium (Tayvallich: the table on the pontoon, stops and waypoints pressed on its chart through its controls, named; zoomed in; the boat's arrow; the plotter steering "WAYPOINT 1 018° 0.51 nm"; Oban, Clyde, Syros: the table found its spot). **Not checked:** VR (the ray and the tip on the chart, reading it from the quay); a real two-player plan by hand.
 - **Not in it yet (ideas):** pencil marks on it as on the boat's chart table; a point dragged to move it; the plan on the boat's paper chart.
 
+### Save the boat you're aboard to your favourites; favourites listed by name (owner, Oct 2026)
+
+- **Why** (owner: "it's not very easy to get a saved ship from another player saved in VR ... a button that allows you to save the ship that you're currently on to your favourites"): the Shipyard is a desktop page, and the favourites are kept per browser, so the Quest's list and the desktop's differ.
+- **Boat tab → Favourite** (`ui/mainMenu.ts`; `App` `boatFavourite`, `canSaveBoat`, `saveBoatFavourite`): the boat you're aboard, by name, and **Save her**. Ashore it says to step aboard; an old hand-built type (the workboat, the landing craft) says she isn't a Shipyard design. Her design code (`boats/library.ts designCodeOf`: a fleet boat's from her design file, a Shipyard boat's her token, the same code the Shipyard saves) goes into this browser's favourites (`shipyard/takeHer.ts ShipyardCodes.saveBoat`, `saveBoatFavourite`) with her name (the fleet boat's, the design's, or "Bosun's boat"), a line of her figures (length, weight, engine; no top speed, which is the Shipyard's sea trial) and no picture. The same design already saved: said so, nothing added. A name already taken by another design gets a number. She can then be launched from Crew → Your boat (Voyage) or taken from Office → Your boats (Career).
+- **Favourites by name only** (owner, from a screenshot: "too long to read in this menu, shorten it to the name"): Crew → Your boat's Shipyard favourites and Office → Your boats show the name alone; the Shipyard page still shows the figures.
+- **Tests:** `tests/saveBoat.test.ts` (+3): every fleet boat and Shipyard boat has her code, the old types none; saved, again (said, unchanged), a name taken (numbered); into the browser's storage and read back, storage that won't take it said. `tests/menu.test.ts`: the favourites listed by name.
+- **Checked:** typecheck, `npm test`, headless Chromium (Tayvallich: ashore "Step aboard"; aboard the Boat tab's row "Pilot boat 11.2 m" with Save her; saved, saved again "already, as ..."; the Crew tab listing her by name). **Not checked:** VR.
+
+### The planning table follows the host (owner: "a short-term fix where this collaborative planning table appears wherever the host teleports to")
+
+- **Why:** placed at the map's start only, the table could land in odd spots (a slope between a quay block and a warehouse, from the owner's screenshot), and was out of the way once the crew had moved on. The pub plan (`docs/HARBOUR_PUB.md`) is the longer answer; the owner's chosen workflow is recorded there (Voyage starts in the pub, the map is chosen there, then sail, or free roam).
+- **What:** the plan keeps the port the table stands at (`VoyagePlan.harbour`; `voyage/plan.ts tableFollows`, `tableBerthId`). The Go button sending the home boat (the host's) to a port sets it (`core/simulation.ts`, after `teleportToPortSlot`); a crew-mate's Go with her own boat leaves it. Every page moves its table there (`App.updatePlan`, `PlanTable.moveTo`, `planTableSpot(berthId)`: the same search, from that harbour's cargo berth's spot ashore). Go to the table (the `plan` intent `goto`) puts you ashore by that berth. Saved with the plan.
+- **Tests:** `tests/voyagePlan.test.ts` (+1): the host's Go moves it, a crew-mate's doesn't, Go to the table lands there, kept in the save (an unknown port dropped).
+- **Checked:** typecheck, `npm test`, headless Chromium (Oban: Go to Brandy Rock pier, the table moved there, on the pier's timber deck, level; Go to the table put the player beside it). **Not checked:** VR; two players by hand.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
@@ -7838,3 +7853,39 @@ Owner, Oct 2026, with a 24 m stern trawler's general arrangement: "start buildin
 - **Test steps:**
   - **Desktop:** Shipyard, the gillnetter. Deck gear: **Fish hold: Under the deck**; her figures say how many boxes. ✂ Section, Buttock: the hold under her aft deck. Wheelhouse: Length 4.6 m. Furniture: add **Bunks**, **Shower** (port), **Mess table**, **Galley** (starboard). Deck gear: the A-frame. Into the game: on deck, press the hatch lid's ring to open it and look down; go trawling on a ground: the status line counts the hold; back in harbour press the yellow button on the coaming to lift a box out, carry it ashore.
   - **VR:** the same: lift the lid, look down into the hold, press LIFT; inside, lie down in the upper bunk, sit at the mess, step into the shower.
+
+### The Kort nozzle drawn on the Engine step (done, awaiting owner test)
+
+Owner, Oct 2026: "Can you do a visual preview of the cork nozzle on the tugboat in the engine page? Again, it doesn't need to appear in the 3D model in the game."
+
+- **Now** (shipyard/enginePreview.ts `buildNozzle`, drawn by `buildMachinery` when the engine's recipe has `nozzle`): a duct round each propeller, on its shaft line, turned from a foil section after the common 19A duct. Inside, the mouth flares wider forward and closes to a throat at the blade tips; outside, nearly straight. Its leading edge is thick and rounded, its trailing edge thin. A headbox plate carries it from her bottom. The rudder is drawn just aft of the outlet, allowing for the shaft's angle; on the tug that is a few centimetres aft of the rudder stock's design place (`rudderPos`, transom − 0.25), which sits inside the duct's length. The propeller's tag reads "in a Kort nozzle". Shipyard only: the game doesn't draw shafts, propellers or nozzles.
+- **Config** (`CONFIG.nozzle.look`, in propeller diameters D): `lengthD` 0.5, `tipGap` 0.01, `inletFlare` 0.15, `noseD` 0.1, `headbox` true.
+- **Checked:** tests/shipyard/enginePreview.test.ts: a twin installation with nozzles has one round each propeller, clear of the blade tips, the rudder aft of the outlet; none without. Headless Chromium: the tug's Engine step from ahead, the side and astern, single and twin. Full suite passes. **Not checked:** the Quest.
+
+### Fix: the deck floods hung on the roof edge, no light inside the wheelhouse (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the tug): "the forward deck and aft deck lights ... they're not positioned at the edge of the roof. And then, so when you're inside and you turn them on, you actually get some bleed into the cabin."
+
+- **Why:** the floods stood on the roof top, set in from its edges (on a reverse-raked front, behind the front wall's foot). The game's lights cast no shadows, so a beam passes through the roof and walls: with a 60° half-angle aimed at the middle of a short deck, nearly straight down, the wheelhouse floor lay inside the beam.
+- **Now** (shipyard/parts/places.ts): each lamp hangs `flood.out` beyond the roof's outer edge, half way up its thickness: forward, on the visor's edge (set back with a faceted front's corner); aft, on the roof's aft overhang. `floodAim` then aims each one. If the beam aimed at the middle of its deck clears the inside of the wheelhouse wall at that end by `margin`, it aims there. Otherwise it tilts outboard until it does (no flatter than `minBelowDeg` below the horizon; narrowed, never under `minAngleDeg`, only if that cap is reached). For the front wall, the inside points run up the wall to the sill, then up the glass to its head; for the aft wall, from the floor to the roof. The light.flood module takes each lamp's own `angleDeg`. On all five fleet boats the floods keep their full 60° beam, tilted out.
+- **Config** (`CONFIG.shipyard.workLights.flood`): `out` 0.07 (replaces `inset`), `margin` 4°, `minBelowDeg` 15, `minAngleDeg` 35.
+- **Checked:** headless Chromium in the game at night, the fleet tug, from inside the wheelhouse with the floods off and on: before, the floor lit up; now it doesn't change. The decks outside are lit. The Shipyard: the lamps on the roof's front and aft edges (the tug and the pilot boat). Full suite passes. **Not checked:** the Quest.
+
+### Fix: bulwarks along a full-width deckhouse, level, not a sawtooth (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the tug): "when the deck house ... is full width, it doesn't cut the bulwarks properly". Along a full-width deckhouse her bulwark is raised to guard its top. Each piece (station to station) was raised by the deckhouse top's height over her deck at the piece's middle, so its top followed her sheer and stepped back up at the next station: a sawtooth.
+
+- **Now** (vessel/view/hullMesh.ts `levelPlate`): along the deckhouse each piece is a plate whose foot follows her deck edge and whose top is level, at the deckhouse top plus her bulwark height; its rail is level at the deckhouse top plus the rail height (the stanchions were already right). Closed at its ends where it rises above her ordinary bulwark.
+- **Checked:** headless Chromium, the Shipyard: the tug with a full-width deckhouse from the starboard quarter and from port: the bulwark's top level along it. Full suite passes. **Not checked:** the Quest.
+
+### Shipyard: the Engine step as pictures (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the Engine step): "these side menus are still too much text. I'd like it to be more pictorial, so images. And it could be there's a tooltip to give you all that information, right? Or an information button."
+
+- **Now** (shipyard/tiles.ts, new; page.ts's Engine section; styles in shipyard.html): every choice on the Engine step is a picture tile: a small line drawing (drawn for the game, 48 × 32, in the text's colour), its name and one line. Its full description sits behind an **i** button and opens under the tiles, in place, so it works on a touchscreen and in the headset's browser too; it's also the tile's hover tooltip.
+  - **Engines:** the four as tiles ("150 kW", "diesel six · 600 kg"...), each drawn as its kind: a straight six, a V8, the bigger V8 with two turbos, the tug diesel with its flywheel.
+  - **Drive:** Twin, Stern drive, Pod drives, Kort nozzle, as on/off tiles. Each still has its checkbox inside, so page.ts ticks and disables them as before; the tile shows ticked or greyed out.
+  - **Exhaust stacks** (raked, straight) and **Or outboards** (none, two, three, four), as tiles.
+  - Up to four tiles stand in one row, no tile alone on a row.
+- `pickTiles` (one of several: `data-key`/`data-i`, marked `on` by syncControls as before) and `toggleTiles` (on/off fields) are for the other steps too, if the owner likes this one.
+- **Checked:** headless Chromium, the Engine step: the tug (the tug diesel and the nozzle chosen; Twin, Stern drive and Pod drives greyed out; the nozzle's description open) and the landing craft (Twin ticked by its tile, the 280 kW chosen by its tile: the design changed). Full suite passes. **Not checked:** the Quest's browser.

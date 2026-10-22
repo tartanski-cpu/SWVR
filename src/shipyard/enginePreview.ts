@@ -6,11 +6,12 @@
  *
  * The engines are the game's own models (vessel/view/engineModels.ts: the game draws them too,
  * under their hatch, baked into the boat's fixed parts), sized as build.ts ENGINES says;
- * the shafts, propellers and rudders are drawn only here.
+ * the shafts, propellers, Kort nozzles and rudders are drawn only here.
  */
 import * as THREE from 'three';
 import type { HullForm } from '../vessel/hullForm';
 import { box, BRONZE, buildEngineModel, drum, ENGINE_LOOKS, mat, placeEngine, STEEL } from '../vessel/view/engineModels';
+import { CONFIG } from '../config';
 import { ENGINES } from './build';
 import { bottomAt, type ShaftLine } from './machinery';
 
@@ -34,6 +35,8 @@ export interface Machinery {
   rudderZ: number;
   /** Stern drives: the engines only (no shaft, propeller or rudder: the legs are the outboard module's). */
   sterndrive?: boolean;
+  /** A Kort nozzle round each propeller (design.nozzle; CONFIG.nozzle.look). */
+  nozzle?: boolean;
 }
 
 /** One engine and its gearbox (vessel/view/engineModels.ts), at its own size (ENGINES `size`). */
@@ -60,6 +63,43 @@ export function buildPropeller(d: number): THREE.Group {
     arm.add(blade);
     g.add(arm);
   }
+  return g;
+}
+
+/**
+ * A Kort nozzle (CONFIG.nozzle.look) round a propeller of diameter `d`: a duct `lengthD` d
+ * long, turned (lathed) from its section. Inside, the mouth flares wider forward and closes
+ * to its throat at the propeller, the blade tips `tipGap` d from it, then opens a little to
+ * the outlet; outside, nearly straight. The section is thick and rounded at its leading
+ * edge, thin at its trailing edge, as a duct's foil is. Its axis along her length (the
+ * propeller's shaft line: the caller tilts it), centred on the propeller.
+ */
+export function buildNozzle(d: number): THREE.Group {
+  const k = CONFIG.nozzle.look;
+  const r = d / 2 + k.tipGap * d; // the throat
+  const half = (k.lengthD * d) / 2;
+  const nose = k.noseD * d;
+  // The section in (radius, along): y = -half is the mouth (forward), +half the outlet (aft).
+  const inner: [number, number][] = [
+    [r * (1 + k.inletFlare), -half],
+    [r * (1 + k.inletFlare * 0.35), -half * 0.6],
+    [r * 1.005, -half * 0.2],
+    [r, 0],
+    [r * 1.01, half * 0.5],
+    [r * 1.03, half],
+  ];
+  const outer: [number, number][] = [
+    [r * 1.03 + 0.01 * d, half],
+    [r + nose * 0.75, half * 0.2],
+    [r + nose, -half * 0.5],
+    [r * (1 + k.inletFlare) + nose * 0.6, -half * 0.92],
+  ];
+  const pts = [...inner, ...outer, inner[0]].map(([x, y]) => new THREE.Vector2(x, y));
+  const g = new THREE.Group();
+  const duct = new THREE.Mesh(new THREE.LatheGeometry(pts, 40), new THREE.MeshStandardMaterial({ color: 0x3b4148, metalness: 0.45, roughness: 0.55, side: THREE.DoubleSide }));
+  duct.rotation.x = Math.PI / 2; // the lathe's axis (y) along her length (z), the mouth forward
+  duct.name = 'nozzle';
+  g.add(duct);
   return g;
 }
 
@@ -96,10 +136,30 @@ export function buildMachinery(m: Machinery): THREE.Group {
     prop.rotation.x = tilt; // square to its shaft
     prop.name = 'propeller';
     out.add(prop);
+    // A Kort nozzle round it, on its shaft line, hung from her bottom by its headbox plate.
+    const chord = Math.max(0.25, m.propD * 0.45);
+    let rudderZ = m.rudderZ + 0.05;
+    if (m.nozzle) {
+      const k = CONFIG.nozzle.look;
+      const nz = buildNozzle(m.propD);
+      nz.position.copy(to);
+      nz.rotation.x = tilt;
+      out.add(nz);
+      const outerR = m.propD / 2 + k.tipGap * m.propD + k.noseD * m.propD;
+      const half = (k.lengthD * m.propD) / 2;
+      if (k.headbox) {
+        const bottom = bottomAt(m.form, px, m.propZ);
+        const h = bottom - (to.y + outerR * 0.9);
+        if (h > 0.02) box(out, 0.05, h + 0.05, half * 1.2, px, to.y + outerR * 0.9 + h / 2, m.propZ, 0x3b4148);
+      }
+      // (The rudder hangs just aft of the duct's outlet, its lower lip swung aft by the shaft's
+      // angle: drawn clear of it.)
+      rudderZ = Math.max(rudderZ, m.propZ + half * Math.cos(tilt) + outerR * Math.sin(Math.abs(tilt)) + chord / 2 + 0.03);
+    }
     // The rudder: from her bottom over it down to the propeller's lower tip.
-    const top = bottomAt(m.form, px, m.rudderZ);
+    const top = bottomAt(m.form, px, m.nozzle ? rudderZ : m.rudderZ);
     const rh = Math.max(0.2, top - (to.y - m.propD / 2));
-    const rudder = box(out, 0.04, rh, Math.max(0.25, m.propD * 0.45), px, top - rh / 2, m.rudderZ + 0.05, 0x5d646b);
+    const rudder = box(out, 0.04, rh, chord, px, top - rh / 2, rudderZ, 0x5d646b);
     rudder.name = 'rudder';
   }
   return out;

@@ -7,7 +7,7 @@ import { CONFIG } from '../config';
 import { createHullLibrary, type HullLibrary } from '../modular/hull';
 import { buildDesign, type DesignedBoat } from '../shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../shipyard/design';
-import { readDesign, shortCode } from '../shipyard/designDoc';
+import { designToken, readDesign, shortCode } from '../shipyard/designDoc';
 import { vesselDefFrom } from '../modular/vesselAssembly';
 import { putVesselDef, registerVesselDefs, vesselBuildToken } from '../vessel/vesselDef';
 import { setBoatResolver } from '../core/launch';
@@ -159,6 +159,16 @@ export function boatType(token: string): string | null {
 setBoatResolver(boatType);
 
 /** The design token a run-time boat type was built from (null for any other type). */
+/**
+ * Any boat type's design code, to save her as a favourite (Boat > Save her): a fleet boat's
+ * from her design file, a Shipyard boat's her token. Null for the old hand-built types
+ * (the workboat, the landing craft, the tows), which have no design.
+ */
+export function designCodeOf(defId: string): string | null {
+  const fleet = FLEET.find((f) => f.id === defId);
+  return fleet ? designToken(fleet.design) : boatTokenOf(defId);
+}
+
 export function boatTokenOf(defId: string): string | null {
   return vesselBuildToken(defId);
 }

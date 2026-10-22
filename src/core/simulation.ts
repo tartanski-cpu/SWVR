@@ -48,7 +48,8 @@ import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import { homeVessel, type WorldState } from './world';
 import { regionAt } from '../world/regions';
-import { applyPlanIntent, isPlanIntent, stepPlan } from '../voyage/plan';
+import { applyPlanIntent, isPlanIntent, stepPlan, tableFollows } from '../voyage/plan';
+import { PORTS } from '../world/archipelago';
 
 /** Optional per-vessel diagnostics written during a tick (not part of WorldState). */
 export type SimDebug = Map<EntityId, HydroDebug>;
@@ -130,6 +131,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     } else if (intent.control === 'teleportToPort' && intent.ref && world.vessels[intent.targetId]) {
       // With several boats about (multi-boat M5): a free berth, else the bay.
       if (!teleportToPortSlot(world, world.vessels[intent.targetId], intent.ref)) applyVesselIntent(world.vessels[intent.targetId], intent);
+      // The host's boat sent somewhere: the planning table goes with her (voyage/plan.ts).
+      if (intent.targetId === world.homeVesselId && PORTS.some((p) => p.id === intent.ref)) tableFollows(world, intent.ref);
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {

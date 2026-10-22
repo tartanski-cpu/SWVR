@@ -111,6 +111,21 @@
       /* An engine package standing aside while outboards are chosen (page.ts). */
       .choice.aside { opacity: 0.45; }
       .choice.aside.on { border-color: var(--line, #ccc); background: none; box-shadow: none; }
+      /* Picture tiles (tiles.ts): a drawing, a name, a line; the full description behind ⓘ. */
+      .tilesHead { font-weight: 600; font-size: 13px; margin: 12px 0 4px; }
+      .tiles { display: grid; gap: 6px; margin: 4px 0; }
+      .tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px 6px; border: 1px solid var(--edge); border-radius: 8px; cursor: pointer; background: var(--card); text-align: center; color: var(--ink-2); }
+      .tile svg { width: 48px; height: 32px; margin-bottom: 2px; }
+      .tile b { font-size: 13px; color: var(--ink, inherit); }
+      .tile small { font-size: 11px; color: var(--muted); line-height: 1.2; overflow-wrap: anywhere; }
+      .tile.on, .tile.toggle:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 -3px 0 var(--accent); color: var(--ink, inherit); }
+      .tile.toggle input { position: absolute; opacity: 0; pointer-events: none; }
+      .tile.aside, .tile.toggle:has(input:disabled) { opacity: 0.4; }
+      .tile.toggle:has(input:disabled) { cursor: not-allowed; }
+      .tile.aside.on { border-color: var(--line, #ccc); background: none; box-shadow: none; }
+      .tileAbout { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--edge); background: var(--paper); color: var(--muted); font: italic 600 11px/16px Georgia, serif; cursor: pointer; }
+      .tileAbout:hover, .tileAbout.open { border-color: var(--accent); color: var(--accent); }
+      .tileInfo { font-size: 12px; color: var(--ink-2); background: var(--card); border-left: 3px solid var(--accent); border-radius: 4px; padding: 6px 8px; margin: 2px 0 8px; }
       .row { display: grid; grid-template-columns: 110px 1fr 86px; align-items: center; gap: 6px; margin: 6px 0; position: relative; border-radius: 6px; }
       .opts { grid-template-columns: 110px 1fr; }
       .opts .choice { display: inline-block; margin: 0 4px 0 0; padding: 3px 9px; }

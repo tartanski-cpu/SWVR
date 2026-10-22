@@ -10,7 +10,8 @@ import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { createPlayerState } from '../src/player/playerState';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { createPlan, nextPoint, parsePlan, planAspect, pointLabel, savePlanText, viewBounds, wholeView } from '../src/voyage/plan';
+import { createPlan, nextPoint, parsePlan, planAspect, pointLabel, savePlanText, tableBerthId, viewBounds, wholeView } from '../src/voyage/plan';
+import { BERTHS } from '../src/world/archipelago';
 import { PORTS } from '../src/world/archipelago';
 import { quaySpot } from '../src/world/startSpot';
 
@@ -123,5 +124,30 @@ describe('the voyage plan', () => {
     expect(p.aboardVesselId).toBeNull();
     expect(p.position[0]).toBeCloseTo(q.x, 3);
     expect(p.position[2]).toBeCloseTo(q.z, 3);
+  });
+
+  it("the table goes wherever the host's boat is sent with Go; a crew-mate's Go leaves it; Go to the table lands you there", () => {
+    const { world, vesselId, localPlayerId } = game();
+    expect(tableBerthId(world)).toBeNull(); // the map's start
+    const port = PORTS.find((p) => BERTHS.some((b) => b.portId === p.id && b.id.endsWith('-cargo')) && p.id !== 'calder')!;
+    stepWorld(world, [{ playerId: localPlayerId, targetId: vesselId, control: 'teleportToPort', value: 1, ref: port.id } as Intent], 1 / 20);
+    expect(world.plan!.harbour).toBe(port.id);
+    expect(tableBerthId(world)).toBe(`${port.id}-cargo`);
+    // A crew-mate sends her own boat elsewhere: the table stays.
+    world.players['player-2'] = createPlayerState('player-2', 'Bosun');
+    stepWorld(world, [{ playerId: 'player-2', targetId: ENVIRONMENT_ID, control: 'launchBoat', value: 1, ref: 'smallTug' } as Intent], 1 / 20);
+    const tug = Object.values(world.vessels).find((v) => v.owner === 'player-2')!;
+    const other = PORTS.find((p) => p.id !== port.id && BERTHS.some((b) => b.portId === p.id))!;
+    stepWorld(world, [{ playerId: 'player-2', targetId: tug.id, control: 'teleportToPort', value: 1, ref: other.id } as Intent], 1 / 20);
+    expect(world.plan!.harbour).toBe(port.id);
+    // Go to the table: ashore by that harbour's berth.
+    stepWorld(world, [{ playerId: localPlayerId, targetId: ENVIRONMENT_ID, control: 'plan', value: 1, ref: 'goto' } as Intent], 1 / 20);
+    const q = quaySpot(`${port.id}-cargo`);
+    const p = world.players[localPlayerId];
+    expect(p.position[0]).toBeCloseTo(q.x, 3);
+    expect(p.position[2]).toBeCloseTo(q.z, 3);
+    // Kept with the saved plan.
+    expect(parsePlan(savePlanText(world.plan!))!.harbour).toBe(port.id);
+    expect(parsePlan(JSON.stringify({ points: [], harbour: 'nowhere' }))!.harbour).toBeUndefined();
   });
 });

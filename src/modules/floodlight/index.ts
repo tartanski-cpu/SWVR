@@ -13,9 +13,13 @@ import { BREAKERS, type BreakerName } from '../../vessel/vesselState';
 const dl = CONFIG.vessels.workboat.deckLights;
 
 export interface FloodlightConfig {
-  /** Which of the boat's floods: its lamp and aim point (the boat's axes) from `lamps`. */
+  /**
+   * Which of the boat's floods: its lamp and aim point (the boat's axes) from `lamps`, and its
+   * own beam half-angle if it has one (the Shipyard narrows a beam that would reach inside the
+   * wheelhouse: shipyard/parts/places.ts floodLamps).
+   */
   end: 'fore' | 'aft';
-  lamps: Record<'fore' | 'aft', Pick<FloodLook, 'position' | 'target'>>;
+  lamps: Record<'fore' | 'aft', Pick<FloodLook, 'position' | 'target'> & { angleDeg?: number }>;
   /** The beam: cd, m, half-angle (deg), penumbra 0..1. */
   intensity: number;
   distance: number;
@@ -44,7 +48,8 @@ export const FLOODLIGHT: ModuleDefinition<FloodlightConfig> = {
   view: {
     frame: 'boat',
     build({ config: c, keys }) {
-      const flood = new Floodlight({ ...c.lamps[c.end], intensity: c.intensity, distance: c.distance, angleDeg: c.angleDeg, penumbra: c.penumbra });
+      const lamp = c.lamps[c.end];
+      const flood = new Floodlight({ position: lamp.position, target: lamp.target, intensity: c.intensity, distance: c.distance, angleDeg: lamp.angleDeg ?? c.angleDeg, penumbra: c.penumbra });
       return {
         staticParts: [],
         movingParts: [flood.root],

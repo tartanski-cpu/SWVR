@@ -51,6 +51,7 @@ import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
+import { ENGINE_ICONS, pickTiles, toggleTiles } from './tiles';
 import { GEAR_ABOUT, GEAR_GROUPS, GEAR_ICONS, gearKind } from './gearMenu';
 import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment } from './pinGear';
 import { FURNITURE_MENU, nextSlot, placedOf, placeFurniture, removeFurniture, slotOf } from './furnishing';
@@ -335,13 +336,13 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const twin = (!!design.twin || !!cfg('pods')) && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;
   const fit = boat.shaft;
-  const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd });
+  const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd, nozzle: !!engine?.nozzle });
   g.name = 'machinery';
   const name = ENGINES[design.engine].name.split(' (')[0];
   const tag = nameTag(fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
   tag.position.set(0, fit.topY + 0.45, fit.flangeZ - ENGINES[design.engine].size[0] / 2);
   const lowest = Math.min(...g.children.filter((c) => c.name === 'propeller').map((c) => c.position.y));
-  const ptag = nameTag(`Propeller ⌀ ${propD.toFixed(2)} m${twin ? ' (two)' : ''}`, '#8a5a1c');
+  const ptag = nameTag(`Propeller ⌀ ${propD.toFixed(2)} m${engine?.nozzle ? ' in a Kort nozzle' : ''}${twin ? ' (two)' : ''}`, '#8a5a1c');
   ptag.position.set(0, lowest - propD / 2 - 0.35, prop?.[2] ?? 0);
   // (A stern drive's propellers are on its legs: no tag down there.)
   g.add(...(sd ? [tag] : [tag, ptag]));
@@ -905,52 +906,67 @@ section('4. Furniture');
   controls.append(menu);
 }
 section('5. Engine');
-choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `${e.about} ` : ''}${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })), (i) => (SINGLE_ONLY_ENGINES.includes(i) ? { twin: 0 } : {}));
+// As pictures (owner, Oct 2026: "too much text ... more pictorial"; tiles.ts): each choice a
+// drawing, its name and one line, the full description behind its ⓘ button.
 {
-  const row = document.createElement('label');
-  row.className = 'choice';
-  row.innerHTML = '<input type="checkbox" data-key="twin"> Twin engines: two of these, a propeller and rudder each, worked together from one lever';
-  const box = row.querySelector('input')!;
-  box.onchange = () => change({ twin: box.checked ? 1 : 0 });
-  controls.appendChild(row);
+  const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug];
+  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel'];
+  pickTiles(
+    controls,
+    'engine',
+    ENGINES.map((e, i) => ({ icon: looks[i] ?? ENGINE_ICONS.six, name: `${e.kw} kW`, sub: `${kinds[i] ?? ''} · ${e.kg} kg`, info: `${e.name}. ${'about' in e ? `${e.about} ` : ''}${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })),
+    (i) => change({ engine: i, ...(SINGLE_ONLY_ENGINES.includes(i) ? { twin: 0 } : {}) }),
+  );
 }
-// Stern drives (owner, Oct 2026): the engine right at the back, a leg through the transom that steers.
-{
-  const row = document.createElement('label');
-  row.className = 'choice';
-  row.innerHTML = '<input type="checkbox" data-key="sternDrive"> Stern drive: the engine against the transom, driving a leg through it that swings to steer (no shaft or rudder; a leg each for twins). Frees her deck and balances her, with a smaller propeller';
-  const box = row.querySelector('input')!;
-  box.onchange = () => change({ sternDrive: box.checked ? 1 : 0 });
-  controls.appendChild(row);
-}
-// Pod drives (owner, Oct 2026): two steerable pods under a planing hull, propellers forward, and a helm joystick.
-{
-  const row = document.createElement('label');
-  row.className = 'choice';
-  row.innerHTML = '<input type="checkbox" data-key="pods"> Pod drives (planing hulls): two pods under her bottom that swing to steer, their propellers at the front pulling, an engine each. A black throttle, and a helm joystick: press JOYSTICK, then lean it to crab sideways or creep, twist it to turn on the spot';
-  const box = row.querySelector('input')!;
-  box.onchange = () => change({ pods: box.checked ? 1 : 0 });
-  controls.appendChild(row);
-}
-// A Kort nozzle (owner, Oct 2026): a duct round a shaft-driven propeller, a tug's.
-{
-  const row = document.createElement('label');
-  row.className = 'choice';
-  row.innerHTML = "<input type=\"checkbox\" data-key=\"nozzle\"> Kort nozzle: a duct round the propeller (a tug's). About 30 % more pull at a standstill for the same power, and a rudder that answers at low speed and astern; slower free-running, and poorer going astern";
-  const box = row.querySelector('input')!;
-  box.onchange = () => change({ nozzle: box.checked ? 1 : 0 });
-  controls.appendChild(row);
-}
+toggleTiles(
+  controls,
+  [
+    { key: 'twin', icon: ENGINE_ICONS.twin, name: 'Twin', sub: 'two engines', info: 'Twin engines: two of these, a propeller and rudder each, worked together from one lever.' },
+    // Stern drives (owner, Oct 2026): the engine right at the back, a leg through the transom that steers.
+    { key: 'sternDrive', icon: ENGINE_ICONS.sternDrive, name: 'Stern drive', sub: 'a leg that steers', info: 'Stern drive: the engine against the transom, driving a leg through it that swings to steer (no shaft or rudder; a leg each for twins). Frees her deck and balances her, with a smaller propeller.' },
+    // Pod drives (owner, Oct 2026): two steerable pods under a planing hull, propellers forward, and a helm joystick.
+    { key: 'pods', icon: ENGINE_ICONS.pods, name: 'Pod drives', sub: 'planing hulls', info: 'Pod drives (planing hulls): two pods under her bottom that swing to steer, their propellers at the front pulling, an engine each. A black throttle, and a helm joystick: press JOYSTICK, then lean it to crab sideways or creep, twist it to turn on the spot.' },
+    // A Kort nozzle (owner, Oct 2026): a duct round a shaft-driven propeller, a tug's.
+    { key: 'nozzle', icon: ENGINE_ICONS.nozzle, name: 'Kort nozzle', sub: '+30 % pull', info: "Kort nozzle: a duct round the propeller (a tug's). About 30 % more pull at a standstill for the same power, and a rudder that answers at low speed and astern; slower free-running, and poorer going astern." },
+  ],
+  (key, on) => change({ [key]: on }),
+  'Drive',
+);
 // A tug's exhaust stacks (owner, Oct 2026): one per engine up through the wheelhouse's aft corners, raked or straight.
-options('stackStyle', 'Exhaust stacks', [...STACK_STYLES]).dataset.when = 'tugStacks';
+{
+  labels.stackStyle ??= 'Exhaust stacks';
+  optionNames.stackStyle = [...STACK_STYLES];
+  const wrap = document.createElement('div');
+  wrap.dataset.when = 'tugStacks';
+  pickTiles(
+    wrap,
+    'stackStyle',
+    [
+      { icon: ENGINE_ICONS.stackRaked, name: 'Raked', info: 'Her exhaust stacks raked aft, one per engine up through the wheelhouse’s aft corners.' },
+      { icon: ENGINE_ICONS.stackStraight, name: 'Straight', info: 'Her exhaust stacks straight up, one per engine up through the wheelhouse’s aft corners.' },
+    ],
+    (i) => change({ stackStyle: i }),
+    'Exhaust stacks',
+  );
+  controls.appendChild(wrap);
+}
 // Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
 {
   const o = CONFIG.modules.outboard;
-  const head = document.createElement('div');
-  head.style.margin = '12px 0 4px';
-  head.innerHTML = `<b>Or outboards</b><div style="font-size:12px;color:var(--muted)">${o.engine.powerKw} kW (${Math.round(o.engine.powerKw * 1.341)} hp) petrol V8s, ${o.massKg} kg each, on a bracket off the transom in place of the engine above. They steer by swinging with the wheel: no rudder. Worked together from one lever and key. Their lower units' gearing is matched to her by trial, like a gearbox.</div>`;
-  controls.appendChild(head);
-  choices('outboards', OUTBOARDS.map((name) => ({ name })));
+  optionNames.outboards = [...OUTBOARDS]; // (the compare list names them)
+  const each = `${o.engine.powerKw} kW (${Math.round(o.engine.powerKw * 1.341)} hp) petrol V8s, ${o.massKg} kg each, on a bracket off the transom in place of the engine above. They steer by swinging with the wheel: no rudder. Worked together from one lever and key. Their lower units' gearing is matched to her by trial, like a gearbox.`;
+  pickTiles(
+    controls,
+    'outboards',
+    [
+      { icon: ENGINE_ICONS.inboard, name: 'None', sub: 'the inboard', info: 'No outboards: the inboard engine chosen above, on its shaft (or stern drive, or pods).' },
+      { icon: ENGINE_ICONS.ob2, name: 'Two', sub: `${2 * o.engine.powerKw} kW`, info: `Two outboards: ${each}` },
+      { icon: ENGINE_ICONS.ob3, name: 'Three', sub: `${3 * o.engine.powerKw} kW`, info: `Three outboards: ${each}` },
+      { icon: ENGINE_ICONS.ob4, name: 'Four', sub: `${4 * o.engine.powerKw} kW`, info: `Four outboards: ${each}` },
+    ],
+    (i) => change({ outboards: i }),
+    'Or outboards',
+  );
 }
 section('6. Controls');
 {

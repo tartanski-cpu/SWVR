@@ -14,7 +14,12 @@
  *   undo / clear   the last point off / every point off
  *   zoom / out / whole   the table's view (shared: one table, one chart on it): zoomed in
  *                  on (x, z), out, or the whole map
- *   goto           the player put ashore at the start, by the table
+ *   goto           the player put ashore by the table
+ *
+ * The table stands at the harbour the host last went to with the Go button (owner, Oct
+ * 2026: "this collaborative planning table appears wherever the host teleports to"): the Go
+ * button moving the home boat sets `harbour` (core/simulation.ts), and every page moves its
+ * table there. Unset: the map's start harbour.
  *
  * Afloat, the plan's next point is every boat's: the chartplotter draws the route and steers
  * for it (nav/chartPlotter.ts), and when any player's boat comes within its reach
@@ -54,6 +59,8 @@ export interface VoyagePlan {
   view: PlanView;
   /** The last news (a point reached), for the pages to show once: its text and the world time. */
   note?: { text: string; t: number };
+  /** The port the table stands at (the host's last Go); unset: the map's start harbour. */
+  harbour?: string;
   /** Counts changes (the table redraws its route, the host saves). */
   seq: number;
 }
@@ -199,10 +206,29 @@ export function applyPlanIntent(world: WorldState, intent: Intent): void {
       return;
     case 'goto': {
       const p = world.players[intent.playerId];
-      if (p) placeAshore(p, null);
+      if (p) placeAshore(p, tableBerthId(world));
       return;
     }
   }
+}
+
+/**
+ * The berth whose quay the table stands by: at the plan's harbour, its cargo berth (else its
+ * first); null with no harbour set (the map's start: startSpot.ts).
+ */
+export function tableBerthId(world: WorldState): string | null {
+  const port = world.plan?.harbour;
+  if (!port) return null;
+  const berths = REGIONS.flatMap((r) => r.berths).filter((b) => b.portId === port);
+  return (berths.find((b) => b.id.endsWith('-cargo')) ?? berths[0])?.id ?? null;
+}
+
+/** The Go button moved the home boat to `portId` (the host's teleport): the table goes there too. */
+export function tableFollows(world: WorldState, portId: string): void {
+  const plan = (world.plan ??= createPlan());
+  if (plan.harbour === portId) return;
+  plan.harbour = portId;
+  plan.seq += 1;
 }
 
 export function isPlanIntent(control: string): boolean {
@@ -228,14 +254,14 @@ export function stepPlan(world: WorldState): void {
 
 /** The plan for saving (the host's, per map): its points, how far along, the table's view. */
 export function savePlanText(plan: VoyagePlan): string {
-  return JSON.stringify({ points: plan.points, next: plan.next, view: plan.view });
+  return JSON.stringify({ points: plan.points, next: plan.next, view: plan.view, ...(plan.harbour ? { harbour: plan.harbour } : {}) });
 }
 
 /** A saved plan, checked: anything malformed is dropped (null: none, or none usable). */
 export function parsePlan(raw: string | null): VoyagePlan | null {
   if (!raw) return null;
   try {
-    const o = JSON.parse(raw) as { points?: unknown; next?: unknown; view?: Partial<PlanView> };
+    const o = JSON.parse(raw) as { points?: unknown; next?: unknown; view?: Partial<PlanView>; harbour?: unknown };
     if (!Array.isArray(o.points)) return null;
     const plan = createPlan();
     for (const p of o.points as PlanPoint[]) {
@@ -246,6 +272,7 @@ export function parsePlan(raw: string | null): VoyagePlan | null {
     plan.next = Number.isFinite(o.next) ? Math.max(0, Math.min(plan.points.length, Math.floor(o.next as number))) : 0;
     const v = o.view;
     if (v && [v.cx, v.cz, v.span].every(Number.isFinite)) plan.view = clampView(v as PlanView);
+    if (typeof o.harbour === 'string' && PORTS.some((p) => p.id === o.harbour)) plan.harbour = o.harbour;
     return plan;
   } catch {
     return null;
