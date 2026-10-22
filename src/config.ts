@@ -5319,6 +5319,35 @@ export const CONFIG = {
   /** Twin engines (the Shipyard's): the engine sound's level times this (two sources, ~+3 dB; split between the two engines' sounds). */
   engineTwinLevel: 1.4,
   /**
+   * The other players' boats heard (owner, Oct 2026: "hear your friends whizzing past you in
+   * a motorboat ... spatialised ... and the horn has to work so you can beep at your
+   * friends"; audio/boatVoices.ts). Each boat within `range` m (the nearest `maxBoats`
+   * only: an engine voice costs the Quest's audio thread) is heard where she is, in 3D:
+   *   engine     her own engine's voice (one, `twinLevel` louder for a twin), its revs and
+   *              load from her state; `engineLevel` at `refDistance` m, falling off with
+   *              distance (inverse, `rolloff`), the air taking the high end away (`airLp`
+   *              Hz near, less by `airLpPerKm` per km)
+   *   rush       the water she throws: noise, band-passed, `rushLevel` at `rushFullSpeed`
+   *              m/s, as her speed squared: the "zoom" of a fast boat going by
+   *   Doppler    her pitch up as she comes at you, down as she goes (her speed toward you,
+   *              and yours toward her, over the speed of sound), at most `dopplerMax` either way
+   *   horn       her horn while it's pressed (and she has power), `hornLevel`
+   */
+  boatSounds: {
+    range: 700,
+    maxBoats: 3,
+    refDistance: 12,
+    rolloff: 1,
+    engineLevel: 0.5,
+    twinLevel: 1.4,
+    airLp: 14000,
+    airLpPerKm: 11000,
+    rushLevel: 0.35,
+    rushFullSpeed: 14,
+    dopplerMax: 0.25,
+    hornLevel: 0.6,
+  },
+  /**
    * Twin engines' drone (owner): each engine has its own sound, and the second runs a little
    * off the first's revs, by a share of them that wanders slowly through zero: `share` at
    * most (0.8 %: 12 rpm at 1500, so their beats drift in and out of step about once every

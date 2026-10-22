@@ -10,7 +10,8 @@
  *                is aboard the boat the host is on;
  *   2. crew      both pages list both players; the host mutes and unmutes the crew-mate;
  *   3. launch    Go with no boat of her own moves nothing; the crew launches her own boat:
- *                she's in both worlds, owned, the crew aboard; Go sends her (and the crew)
+ *                she's in both worlds, owned, the crew aboard; the host hears her (her
+ *                engine in 3D) and her horn pressed on her page; Go sends her (and the crew)
  *                to another harbour, the host's boat stays, both pages agree where she is;
  *   4. tow       a barge astern of the crew's boat; the crew makes her towline fast to it
  *                from her own page: the host's world has her line, and her page shows it;
@@ -151,6 +152,18 @@ try {
   const crewSees = await B.evaluate(() => ({ my: window.app.menuHost().myBoat(), aboard: window.app.world.players[window.app.localPlayerId]?.aboardVesselId }));
   check('the crew sees her boat and is aboard her', !!launched && crewSees.aboard === launched.id && !crewSees.my.startsWith('None'), crewSees.my);
   if (launched) {
+    // Heard: her boat beside the host's, her engine and her horn in the host's ears (audio/boatVoices.ts).
+    await A.evaluate(() => window.app.sound.unlock());
+    await A.waitForTimeout(6000);
+    const heard = await A.evaluate(() => window.app.sound.boats.heard);
+    check("the host hears the crew's boat (her engine, the rush, her horn, placed where she is)", heard >= 1, `${heard} boat(s) heard`);
+    // Her horn pressed on her page: sounding in the host's world (what the host's ears play).
+    await B.evaluate((id) => window.app.intents.push({ playerId: window.app.localPlayerId, targetId: id, control: 'horn', value: 1 }), launched.id);
+    await settle();
+    const horn = await A.evaluate((id) => window.app.world.vessels[id]?.controls.horn ?? 0, launched.id);
+    check("the crew's horn, pressed on her page, sounds in the host's world", horn > 0, `horn ${horn}`);
+    await B.evaluate((id) => window.app.intents.push({ playerId: window.app.localPlayerId, targetId: id, control: 'horn', value: 0 }), launched.id);
+    await settle();
     // Go to another harbour: her boat goes, with her aboard; the host's stays.
     const ports = await B.evaluate(() => window.app.menuHost().ports().map((p) => p?.name ?? ''));
     const to = ports.findIndex((n, i) => i > 2 && /pier|harbour|quay|marina/i.test(n));
