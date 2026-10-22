@@ -5399,6 +5399,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Two-browser check** (`npm run crewcheck`, now 25 checks): alone, the host launches the small tug and the page starts again in her, one boat; the crew (started in the fishing boat) joins and is aboard the host's boat; her Go with no boat of her own leaves the host's boat where it was; she launches, Go sends her boat 4.5 km to Keills pier with her aboard, the host's boat stays, both pages put her boat in the same place (0 m apart).
 - **Checked:** typecheck, `npm test`, `npm run crewcheck` (25 of 25). **Not checked:** VR, and a Quest joining a desktop host by hand.
 
+### Motion coupling runs evenly from 0 to 100 % (owner: "I don't notice any difference between 0 and 90 ... when I go to 100, it's locked")
+
+- **Measured** (`player/comfort.ts MotionDecoupler`, an 8 deg, 5 s roll and a 0.5 m heave): the boat moved past the view 8.0, 8.1 and 7.1 deg at 0, 30 and 50 % (alike), still 2.6 deg and 0.16 m of heave at 90 % and 2.3 deg at 95 %, then nothing at 100 % (a step). The smoothing caused both: a long lag at the bottom (up to 1.6 s) kept the view well behind the deck whatever the setting, and its 0.12 s floor kept a lag, and so a mismatch, right up to 99 %, until the rigid branch at 100 % dropped it at once.
+- **Fix:** the smoothing's time constant is `CONFIG.comfort.maxTimeConstant` (now 0.4 s, was 1.6 s) times (1 - coupling)^2, shrinking to nothing at 100 % (`minTimeConstant` gone). The view takes the coupling's share of the deck's tilt and heave, the light smoothing soaking up only jolts. Now the boat moves past you 8.0, 6.9, 5.2, 3.4, 1.6, 0.8 and 0 deg at 0, 20, 40, 60, 80, 90 and 100 %: even, with no step at the top. Heading and walking are untouched. The desktop's own setting (30 %) uses the same filter, so it now follows a little more of the boat's motion than before.
+- **Tests:** `tests/comfortScale.test.ts` (+1): falling at every 10 % step, within 1.3 deg of (1 - coupling) of the roll, under 1 deg at 90 %, none at 100 %.
+- **Checked:** typecheck, `npm test`. **Not checked:** VR (how it feels), the desktop's default by eye.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

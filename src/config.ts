@@ -3838,9 +3838,14 @@ export const CONFIG = {
      */
     desktopRigidAtControls: true,
     desktopRigidTime: 0.5,
-    /** Filter time constant at coupling 0 (s); shrinks to `minTimeConstant` at coupling 1. */
-    maxTimeConstant: 1.6,
-    minTimeConstant: 0.12,
+    /**
+     * The smoothing on top of the coupling: its time constant at coupling 0 (s), shrinking
+     * with (1 - coupling)^2 to nothing at 1, so the slider runs evenly from "the boat moves
+     * all her motion past you" to rigid, with no step at 100 % (owner, Oct 2026: 0-90 % felt
+     * alike, 100 % locked). In an 8 deg, 5 s roll the boat moves past you 8.0, 6.9, 5.2, 3.4,
+     * 1.6, 0.8 and 0 deg at 0, 20, 40, 60, 80, 90 and 100 %. (Was 1.6 s, with a 0.12 s floor.)
+     */
+    maxTimeConstant: 0.4,
     /** Time constant (s) of the very slow reference height that heave is measured from. */
     heaveReferenceTime: 8,
     /** Softly limits how far the view may move vertically relative to the deck (m). */
