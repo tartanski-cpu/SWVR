@@ -246,6 +246,13 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `net.payOut` | on / off | player sets | legacy | `netOut` | Trawl PAY OUT button on the A-frame, held. |
 | `net.haul` | on / off | player sets | legacy | `netIn` | Trawl HAUL button on the A-frame, held. |
+| `net.release` | on / off | player sets | legacy | `netRelease` | Trawl RELEASE button on the A-frame's box: the codend, hanging over the deck, emptied (fishing.ts). |
+
+## aFrame
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `aFrame.luff` | 0..1 | read only | legacy |  | How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts). |
 
 ## firePump
 

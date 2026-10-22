@@ -93,6 +93,8 @@ export interface VesselControls {
   craneHook?: number;
   netOut?: number;
   netIn?: number;
+  /** RELEASE on the A-frame's box pressed (1 until the fishing tick has emptied the codend: fishing.ts clears it). */
+  netRelease?: number;
   /**
    * Pod drives' joystick (modules/pods): vector mode on (1) or off (0 / unset), and the stick:
    * `joyX` to starboard, `joyY` ahead, `joyR` twisted clockwise (bow to starboard), each -1..1
@@ -231,6 +233,8 @@ export interface VesselState {
    * they went down: each one's species ('' if it isn't named). Absent: none in it (or no hold).
    */
   hold?: { boxes: string[] };
+  /** How far her A-frame has swung inboard on its rams (0 raked aft over the stern, 1 in over the deck; fishing/codend.ts). Absent: 0. */
+  aFrameLuff?: number;
   /**
    * The design token her type was built from (multi-boat M1: a `boat:` type, boats/library.ts):
    * travels with her in every snapshot, so any page can build her type. Unset on the fixed types.

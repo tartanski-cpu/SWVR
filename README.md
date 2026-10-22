@@ -475,13 +475,15 @@ Logs nobody comes for go again after half an hour. The menu's Debug → Missions
 
 ### Fishing (side job)
 
-The boat has a trawl: a red A-frame over the transom with a block each side on its crossbeam, its warps off the tow winch.
+The boat has a trawl: a red A-frame over the transom with a block each side on its crossbeam and a lifting block in the middle, swung by two hydraulic rams, its warps off the tow winch. Its control box stands on a post by the starboard foot: **PAY OUT**, **HAUL** and **RELEASE**.
 
 1. **Find a fishing ground:** the dashed teal rings on the chartplotter (Skerry Ground near the start, Calder Bank east of Calder Holm, The Hollows to the north-west).
-2. **Shoot the net:** the **TRAWL** switch on the console, behind the throttle (DECK group), runs it all the way out; or work it by hand with the **PAY OUT** / **HAUL** buttons on the control box on the A-frame's starboard leg (hold to run; it stops where you let go, part way out it drags but doesn't fish). The warps run out astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
-3. **Tow at 2–4.5 knots** inside the ground. The net is a real load, so she needs some throttle: idle in gear makes just under 2 knots, and the window runs to about half ahead. Every 30–50 s of good trawling a **box of fish** (a wooden fish box; on ice once you've bought the ice machine) appears on the aft deck. The status line says why not if you're too slow, too fast or outside a ground.
+2. **Shoot the net:** the **TRAWL** switch on the console, behind the throttle (DECK group), runs it all the way out; or work it by hand with the **PAY OUT** / **HAUL** buttons on the A-frame's control box (hold to run; it stops where you let go, part way out it drags but doesn't fish). The trawl doors go out on the warps astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
+3. **Tow at 2–4.5 knots** inside the ground. The net is a real load, so she needs some throttle: idle in gear makes just under 2 knots, and the window runs to about half ahead. Every 30–50 s of good trawling another box's worth of fish goes into the **codend** (the bag at the end of the net), up to 12; the status line counts them, and says why not if you're too slow, too fast or outside a ground. Full, it stops fishing until you haul.
 4. **Mind the shallows:** trawling where it's under 7 m deep fouls the net on the bottom. It holds her back hard and catches nothing until you haul it.
-5. **Haul the net** (TRAWL switch off, or hold HAUL on the A-frame) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
+5. **Haul the net** (TRAWL switch off, or hold HAUL on the A-frame): the warps wind in and the doors come up to hang on the stern quarters, then the net comes up over the stern, the codend, heavy with fish, rises to hang under the A-frame, and the A-frame swings forward on its rams to bring it in over the deck. You feel its weight on her as it comes out of the water.
+6. **RELEASE** on the A-frame's box empties the codend: the fish pour out onto the deck in a heap, and the crew box them, a box every few seconds (into the **fish hold** first, if she has one; else on deck by the heap). Then the A-frame swings back out and the net goes back on its drum. Shoot again with the codend still full and it goes back out with the fish in it.
+7. **Carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the heap waits until there's room.
 
 **Debug → Missions → Side jobs → Fishing ground** takes you to the nearest ground.
 

@@ -250,7 +250,7 @@ export const SCENARIOS: Record<string, () => Checkpoint[]> = {
       towLine,
     ),
 
-  /** The trawl shot on Skerry Ground, towed at about 2.6 kn, inside the 2-4.5 kn window (a box of fish comes aboard), then hauled. */
+  /** The trawl shot on Skerry Ground, towed at about 2.6 kn, inside the 2-4.5 kn window (a box of fish into the codend, since Oct 2026: not on deck), then hauled. */
   trawl: () =>
     play(
       { at: [ground.x, ground.z + 100, 0] },

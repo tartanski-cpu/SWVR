@@ -1,21 +1,31 @@
 /**
- * Fishing: a side mission (owner request) with a simple trawl. Plain shared state
+ * Fishing: a side mission (owner request) with a trawl. Plain shared state
  * (WorldState.fishing), stepped by the host. The net is worked two ways: the TRAWL switch
  * on the console (vessel control `trawl`) runs it all the way out or in when it's flipped;
- * the PAY OUT / HAUL buttons on the A-frame's starboard leg (hold-to-run, `netOut` / `netIn`) move it by
+ * the PAY OUT / HAUL buttons on the A-frame's control box (hold-to-run, `netOut` / `netIn`) move it by
  * hand while held and stop it where it is ('held').
  *
- *   net       stowed -> shooting (paid out through the A-frame's blocks over the transom, `shootTime` s) -> down
- *             -> hauling (`haulTime` s) -> stowed. While it's out it drags on the boat:
- *             F = -(cL + cQ |v|) v at the stern, scaled by how far out it is (a trawl at
- *             3 kn is a few kN: you hear the engine work).
+ *   net       stowed (on its drum) -> shooting (paid out through the A-frame's blocks over the
+ *             transom, `shootTime` s) -> down -> hauling (the warps in, `haulTime` s, the trawl
+ *             doors coming up to hang at the blocks) -> lifting (owner, Oct 2026: the net up
+ *             the stern and the codend, the bag of fish at its end, up under the A-frame, which
+ *             swings it in over the deck: `liftTime` s; codend.ts) -> aboard (hanging over the
+ *             deck: RELEASE on the A-frame's box empties it) -> stowing (the A-frame swings
+ *             back out, the net goes back on its drum, `stowTime` s) -> stowed. Shot again
+ *             from aboard, the codend goes back over the stern first (what's in it stays in it).
+ *             While it's out it drags on the boat: F = -(cL + cQ |v|) v at the stern, scaled by
+ *             how far out it is (a trawl at 3 kn is a few kN: you hear the engine work).
  *   catching  with the net down, in one of the fishing grounds (FISHING_GROUNDS in world/archipelago.ts,
  *             dashed rings on the chartplotter), at trawling speed (`minSpeed`..`maxSpeed`
  *             m/s, about 2-4.5 kn), the net fills at `richness / boxEvery` per s. Each time
- *             it's full, a box of fish appears on the aft deck (a cargo item bound for
- *             'any' port: carry it ashore to any goods stack to land it). Too slow and the
- *             fish swim out; too fast and the net lifts off the bottom; outside a ground
- *             there's nothing; deck full: the catch waits in the net.
+ *             it's full, a box's worth of fish is in the codend (each its ground's species), up
+ *             to `codendBoxes`: then it's full and wants hauling. Too slow and the fish swim
+ *             out; too fast and the net lifts off the bottom; outside a ground there's nothing.
+ *   the catch emptied on deck, the crew boxes it, a box every `boxTime` s: into the fish hold
+ *             first if she has one with room (fishHold.ts), else on the deck by the heap (a
+ *             cargo item bound for 'any' port: carry it ashore to any goods stack to land it).
+ *             With no room on deck the heap waits. The codend's weight hangs on her at the
+ *             A-frame once it's out of the water (codendPayload).
  *   fouled    trawled where it's shallower than `snagDepth` m, the net catches on the
  *             bottom: it holds her back hard and catches nothing until it's hauled.
  */
@@ -37,11 +47,12 @@ import type { EntityId } from '../core/ids';
 import { hasUpgrade } from '../career/career';
 import { significantWaveHeight } from '../ocean/waves';
 import { holdOf, stowInHold } from './fishHold';
+import { codendAt, codendOutOfWater, luffOf } from './codend';
 
-export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'held' | 'noHydraulics' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full' | 'rough';
+export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'held' | 'noHydraulics' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full' | 'rough' | 'lifting' | 'aboard' | 'stowing';
 
 export interface FishingState {
-  net: 'stowed' | 'shooting' | 'down' | 'hauling' | 'held';
+  net: 'stowed' | 'shooting' | 'down' | 'hauling' | 'held' | 'lifting' | 'aboard' | 'stowing';
   /** The TRAWL switch as last seen (a flip starts a full shoot or haul). */
   sw?: number;
   /** How far out the net is, 0 (aboard) .. 1 (fishing). */
@@ -51,10 +62,19 @@ export interface FishingState {
   status: FishStatus;
   /** The ground she's in (name), if any. */
   ground: string | null;
-  /** Boxes caught, and landed ashore. */
+  /** Boxes caught (into the net), and landed ashore. */
   caught: number;
   landed: number;
   seq: number;
+  /** How far the net is up the stern and in over the deck, 0 (the warps just in) .. 1 (the codend hanging inboard): codend.ts. Absent: 0. */
+  lift?: number;
+  /** What's in the codend: a box's worth each, its species ('' unnamed). Absent: empty. */
+  catch?: string[];
+  /** The catch emptied on deck, waiting to be boxed (as `catch`); and how long since the last box (s). */
+  pile?: string[];
+  boxT?: number;
+  /** The heap's boxes found no room on deck (the status says so). */
+  deckFull?: boolean;
 }
 
 export function createFishingState(): FishingState {
@@ -78,8 +98,8 @@ function speedOf(v: VesselState): number {
 
 const FISH_KIND = () => CONFIG.cargo.kinds.findIndex((k) => k.name === 'Fish box');
 
-/** A box of fish on the aft deck, if there's room. */
-function landBox(world: WorldState, v: VesselState, f: FishingState): CargoItem | null {
+/** A box of fish on the deck by the heap (where the codend was emptied), if there's room. */
+function landBox(world: WorldState, v: VesselState, f: FishingState, species: string): CargoItem | null {
   const kind = FISH_KIND();
   const k = CONFIG.cargo.kinds[kind];
   const proto = { kind, mass: k.mass } as CargoItem;
@@ -88,8 +108,8 @@ function landBox(world: WorldState, v: VesselState, f: FishingState): CargoItem 
     const fp = footprint(c);
     return { x: at.pos[0], z: at.pos[2], r: Math.max(fp.hx, fp.hz) };
   });
-  const z0 = hullPlan(VESSEL_DEFS[v.defId]).transom - CONFIG.fishing.boxInset;
-  const spot = deckSpot(v.defId, footprint(proto), ((f.seq % 3) - 1) * 0.7, z0, others);
+  const [hx, hz] = heapAt(v);
+  const spot = deckSpot(v.defId, footprint(proto), hx + ((f.seq % 3) - 1) * 0.7, hz - 0.9, others);
   if (!spot) return null;
   f.seq += 1;
   const item: CargoItem = {
@@ -99,62 +119,51 @@ function landBox(world: WorldState, v: VesselState, f: FishingState): CargoItem 
     from: 'trawl',
     to: 'any',
     // What's in it: the ground's species (named on the box; the buyer prices it).
-    species: groundAt(v.position[0], v.position[2])?.species,
+    ...(species ? { species } : {}),
     at: { vessel: v.id, pos: [spot.x, deckHeightAt(v.defId, spot.z), spot.z], yaw: 0, vel: [0, 0], lashed: false },
   };
   world.cargo[item.id] = item;
   return item;
 }
 
-/** One tick: the net out or in, and the catch. */
+/** One tick: the net out or in (and up and aboard), the catch, and boxing it. */
 export function stepFishing(world: WorldState, dt: number): void {
   const f = (world.fishing ??= createFishingState());
   const v = trawler(world);
   if (!v) return;
   const c = CONFIG.fishing;
-  // The console switch: a flip runs the net all the way out, or all the way in.
+  f.lift ??= 0;
+  const inNet = (f.catch ??= []);
+  boxTheCatch(world, v, f, dt);
+  // The console switch: a flip runs the net all the way out, or all the way in (and aboard).
   const sw = (v.controls.trawl ?? 0) > 0.5 ? 1 : 0;
   if (sw !== (f.sw ?? 0)) {
     if (sw && f.net !== 'down') f.net = 'shooting';
-    if (!sw && f.net !== 'stowed') f.net = 'hauling';
+    if (!sw && f.net !== 'stowed' && f.net !== 'aboard' && f.net !== 'stowing') f.net = 'hauling';
   }
   f.sw = sw;
   // The A-frame's buttons: out or in by hand while held, stopping where it is when let go.
   const jog = (v.controls.netOut ?? 0) - (v.controls.netIn ?? 0);
-  // The net drum is hydraulic: with no pressure (engine off, DECK HYD off) nothing moves; a
-  // shoot or haul asked for waits, and starts when the hydraulics come on.
+  // RELEASE on the A-frame's box: the codend opened over the deck, its catch on deck.
+  if (v.controls.netRelease) {
+    v.controls.netRelease = 0;
+    if (f.net === 'aboard' && inNet.length) {
+      (f.pile ??= []).push(...inNet.splice(0));
+      f.boxT = 0;
+    }
+  }
+  // The net drum and the A-frame's rams are hydraulic: with no pressure (engine off, DECK HYD
+  // off) nothing moves; a shoot, haul or stow asked for waits, and starts when the hydraulics come on.
   f.ground = groundAt(v.position[0], v.position[2])?.name ?? null;
-  if (!hydraulicsOn(v) && (jog || f.net === 'shooting' || f.net === 'hauling')) {
+  const moving = jog || f.net === 'shooting' || f.net === 'hauling' || f.net === 'lifting' || f.net === 'stowing' || (f.net === 'aboard' && !inNet.length);
+  if (!hydraulicsOn(v) && moving) {
     if (f.status !== 'fouled') f.status = 'noHydraulics';
+    v.aFrameLuff = luffOf(f.lift);
     return;
   }
-  if (jog) {
-    f.t = Math.min(1, Math.max(0, f.t + (jog * dt) / (jog > 0 ? c.shootTime : c.haulTime)));
-    f.net = f.t >= 1 ? 'down' : f.t <= 0 ? 'stowed' : 'held';
-    // The switch follows: on while any of the net is out (flip it off to haul it all in).
-    v.controls.trawl = f.sw = f.t > 0 ? 1 : 0;
-  }
-  if (f.net === 'held') {
-    // Part out, stopped: it drags (by how far out it is) but doesn't fish. Still fouled if it was.
-    if (f.status !== 'fouled') f.status = 'held';
-    return;
-  }
-  if (f.net === 'shooting') {
-    f.t = Math.min(1, f.t + dt / c.shootTime);
-    if (f.t >= 1) f.net = 'down';
-    f.status = f.status === 'fouled' ? 'fouled' : 'shooting';
-    return;
-  }
-  if (f.net === 'hauling') {
-    f.t = Math.max(0, f.t - dt / c.haulTime);
-    if (f.t <= 0) f.net = 'stowed';
-    f.status = f.t <= 0 ? 'stowed' : 'hauling';
-    return;
-  }
-  if (f.net === 'stowed') {
-    f.status = 'stowed';
-    return;
-  }
+  stepNet(f, v, jog, dt);
+  v.aFrameLuff = luffOf(f.lift);
+  if (f.net !== 'down') return;
   // Down: fishing, or why not.
   const depth = -groundHeight(v.position[0], v.position[2]);
   if (f.status === 'fouled' || depth < c.snagDepth) {
@@ -168,19 +177,131 @@ export function stepFishing(world: WorldState, dt: number): void {
   else if (!g) f.status = 'outside';
   else if (sp < c.minSpeed) f.status = 'slow';
   else if (sp > c.maxSpeed) f.status = 'fast';
+  else if (inNet.length >= c.codendBoxes) f.status = 'full';
   else {
     f.status = 'fishing';
     // The bigger trawl (a career upgrade) fills faster.
     const every = c.boxEvery / (hasUpgrade(world, 'trawl') ? c.bigTrawlFactor : 1);
     f.fill = Math.min(1, f.fill + (g.richness * dt) / every);
-  }
-  if (f.fill >= 1) {
-    // Down into her fish hold if she has one with room (fishHold.ts), else on deck.
-    if (stowInHold(v, groundAt(v.position[0], v.position[2])?.species) || landBox(world, v, f)) {
+    if (f.fill >= 1) {
+      // A box's worth more in the codend.
+      inNet.push(g.species ?? '');
       f.fill = 0;
       f.caught += 1;
-    } else f.status = 'full';
+    }
   }
+}
+
+/** The net's way out and in: the warps (`t`), then up the stern and aboard (`lift`), by the switch or by hand. */
+function stepNet(f: FishingState, v: VesselState, jog: number, dt: number): void {
+  const c = CONFIG.fishing;
+  const lift = f.lift ?? 0;
+  const inNet = f.catch ?? [];
+  if (jog) {
+    // By hand: PAY OUT lowers the codend back over the stern first, then pays the warps out;
+    // HAUL winds the warps in, then lifts the net aboard. (On its drum, HAUL does nothing.)
+    if (jog > 0) {
+      if (lift > 0) f.lift = Math.max(0, lift - (jog * dt) / c.liftTime);
+      else f.t = Math.min(1, f.t + (jog * dt) / c.shootTime);
+    } else if (f.net !== 'stowed') {
+      if (f.t > 0) f.t = Math.max(0, f.t + (jog * dt) / c.haulTime);
+      else f.lift = Math.min(1, lift - (jog * dt) / c.liftTime);
+    }
+    f.net = f.t >= 1 ? 'down' : f.lift! >= 1 ? 'aboard' : 'held';
+    // The switch follows: on while any of the net is out (flip it off to haul it all in).
+    v.controls.trawl = f.sw = f.t > 0 ? 1 : 0;
+  }
+  switch (f.net) {
+    case 'held':
+      // Part out (or part up), stopped: it drags (by how far out it is) but doesn't fish. Still fouled if it was.
+      if (f.status !== 'fouled') f.status = 'held';
+      return;
+    case 'shooting':
+      // The codend back over the stern first, if it's up, then the warps out.
+      if (lift > 0) f.lift = Math.max(0, lift - dt / c.liftTime);
+      else f.t = Math.min(1, f.t + dt / c.shootTime);
+      if (f.t >= 1) f.net = 'down';
+      f.status = f.status === 'fouled' ? 'fouled' : 'shooting';
+      return;
+    case 'hauling':
+      if (f.t > 0) {
+        f.t = Math.max(0, f.t - dt / c.haulTime);
+        f.status = 'hauling';
+        return;
+      }
+      f.net = 'lifting';
+      f.status = 'lifting';
+      return;
+    case 'lifting':
+      f.lift = Math.min(1, lift + dt / c.liftTime);
+      f.status = 'lifting';
+      if (f.lift >= 1) f.net = 'aboard';
+      return;
+    case 'aboard':
+      // Hanging over the deck: emptied (RELEASE), or empty, it's stowed.
+      f.status = 'aboard';
+      if (!inNet.length) f.net = 'stowing';
+      return;
+    case 'stowing':
+      f.lift = Math.max(0, lift - dt / c.stowTime);
+      f.status = 'stowing';
+      if (f.lift <= 0) {
+        f.net = 'stowed';
+        f.status = 'stowed';
+      }
+      return;
+    case 'stowed':
+      f.status = 'stowed';
+      return;
+  }
+}
+
+/** The catch emptied on deck, boxed a box every `boxTime` s: into the fish hold if it has room, else on deck by the heap. */
+function boxTheCatch(world: WorldState, v: VesselState, f: FishingState, dt: number): void {
+  const pile = f.pile;
+  if (!pile?.length) {
+    f.deckFull = false;
+    return;
+  }
+  f.boxT = (f.boxT ?? 0) + dt;
+  if (f.boxT < CONFIG.fishing.boxTime) return;
+  const species = pile[0];
+  const done = stowInHold(v, species) || !!landBox(world, v, f, species);
+  f.deckFull = !done;
+  if (done) {
+    pile.shift();
+    f.boxT = 0;
+  }
+}
+
+/**
+ * Where the catch lands on deck emptied from the codend (her axes, x and z): under where it
+ * hangs inboard, or the nearest open deck to that (clear of her deck gear: a fish hold's
+ * coaming, the winch). Kept by her type (it depends only on her gear).
+ */
+export function heapAt(v: { defId: string }): [number, number] {
+  const def = VESSEL_DEFS[v.defId];
+  let h = heaps.get(def);
+  if (!h) {
+    const af = aFrameOf(v);
+    const p = af ? codendAt(af, 1) : [0, 0, hullPlan(def).transom - 2.2];
+    const spot = deckSpot(v.defId, { hx: 0.45, hz: 0.45 }, p[0], p[2], []);
+    heaps.set(def, (h = spot ? [spot.x, spot.z] : [p[0], p[2]]));
+  }
+  return h;
+}
+const heaps = new WeakMap<object, [number, number]>();
+
+/** The codend's weight on her once it's out of the water (it hangs from the A-frame), with what's in it. */
+export function codendPayload(world: WorldState, vesselId: EntityId): { mass: number; pos: THREE.Vector3 }[] {
+  const f = world.fishing;
+  const v = world.vessels[vesselId];
+  if (!f?.catch?.length || !f.lift || !v || trawler(world) !== v) return [];
+  const af = aFrameOf(v);
+  const share = codendOutOfWater(f.lift);
+  if (!af || share <= 0) return [];
+  const k = CONFIG.cargo.kinds[FISH_KIND()];
+  return [{ mass: f.catch.length * k.mass * share, pos: new THREE.Vector3(...codendAt(af, f.lift)) }];
 }
 
 /**
@@ -226,21 +347,36 @@ export function trawlKnots(): string {
   return `${kn(CONFIG.fishing.minSpeed)}-${kn(CONFIG.fishing.maxSpeed)} kn`;
 }
 
-/** One line for displays while the net is out, else null. */
+/** One line for displays while the net is out (or the catch is being boxed), else null. */
 export function fishingStatus(world: WorldState): string | null {
   const f = world.fishing;
-  if (!f || f.net === 'stowed') return null;
+  const pile = f?.pile?.length ?? 0;
+  const boxing = pile ? (f!.deckFull ? `Deck full: ${pile} box${pile > 1 ? 'es' : ''} of fish waiting on deck - land some` : `Boxing the catch: ${pile} to go`) : null;
+  if (!f || f.net === 'stowed') return boxing;
+  const net = netStatus(world, f);
+  return net && boxing ? `${net} · ${boxing}` : (net ?? boxing);
+}
+
+function netStatus(world: WorldState, f: FishingState): string | null {
   const v = trawler(world);
   const hold = v ? holdOf(v) : null;
-  const box = `net ${Math.round(f.fill * 100)} %${hold ? `, hold ${v!.hold?.boxes.length ?? 0}/${hold.slots.length}` : ''}`;
+  const n = f.catch?.length ?? 0;
+  const inNet = `${n} box${n === 1 ? '' : 'es'} in the codend`;
+  const box = `net ${Math.round(f.fill * 100)} %, ${inNet}${hold ? `, hold ${v!.hold?.boxes.length ?? 0}/${hold.slots.length}` : ''}`;
   const where = f.ground ? ` on ${f.ground}` : '';
   switch (f.status) {
     case 'shooting':
       return 'Shooting the trawl...';
     case 'hauling':
-      return 'Hauling the trawl...';
+      return `Hauling the trawl: the warps coming in (${inNet})`;
+    case 'lifting':
+      return `The net coming up the stern, the codend swung aboard (${inNet})`;
+    case 'aboard':
+      return n ? `Codend aboard with ${n} box${n === 1 ? '' : 'es'} of fish: RELEASE on the A-frame's box empties it on deck` : null;
+    case 'stowing':
+      return 'Stowing the net';
     case 'held':
-      return `Net ${Math.round(f.t * 100)} % out, stopped (PAY OUT / HAUL on the A-frame, or the TRAWL switch)`;
+      return f.t > 0 ? `Net ${Math.round(f.t * 100)} % out, stopped (PAY OUT / HAUL on the A-frame, or the TRAWL switch)` : `Net up the stern, stopped (HAUL on the A-frame brings it aboard, or the TRAWL switch)`;
     case 'noHydraulics':
       return 'Net drum has no hydraulics: engine running and DECK HYD breaker on';
     case 'fishing':
@@ -256,7 +392,7 @@ export function fishingStatus(world: WorldState): string | null {
     case 'rough':
       return 'Too rough to fish: the net jumps off the bottom - haul it and wait for better weather';
     case 'full':
-      return hold ? 'Hold and deck full: land your catch before more comes aboard' : 'Deck full: land your catch before more comes aboard';
+      return `Codend full (${n} boxes): haul it in and empty it`;
     default:
       return null;
   }

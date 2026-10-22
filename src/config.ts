@@ -1089,10 +1089,14 @@ export const CONFIG = {
          * deck edge, `footFromTransom` forward of it), raked aft to a crossbeam `height` above
          * the deck, `headAft` beyond the transom, each leg braced from part way up down to the
          * deck `braceForward` m forward of its foot. The warps run through a block on the beam
-         * each side (`blockX`). The by-hand PAY OUT / HAUL buttons (hold-to-run) are on a
-         * control box built onto the starboard leg, `buttonHeight` above the deck.
+         * each side (`blockX`). The braces are its hydraulic rams: hauling the net (owner, Oct
+         * 2026) they swing it forward on its feet through `luffDeg` to bring the codend in over
+         * the deck (fishing/codend.ts). Its control box (PAY OUT and HAUL, hold-to-run, and
+         * RELEASE for the codend) stands on a post on the deck inboard of the starboard foot
+         * (`box`: `inboard` of the leg, `forward` of its foot, `buttonHeight` above the deck),
+         * clear of the frame as it swings.
          */
-        aFrame: { footInset: 0.2, footFromTransom: 0.55, height: 3.0, headAft: 0.3, braceForward: 0.8, blockX: 0.75, buttonHeight: 1.0 },
+        aFrame: { footInset: 0.2, footFromTransom: 0.55, height: 3.0, headAft: 0.3, braceForward: 0.8, blockX: 0.75, buttonHeight: 1.0, luffDeg: 55, box: { inboard: 0.55, forward: 0.35 } },
       },
       /**
        * The tow winch (tow/tow.ts stepTowWinch): a small drum on the aft deck centreline just
@@ -2261,7 +2265,7 @@ export const CONFIG = {
    * (m/s; 1.0-2.3 is 2-4.5 kn), seconds of good trawling per box at richness 1, how long the
    * net takes out and in (s), where it fouls (shallower than m), and its drag on the boat:
    * (dragLinear + dragQuad |v|) v N (~10 kN at 3 kn), fouled `foulDrag` |v| and a
-   * `foulHold` N pull astern. Boxes appear `boxInset` m in from the transom.
+   * `foulHold` N pull astern. The catch is boxed on deck by where the codend was emptied (codendBoxes, below).
    */
   fishing: {
     // The grounds themselves (where, how rich) are level data: each region's `fishingGrounds`.
@@ -2278,6 +2282,23 @@ export const CONFIG = {
     bigTrawlFactor: 1.5,
     shootTime: 10,
     haulTime: 12,
+    /**
+     * The catch comes aboard in the net (owner, Oct 2026: "pull the fish in the net instead of
+     * auto-loading the crates"). Trawling, the catch builds up in the codend, at most
+     * `codendBoxes` boxes' worth. Hauled, once the warps are in (`haulTime`) the net comes up
+     * the stern and the A-frame swings the codend in over the deck (`liftTime` s); RELEASE
+     * empties it on deck, where the crew boxes the heap, a box every `boxTime` s (into the fish
+     * hold first, if she has one); then the A-frame swings back out and the net goes back on
+     * its drum (`stowTime` s). Where the codend goes: fishing/codend.ts (`codend`: astern and
+     * deep, the surface `surfaceAft` astern of the gallows by lift `surfaceAt`, hanging `hang`
+     * under the lifting block by `hangAt`). Drawn `radius` round empty, growing by
+     * `radiusPerBox` (as the cube root of what's in it), its fish pouring out over `pourTime` s.
+     */
+    codendBoxes: 12,
+    liftTime: 12,
+    stowTime: 8,
+    boxTime: 3,
+    codend: { astern: 22, depth: 2.5, surfaceAft: 3, surfaceAt: 0.45, hangAt: 0.7, hang: 1.35, radius: 0.2, radiusPerBox: 0.17, pourTime: 1.5 },
     snagDepth: 7,
     /** No fishing in a sea bigger than this (Hs, m). */
     maxHs: 2.2,
@@ -2287,7 +2308,6 @@ export const CONFIG = {
     /** Fouled on the bottom: well above the net's normal drag (27 kN at 1.5 m/s). */
     foulDrag: 18000,
     foulHold: 6000,
-    boxInset: 2.2,
   },
 
   /**

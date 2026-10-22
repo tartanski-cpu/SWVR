@@ -2317,11 +2317,12 @@ export class App {
     // Net drum: shooting or hauling, by the switch or the A-frame's buttons.
     const f = this.world.fishing;
     // A button only turns the drum while there's net left to pay out or haul in.
-    const jog = ((c.netOut ?? 0) > 0.5 && (f?.t ?? 0) < 1) || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
-    const trawlRun = hyd && f && (f.net === 'shooting' || f.net === 'hauling' || jog) ? 1 : 0;
+    // (And the A-frame's rams, swinging the codend in and out: their pumps sound the same.)
+    const jog = ((c.netOut ?? 0) > 0.5 && ((f?.t ?? 0) < 1 || (f?.lift ?? 0) > 0)) || ((c.netIn ?? 0) > 0.5 && f?.net !== 'stowed' && ((f?.t ?? 0) > 0 || (f?.lift ?? 0) < 1));
+    const trawlRun = hyd && f && (f.net === 'shooting' || f.net === 'hauling' || f.net === 'lifting' || f.net === 'stowing' || jog) ? 1 : 0;
     // The same drum takes the towline and the trawl warps: it turns only while one of them
     // is really moving under pressure (+1 coming in, -1 going out).
-    const netIn = f?.net === 'hauling' || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
+    const netIn = f?.net === 'hauling' || f?.net === 'lifting' || f?.net === 'stowing' || ((c.netIn ?? 0) > 0.5 && f?.net !== 'stowed');
     const drum = this.homeView?.api<TowWinchApi>('deck.tow-winch');
     if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun ? (netIn ? 1 : -1) : 0;
     const af = aFrameOf(v);
@@ -2329,7 +2330,7 @@ export class App {
       {
         crane: { run: craneRun, load: tp === 'hoisting' ? 0.7 : 0.5, distance: cr ? dist(cr.column[0], cr.shoulderY, cr.column[1]) : 1e9 },
         winch: { run: winchRun, load: line ? Math.min(1, line.tension / CONFIG.tow.winch.pullN) : 0, stalled, distance: tw ? dist(0, 1.2, tw.lead[2]) : 1e9 },
-        trawl: { run: trawlRun, load: f?.net === 'hauling' || (c.netIn ?? 0) > 0.5 ? 0.7 : 0.3, distance: af ? dist(0, af.top - 0.3, af.headZ) : 1e9 },
+        trawl: { run: trawlRun, load: f?.net === 'hauling' || f?.net === 'lifting' || (c.netIn ?? 0) > 0.5 ? 0.7 : 0.3, distance: af ? dist(0, af.top - 0.3, af.headZ) : 1e9 },
       },
       this.insideHouse ? this.closed : 0,
     );

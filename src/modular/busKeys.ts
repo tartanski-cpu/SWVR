@@ -386,6 +386,8 @@ export const BUS_KEYS = {
   }),
   'net.payOut': control('netOut', 'Trawl PAY OUT button on the A-frame, held.', { aliases: ['netOut'] }),
   'net.haul': control('netIn', 'Trawl HAUL button on the A-frame, held.', { aliases: ['netIn'] }),
+  'net.release': control('netRelease', "Trawl RELEASE button on the A-frame's box: the codend, hanging over the deck, emptied (fishing.ts).", { aliases: ['netRelease'] }),
+  'aFrame.luff': state('number', (s) => s.aFrameLuff ?? 0, 'How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts).', { unit: '0..1' }),
   'firePump.on': control('firePump', 'FIRE PUMP switch.', { aliases: ['firePump'] }),
   'monitor.pan': setting('monPan', [-mon.panLimitDeg, mon.panLimitDeg], 'deg', 'Fire monitor pan, + to starboard.', { hold: 'monPan', aliases: ['monPan'] }),
   'monitor.tilt': setting('monTilt', [mon.tiltMinDeg, mon.tiltMaxDeg], 'deg', 'Fire monitor elevation.', { hold: 'monPan', aliases: ['monTilt'], default: 20 }),

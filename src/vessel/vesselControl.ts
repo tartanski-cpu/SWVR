@@ -145,6 +145,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'holdHatch':
       s.controls.holdHatch = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'netRelease':
+      // A press: set until the fishing tick empties the codend (fishing.ts clears it).
+      if (intent.value > 0.5) s.controls.netRelease = 1;
+      break;
     case 'holdLift':
       // A press: set until the hold's tick lifts a box (fishing/fishHold.ts clears it).
       if (intent.value > 0.5) s.controls.holdLift = 1;

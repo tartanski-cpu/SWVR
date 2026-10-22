@@ -339,11 +339,12 @@ function stepTowDuty(world: WorldState, d: DutiesState): void {
 function stepFishingDuty(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
   const f = world.fishing;
   const fishAboard = !!v && Object.values(world.cargo).some((c) => c.from === 'trawl' && 'vessel' in c.at && c.at.vessel === v.id);
-  const live = f && (f.net !== 'stowed' || fishAboard) ? 'fishing' : null;
+  const live = f && (f.net !== 'stowed' || fishAboard || !!f.pile?.length) ? 'fishing' : null;
   syncJob(d, 'fishing', live, 'Fishing: trawl', [
     { text: 'Shoot the net: TRAWL switch (console, behind the throttle) or PAY OUT on the A-frame', done: !!f && (f.net !== 'stowed' || f.caught > 0) },
     { text: 'Tow it on a fishing ground (dashed on the plotter) at 2-4.5 kn', done: !!f && f.caught > 0 },
-    { text: 'Haul the net; carry the fish boxes ashore to any goods stack', done: false },
+    { text: 'Haul the net aboard; RELEASE on the A-frame empties the codend on deck to be boxed', done: !!f && (f.landed > 0 || !!f.pile?.length || fishAboard) },
+    { text: 'Carry the fish boxes ashore to any goods stack', done: false },
   ], world.time);
 }
 
