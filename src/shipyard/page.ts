@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, CONSOLE_AUTO, CONSOLE_SIDES, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -814,6 +814,15 @@ section('2. Wheelhouse');
   // wheelhouse there's room beside it, and against the port or starboard wall if chosen.
   // (Only with a flat front: a faceted front's console wraps round its middle pane, so it stays there.)
   options('consoleSide', 'Console', [...CONSOLE_SIDES]).dataset.unless = 'facets';
+  // Its length (CS6): full, or shorter for a narrow wheelhouse (switches move up onto the dash face as needed).
+  slider('consoleLen', 'Console length', (v) => (consoleLengthM(v) ? `${consoleLengthM(v)!.toFixed(2)} m` : 'Full width'));
+  {
+    const note = document.createElement('div');
+    note.id = 'consoleMinNote';
+    note.className = 'meta';
+    note.style.cssText = 'font-size:12px;color:var(--muted);margin:-4px 0 6px';
+    controls.appendChild(note);
+  }
   options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
   // The finish inside, walls and ceiling, and the floor (owner, Oct 2026; CONFIG.interiors, CONFIG.cabinFloors).
   options('interior', 'Lining', CONFIG.interiors.map((f) => f.name));
@@ -1111,6 +1120,10 @@ function showConsoleEditor(): void {
   const cc = helm?.config as { dashGrid?: DashGrid; panelGrid?: PanelGrid } | undefined;
   const dg = cc?.dashGrid;
   const pg = cc?.panelGrid;
+  // Under the Console length slider: the shortest console that holds her instruments full size (CS6).
+  const note = document.getElementById('consoleMinNote');
+  const min = (cc as { consoleMin?: number } | undefined)?.consoleMin;
+  if (note) note.textContent = min ? `Shortest that holds her instruments full size: ${min.toFixed(2)} m${design.controls && !design.touch ? ' (a touchscreen needs less)' : ''}. Shorter, they're drawn smaller; switches move up onto the dash as needed.` : '';
   if (!dg || !pg) {
     box.innerHTML = '<p class="meta">This boat\u2019s console isn\u2019t laid out on a grid.</p>';
     return;
@@ -1134,7 +1147,7 @@ function showConsoleEditor(): void {
   let svg = `<svg viewBox="0 0 ${W} ${H}" class="consoleSvg">`;
   // The dash's cells, then its screens.
   for (let c = 0; c < dg.cap; c++) for (let r = 0; r < dg.rows; r++) svg += `<rect class="cell" data-kind="dash" data-col="${c}" data-row="${r}" x="${dashX + c * cellW + 1}" y="${dashY + r * cellH + 1}" width="${cellW - 2}" height="${cellH - 2}"/>`;
-  for (const p of dg.places) svg += `<g class="item${picked('dash', p.id) ? ' picked' : ''}" data-kind="dash" data-id="${p.id}"><rect x="${dashX + p.col * cellW + 2}" y="${dashY + p.row * cellH + 2}" width="${p.w * cellW - 4}" height="${p.h * cellH - 4}" rx="3"/><text x="${dashX + (p.col + p.w / 2) * cellW}" y="${dashY + (p.row + p.h / 2) * cellH + 4}">${names[p.id] ?? p.id}</text></g>`;
+  for (const p of dg.places) svg += `<g class="item${picked('dash', p.id) ? ' picked' : ''}" data-kind="dash" data-id="${p.id}"><rect x="${dashX + p.col * cellW + 2}" y="${dashY + p.row * cellH + 2}" width="${p.w * cellW - 4}" height="${p.h * cellH - 4}" rx="3"/><text x="${dashX + (p.col + p.w / 2) * cellW}" y="${dashY + (p.row + p.h / 2) * cellH + 4}">${names[p.id] ?? (p.id === 'sw:lamps' ? 'LAMPS' : p.id.startsWith('sw:') ? p.id.slice(3) : p.id)}</text></g>`;
   // The panel's cells, then its groups.
   const pc = pg.cell * U;
   for (let k = 0; k < pg.cap; k++) svg += `<rect class="cell" data-kind="panel" data-cell="${k}" x="${panelX + k * pc + 1}" y="${panelY}" width="${pc - 2}" height="${panelH}"/>`;
@@ -1157,7 +1170,9 @@ function showConsoleEditor(): void {
   /** The design change that moves one item, pinning all the others where they stand. */
   const moveTo = (kind: 'dash' | 'panel', id: string, cell: { col: number; row: number } | number): void => {
     const patch: Partial<ShipDesign> = {};
-    for (const p of dg.places) {
+    // (Only the grid moved on is pinned (CS6): pinning the switch panel too would keep its
+    // groups off the dash face. The switch strips on the face move with the rules.)
+    for (const p of kind === 'dash' || dg.byHand ? dg.places.filter((q) => !q.id.startsWith('sw:')) : []) {
       const to = kind === 'dash' && p.id === id ? (cell as { col: number; row: number }) : p;
       // Free for it? (its cells on the grid, none of another's)
       if (kind === 'dash' && p.id === id) {
@@ -1167,7 +1182,7 @@ function showConsoleEditor(): void {
       }
       patch[DASH_SLOTS[p.id as keyof typeof DASH_SLOTS]] = dashValue(to.col, to.row);
     }
-    for (const r of pg.runs) {
+    for (const r of kind === 'panel' || pg.byHand ? pg.runs : []) {
       const k = kind === 'panel' && r.key === id ? (cell as number) : r.start;
       if (kind === 'panel' && r.key === id) {
         if (k < 0 || k + r.n > pg.cap) return;
@@ -1188,7 +1203,7 @@ function showConsoleEditor(): void {
   let drag: { kind: 'dash' | 'panel'; id: string; x0: number; y0: number; moved: boolean } | null = null;
   el.onpointerdown = (e) => {
     const g = (e.target as Element).closest('.item') as SVGGElement | null;
-    if (!g) return;
+    if (!g || g.dataset.id?.startsWith('sw:')) return; // (a switch strip on the face: placed by the rules)
     const { x, y } = pt(e);
     drag = { kind: g.dataset.kind as 'dash' | 'panel', id: g.dataset.id!, x0: x, y0: y, moved: false };
     el.setPointerCapture(e.pointerId);

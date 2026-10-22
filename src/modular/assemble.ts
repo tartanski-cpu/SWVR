@@ -58,6 +58,7 @@ export interface PlacedLabel {
   size?: readonly [number, number];
   offset?: number;
   underside?: boolean;
+  face?: number;
 }
 
 /** A boat's modules, drawn. */
@@ -138,9 +139,16 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
     // on its clip) stays there.
     for (const c of instance.controls) if (!c.root.parent) root.add(c.root);
     for (const g of instance.staticParts) staticParts.push(g.applyMatrix4(place));
+    // (A module stood out from a leaning face, its up tilted toward the helm: its labels stand
+    // on that face, read facing the way its up leans, CS6.)
+    const up = new THREE.Vector3(0, 1, 0).transformDirection(place);
+    // (Only a face leaning back, as the dash's: upright wall panels keep their labels as they were.)
+    const onFace = up.y < 0.95 && up.y > 0.05 && Math.hypot(up.x, up.z) > 0.3;
     for (const l of instance.labels ?? []) {
       v.set(...l.at).applyMatrix4(place);
-      labels.push({ text: l.text, at: [v.x, v.y, v.z], title: !!l.title, yaw: l.yaw ?? 0, size: l.size, offset: l.offset, underside: l.underside });
+      const face = l.face ?? (onFace ? Math.asin(up.y) : undefined);
+      const yaw = l.face === undefined && onFace ? Math.atan2(up.x, up.z) : (l.yaw ?? 0);
+      labels.push({ text: l.text, at: [v.x, v.y, v.z], title: !!l.title, yaw, size: l.size, offset: l.offset, underside: l.underside, face });
     }
     controls.push(...instance.controls);
     modules.push({ path: m.path, id: m.def.id, root, instance });

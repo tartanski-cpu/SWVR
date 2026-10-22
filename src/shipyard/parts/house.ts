@@ -7,7 +7,7 @@ import { BODY_RADIUS, CONFIG } from '../../config';
 import { hullQueries } from '../../modular/hull';
 import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, OverheadLayout } from '../../vessel/vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../../vessel/deckhouse';
-import { MEASURES, SCALES } from '../design';
+import { consoleLengthM, MEASURES, SCALES } from '../design';
 import type { Socket } from '../../modular/socket';
 import { halfBreadthAt, type BuildArgs, type V3 } from './common';
 import { facetCentre, frontMullions, type DesignHull } from './catalog';
@@ -129,9 +129,12 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const narrowest = Math.min(...along(8).map((z) => q.halfBeam(z)));
   const sideDeck = 0.28;
   let hw = d.houseWidth * (narrowest - sideDeck);
-  if (hw < 0.85) {
-    warnings.push('Her wheelhouse is too narrow for the console: widened to 1.7 m, leaving narrow side decks.');
-    hw = Math.min(0.85, narrowest - 0.12);
+  // No narrower than `minInside` inside (CS6, owner, Oct 2026: about 1.2 m, one at a short
+  // console; it was 1.7 m when the console had to hold a full row of screens and switches).
+  const minHw = CONFIG.shipyard.helm.minInside / 2 + 0.06;
+  if (hw < minHw) {
+    warnings.push(`Her wheelhouse is too narrow: widened to ${CONFIG.shipyard.helm.minInside.toFixed(1)} m inside, leaving narrow side decks.`);
+    hw = Math.min(minHw, narrowest - 0.12);
   }
   const deckHi = Math.max(...along(8).map((z) => q.deckY(z)));
   const deckLo = Math.min(...along(8).map((z) => q.deckY(z)));
@@ -343,7 +346,9 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // it; to port, the middle or starboard): no longer than `maxConsole`, its middle `cx`. A
   // faceted front's console wraps round the middle pane: it stays in the middle.
   const helmCfg = CONFIG.shipyard.helm;
-  const consoleHalf = Math.min(hw - wall, helmCfg.maxConsole / 2);
+  // (Or as long as set, `consoleLen`: CS6, a short console for a narrow wheelhouse.)
+  const setLen = consoleLengthM(d.consoleLen ?? 0);
+  const consoleHalf = Math.min(hw - wall, helmCfg.maxConsole / 2, setLen ? setLen / 2 : Infinity);
   const short = consoleHalf < hw - wall - 0.005;
   let side = d.consoleSide ?? 0;
   if (side && !short) side = 0; // (as wide as the cabin: nowhere to move to)

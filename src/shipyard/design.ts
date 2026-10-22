@@ -334,6 +334,13 @@ export interface ShipDesign extends Record<FurnitureKey, number>, Record<Console
    * controls. Not in the short code: a link or file.
    */
   touch: number;
+  /**
+   * The console's length (CS6; owner, Oct 2026: "an option that allows you to make a more narrow
+   * console, so we can have more narrow wheelhouses"): 0 as long as the wheelhouse allows (up to
+   * CONFIG.shipyard.helm.maxConsole), as before; k a console of `consoleLengthM` metres, no longer
+   * than the wheelhouse is wide. Not in the short code: a link or file.
+   */
+  consoleLen: number;
   /** Paint (LIVERIES). */
   paint: number;
 }
@@ -482,6 +489,10 @@ export const FRAMES_FIELD: { key: 'frames'; steps: number } = { key: 'frames', s
 const HELM_ASSIST_FIELD: { key: 'helmAssist'; steps: number } = { key: 'helmAssist', steps: 2 };
 /** Old school instruments (design.oldSchool): 0 the screens, 1 analogue gauges. Not in the code. */
 const OLD_SCHOOL_FIELD: { key: 'oldSchool'; steps: number } = { key: 'oldSchool', steps: 2 };
+/** The console's length (design.consoleLen): 0 full, else k: CONSOLE_LEN_M(k) metres. Not in the code. */
+const CONSOLE_LEN_FIELD: { key: 'consoleLen'; steps: number } = { key: 'consoleLen', steps: 28 };
+/** A console length step in metres (k >= 1): 0.8 m to 2.15 m by 5 cm; null for 0 (as long as she allows). */
+export const consoleLengthM = (k: number): number | null => (k > 0 ? Math.round((0.75 + 0.05 * k) * 100) / 100 : null);
 /** Touchscreens (design.touch): 0 separate screens, 1 or 2 touchscreens. Not in the code. */
 const TOUCH_FIELD: { key: 'touch'; steps: number } = { key: 'touch', steps: 3 };
 /** The cockpit overhead (design.overhead, SCALES.overhead): none, or 0.25 .. 4 m. Not in the code. */
@@ -561,7 +572,7 @@ export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, FORE_CABIN_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, FORE_CABIN_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -635,7 +646,8 @@ export type MeasureKey = 'housePos' | 'houseLength' | 'houseWidth' | 'headroom' 
 export const MEASURES: Record<MeasureKey, { min: number; max: number; by: number; code: (i: number) => number; steps: number }> = {
   housePos: { min: 0, max: 1, by: 0.01, code: SCALES.housePos, steps: 16 },
   houseLength: { min: 2.4, max: 5.4, by: 0.05, code: SCALES.houseLength, steps: 16 },
-  houseWidth: { min: 0.65, max: 1, by: 0.01, code: SCALES.houseWidth, steps: 8 },
+  // (Down to 0.4 for a narrow wheelhouse with a short console, CS6; never under CONFIG.shipyard.helm.minInside inside. Under 0.65: a link or file.)
+  houseWidth: { min: 0.4, max: 1, by: 0.01, code: SCALES.houseWidth, steps: 8 },
   headroom: { min: 1.9, max: 2.6, by: 0.05, code: SCALES.headroom, steps: 8 },
   floor: { min: -0.6, max: 0.8, by: 0.05, code: SCALES.floor, steps: 8 },
   saloon: { min: 0, max: 4.4, by: 0.1, code: SCALES.saloon, steps: 9 },
@@ -724,6 +736,7 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   controls: 1,
   oldSchool: 0,
   touch: 0,
+  consoleLen: 0,
   paint: 0,
 });
 
@@ -767,6 +780,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (CONSOLE_FIELDS.some((f) => d[f.key])) throw new Error('a console placed by hand isn’t in the code: she travels as a link or file');
   if (d.oldSchool) throw new Error('old school instruments aren’t in the code: she travels as a link or file');
   if (d.touch) throw new Error('touchscreens aren’t in the code: she travels as a link or file');
+  if (d.consoleLen) throw new Error('a console of a set length isn’t in the code: she travels as a link or file');
   if (!Number.isInteger(d.hull) || d.hull < 0 || d.hull >= HULL_TYPES) throw new Error(`design hull ${d.hull} is off its scale (0..${HULL_TYPES - 1})`);
   // A hull type after the first four: 0 in the first 16 characters, its number in the extension.
   const more = d.hull >= BASE_HULLS ? d.hull - BASE_HULLS + 1 : 0;
@@ -972,7 +986,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, foreCabin: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, foreCabin: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, consoleLen: 0, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

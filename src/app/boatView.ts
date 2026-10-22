@@ -277,8 +277,9 @@ function buildLabels(labels: Label[]): THREE.Mesh {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  const planes = labels.map(({ at: pos, yaw, size = LABEL_SIZE, offset = LABEL_OFFSET, underside }, i) => {
-    const [w, h] = size;
+  const planes = labels.map(({ at: pos, yaw, size = LABEL_SIZE, offset = LABEL_OFFSET, underside, face, title }, i) => {
+    // (A switch's name on the dash face: smaller, to fit under it in its strip.)
+    const [w, h] = face !== undefined && !title ? [Math.min(size[0], 0.1), Math.min(size[1], 0.014)] : size;
     const plane = new THREE.PlaneGeometry(w, h);
     // The middle `across` of its slot: as wide (in pixels) as the label is for its height.
     const across = Math.min(1, ((w / h) * SLOT_H) / SLOT_W);
@@ -287,7 +288,14 @@ function buildLabels(labels: Label[]): THREE.Mesh {
       const v0 = 1 - (i + 1) / labels.length;
       uv.setXY(k, 0.5 - across / 2 + uv.getX(k) * across, v0 + uv.getY(k) / labels.length);
     }
-    if (underside) {
+    if (face !== undefined) {
+      // Standing on a leaning face (switches on the dash face, CS6): in the face, below what
+      // it names (no further than its strip allows), just proud of it.
+      const down = Math.min(offset, 0.038);
+      plane.rotateX(-face).rotateY(yaw);
+      const off = new THREE.Vector3(0, -Math.cos(face) * down + Math.sin(face) * 0.002, Math.sin(face) * down + Math.cos(face) * 0.002).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      plane.translate(pos[0] + off.x, pos[1] + off.y, pos[2] + off.z);
+    } else if (underside) {
       // Under a panel (the overhead's), read from below.
       plane.rotateX(Math.PI / 2).rotateY(yaw);
       plane.translate(pos[0] + Math.sin(yaw) * offset, pos[1] - 0.002, pos[2] + Math.cos(yaw) * offset);
