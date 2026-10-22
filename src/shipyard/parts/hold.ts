@@ -82,19 +82,23 @@ export function holdPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & Ma
   if (Math.min(deckFwd, deckAft) < c.minDepth) return leave(`her hull is only ${Math.min(deckFwd, deckAft).toFixed(2)} m deep under the deck there (${c.minDepth} m at least): give her more depth (Hull)`);
   if (half < minHalf) return leave('her hull is too narrow low down there');
 
-  // ── The hatch: over its middle, on the open deck clear of the deck gear ──
-  const hl = Math.min(c.hatch.length, z1 - z0 - 0.2);
-  const hb = Math.min(c.hatch.width, 2 * half - 0.2);
+  // ── The hatch: on the open deck clear of the deck gear, as big as fits (down to
+  // `hatch.min`), as near the hold's middle as it can be, along her first, then to the side ──
   const pad = c.hatch.clear + 0.05;
   const mid = (z0 + z1) / 2;
+  const deckHalf = (z: number) => q.halfBeam(z) - 0.4;
   let hatch: { x0: number; x1: number; z0: number; z1: number } | null = null;
-  for (let k = 0; k <= Math.round((z1 - z0 - hl) / 0.05) && !hatch; k++) {
-    for (const s of k ? [1, -1] : [1]) {
-      const hz = mid + (s * k * 0.05) / 2;
-      const r = { x0: -hb / 2, x1: hb / 2, z0: hz - hl / 2, z1: hz + hl / 2 };
-      if (r.z0 < z0 + 0.1 || r.z1 > z1 - 0.1) continue;
-      const clear = taken.every((o) => o.x1 < r.x0 - pad || o.x0 > r.x1 + pad || o.z1 < r.z0 - pad || o.z0 > r.z1 + pad);
-      if (clear) {
+  for (let size = 1; size >= c.hatch.min / Math.max(c.hatch.length, c.hatch.width) - 1e-6 && !hatch; size -= 0.1) {
+    const hl = Math.min(c.hatch.length * size, z1 - z0 - 0.2);
+    const hb = Math.min(c.hatch.width * size, 2 * half - 0.2);
+    const spots: { x: number; z: number; off: number }[] = [];
+    for (let k = -Math.round((z1 - z0 - hl) / 0.1); k <= Math.round((z1 - z0 - hl) / 0.1); k++)
+      for (let j = -Math.round(half / 0.1); j <= Math.round(half / 0.1); j++) spots.push({ x: j * 0.1, z: mid + k * 0.05, off: Math.abs(k * 0.05) + 2 * Math.abs(j * 0.1) });
+    for (const { x, z } of spots.sort((u, v) => u.off - v.off)) {
+      const r = { x0: x - hb / 2, x1: x + hb / 2, z0: z - hl / 2, z1: z + hl / 2 };
+      if (r.z0 < z0 + 0.1 || r.z1 > z1 - 0.1 || r.x0 < -half + 0.1 || r.x1 > half - 0.1) continue;
+      if (Math.max(Math.abs(r.x0), Math.abs(r.x1)) > Math.min(deckHalf(r.z0), deckHalf(r.z1))) continue;
+      if (taken.every((o) => o.x1 < r.x0 - pad || o.x0 > r.x1 + pad || o.z1 < r.z0 - pad || o.z0 > r.z1 + pad)) {
         hatch = r;
         break;
       }

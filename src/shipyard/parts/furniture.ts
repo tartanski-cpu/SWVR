@@ -37,7 +37,7 @@ const overlaps = (a: Rect, b: Rect) => a[0] < b[1] && b[0] < a[1] && a[2] < b[3]
  * first), their field, their place's id and their name in words: "the berth", the second
  * one "berth 2" (furnitureSocketId, furnitureName).
  */
-const PIECES: { kind: FurnitureKind; key: FurnitureKey; id: string; name: string }[] = (['head', 'locker', 'galley', 'settee', 'berth', 'seat'] as const).flatMap((kind) =>
+const PIECES: { kind: FurnitureKind; key: FurnitureKey; id: string; name: string }[] = (['head', 'shower', 'locker', 'bunk', 'galley', 'mess', 'settee', 'berth', 'seat'] as const).flatMap((kind) =>
   FURNITURE_SLOTS[kind].map((key, i) => ({ kind, key, id: furnitureSocketId(kind, i), name: furnitureName(kind, i) })),
 );
 /** A piece's place id: furniture.berth for the first, furniture.berth2 for the second. */
@@ -167,12 +167,19 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     const mid: V3 = [r2((x0 + x1) / 2), r2(floor.y), r2((z0 + z1) / 2)];
     // The head and the locker stand to just under the ceiling.
     const ceiling = Math.min(floor.ceiling(z0), floor.ceiling(z1), floor.ceiling(mid[2])) - floor.y;
-    if (piece.kind === 'head' && ceiling < fc.headroom) {
-      warnings.push(`There's only ${ceiling.toFixed(2)} m of headroom for the head in ${floor.name} (${fc.headroom} m at least): left off.`);
+    if ((piece.kind === 'head' || piece.kind === 'shower') && ceiling < fc.headroom) {
+      warnings.push(`There's only ${ceiling.toFixed(2)} m of headroom for the ${piece.name} in ${floor.name} (${fc.headroom} m at least): left off.`);
       furniturePlaced[piece.key] = null;
       continue;
     }
-    const height = r2(piece.kind === 'head' || piece.kind === 'locker' ? ceiling - mf.ceilingGap : piece.kind === 'berth' ? mf.berth.top + mf.berth.cushion : piece.kind === 'settee' ? mf.settee.back : piece.kind === 'galley' ? mf.galley.top : mf.seat.back);
+    // Two-high bunks want room to sit up in the top one.
+    const bunkRoom = mf.bunk.upper + mf.bunk.cushion + mf.bunk.sitUp;
+    if (piece.kind === 'bunk' && ceiling < bunkRoom) {
+      warnings.push(`There's only ${ceiling.toFixed(2)} m under the ceiling in ${floor.name} for the ${piece.name} (${bunkRoom.toFixed(2)} m to sit up in the top one): left off. A berth fits lower.`);
+      furniturePlaced[piece.key] = null;
+      continue;
+    }
+    const height = r2(piece.kind === 'head' || piece.kind === 'locker' || piece.kind === 'shower' ? ceiling - mf.ceilingGap : piece.kind === 'berth' ? mf.berth.top + mf.berth.cushion : piece.kind === 'settee' ? mf.settee.back : piece.kind === 'galley' ? mf.galley.top : piece.kind === 'bunk' ? mf.bunk.upper + mf.bunk.cushion + mf.bunk.rail : piece.kind === 'mess' ? mf.mess.back : mf.seat.back);
     // Its turn: its back (+z its axes) to the wall.
     const yaw = found.wall === 'starboard' ? 90 : found.wall === 'port' ? -90 : 0;
     blocked.push({ rect: [x0 - 0.02, x1 + 0.02, z0 - 0.02, z1 + 0.02], house: onHouse });

@@ -517,7 +517,7 @@ const DH_WALK_FIELD: { key: 'dhWalk'; steps: number } = { key: 'dhWalk', steps: 
  * multiple"): a field each, the first as it always was (berthAt), the rest numbered (berthAt2,
  * berthAt3, berthAt4). Up to four of each; one head (its door is the boat's one head door).
  */
-export type FurniturePiece = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head';
+export type FurniturePiece = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head' | 'bunk' | 'mess' | 'shower';
 export type FurnitureKey = `${FurniturePiece}At${'' | '2' | '3' | '4'}`;
 /** Each piece's fields, the first first. */
 export const FURNITURE_SLOTS: Record<FurniturePiece, FurnitureKey[]> = {
@@ -527,12 +527,16 @@ export const FURNITURE_SLOTS: Record<FurniturePiece, FurnitureKey[]> = {
   seat: ['seatAt', 'seatAt2', 'seatAt3', 'seatAt4'],
   locker: ['lockerAt', 'lockerAt2', 'lockerAt3', 'lockerAt4'],
   head: ['headAt'],
+  // Crew accommodation (owner, Oct 2026): two-high bunks, a mess table, a shower (one).
+  bunk: ['bunkAt', 'bunkAt2', 'bunkAt3', 'bunkAt4'],
+  mess: ['messAt', 'messAt2'],
+  shower: ['showerAt'],
 };
 /** Every furniture field (a design's other head fields, headAt2 and on, are always 0). */
 export const FURNITURE_KEYS = Object.values(FURNITURE_SLOTS).flat();
-/** The head's spare fields: never set (one head), but the type has them. */
-const SPARE_HEADS: FurnitureKey[] = ['headAt2', 'headAt3', 'headAt4'];
-export const FURNITURE_FIELDS: { key: FurnitureKey; steps: number }[] = [...FURNITURE_KEYS.map((key) => ({ key, steps: 1 + CELLS })), ...SPARE_HEADS.map((key) => ({ key, steps: 1 }))];
+/** The spare fields of a piece with fewer than four (one head, one shower, two messes): never set, but the type has them. */
+const SPARE_SLOTS: FurnitureKey[] = (Object.keys(FURNITURE_SLOTS) as FurniturePiece[]).flatMap((p) => (['', '2', '3', '4'] as const).map((n) => `${p}At${n}` as FurnitureKey)).filter((k) => !FURNITURE_KEYS.includes(k));
+export const FURNITURE_FIELDS: { key: FurnitureKey; steps: number }[] = [...FURNITURE_KEYS.map((key) => ({ key, steps: 1 + CELLS })), ...SPARE_SLOTS.map((key) => ({ key, steps: 1 }))];
 /** No furniture: every field 0. */
 export const NO_FURNITURE = Object.fromEntries(FURNITURE_FIELDS.map((f) => [f.key, 0])) as Record<FurnitureKey, number>;
 /** A cell of the grid as a furniture pin's value (`x` m from the centreline, `fromTransom` m forward of the transom). */

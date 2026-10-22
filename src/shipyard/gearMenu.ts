@@ -49,6 +49,9 @@ export const GEAR_ABOUT: Record<string, string> = {
   seat: 'A seat on a pedestal, standing free, facing forward: beside the helm, or for a passenger.',
   locker: 'A cupboard to the ceiling, for oilskins and gear.',
   head: 'A small compartment with a toilet, and a door you open and shut.',
+  bunk: 'Two berths one over the other, for the crew: a lee rail on the upper one, rungs up to it. Needs headroom to sit up in the top bunk.',
+  mess: 'A table against a wall with a bench at each end: where the crew eat. Put it by the galley.',
+  shower: 'A shower stall with a curtain, to the ceiling.',
 };
 
 /** How it goes on her (above). */
@@ -67,6 +70,12 @@ export const GEAR_ICONS: Record<string, string> = {
   seat: svg('<path d="M8 4v7h8M7 11h10M12 11v7M8 20h8"/>'),
   locker: svg('<path d="M6 3h12v18H6zM12 3v18M10 12h0.5M13.5 12h0.5"/>'),
   head: svg('<path d="M5 3h14v18H5zM8 21V12h6v9M12.5 16.5h0.5"/>'),
+  // Two berths stacked between end boards.
+  bunk: svg('<path d="M4 3v18M20 3v18M4 17h16M4 9h16M6 15.5h5M6 7.5h5"/>'),
+  // A table between two benches with backs.
+  mess: svg('<path d="M8 11h8M12 11v8M3 6v13M3 15h4v4M21 6v13M21 15h-4v4"/>'),
+  // The stall, its rose and the curtain.
+  shower: svg('<path d="M5 3v18M19 3v18M5 21h14M9 5h4v2M11 7v1M9.5 10l-.5 1.5M12 10v1.5M14.5 10l.5 1.5M5 4h8"/>'),
   // The ring, its shank and stock, the curved arms with their flukes.
   anchor: svg('<circle cx="12" cy="4.5" r="2"/><path d="M12 6.5V20.5M8.5 9.5h7M5 13.5c0 4 3 7 7 7s7-3 7-7M3.5 15l1.5-1.5 1.5 1.5M17.5 15l1.5-1.5 1.5 1.5"/>'),
   // The ring and its four bands of tape.
