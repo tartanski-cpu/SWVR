@@ -13,6 +13,8 @@ import { REGIONS } from '../world/regions';
 import type { RegionDef } from '../world/defs';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
+import { MODE } from '../mode';
+import { ferriesInSight } from '../traffic/ferries';
 import { boatOwnerName, playerBoats } from '../core/launch';
 import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
@@ -635,6 +637,36 @@ export class ChartPlotter {
       g.font = 'bold 14px system-ui, sans-serif';
       g.fillText(ship.name.toUpperCase(), px + 10, py + 14);
     }
+
+    // The ferries (a coast map's, C7) on AIS: in Voyage (no receiver to buy there) or with the
+    // receiver; each a triangle along her heading with her name, a 6-minute line when under way.
+    if (MODE === 'voyage' || world.career?.upgrades.includes('ais'))
+      for (const { f, p } of ferriesInSight(world)) {
+        const [px, py] = toPx(p.x, p.z);
+        if (px < -40 || px > W + 40 || py < -40 || py > H + 40) continue;
+        g.strokeStyle = '#7af0c0';
+        g.lineWidth = 2;
+        if (f.v > 0.3) {
+          const [ex, ey] = toPx(p.x + Math.sin(p.heading) * f.v * 360, p.z - Math.cos(p.heading) * f.v * 360);
+          g.beginPath();
+          g.moveTo(px, py);
+          g.lineTo(ex, ey);
+          g.stroke();
+        }
+        g.save();
+        g.translate(px, py);
+        g.rotate(p.heading);
+        g.beginPath();
+        g.moveTo(0, -11);
+        g.lineTo(6, 8);
+        g.lineTo(-6, 8);
+        g.closePath();
+        g.stroke();
+        g.restore();
+        g.fillStyle = '#7af0c0';
+        g.font = 'bold 14px system-ui, sans-serif';
+        g.fillText(f.ship.toUpperCase(), px + 10, py + 14);
+      }
 
     // The crew's boats (multi-boat M5): every other player's boat as an AIS-like target in
     // the crew's colour, with whose she is; no receiver needed (you're one crew).

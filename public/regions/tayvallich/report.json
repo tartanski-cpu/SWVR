@@ -2,10 +2,10 @@
  "warnings": [
   "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)",
   "only 0 buoys or beacons mapped (thin data?)",
+  "23 patches where the coastline's sides disagree (check the coast there)",
   "features: no fog signals mapped (C5 foghorns: none here)",
   "features: no wrecks mapped (C6: none here)",
-  "features: 2 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)",
-  "23 patches where the coastline's sides disagree (check the coast there)"
+  "features: 2 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)"
  ],
  "nav": {
   "marks": 0,
@@ -228,7 +228,7 @@
   "landmarks": [
    "Cruach Lusach"
   ],
-  "bytes": 38450
+  "bytes": 38887
  },
  "houses": {
   "byType": {

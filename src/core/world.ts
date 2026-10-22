@@ -16,6 +16,7 @@ import { stowTender } from '../vessel/tenderCrane';
 import { createWeather, rebuildWaves, seaForWind } from '../environment/weather';
 import type { Forecast } from '../environment/forecast';
 import type { TrafficState } from '../traffic/traffic';
+import type { FerriesState } from '../traffic/ferries';
 import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
 import { createTowState, type TowState } from '../tow/tow';
@@ -74,6 +75,8 @@ export interface WorldState {
   forecast?: Forecast;
   /** Passing ships, floating debris (traffic/traffic.ts). */
   traffic?: TrafficState;
+  /** A coast map's ferries on its real routes (traffic/ferries.ts). */
+  ferries?: FerriesState;
   /** Towing missions: the tow job and its towline (tow/tow.ts). */
   tow?: TowState;
   /** Fire missions: the fire job (fire/fire.ts). */

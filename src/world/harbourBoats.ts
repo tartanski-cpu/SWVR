@@ -263,12 +263,20 @@ export function harbourBoatContact(x: number, y: number, z: number, out: BlockHi
 }
 
 /**
- * Is world point (x, y, z) inside a boat of this kind lying at `p`? Her hull is a box from
- * her keel to her deck, its forward part narrowing to the stem. If so, `out` is the
- * shallowest way out: through her side, or her end. Pure.
+ * Is world point (x, y, z) inside a boat of this kind lying at `p`? (Her box: hullBoxContact.) Pure.
  */
 export function boatBoxContact(kind: HarbourBoatKind, p: HarbourBoatPose, x: number, y: number, z: number, out: BlockHit): boolean {
-  const k = CONFIG.harbourBoats.kinds[kind];
+  return hullBoxContact(CONFIG.harbourBoats.kinds[kind], p, x, y, z, out);
+}
+
+/**
+ * Is world point (x, y, z) inside a hull of these sizes lying at `p`? Her hull is a box from
+ * her keel to her deck, its forward part narrowing to the stem (over the forward 60% of her
+ * half-length, to a fifth of her beam). If so, `out` is the shallowest way out: through her
+ * side, or her end; fendered (a soft bump). Shared by the harbour boats and the ferries
+ * (traffic/ferries.ts). Pure.
+ */
+export function hullBoxContact(k: { length: number; beam: number; draught: number; freeboard: number }, p: HarbourBoatPose, x: number, y: number, z: number, out: BlockHit): boolean {
   if (y < -k.draught || y > k.freeboard) return false;
   const fx = Math.sin(p.heading);
   const fz = -Math.cos(p.heading);
@@ -278,7 +286,6 @@ export function boatBoxContact(kind: HarbourBoatKind, p: HarbourBoatPose, x: num
   const across = dx * -fz + dz * fx; // to starboard
   const half = k.length / 2;
   if (Math.abs(along) >= half) return false;
-  // Her beam narrows over the forward 60% of her half-length, to a fifth at the stem.
   const taper = Math.max(0, (along / half - 0.4) / 0.6);
   const hb = (k.beam / 2) * (1 - 0.8 * taper);
   if (Math.abs(across) >= hb) return false;

@@ -358,6 +358,70 @@ const skyline = ((F?.landmarks ?? []) as { kind: string; name: string; x: number
   .filter((l) => l.kind !== 'lighthouse' && !(l.kind === 'church' && kitChurch(l.x, l.z)))
   .map((l) => ({ kind: l.kind, name: l.name, x: l.x, z: l.z, ...(l.height ? { height: l.height } : {}), ...(l.size ? { size: l.size } : {}) }));
 const skylineStyle = req.theme;
+// Ferries (the coast extras plan, C7): each mapped ferry route, cut to the map (its longest
+// stretch `ferryMargin` m inside the box's edge), each end a terminal where she berths (an
+// end of the route inside the map, named from the nearest ferry terminal or port) or the
+// map's edge, where she sails in from beyond or out of sight. Her class: a passenger launch
+// (a foot-passenger route), a small double-ended car ferry (a crossing under `smallRoute` m
+// in all), or a large ro-ro ferry. Her livery by who runs her (the map's operator) and the
+// region: a Clyde or Hebridean ferry's colours (the owner's choice), another company's own
+// (the game's), the Aegean's. Her name invented, from the theme's list (no real ship's).
+const ferryMargin = 150;
+const smallRoute = 8000;
+const FERRY_NAMES: Record<string, string[]> = {
+  'north-hebridean': ['Morvern Star', 'Sruth na Mara', 'Ardlamont', 'Glen Eacharn', 'Kilbrannan', 'Ceann Loch', 'Dun Leathan', 'Sgarbh Mor', 'Tobar Ban', 'Ardnadrochit'],
+  aegean: ['Galini', 'Meltemi', 'Thalassopouli', 'Kyma', 'Ostria', 'Aigaio Star', 'Levantes', 'Pelagia', 'Kalimera', 'Glaros', 'Zefyros', 'Anemoni'],
+};
+type Ferry = { name: string; operator: string; foot: boolean; path: [number, number][] };
+const ferryRoutes: object[] = [];
+{
+  const inside = ([x, z]: [number, number]) => interior(x, z, ferryMargin);
+  const len = (p: [number, number][]) => p.reduce((t, q, i) => (i ? t + Math.hypot(q[0] - p[i - 1][0], q[1] - p[i - 1][1]) : 0), 0);
+  const terminals = (F?.ferries?.terminals ?? []) as { name: string; x: number; z: number }[];
+  const portNames = (ports as { name: string; x: number; z: number }[]).map((p) => ({ name: p.name.replace(/ (pier|harbour|marina)$/i, ''), x: p.x, z: p.z }));
+  const names = FERRY_NAMES[req.theme] ?? FERRY_NAMES['north-hebridean'];
+  const places = (F?.names ?? []) as { name: string; x: number; z: number }[];
+  for (const [n, r] of ((F?.ferries?.routes ?? []) as Ferry[]).entries()) {
+    // The longest run of the route inside the map.
+    let best: [number, number][] = [];
+    let run: [number, number][] = [];
+    for (const p of [...r.path, null]) {
+      if (p && inside(p)) run.push(p);
+      else {
+        if (len(run) > len(best)) best = run;
+        run = [];
+      }
+    }
+    if (best.length < 2 || len(best) < 300) continue;
+    // Naming the ends: the route's own name's first and last parts ("Craighouse - Tayvallich")
+    // go one to each end, whichever way round puts each nearer a port, terminal or place of
+    // its name (letters only, any case: "Hunters Quay" is "Hunter's Quay"); an end at the map's
+    // edge always takes the part its terminal end didn't. A one-part name ("Isle of Kerrera
+    // Ferry"): each terminal end takes the nearest named ferry terminal or port.
+    const key = (x: string) => x.toLowerCase().replace(/[^a-z]/g, '');
+    const parts = r.name.split(/ - | to /).map((x) => x.replace(/\s*\(.*\)$/, '').trim()).filter(Boolean);
+    const known = [...terminals.filter((t) => t.name), ...portNames, ...places];
+    const distTo = (part: string, p: [number, number]) => Math.min(Infinity, ...known.filter((k) => key(k.name).length > 2 && (key(k.name).includes(key(part)) || key(part).includes(key(k.name)))).map((k) => Math.hypot(k.x - p[0], k.z - p[1])));
+    const docks = [best[0] === r.path[0], best[best.length - 1] === r.path[r.path.length - 1]];
+    const pts = [best[0], best[best.length - 1]];
+    const nearestNamed = (p: [number, number]) => {
+      const near = [...terminals.filter((t) => t.name), ...portNames].sort((a, b) => Math.hypot(a.x - p[0], a.z - p[1]) - Math.hypot(b.x - p[0], b.z - p[1]))[0];
+      return near && Math.hypot(near.x - p[0], near.z - p[1]) < 800 ? near.name : '';
+    };
+    let endNames: string[];
+    if (parts.length >= 2) {
+      const [pa, pb] = [parts[0], parts[parts.length - 1]];
+      // The pairing's cost: only the terminal ends count (an edge end is wherever she's bound).
+      const cost = (n0: string, n1: string) => (docks[0] ? Math.min(distTo(n0, pts[0]), 1e6) : 0) + (docks[1] ? Math.min(distTo(n1, pts[1]), 1e6) : 0);
+      endNames = cost(pa, pb) <= cost(pb, pa) ? [pa, pb] : [pb, pa];
+    } else endNames = pts.map((p, i) => (docks[i] ? nearestNamed(p) : parts[0] ?? ''));
+    const ends = [0, 1].map((i) => ({ dock: docks[i], name: endNames[i] ?? '' }));
+    const op = r.operator;
+    const livery = req.theme === 'aegean' ? 'aegean' : /caledonian macbrayne|calmac/i.test(op) ? 'calmac' : 'other';
+    const cls = r.foot ? 'launch' : len(r.path) < smallRoute ? 'small' : 'large';
+    ferryRoutes.push({ id: `${req.id}-ferry-${n + 1}`, name: r.name, ship: names[n % names.length], cls, livery, path: best.map(([x, z]) => [r1(x), r1(z)]), ends, length: Math.round(len(best)) });
+  }
+}
 // Place names for the charts and the radio (the coast extras plan, C4): the map's towns,
 // villages, hamlets, islands, islets and the sea's own names (bays, headlands, straits),
 // ranked as features.ts ranks them (1 shown farthest out). Farms, single houses and town
@@ -453,6 +517,7 @@ const pkg = {
   skyline,
   skylineStyle,
   places,
+  ferries: ferryRoutes,
   shelters,
   ports,
   berths,

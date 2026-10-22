@@ -21,7 +21,7 @@ export interface CoastFeatures {
   cables: { kind: 'cable' | 'pipeline'; name: string; path: XZ[] }[];
   /** Power-line spans over the water; `clearance` (m) only where charted. */
   overhead: { name: string; path: XZ[]; clearance: number | null }[];
-  ferries: { routes: { name: string; path: XZ[] }[]; terminals: { name: string; x: number; z: number }[] };
+  ferries: { routes: { name: string; operator: string; foot: boolean; path: XZ[] }[]; terminals: { name: string; x: number; z: number }[] };
 }
 
 /** The package's `features`: the file, and how many of each it holds. */

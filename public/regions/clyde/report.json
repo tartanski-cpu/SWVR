@@ -1,5 +1,6 @@
 {
  "warnings": [
+  "7 patches where the coastline's sides disagree (check the coast there)",
   "overlapping piers at rhu-marina (13233, -16303): decks 3.5 m and 0.5 m over 68 m²",
   "overlapping piers at sandbank (2383, -13075): decks 2.4 m and 0.5 m over 48 m²",
   "overlapping piers at sandbank (2392, -13106): decks 2.4 m and 0.5 m over 216 m²",
@@ -9,8 +10,7 @@
   "overlapping piers at rothesay-harbour (-4259, 2897): decks 2.4 m and 0.5 m over 228 m²",
   "ormidale-lodge-pier: no berth with room for a boat (best blocked at 12 points): not a port",
   "kilchattan-bay-pier-2: no berth with room for a boat (best blocked at 4 points): not a port",
-  "the-lorn-pier-2: no berth with room for a boat (best blocked at 3 points): not a port",
-  "7 patches where the coastline's sides disagree (check the coast there)"
+  "the-lorn-pier-2: no berth with room for a boat (best blocked at 3 points): not a port"
  ],
  "nav": {
   "marks": 97,
@@ -1230,7 +1230,7 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1485301
+  "bytes": 1487363
  },
  "houses": {
   "byType": {

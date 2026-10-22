@@ -523,6 +523,23 @@ export interface FarmDef {
 }
 
 /**
+ * A ferry route from the map (the coast extras plan, C7; a coast map's): the route cut to the
+ * map, each end a terminal (`dock`: she berths there) or the map's edge (she sails in from
+ * beyond, or out of sight), each named. Her class, livery and (invented) name; the path's
+ * length (m). Sailed by traffic/ferries.ts, drawn by traffic/ferryView.ts.
+ */
+export interface FerryRouteDef {
+  id: string;
+  name: string;
+  ship: string;
+  cls: 'large' | 'small' | 'launch';
+  livery: 'calmac' | 'other' | 'aegean';
+  path: [number, number][];
+  ends: { dock: boolean; name: string }[];
+  length: number;
+}
+
+/**
  * A place name from the map (the coast extras plan, C4; a coast map's): a town, village,
  * island or islet, or the sea's own (a bay, a headland, a strait). On the charts by `rank`
  * (1 shown farthest out, 4 only close in), and in the radio's calls (world/places.ts).
@@ -645,6 +662,8 @@ export interface RegionDef {
   skylineStyle?: string;
   /** Its place names (a coast map's, from the map data): charts and radio calls. */
   places?: PlaceDef[];
+  /** Its ferry routes (a coast map's, from the map data: traffic/ferries.ts). */
+  ferries?: FerryRouteDef[];
   /** Boats lying in its harbours, on moorings and at anchor (a coast map's; world/harbourBoats.ts). */
   harbourBoats?: HarbourBoatsDef;
   gusts?: GustZoneDef[];

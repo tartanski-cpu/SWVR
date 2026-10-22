@@ -6549,8 +6549,16 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - From the map data only. Where the data is silent, nothing is guessed: a cable with no clearance given has no clearance rule; a coast with no wrecks in the data has none.
 - Every map, every harbour, as before.
 - **Within the baseline budget on the Quest** (settlements milestone 1's numbers). Each milestone measures draw calls, triangles and frame time at the same spots as the baseline, and says so.
-- **Original designs:** the ferries, farms and landmarks are the game's own models. The ferries carry no real operator's name or colours. A castle is a generic tower house, not a copy of Dunstaffnage.
+- **Original designs:** the ferries, farms and landmarks are the game's own models. The ferries carry no real operator's name, emblem or ship names (their colours: see the owner's change below). A castle is a generic tower house, not a copy of Dunstaffnage.
 - Saves keep working: re-running the maps keeps berth and harbour ids (a Voyage remembers where you are by berth). Each re-run checks the ids against the last.
+
+**Owner's changes to the plan (22 Oct 2026):**
+- **C5 is surf only:** "the only sounds I think that really make sense are surf, if the wave's height over a certain height ... and your engine's off, because you don't hear most of the sounds when your engine's on". The foghorns, bells, gulls and livestock are dropped.
+- **C7, the ferries, goes next:** "the one I think I really want to prioritize is the ferries".
+  - **The livery:** "I'd like to have the Caledonian MacBrayne distinctive colors for the ferries", "slightly more detailed than some of the AI vessels ... like the coaster".
+  - So: the colour scheme a Clyde or Hebridean ferry is known by (black hull, a red band at the waterline, white upperworks, red funnels with a black top), on the game's own ship designs, with invented names. No emblem (the lion on the yellow disc), no company name.
+- **New order:** C7, then C5 (surf), C6, C8.
+- **The frame-rate floor** for all of it: 65 fps on the Quest at the worst spot, Oban harbour (owner measured 67).
 
 **C1. Pipeline: read it all, check the piers (owner's 8).**
 - One pass of the fetch stage gets everything the later milestones need:
@@ -6599,6 +6607,48 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 **C8. Tuning across all maps (settlements milestone 7, moved here).**
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
+
+### Coast extras C7: ferries on the real routes (done, awaiting owner test)
+
+Owner: "the one I think I really want to prioritize is the ferries ... I'd like to have the Caledonian MacBrayne distinctive colors for the ferries and have them slightly more detailed than some of the AI vessels, so that they're like the coaster".
+
+- **The routes, from the map data** (the package stage, `tools/coast/src/package.ts`; the features stage now also keeps each route's operator and whether it carries cars):
+  - each mapped ferry route is cut to its longest run inside the map (150 m in from the edge);
+  - **each end** is a terminal where she berths (the route ends inside the map), or the map's edge, where she sails out of sight to an island beyond it;
+  - **the ends are named** from the route's own name ("Rothesay - Wemyss Bay"), each part put at the end nearer a port, terminal or place of that name;
+  - **her class:** a passenger launch on a foot-passenger route, a small double-ended car ferry on a crossing under 8 km in all, a large drive-through ferry otherwise;
+  - **her livery:** the Clyde and Hebridean colours on routes the map says that company runs; a dark-blue hull and blue funnel with a white band on anyone else's (Hunter's Quay - McInroy's Point); white with a blue band in the Aegean;
+  - **her name:** invented, from a list for each theme (Morvern Star, Ardlamont, Glen Eacharn ...; Galini, Meltemi ...). No real ship's name.
+  - **On the maps:** the Clyde 6 routes (Rothesay - Wemyss Bay large, both ends terminals; Colintraive - Rhubodach, Largs - Cumbrae and Hunter's Quay - McInroy's Point small; Gourock to Dunoon and to Kilcreggan launches); Oban 7 (six island routes out of Oban pier, large, sailing out past the map's edge; the Kerrera ferry, small); Syros 9; Tayvallich 1 (the Craighouse launch).
+- **The ships** (`src/traffic/ferryKit.ts`), the game's own designs, each one merged mesh:
+  - **large** (72 m): the hull in the dark hull colour with a red boot-topping, the car deck's shell white above it with a row of ventilation openings, a bow visor seam and stern ramp, two decks of lounges with window bands, the bridge with wings, mast and radar, the funnel aft (red with a black top), orange lifeboats and liferaft canisters. 784 triangles.
+  - **small** (38 m): double-ended with a ramp each end, the lounge and wheelhouse along one side, a small funnel. 296 triangles.
+  - **launch** (20 m): a cabin and wheelhouse. 144 triangles.
+  - **The livery is the colour scheme only:** black hull, red boot-topping, white upperworks, red funnel with a black top. No emblem, no company name, as agreed.
+  - **After dark:** masthead, sidelights, stern light and two decks of lit windows (light points, no extra draw call by day).
+- **The sailing** (`src/traffic/ferries.ts`, plain shared state stepped by the host, `CONFIG.ferries`):
+  - **To a timetable:** she lies at a terminal `dwell` 480 s, sails at her class's speed (large 7.2 m/s, about 14 kn), slows over `brake` 4 of her lengths into port and berths `stopShort` 6 m short of the linkspan. Out past the map's edge she's away `away` 1800 s.
+  - **On the VHF** when your boat is within `radio` 6 km: "Ardlamont, leaving Rothesay for Wemyss Bay." and "Ardlamont, arriving Rothesay."
+  - **She keeps her course and expects you to keep clear,** but stops rather than run you down: a boat within `hold.ahead` 120 m ahead of her bow and `hold.side` 20 m beyond her side stops her until it moves.
+  - **Solid:** her hull is a box her size in the collisions (a fendered bump, like a pier's).
+- **Fleets (found in testing):** Oban's six island routes all leave the one pier down the one sound, and Syros's nine share two terminals. One ship a route would have had them sailing through each other and berthing on top of each other. So:
+  - routes with ends within `shareReach` 300 m of each other are one **fleet**, sailed by at most `fleet` 3 ships, each with her own name and design. A ship coming back in from the map's edge takes the fleet's next route (Oban's ships take the islands in turn). Oban now has 3 large ships and the Kerrera ferry; Syros 3; the Clyde 6 (the two Gourock launches are one fleet of two).
+  - **Port to port:** she keeps `lane` 1.5 of her beams to starboard of the route's line, easing onto it over `laneTaper` 1.5 of her lengths into a terminal.
+  - **Stepping aside:** a ship meeting her head on (on another route alongside hers, or where routes cross) that will pass closer than `avoid.clear` 2.5 x their beams, she eases away from at `avoid.rate` 1.2 m/s, up to `avoid.most` 3 beams, and back once clear.
+  - **One at the berth:** she lies off `berthWait` 3 of her lengths short of a terminal while another of the fleet has the berth or is still leaving it.
+  - **Station keeping:** a ship of her own fleet ahead going her way stops her as a boat would.
+- **On the chartplotter:** each ferry an AIS triangle with her name and a 6-minute course line, in Voyage (no receiver to buy there).
+- **Drawing** (`src/traffic/ferryView.ts`): the ferries within `drawDistance` 9 km, riding the swell, eased between the host's snapshots for crew; her wake (the boats' own foam ribbon) within 2.5 km, not drawn while she's lying at a terminal.
+- **The cost:** one draw call a ferry by day, two after dark, and a wake near her. At Oban pier, with three ships in sight, that's about 6-9 draw calls and under 3,000 triangles. Headless at Oban with three ferries in sight: 75 draw calls in all. The 65 fps floor still needs your Quest reading.
+- **Tests:** `tests/ferries.test.ts` (14):
+  - the Clyde's routes, classes, liveries, named ends and unique names; Oban's ends; Oban's fleets;
+  - she berths, waits, leaves with the call; away and back; holds for a boat; is solid;
+  - fleets: two routes from one terminal one fleet; meeting ships pass port to port; one keeps station behind another; one at the berth at a time; back in on the fleet's other route;
+  - six hours at Oban and at Syros: every ship keeps making trips and no two come closer than 1.5 beams (closest seen: 39 m at Oban, 29 m at Syros, centre to centre).
+- **Checked headless:** the three designs in all three liveries; Ardlamont on the Rothesay - Wemyss Bay crossing by day and by night (lit windows and lights), berthed at Rothesay pier; three ferries off Oban; the chartplotter showing ARDLAMONT with her course line. **Not checked:** the Quest frame rate; a crew member's view in multiplayer; the radio calls heard in a live game (the tests check the words).
+- **Test steps:**
+  - **Desktop:** Voyage → The Firth of Clyde. You start at Rothesay; the Wemyss Bay ferry will be at the pier or on her way. Watch her come in, slow and berth, and listen for her call on the VHF. Look at the chartplotter for her triangle and name. Get in her way at sea: she stops rather than hit you. Then Voyage → Oban and Lorn: the island ferries come and go from Oban pier one at a time, passing each other port to port in the sound.
+  - **VR:** the same, at Oban pier with the perf panel (B/Y): with ferries in sight, the frame rate should stay at or above 65. Also have a look after dark (Debug → time).
 
 ### Fix: shimmering in the distance by the woods; far woods as flat colour (owner, testing on the Quest)
 
@@ -7360,7 +7410,7 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
 
-- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6) and C1-C4 are done; C5 is next. The owner says "Next milestone" to advance, as before.
+- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6), C1-C4 and C7 (ferries) are done; C5 (surf only) is next, then C6, C8. The owner says "Next milestone" to advance, as before.
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 

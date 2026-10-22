@@ -289,10 +289,14 @@ for (const t of things) {
 }
 
 // ── Ferries (C7) ──
-const routes: { name: string; path: XZ[] }[] = [];
+// (Each with who runs it and whether it carries cars: the game's ferries take their livery and
+// their size from these.)
+const routes: { name: string; operator: string; foot: boolean; path: XZ[] }[] = [];
 for (const t of things) {
   if (t.tags.route !== 'ferry' || t.kind === 'node') continue;
-  for (const l of t.lines) if (l.length > 1 && l.some(inBox)) routes.push({ name: nameOf(t.tags), path: simplify(l) });
+  const name = nameOf(t.tags);
+  const foot = t.tags.motor_vehicle === 'no' || t.tags.motorcar === 'no' || /passenger/i.test(name);
+  for (const l of t.lines) if (l.length > 1 && l.some(inBox)) routes.push({ name, operator: t.tags.operator ?? '', foot, path: simplify(l) });
 }
 // (A route mapped twice, as ways and as a relation, or once each way: one copy, by its ends within 100 m.)
 const near = (a: XZ, b: XZ) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 100;

@@ -32,6 +32,7 @@ import { dipstickReading } from '../vessel/maintenance';
 import { TrafficView } from '../traffic/trafficView';
 import { HarbourBoatsView } from '../world/view/harbourBoatsView';
 import { SkylineView } from '../world/view/skylineView';
+import { FerryView } from '../traffic/ferryView';
 import { SHIP_NAMES } from '../traffic/traffic';
 import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
 import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartOp } from '../chart/marks';
@@ -486,6 +487,8 @@ export class App {
   private readonly harbourBoatsView = new HarbourBoatsView();
   /** A coast map's castles, masts, turbines... (world/view/skylineView.ts). */
   private readonly skylineView = new SkylineView(SKYLINE, SKYLINE_STYLE === 'aegean');
+  /** A coast map's ferries on their real routes (traffic/ferryView.ts); made with the ocean. */
+  private ferryView: FerryView | null = null;
   private hornSeen = -1;
   private readonly shipsCalled = new Set<string>();
   private readonly tableRef = new THREE.Vector3();
@@ -1143,6 +1146,12 @@ export class App {
 
   /** Port lights, weather, the rescue's people and gear and their sounds. */
   private updateSceneViews(dt: number, renderTime: number, darkness: number): void {
+    // The ferries (their wakes ride the ocean's waves, so they're made once the ocean is).
+    if (!this.ferryView) {
+      this.ferryView = new FerryView(this.ocean.sharedUniforms);
+      this.scene.add(this.ferryView.root);
+    }
+    this.ferryView.update(this.world, this.renderWaves, darkness, renderTime, this.focus);
     // Regions: which are drawn in full for this viewer, which outlines are in sight today;
     // the ocean shader's shelter zones follow the resident set.
     this.worldView.update(this.focus, this.environment.visibility, dt);

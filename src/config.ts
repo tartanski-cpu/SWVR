@@ -4997,6 +4997,58 @@ export const CONFIG = {
    *                   out to this times the visibility
    */
   /**
+   * Ferries on a coast map's real routes (the coast extras plan, C7; traffic/ferries.ts, drawn
+   * by traffic/ferryView.ts), sailing them to and fro as the map draws them.
+   *   shareReach  routes with ends this close (m) share a terminal (or a gap at the map's
+   *             edge) and are one fleet
+   *   fleet     a fleet has at most this many ships (one a route if fewer); they take its
+   *             routes out past the map's edge in turn (Oban's six island routes: three ships)
+   *   lane      she keeps this many of her beams to starboard of the route's line, so two
+   *             meeting pass port to port; easing onto the line over `laneTaper` of her
+   *             lengths into a terminal
+   *   berthWait she lies off this many of her lengths short of a terminal while another of
+   *             her fleet has the berth, or is still leaving it (within that and a length more)
+   *   avoid     a ship meeting her head on within `ahead` m, closer abeam than `clear` x
+   *             their beams (half the two added), she steps away from at `rate` m/s, up to
+   *             `most` of her beams; back to her lane at half that once clear
+   *   classes   each design's length, beam, draught and freeboard (m; her hull's box in the
+   *             collision, the drawing made to it) and service speed (m/s: large 14 kn, small
+   *             9 kn, launch 12 kn)
+   *   dwell     she lies at a terminal this long (s) before sailing again
+   *   away      beyond the map's edge this long (s: her crossing out of sight) before she
+   *             comes back in
+   *   brake     she slows over this many of her lengths into a terminal, to `minSpeed` (m/s)
+   *   stopShort her bow stops this far (m) short of the route's end (the linkspan)
+   *   hold      she stops rather than run anyone down: a boat within `ahead` m beyond her bow
+   *             and `side` m beyond her side, on her course (or a ship of hers going her
+   *             way); on again once it's clear
+   *   stepReach the collision follows ferries within this of any vessel (m)
+   *   radio     her calls leaving and arriving are heard within this of your boat (m)
+   *   drawDistance  drawn within this of the viewer (m; the haze hides them beyond)
+   */
+  ferries: {
+    classes: {
+      large: { length: 72, beam: 15.5, draught: 3.2, freeboard: 3.6, speed: 7.2 },
+      small: { length: 38, beam: 11, draught: 1.6, freeboard: 1.7, speed: 4.6 },
+      launch: { length: 20, beam: 6, draught: 1.2, freeboard: 1.5, speed: 6.2 },
+    } as Record<'large' | 'small' | 'launch', { length: number; beam: number; draught: number; freeboard: number; speed: number }>,
+    dwell: 480,
+    away: 1800,
+    brake: 4,
+    minSpeed: 0.8,
+    stopShort: 6,
+    shareReach: 300,
+    fleet: 3,
+    lane: 1.5,
+    laneTaper: 1.5,
+    berthWait: 3,
+    avoid: { ahead: 400, clear: 2.5, most: 3, rate: 1.2 },
+    hold: { ahead: 120, side: 20 },
+    stepReach: 400,
+    radio: 6000,
+    drawDistance: 9000,
+  },
+  /**
    * Place names in the radio's calls (the coast extras plan, C4; world/places.ts): the nearest
    * name within `reach` m ("off Toward Point"), each rank down (a hamlet against a town) counting
    * `rankWeight` of its distance more; "in" a bay, sound or strait within `inside` m of its name.
