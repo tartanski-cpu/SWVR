@@ -38,6 +38,11 @@ export type ConsoleConfig = typeof CONFIG.modules.helmConsole & {
    * like the gauges or the instruments floating"). Upright when absent.
    */
   leanDeg?: number;
+  /**
+   * Switch groups up on the (leaning) dash face (CS6): each a plate across `x`, from `y[0]` up to
+   * `y[1]` (heights on the face, m), a coloured strip along its top with the title on it.
+   */
+  faceGroups?: { title: string; color: number; x: [number, number]; y: [number, number] }[];
 };
 
 /** A wrapped dash's setback at x (m aft), and a wing's turn (deg about y): 0 across the middle. */
@@ -106,6 +111,21 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
         }
         const mx = (g.x[0] + g.x[1]) / 2;
         labels.push({ text: g.title, at: [mx, top + 0.004, c.plates.front + 0.014 - LABEL_OFFSET + setback(c, mx)] as const, title: true });
+      }
+      // Switch groups up on the dash face (`faceGroups`): a plate lying on the leaning face, its
+      // coloured strip along the top, the title on the strip, standing on the face.
+      for (const g of c.faceGroups ?? []) {
+        const along = (g.y[1] - g.y[0]) / Math.cos(Math.atan(lean));
+        const ym = (g.y[0] + g.y[1]) / 2;
+        const zAt = (y: number) => d.aft - (y - d.bottom) * lean;
+        const leanRad = Math.atan(lean);
+        const onFace = (geo: THREE.BufferGeometry, y: number, out: number) => geo.rotateX(-leanRad).translate((g.x[0] + g.x[1]) / 2, y, zAt(y) + out);
+        const w = g.x[1] - g.x[0];
+        staticParts.push(part(onFace(new THREE.BoxGeometry(w, along, 0.003), ym, 0.0015), 0x3b434a));
+        const stripY = g.y[1] - 0.011 * Math.cos(leanRad);
+        staticParts.push(part(onFace(new THREE.BoxGeometry(w, 0.022, 0.004), stripY, 0.002), g.color));
+        const mx = (g.x[0] + g.x[1]) / 2;
+        labels.push({ text: g.title, at: [mx, stripY, zAt(stripY) + 0.0045 + setback(c, mx)] as const, title: true, face: leanRad, offset: 0, size: [Math.min(0.16, w - 0.01), 0.018] as const });
       }
       // Wrapped: every piece set back at its x (the wings angle back with the windows).
       if (c.wrap)

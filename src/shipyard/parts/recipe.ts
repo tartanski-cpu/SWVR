@@ -252,6 +252,47 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.slots[clockId] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
     consoleMount.modules!.push({ socket: clockId, module: 'instrument.screen', config: { screen: clockId } });
   }
+  // What the basic controls keep at the helm (the rest comes off with them, below).
+  const BASIC_KEEP = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
+  /** The switch panel's groups (CS2) from whichever switches she has (`has`). */
+  const panelGroups = (has: (id: string) => boolean): PanelGroup[] => {
+    const search = ['spotlight', 'firePump'].filter(has);
+    return [
+      { title: 'LIGHTS', color: colourOf.LIGHTS, side: 'port', members: ['navLights', 'cabinLight', 'wipers'].filter(has) },
+      { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
+      { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
+      { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'key'].filter(has) },
+      { title: 'DECK', color: 0x8a6d2a, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
+    ];
+  };
+  // Switches up onto the dash face (CS6; owner, Oct 2026: "the switches can go on the upright
+  // part as well"): on a console too short for its flat switch panel (each side's groups at the
+  // closest pitch, clear of the wheel's rim), whole groups move up onto the dash face beside
+  // the screens, in CONFIG.shipyard.helm.faceSwitchOrder, until the rest fit; ENGINE takes its
+  // warning lamps with it. Each is a strip of quarter cells on the dash's grid, two switches
+  // to a cell. (Not with low sills: no dash face then. Not with the panel placed by hand: its
+  // own rules, CS3.)
+  const hcfg = CONFIG.shipyard.helm;
+  const fitted = (id: string) => consoleMount.modules!.some((m) => m.socket === id) && (!!d.controls || BASIC_KEEP.includes(id));
+  const groupsNow = panelGroups(fitted).filter((g) => g.members.length);
+  const panelPinned = groupsNow.some((g) => d[PANEL_SLOTS[panelKey(g) as keyof typeof PANEL_SLOTS]]);
+  const cellsOfGroup = (g: PanelGroup) => Math.max(g.cells ?? 0, g.members.length);
+  const panelFits = (half: number, moved: string[]) =>
+    (['port', 'starboard'] as const).every((side) => groupsNow.filter((g) => g.side === side && !moved.includes(panelKey(g))).reduce((a, g) => a + cellsOfGroup(g), 0) * hcfg.minPitch <= Math.max(0.01, half - hcfg.groupClear) + 1e-9);
+  const movable = hcfg.faceSwitchOrder.filter((key) => groupsNow.some((g) => panelKey(g) === key));
+  const toFace: string[] = [];
+  if (!d.sills && !panelPinned) for (const key of movable) if (!panelFits(dashHalf, toFace)) toFace.push(key);
+  /** The face's switch strips (and ENGINE's lamps) as dash grid items: `sw:<group>`. */
+  const faceItemsFor = (keys: string[]) =>
+    keys.flatMap((key) => {
+      const g = groupsNow.find((q) => panelKey(q) === key)!;
+      const strip = { id: `sw:${key}`, cells: [Math.ceil(g.members.length / 2), 1] as [number, number] };
+      return key === 'ENGINE' && fitted('lamps') ? [strip, { id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [strip];
+    });
+  // (The warning lamps' row is wider than ENGINE's plate: on a console shorter than any before
+  // CS6, `lampsUpBelow`, it would run under the wheel's rim, so it goes up on the face too.)
+  const lampsUp = !d.sills && !panelPinned && !toFace.includes('ENGINE') && fitted('lamps') && 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow;
+  const faceItems = [...faceItemsFor(toFace), ...(lampsUp ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])];
   const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
   // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
@@ -265,7 +306,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const gap = CONFIG.shipyard.helm.screenGap;
   const cellsFor = (id: string) => cellsOf(SCREENS[(consoleMount.modules!.find((x) => x.socket === id)!.config as { screen: ScreenName }).screen]) as [number, number];
   const ROWS = 2;
-  const items = screens.map((id) => ({ id, cells: cellsFor(id) }));
+  const items = [...screens.map((id) => ({ id, cells: cellsFor(id) })), ...faceItems];
   const grid = packDash(items, ROWS);
   const pitch = (sc.width + gap) / 2;
   const rowRoom = 2 * dashHalf - 2 * gap;
@@ -274,10 +315,18 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const want = Object.fromEntries(screens.map((id) => [id, dashCell(d[DASH_SLOTS[id as keyof typeof DASH_SLOTS]] ?? 0)]));
   const byHand = screens.some((id) => want[id]);
   /** Each screen at its place on the dash: the automatic row (centred, smaller together if it's long), or placed by hand on the whole grid. */
+  const faceAt: Record<string, { x: number; rise: number; width: number; height: number }> = {};
+  let dashScale = 1;
   const fit = (places: GridPlace[], cols: number, p: number, snap: boolean) => {
     const k = p / pitch;
+    dashScale = k;
     for (const gp of places) {
       const at = placeOnDash(gp, places, cols, ROWS, p, gap * k, (sc.height / 2) * k, snap);
+      // (A switch strip on the face: its switches are placed on the leaning face below.)
+      if (gp.id.startsWith('sw:')) {
+        faceAt[gp.id] = at;
+        continue;
+      }
       const slot = cc.slots[gp.id] as { position: V3 };
       slot.position = [r3(at.x), slot.position[1], slot.position[2]];
       // A strip or a quarter always says its size (and its rise, stacked); a full screen only when smaller.
@@ -300,18 +349,35 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     fit(put.places, whole.cap, whole.pitch, false);
     shown = put.places;
     const named = (id: string) => (SCREEN_NAMES[id] ?? id).toLowerCase();
-    for (const id of put.moved) p.warnings.push(put.places.some((q) => q.id === id) ? `The ${named(id)} screen doesn't fit where it was placed on the dash: put where the rules would.` : `No room on the dash for the ${named(id)} screen.`);
+    for (const id of put.moved.filter((q) => !q.startsWith('sw:'))) p.warnings.push(put.places.some((q) => q.id === id) ? `The ${named(id)} screen doesn't fit where it was placed on the dash: put where the rules would.` : `No room on the dash for the ${named(id)} screen.`);
     // (No room at all: off the console.)
     consoleMount.modules = consoleMount.modules!.filter((m) => !(m.module === 'instrument.screen' && screens.includes(m.socket) && !put.places.some((q) => q.id === m.socket)));
   }
   // Her dash's grid, for the Shipyard (CS3) and the tests: its whole size, each screen's cells on it, whether placed by hand.
   cc.dashGrid = { cap: whole.cap, rows: ROWS, pitch: r3(whole.pitch), places: shown, byHand };
+  // The shortest console that holds all of it full size (CS6, for the Shipyard): for each
+  // number of switch groups moved up onto the face (in their order), the longer of what the
+  // dash's grid needs at full pitch and what the flat panel's groups need; the least of those.
+  // Shorter, and the screens are drawn smaller together; the Shipyard says so.
+  {
+    const panelNeed = (moved: string[]) =>
+      hcfg.groupClear + Math.max(...(['port', 'starboard'] as const).map((side) => groupsNow.filter((g) => g.side === side && !moved.includes(panelKey(g))).reduce((a, g) => a + cellsOfGroup(g), 0) * hcfg.minPitch));
+    const options = (d.sills || panelPinned ? [[]] : movable.map((_, k) => movable.slice(0, k)).concat([movable])).map((moved) => {
+      const cols = packDash([...screens.map((id) => ({ id, cells: cellsFor(id) })), ...faceItemsFor(moved)], ROWS).cols;
+      return Math.max((cols * pitch - gap) / 2 + gap, panelNeed(moved));
+    });
+    cc.consoleMin = Math.ceil(2 * (Math.min(...options) + 0.11) * 20) / 20;
+    // (Only for a console shorter than any before CS6, set short or in a narrow wheelhouse: a long
+    // row on a small boat was always drawn smaller together, quietly.)
+    if ((d.consoleLen || 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow) && dashScale < 0.98) p.warnings.push(`Her console is too short to show her instruments full size: drawn at ${Math.round(dashScale * 100)}%. A console of ${(cc.consoleMin as number).toFixed(2)} m holds them full size${d.controls && !touch ? ' (or a touchscreen needs less)' : ''}.`);
+  }
   // The dash's face leans back as far as its screens do (from its foot, so the switch panel in
   // front stays as it was; never so far its top is under 2 cm deep), and the screens and gauges
   // lie flat on it (owner, Oct 2026: "I'd certainly not like the gauges or the instruments
   // floating"). Not with low sills: the dash comes off then, its screens on stalks.
   if (!d.sills) {
     const dd = cc.dash as { front: number; aft: number; bottom: number; top: number };
+    const dashY0 = (cc.slots.speed?.position[1] ?? 0.21) as number;
     // (Raised a little first: the lower row's foot was behind the ledge in front of the dash.)
     for (const m of consoleMount.modules!) if (m.module === 'instrument.screen' && (m.config as { mount?: string } | undefined)?.mount !== 'hung' && cc.slots[m.socket]) {
       const p = cc.slots[m.socket].position as V3;
@@ -325,6 +391,36 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       if (m.module !== 'instrument.screen' || conf?.mount === 'hung' || !cc.slots[m.socket]) continue;
       m.config = { ...m.config, tiltDeg: cc.leanDeg, faceBack: r3((cc.slots[m.socket].position[1] - dd.bottom) * lean) };
     }
+    // The switch strips on the face (CS6): each group's switches across its cells, a little below
+    // the strip's middle (its coloured strip and title above them, their labels below), standing out square from the leaning face;
+    // its plate and title behind them (console.standard `faceGroups`). ENGINE's lamps in a row
+    // on their own strip; its start-up card stays on the flat panel, at the starboard end.
+    const faceZ = (y: number) => dd.aft - (y - dd.bottom) * lean;
+    const rot: V3 = [r3(90 - cc.leanDeg), 0, 0];
+    const faceGroups: { title: string; color: number; x: [number, number]; y: [number, number] }[] = [];
+    for (const [id, at] of Object.entries(faceAt)) {
+      const key = id.slice(3);
+      const yc = dashY0 + hcfg.screenLift + at.rise * Math.cos(Math.atan(lean));
+      const halfH = (at.height / 2) * Math.cos(Math.atan(lean));
+      if (key === 'lamps') {
+        cc.slots.lamps = { position: [r3(at.x), r3(yc), r3(faceZ(yc) + 0.003)], rotationDeg: rot };
+        const lampMod = consoleMount.modules!.find((m) => m.socket === 'lamps');
+        if (lampMod) lampMod.config = { ...lampMod.config, spacing: r3((at.width * 0.92) / 9) };
+        continue;
+      }
+      const g = groupsNow.find((q) => panelKey(q) === key)!;
+      const ys = yc - 0.008;
+      g.members.forEach((mid, i) => {
+        const x = at.x - at.width / 2 + ((i + 0.5) * at.width) / g.members.length;
+        // (A toggle turned a quarter on the face: its plate's long side across, so it fits the strip's height; it rocks side to side.)
+        const toggle = consoleMount.modules!.some((m) => m.socket === mid && m.module === 'control.toggle');
+        cc.slots[mid] = { position: [r3(x), r3(ys), r3(faceZ(ys) + 0.002)], rotationDeg: toggle ? [0, 90, rot[0]] : rot }; // (socket turns apply Z, X, then Y: tipped, then swung round to face aft)
+      });
+      faceGroups.push({ title: g.title || 'HORN', color: g.color, x: [r3(at.x - at.width / 2 + 0.008), r3(at.x + at.width / 2 - 0.008)], y: [r3(yc - halfH + 0.004), r3(yc + halfH - 0.004)] });
+    }
+    if (faceGroups.length) cc.faceGroups = faceGroups;
+    if (toFace.includes('ENGINE') && cc.slots.card) cc.slots.card.position = [r3(dashHalf - 0.13), cc.slots.card.position[1], cc.slots.card.position[2]];
+    if (cc.wrap) cc.wrap.turn = [...(cc.wrap.turn ?? []), ...Object.keys(faceAt).flatMap((id) => (id === 'sw:lamps' ? ['lamps'] : groupsNow.find((q) => panelKey(q) === id.slice(3))?.members ?? []))];
   }
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
@@ -384,8 +480,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     // hears the forecasts and the harbours), and her navigation lights and their switch (owner,
     // Oct 2026: in every tier). No cabin light, searchlight, horn, wipers, heading, engine
     // monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
-    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
-    consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
+    consoleMount.modules = consoleMount.modules!.filter((m) => BASIC_KEEP.includes(m.socket));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
   }
@@ -397,14 +492,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   {
     const hc = CONFIG.shipyard.helm;
     const has = (id: string) => consoleMount.modules!.some((m) => m.socket === id);
-    const search = ['spotlight', 'firePump'].filter(has);
-    const panel: PanelGroup[] = [
-      { title: 'LIGHTS', color: colourOf.LIGHTS, side: 'port', members: ['navLights', 'cabinLight', 'wipers'].filter(has) },
-      { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
-      { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
-      { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'key'].filter(has) },
-      { title: 'DECK', color: 0x8a6d2a, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] },
-    ];
+    // (Less the groups moved up onto the dash face.)
+    const panel: PanelGroup[] = panelGroups(has).filter((g) => !toFace.includes(panelKey(g)));
     const r3 = (v: number) => Math.round(v * 1000) / 1000;
     // The panel's whole row of cells, for placing by hand (CS3): as many as it has room for.
     const cap = Math.max(1, Math.floor((2 * dashHalf) / hc.switchPitch + 1e-9));
@@ -444,7 +533,10 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     const engine = laid.runs.find((r) => r.group.title === 'ENGINE');
     if (engine) {
       const mid = r3((engine.x0 + engine.x1) / 2);
-      for (const id of ['lamps', 'card']) if (cc.slots[id]) cc.slots[id].position = [mid, cc.slots[id].position[1], cc.slots[id].position[2]];
+      for (const id of lampsUp ? ['card'] : ['lamps', 'card']) if (cc.slots[id]) cc.slots[id].position = [mid, cc.slots[id].position[1], cc.slots[id].position[2]];
+      // (The lamps' row is wider than ENGINE's plate: kept on the console, CS6.)
+      const halfRow = (9 * CONFIG.modules.warningLamps.spacing) / 2;
+      if (cc.slots.lamps && !lampsUp) cc.slots.lamps.position = [r3(Math.min(mid, Math.max(0, dashHalf - halfRow))), cc.slots.lamps.position[1], cc.slots.lamps.position[2]];
     }
     // Her switch panel, for the Shipyard (CS3) and the tests: its whole row of cells, whether
     // placed by hand, and each group's members, its run (m) and its first cell on the row.

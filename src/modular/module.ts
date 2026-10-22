@@ -428,6 +428,12 @@ export interface EngravedLabel {
   offset?: number;
   /** On the underside of a panel, read from below (the overhead panel). */
   underside?: boolean;
+  /**
+   * Standing on a face that leans back this far from upright (rad), below what it names by
+   * `offset` down the face (CS6: switches on the dash face). The assembler sets it for a label
+   * whose socket stands its module out from such a face.
+   */
+  face?: number;
 }
 
 /** A box you can't walk or stand cargo in (m; from a module in its socket's axes, from the assembler in the boat's). */
