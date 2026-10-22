@@ -36,6 +36,12 @@ export interface ScreenConfig {
   rise?: number;
   /** A touchscreen's pages, in tab order (instruments.ts TOUCH_PAGES), its channel and its first page (CS5). */
   pages?: TouchPage[];
+  /**
+   * Dash mount, on a dash whose face leans back as the screen does (console.standard `leanDeg`):
+   * how far the face at its slot has leaned back from upright (m). The screen then lies flat on
+   * the face, just proud of it, wherever it stands up or down it.
+   */
+  faceBack?: number;
   channel?: 'touchPage1' | 'touchPage2';
   first?: number;
 }
@@ -74,7 +80,9 @@ export const SCREEN: ModuleDefinition<ScreenConfig> = {
         // put a raised quarter's top edge inside the dash, its top third hidden: CS4, Oct 2026.)
         const rise = config.rise ?? 0;
         const reach = h / 2 + Math.abs(rise);
-        const lift = new THREE.Vector3(0, rise * Math.cos(tilt), 0.006 + reach * Math.sin(tilt) - rise * Math.sin(tilt));
+        // (On a leaning face, `faceBack`: flat on it, 6 mm proud, its middle back by the lean at its height.)
+        const off = config.faceBack !== undefined ? 0.006 - config.faceBack : 0.006 + reach * Math.sin(tilt);
+        const lift = new THREE.Vector3(0, rise * Math.cos(tilt), off - rise * Math.sin(tilt));
         plane = new THREE.PlaneGeometry(w, h).rotateX(-tilt).translate(lift.x, lift.y, lift.z);
         glass.makeRotationX(-tilt).setPosition(lift);
       } else {

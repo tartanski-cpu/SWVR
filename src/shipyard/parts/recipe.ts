@@ -306,6 +306,26 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   }
   // Her dash's grid, for the Shipyard (CS3) and the tests: its whole size, each screen's cells on it, whether placed by hand.
   cc.dashGrid = { cap: whole.cap, rows: ROWS, pitch: r3(whole.pitch), places: shown, byHand };
+  // The dash's face leans back as far as its screens do (from its foot, so the switch panel in
+  // front stays as it was; never so far its top is under 2 cm deep), and the screens and gauges
+  // lie flat on it (owner, Oct 2026: "I'd certainly not like the gauges or the instruments
+  // floating"). Not with low sills: the dash comes off then, its screens on stalks.
+  if (!d.sills) {
+    const dd = cc.dash as { front: number; aft: number; bottom: number; top: number };
+    // (Raised a little first: the lower row's foot was behind the ledge in front of the dash.)
+    for (const m of consoleMount.modules!) if (m.module === 'instrument.screen' && (m.config as { mount?: string } | undefined)?.mount !== 'hung' && cc.slots[m.socket]) {
+      const p = cc.slots[m.socket].position as V3;
+      cc.slots[m.socket].position = [p[0], r3(p[1] + CONFIG.shipyard.helm.screenLift), p[2]];
+    }
+    const lean = Math.min(Math.tan((sc.tiltDeg * Math.PI) / 180), (dd.aft - dd.front - 0.02) / (dd.top - dd.bottom));
+    const leanDeg = (Math.atan(lean) * 180) / Math.PI;
+    cc.leanDeg = Math.round(leanDeg * 100) / 100;
+    for (const m of consoleMount.modules!) {
+      const conf = m.config as { mount?: string; screen?: string } | undefined;
+      if (m.module !== 'instrument.screen' || conf?.mount === 'hung' || !cc.slots[m.socket]) continue;
+      m.config = { ...m.config, tiltDeg: cc.leanDeg, faceBack: r3((cc.slots[m.socket].position[1] - dd.bottom) * lean) };
+    }
+  }
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
   if (house.facet)
@@ -361,12 +381,13 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm, the ANCHOR screen, and the VHF (owner, Oct 2026: every boat answers calls,
-    // hears the forecasts and the harbours). No lights, searchlight, horn, wipers, heading,
-    // engine monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
-    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
+    // hears the forecasts and the harbours), and her navigation lights and their switch (owner,
+    // Oct 2026: in every tier). No cabin light, searchlight, horn, wipers, heading, engine
+    // monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
+    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
-    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
+    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
   }
   // The switch panel as a row of switch cells (dynamic console sockets CS2; consoleGrid.ts
   // packPanel): LIGHTS, then SEARCH / FIRE, in from the port end; ENGINE, then DECK (the

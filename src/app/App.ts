@@ -61,6 +61,7 @@ import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS, SKYLINE, SKYLINE_STYLE } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
+import { SurfListener } from '../world/surf';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
@@ -463,6 +464,8 @@ export class App {
   private readonly rainHouse = { matrixWorld: new THREE.Matrix4(), min: new THREE.Vector3(), max: new THREE.Vector3() };
   /** The local player is inside the wheelhouse (wind muffled, rain drums on the roof). */
   private insideHouse = false;
+  /** The surf near you (world/surf.ts). */
+  private readonly surf = new SurfListener();
   /** Last lightning flash and forecast seen (thunder / VHF on change), and targets the lookout has called. */
   private lightningSeen = -1;
   private forecastSeen = -1;
@@ -4545,6 +4548,10 @@ export class App {
     this.sound.wind.update(Math.hypot(ax, az), inside, dt, this.closed);
     // A tidal race's roar: its strength where you are, or fading in from outside it.
     this.sound.race.update(raceRoarLevel(this.focus.x, this.focus.z), inside, this.closed);
+    // Surf on the shore near you (a look round every `CONFIG.surf.every` s, a few bearings a
+    // frame); heard only with the engine of the boat you're aboard stopped (ashore, always).
+    const surf = this.surf.step(this.focus.x, this.focus.z, this.world.environment.waves, this.renderWaves, dt);
+    this.sound.surf.update(surf, v?.engine.phase === 'running', inside, this.closed, this.focus);
   }
 
   /**

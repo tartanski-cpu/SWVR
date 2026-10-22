@@ -61,6 +61,13 @@ export interface Screen {
   key: ScreenKey;
   /** Its size in quarter cells, across and down: [2, 2] a full screen (the default), [2, 1] a strip, [1, 1] a quarter. */
   cells?: [1 | 2, 1 | 2];
+  /**
+   * An analogue gauge (old school; owner, Oct 2026: "a circular backing plate, and integrate
+   * more directly onto the" dash): painted on a clear ground, so only the round gauge and its
+   * name show on the dash, with no screen's black rectangle or bezel; and shown without 12 V
+   * too (a gauge doesn't go black).
+   */
+  round?: boolean;
 }
 
 /** A screen's size in quarter cells. */
@@ -136,7 +143,9 @@ export class DisplayAtlas {
   /** Merge the fitted screens into one mesh (after every screen is added). */
   finish(): THREE.Mesh | null {
     if (!this.planes.length) return null;
-    this.mesh = new THREE.Mesh(mergeGeometries(this.planes), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false })));
+    // (Alpha-tested: an analogue gauge's clear ground is cut away, so it sits on the dash; the
+    // screens are opaque, unchanged.)
+    this.mesh = new THREE.Mesh(mergeGeometries(this.planes), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false, alphaTest: 0.5 })));
     this.mesh.name = 'instruments';
     return this.mesh;
   }
@@ -148,7 +157,7 @@ export class DisplayAtlas {
     this.sinceDraw = 0;
     // Only repaint (and re-upload the 4 MB atlas) when something shown has changed: moored
     // or drifting with the engine off, the screens cost nothing. No 12 V: black (drawn once).
-    const powered = this.regions.map((r) => isPowered(state, r.circuit));
+    const powered = this.regions.map((r) => r.screen.round || isPowered(state, r.circuit));
     const key = this.regions.map((r, i) => (powered[i] ? r.screen.key(state, def, env) : 'off')).join('#');
     if (key === this.lastKey) return;
     this.lastKey = key;
@@ -162,6 +171,13 @@ export class DisplayAtlas {
       if (!powered[i]) {
         g.fillStyle = '#020303';
         g.fillRect(0, 0, r.w, r.h);
+        g.restore();
+        return;
+      }
+      if (r.screen.round) {
+        // A gauge: on a clear ground (cut away by the material's alpha test), no bezel.
+        g.clearRect(0, 0, r.w, r.h);
+        r.screen.paint(g, state, def, env);
         g.restore();
         return;
       }
@@ -793,10 +809,26 @@ const NEEDLE = '#e2571f';
  * `max` round a 270 degree sweep (with figures at each, `fig` choosing what's written), a red
  * arc from `red` up if given, its label and units, and the needle at `value`.
  */
+/** A gauge's round backing plate on the dash, and its four screws: behind the rim. */
+function backingPlate(g: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
+  g.fillStyle = '#1b1f22';
+  g.beginPath();
+  g.arc(cx, cy, r + 10, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#5a6066';
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + (k * Math.PI) / 2;
+    g.beginPath();
+    g.arc(cx + Math.cos(a) * (r + 6), cy + Math.sin(a) * (r + 6), 2, 0, Math.PI * 2);
+    g.fill();
+  }
+}
+
 function dial(g: CanvasRenderingContext2D, o: { min: number; max: number; value: number; ticks: number; label: string; units?: string; red?: number; fig?: (v: number) => string; note?: string; noteColour?: string }): void {
   const cx = 128;
   const cy = 64;
   const r = 52;
+  backingPlate(g, cx, cy, r);
   // The rim and face.
   g.fillStyle = '#3a3d3c';
   g.beginPath();
@@ -890,6 +922,7 @@ const paintDialCompass: Painter = (g, s) => {
   const cy = 64;
   const r = 52;
   const h = headingDeg(s);
+  backingPlate(g, cx, cy, r);
   g.fillStyle = '#3a3d3c';
   g.beginPath();
   g.arc(cx, cy, r + 5, 0, Math.PI * 2);
@@ -958,6 +991,7 @@ const paintDialClock: Painter = (g, _s, _def, env) => {
   const cx = 128;
   const cy = 64;
   const r = 52;
+  backingPlate(g, cx, cy, r);
   g.fillStyle = '#a8843a';
   g.beginPath();
   g.arc(cx, cy, r + 5, 0, Math.PI * 2);
@@ -1024,15 +1058,16 @@ export const SCREENS = {
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
   towline: { paint: paintTowline, cells: [2, 1], key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
   // Old school: the analogue gauges, each a quarter.
-  dialRpm: { paint: paintDialRpm, cells: [1, 1], key: (s) => String(Math.round(s.engine.rpm / 25)) },
-  dialSpeed: { paint: paintDialSpeed, cells: [1, 1], key: (s) => knots(s).toFixed(1) },
-  dialDepth: { paint: paintDialDepth, cells: [1, 1], key: (s, def) => Math.min(60, depthUnderKeel(s, def)).toFixed(1) },
-  dialTemp: { paint: paintDialTemp, cells: [1, 1], key: (s) => s.engine.coolantC.toFixed(0) },
-  dialFuel: { paint: paintDialFuel, cells: [1, 1], key: (s) => s.engine.fuelL.toFixed(0) },
-  dialCompass: { paint: paintDialCompass, cells: [1, 1], key: (s) => Math.round(headingDeg(s)).toString() },
+  dialRpm: { paint: paintDialRpm, cells: [1, 1], round: true, key: (s) => String(Math.round(s.engine.rpm / 25)) },
+  dialSpeed: { paint: paintDialSpeed, cells: [1, 1], round: true, key: (s) => knots(s).toFixed(1) },
+  dialDepth: { paint: paintDialDepth, cells: [1, 1], round: true, key: (s, def) => Math.min(60, depthUnderKeel(s, def)).toFixed(1) },
+  dialTemp: { paint: paintDialTemp, cells: [1, 1], round: true, key: (s) => s.engine.coolantC.toFixed(0) },
+  dialFuel: { paint: paintDialFuel, cells: [1, 1], round: true, key: (s) => s.engine.fuelL.toFixed(0) },
+  dialCompass: { paint: paintDialCompass, cells: [1, 1], round: true, key: (s) => Math.round(headingDeg(s)).toString() },
   dialChain: {
     paint: paintDialChain,
     cells: [1, 1],
+    round: true,
     key: (s) => {
       const a = s.anchor;
       const moving = a.phase === 'paying' || a.phase === 'weighing' || (a.phase === 'set' && a.dragging);
@@ -1050,7 +1085,7 @@ export const SCREENS = {
   },
   // The ship's clock: in figures, or the old school's round clock.
   clock: { paint: paintClock, cells: [1, 1], key: clockKey },
-  dialClock: { paint: paintDialClock, cells: [1, 1], key: clockKey },
+  dialClock: { paint: paintDialClock, cells: [1, 1], round: true, key: clockKey },
   // The advanced touchscreen (a full screen; the screen module makes each one with her own
   // pages: touchScreen below). This one, every page, is what's listed.
   touch: { paint: (g, s, def, env) => touchScreen([...TOUCH_PAGES], 'touchPage1', 0).paint(g, s, def, env), key: () => '' },

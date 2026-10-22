@@ -3166,7 +3166,8 @@ export const CONFIG = {
     oldSchoolPrice: 4000,
     /** What each advanced touchscreen adds to her price (GBP; CS5: a big multifunction display, on top of the advanced package). */
     touchPrice: 2500,
-    helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
+    /** helm.screenLift: the dash screens and gauges raised this far up the (leaning) dash face (m), so the lower row's foot clears the ledge in front of it. */
+    helm: { maxConsole: 2.2, screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
@@ -5086,6 +5087,43 @@ export const CONFIG = {
     stepReach: 400,
     radio: 6000,
     drawDistance: 9000,
+  },
+  /**
+   * Surf on the shore (the coast extras plan, C5; world/surf.ts, heard by audio/surfAudio.ts):
+   * the owner's rule, heard only with your engine off and the waves over a height.
+   *   minHs, fullHs  the surf's height (m, significant, after the shelter) where it starts to be
+   *             heard, and where it's at full
+   *   rays, radii  where it's looked for: this many bearings round you, at these distances (m)
+   *   near, hearRange  full within `near` m, fading to nothing at `hearRange`
+   *   lee       a shore with its back to the waves is this share as loud as one they run onto
+   *   spread    a long shore all round you is up to this much louder than one stretch
+   *   kinds     each shore kind's mix (the shore map, C3): boom (a low thump as a breaker
+   *             lands), wash (the broken water running up), hiss (spray, and shingle's
+   *             rattle on the backwash); 'none' where the map says nothing (and the
+   *             hand-built islands)
+   *   every     a whole look round takes this long (s; a few bearings a frame)
+   *   gain      its loudness at full (the Sea & effects bus)
+   *   engineFade  how fast it fades out when your engine starts and back when it stops (s)
+   */
+  surf: {
+    minHs: 0.4,
+    fullHs: 2.0,
+    rays: 24,
+    radii: [10, 25, 45, 70, 100, 140, 190, 250, 320, 400, 500],
+    near: 40,
+    hearRange: 500,
+    lee: 0.3,
+    spread: 0.3,
+    kinds: {
+      none: { boom: 0.5, wash: 0.8, hiss: 0.4 },
+      sand: { boom: 0.25, wash: 1, hiss: 0.3 },
+      shingle: { boom: 0.3, wash: 0.65, hiss: 1 },
+      rock: { boom: 1, wash: 0.6, hiss: 0.5 },
+      cliff: { boom: 1, wash: 0.45, hiss: 0.6 },
+    } as Record<'none' | 'sand' | 'shingle' | 'rock' | 'cliff', { boom: number; wash: number; hiss: number }>,
+    every: 0.5,
+    gain: 0.55,
+    engineFade: 1.5,
   },
   /**
    * Place names in the radio's calls (the coast extras plan, C4; world/places.ts): the nearest
