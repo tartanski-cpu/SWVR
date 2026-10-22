@@ -5414,6 +5414,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/effectsDispose.test.ts` (+1): the pilot boat's five effects all gone when she goes (with the old dispose, three were left).
 - **Checked:** typecheck, `npm test`. **Not checked:** by eye in the game.
 
+### The grab camera held in VR looks where the hand points (owner: "when I grab it, it's kind of pointing up at the ceiling and the model's rotated back ... rotate it 85 degrees forward")
+
+- **Cause:** a VR crew-mate holding a desktop player's recording camera (the "grab camera", `player/cameraHold.ts`) got it rigid with the controller's grip pose, whose axis runs up out of the fist. So the camera looked at the ceiling, its body tilted back.
+- **Fix:** a fixed forward tilt between the hand and the camera, `CONFIG.camera.holdPitchDeg` -85 (about the hand's side-to-side axis), on both the camera's own view (`App`, after the hand's pose, before the flip) and its model in the holder's hand (`net/avatarView.ts`). Flipped to film the holder, it turns round about the tilted axis, as before.
+- **Checked:** typecheck, the camera tests. **Not checked:** in VR (the owner's 85 deg is the figure to tune there).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

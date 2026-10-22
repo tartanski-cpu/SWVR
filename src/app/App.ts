@@ -317,6 +317,8 @@ function rememberHosting(code: string | null): void {
 }
 /** A camera held flipped (player/cameraHold.ts `back`): a half turn about the hand's up, so it faces the holder. */
 const FLIPPED = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+/** The grab camera in a VR hand: tilted forward from the grip's axis (CONFIG.camera.holdPitchDeg). */
+const HOLD_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (CONFIG.camera.holdPitchDeg * Math.PI) / 180);
 
 /** The game code on the address (shareable), or none. */
 function showGameOnAddress(code: string | null): void {
@@ -4024,6 +4026,8 @@ export class App {
       hf.updateMatrixWorld();
       const quat = hf.getWorldQuaternion(this.camQ).multiply(this.camQ2.set(hq[0], hq[1], hq[2], hq[3]));
       const pos = hf.localToWorld(this.camW.fromArray(hand)).add(this.camLens.fromArray(CONFIG.camera.lens).applyQuaternion(quat));
+      // Tilted forward from the grip's axis (up out of the fist), so it looks where the hand points.
+      quat.multiply(HOLD_TILT);
       // Rigid with the hand (owner: it moves exactly as the hand, angle and all): the lens
       // looks out along the hand; flipped, it's turned round in the hand to face the holder.
       if (hold!.back) quat.multiply(FLIPPED);
