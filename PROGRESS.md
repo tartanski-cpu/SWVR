@@ -5420,6 +5420,19 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Fix:** a fixed forward tilt between the hand and the camera, `CONFIG.camera.holdPitchDeg` -85 (about the hand's side-to-side axis), on both the camera's own view (`App`, after the hand's pose, before the flip) and its model in the holder's hand (`net/avatarView.ts`). Flipped to film the holder, it turns round about the tilted axis, as before.
 - **Checked:** typecheck, the camera tests. **Not checked:** in VR (the owner's 85 deg is the figure to tune there).
 
+### The crew's boats heard: engines, the rush of water and horns, in 3D (owner: "hear your friends whizzing past you in a motorboat ... spatialised ... and the horn has to work so you can beep at your friends")
+
+- **Before:** only your own boat's engine and horn were heard; every other player's boat was silent.
+- **What** (`audio/boatVoices.ts BoatVoices`, on the sound board; fed by `App.updateBoatVoices` each frame from every player's boat but the one you're on, where she's drawn; `CONFIG.boatSounds`): each of the nearest `maxBoats` 3 within `range` 700 m gets:
+  - her engine (the same synthesised diesel as your own, in her engine's voice and rated revs, `twinLevel` louder for a twin), her revs and load from her state;
+  - the rush of water: noise band-passed round 700 Hz, `rushLevel` 0.35 at `rushFullSpeed` 14 m/s, rising as her speed squared;
+  - her horn while it's pressed and she has power (your own horn's tones), `hornLevel` 0.6.
+
+  All of it goes through a low-pass for the air (`airLp` 14 kHz near, less by 11 kHz a km) and a 3D panner where she is (equal-power: cheap enough for three on the Quest; inverse distance from `refDistance` 12 m).
+- **The zoom (Doppler):** the browser's 3D sound doesn't shift pitch, so her revs as heard (and the rush's pitch) are scaled by (c + your speed toward her) / (c - her speed toward you), within ±`dopplerMax` 25 %. Your speed comes from your head's movement (a teleport or boarding jump isn't counted).
+- **Tests:** `tests/boatVoices.test.ts` (+2): coming, going, crossing and your own speed in the Doppler factor, its limit; the nearest few within range heard. `npm run crewcheck` (now 27): the host hears the crew's boat once she's launched beside him; her horn pressed on her page sounds in the host's world.
+- **Checked:** typecheck, `npm test`, `npm run crewcheck` (27 of 27). **Not checked:** by ear (headless has no speakers); the Quest's audio load with three boats.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

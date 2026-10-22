@@ -67,6 +67,7 @@ import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
 import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthId } from '../voyage/plan';
 import { PlanTable, planTableSpot } from '../voyage/planTable';
+import type { HeardBoat } from '../audio/boatVoices';
 import { boatOwnerName, launchType, ownedBoat, playerBoats } from '../core/launch';
 import { berthWithId } from '../world/berths';
 import { groundHeight } from '../world/terrain';
@@ -1046,6 +1047,7 @@ export class App {
       this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1]);
       const v = this.world.vessels[this.testVesselId];
       this.sound.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
+      this.updateBoatVoices(dt);
       // Bridge buzzer: high temperature always, low fuel while the engine runs, and no oil
       // pressure with the key on and the engine stopped (it stops when she runs, owner).
       const diesel = gearOf(v, 'diesel');
@@ -3529,6 +3531,48 @@ export class App {
     const label = this.boatLabel(v.defId);
     if (!label.startsWith('Shipyard boat')) return label;
     return v.owner && v.owner !== this.localPlayerId ? `${this.world.players[v.owner]?.name ?? 'A crew-mate'}'s boat` : label;
+  }
+
+  /** Where the listener was last frame (for its speed: the Doppler shift of boats going by). */
+  private readonly lastEar = new THREE.Vector3(NaN, 0, 0);
+  private readonly heardBoats: HeardBoat[] = [];
+
+  /**
+   * The other players' boats heard where they are (audio/boatVoices.ts): every player's boat
+   * but the one you're on, drawn where she's drawn, with her engine's state and her horn.
+   */
+  private updateBoatVoices(dt: number): void {
+    const list = this.heardBoats;
+    list.length = 0;
+    for (const v of playerBoats(this.world)) {
+      if (v.id === this.testVesselId) continue;
+      const root = this.vesselRoots.get(v.id);
+      if (!root) continue;
+      const at = root.getWorldPosition(this.tmpV);
+      const diesel = gearOf(v, 'diesel');
+      list.push({
+        id: v.id,
+        x: at.x,
+        y: at.y + 1,
+        z: at.z,
+        vx: v.linearVelocity[0],
+        vz: v.linearVelocity[2],
+        voice: diesel?.voice ?? 'inlineSix',
+        ratedRpm: diesel?.engine.ratedRpm ?? 1800,
+        twin: !!diesel?.twin,
+        rpm: v.engine.rpm,
+        load: v.engine.rack,
+        running: v.engine.phase === 'running',
+        cranking: v.engine.phase === 'cranking',
+        horn: v.controls.horn > 0 && isPowered(v),
+      });
+    }
+    const ear = this.focus;
+    const moved = Number.isNaN(this.lastEar.x) || dt <= 0 ? null : { vx: (ear.x - this.lastEar.x) / dt, vz: (ear.z - this.lastEar.z) / dt };
+    this.lastEar.copy(ear);
+    // A jump (a teleport, boarding another boat) isn't a speed: heard as standing still.
+    const fast = moved && Math.hypot(moved.vx, moved.vz) > 40;
+    this.sound.boats.update(list, { x: ear.x, y: ear.y, z: ear.z, vx: fast || !moved ? 0 : moved.vx, vz: fast || !moved ? 0 : moved.vz });
   }
 
   /** The other boats' interior detail (multi-boat M4), by vessel id. */
