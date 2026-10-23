@@ -9,6 +9,10 @@ varying vec2 vRest;
 varying float vShelter;
 // The strongest running race here, signed (0 none): its foam streaks and whirls (ocean.frag).
 varying float vRace;
+// The wind sea here (ocean/windSea.ts): the long waves' exposure (1 open sea), and the short
+// trains' amplitudes summed (m): the crests' whitening goes by the sea that's actually here.
+varying float vExpo;
+varying float vShort;
 
 void main() {
   vec4 world0 = modelMatrix * vec4(position, 1.0);
@@ -22,5 +26,8 @@ void main() {
   float running;
   raceAt(p0, running);
   vRace = running;
+  vec4 ws = texture2D(uWindSea, (p0 - uWindBox.xy) * uWindBox.zw);
+  vExpo = ws.a;
+  vShort = dot(ws.rgb, uWindMax);
   gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
 }

@@ -24,21 +24,40 @@ export interface EnvironmentState {
    * continuous here when the sea changes (weather.ts rebuildWaves). Absent: the origin.
    */
   seaAnchor?: { x: number; z: number };
+  /** Debug: the short seas by fetch off (ocean/windSea.ts), the long waves everywhere as before. */
+  shortSeasOff?: boolean;
   /** Debug (regions): every tidal race pinned at the flood's peak, the ebb's, or slack; absent: the clock (world/currents.ts). */
   raceOverride?: 'peak' | 'ebb' | 'slack';
 }
 
 /** The configured waves scaled to sea state `s` (see CONFIG.ocean.seaStates). */
-export function seaStateWaves(s: number): WaveComponent[] {
-  if (s <= 0) return [];
-  const tScale = Math.pow(s, CONFIG.ocean.seaPeriodExponent);
-  const sea = CONFIG.ocean.waves.map((w) => ({ ...w, amplitude: w.amplitude * s, period: w.period * tScale }));
-  // The overfalls' chop (CONFIG.currents.overfalls.chop): short wind waves either side of
-  // the main wave's direction, nowhere but in a race running against them (ocean/waves.ts).
-  const c = CONFIG.currents.overfalls.chop;
-  const main = sea[0]?.directionDeg ?? 0;
-  const chop: WaveComponent[] = c.periods.map((period, i) => ({ amplitude: c.amplitude * s, period, directionDeg: main + (i % 2 ? -1 : 1) * c.spreadDeg, steepness: 1, phase: 1.3 * (i + 1), chop: true }));
-  return [...sea, ...chop];
+/**
+ * The sea's wave trains for sea scale `s`: the long waves (the open sea), and the short
+ * trains (CONFIG.ocean.fetchSeas.trains) that carry the wind sea in enclosed water and the
+ * overfalls' chop in a race (ocean/windSea.ts, ocean/waves.ts waveFactors). The short trains
+ * run down the wind (`windToDeg`, the way it blows; the main long wave's way if not given),
+ * each as tall as the largest it is anywhere (`trainMax`, m: the wind sea's field) or the
+ * race chop's (`chop.amplitude` × s), whichever is more: at each spot they're scaled down to
+ * what's there.
+ */
+export function seaStateWaves(s: number, windToDeg?: number, trainMax: readonly number[] = []): WaveComponent[] {
+  const f = CONFIG.ocean.fetchSeas;
+  const tScale = Math.pow(Math.max(s, 0), CONFIG.ocean.seaPeriodExponent);
+  const sea = s > 0 ? CONFIG.ocean.waves.map((w) => ({ ...w, amplitude: w.amplitude * s, period: w.period * tScale })) : [];
+  const raceAmp = CONFIG.currents.overfalls.chop.amplitude * Math.max(s, 0);
+  const to = windToDeg ?? CONFIG.ocean.waves[0]?.directionDeg ?? 0;
+  const trains: WaveComponent[] = f.trains.map((t, i) => ({
+    amplitude: Math.max(raceAmp, trainMax[i] ?? 0),
+    period: t.period,
+    directionDeg: (((to + t.offsetDeg) % 360) + 360) % 360,
+    steepness: f.steepness,
+    phase: 1.3 * (i + 1),
+    chop: true,
+    train: i,
+    raceAmp,
+  }));
+  if (!sea.length && trains.every((t) => t.amplitude <= 0)) return [];
+  return [...sea, ...trains];
 }
 
 export function createEnvironment(): EnvironmentState {

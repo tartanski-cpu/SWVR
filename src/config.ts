@@ -238,6 +238,44 @@ export const CONFIG = {
      * 2.8 m, Storm 31° / 4 m.
      */
     seaPeriodExponent: 0.3,
+    /**
+     * Short, steep seas in enclosed water, long ones in the open (owner, Oct 2026;
+     * docs/FETCH_SEAS.md; world/fetch.ts, ocean/windSea.ts). The wind sea at each spot by
+     * fetch-limited growth (JONSWAP, at its textbook strength), carried by short `trains`;
+     * the long `waves` above scaled by each spot's exposure toward where they come from.
+     *   cellM, maxCells   the fetch grid: cells this size (m), coarser on a big map so there
+     *                     are at most this many
+     *   landDepth         ground less than this far under the surface (m) stops a sea
+     *   sectors           bearings the fetch is worked out for; `spreadSectors` either side of
+     *                     the wind count toward its effective fetch (weighted by cos²)
+     *   fetchMaxM         the longest fetch looked for (m); a ray off the map runs this far
+     *   openFetchM        a fetch this long is open sea: exposure F/this, at most 1
+     *   trains            the short wave trains: period (s), and their angle off downwind
+     *                     (deg), so they don't all run in line
+     *   spreadLn          how wide the share of a sea over the trains is, in log-period
+     *   steepness         the trains' Gerstner Q (their crests' sharpness)
+     *   refreshWindPct, refreshDirDeg   the field's worked out again when the wind has
+     *                     changed by this much
+     */
+    fetchSeas: {
+      enabled: true,
+      cellM: 150,
+      maxCells: 25000,
+      landDepth: 0.5,
+      sectors: 16,
+      spreadSectors: 2,
+      fetchMaxM: 60000,
+      openFetchM: 40000,
+      trains: [
+        { period: 4.4, offsetDeg: 5 },
+        { period: 3.1, offsetDeg: -12 },
+        { period: 2.2, offsetDeg: 15 },
+      ],
+      spreadLn: 0.35,
+      steepness: 0.7,
+      refreshWindPct: 4,
+      refreshDirDeg: 4,
+    },
     seaStates: [
       { name: 'Calm', scale: 0 },
       { name: 'Slight', scale: 0.5 },

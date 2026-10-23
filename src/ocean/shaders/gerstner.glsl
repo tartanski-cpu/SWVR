@@ -32,6 +32,14 @@ uniform vec3 uOverfalls;
 // where the standing waves and the overfalls would push the sum past the cap, the orbits
 // are scaled back (waves.ts commonFactors).
 uniform vec3 uLoop; // sea, chop, cap
+// The wind sea by fetch (ocean/windSea.ts): a texture over the fetch grid, rgb each short
+// train's amplitude as a share of uWindMax (m), a the long waves' exposure (1 open sea);
+// uWindBox = x0, z0, 1/width, 1/height of the grid; uRaceChop the race chop's height (m).
+// uWaveB.w: 0 a long wave, 1 + n short train n.
+uniform sampler2D uWindSea;
+uniform vec4 uWindBox;
+uniform vec3 uWindMax;
+uniform float uRaceChop;
 
 /** How much of race j the rest position p0 is in, 0..1 (currents.ts zoneWeight). */
 float raceWeight(int j, vec2 p0) {
@@ -112,10 +120,21 @@ vec3 gerstnerDisplacement(vec2 p0) {
   vec2 set;
   float shelterOnly = shelterAt(p0);
   float raceF = raceAtSet(p0, running, set);
+  vec4 ws = texture2D(uWindSea, (p0 - uWindBox.xy) * uWindBox.zw);
+  vec3 wsA = ws.rgb * uWindMax;
+  float expo = ws.a;
   float cap = 1.0;
   if (running != 0.0) {
     float a = abs(running);
-    float worst = uLoop.x * raceF * (1.0 + uOverfalls.x * a) * (1.0 + uOverfalls.y * a) + uLoop.y * a;
+    float windShare = 0.0;
+    for (int i = 0; i < MAX_WAVES; i++) {
+      if (i >= uWaveCount) break;
+      float t = uWaveB[i].w;
+      if (t < 0.5 || uWaveA[i].w <= 0.0) continue;
+      float wa = t < 1.5 ? wsA.x : (t < 2.5 ? wsA.y : wsA.z);
+      windShare = max(windShare, wa / uWaveA[i].w);
+    }
+    float worst = uLoop.x * expo * raceF * (1.0 + uOverfalls.x * a) * (1.0 + uOverfalls.y * a) + uLoop.y * min(1.0, a + windShare);
     if (worst > uLoop.z) cap = uLoop.z / worst;
   }
   vec3 disp = vec3(0.0);
@@ -130,10 +149,14 @@ vec3 gerstnerDisplacement(vec2 p0) {
     float ampF;
     float horF;
     if (b.w > 0.5) {
-      ampF = fade * against;
+      // A short train: the wind sea here and the race chop against it, at most its height.
+      float wa = b.w < 1.5 ? wsA.x : (b.w < 2.5 ? wsA.y : wsA.z);
+      float amp = max(a.w, 1e-5);
+      ampF = fade * min(1.0, wa / amp + (uRaceChop / amp) * against);
       horF = ampF * cap;
     } else {
-      ampF = fade * raceF * (1.0 + uOverfalls.x * against - uOverfalls.z * max(-opp, 0.0));
+      // A long wave: as open as the water is toward where it comes from.
+      ampF = fade * expo * raceF * (1.0 + uOverfalls.x * against - uOverfalls.z * max(-opp, 0.0));
       horF = ampF * (1.0 + uOverfalls.y * against) * cap;
     }
     float theta = a.z * dot(a.xy, p0) - b.y;
