@@ -2391,8 +2391,9 @@ interface ShownHandle {
   mesh: THREE.Mesh;
   at: HV3;
 }
-const HANDLE_COLOUR = 0x6aa8e6;
-const HANDLE_HOT = 0xffd36a;
+/** A handle's own colour (CONFIG.shipyard.handles), and lightened when pointed at or held. */
+const handleColour = (def: HandleDef) => new THREE.Color(CONFIG.shipyard.handles.colours[def.key] ?? CONFIG.shipyard.handles.fallback);
+const WHITE = new THREE.Color(0xffffff);
 const handleGroup = new THREE.Group();
 scene.add(handleGroup);
 const handleGeo = new THREE.SphereGeometry(1, 20, 14);
@@ -2401,7 +2402,7 @@ let hotHandle: ShownHandle | null = null;
 /** A handle being dragged: its steps' points (worked out as it goes), and the line it's dragged along. */
 let dragging: { h: ShownHandle; anchors: (HV3 | undefined)[]; origin: HV3 } | null = null;
 // The dimension it shows while dragged (a line from where it's measured to the handle).
-const dimLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: HANDLE_HOT, depthTest: false }));
+const dimLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: false }));
 dimLine.renderOrder = 11;
 dimLine.visible = false;
 scene.add(dimLine);
@@ -2446,15 +2447,22 @@ function workOutAnchors(def: HandleDef): void {
 function showHandles(): void {
   for (const h of shownHandles) handleGroup.remove(h.mesh);
   shownHandles = [];
+  // Each handle's colour as a dot beside its slider (cleared, then set for those shown).
+  for (const row of document.querySelectorAll<HTMLElement>('.row.handled')) row.classList.remove('handled');
   if (placing || tool || live) return;
   for (const def of HANDLES) {
     if (def.step !== shownStep || (def.applies && !def.applies(design))) continue;
-    const mesh = new THREE.Mesh(handleGeo, new THREE.MeshBasicMaterial({ color: HANDLE_COLOUR, depthTest: false, transparent: true, opacity: 0.95 }));
+    const mesh = new THREE.Mesh(handleGeo, new THREE.MeshBasicMaterial({ color: handleColour(def), depthTest: false, transparent: true, opacity: 0.95 }));
     mesh.renderOrder = 12;
     const at = def.anchor(boat);
     mesh.position.set(...at);
     handleGroup.add(mesh);
     shownHandles.push({ def, mesh, at });
+    const row = document.querySelector(`input[data-key="${def.key}"]`)?.closest<HTMLElement>('.row');
+    if (row) {
+      row.classList.add('handled');
+      row.style.setProperty('--handle', `#${handleColour(def).getHexString()}`);
+    }
   }
 }
 /** Each frame: the handles a steady size on the screen, and only where they can be dragged (not end-on to the view). */
@@ -2466,7 +2474,7 @@ function updateHandles(): void {
     const size = flat ? (flatCam.top - flatCam.bottom) * 0.011 : cam.position.distanceTo(h.mesh.position) * 0.011;
     const hot = h === hotHandle || h === dragging?.h;
     h.mesh.scale.setScalar(size * (hot ? 1.35 : 1));
-    (h.mesh.material as THREE.MeshBasicMaterial).color.setHex(hot ? HANDLE_HOT : HANDLE_COLOUR);
+    (h.mesh.material as THREE.MeshBasicMaterial).color.copy(handleColour(h.def)).lerp(WHITE, hot ? CONFIG.shipyard.handles.hotLift : 0);
     h.mesh.visible = Math.abs(look.dot(new THREE.Vector3(...h.def.axis))) < 0.95;
   }
 }
@@ -2528,6 +2536,7 @@ renderer.domElement.addEventListener('pointermove', (e) => {
     const dim = h.def.dimension;
     if (dim && now) {
       dimLine.geometry.setFromPoints([new THREE.Vector3(...dim.from(boat)), new THREE.Vector3(...now.at)]);
+      (dimLine.material as THREE.LineBasicMaterial).color.copy(handleColour(h.def));
       dimLine.visible = true;
     }
     handleTip(dragging.h, ns.atLimit);

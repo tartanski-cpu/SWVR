@@ -196,6 +196,18 @@ export const SHIPYARD_CONFIG = {
      * off the ladders; the foredeck's crane and skiff go up on the raised deck
      * when it has room (owner, Oct 2026: they were on the deck below it).
      */
+    /**
+     * The handles on the 3D view (page.ts; owner, Oct 2026: "different colors of drag handles
+     * ... so you can see which ones you're dragging"): each its own colour, by the design
+     * choice it drags, with a dot of it beside its slider; `fallback` for one not listed.
+     * Pointed at or held, a handle grows and lightens `hotLift` of the way to white (it keeps
+     * its colour).
+     */
+    handles: {
+      colours: { length: '#f97316', bow: '#e879f9', beam: '#22d3ee', depth: '#a3e635', bulwark: '#8b7cf6', sheer: '#fde047', fcLength: '#ef4444', fcHeight: '#f5f5f5' } as Record<string, string>,
+      fallback: '#6aa8e6',
+      hotLift: 0.4,
+    },
     foredeck: { stepRise: 0.3, tread: 0.2, clear: 0.3, width: 0.6, fromSide: 0.3, rail: 0.9, landing: 0.6, gearReach: 0.08 },
     /**
      * A hull that shrinks below its base size (catalog.ts `shrinksTo`; owner, Oct 2026: "a

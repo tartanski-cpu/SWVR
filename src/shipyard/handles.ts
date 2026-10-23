@@ -140,18 +140,18 @@ export const HANDLES: HandleDef[] = [
     label: 'Bulwarks',
     step: 'hull',
     axis: [0, 1, 0],
-    // Her port bulwarks' top on her quarter, 70 % of the way aft (amidships, seen from the
-    // side, it would sit over the depth handle).
+    // Her port bulwarks' top on her quarter, 85 % of the way aft (amidships, seen from the
+    // side, it would sit over the depth handle; at 70 %, by a raised foredeck's break run aft).
     anchor: (b) => {
       const p = planOf(b);
-      const z = p.stem + 0.7 * (p.transom - p.stem);
+      const z = p.stem + 0.85 * (p.transom - p.stem);
       return [-p.halfBeam(z), p.deckY(z) + b.deck.bulwarkM, z];
     },
     dimension: {
       name: 'Bulwarks',
       from: (b) => {
         const p = planOf(b);
-        const z = p.stem + 0.7 * (p.transom - p.stem);
+        const z = p.stem + 0.85 * (p.transom - p.stem);
         return [-p.halfBeam(z), p.deckY(z), z];
       },
     },

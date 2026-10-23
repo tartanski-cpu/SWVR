@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Handles in their own colours (done, on the preview)
+
+Owner, 23 Oct 2026: "different colors of drag handles for the breadth and the width and the depth and all the different things, just so you can see which ones you're dragging".
+
+- **Each handle its own colour** (`CONFIG.shipyard.handles.colours`, by the design choice it drags; `fallback` for any not listed): length orange, bow rake magenta, beam cyan, depth lime, bulwarks violet, sheer yellow, raised foredeck red, its height white. Picked to stand apart from each other, from the grey and painted hulls and from the blue sea; two pairs that looked alike in the first screenshots (pink and coral, yellow and orange) were moved apart.
+- **The slider's dot:** each slider with a handle on the view gets a dot of the handle's colour before its name (shipyard.html `.row.handled`; page.ts `showHandles`), so a handle and its slider read as one. Pointed at or held, the handle grows and lightens `hotLift` (0.4) of the way to white instead of turning yellow, and its slider's name and track light up in its colour; the dimension line while dragging is drawn in it too.
+- **The bulwarks' handle** moved from 70 % to 85 % of the way aft: on a gillnetter whose raised foredeck runs aft past her house, its break sat beside it seen from the side.
+- **Checked:** headless Chromium on the gillnetter with a raised foredeck (Bow ¾ and Starboard views, the beam handle dragged to its limit), screenshots; `npm run test:shipyard` and the typecheck pass. **Not checked:** how the colours read in the Quest's browser.
+- **Shared changes:** none.
+
 ### The tug and trawler on a displacement hull's resistance; the catamaran redrawn, re-weighed, twin 400s as she comes (done, on the preview)
 
 Owner, 23 Oct 2026: do the hull chat's follow-ups "as they reach next". The hull chat's redrawn catamaran and its displacement curve (vessel/displacementHull.ts, `CONFIG.displacementHull`) went to next today.
