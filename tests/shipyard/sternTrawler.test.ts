@@ -24,7 +24,8 @@ const has = (id: string) => RECIPES.design.modules.some((m) => m.module === id);
 
 describe('the stern trawler: a sixth hull type', () => {
   it('is in the lists; travels as a link or file, not the short code; the earlier types still code', () => {
-    expect(ST).toBe(HULL_TYPES - 1);
+    expect(ST).toBe(5);
+    expect(HULL_TYPES).toBeGreaterThan(ST);
     expect(TYPE_FACTS).toHaveLength(HULL_TYPES);
     expect(TYPE_FACTS[ST].goodFor).toContain('trawl');
     expect(shortCode(trawler())).toBeNull();

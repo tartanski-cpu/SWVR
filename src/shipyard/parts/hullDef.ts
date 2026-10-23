@@ -9,6 +9,7 @@ import { CONFIG } from '../../config';
 import type { HullDefinition } from '../../modular/hull';
 import { lightshipOf } from '../../modular/massProperties';
 import type { Socket } from '../../modular/socket';
+import { displacementResistance } from '../../vessel/displacementHull';
 import { BREAKERS } from '../../vessel/vesselState';
 import { atDWL, type BuildArgs, type V3 } from './common';
 import { DESIGN_HULLS, liveryOf, TUG_HULL } from './catalog';
@@ -111,7 +112,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     name: `Shipyard design ${code}`,
     helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
     form,
-    lightship: lightshipOf(weighed, [
+    lightship: lightshipLess(weighed, [
       outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : pods ? pdc.legKg : 0)) * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
       // The deck crane, if she has one: designed in where its column stands, so she still
@@ -119,10 +120,18 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
       // and trimmed against it: a crane at the starboard edge, her ballast a little to port).
       ...(craneAt ? [{ massKg: cr.massKg, at: [craneAt[0], craneAt[1] + cr.columnHeight / 2, craneAt[2]] as V3 }] : []),
     ]),
-    addedMass: lc.addedMass,
+    // (A catamaran: her roll added inertia and her resistance are two slim hulls': trim.ts `cat`.)
+    addedMass: p.cat ? { ...lc.addedMass, roll: Math.round(p.cat.addedRoll * 1000) / 1000 } : lc.addedMass,
     damping,
     // Tyres hanging low catch spray and the odd wave: a little more drag.
-    resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100, ...(tyres.length ? { formFactor: lc.resistance.formFactor + hg.tyres.formFactorAdd } : {}) },
+    resistance: (() => {
+      // A displacement hull (the tug, the trawler): a curve that keeps climbing past her hull
+      // speed (vessel/displacementHull.ts), so power past what her length can use barely
+      // moves her; the others the landing craft's, which levels off for planing.
+      const lwl = Math.round(h.lwl * 100) / 100;
+      const r = p.cat ? p.cat.resistance : DESIGN_HULLS[a.d.hull].regime === 'displacement' ? displacementResistance(lwl, lc.resistance.y) : { ...lc.resistance, lwl };
+      return tyres.length ? { ...r, formFactor: r.formFactor + hg.tyres.formFactorAdd } : r;
+    })(),
     ...(planing ? { planing } : {}),
     windage: {
       side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) - saloonL * roofDrop + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * d.dhHeight : 0)),
@@ -162,3 +171,16 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   return { hull, stack };
 }
 export type HullDefPart = ReturnType<typeof hullDefPart>;
+
+/**
+ * Her lightship: the weighed boat less the parts that weigh themselves (massProperties.ts
+ * lightshipOf). On the builder's first pass she's weighed as her lines' displacement, before
+ * her own weights are known (build.ts buildDesign), and a heavy engine fit in a small hull
+ * (twin 750 kW diesels in the landing craft: 9.6 t of engine in a boat of about 5 t) can weigh
+ * more than that: then the parts aren't taken off, as nothing uses that pass's lightship. The
+ * second pass weighs her with them, and says if she's too heavy for her hull.
+ */
+function lightshipLess(weighed: Parameters<typeof lightshipOf>[0], parts: Parameters<typeof lightshipOf>[1]): ReturnType<typeof lightshipOf> {
+  const partsKg = parts.reduce((a, p) => a + p.massKg, 0);
+  return partsKg < weighed.massKg ? lightshipOf(weighed, parts) : { massKg: weighed.massKg, cg: [...weighed.cg], inertia: [...weighed.inertia] };
+}

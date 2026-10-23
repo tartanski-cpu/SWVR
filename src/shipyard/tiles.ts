@@ -179,6 +179,10 @@ export const HULL_ICONS = {
   pilot: svg('<path d="M3 16h36l7-4c-2 6-4 9-8 11H8zM8 23l-5-7M11 16V10h17l5 6"/>'),
   // The small tug: deep, a strong sheer up to her high square push bow, the house forward, a stack.
   tug: svg('<path d="M3 18h22c7 0 13-3 18-8v15H7zM7 25l-4-7M25 18V8h9v8M29 8V3M43 11v13"/>'),
+  // The stern trawler: a whaleback forward with the house on it, a long low working deck aft, the A-frame over her stern.
+  trawler: svg('<path d="M4 18h24l4-5h12l-3 11H7zM7 24l-3-6M30 13V6h8v7M4 18l2-8 4 8"/>'),
+  // The fast catamaran, seen from ahead: two slim hulls under a wide bridge deck, the house on it.
+  catamaran: svg('<path d="M5 13h38v4H5zM7 17l3 9h4l3-9M31 17l3 9h4l3-9M17 13V6h14v7"/>'),
   // Her sides from abeam, and what's on them.
   guardNone: svg('<path d="M4 9h40l-2 15H6z"/>'),
   guardFenders: svg('<path d="M4 9h40l-2 15H6zM13 9v4M24 9v4M35 9v4"/><rect x="11" y="13" width="4" height="8" rx="2"/><rect x="22" y="13" width="4" height="8" rx="2"/><rect x="33" y="13" width="4" height="8" rx="2"/>'),
