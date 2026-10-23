@@ -27,6 +27,7 @@ import { wavenumberFromPeriod, type WaveComponent } from '../ocean/waves';
 import type { EnvironmentState } from './environmentState';
 import { seaStateWaves } from './environmentState';
 import { addGust, type GustState } from './gusts';
+import { setShortSeasOff, updateWindSea, windSeaField } from '../ocean/windSea';
 
 export interface WeatherValues {
   /** Wind speed (m/s) and the bearing it blows FROM (deg, 0 = north). */
@@ -197,8 +198,11 @@ export function stepWeather(env: EnvironmentState, time: number, dt: number, pro
   env.seaScale += (seaTarget - env.seaScale) * (1 - Math.exp((-dt * w.speed) / tau));
   // Rebuild the wave components as soon as the sea has changed by a hair (1 part in 10^4:
   // most ticks while it builds or settles), so it changes smoothly. (Once a second, the
-  // waves stepped visibly each second.)
-  if (Math.abs(env.seaScale - (w.wavesScale ?? -1)) > 1e-4 * Math.max(1, env.seaScale)) rebuildWaves(env, time);
+  // waves stepped visibly each second.) And when the wind has changed enough for the wind
+  // sea's field to be worked out again (ocean/windSea.ts): its trains' sizes and direction.
+  setShortSeasOff(!!env.shortSeasOff);
+  const windChanged = updateWindSea(n.wind, n.windFrom);
+  if (windChanged || Math.abs(env.seaScale - (w.wavesScale ?? -1)) > 1e-4 * Math.max(1, env.seaScale)) rebuildWaves(env, time);
   // Lightning, in squalls once the rain has set in.
   const L = w.lightning;
   if (w.preset === 'Squall' && n.rain > 0.7) {
@@ -231,18 +235,29 @@ export function rebuildWaves(env: EnvironmentState, time: number): void {
     env.weather.wavesAt = time;
     env.weather.wavesScale = env.seaScale;
   }
+  // The wind sea's field for the wind now (worked out again only if it's changed enough).
+  setShortSeasOff(!!env.shortSeasOff);
+  if (env.weather) updateWindSea(env.weather.now.wind, env.weather.now.windFrom);
   const old = env.waves;
-  const fresh = seaStateWaves(env.seaScale);
+  // The short trains down the wind, as tall as the wind sea's field has them anywhere (ocean/windSea.ts).
+  const field = windSeaField();
+  const windTo = env.weather ? (env.weather.now.windFrom + 180) % 360 : undefined;
+  const fresh = seaStateWaves(env.seaScale, windTo, field?.max ?? []);
   const a = env.seaAnchor ?? { x: 0, z: 0 };
   if (fresh.length && old.length === fresh.length) {
     fresh.forEach((f: WaveComponent, i) => {
       const o = old[i];
       const dw = TWO_PI / f.period - TWO_PI / o.period;
-      const dk = wavenumberFromPeriod(f.period) - wavenumberFromPeriod(o.period);
+      // theta = k (D . a) - w t + phi kept the same at the anchor a: for a change of period
+      // (w, k) and of direction (D: a short train swinging with the wind).
+      const kNew = wavenumberFromPeriod(f.period);
+      const kOld = wavenumberFromPeriod(o.period);
       const b = (f.directionDeg * Math.PI) / 180;
+      const bo = (o.directionDeg * Math.PI) / 180;
       // D . a, with D = (sin b, -cos b): x east, north -z (as prepareWaves).
       const along = Math.sin(b) * a.x - Math.cos(b) * a.z;
-      f.phase = wrap(o.phase + dw * time - dk * along, TWO_PI);
+      const alongOld = Math.sin(bo) * a.x - Math.cos(bo) * a.z;
+      f.phase = wrap(o.phase + dw * time - (kNew * along - kOld * alongOld), TWO_PI);
     });
   }
   env.waves = fresh;

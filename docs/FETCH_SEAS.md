@@ -2,7 +2,7 @@
 
 Owner, 23 Oct 2026: "It was never my intention that [the steep waves] should only be limited to this kind of tidal race. I think in storms ... in some areas of the world, you just get these shorter, rougher waves ... if it's like open water, the waves tend to be longer. And if it's maybe more enclosed, you get this kind of shorter, choppy seas. So maybe you can come up with a plan to implement these in a more natural way."
 
-This is the plan. Nothing is built yet. The questions at the end are the owner's to answer before it starts.
+This was the plan. **The owner's answers (23 Oct 2026): always, at textbook strength, on both the career archipelago and the Voyage maps. Built the same day** (docs/progress/game.md); how it turned out is under "As built" at the end.
 
 ## The idea: fetch
 
@@ -69,3 +69,14 @@ Real seas are a wind sea plus **swell**, long waves that grew far away and trave
 1. **Always, or only in strong winds?** The model gives a short chop in any wind (small in light airs). The suggestion is always, as in life.
 2. **How strong?** JONSWAP as it stands, or tuned rougher for the game? The suggestion is to start from the textbook and add a "roughness" setting if it reads too gentle in VR.
 3. **The career archipelago too, or the Voyage maps first?** The suggestion is both: the archipelago's fetch is worked out at load.
+
+## As built (23 Oct 2026)
+
+- **The fetch map** (`src/world/fetch.ts`) is worked out at load from the game's own ground for every map, not in the pipeline. So the hand-built archipelago and the coast maps get it the same way, with no new files: 33 ms for Oban, 80 ms for the archipelago, on a desktop.
+- **The long waves fall off in proportion to the fetch** toward where they come from (`F / openFetchM`), not its square root. With the square root, too much 7 s swell got into a sheltered bay. A short-fetch sea has next to no energy at those periods.
+- **The three short trains** replace the race's two chop waves, and carry both the wind sea and, in a race against them, its chop.
+  - The ocean shader only drew 8 waves, and the race chop was the 9th and 10th, so it had never been drawn, only felt. It draws 11 now.
+- **Whitecaps:** the crests whiten by the sea at each spot (the open sea's crests as exposed as the water, and the short sea's own), not by the open sea's height everywhere.
+- **The forecast:** from force 5, "a short, steep sea in the sounds and lochs", breaking from force 7.
+- **Debug → World → Sea:** "Short seas: By fetch / Off (as before)", and a readout of the sea where you are (the short sea's height and period, the long waves' exposure, the fetch upwind).
+- **Not done:** shoaling (later, if wanted).

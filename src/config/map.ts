@@ -75,16 +75,17 @@ export const MAP_CONFIG = {
      *             zone's own waveFactor);
      *   steepen   its crest sharpness (the Gerstner orbit) × (1 + steepen × opp) more still;
      *   flatten   with the flow (opp < 0): height × (1 - flatten × |opp|), the sea eases;
-     *   chop      two short wind-wave components in the sea, `amplitude` m (× the sea scale)
-     *             at `periods` s, travelling `spreadDeg` either side of the main wave: nowhere
-     *             but where they oppose a running race (× max(opp, 0)).
+     *   chop      `amplitude` m (× the sea scale) of chop on the sea's short trains
+     *             (CONFIG.ocean.fetchSeas.trains, down the wind; they carry the wind sea in
+     *             enclosed water too): where they oppose a running race (× max(opp, 0)).
      * The crest-loop limit (Σ Q·k·A < 1) is kept at the worst case (tests/overfalls.test.ts).
      */
     overfalls: {
       heighten: 0.35,
       steepen: 0.45,
       flatten: 0.3,
-      chop: { amplitude: 0.12, periods: [2.6, 2.1] as readonly number[], spreadDeg: 15 },
+      // The chop's height (× the sea scale) on the short trains (CONFIG.ocean.fetchSeas.trains, which carry the wind sea too).
+      chop: { amplitude: 0.12 },
     },
     slackBelowKn: 1.5,
     knock: { radius: 28, yaw: 0.07, roll: 0.08 },

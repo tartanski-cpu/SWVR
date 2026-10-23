@@ -220,6 +220,10 @@ export interface MenuHost {
   teleportToRegion(id: string): void;
   regionMap(): boolean;
   toggleRegionMap(): void;
+  /** Debug: the short seas by fetch (ocean/windSea.ts) on or off, and the sea where you are. */
+  shortSeas(): boolean;
+  setShortSeas(on: boolean): void;
+  seaHereText(): string;
   /** Debug: the tidal races pinned (0 the clock, 1 the flood's peak, 2 slack, 3 the ebb's peak). */
   raceOverride(): number;
   setRaceOverride(v: number): void;
@@ -750,6 +754,10 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: '+', press: () => h.setSeaScale(h.seaScale() + CONFIG.ocean.seaScaleStep) },
           ],
         },
+        // Short, steep seas in enclosed water, long ones in the open (docs/FETCH_SEAS.md): off
+        // to compare with the sea as it was, the long waves everywhere.
+        { label: 'Short seas', buttons: [choice('By fetch', true, () => h.shortSeas(), (v) => h.setShortSeas(v)), choice('Off (as before)', false, () => h.shortSeas(), (v) => h.setShortSeas(v))] },
+        { label: '', buttons: [{ text: () => h.seaHereText(), weight: 3 }] },
         { heading: 'Tidal races' },
         // The flood runs with a race's set, the ebb against it. Overfalls (steep seas) come where
         // the sea runs against the flow: in Sruth Tarsk and the Falls of Lora, on the ebb.

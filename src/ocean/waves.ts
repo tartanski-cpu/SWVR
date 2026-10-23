@@ -35,6 +35,7 @@ import { CONFIG } from '../config';
 import { wrap } from '../core/math';
 import { arcShelter, shelterFactor } from '../world/shelter';
 import { addCurrent, raceAt, raceOpposition, type RaceHere } from '../world/currents';
+import { windSeaAt } from './windSea';
 
 /**
  * The amplitude factor at rest position (x0, z0) that is the same for every wave: sheltered
@@ -64,6 +65,10 @@ const LOOPS = new WeakMap<readonly PreparedWave[], { sea: number; chop: number }
 /** The crests may loop over past Σ Q·k·A = 1: the overfalls' orbits are capped at this. */
 export const LOOP_CAP = 0.92;
 let capHere = 1;
+/** The wind sea where the common factor was last taken (ocean/windSea.ts): the short trains' amplitudes (m) and the long waves' exposure. */
+const WS = { a: [0, 0, 0] as number[], e: 1 };
+/** The largest share of its field's maximum a short train has there (for the cap). */
+let windShareHere = 0;
 
 /**
  * The common factor at (x0, z0) for a prepared set (waveFactorAt), with the race there in
@@ -73,13 +78,16 @@ let capHere = 1;
  */
 function commonFactors(waves: readonly PreparedWave[], x0: number, z0: number): number {
   const common = waveFactorAt(x0, z0, RACE);
+  windSeaAt(x0, z0, WS);
+  windShareHere = 0;
+  for (const w of waves) if (w.chop && w.amplitude > 0) windShareHere = Math.max(windShareHere, WS.a[w.train] / w.amplitude);
   capHere = 1;
   if (RACE.sw !== 0) {
     const l = LOOPS.get(waves);
     if (l) {
       const o = CONFIG.currents.overfalls;
       const a = Math.abs(RACE.sw);
-      const worst = l.sea * RACE.f * (1 + o.heighten * a) * (1 + o.steepen * a) + l.chop * a;
+      const worst = l.sea * WS.e * RACE.f * (1 + o.heighten * a) * (1 + o.steepen * a) + l.chop * Math.min(1, a + windShareHere);
       if (worst > LOOP_CAP) capHere = LOOP_CAP / worst;
     }
   }
@@ -97,14 +105,18 @@ export function waveFactors(x0: number, z0: number, w: PreparedWave, common: num
   const o = CONFIG.currents.overfalls;
   const opp = race.sw === 0 ? 0 : raceOpposition(race, w.dirX, w.dirZ);
   if (w.chop) {
-    // Shelter and the bays as the others, but not the race's own standing-wave factor.
-    const f = (s / race.f) * Math.max(0, opp);
+    // A short train: the wind sea there (ocean/windSea.ts), and the overfalls' chop where it
+    // runs against a race, at most its full height. Shelter and the bays as the others, but
+    // not the race's own standing-wave factor.
+    const wind = w.amplitude > 0 ? WS.a[w.train] / w.amplitude : 0;
+    const f = (s / race.f) * Math.min(1, wind + w.raceShare * Math.max(0, opp));
     out.amp = f;
     out.hor = f * (race === RACE ? capHere : 1);
     return out;
   }
   const against = Math.max(0, opp);
-  const amp = s * (1 + o.heighten * against - o.flatten * Math.max(0, -opp));
+  // The long waves: as open as the water is toward where they come from (windSea.ts).
+  const amp = s * WS.e * (1 + o.heighten * against - o.flatten * Math.max(0, -opp));
   out.amp = amp;
   out.hor = amp * (1 + o.steepen * against) * (race === RACE ? capHere : 1);
   return out;
@@ -119,8 +131,12 @@ export interface WaveComponent {
   directionDeg: number;
   steepness: number;
   phase: number;
-  /** The overfalls' chop (CONFIG.currents.overfalls): nowhere but in a race running against it. */
+  /** A short train (ocean/windSea.ts): the wind sea where the water's enclosed, and the overfalls' chop in a race running against it. */
   chop?: boolean;
+  /** Which of the short trains (CONFIG.ocean.fetchSeas.trains). */
+  train?: number;
+  /** The overfalls' chop's height on it (m): the rest of its amplitude is the wind sea's room. */
+  raceAmp?: number;
 }
 
 /** Per-frame/per-tick evaluated constants for one component. */
@@ -138,6 +154,9 @@ export interface PreparedWave {
   phase: number;
   wavelength: number;
   chop: boolean;
+  /** A short train's index, and the share of its amplitude that's the overfalls' chop. */
+  train: number;
+  raceShare: number;
 }
 
 export function wavenumberFromPeriod(period: number, g = CONFIG.ocean.gravity): number {
@@ -163,6 +182,8 @@ export function prepareWaves(components: readonly WaveComponent[], t: number, ou
     w.phase = wrap(omega * t - c.phase, TWO_PI);
     w.wavelength = TWO_PI / k;
     w.chop = !!c.chop;
+    w.train = c.train ?? 0;
+    w.raceShare = c.raceAmp === undefined ? 1 : c.amplitude > 0 ? c.raceAmp / c.amplitude : 0;
     out[i] = w;
   }
   let sea = 0;
@@ -323,9 +344,12 @@ export function localSeaAt(waves: readonly PreparedWave[], x: number, z: number,
   return out;
 }
 
-/** Significant wave height of a sum of sinusoids: Hs = 4σ, σ² = Σ A²/2. */
+/**
+ * Significant wave height of a sum of sinusoids: Hs = 4σ, σ² = Σ A²/2. The open sea's: the
+ * short trains are left out (their amplitude is the largest they are anywhere, not here).
+ */
 export function significantWaveHeight(components: readonly WaveComponent[]): number {
-  const variance = components.reduce((s, c) => s + (c.amplitude * c.amplitude) / 2, 0);
+  const variance = components.reduce((s, c) => s + (c.chop ? 0 : (c.amplitude * c.amplitude) / 2), 0);
   return 4 * Math.sqrt(variance);
 }
 

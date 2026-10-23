@@ -51,9 +51,9 @@ describe('overfalls', () => {
     expect(raceAt(RACE.x, RACE.z).sw).toBe(0);
   });
 
-  it('the sea has a chop pair that is nothing outside a running race', () => {
+  it('the sea has the short trains (the race chop and the wind sea), nothing outside a running race with no wind sea', () => {
     const w = seaStateWaves(1);
-    expect(w.filter((c) => c.chop)).toHaveLength(CONFIG.currents.overfalls.chop.periods.length);
+    expect(w.filter((c) => c.chop)).toHaveLength(CONFIG.ocean.fetchSeas.trains.length);
     setRaceClock(RACE.phaseH);
     const far = localSeaAt(sea(1), RACE.x + 3000, RACE.z);
     const flat = localSeaAt(prepareWaves(seaStateWaves(1).filter((c) => !c.chop), 100), RACE.x + 3000, RACE.z);

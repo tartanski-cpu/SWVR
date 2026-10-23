@@ -53,6 +53,10 @@ export function applyEnvironmentIntent(env: EnvironmentState, intent: Intent, ti
       // peak (world/currents.ts): where the sea runs against the ebb, its overfalls.
       env.raceOverride = intent.value >= 2.5 ? 'ebb' : intent.value >= 1.5 ? 'slack' : intent.value >= 0.5 ? 'peak' : undefined;
       break;
+    case 'shortSeas':
+      // Debug: the short seas by fetch on (1) or off (0: the long waves everywhere, as before).
+      env.shortSeasOff = intent.value < 0.5 ? true : undefined;
+      break;
     case 'gustNow':
       // Debug: a katabatic gust on the zone nearest args (x, z), anywhere (environment/gusts.ts).
       gustNow(env, time, intent.args?.[0] ?? 0, intent.args?.[1] ?? 0);
