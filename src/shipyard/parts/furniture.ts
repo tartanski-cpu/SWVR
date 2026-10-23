@@ -99,6 +99,8 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const furnitureMounts: Mount[] = [];
   /** Where each piece went (boat axes), and whether off its pin; null: left off. */
   const furniturePlaced: Partial<Record<FurnitureKey, { x: number; z: number; moved: boolean } | null>> = {};
+  /** Why a piece left off won't go where it was put, in a few words. */
+  const furnitureWhy: Partial<Record<FurnitureKey, string>> = {};
   let furnitureKg = 0;
   for (const piece of PIECES) {
     const pin = furnitureAt(d[piece.key] ?? 0);
@@ -110,6 +112,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     if (!floor) {
       warnings.push(`The ${piece.name}'s pin isn't inside the wheelhouse${saloonL ? ', the saloon' : ''}${cabin ? ' or the cabin below' : ''}: left off.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `not inside the wheelhouse${saloonL ? ', the saloon' : ''}${cabin ? ' or the cabin below' : ''}`;
       continue;
     }
     const size = mf[piece.kind];
@@ -117,6 +120,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     if (piece.kind !== 'seat' && L > floor.z1 - floor.z0 && !floor.aftWall) {
       warnings.push(`The ${piece.name} is longer (${L.toFixed(2)} m) than ${floor.name}'s floor has room for (${(floor.z1 - floor.z0).toFixed(2)} m): left off.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `longer than ${floor.name}'s floor`;
       continue;
     }
     // Its back against which wall: the nearest of port, starboard and (if it's a wall) aft; the seat stands free.
@@ -163,6 +167,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     if (!found) {
       warnings.push(`There's no room for the ${piece.name} in ${floor.name} near its pin (clear of the helm, the doorways and what's there already): left off.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = 'no room here, clear of the helm, the doorways and what’s there already';
       continue;
     }
     const [x0, x1, z0, z1] = found.rect;
@@ -172,6 +177,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     if ((piece.kind === 'head' || piece.kind === 'shower') && ceiling < fc.headroom) {
       warnings.push(`There's only ${ceiling.toFixed(2)} m of headroom for the ${piece.name} in ${floor.name} (${fc.headroom} m at least): left off.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `only ${ceiling.toFixed(2)} m of headroom here`;
       continue;
     }
     // Two-high bunks want room to sit up in the top one.
@@ -179,6 +185,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     if (piece.kind === 'bunk' && ceiling < bunkRoom) {
       warnings.push(`There's only ${ceiling.toFixed(2)} m under the ceiling in ${floor.name} for the ${piece.name} (${bunkRoom.toFixed(2)} m to sit up in the top one): left off. A berth fits lower.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `only ${ceiling.toFixed(2)} m under the ceiling here (a berth fits lower)`;
       continue;
     }
     const height = r2(piece.kind === 'head' || piece.kind === 'locker' || piece.kind === 'shower' ? ceiling - mf.ceilingGap : piece.kind === 'berth' ? mf.berth.top + mf.berth.cushion : piece.kind === 'settee' ? mf.settee.back : piece.kind === 'galley' ? mf.galley.top : piece.kind === 'bunk' ? mf.bunk.upper + mf.bunk.cushion + mf.bunk.rail : piece.kind === 'mess' ? mf.mess.back : mf.seat.back);
@@ -205,6 +212,6 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   }
   // Her places include the furniture's (P4b: gathered into her hull definition).
   hull.sockets.push(...furnitureSockets);
-  return { furnitureKg, furnitureMounts, furniturePlaced };
+  return { furnitureKg, furnitureMounts, furniturePlaced, furnitureWhy };
 }
 export type FurniturePart = ReturnType<typeof furniturePart>;
