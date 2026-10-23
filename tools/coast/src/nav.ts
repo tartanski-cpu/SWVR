@@ -249,6 +249,7 @@ const currents = (req.currentZones ?? []).map((zone) => {
     setDeg: zone.direction,
     peakKn: zone.peakKts,
     periodH: zone.periodHours,
+    whirls: zone.whirls ?? 0,
     waterShare: Math.round((100 * wet) / all) / 100,
   };
 });
