@@ -60,7 +60,7 @@ import { FURNITURE_MENU, nextSlot, placedOf, placeFurniture, removeFurniture, sl
 import { furnitureName, furnitureSocketId } from './parts/furniture';
 import { SheetEditor } from './sheetEditor';
 import { holdSlots, type FishHoldConfig } from '../modules/fishHold';
-import { addProject, readProjects, removeProject, writeProjects, type Project } from './projects';
+import { keepLeftWork, readProjects, removeProject, saveAs, writeProjects, type Project } from './projects';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -77,6 +77,20 @@ let sessionId = sessionIdFrom(location.search);
  * connected, so working alone and together go through the same code; in a session, in the
  * session's copy (link.side). `active` is the tab you're on.
  */
+/** The project this work was last saved or opened as (this browser), to mark it in the list and save into. */
+const PROJECT_KEY = 'swvr.yard.project';
+/**
+ * Has this tab a project open? (Owner, Oct 2026: the Shipyard opens with no project, not the
+ * last design, and asks for a new one or a saved one.) Kept in the tab's own storage, so
+ * reloading the page keeps your work open, while coming back to the Shipyard starts afresh.
+ */
+const OPEN_KEY = 'swvr.yard.open';
+/** Opened afresh, on your own: the work left on the table is kept as a project, and the page starts empty. */
+const freshVisit = !sessionId && !tabHasProject();
+if (freshVisit) keepWorkLeftOnTable();
+/** The start screen shows (new project, or open one), unless she came in a link or code: that opens as a new project. */
+const showStart = freshVisit && !('design' in fromHash);
+if (freshVisit && !showStart) markProjectOpen();
 const startDoc: YardDoc = readDocCopy(sessionId ?? 'solo') ?? newDoc('design' in fromHash ? fromHash.design : { ...DEFAULT_DESIGN });
 let active = MAIN;
 if (!sessionId && 'design' in fromHash) {
@@ -85,6 +99,8 @@ if (!sessionId && 'design' in fromHash) {
   if (same) active = same.id;
   else startDoc.variants[0] = { ...startDoc.variants[0], design: fromHash.design };
 }
+// A link's design is read: taken off the address, so a reload keeps this project, not the link.
+if ('design' in fromHash) history.replaceState(null, '', `${location.pathname}${location.search}`);
 let design: ShipDesign = { ...startDoc.variants.find((v) => v.id === active)!.design };
 let boat: DesignedBoat = useDesign(design);
 /** The choices her gearbox was matched for (not the paint or the controls, which don't change it). */
@@ -1593,7 +1609,8 @@ function showCode(): void {
   const token = designToken(design);
   el.textContent = code ?? 'No short code: share her by link or file';
   ($('play') as HTMLAnchorElement).href = `./career.html?design=${token}`;
-  history.replaceState(null, '', `#${token}`);
+  // (Her code isn't kept in the address any more: the project keeps her, and a reload would
+  // read the address as a link to a new boat. Share her by link, code or file.)
   markCurrent();
 }
 
@@ -1874,6 +1891,8 @@ function saveSessionCopy(): void {
     } catch {
       /* storage full or off: the session still works, it just isn't kept here */
     }
+    // On your own with a project open, the project saves itself too.
+    if (!sessionId && tabHasProject()) autosaveProject();
   }, 800);
 }
 function myName(): string {
@@ -3060,8 +3079,6 @@ $('togetherBtn').onclick = () => {
 };
 
 // ── Projects (projects.ts): all of this work, kept by name; a new design; a saved one again ──
-/** The project name this work was last saved or opened as (this browser), to mark it in the list. */
-const PROJECT_KEY = 'swvr.yard.project';
 function currentProject(): string {
   try {
     return storage()?.getItem(PROJECT_KEY) ?? '';
@@ -3074,8 +3091,8 @@ function isBlank(doc: YardDoc): boolean {
   const fresh = newBrief();
   return doc.variants.length === 1 && !doc.variants[0].notes.length && !diffFields(doc.variants[0].design, DEFAULT_DESIGN).length && (!doc.brief || JSON.stringify(doc.brief) === JSON.stringify(fresh));
 }
-/** Save this work as a project, under her name. Returns the name, or null if it wouldn't save. */
-function saveProject(): string | null {
+/** Save this work as a project, under her name (a new picture of her with `withPicture`). Returns the name, or null if it wouldn't save. */
+function saveProject(withPicture = true): string | null {
   const doc = side().doc();
   // Her name; if another project has it (not the one this work came from), numbered, so it isn't overwritten.
   const base = cleanName(brief.name ?? '', defaultName());
@@ -3086,8 +3103,10 @@ function saveProject(): string | null {
   const sketches = doc.variants.reduce((n, v) => n + v.notes.filter((x) => x.kind === 'sheet').length, 0);
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
   const summary = [`${DESIGN_HULLS[doc.variants[0].design.hull].name.split(':')[0].trim()} ${boat.figures.lengthM.toFixed(1)} m`, doc.variants.length > 1 ? plural(doc.variants.length - 1, 'variant') : '', pins ? plural(pins, 'pin') : '', sketches ? plural(sketches, 'sketch').replace('sketchs', 'sketches') : ''].filter(Boolean).join(' · ');
-  const p: Project = { name, savedAt: Date.now(), picture: active === MAIN ? picture() : (readProjects(storage()).find((x) => x.name === name)?.picture ?? ''), summary, doc };
-  const list = addProject(readProjects(storage()), p);
+  const kept = readProjects(storage()).find((x) => x.name === currentProject())?.picture ?? '';
+  const p: Project = { name, savedAt: Date.now(), picture: withPicture && active === MAIN ? picture() : kept, summary, doc };
+  // (Renamed at the top: the project takes her new name, not a second copy.)
+  const list = saveAs(readProjects(storage()), p, currentProject());
   // Storage full: drop the oldest projects' pictures, then the oldest projects, before giving up.
   const ok = writeProjects(storage(), list) || writeProjects(storage(), list.map((x, i) => (i ? { ...x, picture: '' } : x))) || writeProjects(storage(), list.slice(0, 5));
   if (!ok) return null;
@@ -3117,6 +3136,7 @@ function switchProject(doc: YardDoc, name: string): void {
     storage()?.setItem(SESSION_KEY('solo'), JSON.stringify({ ...doc, savedAt: Date.now() }));
     storage()?.setItem(PROJECT_KEY, name);
     sessionStorage.removeItem(STEP_KEY);
+    markProjectOpen();
   } catch {
     msg.textContent = 'This browser won’t save, so it can’t switch designs.';
     return;
@@ -3148,15 +3168,125 @@ $('projectsBtn').onclick = () => {
   $('togetherPop').hidden = true;
   if (!$('projectsPop').hidden) showProjects();
 };
-$('projSave').onclick = () => {
-  const name = saveProject();
-  $('projMsg').textContent = name ? `Saved as “${name}” (her name, at the top; saving again updates it).` : 'This browser won’t save (storage full or switched off): delete an old project, or copy her code.';
-  showProjects();
-};
-$('projNew').onclick = () => {
-  if (!confirm('Start a new design? This one is saved to Projects first.')) return;
-  switchProject(newDoc({ ...DEFAULT_DESIGN }), '');
-};
+$('projClose').onclick = () => closeProject();
+
+/** Does this tab have a project open (see OPEN_KEY)? */
+function tabHasProject(): boolean {
+  try {
+    return sessionStorage.getItem(OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function markProjectOpen(): void {
+  try {
+    sessionStorage.setItem(OPEN_KEY, '1');
+  } catch {
+    /* the tab won't remember it: a reload shows the start screen, the work is still kept */
+  }
+}
+/**
+ * Opened afresh: what this browser left on the table (the last design, as it kept it) goes
+ * into its project, or a new "Unsaved work" one, and the table is cleared.
+ */
+function keepWorkLeftOnTable(): void {
+  const store = storage();
+  const doc = readDocCopy('solo');
+  try {
+    if (doc && !isBlank(doc)) {
+      const d = doc.variants[0].design;
+      const summary = `${DESIGN_HULLS[d.hull]?.name.split(':')[0].trim() ?? 'A boat'}${doc.variants.length > 1 ? ` · ${doc.variants.length - 1} variant${doc.variants.length > 2 ? 's' : ''}` : ''}`;
+      writeProjects(store, keepLeftWork(readProjects(store), doc, currentProject(), Date.now(), summary));
+    }
+    localStorage.removeItem(SESSION_KEY('solo'));
+    localStorage.removeItem(PROJECT_KEY);
+  } catch {
+    /* storage off: nothing was kept to clear */
+  }
+}
+let pictureAt = 0;
+/** The project saves itself as you work: her picture now and then (it takes a render). */
+function autosaveProject(): void {
+  const withPicture = performance.now() - pictureAt > 60000;
+  if (withPicture) pictureAt = performance.now();
+  const name = saveProject(withPicture);
+  $('projState').textContent = name ? `“${name}”, saved as you work` : 'This browser won’t save (storage full or switched off): delete an old project, or copy her code.';
+}
+/** Close the project: saved, then the page starts again with no project (the start screen). */
+function closeProject(): void {
+  if (sessionId) {
+    $('projMsg').textContent = 'You’re designing together: leave the session first (👥).';
+    return;
+  }
+  clearTimeout(saveTimer);
+  if (!saveProject()) {
+    if (!confirm('This browser won’t save (storage full or switched off), so this work would be lost. Close it anyway?')) return;
+  }
+  try {
+    localStorage.removeItem(SESSION_KEY('solo'));
+    localStorage.removeItem(PROJECT_KEY);
+    sessionStorage.removeItem(OPEN_KEY);
+    sessionStorage.removeItem(STEP_KEY);
+  } catch {
+    /* nothing kept to clear */
+  }
+  location.replace(location.pathname);
+}
+/**
+ * The start screen (owner, Oct 2026): a new project (name her), a saved one, or one started
+ * from a favourite. Nothing of the last design is on the table until you choose.
+ */
+function showStartScreen(): void {
+  const pop = $('yardStart');
+  pop.hidden = false;
+  const name = $('startName') as HTMLInputElement;
+  const go = () => {
+    markProjectOpen();
+    pop.hidden = true;
+    const n = name.value.trim();
+    if (n) setBrief({ name: n });
+    goStep(0);
+    saveSessionCopy();
+  };
+  $('startNew').onclick = go;
+  name.onkeydown = (e) => {
+    if (e.key === 'Enter') go();
+  };
+  const card = (picture: string, title: string, lines: string[], open: () => void, del?: () => void) => {
+    const c = document.createElement('div');
+    c.className = 'fav startCard';
+    c.innerHTML = `${picture ? `<img alt="" src="${picture}">` : '<div class="nopic"></div>'}<div><b title="${esc(title)}">${esc(title)}</b>${lines.map((l) => `<div class="meta">${esc(l)}</div>`).join('')}<div class="acts"><button data-act="open" class="primary">Open</button>${del ? '<button data-act="del">Delete</button>' : ''}</div></div>`;
+    c.querySelector<HTMLElement>('[data-act=open]')!.onclick = open;
+    if (del) c.querySelector<HTMLElement>('[data-act=del]')!.onclick = del;
+    return c;
+  };
+  const when = (t: number) => new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const fill = () => {
+    const projects = readProjects(storage());
+    const box = $('startProjects');
+    box.innerHTML = projects.length ? '' : '<div class="meta">No projects yet: start a new one.</div>';
+    for (const p of projects)
+      box.appendChild(
+        card(p.picture, p.name, [p.summary, when(p.savedAt)], () => switchProject(p.doc, p.name), () => {
+          if (!confirm(`Delete the project “${p.name}”? Its pins, sketches and variants go with it.`)) return;
+          writeProjects(storage(), removeProject(readProjects(storage()), p.name, p.savedAt));
+          fill();
+        }),
+      );
+    const favs = readFavourites(storage());
+    $('startFavsHead').hidden = !favs.length;
+    const fbox = $('startFavs');
+    fbox.innerHTML = '';
+    for (const f of favs) {
+      const read = readDesign(f.code);
+      if (!('design' in read)) continue;
+      // A new project from it, named as the favourite (a number added if a project has the name).
+      fbox.appendChild(card(f.picture, f.name, [f.summary], () => switchProject(newDoc(read.design), f.name)));
+    }
+  };
+  fill();
+  name.focus();
+}
 
 // ── Working alone or together: one set of handlers (session.ts) ──
 const handlers: SessionEvents = {
@@ -3507,4 +3637,5 @@ function look(eye: [number, number, number], at: [number, number, number]): void
   orbit.target.set(...at);
   orbit.update();
 }
+if (showStart) showStartScreen();
 (window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, get people() { return people; }, get brief() { return brief; }, goStep, sheetEditor, get notes() { return notes; }, putMyNote, hullFrac: () => [hullMin, hullMax], get link() { return link; }, change, setView, look, undo: () => undoRedo(false), redo: () => undoRedo(true) };

@@ -89,6 +89,17 @@
       #projectsPop .row2 { display: flex; gap: 6px; margin-bottom: 6px; }
       #projMsg { margin-bottom: 6px; }
       #projList .fav { margin: 6px 0; }
+      #projState { flex: 1; align-self: center; }
+      /* The start screen: over the whole page until a project is open. */
+      #yardStart { position: fixed; inset: 0; z-index: 50; background: rgba(6, 11, 15, 0.92); display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 6vh 16px; box-sizing: border-box; }
+      #yardStart[hidden] { display: none; }
+      #yardStart .startBox { width: min(720px, 100%); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); padding: 22px 24px; box-sizing: border-box; }
+      #yardStart h1 { margin: 0 0 4px; }
+      #yardStart h2 { margin: 18px 0 8px; font-size: 15px; }
+      #yardStart .startNewRow { display: flex; gap: 8px; }
+      #yardStart .startNewRow input { flex: 1; min-width: 0; font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--edge); background: var(--card); color: var(--ink); }
+      #yardStart .startList { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0 10px; }
+      #yardStart .startCard .acts { margin-top: 4px; display: flex; gap: 6px; }
       #projList .fav.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
       #togetherPop .row2 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
       #togetherPop input { font: inherit; padding: 4px 6px; min-width: 0; flex: 1; }
@@ -453,12 +464,12 @@
       <div class="topRight">
         <button id="undo" title="Undo (Ctrl+Z)">↶</button><button id="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
         <span id="people"></span>
-        <button id="projectsBtn" title="Save this design work, start a new one, or open a saved one">📁 Projects</button>
+        <button id="projectsBtn" title="Your projects: this one saves itself as you work; close it, or open another">📁 Projects</button>
         <button id="togetherBtn">👥 Design together</button>
       </div>
       <div id="projectsPop" hidden>
-        <div class="row2"><button id="projSave" class="primary">Save</button><button id="projNew">New design</button></div>
-        <div id="projMsg" class="meta">A project is all of this work: the brief, the design and its variants, their pins and sketches. Kept in this browser.</div>
+        <div class="row2"><span id="projState" class="meta">This project saves itself as you work.</span><button id="projClose">Close project</button></div>
+        <div id="projMsg" class="meta">A project is all of this work: the brief, the design and its variants, their pins and sketches. Kept in this browser. Open another below (this one is kept).</div>
         <div id="projList"></div>
       </div>
       <div id="togetherPop" hidden>
@@ -470,6 +481,19 @@
         <div id="sessionState">Send friends a link and design her together, live: everyone edits the same boat.</div>
       </div>
     </header>
+    <!-- The start screen (page.ts showStartScreen): a new project, a saved one, or one from a favourite. -->
+    <div id="yardStart" hidden>
+      <div class="startBox">
+        <h1>Shipyard</h1>
+        <p class="meta">Each boat you design is a project. It saves itself as you work, in this browser.</p>
+        <h2>New project</h2>
+        <div class="startNewRow"><input id="startName" placeholder="Her name (you can change it later)" maxlength="60" /><button id="startNew" class="primary">Start</button></div>
+        <h2>Open a project</h2>
+        <div id="startProjects" class="startList"></div>
+        <h2 id="startFavsHead">Or start one from a favourite</h2>
+        <div id="startFavs" class="startList"></div>
+      </div>
+    </div>
     <div id="flow">
       <button id="stepBack">← Back</button>
       <nav id="stepNav"></nav>
