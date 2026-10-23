@@ -210,7 +210,11 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepEnergyNetwork(vessel, machinery, dt);
     stepHullLeak(vessel, dt);
     machinery.tick(dt, world.time);
-    stepHullWear(vessel, dt, world.environment.seaScale);
+    // Voyage tracks nothing of the career: no hull damage, no engine wear (world.voyage).
+    if (world.voyage) {
+      if (vessel.damage) vessel.damage = 0;
+      if (vessel.engine.wear) vessel.engine.wear = 0;
+    } else stepHullWear(vessel, dt, world.environment.seaScale);
   }
   for (const vessel of Object.values(world.vessels)) if (onCrane(vessel)) stepTender(world, vessel, dt);
   // The deck cranes' HOOK presses (their machinery has just marked them).

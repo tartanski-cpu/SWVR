@@ -718,7 +718,7 @@ export class App {
     useWorkboatFit(socketsWithout(boat === 'workboat' ? without : []));
     if (boat === 'starterBoat') useStarterKit(without);
     forgetStartParams();
-    const created = createWorld(this.ids, boat, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
+    const created = createWorld(this.ids, boat, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true, voyage: MODE === 'voyage' });
     this.world = created.world;
     this.world.build = { ...(startDesignCode && isBoatType(boat) ? { design: startDesignCode } : {}), ...(without.length ? { without } : {}) };
     this.builtAs = structuredClone(this.world.build);
@@ -836,6 +836,8 @@ export class App {
     const modules = recipe ? assembleView(recipe, def, LIBRARY) : null;
     if (modules?.modules.length) {
       const boat = new BoatView(vessel.id, def, modules, vessel.id === this.testVesselId);
+      // Voyage: no career, so no duty board on any boat (world.voyage).
+      if (MODE === 'voyage' && boat.dutyBoard) boat.dutyBoard.root.visible = false;
       view.root.add(boat.root);
       this.boats.set(vessel.id, boat);
       // A boat that came after the start (multi-boat M2): her controls work from now.
@@ -3533,6 +3535,8 @@ export class App {
     home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
     this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
     this.dutyBoard = home.dutyBoard;
+    // Voyage: no career, no duty board (world.voyage).
+    if (MODE === 'voyage' && this.dutyBoard) this.dutyBoard.root.visible = false;
     this.chartTools?.root.removeFromParent();
     this.chartTools = null;
     this.chartTable = home.chartTable;

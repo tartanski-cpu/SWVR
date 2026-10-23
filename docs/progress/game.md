@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Voyage untangled from the career (owner, 23 Oct 2026)
+
+Owner: "most of the boats, when they spawn in, still have the career task list board in the rear right of the cabin, and many spawn in with a damaged hull ... untangle anything to do with career mode and the voyage mode. You should still be able to spawn in missions ... random things ... cargo. It's just not tracked, and certainly not ... any of the boats spawn in with damage."
+
+- **`WorldState.voyage`** (`src/core/world.ts`, a shared file): set by `createWorld(…, { voyage: true })`, which the app passes on the Voyage page. It travels in the snapshots, so the crew have it too.
+- **No damage, no wear** (`src/core/simulation.ts`, shared): in Voyage the hull's knock-and-grind damage (`stepHullWear`) isn't run, and each tick every boat's `damage` and engine `wear` are put back to 0. So no boat carries damage, whatever she's launched from or bumped into.
+- **Nothing tracked** (`src/career/career.ts`): in Voyage `earn`, `spend` and `cargoLost` do nothing (no pay, bills, reputation or contracts); `hasUpgrade` is true for everything, so the boatyard's kit (the big tank and the rest) is all fitted; `stepCareer` only sizes the big tank, with no offers, fuel or oil bills, or wear bookkeeping. The jobs themselves (radio calls, tows, fires, cargo, the timber run) are untouched and go on as before.
+  - The timber sale still pays into the Voyage account (its own spec): it posts directly, not through `earn`.
+- **No duty board** (`src/app/App.ts`): every boat's career duty board is hidden in Voyage.
+- Tests: `tests/voyageUntracked.test.ts` (the flag; no pay or charge; every upgrade; damage and wear held at 0).
+- Checked headless: on Oban (Voyage) the flag is set, the pilot boat's board hidden, damage 0, cargo stocked (132 items); the career page unchanged (no flag, cargo there).
+- **Shared changes:** `src/core/world.ts` (the `voyage` field and option), `src/core/simulation.ts` (wear skipped in Voyage).
+
 ### More cargo, and crane cargo (owner request via the map chat, then in person, 23 Oct 2026)
 
 Owner: "significantly more cargo now that the boats are bigger" (a fixed bigger amount, by the owner's choice); then "some cargo ... can only be lifted on by the cargo crane, so larger, heavier cargo ... close enough to the side of it to pick up with the crane."

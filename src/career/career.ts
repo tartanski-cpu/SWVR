@@ -120,6 +120,8 @@ export function repOf(c: CareerState | undefined, port: string | null | undefine
 }
 
 export function hasUpgrade(world: WorldState, id: string): boolean {
+  // Voyage: no career kit; everything the yard sells is fitted.
+  if (world.voyage) return true;
   return !!world.career?.upgrades.includes(id);
 }
 
@@ -235,6 +237,8 @@ const REP_GAIN: Record<JobKind, () => number> = {
 
 /** A job done: pay it, raise the port's reputation, count it toward the contract. */
 export function earn(world: WorldState, kind: JobKind, o: EarnOpts): void {
+  // Voyage: the work's done, nothing's tracked (no pay, reputation or contracts).
+  if (world.voyage) return;
   const c = (world.career ??= createCareer());
   // Danger money: rescues, tows and fires in heavy weather pay more (phase 2).
   const storm = (kind === 'rescue' || kind === 'tow' || kind === 'fire') && heavyWeather(world);
@@ -297,12 +301,14 @@ export function repairBlocker(world: WorldState, what: 'hull' | 'engine'): strin
 
 /** Money out (fuel, oil, losses). */
 export function spend(world: WorldState, amount: number, text: string): void {
+  if (world.voyage) return; // Voyage: nothing charged
   const c = (world.career ??= createCareer());
   post(world, c, text, -Math.round(amount));
 }
 
 /** Cargo from a port's stock lost overboard: it's paid for, and that port remembers. */
 export function cargoLost(world: WorldState, from: string): void {
+  if (world.voyage) return;
   const c = (world.career ??= createCareer());
   if (!PORTS.some((p) => p.id === from)) return;
   post(world, c, `Cargo lost overboard (${portName(from)} stock)`, -CONFIG.career.costs.lostCargo);
@@ -358,11 +364,17 @@ export function officeAt(world: WorldState): string | null {
 export function stepCareer(world: WorldState): void {
   const c = (world.career ??= createCareer());
   const v = workboat(world);
+  // Voyage: the bigger tank fitted (every upgrade is), and nothing else: no offers, bills or contracts.
+  if (world.voyage) {
+    const base = v && gearOf(v, 'diesel')?.engine.fuel.tankL;
+    if (v && base) v.engine.tankL = Math.round(base * CONFIG.career.bigTankFactor);
+    return;
+  }
   if (c.offersAt <= world.time) refreshOffers(world, c);
   if (v) {
     // The boatyard's bigger fuel tank (fuelTank.ts reads it).
     const base = gearOf(v, 'diesel')?.engine.fuel.tankL;
-    if (base && c.upgrades.includes('bigTank')) v.engine.tankL = Math.round(base * CONFIG.career.bigTankFactor);
+    if (base && hasUpgrade(world, 'bigTank')) v.engine.tankL = Math.round(base * CONFIG.career.bigTankFactor);
     else delete v.engine.tankL;
     // Fuel: count what flows in while refuelling, bill it when the hose comes off.
     const fuel = v.engine.fuelL;

@@ -93,6 +93,13 @@ export interface WorldState {
   fishing?: FishingState;
   /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */
   career?: CareerState;
+  /**
+   * Voyage mode (owner, Oct 2026: "untangle anything to do with career mode and the voyage
+   * mode"): the jobs, the calls, the cargo all go on, but nothing is tracked. No money in or
+   * out, no reputation or contracts (career.ts earn/spend), every career upgrade fitted
+   * (hasUpgrade), no hull damage or engine wear (simulation.ts), no duty board.
+   */
+  voyage?: boolean;
   /** Voyage: the log barges brought back from the timber camp (voyage/timber.ts). */
   timber?: TimberState;
   /**
@@ -129,7 +136,7 @@ export function createWorld(
   /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
   /** tows / fires: towing and fire calls come by themselves (the game). */
   /** harbour: she starts moored in Calder Haven and you on the quay (the game); else at sea at her spawn (tests). */
-  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean; logs?: boolean; harbour?: boolean } = {},
+  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean; logs?: boolean; harbour?: boolean; voyage?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
@@ -176,6 +183,7 @@ export function createWorld(
   // The tender starts in her cradle on the ship's foredeck.
   if (tender) stowTender(world, tender, vesselId);
   stockPorts(world);
+  if (opts.voyage) world.voyage = true;
   return { world, localPlayerId, vesselId };
 }
 
