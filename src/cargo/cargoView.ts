@@ -7,7 +7,12 @@ import { hasUpgrade } from '../career/career';
 import { hookOnBoat } from './craneHook';
 import { bootGeometry, crabGeometry, floorSlot, lobsterGeometry, smallFishGeometry, starfishGeometry } from '../potting/catchGeometry';
 
-const MAX = 48;
+/**
+ * Items drawn of each shape at most (one instanced draw each). Goods waiting ashore are drawn
+ * only within CONFIG.cargo.drawRange of you: every port keeps a dozen or more (more cargo,
+ * Oct 2026), and taken in the world's order the far ports' filled the meshes before yours.
+ */
+const MAX = 128;
 const MAX_ANIMALS = 96;
 const STRAP = 0xe8641c;
 
@@ -202,7 +207,8 @@ export class CargoView {
    * @param carried     where items in hands are (local hands, or remote avatars' hands)
    * @param hovered     id of the item a hand or the reticle is on (drawn brighter)
    */
-  update(world: WorldState, vesselRoots: Map<string, THREE.Object3D>, carried: CarriedPose, hovered: string | null): void {
+  update(world: WorldState, vesselRoots: Map<string, THREE.Object3D>, carried: CarriedPose, hovered: string | null, viewer?: THREE.Vector3): void {
+    const range = CONFIG.cargo.drawRange;
     let nb = 0;
     let nk = 0;
     let nd = 0;
@@ -218,6 +224,7 @@ export class CargoView {
       const [sx, sy, sz] = kind.size;
       let root: THREE.Object3D | null = null;
       if ('ground' in c.at) {
+        if (viewer && Math.hypot(c.at.ground[0] - viewer.x, c.at.ground[2] - viewer.z) > range) continue;
         this.p.fromArray(c.at.ground);
         this.q.setFromAxisAngle(this.up, c.at.yaw);
       } else if ('vessel' in c.at) {

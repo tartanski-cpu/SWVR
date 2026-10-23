@@ -680,7 +680,7 @@ export const CONFIG = {
       refresh: 600,
       tierRep: [0, 15, 40],
       kinds: {
-        cargo: { counts: [2, 4, 6], bonusPer: 90, secondsPer: 480 },
+        cargo: { counts: [4, 8, 12], bonusPer: 90, secondsPer: 480 },
         fish: { counts: [4, 8, 12], bonusPer: 35, secondsPer: 240 },
         logs: { counts: [1, 2, 3], bonusPer: 160, secondsPer: 720 },
       },
@@ -893,8 +893,35 @@ export const CONFIG = {
 
   /** Cargo between ports (cargo/cargo.ts). */
   cargo: {
-    /** Each port keeps this many items waiting (a delivery spawns a replacement elsewhere). */
-    perPort: 5,
+    /**
+     * Each port keeps this many items waiting (a delivery spawns a replacement elsewhere).
+     * 12 (owner, Oct 2026: "significantly more cargo now that the boats are bigger"; it was
+     * 5), stacked in rows of `stackRow` along the quay, the rows `stackRowGap` (m) apart,
+     * back from the water.
+     */
+    perPort: 12,
+    /** Goods waiting ashore are drawn only this near you (m: cargo/cargoView.ts). */
+    drawRange: 400,
+    stackRow: 6,
+    stackRowGap: 1.1,
+    /**
+     * Crane cargo (owner, Oct 2026: "some cargo ... can only be lifted on by the cargo
+     * crane, so larger, heavier cargo"): the `kinds` named here can't be carried by hand,
+     * only lifted by a deck crane's hook. `perPort` of them wait at each port with a cargo
+     * berth (and go only to another), in a row along the berth's quay edge, `edgeIn` (m) in
+     * from it and `spacing` apart, centred on the berth: within reach of a crane on a boat
+     * lying there, on her quay side or across her deck (the workboat's crane runs out to
+     * 5.4 m, lifting 800 kg × 3.4 / 5.4 ≈ 500 kg there: so 450 kg at most). Move her along
+     * the quay to come under the next. They pay `payFactor` times a hand item's rate.
+     */
+    crane: {
+      kinds: ['Pallet of blocks', 'Engine block', 'Chain basket'] as readonly string[],
+      perPort: 3,
+      edgeIn: 1.1,
+      spacing: 2.4,
+      payFactor: 3,
+      note: 'crane only: lift it with a deck crane',
+    },
     /** Counts as anchored in a port's bay only nearly stopped (m/s). */
     maxSpeed: 0.6,
     /** Set an item down ashore within this of its destination's goods stack to deliver it (m). */
@@ -935,6 +962,10 @@ export const CONFIG = {
        * boxy frame with netting, its line coiled on top and the marker buoy tied to it.
        */
       { name: 'Pot', mass: 24, size: [0.75, 0.42, 0.5] as [number, number, number], shape: 'pot' as const, slots: 2 },
+      // Crane cargo (`crane` above): too heavy to carry, lifted by a deck crane.
+      { name: 'Pallet of blocks', mass: 420, size: [1.1, 0.75, 1.1] as [number, number, number], shape: 'box' as const, slots: 4 },
+      { name: 'Engine block', mass: 380, size: [1.0, 0.8, 0.8] as [number, number, number], shape: 'box' as const, slots: 3 },
+      { name: 'Chain basket', mass: 450, size: [0.95, 0.7, 0.95] as [number, number, number], shape: 'drum' as const, slots: 3 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,

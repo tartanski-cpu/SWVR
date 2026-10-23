@@ -9,6 +9,7 @@ import {
   portAtPoint,
   stepDeckCargo,
   type CargoItem,
+  craneOnly,
 } from '../src/cargo/cargo';
 import { onOpenDeck } from '../src/cargo/deck';
 import { CONFIG } from '../src/config';
@@ -56,7 +57,8 @@ describe('cargo by hand', () => {
   it('every port starts with goods waiting on dry land, each bound somewhere else', () => {
     const { world, waiting } = setup();
     for (const p of PORTS) {
-      const items = waiting(p.id);
+      // Hand cargo (crane cargo, tests/moreCargo.test.ts, waits on the cargo quays besides).
+      const items = waiting(p.id).filter((c) => !craneOnly(c));
       expect(items.length).toBe(CONFIG.cargo.perPort);
       for (const c of items) {
         expect(c.to).not.toBe(p.id);
@@ -67,8 +69,8 @@ describe('cargo by hand', () => {
     expect(world.deliveries).toBe(0);
   });
 
-  it('all kinds are man-portable; the heavy ones need two hands', () => {
-    for (const k of CONFIG.cargo.kinds) expect(k.mass).toBeLessThanOrEqual(120);
+  it('all kinds but crane cargo are man-portable; the heavy ones need two hands', () => {
+    for (const k of CONFIG.cargo.kinds) if (!CONFIG.cargo.crane.kinds.includes(k.name)) expect(k.mass).toBeLessThanOrEqual(120);
     expect(CONFIG.cargo.kinds.some((k) => k.mass > CONFIG.cargo.twoHandKg)).toBe(true);
   });
 

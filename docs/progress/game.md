@@ -10,6 +10,26 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### More cargo, and crane cargo (owner request via the map chat, then in person, 23 Oct 2026)
+
+Owner: "significantly more cargo now that the boats are bigger" (a fixed bigger amount, by the owner's choice); then "some cargo ... can only be lifted on by the cargo crane, so larger, heavier cargo ... close enough to the side of it to pick up with the crane."
+
+- **More:**
+  - `CONFIG.cargo.perPort` 5 → 12, stacked in rows of `stackRow` 6 (0.9 m apart). Further rows go `stackRowGap` 1.1 m back, on the side with the higher ground (away from the water).
+  - Cargo contracts ask for 4, 8 or 12 deliveries (were 2, 4, 6).
+- **Crane cargo** (`CONFIG.cargo.crane`):
+  - Three new kinds: Pallet of blocks 420 kg, Engine block 380 kg, Chain basket 450 kg, 3 to 4 deck slots each.
+  - Too heavy to carry (`takeBlocker`: "too heavy to carry. Lift it with a deck crane"); the crane's hook takes them as any load within its lift.
+  - Three wait at each port with a cargo berth, 1.1 m in from its quay edge (`edgeIn`), 2.4 m apart (`spacing`) from the berth's middle outward, on free quay. They go only to another port with a cargo berth.
+  - Within reach with the workboat's crane on her far side: her beam plus the fender clearance, less the column's inset, plus 1.1 m is 5.35 m, inside the boom run out (5.4 m). The lift there is 800 × 3.4 / 5.35 ≈ 508 kg, over the heaviest (450). Move her along the quay for the next.
+  - Delivered at the destination's cargo quay (`portAtPoint` counts the berth's quay too). Paid × `payFactor` 3.
+  - Labels say "crane only: lift it with a deck crane".
+- **Drawing:** the cargo view drew at most 48 of each shape in the whole world, taken in the world's order, so with a dozen at every port your own quay's could miss out. Now 128, and goods ashore only within `drawRange` (400 m) of you.
+- Tests:
+  - `tests/moreCargo.test.ts`: 12 + 3 at every port; the crane cargo within the crane's reach and lift; no hand lift; × 3 pay; Oban and Tayvallich stocked on dry land.
+  - `tests/cargo.test.ts`: updated for the crane cargo.
+- Checked in headless Chromium: Calder Haven's quay, two rows of six, and three pallets along the edge beside the berth (screenshot). Not checked: lifting one aboard by the crane in play, VR.
+
 ### The handheld VHF easier to find in VR (owner request, 23 Oct 2026)
 
 Owner: "very hard to find where it is because you can't see it ... a slightly bigger grab spot and ... a little bit of haptics when your hand reaches it."

@@ -177,7 +177,9 @@ function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
       const a = PORTS.find((x) => x.id === o.from);
       const b = PORTS.find((x) => x.id === o.port);
       const km = a && b ? Math.hypot(a.x - b.x, a.z - b.z) / 1000 : 1;
-      return p.cargoBase + p.cargoPerKm * km;
+      // Crane cargo (CONFIG.cargo.crane) pays more: heavier, and it needs the crane.
+      const heavy = o.what && CONFIG.cargo.crane.kinds.includes(o.what) ? CONFIG.cargo.crane.payFactor : 1;
+      return (p.cargoBase + p.cargoPerKm * km) * heavy;
     }
     case 'fish':
       return p.fishBox * (hasUpgrade(world, 'ice') ? p.iceFactor : 1);
