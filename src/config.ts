@@ -2610,12 +2610,15 @@ export const CONFIG = {
    * high on your left shoulder at `shoulder` (metres from your head: right, up, forward, turned
    * with your heading), up out of the way of hands pulling and grabbing (on the chest it was
    * taken by mistake); grip it within `grabRange` (m) to take it, hold the trigger to talk,
-   * let go and it clips back on. `onAvatar`: where others see it, in the torso's axes (hung
-   * from the neck). Desktop: hold V to talk.
+   * let go and it clips back on. You can't see it there, so (owner, Oct 2026: "very hard to
+   * find") the reach is generous, and a free hand coming within it gets a short tick in the
+   * controller (`nearPulse`: strength 0..1, ms), once each time it arrives. `onAvatar`: where
+   * others see it, in the torso's axes (hung from the neck). Desktop: hold V to talk.
    */
   radio: {
     shoulder: [-0.19, -0.2, -0.04] as [number, number, number],
-    grabRange: 0.1,
+    grabRange: 0.18,
+    nearPulse: [0.3, 18] as [number, number],
     onAvatar: [-0.16, -0.06, -0.1] as [number, number, number],
   },
 
