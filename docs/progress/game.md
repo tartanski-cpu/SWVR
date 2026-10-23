@@ -10,6 +10,20 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The front page: four equal tiles, each with a picture (owner request, 23 Oct 2026)
+
+Owner: "The main page ... should have an equally sized tile for the shipyard and a suitable graphic for each of them."
+
+- `index.html`: Career, Voyage, Shipyard and Training as four equal tiles, two by two (one column on a phone, each tile full width), every tile the height of the tallest.
+- Each tile has its own drawing, original and in the game's chunky style, drawn as SVG in the page (no image files, nothing more to load):
+  - Career: a workboat alongside a quay with crates and a crane;
+  - Voyage: a chart of a coast with a route, its stops and a compass;
+  - Shipyard: a boat's lines plan on a drawing board, with stations, waterlines and her length;
+  - Training: a small harbour with a buoy slalom and a REC light.
+- The Voyage maps are four compact buttons, two by two, with the full description on hover. Career and the Shipyard have a button at the foot of their tile.
+- The Shipyard moved from the footer into its tile; the footer keeps the hull study's link.
+- Checked: headless screenshots, wide and phone width: the four tiles equal on a wide screen (481 × 462 px each), no sideways scroll on a phone.
+
 ### Everything on next goes to the live game (owner: "approved", 23 Oct 2026)
 
 - The test build as of the afternoon of 23 October, every chat's approved work on `next`, merged into the dev branch: https://tartanski-cpu.github.io/SWVR/.
