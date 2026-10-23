@@ -41,13 +41,15 @@ export interface VoyageMap {
   region?: RegionDef;
   remote?: CoastPlacement;
   startBerth: string;
+  /** Where its live weather is read (world/coastWeather.ts): a point in open water on the map (deg). */
+  weatherAt: { lat: number; lon: number };
 }
 
 export const VOYAGE_MAPS: readonly VoyageMap[] = [
-  { id: 'oban', name: 'Oban and Lorn', blurb: 'Oban Bay, Kerrera and its sound, Dunstaffnage and the Falls of Lora: 12 km of Argyll coast at full scale.', region: OBAN, startBerth: 'oban-cargo' },
-  { id: 'clyde', name: 'The Firth of Clyde', blurb: 'Bute and Rothesay, the Kyles and Loch Striven, Dunoon and the Holy Loch, Gourock, Greenock and Helensburgh, Largs and the Cumbraes: 35 by 37 km at full scale.', remote: { x: 0, z: 0, weather: SOUNDS.weather }, startBerth: 'rothesay-harbour-cargo' },
-  { id: 'syros', name: 'Syros', blurb: 'The whole island in the Cyclades: Ermoupoli and its harbour under Ano Syros, Foinikas and Posidonia, Kini, Vari and the islets off the east coast: 15 by 19 km at full scale.', remote: { x: 0, z: 0, weather: AEGEAN_WEATHER }, startBerth: 'ermoupoli-cargo' },
-  { id: 'tayvallich', name: 'Tayvallich and Loch Sween', blurb: 'Tayvallich and its bay, Caol Scotnish and the Fairy Isles, Loch Sween to Achnamara, and the Sound of Jura shore: 11 by 16 km at full scale.', region: TAYVALLICH, startBerth: 'tayvallich-cargo' },
+  { id: 'oban', name: 'Oban and Lorn', blurb: 'Oban Bay, Kerrera and its sound, Dunstaffnage and the Falls of Lora: 12 km of Argyll coast at full scale.', region: OBAN, startBerth: 'oban-cargo', weatherAt: { lat: 56.415, lon: -5.49 } },
+  { id: 'clyde', name: 'The Firth of Clyde', blurb: 'Bute and Rothesay, the Kyles and Loch Striven, Dunoon and the Holy Loch, Gourock, Greenock and Helensburgh, Largs and the Cumbraes: 35 by 37 km at full scale.', remote: { x: 0, z: 0, weather: SOUNDS.weather }, startBerth: 'rothesay-harbour-cargo', weatherAt: { lat: 55.86, lon: -4.98 } },
+  { id: 'syros', name: 'Syros', blurb: 'The whole island in the Cyclades: Ermoupoli and its harbour under Ano Syros, Foinikas and Posidonia, Kini, Vari and the islets off the east coast: 15 by 19 km at full scale.', remote: { x: 0, z: 0, weather: AEGEAN_WEATHER }, startBerth: 'ermoupoli-cargo', weatherAt: { lat: 37.44, lon: 24.95 } },
+  { id: 'tayvallich', name: 'Tayvallich and Loch Sween', blurb: 'Tayvallich and its bay, Caol Scotnish and the Fairy Isles, Loch Sween to Achnamara, and the Sound of Jura shore: 11 by 16 km at full scale.', region: TAYVALLICH, startBerth: 'tayvallich-cargo', weatherAt: { lat: 55.95, lon: -5.7 } },
 ];
 
 export function voyageMap(id: string | null): VoyageMap | undefined {

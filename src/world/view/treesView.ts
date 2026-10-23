@@ -774,6 +774,18 @@ export class TreesView {
    */
   private updateCanopy(x: number, z: number, now: number): void {
     const c = treeSettings();
+    // No canopy at all (canopyDistance 0, the owner's choice: the woods beyond the trees are
+    // the ground's own colour).
+    if (c.canopyDistance <= 0) {
+      if (this.canopy) {
+        this.root.remove(this.canopy);
+        this.canopy.geometry.dispose();
+        this.canopy = null;
+      }
+      this.squares.clear();
+      this.canopyKey = '';
+      return;
+    }
     const S = c.canopySquare;
     const want: { key: string; i: number; j: number; d: number }[] = [];
     for (let j = Math.floor((z - c.canopyDistance) / S); j <= Math.floor((z + c.canopyDistance) / S); j++)
