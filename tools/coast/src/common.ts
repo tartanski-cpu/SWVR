@@ -30,6 +30,8 @@ export interface RegionRequest {
   goods?: string[];
   /** The game's trade per harbour id (package.ts): products, needs, repairs. */
   economy?: Record<string, { products?: string[]; needs?: string[]; repairs?: { hull: number; engine: number } }>;
+  /** A harbour's cargo berth on a face looking this way (deg, the bearing out from the face), by harbour id (package.ts). */
+  berthFacing?: Record<string, number>;
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {
