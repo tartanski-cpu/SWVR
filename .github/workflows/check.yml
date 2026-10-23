@@ -1,0 +1,23 @@
+# Tests a preview branch (preview/<name>: one per area's chat) when it's pushed: the
+# typecheck and the whole test suite. The Pages workflow builds the previews but doesn't test
+# them, so that one area's tests never hold up another's publish; this says, on the branch's
+# commit in GitHub, whether that area's work passes. (The game and `next` are tested by the
+# Pages workflow itself.)
+name: Check a preview branch
+
+on:
+  push:
+    branches: ['preview/**']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
