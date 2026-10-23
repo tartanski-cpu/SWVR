@@ -2,9 +2,13 @@
 # browser can open directly:
 #   https://tartanski-cpu.github.io/SWVR/        the game: the dev branch
 #   https://tartanski-cpu.github.io/SWVR/next/   work in progress: the `next` branch
-# A push to either branch rebuilds both, so each address always shows its branch's latest.
-# A push to `next` comes in through next.yml (workflow_run), so that this always runs on
-# the dev branch: GitHub lets only the dev branch deploy the site.
+#   https://tartanski-cpu.github.io/SWVR/preview/<name>/   one per area's chat: the branch
+#                                                preview/<name> (shipyard, modules, map, hulls...)
+# A push to any of them rebuilds them all, so each address always shows its branch's latest.
+# A push to `next` or a preview branch comes in through next.yml (workflow_run), so that this
+# always runs on the dev branch: GitHub lets only the dev branch deploy the site.
+# Previews are built but not tested here (that would make every publish wait on every area's
+# tests): check.yml tests each preview branch when it's pushed.
 # The game must pass its tests to be published. If `next` fails its tests or build, the
 # game is still published and /next/ says what happened.
 name: Deploy to GitHub Pages
@@ -60,6 +64,29 @@ jobs:
           VITE_CHANNEL: next
         run: npm ci && npm test && npm run build
 
+      - name: Build the previews (one per preview/<name> branch)
+        continue-on-error: true
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p previews
+          for ref in $(git ls-remote --heads "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}" 'preview/*' | awk '{print $2}'); do
+            branch="${ref#refs/heads/}"
+            name="$(echo "${branch#preview/}" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9-' | cut -c1-24)"
+            [ -n "$name" ] || continue
+            echo "::group::preview $name ($branch)"
+            dir="pv-$name"
+            if git clone --depth 1 --branch "$branch" "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}" "$dir" \
+              && (cd "$dir" && npm ci && VITE_CHANNEL="$name" npm run build); then
+              cp -r "$dir/dist" "previews/$name"
+            else
+              mkdir -p "previews/$name"
+              echo "<!doctype html><meta charset=\"utf-8\"><title>Workboat World: $name</title><body style=\"font:18px system-ui;margin:2em;max-width:40em\">The preview <b>$name</b> (branch <b>$branch</b>) failed to build this time, so there is nothing new to try here. The game itself is at <a href=\"../../\">tartanski-cpu.github.io/SWVR</a>.</body>" > "previews/$name/index.html"
+            fi
+            rm -rf "$dir"
+            echo "::endgroup::"
+          done
+
       - name: Put the site together
         run: |
           mkdir site
@@ -69,6 +96,10 @@ jobs:
           else
             mkdir -p site/next
             echo '<!doctype html><meta charset="utf-8"><title>Workboat World: next</title><body style="font:18px system-ui;margin:2em;max-width:40em">The work-in-progress build (branch <b>next</b>) failed its tests or its build this time, so there is nothing new to try here. The game itself is at <a href="../">tartanski-cpu.github.io/SWVR</a>.</body>' > site/next/index.html
+          fi
+          if [ -d previews ] && [ -n "$(ls -A previews)" ]; then
+            mkdir -p site/preview
+            cp -r previews/. site/preview/
           fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

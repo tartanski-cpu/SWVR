@@ -1,15 +1,16 @@
-# A push to the `next` branch (work in progress at /SWVR/next/) only has to wake the Pages
-# workflow, which builds and publishes both addresses. The publishing itself has to run
-# from the dev branch: GitHub lets only the dev branch deploy the site, so a run started
+# A push to the `next` branch (work in progress at /SWVR/next/) or to a preview branch
+# (preview/<name>, at /SWVR/preview/<name>/) only has to wake the Pages workflow, which builds
+# and publishes every address. (Its name stays: the Pages workflow is woken by it.)
+# The publishing itself has to run from the dev branch: GitHub lets only the dev branch deploy the site, so a run started
 # by a push to `next` would be refused at the last step.
 name: Next branch pushed
 
 on:
   push:
-    branches: [next]
+    branches: [next, 'preview/**']
 
 jobs:
   wake-pages:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "next was pushed; 'Deploy to GitHub Pages' now rebuilds both addresses."
+      - run: echo "${{ github.ref_name }} was pushed; 'Deploy to GitHub Pages' now rebuilds every address."

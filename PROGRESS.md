@@ -2,6 +2,8 @@
 
 This file lets a new session pick up the work cold. Keep it current at the end of every milestone.
 
+**From 23 Oct 2026 each area keeps its own log** (CLAUDE.md, "Working in areas"): `docs/progress/game.md` (the main game: Career, Voyage, multiplayer), `shipyard.md`, `modules.md`, `map.md` and `hulls.md`. New change sets go there, so the chats working side by side don't all edit this file. This file keeps the shared decisions, the roadmap and known issues, and the history up to that date, which is still the place to look for how anything came to be.
+
 ## Project decisions (agreed with the owner)
 
 - **Headset:** Meta Quest 3. The target is 90 Hz, falling back to 72 Hz if needed.

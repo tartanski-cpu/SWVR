@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Standing instructions for every Claude Code session on SWVR. Read this first, then `PROGRESS.md`.
+Standing instructions for every Claude Code session on SWVR. Read this first, then `PROGRESS.md` and your area's log in `docs/progress/` (see "Working in areas").
 
 ## The project
 
@@ -19,7 +19,7 @@ SWVR (players see it as **Workboat World**; v1.0 is tagged) is a browser WebXR s
 - **Original designs only.** Boats, gear and places are designed for the game, not copied from real products or commercial designs.
 - **After each change set:**
   - give the owner **VR and desktop test steps**;
-  - update **`PROGRESS.md`** (what changed and why, with the config keys);
+  - update **your area's log**, `docs/progress/<area>.md` (what changed and why, with the config keys; see "Working in areas");
   - update **`README.md`** where players would notice.
 - **Verify before reporting.** Run `npm run typecheck` and `npm test`. For anything visible, also run the game in headless Chromium and look at screenshots. Say plainly what was and wasn't checked.
 
@@ -36,6 +36,27 @@ SWVR (players see it as **Workboat World**; v1.0 is tagged) is a browser WebXR s
 - The workflow runs `npm test` and `npm run build` for both branches. A failing game build publishes nothing; a failing `next` build leaves a notice at /next/. After a push, check the run succeeded before telling the owner it's live.
 - **Both addresses share one browser storage** (same site), so they share career saves and settings. Before `next` changes a save format, give it its own save keys, or a test there could spoil the owner's real career.
 
+## Working in areas (one chat per area, Oct 2026)
+
+The owner runs a separate chat for each area, so their agents can work side by side without waiting on each other:
+
+| Area | Its files | Its settings | Its log | Its address (branch) |
+|---|---|---|---|---|
+| **Main game**: landing page, Career, Voyage gameplay, multiplayer | `src/app/`, `src/ui/`, `src/career/`, `src/voyage/`, the gameplay folders, `src/player/`, `src/controls/`, `src/environment/`, `src/ocean/`, `src/nav/`, `src/chart/`, `src/net/`, `src/audio/`, `src/render/`, `src/main.ts`, the game pages | `src/config.ts` | `docs/progress/game.md` | /SWVR/next/ (`next`) |
+| **Shipyard** | `src/shipyard/`, `shipyard.html` | `src/config/shipyard.ts` | `docs/progress/shipyard.md` | /SWVR/preview/shipyard/ (`preview/shipyard`) |
+| **Modular builder**: new modules | `src/modules/`, `src/modular/`, `src/mechanisms/` | `src/config/modules.ts` | `docs/progress/modules.md` | /SWVR/preview/modules/ (`preview/modules`) |
+| **Map** | `tools/coast/`, `coast.html`, `public/regions/`, `src/world/regions/`, `src/world/coast*.ts`, `src/world/maps.ts`, `src/world/view/coastView.ts` | `src/config/map.ts` | `docs/progress/map.md` | /SWVR/preview/map/ (`preview/map`) |
+| **Hull modifications** | `src/hulls/`, `hulls.html` | none | `docs/progress/hulls.md` | /SWVR/preview/hulls/ (`preview/hulls`) |
+
+- **Stay in your area's files.** Everything else is **shared**: `src/core/`, `src/vessel/`, `src/boats/`, the rest of `src/world/`, `src/config/vessels.ts`, `package.json`, the workflows, `CLAUDE.md`, `PROGRESS.md`, `README.md`. Change a shared file only when your work needs it, keep that change small, and say so in your log under a **Shared changes** line, so the other chats know what moved under them. A bigger change to shared code (the simulation, vessel physics, multiplayer) is the main game chat's, or the owner's call.
+- **Your settings go in your area's settings file.** `src/config.ts` joins them all into one `CONFIG`, read as ever (`CONFIG.shipyard...`).
+- **Your log, not PROGRESS.md.** Write each change set at the top of your area's `docs/progress/<area>.md`. `PROGRESS.md` keeps the shared decisions, the roadmap and the history up to 23 Oct 2026; update it only for a decision that affects every area.
+- **Your own preview address.** An area chat (not the main game) pushes its milestones to `preview/<area>` (`git push origin HEAD:preview/<area>`; the branch is made on the first push). It's published at https://tartanski-cpu.github.io/SWVR/preview/<area>/, with the area's name in the menu header and the tab. Tests run on every push to a preview branch (`.github/workflows/check.yml`); check that run, then the address's `build.json`, before telling the owner it's live. The main game chat keeps using `next`.
+- **While working, run your area's tests** (`npm run test:shipyard`, `test:modules`, `test:map`; the hull study: typecheck, then `test:shipyard`) and the typecheck. Before work moves on, run all of `npm test`.
+- **Keep up with `next`:** merge `origin/next` into your branch at the start of each change set. With each area in its own files it merges cleanly; a conflict means a shared file, so look at what the other chat did before settling it.
+- **When the owner says an area's milestone is good,** merge it into `next` (merge `origin/next` in first, run all of `npm test`, push to `next`), and it goes on to the game from there as before.
+- **All addresses share one browser storage** (same site): career saves and settings are shared with the game, as for `next` (see below).
+
 ## Commands
 
 ```
@@ -43,6 +64,7 @@ npm install
 npm run dev         # HTTPS dev server (self-signed; the Quest can join over the LAN)
 npm run typecheck
 npm test            # vitest, all tests
+npm run test:shipyard / test:modules / test:map   # one area's tests (see "Working in areas")
 npm run trials      # sea-trials report (speed, turning, stopping)
 npm run crewcheck   # two-browser multiplayer check (needs npm run dev running): join, crew list, launch, tow, leave
 npm run build
@@ -53,7 +75,7 @@ Headless browser checks: Chromium is pre-installed for Playwright. Launch it wit
 ## How the code is organised
 
 - **Simulation is separate from drawing.** The world is plain JSON (`WorldState`, `src/core/`), advanced on a fixed tick by `stepWorld`. The host is authoritative: players send *intents* (`{playerId, targetId, control, value, …}`), and crew receive snapshots. Simulation code never touches Three.js scenes or the DOM. Views (`*/view/`, `src/render/`) read state and draw it.
-- `src/config.ts`: every tunable, including each vessel's layout (`vessels.workboat`, `vessels.skiff`).
+- `src/config.ts`: every tunable, as one `CONFIG`. The main game's are in it; each area's are in its own file in `src/config/` (`shipyard.ts`, `modules.ts`, `map.ts`, and `vessels.ts`, each vessel's layout: `vessels.workboat`, `vessels.skiff`), joined into `CONFIG` there.
 - `src/vessel/`: vessel definitions, hydrostatics and hydrodynamics, engine, layout and walk areas, tender crane.
 - `src/controls/`: interactive controls (the `Control` base class: levers, toggles, buttons, wheel, tiller). Each boat's modules and controls are put together from her recipe by her boat view (`src/app/boatView.ts`).
 - `src/app/`: the app shell (`App.ts` and the pieces split out of it: each boat's view, career session, laser pointer, sound board, desktop pointer, XR session).
@@ -65,7 +87,8 @@ Headless browser checks: Chromium is pre-installed for Playwright. Launch it wit
 
 ## Docs
 
-- `PROGRESS.md`: the running record of decisions, milestones and every change set, plus the roadmap and known issues. **The source of truth for where things stand.**
+- `PROGRESS.md`: the shared decisions, the roadmap and known issues, and every change set up to 23 Oct 2026. **The source of truth for where things stand**, with the areas' logs since then.
+- `docs/progress/<area>.md`: each area's change sets from 23 Oct 2026 (game, shipyard, modules, map, hulls).
 - `README.md`: for players. Controls, features, how to play.
 - `docs/MULTIPLAYER.md`, `docs/TESTING_NEW_BOATS.md`: topic guides.
 - `ideas.md`: the owner's feature ideas list. It may lag behind; `PROGRESS.md` wins.
