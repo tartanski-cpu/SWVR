@@ -394,6 +394,15 @@ export const SHIPYARD_CONFIG = {
      * propeller, and a good GM with a heavy codend coming up over the stern).
      */
     sternTrawler: { scantlings: 1.8, ballastKg: 60000 },
+    /**
+     * The fast catamaran's plating and framing, against the material's usual (a monohull's): two
+     * slim hulls carry far more plate for her length than one, but each is a small, short-
+     * spanned section, built lighter. 0.8 puts the 12.5 m cat at about 12.7 t light on twin
+     * 280 kW (13.5 t on the twin 400s she comes with), against about 11 to 13 t for real
+     * aluminium work cats of her length (15 to 18 t at 15 m, scaled;
+     * hull chat, Oct 2026). At 1 she came out about 14.5 t.
+     */
+    catamaran: { scantlings: 0.8 },
     fishHold: { engineGap: 0.15, aftClear: 0.75, minLength: 1.2, minDepth: 0.55, soleClear: 0.1, shaftClear: 0.15, frame: 0.06, hatch: { length: 0.9, width: 0.9, min: 0.6, coaming: 0.3, clear: 0.15, kg: 70 }, boxGap: 0.02, headGap: 0.05, kgPerM2: 18, pricePerM3: 1100 },
     deckhouse: {
       kgPerM2: 35,

@@ -383,6 +383,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     // over the DWL with her depth. Her bows are her own (fine, raked: no bow choice). Not in the
     // design code: she travels as a link or file.
     name: 'Fast catamaran: 12.5 m aluminium, two slim hulls under a wide bridge deck',
+    scantlings: CONFIG.shipyard.catamaran.scantlings,
     material: 'aluminium',
     catamaran: true,
     form: (L, B, D, _bow, sheer) => {
@@ -396,8 +397,10 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 2.0,
     foredeck: 1.5,
     // The wheelhouse forward over a wide working deck aft (it can go aft: Position), twin
-    // 280 kW, one in each hull (her hulls are too slim for one engine on her centreline).
-    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 1, bow: 0, housePos: 12, houseLength: 5, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 1, twin: 1, paint: 0 }),
+    // engines, one in each hull (her hulls are too slim for one engine on her centreline).
+    // Twin 400 kW as she comes: twin 280s make about 24.4 kn on her redrawn lines, under the
+    // owner's 25 to 28 (re-measured 23 Oct 2026).
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 1, bow: 0, housePos: 12, houseLength: 5, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 0 }),
   },
 ];
 

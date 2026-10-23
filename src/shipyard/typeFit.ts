@@ -7,7 +7,8 @@
  *
  * The trials are measured, not modelled: each type at its standard size, bare (no deck gear),
  * every engine fit that goes under her deck (a tall engine in a shallow hull is left out),
- * gearbox matched, the game's own sea trials (re-measured 23 Oct 2026 with the 750 kW diesel;
+ * gearbox matched, the game's own sea trials (re-measured 23 Oct 2026 with the 750 kW diesel,
+ * then the tug and trawler on a displacement hull's resistance and the catamaran redrawn;
  * docs/progress/shipyard.md). A type passes a line if ONE of its engine fits meets speed,
  * range, price and bollard pull together, so the ranking doesn't promise a boat that can't
  * be built. Deck room passes if she can be made big enough for it (starting from her sizes
@@ -91,7 +92,7 @@ export const TYPE_FACTS: TypeFacts[] = [
     pots: 53,
     maxCrates: 122,
     maxPots: 83,
-    fits: [fit(0, 0, 6.7, 39, 1.56, 213_000), fit(0, 1, 8.1, 43, 3.13, 231_000), fit(1, 0, 8.0, 39, 2.87, 228_000), fit(1, 1, 9.6, 49, 5.73, 262_000), fit(2, 0, 8.6, 45, 3.85, 243_000), fit(2, 1, 10.9, 54, 7.70, 291_000), fit(3, 0, 8.8, 47, 4.32, 271_000), fit(3, 1, 10.9, 60, 9.01, 348_000), fit(4, 0, 10.2, 48, 6.31, 330_000)],
+    fits: [fit(0, 0, 6.7, 39, 1.56, 213_000), fit(0, 1, 8.1, 43, 3.13, 231_000), fit(1, 0, 8.0, 39, 2.87, 228_000), fit(1, 1, 8.9, 44, 5.73, 262_000), fit(2, 0, 8.4, 43, 3.85, 243_000), fit(2, 1, 9.5, 45, 7.70, 291_000), fit(3, 0, 8.5, 44, 4.32, 271_000), fit(3, 1, 9.5, 49, 9.01, 348_000), fit(4, 0, 9.1, 42, 6.31, 330_000)],
   },
   {
     // The stern trawler (measured Oct 2026, as the others, bare: no deck gear pinned): big,
@@ -102,19 +103,20 @@ export const TYPE_FACTS: TypeFacts[] = [
     pots: 105,
     maxCrates: 305,
     maxPots: 198,
-    fits: [fit(0, 0, 5.6, 36, 1.91, 476_000), fit(0, 1, 7.9, 40, 3.83, 512_000), fit(1, 0, 7.8, 35, 3.50, 495_000), fit(1, 1, 9.4, 45, 7.01, 543_000), fit(2, 0, 8.7, 43, 5.09, 507_000), fit(2, 1, 10.2, 53, 10.17, 569_000), fit(3, 0, 9.2, 44, 6.65, 527_000), fit(3, 1, 10.6, 54, 13.30, 623_000), fit(4, 0, 10.5, 48, 11.23, 597_000)],
+    fits: [fit(0, 0, 5.5, 36, 1.91, 476_000), fit(0, 1, 7.9, 39, 3.83, 512_000), fit(1, 0, 7.8, 35, 3.50, 495_000), fit(1, 1, 9.5, 46, 7.01, 543_000), fit(2, 0, 8.8, 43, 5.09, 507_000), fit(2, 1, 10.1, 53, 10.17, 569_000), fit(3, 0, 9.3, 45, 6.65, 527_000), fit(3, 1, 10.4, 53, 13.30, 623_000), fit(4, 0, 10.3, 47, 11.23, 597_000)],
   },
   {
-    // The fast catamaran (measured 23 Oct 2026, as the others; always twin, one engine a hull:
+    // The fast catamaran (measured 23 Oct 2026 on her redrawn lines, her plating
+    // CONFIG.shipyard.catamaran.scantlings, twin 400 kW as she comes; always twin, one engine a hull:
     // her single fits are built twin, so only the twins are listed): fast for her size, a
     // wide deck.
     what: 'A fast catamaran: two slim hulls under a wide bridge deck, a wide, steady working platform; 25 to 30 knots.',
     goodFor: ['cargo', 'fire'],
-    crates: 82,
-    pots: 52,
-    maxCrates: 159,
-    maxPots: 103,
-    fits: [fit(0, 1, 17.4, 83, 2.82, 259_000), fit(1, 1, 25.5, 120, 4.51, 290_000), fit(2, 1, 30.6, 147, 5.38, 319_000), fit(3, 1, 29.3, 149, 6.74, 376_000)],
+    crates: 92,
+    pots: 53,
+    maxCrates: 161,
+    maxPots: 104,
+    fits: [fit(0, 1, 17.6, 85, 2.82, 250_000), fit(1, 1, 24.4, 123, 4.61, 281_000), fit(2, 1, 29.7, 152, 5.65, 310_000), fit(3, 1, 31.6, 142, 5.61, 367_000)],
   },
 ];
 

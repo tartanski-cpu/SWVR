@@ -9,6 +9,7 @@ import { CONFIG } from '../../config';
 import type { HullDefinition } from '../../modular/hull';
 import { lightshipOf } from '../../modular/massProperties';
 import type { Socket } from '../../modular/socket';
+import { displacementResistance } from '../../vessel/displacementHull';
 import { BREAKERS } from '../../vessel/vesselState';
 import { atDWL, type BuildArgs, type V3 } from './common';
 import { DESIGN_HULLS, liveryOf, TUG_HULL } from './catalog';
@@ -124,7 +125,11 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     damping,
     // Tyres hanging low catch spray and the odd wave: a little more drag.
     resistance: (() => {
-      const r = p.cat ? p.cat.resistance : { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100 };
+      // A displacement hull (the tug, the trawler): a curve that keeps climbing past her hull
+      // speed (vessel/displacementHull.ts), so power past what her length can use barely
+      // moves her; the others the landing craft's, which levels off for planing.
+      const lwl = Math.round(h.lwl * 100) / 100;
+      const r = p.cat ? p.cat.resistance : DESIGN_HULLS[a.d.hull].regime === 'displacement' ? displacementResistance(lwl, lc.resistance.y) : { ...lc.resistance, lwl };
       return tyres.length ? { ...r, formFactor: r.formFactor + hg.tyres.formFactorAdd } : r;
     })(),
     ...(planing ? { planing } : {}),

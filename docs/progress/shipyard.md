@@ -10,6 +10,24 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The tug and trawler on a displacement hull's resistance; the catamaran redrawn, re-weighed, twin 400s as she comes (done, on the preview)
+
+Owner, 23 Oct 2026: do the hull chat's follow-ups "as they reach next". The hull chat's redrawn catamaran and its displacement curve (vessel/displacementHull.ts, `CONFIG.displacementHull`) went to next today.
+
+- **A displacement hull's resistance** (parts/hullDef.ts): a hull type with regime 'displacement' (the tug, the trawler) takes `displacementResistance(lwl, y)`, a curve that keeps climbing past hull speed, in place of the landing craft's planing curve, which levels off. The catamaran keeps her own; the planing and semi-planing types are as before.
+- **The catamaran's weight** (`CONFIG.shipyard.catamaran.scantlings` 0.8, parts/catalog.ts): on her redrawn lines (12.5 × 6.0 m) she came out 14.5 t light, against about 11 to 13 t for real aluminium work cats of her length (the hull chat's 15 to 18 t at 15 m, scaled). Almost all of the excess was her plating: two hulls carry far more plate for her length than one, but each is a small, short-spanned section, built lighter. At 0.8 she is 12.7 t light on twin 280s, 13.5 t on twin 400s.
+- **Twin 400 kW as she comes** (her defaults): on her redrawn lines twin 280s make 24.4 kn, under the owner's 25 to 28; twin 400s make 29.7 kn.
+- **Re-measured** (typeFit.ts TYPE_FACTS; the same method as before, which reproduced the trawler's previous figures exactly on the old curve):
+  - **Tug:** a little slower on every fit, as a displacement hull should be. Single 750 kW 10.2 to 9.1 kn; twin 450s 10.9 to 9.5; twin 400s 10.9 to 9.5. Bollard pulls unchanged. Her card: up to 10 kn (rounded from 9.5), 9.0 t.
+  - **Trawler:** within a tenth or two of a knot (she was already slow for her length): 750 kW 10.5 to 10.3 kn.
+  - **Catamaran:** twin 150 17.6 kn, twin 280 24.4, twin 400 29.7, twin tug diesels 31.6. Deck 92 crates as she comes (was 82, on her wider redrawn beam), 161 at her largest.
+- **Tests:**
+  - tests/shipyard/hullResistance.test.ts (new): only the displacement types get the curve; the cat's weight, and twin 400s as she comes.
+  - tests/shipyard/inTheGame.test.ts: the twin-engined tug's flat-out speed is now 8.92 kn (was 10.08).
+  - `npm run test:shipyard` (333) and the typecheck pass.
+- README: the tug's, trawler's and catamaran's speeds, and the cat's engines and weight.
+- **Shared changes:** none (vessel/displacementHull.ts is the hull chat's, only used).
+
 ### Handles on the 3D view, stop 2: the rest of the Hull step (done, on the preview)
 
 Owner, 23 Oct 2026: "yes, go ahead with the hull handles" (stop 2 of the handles plan below).
