@@ -34,7 +34,7 @@ import { buildMachinery } from './enginePreview';
 import { LiveTrial, type LiveSample, type LiveTest } from './liveTrial';
 import { flatVertexColorMaterial, mergeParts } from '../render/geometryUtils';
 import { HydroDebugView } from '../debug/hydroDebugView';
-import { briefPaper } from './briefPaper';
+import { hullCards } from './hullCards';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
@@ -48,7 +48,7 @@ import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, typ
 import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
 import { LoopbackHost, randomRoomCode } from '../net/transport';
 import { fromFrac, inkOf, MAX_POINTS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
-import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type Check, type JobId, type Tried } from './brief';
+import { bareHull, checkBrief, engineOptions, JOBS, newBrief, pickEngine, type Brief, type Check, type JobId, type Tried } from './brief';
 import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
@@ -566,9 +566,10 @@ const CONSOLE_FOV = 68;
 const USUAL_FOV = 45;
 function focusStep(): void {
   const step = stepEls()[stepAt]?.dataset.step ?? '';
-  // The brief is written on paper, not shown on a boat.
+  // The first step shows the hull types on cards, not a boat.
   $('view').classList.toggle('paperMode', step === 'brief');
-  $('briefPaper').hidden = step !== 'brief';
+  $('hullGallery').hidden = step !== 'brief';
+  if (step === 'brief') showHullCards();
   if (!shown) return;
   const { hull, house, modules, guard, skiff, machinery } = shown;
   if (machinery) machinery.visible = step === 'engine';
@@ -2906,7 +2907,6 @@ function setBrief(patch: Partial<Brief>): void {
   $('designName').addEventListener('change', () => setBrief({ name: ($('designName') as HTMLInputElement).value }));
 }
 function showBrief(): void {
-  showTypes();
   document.querySelectorAll<HTMLInputElement>('[data-brief]').forEach((el) => {
     const v = brief[el.dataset.brief as keyof Brief];
     if (document.activeElement === el) return;
@@ -2923,14 +2923,97 @@ function showBrief(): void {
   if (document.activeElement !== name) name.value = brief.name;
   document.title = `${brief.name ? `${brief.name} · ` : ''}Workboat World Shipyard`;
   showTrial(); // its charts draw the brief's targets; it shows the brief check too
-  showPaper();
+  showHullCards();
 }
-/** The brief on the yard's paper (briefPaper.ts), shown in the middle at the Brief step. */
-function showPaper(): void {
+/** Each hull type's picture from the side (rendered once, as the gallery first shows). */
+const hullPics = new Map<number, string>();
+let hullPicsStarted = false;
+/**
+ * The first step: the hull types on cards (hullCards.ts; owner, Oct 2026: "you see the
+ * different hull types and what they're suitable for, instead of this design brief
+ * document"), each with what it's made for, three measured figures and, if a brief is set,
+ * whether it can meet it (typeFit.ts).
+ */
+function showHullCards(): void {
+  const grid = $('hullGrid');
+  grid.innerHTML = '';
   const any = brief.jobs.length || brief.speedKn || brief.rangeNm || brief.budget;
-  const top = any ? rankTypes(brief)[0] : null;
-  const best = top ? { name: DESIGN_HULLS[top.hull].name.split(':')[0].trim(), verdict: top.misses ? `${top.misses} line${top.misses === 1 ? '' : 's'} short` : 'best fit' } : null;
-  $('briefPaper').innerHTML = briefPaper(brief, best);
+  const ranked = rankTypes(brief);
+  for (const c of hullCards()) {
+    const k = ranked.findIndex((t) => t.hull === c.hull);
+    const t = ranked[k];
+    const verdict = !any || !t ? '' : t.misses ? `${t.misses} target${t.misses === 1 ? '' : 's'} short` : k === 0 ? 'Best for the brief' : 'Meets the brief';
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = `hullCard${brief.hull === c.hull && design.hull === c.hull ? ' on' : ''}`;
+    const pic = hullPics.get(c.hull);
+    const tags = (label: string, list: string[], kind: string) => (list.length ? `<div class="tags"><span class="lbl">${label}</span>${list.map((x) => `<span class="tag ${kind}">${esc(x)}</span>`).join('')}</div>` : '');
+    el.innerHTML = `<div class="pic">${pic ? `<img alt="${esc(c.title)} from the side" src="${pic}">` : '<span class="meta">drawing her…</span>'}</div><div class="body"><div class="head"><b>${esc(c.title)}</b>${verdict ? `<span class="verdict ${t!.misses ? 'bad' : 'ok'}">${esc(verdict)}</span>` : ''}</div><div class="sub">${esc(c.sub)}</div>${tags('Made for', c.roles.main, 'main')}${tags('Also', c.roles.light, 'light')}<div class="figs">${c.figures.map((f) => `<span><span class="meta">${esc(f.label)}</span>${esc(f.value)}</span>`).join('')}</div></div>`;
+    el.title = `Start from the ${c.title.toLowerCase()}`;
+    el.onclick = () => void pickHull(c.hull);
+    grid.appendChild(el);
+  }
+  if (!hullPicsStarted && !$('hullGallery').hidden) drawHullPictures();
+}
+/** Render each type's picture, one at a time (each builds her boat), filling the cards in as they come. */
+function drawHullPictures(): void {
+  hullPicsStarted = true;
+  const todo = hullCards().map((c) => c.hull);
+  const next = () => {
+    const hull = todo.shift();
+    if (hull === undefined) return;
+    try {
+      const { root } = boatFor({ ...DEFAULT_DESIGN, ...bareHull(hull, (i) => DESIGN_HULLS[i].defaults) } as ShipDesign);
+      hullPics.set(hull, profileShot(root));
+    } catch {
+      /* no picture: the card says "drawing her…" still, and works */
+    }
+    showHullCards();
+    window.setTimeout(next, 30);
+  };
+  window.setTimeout(next, 60);
+}
+/** Her profile from starboard (bow to the right), filling a card's picture, on the cards' own colour. */
+function profileShot(root: THREE.Object3D): string {
+  const W = 640;
+  const H = 240;
+  const box = new THREE.Box3().setFromObject(root);
+  const mpp = Math.max(((box.max.z - box.min.z) * 1.08) / W, ((box.max.y - box.min.y) * 1.12) / H);
+  const mid = box.getCenter(new THREE.Vector3());
+  cmpRenderer ??= new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  cmpRenderer.setSize(W, H);
+  const sc = new THREE.Scene();
+  sc.background = new THREE.Color(0x1c2a34);
+  sc.add(new THREE.HemisphereLight(0xe8f0f8, 0x55606a, 1.6));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+  sun.position.set(8, 14, -6);
+  sc.add(sun, root);
+  const cam = new THREE.OrthographicCamera((-W / 2) * mpp, (W / 2) * mpp, (H / 2) * mpp, (-H / 2) * mpp, 0.1, 200);
+  cam.position.set(60, mid.y, mid.z);
+  cam.up.set(0, 1, 0);
+  cam.lookAt(0, mid.y, mid.z);
+  cmpRenderer.render(sc, cam);
+  const url = cmpRenderer.domElement.toDataURL('image/png');
+  sc.remove(root);
+  root.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+  return url;
+}
+/**
+ * Start from a hull type (a card clicked): her bare hull with her type's usual engine, then on
+ * to the Hull step. With targets in the brief, her engines are tried by trial first and the
+ * one that does it fitted (startFrom), the card's step waiting for it.
+ */
+async function pickHull(hull: number): Promise<void> {
+  const targets = brief.speedKn || brief.rangeNm || brief.budget || brief.jobs.includes('towing');
+  if (targets) await startFrom(hull);
+  else {
+    ++searchRun;
+    setBrief({ hull });
+    change(bareHull(hull, (i) => DESIGN_HULLS[i].defaults));
+    sizeDeck();
+    $('suggestMsg').textContent = '';
+  }
+  if (stepEls()[stepAt]?.dataset.step === 'brief') goStep('hull');
 }
 /** What her trial says now, if it's for the design as she is (null while a new one runs). */
 function currentTrial(): SeaTrialResults | null {
@@ -2999,26 +3082,6 @@ function trialOf(d: ShipDesign, id: number): Promise<SeaTrialResults | null> {
     searchWorker.postMessage({ id, design: d, match: true });
   });
 }
-/** The hull types ranked against the brief (typeFit.ts), each with what it can manage and a start button. */
-function showTypes(): void {
-  const box = $('types');
-  box.innerHTML = '';
-  const any = brief.jobs.length || brief.speedKn || brief.rangeNm || brief.budget;
-  for (const [k, t] of rankTypes(brief).entries()) {
-    const c = document.createElement('div');
-    c.className = `type${brief.hull === t.hull ? ' on' : ''}`;
-    const name = DESIGN_HULLS[t.hull].name.split(':')[0];
-    const verdict = !any ? '' : t.misses ? `${t.misses} line${t.misses === 1 ? '' : 's'} short` : k === 0 ? 'Best fit' : 'Can do it';
-    const suits = t.suits.length ? ` Built for ${t.suits.map((j) => jobOf(j)!.name.toLowerCase()).join(', ')}.` : '';
-    c.innerHTML = `<div class="head"><b>${esc(name)}</b><span class="verdict">${verdict}</span></div><div class="what">${esc(t.facts.what)}${esc(suits)}</div><div class="lines">${t.lines.map((l) => `<span class="${l.ok ? 'ok' : 'bad'}">${l.label} ${esc(l.value)}</span>`).join('')}</div>`;
-    const b = document.createElement('button');
-    b.className = k === 0 && any ? 'primary' : '';
-    b.textContent = brief.hull === t.hull ? 'Start again from this hull' : 'Start from this hull';
-    b.onclick = () => void startFrom(t.hull);
-    c.appendChild(b);
-    box.appendChild(c);
-  }
-}
 /** What the brief wants on deck (0: nothing asked). */
 function deckNeed(): { crates: number; pots: number } {
   return { crates: brief.jobs.includes('cargo') ? brief.crates : 0, pots: brief.jobs.includes('potting') ? brief.pots : 0 };
@@ -3070,7 +3133,6 @@ async function startFrom(hull: number): Promise<void> {
   const name = `${best.fit.twin ? 'twin ' : ''}${ENGINES[best.fit.engine ?? 0].name}`;
   msg.innerHTML = `<b>Started:</b> a bare ${esc(h)}, ${esc(name)}: ${best.topSpeedKn.toFixed(1)} kn, ${best.rangeNm.toFixed(0)} nm, £${best.price.toLocaleString('en-GB')} (${tried.length} engine fits tried; the cheapest that does the job). Next: shape her hull and wheelhouse, then pin her equipment where you want it (Deck gear).`;
 }
-$('openSaved').onclick = () => goStep('handover');
 
 // The together box opens from the header.
 $('togetherBtn').onclick = () => {
@@ -3622,8 +3684,8 @@ renderer.setAnimationLoop(() => {
   const now = performance.now();
   const dt = (now - frameAt) / 1000;
   frameAt = now;
-  // The brief's paper covers the view: don't draw her underneath it.
-  if (!$('briefPaper').hidden) return;
+  // The hull cards cover the view: don't draw her underneath them.
+  if (!$('hullGallery').hidden) return;
   if (live) stepLive(dt);
   orbit.update();
   // Turned to (or away from) a square-on view: its sketch shows (or goes).
