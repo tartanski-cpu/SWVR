@@ -10,6 +10,53 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The catamaran redrawn for her real weight; a displacement hull's resistance; publishing runs finish (owner)
+
+- **The owner** said fix the catamaran hulls; for the tug, two big engines don't fit a small tug and the displacement speed should be respected where possible; and go ahead with the publishing fix.
+- **Why the catamaran needed redrawing:** the Shipyard chat's step 3 (on `preview/shipyard`) weighs her heavier than her lines floated, and I measured its build. At 12.5 m she weighed 13.7 t on lines for 9.3 t: draught 0.80 m against 0.62, and her wet deck only 0.72 m clear. At 10 m she weighed 10.1 t on lines for 4.8 t, her wet deck **0.41 m** clear. Her engines, house and outfit don't shrink with her, so the small sizes are heavy for their lines.
+- **The new lines** (`designs.ts`, `workCat`): 12.5 x 6.0 m, 0.83 m draught, 14.6 t at the DWL (Cb 0.48, Cp 0.73, Cm 0.65, Cwp 0.82; KM 9.7 m).
+  - **Demihulls:** fuller and deeper, 1.9 m wide at the deck, their centres 4.1 m apart.
+  - **Wet deck and deck:** the wet deck 1.25 m up (10 % of LWL), the deck raised to match (sheer 1.9 m aft, 2.35 m at the bow).
+  - **The wheelhouse** 4.6 m wide in the study.
+  - **How the size was chosen:** measured in the Shipyard preview's own build, she floats on her lines at its weight for her, and her wet deck is clear at every size.
+
+    | Size | Shipyard weight | Draught | Wet deck clear | Twin 280 kW | Twin 400 kW |
+    |---|---|---|---|---|---|
+    | 10 m | 10.9 t | 0.84 m | 0.83 m | **26.6 kn** | (31 kn) |
+    | 12.5 m | 15.0 t | 0.84 m | 1.24 m | 24.9 kn | **29.6 kn** |
+    | 14.7 m | 22.8 t | 0.90 m | 1.75 m | 19.3 kn | 24.7 kn |
+
+    Speeds are the Shipyard's sea trials, gearbox matched.
+  - **Tried and dropped:** a lower wet deck and deck (0.73 m clear at 10 m) was slower at every size; the chines came down with the deck and filled her out. A longer forward waterline gained nothing.
+  - **Still short:** the 14.7 m boat makes 24.7 kn on twin 400 kW, just under 25, because the Shipyard weighs her at 23-24 t. I've asked the Shipyard chat to check its aluminium weight figure against real work cats (a 15 m one is nearer 15-18 t light).
+- **A displacement hull's resistance** (new `vessel/displacementHull.ts`, `displacementResistance(lwl, y)`; settings `CONFIG.displacementHull.resistance` in `src/config/vessels.ts`: formFactor 0.25, waveA 1.0, waveB 6, waveKnee 0.35, waveCap 2.0, asternFactor 3.6).
+  - **What was wrong:** every Shipyard design used the landing craft's planing curve, whose wave resistance levels off at 0.115 of her weight, so enough power drove a heavy displacement hull through the hump.
+  - **The new curve** keeps climbing past hull speed: about 0.1 of her weight at Fn 0.45, 0.2 at 0.5 and 0.5 at 0.6.
+  - **Measured on the Shipyard's boats** (sea trials):
+
+    | Boat | Before | After |
+    |---|---|---|
+    | Tug, twin 750 kW | **18.0 kn** | **10.4 kn** |
+    | Tug, 450 kW | 8.8 kn | 8.5 kn |
+    | Tug, twin 450 kW | 10.9 kn | 9.5 kn |
+    | Tug, twin 400 kW | 10.9 kn | 9.5 kn |
+    | Trawler, 750 kW | 10.5 kn | 10.3 kn |
+    | Trawler, 450 kW | 9.2 kn | 9.3 kn |
+
+    Bollard pull is unchanged.
+  - **Not wired in yet:** the Shipyard chat makes its displacement hulls take it (a line in its build). The owner's other point, that two 750 kW engines don't fit a small tug, is its engine-room check, and I've passed it on.
+- **Publishing** (`.github/workflows/pages.yml`, on the game's branch and on `next`): `cancel-in-progress: false`. A started publish now finishes. With several chats pushing, cancelling the one in progress at every push had held the site back about half an hour. GitHub keeps one waiting run, the newest, which builds every branch as it then is.
+- **Tests:**
+  - `tests/displacementHull.test.ts` (3 new): the twin-750 tug held near Fn 0.5, where the planing curve gave over 3 kn more; a tug's ordinary engine near her hull speed and the trawler at 9.5-12 kn; each step past hull speed costing more.
+  - `tests/hulls/workCat.test.ts` and `catPhysics.test.ts` updated to the new lines: about 15 t, wet deck 10 % of LWL, roll period about 2.2 s, 25 kn and over on twin 280 kW at 10 m and twin 400 kW at 12.5 m, about 24 kn at 14.7 m.
+  - All of `npm test` (1415), the typecheck and the build pass. The Shipyard preview's own tests pass with the new lines too.
+- **Checked:** the viewer in headless Chromium (the study's drawing, and as the game draws her). **Not checked:** the Quest.
+- **Shared changes:**
+  - `src/vessel/displacementHull.ts` (new);
+  - `src/config/vessels.ts` (`CONFIG.displacementHull`);
+  - `.github/workflows/pages.yml` (publishing);
+  - `tests/displacementHull.test.ts` (new).
+
 ### On next: the fast catamaran's lines, two hulls in the physics, her handling (owner approved)
 
 - **The owner** said merge steps 1 and 2 into `next`, which moves the hull study's fast catamaran workboat, the two-hull physics (step 1) and her handling (step 2) to `next` (/SWVR/next/), with the preview-addresses log entry.
