@@ -10,6 +10,33 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The smoother on the A-frame and the other moving gear (done, awaiting owner test)
+
+Owner, Oct 2026, after the deck crane's: "use the smoother on the A-frame and other moving gear too".
+
+- **What's now drawn smoothly between the simulation's ticks** (the deck crane's smoother, `mechanisms/tickSmoother.ts`, `CONFIG.modules.smoothing.tauTicks`):
+  - the trawl **A-frame**'s swing on its rams;
+  - the **net drum** turning and its roll of net;
+  - the **trawl winches** turning and their warp;
+  - the **searchlight**'s and the **fire monitor**'s pan and tilt;
+  - the **outboards**' (and stern drives') swing as you steer;
+  - the **pod drives**' swing.
+- **Left as they were:** the tow winch's drum already turns smoothly, frame by frame. The skiff crane follows the skiff, whose own position is already smoothed. Switches, buttons and the fish hold's boxes don't glide anyway.
+- **The smoother now settles exactly** once a part comes to rest, so gear standing still isn't redrawn every frame.
+- **Cost:** the drawing runs about 30 ms behind the simulation, as the crane does. The trawl's net and codend (drawn by the main game's code) hang from the A-frame as the simulation has it, so at the A-frame's swing rate they can be up to about 1 cm apart while it moves: too small to see.
+- **Checked:**
+  - typecheck and all of `npm test`;
+  - the smoother's test now also checks it settles exactly;
+  - in the game (headless): the stern trawler (A-frame, drum, winches, searchlight) and the pilot boat (pod drives, searchlight, fire monitor) run with the engine started, the helm over, the searchlight swung and the trawl shot, with no errors.
+  - Smoothness itself is for the Quest: headless Chrome draws too slowly to judge it.
+- **Shared changes:** none.
+- **Test steps:**
+  - **VR:**
+    1. The stern trawler: shoot and haul the trawl, and watch the A-frame swing in, the drum and the winches turn.
+    2. Swing the searchlight and the fire monitor on their joysticks.
+    3. Put the wheel hard over on a boat with outboards or pod drives and watch them swing (Engine step's view, or from her stern).
+  - **Desktop:** the same, the joysticks with W A S D after clicking them.
+
 ### The stern trawler's exhaust as the tug's (approved by the owner; on next)
 
 Owner, Oct 2026: "The big fishing trawler should have the same exhaust system as the tug, so coming out of the wheelhouse, and the side water pumping exhaust thing".

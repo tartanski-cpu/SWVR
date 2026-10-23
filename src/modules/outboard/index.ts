@@ -34,6 +34,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import type { ModuleDefinition } from '../../modular/module';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
@@ -256,6 +257,7 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
       const one = new THREE.Vector3(1, 1, 1);
       const up = new THREE.Vector3(0, 1, 0);
       let last = NaN;
+      const swing = new TickSmoother([20]);
       const place = (deg: number) => {
         q.setFromAxisAngle(up, (deg * Math.PI) / 180);
         c.units.forEach((x, i) => mesh.setMatrixAt(i, m.compose(new THREE.Vector3(x, c.mount.y, g.pivotZ), q, one)));
@@ -269,8 +271,9 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
         // (And the water stop for her lazarette, the engine space her oil checks are in.)
         movingParts: [mesh, ...waterStop(hull.engineSpace)],
         controls: [],
-        update: (read) => {
-          const deg = read.num(keys.swing);
+        update: (read, _s, dt) => {
+          // (Their swing drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
+          const deg = swing.update([read.num(keys.swing)], dt)[0];
           if (Math.abs(deg - last) > 0.05) place(deg);
         },
         dispose: () => unit.dispose(),

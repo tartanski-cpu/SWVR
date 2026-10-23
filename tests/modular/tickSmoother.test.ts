@@ -54,6 +54,9 @@ describe('drawing between ticks', () => {
     s.update([5], FRAME);
     for (let i = 0; i < 30; i++) s.update([5], FRAME);
     expect(s.update([5], FRAME)[0]).toBeCloseTo(5, 4);
+    // Settled exactly, so a part at rest isn't redrawn every frame.
+    for (let i = 0; i < 60; i++) s.update([5], FRAME);
+    expect(s.update([5], FRAME)[0]).toBe(5);
     expect(s.update([90], FRAME)[0]).toBe(90);
     s.reset();
     expect(s.update([-40], FRAME)[0]).toBe(-40);
