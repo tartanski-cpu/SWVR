@@ -211,6 +211,9 @@ export interface MenuHost {
   goPlanTable(): void;
   /** Voyage mode: the timber run (voyage/timber.ts): its line, and its buttons (0: sell at the merchant; '' hides one). */
   timberLine(): string;
+  /** Voyage mode: the map's live weather (world/coastWeather.ts), and its source's credit; '' when it's the game's own. */
+  liveWeatherLine(): string;
+  liveWeatherCredit(): string;
   timberButton(i: number): string;
   timberPress(i: number): void;
   /** Regions (debug): put the boat in a region, by id; the region map on the perf panel. */
@@ -358,6 +361,8 @@ export function mainMenu(h: MenuHost): MainMenu {
     { heading: 'Weather' },
     { label: '', buttons: [{ text: weatherPart(0) }] },
     { label: '', buttons: [{ text: weatherPart(1) }] },
+    // Voyage: the real weather at the map, as fetched at the start, with its source's credit.
+    ...(MODE === 'voyage' ? ([{ label: '', buttons: [{ text: () => h.liveWeatherLine() || "The game's own weather (no live weather fetched)" }] }, { label: '', buttons: [{ text: () => h.liveWeatherCredit() }] }] as MenuRow[]) : []),
     {
       label: 'Time of day',
       buttons: [
@@ -680,6 +685,8 @@ export function mainMenu(h: MenuHost): MainMenu {
         { label: 'Debug tab', buttons: [choice('Hidden', false, () => h.debugMenu(), (v) => h.setDebugMenu(v)), choice('Shown', true, () => h.debugMenu(), (v) => h.setDebugMenu(v))] },
         // Credits: the open data a region made from real maps is built from (its licence asks for them).
         ...REGIONS.filter((r) => r.coast).flatMap((r) => [{ heading: `Credits: ${r.name}` }, ...creditLines(r.coast!.pkg.credits).map((t) => ({ heading: t }))]),
+        // Voyage's live weather (world/coastWeather.ts): its source asks to be credited.
+        ...(MODE === 'voyage' ? [{ heading: CONFIG.liveWeather.credit }] : []),
       ],
     },
   ];

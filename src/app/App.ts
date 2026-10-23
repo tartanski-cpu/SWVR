@@ -24,7 +24,10 @@ import { paperColour } from '../render/nightPaper';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
-import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
+import { beaufort, compass8, setLiveWeather, visibilityAt, windVector } from '../environment/weather';
+import { fetchLiveWeather } from '../world/coastWeather';
+import { liveWeatherText } from '../voyage/liveWeather';
+import { voyageMap } from '../world/maps';
 import { gustZone } from '../environment/gusts';
 import { RainView } from '../environment/rainView';
 import { ChartTableView } from '../vessel/view/chartTable';
@@ -730,6 +733,7 @@ export class App {
     this.restoreVoyagePlace();
     this.setupPlanTable();
     this.setupTimber(handoff);
+    this.startLiveWeather();
     // Our own working clothes, as crew who join will see us (net/avatarOutfits.ts).
     this.world.players[this.localPlayerId].look = randomLook();
 
@@ -2387,7 +2391,7 @@ export class App {
         const n = w.now;
         const vis = visibilityAt(env(), this.focus.x, this.focus.z);
         const visText = vis >= 10000 ? 'good' : vis >= 2000 ? 'moderate' : vis >= 1000 ? 'poor' : `fog ${Math.round(vis)} m`;
-        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`;
+        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · ${w.live ? 'live, held' : `next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`}`;
       },
       weatherPreset: () => env().weather?.preset ?? '',
       setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
@@ -3140,6 +3144,8 @@ export class App {
       },
       goPlanTable: () => this.pushEnvIntent('plan', 1, 'goto'),
       timberLine: () => this.timberLine(),
+      liveWeatherLine: () => this.world.environment.weather?.live?.text ?? '',
+      liveWeatherCredit: () => this.world.environment.weather?.live?.credit ?? '',
       timberButton: (i: number) => this.timberButton(i),
       timberPress: (i: number) => this.timberPress(i),
       crewMember: (i: number) => {
@@ -4988,6 +4994,23 @@ export class App {
       const b = berthWithId(m.berthId);
       if (b) this.timberSpecials.push({ x: b.x, z: b.z, label: 'Timber merchant', kind: 'merchant' });
     }
+  }
+
+  /**
+   * Voyage: the map's real weather now (world/coastWeather.ts, Open-Meteo), asked once as the
+   * session starts, alone or hosting (crew get the host's through the snapshots). It comes in
+   * held for the session, the sea at the marine model's height where there is one. Nothing
+   * back within the timeout (offline, the service down): the game's own weather, as ever.
+   */
+  private startLiveWeather(): void {
+    const map = MODE === 'voyage' && VOYAGE_MAP_ID ? voyageMap(VOYAGE_MAP_ID) : undefined;
+    if (!map?.weatherAt || this.client) return;
+    void fetchLiveWeather(map.weatherAt).then((live) => {
+      if (!live || this.client || !this.world.environment.weather) return;
+      const text = liveWeatherText(map.name, live);
+      setLiveWeather(this.world.environment, { wind: live.wind, windFrom: live.windFrom, visibility: live.visibility, rain: live.rain, cloud: live.cloud }, live.preset, this.world.time, { text, credit: CONFIG.liveWeather.credit }, live.sea?.scale);
+      this.overlay.notify(text, 8);
+    });
   }
 
   /** Alone, or hosting with nobody else aboard: the timber camp takes one player at a time (v1). */
