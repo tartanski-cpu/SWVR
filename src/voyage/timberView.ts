@@ -4,7 +4,7 @@
  *
  * Cheap on the Quest: every log on every barge is one instanced mesh (one draw call), the
  * buoy one small merged mesh. The logs lie fore and aft, side by side across her deck,
- * `logsPerTier` to a tier (three tiers at 10, 20, 30), and follow her as she rides the sea.
+ * `logsPerTier` to a tier (tiers at 10, 20, 30, 40), and follow her as she rides the sea.
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -13,8 +13,8 @@ import type { WorldState } from '../core/world';
 import { hotspotAt } from './timber';
 import type { MetaverseSite } from './metaverse';
 
-/** Logs drawn at most (a few barges' worth). */
-const MAX_LOGS = 4 * 30;
+/** Logs drawn at most (four full barges' worth). */
+const MAX_LOGS = 4 * CONFIG.voyage.timber.maxLogs;
 
 export class TimberView {
   readonly root = new THREE.Group();

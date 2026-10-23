@@ -35,7 +35,7 @@ State crosses as one JSON envelope, base64url-encoded (no padding) from its comp
 | `return` | Workboat | Absolute URL Timber navigates back to, with `mv` appended (`&mv=...`; the URL already has a query). |
 | `boat`, `pos`, `time` | Workboat | Echoed back by Timber. Timber may use `time.hour` (0-24) for its own lighting. `pos` is WGS84 lat/lon and heading (degrees true). |
 | `status` | Timber | `none` or `barge_ready`. |
-| `cargo.logs` | Timber | Number of logs on the barge when `status` is `barge_ready`. Workboat carries up to 30 on one barge. |
+| `cargo.logs` | Timber | Number of logs on the barge when `status` is `barge_ready`. Workboat carries up to 40 on one barge; more is capped at 40. |
 
 ## Rules
 
@@ -58,6 +58,13 @@ Coordinates are real-world WGS84, so the coast pipeline places them the same in 
 - The barge spawn is in 4-5 m of water, about 70 m off the beach and 50 m east of the hotspot's centre, clear of where you'd anchor.
 
 Adding a second site later means adding one row here and one scene in Timber. In Workboat World it's one entry in `src/voyage/metaverse.ts` `SITES`, plus its map's geography in `MAP_GEO` if it's on a new map.
+
+## Testing either side alone
+
+Workboat World publishes a page for making and reading envelopes: `tools/mv-encode.html`, at https://tartanski-cpu.github.io/SWVR/tools/mv-encode.html (and under /next/).
+- **Make the outbound link:** a Timber address with a `from: workboat` envelope, to test Timber's linked mode.
+- **Make the return link:** a Workboat World address with a `from: timber` envelope (status, logs). Its tick-box first issues the id in that browser, so Workboat World accepts the return once. Opening it a second time spawns nothing.
+- **Read an envelope:** paste an `mv` value or a whole address.
 
 ## In Workboat World (for reference)
 
