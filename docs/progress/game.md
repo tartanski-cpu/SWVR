@@ -10,6 +10,14 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The timber run: back into VR on the way back (owner request, 23 Oct 2026)
+
+- `src/app/xrSession.ts`: on `sessiongranted` (the browser handing a VR session across from the page before: WebXR navigation), the Enter VR button presses itself after `CONFIG.xr.grantedEnterDelayMs` (600 ms), if not already in VR. three's `VRButton` did that only when the event came before the button was made. The wait keeps the two from both pressing it, as a second press would end the session.
+- Where the browser has no WebXR navigation, it's unchanged. three's button uses `offerSession` where the browser has it, so the Quest browser offers "Enter VR" in its own interface, one tap.
+- The contract (`docs/metaverse-contract.md`) now asks the same of both games: don't end VR before navigating.
+- The Timber chat has its brief: sections 2 and 4 of the spec, the owner's no-prompt change, the VR notes and the test links page.
+- Checked: typecheck, tests. Not checked: VR. Headless Chromium has no headset, and WebXR navigation needs one.
+
 ### The timber run: ashore without a prompt (owner request, 23 Oct 2026)
 
 Owner: "I want the transition to be seamless. So if you anchor there in VR or in desktop, it should load into the Timber game. Whether you want it to or not." The rest of the message was cut off; taken as "no prompt".
