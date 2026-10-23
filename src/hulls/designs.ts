@@ -30,9 +30,9 @@
  *     about 2.4, hard chine, a high square push bow with a rubber push fender, the bottom
  *     sweeping up to it; low aft deck, house forward of amidships, twin screws.
  *   - Fast catamaran workboat (owner, Oct 2026: a wide working platform for cranes, the
- *     house forward or aft, stiff in roll, 25-28 kn): ~12.5 x 5.7 m, slim semi-planing
- *     hard-chine demihulls (L/b about 8 at the waterline), wet deck ~0.9 m up, light
- *     aluminium build (displacement/length kept low for the speed).
+ *     house forward or aft, stiff in roll, 25-28 kn): ~12.5 x 6.0 m, semi-planing hard-chine
+ *     demihulls, aluminium; drawn to float on her lines at the Shipyard's weight for her
+ *     (~15 t), the wet deck 1.25 m up so it stays well clear at every size.
  *   - Stern trawler (owner, Oct 2026, from a 24 m trawler's general arrangement: "so we can
  *     eventually build something like this"): ~20 x 7 m, L/B about 2.9, B/T about 2.5; a
  *     hard-chine steel hull (the game's stations take one chine), deep with a drag aft (more draught aft than forward) for a big
@@ -756,29 +756,31 @@ export const DESIGNS: HullDesign[] = [
   {
     id: 'workCat',
     name: 'Fast catamaran workboat',
-    blurb: 'Fast aluminium workboat catamaran: two slim hard-chine demihulls (length/beam about 8 at the waterline), semi-planing with a flat run aft and fine raked bows, under a wide flat bridge deck with a high wet deck. A wide working deck for cranes and cargo, very stiff in roll; the wheelhouse forward here (it can go aft). Light for her size (9 t), to make 25 to 28 kn. 12.5 x 5.6 m, draught 0.62 m.',
+    blurb: 'Fast aluminium workboat catamaran: two hard-chine demihulls, semi-planing with a flat run aft and fine raked bows, under a wide flat bridge deck with a high wet deck. A wide working deck for cranes and cargo, very stiff in roll; the wheelhouse forward here (it can go aft). Drawn to float on her lines at the Shipyard\'s weight for her (about 15 t), her wet deck well clear of the water at every size; 25 to 30 kn on twin engines. 12.5 x 6.0 m, draught 0.83 m.',
     length: 12.5,
-    // Each demihull: 1.6 m wide at the deck, its centre 2.0 m off hers (5.6 m overall).
-    catamaran: { spacing: 4.0, tunnel: 0.9 },
+    // Each demihull: 1.9 m wide at the deck, its centre 2.05 m off hers (6.0 m overall). The wet
+    // deck 1.25 m up: at the Shipyard's smallest (10 m, heavier for her size: her engines, house
+    // and outfit don't shrink with her) it's still over 0.8 m clear of the water.
+    catamaran: { spacing: 4.1, tunnel: 1.25 },
     halfBeam: [
-      [0, 0.8],
-      [0.4, 0.82],
-      [0.7, 0.76],
-      [0.9, 0.45],
-      [1, 0.06],
+      [0, 0.92],
+      [0.4, 0.95],
+      [0.7, 0.88],
+      [0.9, 0.55],
+      [1, 0.07],
     ],
     sheer: [
-      [0, 1.55],
-      [0.5, 1.6],
-      [1, 2.0],
+      [0, 1.9],
+      [0.5, 1.95],
+      [1, 2.35],
     ],
     // A straight, nearly level run aft for planing lift; the forefoot rising to a fine bow.
     keel: [
-      [0, -0.52],
-      [0.4, -0.62],
-      [0.7, -0.58],
-      [0.9, -0.25],
-      [1, 0.9],
+      [0, -0.68],
+      [0.4, -0.83],
+      [0.7, -0.79],
+      [0.9, -0.37],
+      [1, 1.0],
     ],
     rake: [
       [0, 0.05],
@@ -806,8 +808,8 @@ export const DESIGNS: HullDesign[] = [
       [0, 0.6],
       [1, 0.6],
     ],
-    // The wheelhouse forward of amidships, the working deck aft (the Shipyard will let it go aft).
-    wheelhouse: { z0: -0.5, z1: -3.6, halfWidth: 2.1, height: 2.2, frontRake: 0.35, sill: 1.0, head: 1.9, panesFront: 4, panesSide: 3, panesBack: 2, overhang: 0.25 },
+    // The wheelhouse forward of amidships, the working deck aft (the Shipyard lets it go aft).
+    wheelhouse: { z0: -0.5, z1: -3.6, halfWidth: 2.3, height: 2.2, frontRake: 0.35, sill: 1.0, head: 1.9, panesFront: 4, panesSide: 3, panesBack: 2, overhang: 0.25 },
     colours: { topsides: 0xd9622b, bulwark: 0xd9622b, bottom: 0x2a2f33, boot: 0xeeeeea, house: 0xf2f2ee, deck: 0x5e6660, roof: 0xd3d6d8 },
   },
 ];

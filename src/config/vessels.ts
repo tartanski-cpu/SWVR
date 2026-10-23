@@ -1794,6 +1794,19 @@ export const VESSELS_CONFIG = {
    *               a real cat's (about 2 s at 12 m).
    *   rollGyradius  her rigid-body roll radius of gyration, as a fraction of her overall beam.
    */
+  /**
+   * A displacement hull's calm-water resistance (owner, Oct 2026: "respect the displacement
+   * speed where possible"; vessel/physics/propulsion.ts, the same terms as above). A heavy,
+   * full hull (a tug, a trawler) can't climb onto the plane: past her hull speed (Fn about 0.4)
+   * the wave she makes holds her back ever harder, a wall more power barely moves her through.
+   * So no cap that levels it off (`waveCap` far above anything reached, unlike a planing hull's
+   * 0.115 of her weight) and a steep rise past `waveKnee`: about 0.1 of her weight at Fn 0.45,
+   * 0.2 at 0.5, 0.5 at 0.6. A small tug's top speed stays near 10 kn whatever she's given.
+   */
+  displacementHull: {
+    resistance: { formFactor: 0.25, waveA: 1.0, waveB: 6, waveKnee: 0.35, waveCap: 2.0, asternFactor: 3.6 },
+  },
+
   catamaran: {
     resistance: { formFactor: 0.25, waveA: 0.65, waveB: 0.55, waveKnee: 0.35, waveCap: 0.09, asternFactor: 3.0 },
     heaveAddedMass: 0.8,

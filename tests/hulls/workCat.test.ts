@@ -16,23 +16,24 @@ const sized = (k: number): HullDesign => {
 };
 
 describe('the fast catamaran workboat (hull study)', () => {
-  it('is a catamaran: two slim demihulls (L/b about 8 at the waterline), a wide deck, a high wet deck', () => {
+  it('is a catamaran: two slim demihulls (L/b over 7 at the waterline), a wide deck, a high wet deck', () => {
     expect(base.catamaran).toBeDefined();
     const h = hydrostatics(loft(base));
     const demihullB = h.beamWl - base.catamaran!.spacing;
-    expect(h.lwl / demihullB).toBeGreaterThan(7.5);
+    expect(h.lwl / demihullB).toBeGreaterThan(7);
     expect(h.beam).toBeGreaterThan(5.4);
     expect(h.lwl / h.beam).toBeLessThan(2.3);
-    // The wet deck well clear of the water: over 7 % of her waterline length.
-    expect(base.catamaran!.tunnel / h.lwl).toBeGreaterThan(0.07);
+    // The wet deck well clear of the water: 10 % of her waterline length, so it stays over 7 %
+    // even at the Shipyard's smallest, which sits deeper for her size.
+    expect(base.catamaran!.tunnel / h.lwl).toBeGreaterThan(0.1);
   });
 
-  it('light for her size, so 25-28 kn is in reach: about 9 t at standard size, 4.5 to 15 t across the sizes', () => {
+  it('drawn to float on her lines at the Shipyard\'s weight for her: about 15 t at standard size, 6.5 to 26 t across the sizes', () => {
     const [small, std, large] = [0.8, 1, 1.175].map((k) => hydrostatics(loft(sized(k))));
-    expect(std.displacementT).toBeGreaterThan(8);
-    expect(std.displacementT).toBeLessThan(10);
-    expect(small.displacementT).toBeGreaterThan(4);
-    expect(large.displacementT).toBeLessThan(16);
+    expect(std.displacementT).toBeGreaterThan(13.5);
+    expect(std.displacementT).toBeLessThan(16);
+    expect(small.displacementT).toBeGreaterThan(6.5);
+    expect(large.displacementT).toBeLessThan(26);
     // A planing hull's buoyancy aft: the LCB well aft of amidships (z + is aft).
     expect(std.lcb / std.lwl).toBeGreaterThan(0.08);
   });

@@ -58,6 +58,13 @@ export interface WeatherState {
   forecastAt: number;
   /** Katabatic gusts (gusts.ts): the one blowing, and when the next falls. Absent until the host first steps them. */
   gust?: GustState;
+  /**
+   * Live weather (a Voyage map's real conditions, world/coastWeather.ts; setLiveWeather): the
+   * sea held at the marine model's (its sea scale) instead of following the wind, and the
+   * line telling the players what it is, with the service's credit. Absent: the game's own.
+   */
+  seaHeld?: number;
+  live?: { text: string; credit: string };
 }
 
 const TWO_PI = Math.PI * 2;
@@ -117,6 +124,9 @@ export function seaForWind(wind: number): number {
 
 /** Change to a preset now (the director, or a debug force); `instant` jumps the values too. */
 export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, time: number, instant = false, env?: EnvironmentState, profile?: WeatherProfile): void {
+  // The game's own weather again (a debug force on a live-weather Voyage): the sea follows the wind.
+  delete w.seaHeld;
+  delete w.live;
   w.seq += 3;
   w.preset = preset;
   w.target = targetFor(preset, w.seq);
@@ -139,6 +149,29 @@ export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, tim
   }
 }
 
+/**
+ * Live weather (a Voyage map's real conditions, fetched as the session starts; app/App.ts):
+ * the values and the nearest preset straight in, held for the session (`fixed`: no director),
+ * and the sea at the marine model's height where it gave one (`seaHeld`), else as the wind
+ * raises it. The waves rebuilt for it at once.
+ */
+export function setLiveWeather(env: EnvironmentState, values: WeatherValues, preset: WeatherPresetName, time: number, live: { text: string; credit: string }, seaScale?: number): void {
+  const w = env.weather;
+  if (!w) return;
+  w.seq += 3;
+  w.preset = preset;
+  w.now = { ...values };
+  w.target = { ...values };
+  w.fixed = true;
+  w.live = live;
+  if (seaScale !== undefined) w.seaHeld = clamp(seaScale, 0, CONFIG.ocean.maxSeaScale);
+  else delete w.seaHeld;
+  // A fresh shipping forecast shortly, for the real conditions.
+  w.forecastAt = Math.min(w.forecastAt, time + CONFIG.weather.forecast.afterChange / w.speed);
+  env.seaScale = w.seaHeld ?? seaForWind(values.wind);
+  rebuildWaves(env, time);
+}
+
 /** Advance the weather by dt (host). */
 /** @param profile the weather profile of the region the home boat is in (RegionDef.weather), if any */
 export function stepWeather(env: EnvironmentState, time: number, dt: number, profile?: WeatherProfile): void {
@@ -158,8 +191,8 @@ export function stepWeather(env: EnvironmentState, time: number, dt: number, pro
   n.visibility = Math.exp(Math.log(n.visibility) + (Math.log(t.visibility) - Math.log(n.visibility)) * k);
   const dDir = ((t.windFrom - n.windFrom + 540) % 360) - 180;
   n.windFrom = wrap(n.windFrom + dDir * k, 360);
-  // The sea follows the wind, building faster than it settles.
-  const seaTarget = seaForWind(n.wind);
+  // The sea follows the wind, building faster than it settles; held where live weather gave it.
+  const seaTarget = w.seaHeld ?? seaForWind(n.wind);
   const tau = seaTarget > env.seaScale ? c.seaBuild : c.seaDecay;
   env.seaScale += (seaTarget - env.seaScale) * (1 - Math.exp((-dt * w.speed) / tau));
   // Rebuild the wave components as soon as the sea has changed by a hair (1 part in 10^4:

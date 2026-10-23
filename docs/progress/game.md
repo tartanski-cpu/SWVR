@@ -10,6 +10,39 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Everything on next goes to the live game (owner: "approved", 23 Oct 2026)
+
+- The test build as of the afternoon of 23 October, every chat's approved work on `next`, merged into the dev branch: https://tartanski-cpu.github.io/SWVR/.
+- The release note by theme is `docs/RELEASE_NOTES_2026-10-23.md`, and the README's status line points to it.
+
+### Live weather on the Voyage maps, applied (owner request via the map chat, 23 Oct 2026)
+
+The owner asked the map chat for "real-time weather in those locations ... every time you start a game session". The map side, the fetch (`src/world/coastWeather.ts`, Open-Meteo: free, no key) and each map's `weatherAt`, came over from `preview/map` onto `next` at the owner's go-ahead. This is the game side.
+
+- **At the start of a Voyage** (alone or hosting, once a page; crew get the host's through the snapshots): `fetchLiveWeather(voyageMap(id).weatherAt)` (`App.startLiveWeather`).
+- **Applied:** `setLiveWeather` (`environment/weather.ts`) puts the wind, its direction, visibility, rain and cloud in at once, with the nearest preset, held for the session (`fixed`: no director).
+  - The sea is at the marine model's height where it gave one (`WeatherState.seaHeld`, the sea scale), and stays there instead of following the wind, which would drag it back to the wind's sea in minutes. With no marine sea, it's the sea the wind raises.
+  - A debug preset gives the game's own weather back.
+- **Told:** a notice as it comes in, "Live weather, Oban and Lorn 15:45 GMT+1: wind north-west 10 kn, gusts 18, overcast, sea 0.5 m" (`voyage/liveWeather.ts`), kept as `WeatherState.live` so crew see it too.
+  - The Voyage tab has it under the weather lines, with Open-Meteo's credit. The weather line says "live, held" in place of the next change.
+  - The credit is also with the map credits at the menu's foot, as Open-Meteo's terms ask.
+- **Nothing back within 8 s** (offline, the service down): no change, the game's own weather as before.
+- **The game's first call to an outside service** (free, no key), made by the players' browsers as a Voyage starts.
+- Tests: `tests/liveWeatherApplied.test.ts`: held for ten minutes of sim with the sea at the marine height, not the wind's; no marine sea gives the wind's; a debug preset releases it; the words.
+- Checked in headless Chromium: the page asked Open-Meteo for Oban. The answers were Open-Meteo's real ones, fetched from the command line, since this sandbox's headless browser can't reach the service itself; Open-Meteo allows any site to call it. The game came up overcast, wind 5.3 m/s from 328°, sea 0.5 m held, with the notice (screenshot). Not checked: VR; a real browser's own fetch.
+
+**Shared changes:**
+- `src/environment/weather.ts`: `setLiveWeather`, `seaHeld`, `live`.
+- `src/ui/mainMenu.ts`: the two Voyage rows and the credit.
+
+### The timber run: back into VR on the way back (owner request, 23 Oct 2026)
+
+- `src/app/xrSession.ts`: on `sessiongranted` (the browser handing a VR session across from the page before: WebXR navigation), the Enter VR button presses itself after `CONFIG.xr.grantedEnterDelayMs` (600 ms), if not already in VR. three's `VRButton` did that only when the event came before the button was made. The wait keeps the two from both pressing it, as a second press would end the session.
+- Where the browser has no WebXR navigation, it's unchanged. three's button uses `offerSession` where the browser has it, so the Quest browser offers "Enter VR" in its own interface, one tap.
+- The contract (`docs/metaverse-contract.md`) now asks the same of both games: don't end VR before navigating.
+- The Timber chat has its brief: sections 2 and 4 of the spec, the owner's no-prompt change, the VR notes and the test links page.
+- Checked: typecheck, tests. Not checked: VR. Headless Chromium has no headset, and WebXR navigation needs one.
+
 ### The timber run: ashore without a prompt (owner request, 23 Oct 2026)
 
 Owner: "I want the transition to be seamless. So if you anchor there in VR or in desktop, it should load into the Timber game. Whether you want it to or not." The rest of the message was cut off; taken as "no prompt".
