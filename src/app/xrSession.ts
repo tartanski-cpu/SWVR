@@ -3,8 +3,9 @@ import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { CONFIG } from '../config';
 
 /**
- * WebXR setup: 'local-floor' space, framebuffer scale, the Enter VR button, and on session
- * start foveation plus the preferred refresh rate (Quest 3: 72 / 90 / 120 Hz).
+ * WebXR setup: 'local-floor' space, framebuffer scale, the Enter VR button (and straight into
+ * VR when the browser carries a session over from the page before), and on session start
+ * foveation plus the preferred refresh rate (Quest 3: 72 / 90 / 120 Hz).
  */
 export function setupXR(renderer: THREE.WebGLRenderer, camera: THREE.Camera): void {
   const xr = renderer.xr;
@@ -12,7 +13,18 @@ export function setupXR(renderer: THREE.WebGLRenderer, camera: THREE.Camera): vo
   xr.setReferenceSpaceType('local-floor');
   // Must be set before the session starts; it can't change mid-session.
   xr.setFramebufferScaleFactor(CONFIG.xr.framebufferScale);
-  document.body.appendChild(VRButton.createButton(renderer));
+  const button = VRButton.createButton(renderer);
+  document.body.appendChild(button);
+  // Back in VR without a press, coming from another page that was in VR (the timber camp,
+  // voyage/metaverse.ts), where the browser hands the session across (WebXR navigation: a
+  // `sessiongranted` event). The button presses itself if that came before it was made; this
+  // catches one that comes after. A moment's wait first, so the two never both press it (a
+  // second press would end the session the first one started).
+  navigator.xr?.addEventListener('sessiongranted', () => {
+    setTimeout(() => {
+      if (!xr.isPresenting && !xr.getSession()) button.click();
+    }, CONFIG.xr.grantedEnterDelayMs);
+  });
 
   xr.addEventListener('sessionstart', () => {
     xr.setFoveation(CONFIG.xr.foveation);

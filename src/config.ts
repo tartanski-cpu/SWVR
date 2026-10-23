@@ -166,6 +166,12 @@ export const CONFIG = {
     foveation: 0.5,
     /** Requested refresh rate if the headset supports it (Quest 3: 72 / 90 / 120). */
     targetFrameRate: 90,
+    /**
+     * Coming from another page in VR (the timber camp), a session the browser hands across
+     * (`sessiongranted`, app/xrSession.ts) is entered after this wait (ms), if three's button
+     * hasn't already: so the two never both press it.
+     */
+    grantedEnterDelayMs: 600,
   },
 
   environment: {
