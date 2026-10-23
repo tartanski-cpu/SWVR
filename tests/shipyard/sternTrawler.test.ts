@@ -48,6 +48,10 @@ describe('the stern trawler: a sixth hull type', () => {
     const h = uprightHydrostatics(VESSEL_DEFS.design);
     expect(Math.abs(h.sinkage)).toBeLessThan(0.03);
     for (const id of ['deck.a-frame', 'deck.net-drum', 'deck.trawl-winches', 'hold.fish']) expect(has(id), id).toBe(true);
+    // Her exhaust as the tug's (owner, Oct 2026): a stack up through the wheelhouse, her cooling water out of her side.
+    expect(has('fitting.exhaust-stack')).toBe(true);
+    expect(VESSEL_DEFS.design.exhaust?.stack).toBe(true);
+    expect(VESSEL_DEFS.design.exhaust?.water?.length).toBe(1);
   });
 
   it('every length on her slider builds without warnings', () => {

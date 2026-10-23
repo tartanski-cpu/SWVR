@@ -10,6 +10,25 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The stern trawler's exhaust as the tug's (done, awaiting owner test)
+
+Owner, Oct 2026: "The big fishing trawler should have the same exhaust system as the tug, so coming out of the wheelhouse, and the side water pumping exhaust thing".
+
+- **What she gets:** the tug's dry exhaust, the existing module `fitting.exhaust-stack`:
+  - a stack per engine up through the wheelhouse's aft corner (starboard; a twin's second to port), well over the roof, raked aft or straight;
+  - the smoke out of its top;
+  - her cooling water spitting from a hole in her side near the waterline, abreast of the engine.
+  - On the Engine step, the **Exhaust stacks** choice (raked / straight) now shows for her too.
+- **How:** the stacks were switched on for the tug's hull type only. They now go with a hull-type flag, `exhaustStacks` (Shipyard catalogue), set on the small tug and the stern trawler. Nothing else changes: the stack's sizes are the tug's (`CONFIG.shipyard.exhaustStack`).
+- **Checked:**
+  - typecheck and all of `npm test`;
+  - `tests/shipyard/sternTrawler.test.ts` now checks the stack and the water outlet;
+  - she builds with them at every length, single or twin, raked or straight, with no new warnings;
+  - in the game (headless): the stack through her wheelhouse roof with its smoke, and the outlet hole in her side.
+- **Shared changes:** none outside the Shipyard. **In the Shipyard's files** (this chat's change, noted in its log too): `src/shipyard/parts/catalog.ts` (the flag, on the tug and the stern trawler), `parts/hullDef.ts` (the stacks go with the flag), `page.ts` (the Exhaust stacks choice shows for any hull type with them).
+- **Test steps:**
+  - **Desktop:** Shipyard → Stern trawler → Engine step: the Exhaust stacks choice. Then into the game: start her engine and look at the wheelhouse roof (the stack and its smoke) and her starboard side abreast of the engine room (the cooling water).
+  - **VR:** the same, from her deck and from the quay or a boat alongside.
 
 ### The deck crane drawn smoothly between ticks (done, awaiting owner test)
 
