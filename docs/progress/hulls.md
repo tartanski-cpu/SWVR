@@ -10,6 +10,11 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### On next: the fast catamaran's lines, two hulls in the physics, her handling (owner approved)
+
+- **The owner** said merge steps 1 and 2 into `next`, which moves the hull study's fast catamaran workboat, the two-hull physics (step 1) and her handling (step 2) to `next` (/SWVR/next/), with the preview-addresses log entry.
+- `origin/next` was merged in first, and all of `npm test`, the typecheck and the build pass. Step 3 (the Shipyard hull type) is the Shipyard chat's: what it needs is in the step 2 entry below.
+
 ### A catamaran's handling: resistance, roll inertia and damping, no banking (owner; step 2 of 3)
 
 - **The owner** said go ahead with step 2, the fast cat's handling in the shared vessel physics.
