@@ -340,6 +340,20 @@ function newLine(world: WorldState, key: string, boatId: EntityId): TowLine {
   return line;
 }
 
+/**
+ * Make this boat's towline fast to a vessel at once, from wherever it lies within the tow
+ * winch's longest line: the barge the timber camp hands over (voyage/timber.ts), already on
+ * the line as you come back aboard. False if she has a line out already, or it's too far.
+ */
+export function makeFastNow(world: WorldState, boatId: EntityId, targetId: EntityId): boolean {
+  const lines = linesOf(world);
+  const key = vesselKey(targetId);
+  if (!world.vessels[boatId] || !world.vessels[targetId] || lines[boatId]) return false;
+  if (towReach(world, key, boatId) > CONFIG.tow.winch.maxLength - CONFIG.tow.winch.makeFastSlack) return false;
+  lines[boatId] = newLine(world, key, boatId);
+  return true;
+}
+
 /** How much line is out now (m): as made fast, or as the tow winch has left it. */
 export function lineLength(line: TowLine): number {
   return line.length ?? lineFor(line.target).length;

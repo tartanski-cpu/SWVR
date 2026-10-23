@@ -10,6 +10,54 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The timber run: Workboat World × Timber handoff (owner's spec, 23 Oct 2026)
+
+The owner's spec: in Voyage, anchoring in a marked bay hands the player to the Timber game. Delivering logs there spawns a barge, and coming back to the boat brings it as towed cargo to sell. The loop repeats. The two games stay separate apps and only meet through the address (`docs/metaverse-contract.md`, the shared contract, filled in for the first site).
+
+- **The contract** (`src/voyage/metaverse.ts`): the envelope (`mv`, base64url of its JSON) built, read and checked.
+  - Handoff ids are issued on the way out and consumed once on the way back (`swvr.mv.issued` / `swvr.mv.consumed`).
+  - The site registry: `loch-timber-1`, Ardantrive, Kerrera. Its beach and barge spawn were picked from the Oban map's ground; the Timber URL is https://tartanski-cpu.github.io/BigTImberVR/.
+  - Real lat/lon to the map's metres by the coast pipeline's own projection (the map's request box and its region's offset, `MAP_GEO`). A test checks both against the pipeline's request and the region file.
+- **The hotspot** (`voyage/timber.ts HotspotWatch`): anchor set, under 0.5 kn, inside the 60 m radius, held 3 s, then the prompt. Not now holds until she leaves the radius. Nothing happens without Go.
+  - Desktop: Enter (`KEYS.timber`) and a line above the helm prompt.
+  - VR: the Voyage tab's **Timber** row, plus a notice on the wrist.
+  - Offered only when playing alone, or hosting with nobody else aboard.
+- **Out:** the voyage is saved (now with her anchor: `VoyagePlace.anchor`, where it lies and the chain out, so she's back at anchor, not adrift). An id is issued, the envelope is built with the return address (one-off parameters like `start` removed), the screen fades over 1 s (`fadeS`), XR is ended, and the page goes to Timber.
+- **Back:** the envelope is taken off the address before anything else is placed, then her place is restored. With `barge_ready`, a log barge is spawned at the site's spawn point (or `bargeOffM` toward it from the boat if the spawn is out of the line's reach) and made fast on her towline (`tow.ts makeFastNow`). Then the screen fades in.
+- **The log barge:** the towable work barge (9 m), with `world.timber.barges[id].logs`. The logs are drawn as one instanced mesh, 10 to a tier (`timberView.ts`), and weigh on her as payload (`logKg` 170 each, `cargo.ts payloadOf`): a full 30 is 5.1 t more on her 10.5 t, about 0.2 m deeper. Towed, cast off and made fast like any tow. The barges are saved with the voyage (`swvr.voyage.barges.<map>`), the towed one on the line again.
+- **The sale:** `CONFIG.voyage.timber.merchants`, the Oban timber merchant at the North Pier berth. With the barge within `sellRangeM` (15 m) of its quay and the boat under `sellMaxSpeedKn`, the sale is offered: logs × `pricePerLog` (£12; a full barge £360). Sold, the barge is gone and the money is in the account. Voyage now keeps its account (`swvr.voyage.money`).
+- **On the chart:** the camp's anchorage (a dashed ring and an anchor) and the merchant (a square), via `ChartPlotter.specials`. In the world: a yellow buoy with a brown band in the bay.
+- Config: `CONFIG.voyage.timber` (`holdS`, `maxSpeedKn`, `keepIds`, `fadeS`, `maxLogs`, `logsPerTier`, `logKg`, `logLength`, `logDiameter`, `bargeOffM`, `merchants`, `pricePerLog`, `sellRangeM`, `sellMaxSpeedKn`, `bargeHalfLengthM`).
+- Tests: `tests/metaverse.test.ts`:
+  - the envelope round trip and malformed input;
+  - the address stripped;
+  - ids consumed once;
+  - the geography against the pipeline;
+  - the hotspot and the spawn in water on the real ground;
+  - the prompt's rules;
+  - the barge back on the line, weighted, and sold;
+  - the save and restore.
+  
+  Also `tests/voyagePlace.test.ts` (anchored: saved, set again, still holding a minute on).
+- Checked in headless Chromium:
+  - anchored in the bay, the prompt came up and Enter went to the Timber address with the right envelope;
+  - coming back with `barge_ready` and 20 logs, she's at anchor where she was, with the barge on the line (screenshot);
+  - a refresh made no second barge;
+  - at Oban's quay the sale was offered and Enter paid £240, saved;
+  - the camp shows on the chartplotter.
+
+  Not checked: in VR; the real Timber game's side.
+- Not done, as the spec leaves out of v1: multiplayer handoff, barge damage, logs lost in weather. Also not done: a world-space sign or physical control in VR for the prompt (the spec's "physical control or gaze-and-pinch"); VR uses the menu's Timber row for now.
+
+**Shared changes:**
+- `src/core/world.ts`: `WorldState.timber`.
+- `src/cargo/cargo.ts`: `payloadOf` adds the logs.
+- `src/tow/tow.ts`: `makeFastNow`.
+- `src/career/career.ts`: `post` exported.
+- `src/nav/chartPlotter.ts`: `specials`.
+- `src/ui/helmPrompt.ts`: its height from the bottom.
+- `src/core/keybindings.ts`: `timber` on Enter.
+
 ### The code organised by area, so the chats can work side by side (owner request, 23 Oct 2026)
 
 Owner: "Is there a better way to organise the code so that the main game, the shipyard, the modules, and the map are independent from each other, and that I can have agents working on each one separately, and they're not having to merge and test across everything?"

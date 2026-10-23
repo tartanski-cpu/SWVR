@@ -209,6 +209,10 @@ export interface MenuHost {
   /** Voyage mode: the plan's next point ("Next: Stop 2: Rothesay, 3.1 nm"), and put me ashore by the planning table. */
   planLine(): string;
   goPlanTable(): void;
+  /** Voyage mode: the timber run (voyage/timber.ts): its line, and its two buttons (0: go ashore or sell, 1: not now; '' hides one). */
+  timberLine(): string;
+  timberButton(i: number): string;
+  timberPress(i: number): void;
   /** Regions (debug): put the boat in a region, by id; the region map on the perf panel. */
   teleportToRegion(id: string): void;
   regionMap(): boolean;
@@ -341,6 +345,10 @@ export function mainMenu(h: MenuHost): MainMenu {
   const voyage: MenuRow[] = [
     // The crew's plan from the planning table on the start quay (voyage/planTable.ts).
     ...(MODE === 'voyage' ? ([{ heading: 'Voyage plan' }, { label: '', buttons: [{ text: () => h.planLine(), weight: 2.6 }, { text: 'Go to the table', press: () => h.goPlanTable() }] }] as MenuRow[]) : []),
+    // The timber run: anchored off the camp, go ashore; at the merchant's quay, sell the logs.
+    ...(MODE === 'voyage'
+      ? ([{ label: 'Timber', buttons: [{ text: () => h.timberLine(), weight: 2.4 }, { text: () => h.timberButton(0), press: () => h.timberPress(0) }, { text: () => h.timberButton(1), press: () => h.timberPress(1) }] }] as MenuRow[])
+      : []),
     { heading: 'Job' },
     { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
     { label: '', buttons: [{ text: () => h.runStatus() }] },
