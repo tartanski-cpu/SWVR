@@ -93,7 +93,7 @@ export const DESIGN_VERSION = 32;
  * How many hull types there are (build.ts DESIGN_HULLS). The code's first 16 characters
  * hold the first four; the rest ride in its extension (MORE_HULLS, version 16).
  */
-export const HULL_TYPES = 6;
+export const HULL_TYPES = 7;
 /** Hull types the first 16 characters hold. */
 const BASE_HULLS = 4;
 /**
@@ -288,6 +288,14 @@ export interface ShipDesign extends Record<FurnitureKey, number>, Record<Console
    * walked. Only with a deckhouse. Not in the short code: she travels as a link or file.
    */
   dhWalk: number;
+  /**
+   * The deckhouse run on aft of the wheelhouse (owner, Oct 2026: on the stern trawler, a deck
+   * over the working deck behind the bridge): SCALES.dhAft m beyond its aft wall (0: flush with
+   * it, as before). Its top is walked, the wheelhouse's aft door opening onto it, with a ladder
+   * down its aft face to the deck. Only with a deckhouse wider than the house's front. Not in
+   * the code.
+   */
+  dhAft: number;
   /**
    * A cabin below (parametric boats P2c; owner): 1, under the deckhouse forward of the
    * wheelhouse, its sole sunk into the hull, a companionway down from the wheelhouse floor
@@ -551,10 +559,12 @@ const OVERHEAD_FIELD: { key: 'overhead'; steps: number } = { key: 'overhead', st
 /** More sheer (design.sheer, SCALES.sheer: 0.15 m steps, to 1.2 m at the stem). Not in the code. */
 const SHEER_FIELD: { key: 'sheer'; steps: number } = { key: 'sheer', steps: 9 };
 /** A raised foredeck (design.fcLength, fcHeight; SCALES). Not in the code. */
-const FC_LENGTH_FIELD: { key: 'fcLength'; steps: number } = { key: 'fcLength', steps: 16 };
+const FC_LENGTH_FIELD: { key: 'fcLength'; steps: number } = { key: 'fcLength', steps: 30 };
 const FC_HEIGHT_FIELD: { key: 'fcHeight'; steps: number } = { key: 'fcHeight', steps: 4 };
 /** The deckhouse's top walked (design.dhWalk): 0 solid, 1 walked. Not in the code. */
 const DH_WALK_FIELD: { key: 'dhWalk'; steps: number } = { key: 'dhWalk', steps: 2 };
+/** The deckhouse run on aft of the wheelhouse (design.dhAft, SCALES.dhAft: 0.5 m steps, to 6 m). Not in the code. */
+const DH_AFT_FIELD: { key: 'dhAft'; steps: number } = { key: 'dhAft', steps: 13 };
 /**
  * Furniture's places (design.berthAt and the rest): 0 none, else 1 + a cell of the grid. Not in
  * the code. Several of a piece (owner, Oct 2026: "the furniture should be allowed to place
@@ -634,7 +644,7 @@ export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, DH_AFT_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -653,11 +663,13 @@ export const SCALES = {
   saloonFloor: (i: number) => 0.2 * i,
   /** The saloon's roof below the wheelhouse's (m): 0, then a 0.2 m step each. */
   saloonRoof: (i: number) => 0.2 * i,
+  /** The deckhouse's run aft of the wheelhouse (m; 0 flush with its aft wall): 0.5 m a step, to 6 m. */
+  dhAft: (i: number) => 0.5 * i,
   /** The cockpit overhead's length aft of the house (m; 0 none): 0.25 m a step, to 4 m. */
   overhead: (i: number) => 0.25 * i,
   /** More sheer at the stem (m; 0 her type's own). */
   sheer: (i: number) => Math.round(0.15 * i * 100) / 100,
-  /** A raised foredeck's length aft from the stem (m; 0 none): 1 to 8 m in half metres. */
+  /** A raised foredeck's length aft from the stem (m; 0 none): 1 to 15 m in half metres (owner, Oct 2026: to come back much further than 8 m). */
   fcLength: (i: number) => (i ? 0.5 + 0.5 * i : 0),
   /** ...and how much higher than her deck aft of it (m). */
   fcHeight: (i: number) => [0.5, 0.65, 0.8, 1.0][i],
@@ -720,7 +732,8 @@ export const MEASURES: Record<MeasureKey, { min: number; max: number; by: number
   roofThickness: { min: 0.08, max: 0.3, by: 0.01, code: SCALES.roofThickness, steps: 3 },
   roofEdge: { min: 20, max: 60, by: 1, code: SCALES.roofEdge, steps: 4 },
   dhLength: { min: 0, max: 3.5, by: 0.1, code: SCALES.dhLength, steps: 8 },
-  dhHeight: { min: 0.4, max: 1.5, by: 0.05, code: SCALES.dhHeight, steps: 5 },
+  // (To 2.5 m, owner, Oct 2026: the stern trawler's bridge high enough to see over the gear; over 1.5 m, a link or file.)
+  dhHeight: { min: 0.4, max: 2.5, by: 0.05, code: SCALES.dhHeight, steps: 5 },
   dhWidth: { min: 0, max: 0.8, by: 0.05, code: SCALES.dhWidth, steps: 4 },
   dhRake: { min: 0, max: 50, by: 1, code: SCALES.dhRake, steps: 3 },
 };
@@ -784,6 +797,7 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   fcLength: 0,
   fcHeight: 2,
   dhWalk: 0,
+  dhAft: 0,
   foreCabin: 0,
   fishHold: 0,
   rescueBoat: 0,
@@ -842,6 +856,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (d.sheer) throw new Error('her extra sheer isn’t in the code: she travels as a link or file');
   if (d.fcLength) throw new Error('a raised foredeck isn’t in the code: she travels as a link or file');
   if (d.dhWalk) throw new Error('the deckhouse’s walked top isn’t in the code: she travels as a link or file');
+  if (d.dhAft) throw new Error('a deckhouse run on aft of the wheelhouse isn’t in the code: she travels as a link or file');
   if (d.foreCabin) throw new Error('the cabin below isn’t in the code: she travels as a link or file');
   if (d.fishHold) throw new Error('a fish hold isn’t in the code: she travels as a link or file');
   if (d.rescueBoat) throw new Error('the rescue boat isn’t in the code: she travels as a link or file');
@@ -1059,7 +1074,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, foreCabin: 0, fishHold: 0, rescueBoat: 0, netDrum: 0, trawlWinches: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, consoleLen: 0, houseX: 20, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, dhAft: 0, foreCabin: 0, fishHold: 0, rescueBoat: 0, netDrum: 0, trawlWinches: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, consoleLen: 0, houseX: 20, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

@@ -61,6 +61,14 @@ export const SHIPYARD_CONFIG = {
      */
     shaftAngleMaxDeg: 15,
     /**
+     * The most power a displacement hull (the tug, the trawler) takes, kW per tonne of her
+     * lines' displacement (owner, Oct 2026: two 750 kW engines don't fit a small tug). Her
+     * speed is held by her length, not her power, so past this the power is spent making
+     * waves and turning a propeller too small for it; working tugs and trawlers carry about
+     * 8 to 18 kW a tonne. Twin engines past it go in singly (if one is within it).
+     */
+    maxKwPerTonne: 20,
+    /**
      * The engine hatch and the engine space under it (build.ts; owner, Oct 2026: the engine
      * goes where her shaft line puts it, not in a box under the wheelhouse). Metres:
      *   endRoom, sideRoom    the hatch past the engine's ends and its sides (room for the
@@ -188,6 +196,18 @@ export const SHIPYARD_CONFIG = {
      * off the ladders; the foredeck's crane and skiff go up on the raised deck
      * when it has room (owner, Oct 2026: they were on the deck below it).
      */
+    /**
+     * The handles on the 3D view (page.ts; owner, Oct 2026: "different colors of drag handles
+     * ... so you can see which ones you're dragging"): each its own colour, by the design
+     * choice it drags, with a dot of it beside its slider; `fallback` for one not listed.
+     * Pointed at or held, a handle grows and lightens `hotLift` of the way to white (it keeps
+     * its colour).
+     */
+    handles: {
+      colours: { length: '#f97316', bow: '#e879f9', beam: '#22d3ee', depth: '#a3e635', bulwark: '#8b7cf6', sheer: '#fde047', fcLength: '#ef4444', fcHeight: '#f5f5f5' } as Record<string, string>,
+      fallback: '#6aa8e6',
+      hotLift: 0.4,
+    },
     foredeck: { stepRise: 0.3, tread: 0.2, clear: 0.3, width: 0.6, fromSide: 0.3, rail: 0.9, landing: 0.6, gearReach: 0.08 },
     /**
      * A hull that shrinks below its base size (catalog.ts `shrinksTo`; owner, Oct 2026: "a
@@ -386,6 +406,15 @@ export const SHIPYARD_CONFIG = {
      * propeller, and a good GM with a heavy codend coming up over the stern).
      */
     sternTrawler: { scantlings: 1.8, ballastKg: 60000 },
+    /**
+     * The fast catamaran's plating and framing, against the material's usual (a monohull's): two
+     * slim hulls carry far more plate for her length than one, but each is a small, short-
+     * spanned section, built lighter. 0.8 puts the 12.5 m cat at about 12.7 t light on twin
+     * 280 kW (13.5 t on the twin 400s she comes with), against about 11 to 13 t for real
+     * aluminium work cats of her length (15 to 18 t at 15 m, scaled;
+     * hull chat, Oct 2026). At 1 she came out about 14.5 t.
+     */
+    catamaran: { scantlings: 0.8 },
     fishHold: { engineGap: 0.15, aftClear: 0.75, minLength: 1.2, minDepth: 0.55, soleClear: 0.1, shaftClear: 0.15, frame: 0.06, hatch: { length: 0.9, width: 0.9, min: 0.6, coaming: 0.3, clear: 0.15, kg: 70 }, boxGap: 0.02, headGap: 0.05, kgPerM2: 18, pricePerM3: 1100 },
     deckhouse: {
       kgPerM2: 35,
@@ -401,6 +430,12 @@ export const SHIPYARD_CONFIG = {
        * ladder.
        */
       walk: { margin: 0.25, railHeight: 0.9, postSpacing: 1.2, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
+      /**
+       * Run on aft of the wheelhouse (design.dhAft; owner, Oct 2026: the stern trawler's deck
+       * behind the bridge): it stops short of leaving less than this (m) of working deck
+       * forward of her transom.
+       */
+      aftDeck: 4,
       /**
        * A cabin below it (parametric boats P2c, design.foreCabin; owner): its sole sunk so there's
        * `headroom` (m) under the trunk's top, but no lower than leaves the sole `minHalf` wide each

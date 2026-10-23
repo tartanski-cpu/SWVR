@@ -41,7 +41,8 @@ const BOATS = [
   { code: '03A4C-1JEMK-K20C0-39VN0-8', what: 'gillnetter: a skiff, a side door, a life ring', knots: 10.3, skiff: true },
   { code: '04CWN-VJ7WP-D6HE0-87GG0', what: 'workboat type: deck crane, tow winch and roller, searchlight, fire monitor', knots: 10.3, skiff: false },
   { code: '064GC-J03DJ-35TTG-49K0G', what: 'pilot boat: twin engines, a deckhouse', knots: 16.54, skiff: false },
-  { code: '00XN6-S0EAF-FPXHH-81FE5-0Q', what: 'small tug: twin engines, tow winch and roller', knots: 10.08, skiff: false },
+  // (The tug on a displacement hull's resistance, Oct 2026: 10.08 kn before.)
+  { code: '00XN6-S0EAF-FPXHH-81FE5-0Q', what: 'small tug: twin engines, tow winch and roller', knots: 8.92, skiff: false },
 ];
 
 function design(code: string): ShipDesign {

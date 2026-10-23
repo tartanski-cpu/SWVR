@@ -31,6 +31,12 @@ export interface DeckhouseLayout {
    * is always walked out to them, and its own rail runs only across its front and aft edges.
    */
   full?: boolean;
+  /**
+   * Run on aft of the wheelhouse (owner, Oct 2026: the stern trawler's deck behind the
+   * bridge): the house's aft wall (z), its top walked on aft of it to `z1`, the house's aft
+   * door opening onto it; its rail right across its aft edge (open at the ladder head).
+   */
+  houseAft?: number;
 }
 
 /**

@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The stern trawler's sheer a little less
+
+At the owner's word ("slightly less shear by default"), in the modular builder's chat: `designs.ts`, `sternTrawler`'s sheer now 2.1 m at the stem and 1.25 m at 70 % of her length (was 2.45 and 1.35); aft unchanged. The Shipyard's Sheer still adds more. Its tests (`sternTrawler.test.ts`) pass: no warnings, level on her lines.
+
 ### The catamaran redrawn for her real weight; a displacement hull's resistance; publishing runs finish (owner)
 
 - **On `next`** (23 Oct, the owner's go-ahead): merged with `origin/next`; typecheck, all 1415 tests and the build pass. The Shipyard chat now wires the displacement curve in, re-measures the tug and trawler, and checks the catamaran's weight (its engine power limit, `CONFIG.shipyard.maxKwPerTonne`, is on `preview/shipyard`).

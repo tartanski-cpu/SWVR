@@ -356,7 +356,8 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       ? [
           {
             height: () => dh.top,
-            contains: (x: number, z: number) => (onDeckhouseTop(dh, x, z, r * 0.5) && !houses.some((h) => h.near(x, z)) && !onGear(gear, x, z, r, dh.top)) || onDhLanding(x, z),
+            // (Clear of a house's door steps, too: on a deckhouse run on aft of it, they're on its top.)
+            contains: (x: number, z: number) => (onDeckhouseTop(dh, x, z, r * 0.5) && !houses.some((h) => h.near(x, z) || h.inSteps(x, z)) && !onGear(gear, x, z, r, dh.top)) || onDhLanding(x, z),
           },
         ]
       : []),

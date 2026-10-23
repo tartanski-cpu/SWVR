@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { Button } from '../../controls/Button';
 import { bar, stretchBetween } from '../../mechanisms/line';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import { luffAngle, luffPoint } from '../../fishing/codend';
 import type { GearFacts, HullQueries, ModuleDefinition } from '../../modular/module';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
@@ -111,6 +112,7 @@ export const A_FRAME: ModuleDefinition<AFrameConfig> = {
       };
       placeRams(0);
       let shown = -1;
+      const smooth = new TickSmoother([0.5]);
 
       // By hand: PAY OUT / HAUL / RELEASE on a control box on a post inboard of the starboard
       // foot, clear of the frame as it swings, read from inboard facing aft.
@@ -135,8 +137,9 @@ export const A_FRAME: ModuleDefinition<AFrameConfig> = {
           { text: 'HAUL', at: [box.x, y, box.z - 0.09], yaw: 0 },
           { text: 'RELEASE', at: [box.x - 0.12, y, box.z - 0.09], yaw: 0 },
         ],
-        update: (read) => {
-          const luff = keys.luff ? read.num(keys.luff) : 0;
+        update: (read, _s, dt) => {
+          // (Drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
+          const luff = smooth.update([keys.luff ? read.num(keys.luff) : 0], dt)[0];
           if (luff === shown) return;
           shown = luff;
           pivot.rotation.x = -luffAngle(luff);

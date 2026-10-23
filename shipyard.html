@@ -294,6 +294,11 @@
       #sectionPanel button.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
       #sectionPanel input { width: 100%; }
       #secLabel { font-size: 12px; }
+      /* A slider whose handle on the view is under the pointer or being dragged (page.ts lightRow). */
+      .row.hot label { color: var(--handle, #ffd36a); }
+      .row.hot input[type=range] { accent-color: var(--handle, #ffd36a); }
+      /* A slider with a handle on the view: a dot of the handle's colour (page.ts showHandles). */
+      .row.handled label::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--handle); margin-right: 6px; vertical-align: 1px; }
       #placeTip { position: absolute; z-index: 4; pointer-events: none; max-width: 320px; padding: 5px 9px; border-radius: 6px; font-size: 13px; line-height: 1.35; background: rgba(12, 20, 26, 0.92); border: 1px solid; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
       #placeTip[hidden] { display: none; }
       #placeTip.ok { border-color: #46c27a; color: #c9f2d8; }

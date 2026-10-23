@@ -26,6 +26,7 @@ import { Joystick } from '../../controls/Joystick';
 import { Toggle } from '../../controls/Toggle';
 import { MonitorView } from '../../fire/monitorView';
 import { busOf } from '../../modular/bus';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import type { ModuleDefinition } from '../../modular/module';
 import { part } from '../../render/geometryUtils';
 import { poleBoxTop, poleFootprint, poleParts, type DeckPole } from '../../mechanisms/deckPole';
@@ -69,6 +70,7 @@ export const FIRE_MONITOR: ModuleDefinition<FireMonitorConfig> = {
     frame: 'boat',
     build({ config: c, keys, socket }) {
       const monitor = new MonitorView(c);
+      const aim = new TickSmoother([60, 30]);
       // On a deck pole, its gauge goes in the pole's box.
       const gp = c.pole ? { ...c.gauge, position: poleGaugeAt(c.position, c.pole) } : c.gauge;
       const gauge = new FireGauge(gp.length, gp.lampX);
@@ -105,7 +107,11 @@ export const FIRE_MONITOR: ModuleDefinition<FireMonitorConfig> = {
           { text: 'ON TARGET', at: [x + gp.length / 2 + gp.lampX, y, z - 0.03] },
           ...poleLabels,
         ],
-        update: (read) => monitor.update(read.num(keys.pan), read.num(keys.tilt), !!read.get(keys.pump)),
+        update: (read, _s, dt) => {
+          // (Its pan and tilt drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
+          const [pan, tilt] = aim.update([read.num(keys.pan), read.num(keys.tilt)], dt);
+          monitor.update(pan, tilt, !!read.get(keys.pump));
+        },
         api: { gauge } satisfies FireMonitorApi,
       };
     },

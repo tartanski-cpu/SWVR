@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { useDesign } from '../src/boats/sims';
+import { CONFIG } from '../src/config';
 import { DESIGN_HULLS, ENGINES } from '../src/shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../src/shipyard/design';
 import { displacementResistance } from '../src/vessel/displacementHull';
@@ -45,7 +46,10 @@ describe('a displacement hull\'s resistance: a wall past her hull speed', () => 
     const kn = topKn(tug.displacement, tug.kw);
     expect(kn).toBeLessThan(tug.fnKn(0.55));
     expect(kn).toBeGreaterThan(tug.fnKn(0.4));
-    expect(topKn(tug.asBuilt, tug.kw)).toBeGreaterThan(kn + 3);
+    // The Shipyard builds her on it (parts/hullDef.ts); the planing curve she had before let her run away.
+    expect(tug.asBuilt.resistance.waveCap).toBe(CONFIG.displacementHull.resistance.waveCap);
+    const planing: VesselDef = { ...tug.asBuilt, resistance: { ...CONFIG.vessels.landingCraft.resistance, lwl: tug.asBuilt.resistance.lwl, y: tug.asBuilt.resistance.y } };
+    expect(topKn(planing, tug.kw)).toBeGreaterThan(kn + 3);
   });
 
   it('a tug\'s ordinary engines reach about her hull speed; the trawler keeps her 10 kn', () => {
