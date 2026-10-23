@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Oban: the start (cargo) berth moved to the North Pier's south-west face (23 Oct 2026)
+
+Owner: "the default spawn at Oban pier is not very good because there's no room for the table or the cargo or even the boat. Could you move it to the ... south-west facing side of the pier?"
+
+- **Why it was cramped:** the package stage picks a harbour's cargo berth by room for a boat, fixed faces first, then nearest the harbour's middle. At Oban that put it in the inside corner of the North Pier's two arms: room for the workboat, but not for a bigger boat, and little deck behind it for the goods.
+- **Now** (`tools/coast/requests/oban.yaml`, `berthFacing: { oban: 225 }`; `tools/coast/src/package.ts`): a request can ask for a harbour's cargo berth on a face looking a given way, within `facingTolerance` 30°. The package stage takes the fixed face with the most such berths with room for a whole boat and puts the cargo berth at its middle, for room either side. At Oban that's the North Pier's south-west side, open to the bay: 4 berths in a row, the cargo berth the third, on a stone quay 77 m long and 10 m wide. The fuel berth stays where it was (the arm's north-west corner, 40 m off; the two are kept at least `namedApart` 30 m apart).
+- Voyage starts you at the cargo berth, so this is the new start for Oban and Lorn. Its id is the same (`oban-cargo`), so a saved spot there now puts you at the new place. Only Oban's port, berths, lamps and stack light moved in the game's file.
+- **More cargo:** the amounts (each port's waiting items, `CONFIG.cargo.perPort` 5; a contract's 2, 4 or 6) are the game's cargo rules, in the main game's settings, so they're handed to the main game chat. The new berth's deck has room for a much longer row of goods.
+- **Tests:** all 1,438 pass (the Voyage start tests: you're put ashore on the berth's own deck, the boat made fast).
+- **Checked headless:** Voyage → Oban and Lorn with `&start`: the boat moored along the south-west face, you on the quay beside the goods (drums) in front of the warehouses; from above, open water either side of her.
+- **Test steps (VR and desktop):** Voyage → Oban and Lorn (a fresh start: add `&start` to the address, or Menu → start again). You're on the North Pier's south-west side, the boat alongside with open water ahead and astern, the goods behind you on the wide quay.
+
+
 ### Landmarks and bridges: Connel Bridge and McCaig's Tower (23 Oct 2026)
 
 **Owner approved; merged into `next` (live there from build `ccf65c7`).**
