@@ -106,6 +106,12 @@ export interface DesignHull {
    */
   pushBow?: boolean;
   /**
+   * A big diesel's dry exhaust stacks up through the wheelhouse's aft corners and her cooling
+   * water out of her side (the small tug's; owner, Oct 2026: the stern trawler's too). See
+   * parts/hullDef.ts.
+   */
+  exhaustStacks?: boolean;
+  /**
    * A landing bow (the landing craft, owner: a square platform on a planing hull): her own
    * forefoot, the bottom sweeping up to a raked square bow plate at the waterline under her
    * ramp, so she rides up a beach or a slipway. No bow choice: never plumb, never the deep stem.
@@ -326,6 +332,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     regime: 'displacement',
     ramp: false,
     pushBow: true,
+    exhaustStacks: true,
     // A long towing deck aft; the foredeck short, up to the push bow.
     cockpit: 3.0,
     foredeck: 1.6,
@@ -352,6 +359,9 @@ export const DESIGN_HULLS: DesignHull[] = [
     // The working deck aft for the net drum, the trawl winches and the A-frame; the foredeck short under the whaleback.
     cockpit: 6.0,
     foredeck: 2.0,
+    // Her exhaust as the tug's (owner, Oct 2026): stacks up through the wheelhouse's aft
+    // corners, her cooling water out of her side.
+    exhaustStacks: true,
     // A trawler's: the wheelhouse forward of amidships on the whaleback, which runs aft under
     // it; one slow-revving diesel (the 750 kW, owner, Oct 2026: she needed a bigger engine)
     // turning a big propeller in a Kort nozzle; the trawl gear,

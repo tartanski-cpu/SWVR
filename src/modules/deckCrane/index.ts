@@ -33,6 +33,7 @@ import { barGeometry } from '../../mechanisms/line';
 import { busOf } from '../../modular/bus';
 import type { HullQueries, ModuleDefinition } from '../../modular/module';
 import { matrixOf } from '../../modular/vesselAssembly';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 
 export type DeckCraneConfig = typeof CONFIG.modules.deckCrane;
@@ -189,6 +190,7 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
       ];
       // The slewing part: the column, and the boom on its pivot at the column's head.
       const slewing = new THREE.Group();
+      slewing.name = 'deckCraneSlew';
       slewing.position.set(dx, c.plinthHeight, 0);
       const column = new THREE.Mesh(
         mergeParts([
@@ -274,6 +276,12 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
       const b = new THREE.Vector3();
       const tip = new THREE.Vector3();
       const unitUp = new THREE.Vector3(0, 1, 0);
+      // Drawn smoothly between the simulation's ticks (mechanisms/tickSmoother.ts; owner, Oct
+      // 2026: the slew stepped on the Quest): its slew, luff, telescope and wire, and the hook
+      // where the compensation holds it. A jump past `snap` (a reset, a snapshot) is drawn at once.
+      const arm = new TickSmoother([20, 15, 1, 2]);
+      const held = new TickSmoother([1, 1, 1]);
+      let holding = false;
       return {
         staticParts,
         movingParts: [slewing, wire, hookMesh],
@@ -284,9 +292,15 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
           { text: 'TELE · HOIST', at: [p.x + sx, top, p.z + 0.035] },
           { text: 'HOOK', at: [p.x, top, p.z + 0.1] },
         ],
-        update(_read, s) {
-          const st = s ?? DECK_CRANE.sim!.init(c);
-          const extend = st.extend ?? 0;
+        update(_read, s, dt) {
+          const raw = s ?? DECK_CRANE.sim!.init(c);
+          const [slew, luff, extend, wireLen] = arm.update([raw.slew, raw.luff, raw.extend ?? 0, raw.wire], dt);
+          const st = { ...raw, slew, luff, extend, wire: wireLen };
+          if (raw.hookAt) {
+            if (!holding) held.reset(); // (a fresh hold: drawn from where it is)
+            st.hookAt = [...held.update(raw.hookAt, dt)] as [number, number, number];
+          }
+          holding = !!raw.hookAt;
           slewing.rotation.y = -st.slew * RAD;
           boom.rotation.x = st.luff * RAD;
           inner.position.z = -extend;
