@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Handles on the 3D view, stop 1: the framework, proved on her length (done, on the preview)
+
+Owner, 23 Oct 2026: "the next big step for the shipyard is to move away from sliders and to have interactive handles that you can drag on the 3D window wherever appropriate". Plan agreed (owner's choices: the view stays as it is when a handle is grabbed; the sliders fold into "Exact values" once the handles are in; start with stop 1):
+1. the framework, proved on Length; 2. the rest of the Hull step (beam, depth, bulwarks, bow rake, sheer, raised foredeck and its height); 3. the Wheelhouse (move it, its walls, width, headroom, offset, saloon, overhead, window rake, roof overhang); 4. the deckhouse and the console length, then the sliders folded away. Kept as sliders or tiles: choices (types, materials, styles, colours), the roof's thickness and edge angle, the floor height (perhaps a handle in a section view later).
+
+- **The handle** (handles.ts `HANDLES`, page.ts `showHandles` … `updateHandles`): a round handle on her at the point a slider sets, the same size on the screen however near or far, drawn over her; hidden when it would be dragged end-on to the view (her length handle in the Bow and Stern views), while placing, with a tool on, or in a live trial.
+- **Hover:** it lights up (and its slider's row), and says "Length 9.75 m · drag to change".
+- **Drag:** along its one line (her length: fore and aft), snapping to the slider's steps. Where the handle sits at each step is the builder's answer (her built at that step, about 40 ms, read off her: `anchor`), worked out a step at a time from when the pointer comes over it (nearest steps first), so the drag picks the step whose point is nearest the pointer (handles.ts `alongAxis`, `nearestStep`). Each step is applied as the slider does (page.ts `change`), so the boat reshapes live, undo merges the drag into one step, and in a session the others see it as they see a slider (and who's holding it).
+- **The dimension:** while dragged, a line from where it's measured (her transom, along her deck) to the handle, and its name and figure beside the pointer ("Length overall 11.46 m"); past her last step, "as far as it goes" in red.
+- **Her length handle:** at her stem head on the centreline, at the Hull step.
+- **Checked:** tests/shipyard/handles.test.ts (the pointer read along the line from a slanting ray, none end-on; snapping, steps not yet worked out passed over, the limit; her length handle at the stem head moving forward as she lengthens, the dimension her length). Headless Chromium on the gillnetter, Starboard view: the handle at her stem head, its tip and her slider lit; dragged forward to her longest (11.46 m, "as far as it goes"), the boat redrawn, the dimension line drawn; one undo back to 9.75 m. `npm run test:shipyard` and the typecheck pass. **Not checked:** the Quest's browser (the laser as the pointer); a session.
+- **Shared changes:** none.
+
 ### Hull cards and the brief's engine search re-measured with the 750 kW diesel (done, on the preview)
 
 Owner, 23 Oct 2026: "yes, re-measure them with the 750".

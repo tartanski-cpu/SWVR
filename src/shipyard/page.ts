@@ -36,6 +36,7 @@ import { flatVertexColorMaterial, mergeParts } from '../render/geometryUtils';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { hullCards } from './hullCards';
 import { cellOf, ghostSize, previewPlace, whereIs, type Preview, type Target } from './placing';
+import { alongAxis, HANDLES, nearestStep, type HandleDef, type V3 as HV3 } from './handles';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
@@ -571,6 +572,7 @@ function focusStep(): void {
   $('view').classList.toggle('paperMode', step === 'brief');
   $('hullGallery').hidden = step !== 'brief';
   if (step === 'brief') showHullCards();
+  showHandles();
   if (!shown) return;
   const { hull, house, modules, guard, skiff, machinery } = shown;
   if (machinery) machinery.visible = step === 'engine';
@@ -1676,6 +1678,7 @@ function change(patch: Partial<ShipDesign>, by: 'me' | Person | null = 'me'): vo
   showCode();
   if (matchKey(design) !== before || !trial) runTrial();
   showTrial();
+  showHandles();
 }
 
 // ── Code tools ──
@@ -2186,6 +2189,7 @@ const toolBtns: Record<string, HTMLButtonElement> = {};
 function setTool(t: typeof tool): void {
   tool = t;
   if (t && placing) stopPlacing();
+  showHandles();
   // Sketching: the view stays square on (no turning it; the wheel still zooms) and flat.
   orbit.enabled = t !== 'pin';
   orbit.enableRotate = orbit.enablePan = !t;
@@ -2229,6 +2233,7 @@ function startPlacing(target: Target): void {
   const moving = target.kind === 'gear' ? fitted(target.eq, design) : !!design[target.key];
   const at = target.kind === 'gear' && target.eq.key ? placeOf(target.eq.key, design[target.eq.key]) : null;
   placing = { target, face: at?.face, cache: new Map(), shown: null, moving, design };
+  showHandles();
   hovered = null;
   renderer.domElement.style.cursor = 'crosshair';
   $('toolHint').textContent = `${moving ? 'Moving' : 'Placing'} the ${targetName(target)}: point at her and click where it goes (green: it stands there; red: it won't, and why).${turnsOf(target) ? ' R turns it.' : ''}${moving ? ' Delete takes it off.' : ''} Esc stops.`;
@@ -2236,6 +2241,7 @@ function startPlacing(target: Target): void {
 }
 function stopPlacing(): void {
   placing = null;
+  showHandles();
   ghost.visible = false;
   $('placeTip').hidden = true;
   renderer.domElement.style.cursor = '';
@@ -2377,6 +2383,175 @@ window.addEventListener('keydown', (e) => {
     change(t.kind === 'gear' ? removeGear(t.eq) : removeFurniture(t.key, design));
     e.preventDefault();
   }
+});
+// ── Handles on the view (handles.ts; owner, Oct 2026: drag her shape on the 3D view, not sliders) ──
+/** A handle shown at this step: its definition, its mesh, where it sits now. */
+interface ShownHandle {
+  def: HandleDef;
+  mesh: THREE.Mesh;
+  at: HV3;
+}
+const HANDLE_COLOUR = 0x6aa8e6;
+const HANDLE_HOT = 0xffd36a;
+const handleGroup = new THREE.Group();
+scene.add(handleGroup);
+const handleGeo = new THREE.SphereGeometry(1, 20, 14);
+let shownHandles: ShownHandle[] = [];
+let hotHandle: ShownHandle | null = null;
+/** A handle being dragged: its steps' points (worked out as it goes), and the line it's dragged along. */
+let dragging: { h: ShownHandle; anchors: (HV3 | undefined)[]; origin: HV3 } | null = null;
+// The dimension it shows while dragged (a line from where it's measured to the handle).
+const dimLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: HANDLE_HOT, depthTest: false }));
+dimLine.renderOrder = 11;
+dimLine.visible = false;
+scene.add(dimLine);
+/** Each handle's points, step by step, for the design as it is but for the handle's own choice (worked out once). */
+const handleAnchors = new Map<string, (HV3 | undefined)[]>();
+function anchorsFor(def: HandleDef): (HV3 | undefined)[] {
+  // (Not her gearbox, matched by trial after a change: it doesn't move her shape.)
+  const rest: Partial<ShipDesign> = { ...design };
+  delete rest[def.key];
+  delete rest.gear;
+  const k = `${def.key}|${JSON.stringify(rest)}`;
+  let a = handleAnchors.get(k);
+  if (!a) {
+    a = new Array<HV3 | undefined>(stepsOf(def.key)).fill(undefined);
+    a[design[def.key]] = def.anchor(boat);
+    if (handleAnchors.size > 30) handleAnchors.delete(handleAnchors.keys().next().value!);
+    handleAnchors.set(k, a);
+  }
+  return a;
+}
+let anchorWork = 0;
+/** Work out the rest of a handle's steps, one at a time (each builds her: about 40 ms), nearest first. */
+function workOutAnchors(def: HandleDef): void {
+  const a = anchorsFor(def);
+  const cur = design[def.key];
+  const base = { ...design };
+  const order = a.map((_, i) => i).sort((p, q) => Math.abs(p - cur) - Math.abs(q - cur));
+  window.clearTimeout(anchorWork);
+  const next = () => {
+    const i = order.find((j) => !a[j]);
+    if (i === undefined) return;
+    try {
+      a[i] = def.anchor(buildDesign({ ...base, [def.key]: i }));
+    } catch {
+      a[i] = a[cur];
+    }
+    anchorWork = window.setTimeout(next, 0);
+  };
+  next();
+}
+/** The handles for the step shown: on her, unless placing, a tool, or a live trial is on. */
+function showHandles(): void {
+  for (const h of shownHandles) handleGroup.remove(h.mesh);
+  shownHandles = [];
+  if (placing || tool || live) return;
+  for (const def of HANDLES) {
+    if (def.step !== shownStep) continue;
+    const mesh = new THREE.Mesh(handleGeo, new THREE.MeshBasicMaterial({ color: HANDLE_COLOUR, depthTest: false, transparent: true, opacity: 0.95 }));
+    mesh.renderOrder = 12;
+    const at = def.anchor(boat);
+    mesh.position.set(...at);
+    handleGroup.add(mesh);
+    shownHandles.push({ def, mesh, at });
+  }
+}
+/** Each frame: the handles a steady size on the screen, and only where they can be dragged (not end-on to the view). */
+function updateHandles(): void {
+  const cam = viewCam();
+  const look = new THREE.Vector3();
+  cam.getWorldDirection(look);
+  for (const h of shownHandles) {
+    const size = flat ? (flatCam.top - flatCam.bottom) * 0.011 : cam.position.distanceTo(h.mesh.position) * 0.011;
+    const hot = h === hotHandle || h === dragging?.h;
+    h.mesh.scale.setScalar(size * (hot ? 1.35 : 1));
+    (h.mesh.material as THREE.MeshBasicMaterial).color.setHex(hot ? HANDLE_HOT : HANDLE_COLOUR);
+    h.mesh.visible = Math.abs(look.dot(new THREE.Vector3(...h.def.axis))) < 0.95;
+  }
+}
+/** The pointer's ray, in boat axes. */
+function pointerRay(e: PointerEvent): THREE.Ray {
+  const r = renderer.domElement.getBoundingClientRect();
+  noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
+  return noteRay.ray;
+}
+/** Light a handle's slider row too (and back). */
+function lightRow(key: keyof ShipDesign | undefined, on: boolean): void {
+  if (key) document.querySelector(`input[data-key="${key}"]`)?.closest('.row')?.classList.toggle('hot', on);
+}
+function setHot(h: ShownHandle | null): void {
+  if (h === hotHandle) return;
+  lightRow(hotHandle?.def.key, false);
+  hotHandle = h;
+  lightRow(h?.def.key, true);
+  renderer.domElement.style.cursor = h ? 'grab' : '';
+  if (h) workOutAnchors(h.def);
+}
+/** What a handle says beside the pointer: its value (and the dimension while dragged; at a limit, that it goes no further). */
+function handleTip(h: ShownHandle, atLimit = false): void {
+  const tip = $('placeTip');
+  const value = outputs[h.def.key]?.(design[h.def.key]) ?? String(design[h.def.key]);
+  tip.className = atLimit ? 'no' : 'ok';
+  tip.textContent = dragging ? `${h.def.dimension?.name ?? h.def.label} ${value}${atLimit ? ': as far as it goes' : ''}` : `${h.def.label} ${value} · drag to change`;
+  showTip(tip);
+}
+// Grabbing a handle (before the view's own turning sees the press).
+$('view').addEventListener(
+  'pointerdown',
+  (e) => {
+    if (!hotHandle || e.button !== 0) return;
+    e.stopPropagation();
+    downAt = null;
+    orbit.enabled = false;
+    renderer.domElement.setPointerCapture(e.pointerId);
+    renderer.domElement.style.cursor = 'grabbing';
+    workOutAnchors(hotHandle.def);
+    dragging = { h: hotHandle, anchors: anchorsFor(hotHandle.def), origin: [...hotHandle.at] };
+    link?.side?.presence({ holding: hotHandle.def.key });
+    handleTip(hotHandle);
+  },
+  true,
+);
+renderer.domElement.addEventListener('pointermove', (e) => {
+  placeAt = { x: e.clientX, y: e.clientY };
+  if (dragging) {
+    const { h, anchors, origin } = dragging;
+    const ray = pointerRay(e);
+    const t = alongAxis(origin, h.def.axis, ray.origin.toArray(), ray.direction.toArray());
+    if (t === null) return;
+    const ns = nearestStep(anchors, origin, h.def.axis, t);
+    if (!ns) return;
+    if (ns.step !== design[h.def.key]) change({ [h.def.key]: ns.step } as Partial<ShipDesign>);
+    const now = shownHandles.find((x) => x.def === h.def);
+    if (now) dragging.h = now;
+    const dim = h.def.dimension;
+    if (dim && now) {
+      dimLine.geometry.setFromPoints([new THREE.Vector3(...dim.from(boat)), new THREE.Vector3(...now.at)]);
+      dimLine.visible = true;
+    }
+    handleTip(dragging.h, ns.atLimit);
+    return;
+  }
+  if (placing || tool) return;
+  const ray = pointerRay(e);
+  const hit = noteRay.intersectObjects(shownHandles.filter((h) => h.mesh.visible).map((h) => h.mesh), false)[0];
+  void ray;
+  const h = hit ? shownHandles.find((x) => x.mesh === hit.object) ?? null : null;
+  setHot(h);
+  if (h) handleTip(h);
+  else if (!hovered) $('placeTip').hidden = true;
+});
+window.addEventListener('pointerup', () => {
+  if (!dragging) return;
+  const key = dragging.h.def.key;
+  dragging = null;
+  orbit.enabled = !tool || tool !== 'pin';
+  dimLine.visible = false;
+  $('placeTip').hidden = true;
+  renderer.domElement.style.cursor = hotHandle ? 'grab' : '';
+  link?.side?.presence({ holding: null });
+  lightRow(key, true);
 });
 /** What the view shows at the Furniture step, when nothing is being placed. */
 const FURNITURE_HINT = 'Seen from above, cut just over the floor (✂ Section to move the cut): Add a piece, then click where it goes';
@@ -3759,6 +3934,7 @@ renderer.setAnimationLoop(() => {
   orbit.update();
   // Turned to (or away from) a square-on view: its sketch shows (or goes).
   if (facingPlane() !== inkFacing) drawInk();
+  updateHandles();
   renderer.render(scene, viewCam());
 });
 // For checking from a script (headless browser tests).
