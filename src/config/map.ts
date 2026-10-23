@@ -286,4 +286,27 @@ export const MAP_CONFIG = {
     overcast: 0.6,
     credit: 'Weather data by Open-Meteo.com (CC BY 4.0)',
   },
+  /**
+   * Bridges over the sea and follies on the coast maps (the landmarks and bridges pass;
+   * world/coastStructures.ts, drawn by world/view/coastView.ts as one mesh).
+   *   deckDepth   a deck's thickness (m)
+   *   cantilever  `panel` m between a truss's verticals; the suspended span is `suspended`
+   *               of the gap between the banks' piers, its truss `suspendedDepth` m deep under
+   *               the deck; the anchor arm `anchorDepth` m deep at the abutment
+   *   beamSpan    a beam bridge's piers this far apart over the water (m)
+   *   folly       a ring of arches: `tiers` tiers in `height` m (when the map gives none), a
+   *               pier `pier` m wide every `bay` m round it, walls `thick` m thick, a sill
+   *               `sill` m high under the lower openings, a `band` m band over each tier's,
+   *               a `cornice` m cornice on top
+   */
+  structures: {
+    deckDepth: 0.8,
+    panel: 10,
+    suspended: 0.3,
+    suspendedDepth: 2.5,
+    anchorDepth: 2,
+    beamSpan: 30,
+    colours: { steel: 0x4c5a55, deck: 0x55585a, stone: 0x8a8478 },
+    folly: { height: 11, tiers: 2, bay: 3.8, pier: 1.3, thick: 1.2, sill: 0.8, band: 1.2, cornice: 0.8, colours: { wall: 0xb9b2a4, cornice: 0xa39c8e } },
+  },
 };
