@@ -1774,4 +1774,29 @@ export const VESSELS_CONFIG = {
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
     },
   },
+
+  /**
+   * A catamaran's handling (owner, Oct 2026: the fast work cat; vessel/catamaran.ts), what two
+   * slim hulls do that one beamy one doesn't. Read by `catamaranHandling`, which a boat built
+   * on a catamaran hull takes her handling numbers from.
+   *   resistance  calm-water resistance (vessel/physics/propulsion.ts: ITTC-57 friction with a
+   *               form factor, plus a wave-making term in Fn that levels off at `waveCap` of her
+   *               weight). Slim demihulls (waterline length/beam about 8) make a smaller hump
+   *               than a beamy planing monohull, and it comes a little later (`waveKnee`); the
+   *               form factor carries the two hulls' interference on top of each one's own.
+   *               Tuned so a light 12.5 m work cat (9 t) needs about 40 kW a tonne at the
+   *               propeller shaft for 25-28 kn, as real ones on twin 250-300 kW do (the
+   *               landing craft's trial gives the game's propulsive efficiency, about 0.55).
+   *   heaveAddedMass  each demihull's added mass in heave, as a fraction of its share of her
+   *               displacement (slim hulls at roll frequencies: about 0.8). Rolling, the hulls
+   *               heave in opposite directions, so it adds roll inertia of this x her mass x
+   *               (spacing/2)^2: her roll slows from a stiff, snappy rigid-body period toward
+   *               a real cat's (about 2 s at 12 m).
+   *   rollGyradius  her rigid-body roll radius of gyration, as a fraction of her overall beam.
+   */
+  catamaran: {
+    resistance: { formFactor: 0.25, waveA: 0.65, waveB: 0.55, waveKnee: 0.35, waveCap: 0.09, asternFactor: 3.0 },
+    heaveAddedMass: 0.8,
+    rollGyradius: 0.37,
+  },
 };

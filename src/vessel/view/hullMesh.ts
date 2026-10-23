@@ -132,6 +132,17 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const poly = st[i].polygon;
     return new THREE.Vector3(0, (poly[2][1] + poly[0][1]) / 2, st[i].z);
   };
+  // A catamaran (Station.demihull): each demihull's panels face away from its own centreline,
+  // the wet deck's underside down (away from a point above it); her inner topsides and the
+  // wet deck are painted as her topsides, not her bottom.
+  const cat = form.catamaran;
+  const insideEdge = (i: number, k: number): THREE.Vector3 => {
+    if (!cat) return inside(i);
+    const poly = st[i].polygon;
+    if (k === 4) return new THREE.Vector3(0, poly[4][1] + 0.3, st[i].z);
+    return new THREE.Vector3((k < 4 ? -1 : 1) * cat.spacing / 2, (poly[2][1] + poly[0][1]) / 2, st[i].z);
+  };
+  const topsideEdge = (k: number) => (cat ? [0, 3, 4, 5, 8].includes(k) : k < chine || k >= last - chine);
 
   // A cabin sunk below the deck (its floor lower than the deck under it: you step down into
   // it) has no deck across it: the deck is cut away inside the house's walls. Every house's
@@ -154,7 +165,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const cut = deckCuts.some((c) => Math.min(st[i].z, st[i + 1].z) < c.aft && Math.max(st[i].z, st[i + 1].z) > c.front);
     // Topsides from each deck edge down to its chine, bottom from the chines to the keel.
     const edges: [number, number, number][] = [];
-    for (let k = 0; k < last; k++) edges.push([k, k + 1, k < chine || k >= last - chine ? col.topsides : col.bottom]);
+    for (let k = 0; k < last; k++) edges.push([k, k + 1, topsideEdge(k) ? col.topsides : col.bottom]);
     if (!cut) edges.push([last, 0, col.deck]); // deck
     else {
       // The deck in pieces between the stations and the house's ends; across the house, only
@@ -191,21 +202,30 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       // Non-slip paint on the deck; her topsides and bottom plain (owner: workboats are mostly
       // GRP, or aluminium in big sheets: no plate seams).
       const paint = color === col.deck && a === last ? 'nonSlip' : undefined;
-      tri(a0, b0, b1, mid, color, paint);
-      tri(a0, b1, a1, mid, color, paint);
+      const ref = cat && a !== last ? insideEdge(i, a).add(insideEdge(i + 1, a)).multiplyScalar(0.5) : mid;
+      tri(a0, b0, b1, ref, color, paint);
+      tri(a0, b1, a1, ref, color, paint);
     }
   }
   // Transom (station 0) as a fan around its centre.
   const tIn = inside(0).add(new THREE.Vector3(0, 0, -1));
   const tC = new THREE.Vector3(0, (st[0].polygon[2][1] + st[0].polygon[0][1]) / 2, st[0].z);
-  for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides);
+  // A catamaran's end isn't convex (her tunnel's a notch in it): it's cut into triangles that
+  // leave the tunnel open, each demihull's transom and the bridge deck's plate across.
+  const endPlate = (i: number, ref: THREE.Vector3) => {
+    const tris = THREE.ShapeUtils.triangulateShape(outlines[i].map(([x, y]) => new THREE.Vector2(x, y)), []);
+    for (const [a, b, d] of tris) tri(P(i, a), P(i, b), P(i, d), ref, col.topsides);
+  };
+  if (cat) endPlate(0, tIn);
+  else for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides);
   // A square bow (a landing bow: the last station still has width) is closed the same way,
-  // by a bow plate.
+  // by a bow plate. (A catamaran's bow: the bridge deck's front, across her tunnel.)
   const e = st.length - 1;
   if (st[e].halfBeamDeck > SQUARE_BOW) {
     const bIn = inside(e).add(new THREE.Vector3(0, 0, 1));
     const bC = new THREE.Vector3(0, (st[e].polygon[2][1] + st[e].polygon[0][1]) / 2, st[e].z);
-    for (let k = 0; k <= last; k++) tri(bC, P(e, k), P(e, (k + 1) % (last + 1)), bIn, col.topsides);
+    if (cat) endPlate(e, bIn);
+    else for (let k = 0; k <= last; k++) tri(bC, P(e, k), P(e, (k + 1) % (last + 1)), bIn, col.topsides);
   }
 
   const hull = new THREE.BufferGeometry();
@@ -382,7 +402,8 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
   const bh = layout.bulwarkHeight;
   const rh = layout.railHeight;
   const edge = (i: number, side: number, up: number) => {
-    const [x, y] = st[i].polygon[side > 0 ? 4 : 0];
+    const p = st[i].polygon;
+    const [x, y] = p[side > 0 ? p.length - 1 : 0];
     return new THREE.Vector3(x - side * 0.03, y + up, st[i].z);
   };
   // The working-deck gate (layout.sideGate): its bulwark and rail section is a separate,
