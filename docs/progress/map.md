@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Oban: the start (cargo) berth moved to the North Pier's south-west face (23 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "the default spawn at Oban pier is not very good because there's no room for the table or the cargo or even the boat. Could you move it to the ... south-west facing side of the pier?"
 
 - **Why it was cramped:** the package stage picks a harbour's cargo berth by room for a boat, fixed faces first, then nearest the harbour's middle. At Oban that put it in the inside corner of the North Pier's two arms: room for the workboat, but not for a bigger boat, and little deck behind it for the goods.
