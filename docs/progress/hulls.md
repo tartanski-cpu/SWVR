@@ -12,6 +12,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### The catamaran redrawn for her real weight; a displacement hull's resistance; publishing runs finish (owner)
 
+- **On `next`** (23 Oct, the owner's go-ahead): merged with `origin/next`; typecheck, all 1415 tests and the build pass. The Shipyard chat now wires the displacement curve in, re-measures the tug and trawler, and checks the catamaran's weight (its engine power limit, `CONFIG.shipyard.maxKwPerTonne`, is on `preview/shipyard`).
 - **The owner** said fix the catamaran hulls; for the tug, two big engines don't fit a small tug and the displacement speed should be respected where possible; and go ahead with the publishing fix.
 - **Why the catamaran needed redrawing:** the Shipyard chat's step 3 (on `preview/shipyard`) weighs her heavier than her lines floated, and I measured its build. At 12.5 m she weighed 13.7 t on lines for 9.3 t: draught 0.80 m against 0.62, and her wet deck only 0.72 m clear. At 10 m she weighed 10.1 t on lines for 4.8 t, her wet deck **0.41 m** clear. Her engines, house and outfit don't shrink with her, so the small sizes are heavy for their lines.
 - **The new lines** (`designs.ts`, `workCat`): 12.5 x 6.0 m, 0.83 m draught, 14.6 t at the DWL (Cb 0.48, Cp 0.73, Cm 0.65, Cwp 0.82; KM 9.7 m).
