@@ -26,9 +26,13 @@ permissions:
   pages: write
   id-token: write
 
+# One publish at a time, and a run that's started is let finish: with several chats pushing
+# (next and each preview branch), cancelling the run in progress at every push meant none
+# finished while they were busy. GitHub keeps one waiting run, the newest, which builds every
+# branch as it is then, so nothing pushed meanwhile is missed.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
