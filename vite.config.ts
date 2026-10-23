@@ -64,7 +64,8 @@ export default defineConfig({
       // pipeline, judged before they go into the game).
       // The landing page (index.html: career / voyage / training), the two game pages
       // (career.html, voyage.html: the same game, src/mode.ts tells them apart by their path).
-      input: { main: 'index.html', career: 'career.html', voyage: 'voyage.html', hulls: 'hulls.html', shipyard: 'shipyard.html', coast: 'coast.html' },
+      // tools/mv-encode.html: the handoff's test links (docs/metaverse-contract.md).
+      input: { main: 'index.html', career: 'career.html', voyage: 'voyage.html', hulls: 'hulls.html', shipyard: 'shipyard.html', coast: 'coast.html', mvEncode: 'tools/mv-encode.html' },
       output: {
         // three.js in its own chunk: it only changes when we upgrade it, so the headset
         // browser keeps it cached across our (frequent) game-code deploys.

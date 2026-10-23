@@ -53,6 +53,7 @@ export const KEYS = {
   binoculars: { codes: ['KeyZ'], description: 'Binoculars: look through them (hold; or the right mouse button)' },
   hangGear: { codes: ['KeyU'], description: 'Hang the extinguisher or torch back on its bracket' },
   menu: { codes: ['KeyO'], description: 'Menu (voyage, boat, cargo, office, crew, settings)' },
+  timber: { codes: ['Enter'], description: 'Voyage, when offered: go ashore to the timber camp, or sell the logs at the merchant' },
   wave: { codes: ['KeyY'], description: 'Wave (hold): your arm up over your head, for the crew to see (in the water too)' },
 } satisfies Record<string, KeyBinding>;
 

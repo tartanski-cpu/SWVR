@@ -227,6 +227,21 @@ On the quay where a Voyage map starts, a few steps behind where you begin, stand
 - **The table follows the host:** when the host takes her boat to another harbour with the Voyage tab's **Go**, the table goes there too, on that harbour's quay.
 - The host's browser keeps the plan for each map, so it's there next time.
 
+### The timber run (Voyage mode, Oban and Lorn)
+
+A loop with the Timber game. Cut logs ashore, then tow them to market.
+
+1. **Find the bay.** A yellow buoy with a brown band marks the timber camp's anchorage in Ardantrive Bay, Kerrera, across the sound from Oban. On the chartplotter it's a dashed ring with an anchor, "Timber camp".
+2. **Anchor there.** Stop inside the ring and let go the anchor. Once she's holding and still for a few seconds, you're asked: **Go ashore to the timber camp?**
+   - **Desktop:** Enter.
+   - **VR:** the menu, Voyage tab, **Timber**: **Go ashore**, or **Not now**. After Not now you're not asked again until you've left the bay and come back.
+3. **Ashore:** the screen fades to black and the Timber game opens, in the same browser tab. Your voyage is saved first, anchored where you left her.
+4. **Back aboard:** when you return from the camp you're on your boat, still at anchor. If you delivered logs, a barge with them stacked on her deck is lying off, already on your towline.
+5. **Tow her to Oban.** Weigh anchor and tow the barge to the timber merchant at Oban's North Pier (a square on the chartplotter, "Timber merchant"). A full barge sits deeper and tows heavier.
+6. **Sell.** With the barge alongside the merchant's quay and your boat stopped, you're offered the sale: logs × £12. Press Enter, or **Sell** in the Voyage tab. The money goes into your Voyage account, which this browser keeps.
+
+You can cast the barge off and make fast again like any tow. A barge you leave lying stays where she is, saved with the voyage. Then go straight back for another load. The timber camp takes one player at a time: it's offered when you're playing alone or hosting with no crew aboard.
+
 ### Transit jobs and closing up
 
 - **Fenders:** press the fender basket on the aft deck (starboard) to put all six out over the side, or take them in. Out, they cushion her against a quay: a knock coming alongside a bit fast does less damage to her hull (or none).

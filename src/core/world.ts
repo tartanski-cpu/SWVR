@@ -1,4 +1,5 @@
 import type { FuelState } from '../fuel/fuelHose';
+import type { TimberState } from '../voyage/timber';
 import { gearOf } from '../boats/sims';
 import type { BoardState } from '../board/board';
 import { CONFIG } from '../config';
@@ -92,6 +93,8 @@ export interface WorldState {
   fishing?: FishingState;
   /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */
   career?: CareerState;
+  /** Voyage: the log barges brought back from the timber camp (voyage/timber.ts). */
+  timber?: TimberState;
   /**
    * How the home boat was built, so crew who join build her the same (net: the welcome):
    * her Shipyard code if she's a design, and the workboat's equipment she was fitted out
