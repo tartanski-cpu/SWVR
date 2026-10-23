@@ -3181,13 +3181,16 @@ async function startFrom(hull: number): Promise<void> {
   const msg = $('suggestMsg');
   const base = { ...design };
   const tried: Tried[] = [];
-  const fits = engineOptions();
-  for (const [k, fit] of fits.entries()) {
+  // (Only the engine fits that go under her deck: a tall engine in a shallow hull isn't offered.)
+  const fits = engineOptions()
+    .map((fit) => ({ fit, built: buildDesign({ ...base, ...fit }) }))
+    .filter((f) => f.built.figures.engineShortM <= 0);
+  for (const [k, { fit, built }] of fits.entries()) {
     msg.innerHTML = `<b>Started:</b> a bare ${esc(h)}. Trying her engines on trial: ${k + 1} of ${fits.length}…`;
     const d = { ...base, ...fit };
     const t = await trialOf(d, run * 100 + k);
     if (run !== searchRun) return; // asked again
-    if (t) tried.push({ fit, topSpeedKn: t.topSpeedKn, rangeNm: t.speedTable.at(-1)?.rangeNm ?? 0, price: boatFor(d).boat.figures.price, bollardT: t.bollard.aheadKN / 9.81 });
+    if (t) tried.push({ fit, topSpeedKn: t.topSpeedKn, rangeNm: t.speedTable.at(-1)?.rangeNm ?? 0, price: built.figures.price, bollardT: t.bollard.aheadKN / 9.81 });
   }
   const best = pickEngine(brief, tried);
   // Only if she's still the boat the trials were for (nobody has changed her hull since).
@@ -3197,7 +3200,7 @@ async function startFrom(hull: number): Promise<void> {
   }
   change(best.fit);
   const name = `${best.fit.twin ? 'twin ' : ''}${ENGINES[best.fit.engine ?? 0].name}`;
-  msg.innerHTML = `<b>Started:</b> a bare ${esc(h)}, ${esc(name)}: ${best.topSpeedKn.toFixed(1)} kn, ${best.rangeNm.toFixed(0)} nm, £${best.price.toLocaleString('en-GB')} (${tried.length} engine fits tried; the cheapest that does the job). Next: shape her hull and wheelhouse, then pin her equipment where you want it (Deck gear).`;
+  msg.innerHTML = `<b>Started:</b> a bare ${esc(h)}, ${esc(name)}: ${best.topSpeedKn.toFixed(1)} kn, ${best.rangeNm.toFixed(0)} nm, £${best.price.toLocaleString('en-GB')} (${tried.length} engine fits tried; the cheapest that does the job). Next: shape her hull and wheelhouse, then place her equipment where you want it (Deck gear).`;
 }
 
 // The together box opens from the header.

@@ -40,4 +40,10 @@ describe('the 750 kW diesel', () => {
     expect(big.bollard.aheadKN).toBeGreaterThan(1.5 * tug.bollard.aheadKN);
     expect(big.speedTable[3].rpm).toBeGreaterThan(0.9 * ENGINES[BIG].ratedRpm);
   }, 120000);
+
+  it('twin 750s in the small landing craft build (no crash), told she is too heavy or the engines don’t fit', () => {
+    const b = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[0].defaults, hull: 0, engine: BIG, twin: 1 });
+    expect(b.figures.engineShortM).toBeGreaterThan(0);
+    expect(b.warnings.join(' ')).toMatch(/doesn.t fit|too heavy/);
+  });
 });

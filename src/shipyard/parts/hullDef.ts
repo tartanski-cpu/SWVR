@@ -111,7 +111,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     name: `Shipyard design ${code}`,
     helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
     form,
-    lightship: lightshipOf(weighed, [
+    lightship: lightshipLess(weighed, [
       outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : pods ? pdc.legKg : 0)) * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
       // The deck crane, if she has one: designed in where its column stands, so she still
@@ -162,3 +162,16 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   return { hull, stack };
 }
 export type HullDefPart = ReturnType<typeof hullDefPart>;
+
+/**
+ * Her lightship: the weighed boat less the parts that weigh themselves (massProperties.ts
+ * lightshipOf). On the builder's first pass she's weighed as her lines' displacement, before
+ * her own weights are known (build.ts buildDesign), and a heavy engine fit in a small hull
+ * (twin 750 kW diesels in the landing craft: 9.6 t of engine in a boat of about 5 t) can weigh
+ * more than that: then the parts aren't taken off, as nothing uses that pass's lightship. The
+ * second pass weighs her with them, and says if she's too heavy for her hull.
+ */
+function lightshipLess(weighed: Parameters<typeof lightshipOf>[0], parts: Parameters<typeof lightshipOf>[1]): ReturnType<typeof lightshipOf> {
+  const partsKg = parts.reduce((a, p) => a + p.massKg, 0);
+  return partsKg < weighed.massKg ? lightshipOf(weighed, parts) : { massKg: weighed.massKg, cg: [...weighed.cg], inertia: [...weighed.inertia] };
+}
