@@ -4,7 +4,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { BERTHS, BLOCKS } from '../src/world/archipelago';
-import { BOLLARD_HALF_SPACING, faceBollards, type BlockFace } from '../src/world/berths';
+import { BOLLARD_HALF_SPACING, berthBollards, faceBollards, type BlockFace } from '../src/world/berths';
 import type { BlockDef } from '../src/world/defs';
 
 /** The faces of a block as the world view walks them. */
@@ -31,6 +31,17 @@ describe('bollards at the lines\' tie points', () => {
     // The east face (land behind) has no berth: the old 12 m grid stays for its look.
     const east = faceBollards(quay, faces(quay).find((f) => f.nx === 1)!);
     expect(east[0]).toBe(-quay.halfLength + 3);
+  });
+
+  it('Calder Haven quay: bollards on along the face past a 24 m boat\'s ends, 12 m apart at most', () => {
+    const berth = BERTHS.find((b) => b.id === 'calder-cargo')!;
+    const h = (berth.headingDeg * Math.PI) / 180;
+    const along = berthBollards(berth)
+      .map((p) => (p.x - berth.x) * Math.sin(h) - (p.z - berth.z) * Math.cos(h))
+      .sort((a, b) => a - b);
+    expect(along.some((s) => s > 13)).toBe(true);
+    expect(along.some((s) => s < -13)).toBe(true);
+    for (let i = 1; i < along.length; i++) expect(along[i] - along[i - 1]).toBeLessThanOrEqual(12.01);
   });
 
   it('a pier with no named berth keeps its generated berths\' bollards: 12 m apart from 3 m in', () => {

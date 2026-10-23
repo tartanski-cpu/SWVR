@@ -2202,6 +2202,14 @@ export const CONFIG = {
      * `breakForce` (N) or stretched `maxStretch` (m), as if she's towed off at speed.
      */
     painter: { reach: 6, slack: 0.5, minLength: 2.5, maxLength: 7, stiffness: 3000, dampingRatio: 0.7, breakForce: 15000, maxStretch: 2.0 },
+    /**
+     * Where the bow and stern lines are drawn to on the quay: the bollard nearest this far
+     * (m) beyond her cleat, forward for the bow line and aft for the stern line, so a long
+     * boat's lines lead out from her ends, not back inside her length (owner, Oct 2026: a 24 m
+     * trawler at the start quay). None within `lineLeadMax` (m) of that: her berth's own pair.
+     */
+    lineLead: 4,
+    lineLeadMax: 12,
     /** Hot spot: boat origin within this distance of the berth (m)... */
     range: 18,
     /** ...below this speed (m/s)... */

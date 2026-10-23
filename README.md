@@ -611,7 +611,7 @@ You can dock along any quay or pier face with deep water alongside. The named be
 To dock:
 
 1. Come slowly alongside: within about 18 m, under 3 kn, roughly parallel to the quay (bow either way).
-2. Go out on deck. There's a **mooring cleat** on the bulwark top forward and aft on each side. Click the forward cleat on the quay side: the bow line goes to the forward bollard. Click the aft one: the stern line goes to the aft bollard. (The menu's Boat tab, **Dock**, does both at once.)
+2. Go out on deck. There's a **mooring cleat** on the bulwark top forward and aft on each side. Click the forward cleat on the quay side: the bow line goes to the forward bollard. Click the aft one: the stern line goes to the aft bollard. (Each line goes to the bollard just beyond that end of her, so a long trawler's lines lead out from her bow and stern; the quays have bollards along their whole length.) (The menu's Boat tab, **Dock**, does both at once.)
 3. The lines come taut and warp her in over a few seconds. With both fast she's moored: held alongside, but still moving with the swell. With one line only, she hangs off it.
 4. **Cast off:** click each cleat again to let its line go (or **Cast off** on the menu). A hard pull with the engine parts the lines.
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BOLLARD_HALF_SPACING } from '../../world/berths';
+import { BOLLARD_HALF_SPACING, berthBollards } from '../../world/berths';
+import { CONFIG } from '../../config';
 import { hullPlan } from '../layout';
 import { berthAxis, berthById, shoreSide } from '../physics/mooring';
 import { gearOf } from '../../boats/sims';
@@ -53,12 +54,30 @@ export class MooringLines {
       const z = cleat.z;
       if (cleat.x !== undefined) root.localToWorld(this.a.set(cleat.x, cleat.lineY, z));
       else root.localToWorld(this.a.set(side * (plan.halfBeam(z) - 0.03), plan.deckY(z) + top, z));
-      // ...to the bollard's head on the quay.
-      this.b.set(
-        berth.x + ax.x * along + berth.shoreX * (berth.shoreDist + 0.5),
-        berth.deckY + 0.45,
-        berth.z + ax.z * along + berth.shoreZ * (berth.shoreDist + 0.5),
-      );
+      // ...to the bollard's head on the quay: the one a little beyond her end (the bow line
+      // leads forward, the stern line aft), so a long boat's lines don't run back inside her
+      // length (CONFIG.docking.lineLead); none on her face (a pontoon's cleats): her berth's.
+      const ahead = along > 0 ? 1 : -1;
+      const at = (this.a.x - berth.x) * ax.x + (this.a.z - berth.z) * ax.z;
+      const goal = at + ahead * CONFIG.docking.lineLead;
+      let best: { x: number; z: number } | null = null;
+      let bestErr = Infinity;
+      for (const p of berthBollards(berth)) {
+        const s = (p.x - berth.x) * ax.x + (p.z - berth.z) * ax.z;
+        if ((s - at) * ahead < 0.5) continue; // not beyond her cleat
+        const err = Math.abs(s - goal);
+        if (err < bestErr && err < CONFIG.docking.lineLeadMax) {
+          best = p;
+          bestErr = err;
+        }
+      }
+      if (best) this.b.set(best.x, berth.deckY + 0.45, best.z);
+      else
+        this.b.set(
+          berth.x + ax.x * along + berth.shoreX * (berth.shoreDist + 0.5),
+          berth.deckY + 0.45,
+          berth.z + ax.z * along + berth.shoreZ * (berth.shoreDist + 0.5),
+        );
       this.mid.addVectors(this.a, this.b).multiplyScalar(0.5);
       this.dir.subVectors(this.b, this.a);
       const len = this.dir.length();

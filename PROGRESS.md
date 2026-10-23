@@ -5433,6 +5433,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/boatVoices.test.ts` (+2): coming, going, crossing and your own speed in the Doppler factor, its limit; the nearest few within range heard. `npm run crewcheck` (now 27): the host hears the crew's boat once she's launched beside him; her horn pressed on her page sounds in the host's world.
 - **Checked:** typecheck, `npm test`, `npm run crewcheck` (27 of 27). **Not checked:** by ear (headless has no speakers); the Quest's audio load with three boats.
 
+### Bollards along the whole quay; long boats' lines lead out from her ends (owner, Oct 2026)
+
+Owner: "the key site in career mode probably needs more bollards. This is what happens when I spawn in the 24-meter trawler or the big trawler." A quay face only had its berths' two bollards, 6 m either side of the berth's middle, so a long boat's bow and stern lines ran back inside her length.
+
+- A face with berths now has bollards all along it at the same 12 m spacing, on past the berths' own pair to the face's ends; a gap between two berths' bollards wider than 12 m is shared out (`world/berths.ts faceBollards`). Faces with no berth and pontoons are as before.
+- Each line is drawn to the bollard nearest `CONFIG.docking.lineLead` (4 m) beyond her cleat, forward for the bow line and aft for the stern line, within `lineLeadMax` (12 m); none there, her berth's own pair as before (`berthBollards`, `vessel/view/mooringLines.ts`). Drawing only: how the lines hold her is unchanged.
+- Test: `tests/bollards.test.ts` (Calder Haven's quay has bollards past a 24 m boat's ends, at most 12 m apart). Checked in headless Chromium with a stern trawler at the start quay.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
