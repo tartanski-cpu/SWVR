@@ -148,7 +148,8 @@ export function payFactor(c: CareerState, port: string | null | undefined): numb
   return 1 + (CONFIG.career.repPayBonus * repOf(c, port)) / 100;
 }
 
-function post(world: WorldState, c: CareerState, text: string, amount: number): void {
+/** Money in or out of the account, with its ledger line (also the timber merchant's sale, voyage/timber.ts). */
+export function post(world: WorldState, c: CareerState, text: string, amount: number): void {
   c.money += amount;
   c.ledger.unshift({ clock: clock(world), text, amount });
   c.ledger.length = Math.min(c.ledger.length, CONFIG.career.ledgerKeep);

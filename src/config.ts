@@ -2261,6 +2261,50 @@ export const CONFIG = {
       drawPx: 2048,
       table: { width: 2.4, depth: 1.6, height: 0.9, back: 3.2, keyDepth: 0.12 },
     },
+    /**
+     * The timber run (owner's spec, 23 Oct 2026: Workboat World x Timber; voyage/timber.ts,
+     * voyage/metaverse.ts, docs/metaverse-contract.md). Anchor in a marked bay, go ashore to
+     * the Timber game, come back to a barge of logs on your line, sell them at the merchant.
+     *   holdS, maxSpeedKn   the prompt comes up once the anchor is set, she's slower than
+     *                       this and inside the site's radius, for this long
+     *   keepIds             handoff ids kept in the browser's lists (issued, consumed)
+     *   fadeS               the fade to black before the page goes to the camp, and back in
+     *   maxLogs             a barge's load at most. Timber's barge is full at 20 but logs
+     *                       delivered after that travel too (its spec), so up to 40, four
+     *                       tiers; more than that (an edited address) is capped here, as a
+     *                       barge with hundreds of logs aboard would sink
+     *   logsPerTier         logs in each tier of the stack on deck (tiers at 10, 20, 30, 40)
+     *   logKg, logLength, logDiameter   one log: 3 m of 0.3 m softwood, about 170 kg green.
+     *                       A full barge's 40 (6.8 t) puts her about 0.25 m deeper, which she
+     *                       has freeboard for (her deck is 0.5 m up), and over half again her
+     *                       own 10.5 t to tow and stop
+     *   bargeOffM           a barge brought back lies at the site's spawn point, or this far
+     *                       off the boat toward it if the spawn is further (the line has to
+     *                       reach: the tow winch's longest is 60 m)
+     *   merchants           where logs are bought: a harbour berth on a map. Oban's North Pier
+     *                       berth: Ardantrive Bay is 2 km across the sound, a 10-20 minute tow
+     *   pricePerLog         paid per log: Timber's full barge (20) £240, about a cargo run
+     *   sellRangeM, sellMaxSpeedKn   the sale is offered with the barge within this of the
+     *                       merchant's quay (plus her half-length, `bargeHalfLengthM`) and the
+     *                       boat slower than this
+     */
+    timber: {
+      holdS: 3,
+      maxSpeedKn: 0.5,
+      keepIds: 50,
+      fadeS: 1,
+      maxLogs: 40,
+      logsPerTier: 10,
+      logKg: 170,
+      logLength: 3,
+      logDiameter: 0.3,
+      bargeOffM: 45,
+      merchants: [{ mapId: 'oban', berthId: 'oban-cargo', name: 'the Oban timber merchant' }],
+      pricePerLog: 12,
+      sellRangeM: 15,
+      sellMaxSpeedKn: 0.6,
+      bargeHalfLengthM: 4.5,
+    },
   },
 
   /**
