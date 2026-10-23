@@ -24,9 +24,11 @@ Owner, 23 Oct 2026: do the hull chat's follow-ups "as they reach next". The hull
 - **Tests:**
   - tests/shipyard/hullResistance.test.ts (new): only the displacement types get the curve; the cat's weight, and twin 400s as she comes.
   - tests/shipyard/inTheGame.test.ts: the twin-engined tug's flat-out speed is now 8.92 kn (was 10.08).
-  - `npm run test:shipyard` (333) and the typecheck pass.
+  - `npm run test:shipyard` (333), the full `npm test` and the typecheck pass.
 - README: the tug's, trawler's and catamaran's speeds, and the cat's engines and weight.
-- **Shared changes:** none (vessel/displacementHull.ts is the hull chat's, only used).
+- **Shared changes:**
+  - tests/displacementHull.test.ts (the hull chat's): its check that the planing curve let the tug run away compared against the tug as the Shipyard built her, which was the planing curve until now. It now checks that she is built on the displacement curve, and compares against the planing curve explicitly. Caught by the preview check (the full suite), not by `test:shipyard`.
+  - vessel/displacementHull.ts is the hull chat's, only used.
 
 ### Handles on the 3D view, stop 2: the rest of the Hull step (done, on the preview)
 
