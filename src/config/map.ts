@@ -75,16 +75,17 @@ export const MAP_CONFIG = {
      *             zone's own waveFactor);
      *   steepen   its crest sharpness (the Gerstner orbit) × (1 + steepen × opp) more still;
      *   flatten   with the flow (opp < 0): height × (1 - flatten × |opp|), the sea eases;
-     *   chop      two short wind-wave components in the sea, `amplitude` m (× the sea scale)
-     *             at `periods` s, travelling `spreadDeg` either side of the main wave: nowhere
-     *             but where they oppose a running race (× max(opp, 0)).
+     *   chop      `amplitude` m (× the sea scale) of chop on the sea's short trains
+     *             (CONFIG.ocean.fetchSeas.trains, down the wind; they carry the wind sea in
+     *             enclosed water too): where they oppose a running race (× max(opp, 0)).
      * The crest-loop limit (Σ Q·k·A < 1) is kept at the worst case (tests/overfalls.test.ts).
      */
     overfalls: {
       heighten: 0.35,
       steepen: 0.45,
       flatten: 0.3,
-      chop: { amplitude: 0.12, periods: [2.6, 2.1] as readonly number[], spreadDeg: 15 },
+      // The chop's height (× the sea scale) on the short trains (CONFIG.ocean.fetchSeas.trains, which carry the wind sea too).
+      chop: { amplitude: 0.12 },
     },
     slackBelowKn: 1.5,
     knock: { radius: 28, yaw: 0.07, roll: 0.08 },
@@ -284,5 +285,28 @@ export const MAP_CONFIG = {
     rainy: 0.15,
     overcast: 0.6,
     credit: 'Weather data by Open-Meteo.com (CC BY 4.0)',
+  },
+  /**
+   * Bridges over the sea and follies on the coast maps (the landmarks and bridges pass;
+   * world/coastStructures.ts, drawn by world/view/coastView.ts as one mesh).
+   *   deckDepth   a deck's thickness (m)
+   *   cantilever  `panel` m between a truss's verticals; the suspended span is `suspended`
+   *               of the gap between the banks' piers, its truss `suspendedDepth` m deep under
+   *               the deck; the anchor arm `anchorDepth` m deep at the abutment
+   *   beamSpan    a beam bridge's piers this far apart over the water (m)
+   *   folly       a ring of arches: `tiers` tiers in `height` m (when the map gives none), a
+   *               pier `pier` m wide every `bay` m round it, walls `thick` m thick, a sill
+   *               `sill` m high under the lower openings, a `band` m band over each tier's,
+   *               a `cornice` m cornice on top
+   */
+  structures: {
+    deckDepth: 0.8,
+    panel: 10,
+    suspended: 0.3,
+    suspendedDepth: 2.5,
+    anchorDepth: 2,
+    beamSpan: 30,
+    colours: { steel: 0x4c5a55, deck: 0x55585a, stone: 0x8a8478 },
+    folly: { height: 11, tiers: 2, bay: 3.8, pier: 1.3, thick: 1.2, sill: 0.8, band: 1.2, cornice: 0.8, colours: { wall: 0xb9b2a4, cornice: 0xa39c8e } },
   },
 };

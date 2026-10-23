@@ -38,6 +38,8 @@ uniform vec2 uGustDir;          // the way it blows (world x, z)
 uniform vec2 uGustLook;         // how much darker, how much spray (CONFIG.gusts.look)
 uniform float uTime;
 varying float vRace;
+varying float vExpo;
+varying float vShort;
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -105,8 +107,12 @@ void main() {
   col += uSunColor * spec * uSunIntensity * 0.8;
 
   // Whitening on the highest crests: faint in a moderate sea, breaking whitecaps in a steep one.
-  float crestLo = uCrestHeight * mix(0.75, 0.45, uFoamAmount);
-  float foam = smoothstep(crestLo, uCrestHeight * mix(1.0, 0.8, uFoamAmount), vHeight) * mix(0.35, 0.85, uFoamAmount);
+  // The sea here: the open sea's crests as exposed as the water is, and the short sea's own
+  // (ocean/windSea.ts), which breaks sooner for its height: a short sea is a steep one.
+  float crestH = max(0.02, uCrestHeight * vExpo + 0.75 * vShort);
+  float foamAmt = max(uFoamAmount * vExpo, clamp((vShort - 0.2) / 0.35, 0.0, 1.0));
+  float crestLo = crestH * mix(0.75, 0.45, foamAmt);
+  float foam = smoothstep(crestLo, crestH * mix(1.0, 0.8, foamAmt), vHeight) * mix(0.35, 0.85, foamAmt);
   col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), foam);
 
   // Breaking waves on beaches. A wave breaks where its height reaches about 0.78 of the

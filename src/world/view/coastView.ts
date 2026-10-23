@@ -20,6 +20,7 @@
  *   silhouette  the whole region far off: the same, every `coastSilhouetteCell` m.
  *   buildings   a town's worth: merged per chunk, built the first time the viewer comes
  *          within `coastBuildingDistance`, shown only within it.
+ *   structures  its bridges over the sea and follies (world/coastStructures.ts), one mesh.
  * Everything is built a few pieces a frame (the coarse chunks first), so no frame stalls.
  * Colours are the pipeline's per-face sRGB bytes, used as the game's terrain colours are.
  */
@@ -31,6 +32,8 @@ import type { BuildingDef, RegionDef } from '../defs';
 import type { TerrainArrays } from './terrainMesh';
 import { forestOf } from '../forest';
 import { TreesView } from './treesView';
+import { structuresGeometry } from '../coastStructures';
+import { groundHeight } from '../terrain';
 
 const S: CoastSample = { h: 0, r: 0, g: 0, b: 0, fine: false };
 
@@ -162,6 +165,15 @@ export class CoastTerrainView {
     const forest = forestOf(region.id);
     this.trees = forest ? new TreesView(forest) : null;
     if (this.trees) this.root.add(this.trees.root);
+    // Its bridges over the sea and follies (the landmarks and bridges pass): one merged mesh,
+    // built now (a few thousand triangles at most), drawn wherever the fog allows.
+    const structures = structuresGeometry(region.bridges ?? [], region.follies ?? [], (x, z) => groundHeight(x, z));
+    if (structures) {
+      const m = new THREE.Mesh(structures, this.mat);
+      m.name = 'coast-structures';
+      m.matrixAutoUpdate = false;
+      this.root.add(m);
+    }
     const list = t.layout ? t.layout.chunks.map((c) => ({ ...c, drawn: c.count })) : t.chunked!.chunks.map((c) => ({ ...c, start: 0, count: c.drawn }));
     list.forEach((ch, k) => {
       const x0 = ch.x0 + t.ox;

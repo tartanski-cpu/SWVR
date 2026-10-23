@@ -10,6 +10,93 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The handheld VHF easier to find in VR (owner request, 23 Oct 2026)
+
+Owner: "very hard to find where it is because you can't see it ... a slightly bigger grab spot and ... a little bit of haptics when your hand reaches it."
+
+- `CONFIG.radio.grabRange`: 0.10 → 0.18 m.
+- A free hand coming within that reach gets a short tick in its controller (`CONFIG.radio.nearPulse` [0.3, 18 ms]), once each time it arrives. A hand already holding something gets none, as it can't take the radio (`player/radioHandset.ts`).
+- Test: `tests/radioHandsetReach.test.ts`: the tick at 15 cm (outside the old reach), not repeated while the hand stays, again after it leaves; the grab there; nothing for a busy hand.
+- Not checked: in the headset.
+
+### Short, steep seas in enclosed water, long ones in the open (owner: always, textbook strength, both maps, 23 Oct 2026)
+
+`docs/FETCH_SEAS.md`, built.
+
+- **The fetch map** (`src/world/fetch.ts`): land and water on a grid over the regions in play (`cellM` 150 m, at most `maxCells` 25 000), and each water cell's fetch to land in 16 bearings. A ray off the map runs on as open sea, to `fetchMaxM` (60 km).
+  - The effective fetch for a wind is the rays within 45° of it, weighted by cos².
+  - Worked out once at load from the ground: 33 ms for Oban, 80 ms for the archipelago (desktop, in the tests).
+- **The wind sea** (`src/ocean/windSea.ts`): JONSWAP fetch-limited growth at each cell for the wind now, capped at the fully developed sea. A gale over 3 km gives 0.56 m at 2.5 s; over 100 km, 3.2 m at 7.9 s.
+  - It's carried by three short trains (`trains`: 4.4, 3.1, 2.2 s, down the wind), shared by a narrow spread in log-period about its peak period.
+  - Less the part the open sea carries there: × √(1 − e²) for the wind's own exposure.
+  - The long waves are scaled by each spot's exposure toward where they come from, e = F / `openFetchM` (40 km), at most 1.
+  - The field is worked out again when the wind changes by `refreshWindPct` (4 %) or `refreshDirDeg` (4°). The physics reads it bilinearly (`windSeaAt`) and the shader as a texture of the same numbers, so they agree.
+- **The waves** (`ocean/waves.ts`, `gerstner.glsl`, `environmentState.seaStateWaves`): the short trains replace the race chop's two waves.
+  - Each is as tall as it is anywhere; at each spot it's scaled to the wind sea there plus, against a running race, the chop, at most its height.
+  - The crest-loop cap counts them. A storm's Σ Q·k·A stays under the cap at every water cell on Oban (tested).
+  - `rebuildWaves` keeps the phase at the players as a train swings with the wind.
+  - `MAX_WAVES` goes 8 → 11. The race chop (the 9th and 10th wave) had never been drawn: the shader stopped at 8.
+  - `significantWaveHeight` is the open sea's (the short trains left out).
+- **Whitecaps** by the sea at each spot (`ocean.frag`): the open sea's crests × the exposure, and the short sea's own, which whitens sooner for its height.
+- **The forecast** (`environment/forecast.ts seaWords`): from force 5, "A short, steep sea in the sounds and lochs; moderate in open water"; from force 7, breaking, and rough outside.
+- **Debug → World → Sea:** Short seas: By fetch / Off (as before) (env intent `shortSeas`, `EnvironmentState.shortSeasOff`), and "Here: short sea 0.25 m at 2.5 s · long waves × 0.02 · fetch upwind 0.6 km".
+- **Crew pages** work out the field from the host's wind each frame (the waves come from the host).
+- Config: `CONFIG.ocean.fetchSeas` (all above). `CONFIG.currents.overfalls.chop` keeps only its `amplitude`; its periods are the trains'.
+- Tests:
+  - `tests/fetchSeas.test.ts`: the JONSWAP figures; Oban in a SW gale: Ardantrive Bay's sea short, its long waves small, the open water's long; no looping crests in a storm; Debug off and on; the archipelago's open ocean exposed and a harbour not.
+  - `tests/overfalls.test.ts`: the short trains.
+- Checked in headless Chromium, Oban in a SW gale (20 m/s):
+  - In Ardantrive Bay with short seas on, a small short chop, no swell (0.25 m at 2.5 s). Off, the open sea's long swell rolls into the bay, as before.
+  - Out in the open water, the long heavy sea with whitecaps.
+  - No shader errors.
+
+  Not checked: VR, and the Quest's frame rate with 11 waves (3 more per ocean vertex, and one texture read).
+
+**Shared changes:**
+- `src/world/fetch.ts` (new).
+- `src/config/map.ts`: `overfalls.chop` keeps only `amplitude`.
+
+### No whirlpools at the Falls of Lora; a plan for short steep seas in enclosed water (owner, 23 Oct 2026)
+
+- **The Falls of Lora** (Oban): no whirlpools (owner: "there's not a whirlpool at the Falls of Lora ... we just need the other effects and the fast tides"). Its race keeps its 6 kn tide, standing waves and overfalls, with no whirl points (no swirls drawn, no knocks on the helm).
+  - The coast pipeline now gives a race whirls only where the region request says so: `currentZones[].whirls`, default 0. Before, every real-coast race got 3.
+  - The built Oban package is changed to match (`knocks: 0`). Sruth Tarsk, hand-built, keeps its four.
+  - Test: `tests/fallsOfLora.test.ts`.
+- **Short steep seas everywhere enclosed water makes them:** `docs/FETCH_SEAS.md`, a plan.
+  - The wind sea grows with each spot's fetch by the JONSWAP relations: short and steep in a sound or loch, long in open water.
+  - It's carried by a few short wave trains everywhere (the race chop made general); the long waves become the swell, scaled by each spot's exposure.
+  - A fetch map per map, from the coast pipeline.
+  - Not started: the owner's questions at its end.
+
+**Shared changes:**
+- `tools/coast/src/common.ts`, `nav.ts`, `package.ts`: a race's `whirls`.
+- `tools/coast/requests/oban.yaml`: `whirls: 0`.
+- `src/world/regions/oban.coast.json`: `knocks: 0`.
+
+### Debug: the tidal races pinned at the ebb, to see the overfalls (owner question, 23 Oct 2026)
+
+The owner: "I remember working on a steeper wave model ... I don't remember seeing that. Is there a debug option?"
+
+- The steeper waves are the overfalls (Oct 2026): the sea stands up where it runs against a race. In Sruth Tarsk (the Sounds) and at the Falls of Lora (Oban) that's on the **ebb**.
+- The Debug menu's only pin was "Peak", which is the flood. The flood runs with the sea's waves there, so it eased the sea: the overfalls could never be seen from the menu.
+- Debug → World → Tidal races is now **By the clock / Flood / Ebb / Slack** (`RaceOverride` 'ebb', raceFactor -1; intent `raceOverride` value 3).
+- Test: `tests/overfalls.test.ts`: the Ebb pin gives the ebb's full strength; the intent sets and clears it.
+- Checked in headless Chromium: Sruth Tarsk in a Rough sea, pinned Flood and then Ebb. The two still pictures look alike at that size, as when the overfalls were built: the difference (1.6× steeper, crests 1.4× higher in the race against the ebb) is in the numbers. Not checked by eye from the wheelhouse or in VR. If it still reads too subtle there, `CONFIG.currents.overfalls` `heighten` / `steepen` / `chop` are the knobs.
+
+### The front page: four equal tiles, each with a picture (owner request, 23 Oct 2026)
+
+Owner: "The main page ... should have an equally sized tile for the shipyard and a suitable graphic for each of them."
+
+- `index.html`: Career, Voyage, Shipyard and Training as four equal tiles, two by two (one column on a phone, each tile full width), every tile the height of the tallest.
+- Each tile has its own drawing, original and in the game's chunky style, drawn as SVG in the page (no image files, nothing more to load):
+  - Career: a workboat alongside a quay with crates and a crane;
+  - Voyage: a chart of a coast with a route, its stops and a compass;
+  - Shipyard: a boat's lines plan on a drawing board, with stations, waterlines and her length;
+  - Training: a small harbour with a buoy slalom and a REC light.
+- The Voyage maps are four compact buttons, two by two, with the full description on hover. Career and the Shipyard have a button at the foot of their tile.
+- The Shipyard moved from the footer into its tile; the footer keeps the hull study's link.
+- Checked: headless screenshots, wide and phone width: the four tiles equal on a wide screen (481 × 462 px each), no sideways scroll on a phone.
+
 ### Everything on next goes to the live game (owner: "approved", 23 Oct 2026)
 
 - The test build as of the afternoon of 23 October, every chat's approved work on `next`, merged into the dev branch: https://tartanski-cpu.github.io/SWVR/.

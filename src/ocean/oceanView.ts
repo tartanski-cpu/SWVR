@@ -18,8 +18,10 @@ export const MAX_KNOCKS = 12;
 import { MAX_SHELTERS } from '../world/shelter';
 import { gustZone, type GustState } from '../environment/gusts';
 import { groundHeight } from '../world/terrain';
+import { windSeaField } from './windSea';
 
-export const MAX_WAVES = 8;
+/** Wave trains the shader sums: the 8 long waves and the 3 short trains (CONFIG.ocean.fetchSeas). */
+export const MAX_WAVES = 11;
 export { gerstnerChunk };
 
 /**
@@ -49,6 +51,10 @@ export class OceanView {
       uRaceFade: u.uRaceFade,
       uOverfalls: u.uOverfalls,
       uLoop: u.uLoop,
+      uWindSea: u.uWindSea,
+      uWindBox: u.uWindBox,
+      uWindMax: u.uWindMax,
+      uRaceChop: u.uRaceChop,
       uSunIntensity: u.uSunIntensity,
       uAmbient: u.uAmbient,
       uFogColor: u.uFogColor,
@@ -73,6 +79,12 @@ export class OceanView {
     uRaceFade: { value: CONFIG.currents.edgeFade },
     uOverfalls: { value: new THREE.Vector3(CONFIG.currents.overfalls.heighten, CONFIG.currents.overfalls.steepen, CONFIG.currents.overfalls.flatten) },
     uLoop: { value: new THREE.Vector3(0, 0, LOOP_CAP) },
+    // The wind sea by fetch (ocean/windSea.ts; updateWindSea below): none to start with, the
+    // long waves fully exposed everywhere.
+    uWindSea: { value: noWindSea() },
+    uWindBox: { value: new THREE.Vector4(0, 0, 1e-6, 1e-6) },
+    uWindMax: { value: new THREE.Vector3() },
+    uRaceChop: { value: 0 },
     uKnock: { value: Array.from({ length: MAX_KNOCKS }, () => new THREE.Vector4()) },
     uKnockCount: { value: 0 },
     // A katabatic gust's patch on the water (setGust): x, z, radius, strength; the way it blows.
@@ -211,6 +223,33 @@ export class OceanView {
   }
 
   private races: readonly CurrentZoneDef[] = [];
+  private windSeaVersion = -1;
+
+  /** The wind sea's field (ocean/windSea.ts) as the texture the shader reads, when it's changed. */
+  private updateWindSea(): void {
+    const f = windSeaField();
+    const v = f ? f.version : -1;
+    if (v === this.windSeaVersion) return;
+    this.windSeaVersion = v;
+    const u = this.uniforms;
+    const old = u.uWindSea.value;
+    if (!f) {
+      u.uWindSea.value = noWindSea();
+      u.uWindBox.value.set(0, 0, 1e-6, 1e-6);
+      u.uWindMax.value.set(0, 0, 0);
+    } else {
+      const g = f.grid;
+      const t = new THREE.DataTexture(f.data, g.nx, g.nz, THREE.RGBAFormat);
+      t.magFilter = THREE.LinearFilter;
+      t.minFilter = THREE.LinearFilter;
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      t.needsUpdate = true;
+      u.uWindSea.value = t;
+      u.uWindBox.value.set(g.x0, g.z0, 1 / (g.nx * g.cell), 1 / (g.nz * g.cell));
+      u.uWindMax.value.set(f.max[0] ?? 0, f.max[1] ?? 0, f.max[2] ?? 0);
+    }
+    old.dispose();
+  }
 
   /** The tidal races the shader draws: those of the regions drawn in full (set with the shelters). */
   setRaces(zones: readonly CurrentZoneDef[]): void {
@@ -304,13 +343,20 @@ export class OceanView {
     u.uWaveCount.value = count;
     const loops = loopSums(waves);
     u.uLoop.value.set(loops.sea, loops.chop, LOOP_CAP);
+    this.updateWindSea();
     let crest = 0;
     let steep = 0;
+    u.uRaceChop.value = 0;
     for (let i = 0; i < count; i++) {
       const w = waves[i];
       const fadeEnd = distanceForCellSize(w.wavelength / CONFIG.ocean.mesh.minCellsPerWavelength);
       u.uWaveA.value[i].set(w.dirX, w.dirZ, w.k, w.amplitude);
-      u.uWaveB.value[i].set(w.horizontal, w.phase, fadeEnd, w.chop ? 1 : 0);
+      u.uWaveB.value[i].set(w.horizontal, w.phase, fadeEnd, w.chop ? 1 + w.train : 0);
+      if (w.chop) {
+        u.uRaceChop.value = w.raceShare * w.amplitude;
+        continue;
+      }
+      // The open sea's (a short train's amplitude is its largest anywhere, not the sea here).
       crest += w.amplitude;
       steep += w.k * w.horizontal;
     }
@@ -349,4 +395,11 @@ export class OceanView {
     u.uFogNear.value = env.fogNear;
     u.uFogFar.value = env.fogFar;
   }
+}
+
+/** No wind sea: one texel, no short trains, the long waves fully exposed. */
+function noWindSea(): THREE.DataTexture {
+  const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
+  t.needsUpdate = true;
+  return t;
 }
