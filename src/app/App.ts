@@ -403,7 +403,6 @@ export class App {
   private readonly timberSites: MetaverseSite[] = MODE === 'voyage' ? sitesOn(VOYAGE_MAP_ID) : [];
   private readonly timberWatch = new HotspotWatch();
   private timberView: TimberView | null = null;
-  private timberOffered: string | null = null;
   private saleShown: string | null = null;
   private leavingForCamp = false;
   private readonly timberPrompt = new HelmPrompt(118);
@@ -4997,9 +4996,9 @@ export class App {
   }
 
   /**
-   * Voyage, each frame: the logs on the barges and the bay's buoy; the prompt when she's
-   * anchored in the bay (Enter or the Voyage tab: go ashore); the sale when a barge lies at
-   * the merchant's quay (Enter or the Voyage tab: sell).
+   * Voyage, each frame: the logs on the barges and the bay's buoy; anchored in the bay, ashore
+   * to the timber camp; the sale when a barge lies at the merchant's quay (Enter or the
+   * Voyage tab: sell).
    */
   private updateTimber(v: VesselState | undefined, dt: number): void {
     if (!this.timberView) return;
@@ -5009,25 +5008,21 @@ export class App {
     }
     this.timberView.update(this.world, (x, z) => surfaceHeight(this.renderWaves, x, z));
     const boat = this.world.vessels[this.testVesselId];
+    // Anchored in the bay: straight ashore (owner: seamless, no prompt).
     const site = this.timberWatch.update(boat, this.timberSites, dt, this.playingAlone() && !this.leavingForCamp);
-    if (site && this.timberOffered !== site.id) this.overlay.notify('Anchored off the timber camp. Go ashore? (Enter, or the menu: Voyage)', 6);
-    this.timberOffered = site?.id ?? null;
+    if (site) this.goAshore(site);
     const sale = this.client ? null : saleOffer(this.world, boat, VOYAGE_MAP_ID);
     const saleKey = sale ? `${sale.bargeId}|${sale.logs}` : null;
     if (sale && this.saleShown !== saleKey) this.overlay.notify(`Alongside ${sale.merchant.name}: ${saleText(sale.logs, sale.total)}. Sell? (Enter, or the menu: Voyage)`, 6);
     this.saleShown = saleKey;
-    this.timberPrompt.show(site ? 'Go ashore to the timber camp?   Enter: go   ·   menu, Voyage: not now' : sale ? `Sell ${saleText(sale.logs, sale.total)}?   Enter: sell` : '');
-    if (this.keyboard.actionPressed('timber')) {
-      if (site) this.goAshore(site);
-      else if (sale) this.timberPress(0);
-    }
+    this.timberPrompt.show(this.leavingForCamp ? '' : sale ? `Sell ${saleText(sale.logs, sale.total)}?   Enter: sell` : '');
+    if (sale && this.keyboard.actionPressed('timber')) this.timberPress(0);
     void v;
   }
 
   /** Voyage tab: the timber run's line. */
   private timberLine(): string {
-    const site = this.timberWatch.offered;
-    if (site) return `Anchored off the timber camp (${site.name})`;
+    if (this.leavingForCamp) return 'Going ashore to the timber camp...';
     const sale = saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID);
     if (sale) return `At the merchant: ${saleText(sale.logs, sale.total)}`;
     const towed = Object.entries(this.world.timber?.barges ?? {}).find(([id]) => this.world.tow?.lines?.[this.testVesselId]?.target === `v:${id}`);
@@ -5038,18 +5033,11 @@ export class App {
 
   /** Voyage tab: its buttons' words (0: go or sell, 1: not now). */
   private timberButton(i: number): string {
-    if (this.timberWatch.offered) return i === 0 ? 'Go ashore' : 'Not now';
     if (i === 0 && !this.client && saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID)) return 'Sell';
     return '';
   }
 
   private timberPress(i: number): void {
-    const site = this.timberWatch.offered;
-    if (site) {
-      if (i === 0) this.goAshore(site);
-      else this.timberWatch.dismiss();
-      return;
-    }
     const sale = i === 0 && !this.client ? saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID) : null;
     if (!sale) return;
     sellBarge(this.world, sale.bargeId, sale.merchant);
@@ -5060,7 +5048,8 @@ export class App {
   /**
    * Go ashore to the timber camp (voyage/metaverse.ts): the voyage saved as it is (anchored
    * here), a handoff id issued, the envelope built, the screen faded to black, and the page
-   * goes to the Timber game. Only on the player's Go: anchoring never takes you by surprise.
+   * goes to the Timber game. In the headset the VR session isn't ended first: a browser that
+   * can carry VR across pages (WebXR navigation) keeps you in it.
    */
   private goAshore(site: MetaverseSite): void {
     const v = this.world.vessels[this.testVesselId];
@@ -5088,13 +5077,7 @@ export class App {
     this.timberPrompt.show('');
     this.overlay.notify('Going ashore to the timber camp...', 3);
     this.fade.style.opacity = '1';
-    const go = () => window.location.assign(outboundUrl(site, envelope));
-    // In the headset: out of VR first (the page that follows asks again).
-    const session = this.renderer.xr.getSession();
-    setTimeout(() => {
-      if (session) void session.end().finally(go);
-      else go();
-    }, CONFIG.voyage.timber.fadeS * 1000);
+    setTimeout(() => window.location.assign(outboundUrl(site, envelope)), CONFIG.voyage.timber.fadeS * 1000);
   }
 
   /** Ships, debris and buoys on the waves; ships' fog horns; the lookout calls new ships. */
