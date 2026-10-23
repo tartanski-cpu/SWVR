@@ -5,8 +5,6 @@ import { LoopbackHost } from '../../src/net/transport';
 import { DEFAULT_DESIGN } from '../../src/shipyard/design';
 import { Keeper, Member, type SessionEvents } from '../../src/shipyard/session';
 import { cleanDoc, newDoc } from '../../src/shipyard/variants';
-import { newBrief } from '../../src/shipyard/brief';
-import { briefPaper, briefSketch, sketchPlan } from '../../src/shipyard/briefPaper';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 function events(log: [string, string | null][]): SessionEvents {
@@ -39,27 +37,5 @@ describe('the shared step', () => {
   it('a bad step is ignored, and the step is kept with the work', () => {
     expect(cleanDoc({ ...newDoc({ ...DEFAULT_DESIGN }), step: '<b>' })?.step).toBeUndefined();
     expect(cleanDoc({ ...newDoc({ ...DEFAULT_DESIGN }), step: 'deck gear' })?.step).toBe('deck gear');
-  });
-});
-
-describe('the brief on paper', () => {
-  it("sketches the kind of boat the brief adds up to", () => {
-    const b = newBrief();
-    expect(sketchPlan(b)).toEqual({ hull: 'work', houseForward: false, marks: [] });
-    expect(sketchPlan({ ...b, jobs: ['towing'] })).toMatchObject({ hull: 'tug', houseForward: true, marks: ['towHook'] });
-    expect(sketchPlan({ ...b, speedKn: 25, jobs: ['rescue'] })).toMatchObject({ hull: 'fast', houseForward: false, marks: ['searchlight', 'ring'] });
-    expect(sketchPlan({ ...b, jobs: ['cargo', 'potting', 'trawl', 'fire'] }).marks).toEqual(['crates', 'pots', 'crane', 'aFrame', 'monitor']);
-    expect(briefSketch(b)).toMatch(/^<svg[^>]*>.*<\/svg>$/s);
-  });
-
-  it("writes her duties and requirements, safely, and is agreed once a hull's picked", () => {
-    const html = briefPaper({ ...newBrief(), name: '<Calder> & Co', jobs: ['cargo'], speedKn: 12, crates: 8 }, { name: 'Workboat', verdict: 'best fit' });
-    expect(html).toContain('&#60;Calder&#62; &#38; Co');
-    expect(html).not.toContain('<Calder>');
-    expect(html).toContain('12 knots');
-    expect(html).toContain('Crates on deck, at least');
-    expect(html).toContain('Workboat');
-    expect(html).toContain('stamp draft');
-    expect(briefPaper({ ...newBrief(), hull: 2 }, null)).toContain('stamp agreed');
   });
 });

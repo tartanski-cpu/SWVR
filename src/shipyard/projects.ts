@@ -67,3 +67,26 @@ export function addProject(list: Project[], p: Project): Project[] {
 export function removeProject(list: Project[], name: string, savedAt: number): Project[] {
   return list.filter((p) => !(p.name === name && p.savedAt === savedAt));
 }
+
+/**
+ * Save `p` as the project this work is (owner, Oct 2026: projects save themselves as you
+ * work). Renamed (her name changed at the top), the project called `was` becomes `p`: it
+ * isn't left behind under its old name.
+ */
+export function saveAs(list: Project[], p: Project, was: string): Project[] {
+  const rest = was && was.toLowerCase() !== p.name.toLowerCase() ? list.filter((x) => x.name.toLowerCase() !== was.toLowerCase()) : list;
+  return addProject(rest, p);
+}
+
+/**
+ * The work a browser left on the table, kept when the Shipyard opens afresh (owner, Oct
+ * 2026: it opens with no project, not the last design). If it was a project (`was`), that
+ * project takes it (it may have changed since it was last saved); else it's kept as a new
+ * project, "Unsaved work (date)", so nothing is lost.
+ */
+export function keepLeftWork(list: Project[], doc: YardDoc, was: string, now: number, summary: string): Project[] {
+  const old = was ? list.find((x) => x.name === was) : undefined;
+  if (old) return addProject(list, { ...old, doc, savedAt: now });
+  const when = new Date(now).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return addProject(list, { name: `Unsaved work (${when})`, savedAt: now, picture: '', summary, doc });
+}
