@@ -86,6 +86,12 @@ export class ChartPlotter {
   showPots = CONFIG.potting.showOnPlotter;
   /** The crew's pencil marks, drawn faintly over the map (null: not shown). */
   marks: ChartMarks | null = null;
+  /**
+   * Special places drawn on the chart (Voyage's timber run, voyage/timber.ts): an anchorage
+   * with something ashore (a ring of its radius and an anchor), or a merchant at a quay (a
+   * square). Each with its name.
+   */
+  specials: { x: number; z: number; r?: number; label: string; kind: 'anchorage' | 'merchant' }[] = [];
   /** Its case and its brackets to the roof (root axes), to be merged with the boat's other fixed parts. */
   readonly fixedParts: THREE.BufferGeometry[];
   /** Its zoom buttons, − AUTO + (on the strip under the screen). */
@@ -394,6 +400,34 @@ export class ChartPlotter {
       g.closePath();
       g.fill();
       g.stroke();
+    }
+
+    // Special places: the timber camp's anchorage, the timber merchant.
+    g.font = 'bold 16px system-ui, sans-serif';
+    g.textBaseline = 'middle';
+    for (const o of this.specials) {
+      const [px, py] = toPx(o.x, o.z);
+      if (px < -60 || px > W + 60 || py < -30 || py > H + 30) continue;
+      g.strokeStyle = '#c99a5a';
+      g.fillStyle = '#c99a5a';
+      g.lineWidth = 2;
+      if (o.kind === 'anchorage') {
+        g.setLineDash([5, 4]);
+        g.beginPath();
+        g.arc(px, py, Math.max(8, (o.r ?? 50) / mpp), 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
+        // An anchor: shank, stock and crown.
+        g.beginPath();
+        g.moveTo(px, py - 7);
+        g.lineTo(px, py + 6);
+        g.moveTo(px - 4, py - 4);
+        g.lineTo(px + 4, py - 4);
+        g.moveTo(px - 6, py + 2);
+        g.quadraticCurveTo(px, py + 10, px + 6, py + 2);
+        g.stroke();
+      } else g.fillRect(px - 5, py - 5, 10, 10);
+      g.fillText(o.label, px + 12, py - 12);
     }
 
     // Ports (their names' boxes kept, so the place names below keep clear of them).

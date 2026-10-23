@@ -23,6 +23,7 @@
  * New items are chosen with a deterministic hash of a counter in WorldState, so a host and
  * its clients (or a replay) agree.
  */
+import { logPayload } from '../voyage/timber';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
@@ -727,6 +728,8 @@ export function payloadOf(world: WorldState, vesselId: EntityId): { mass: number
       if (hook) out.push({ mass: c.mass, pos: hook.setY(hook.y - kindOf(c).size[1] / 2) });
     }
   }
+  // A log barge's load (voyage/timber.ts).
+  for (const l of logPayload(world, vesselId)) out.push({ mass: l.mass, pos: new THREE.Vector3(...l.pos) });
   return out;
 }
 

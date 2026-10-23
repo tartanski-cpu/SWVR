@@ -25,6 +25,7 @@ async function loadMap(map = 'oban') {
     berths: await import('../src/world/archipelago'),
     spot: await import('../src/world/startSpot'),
     place: await import('../src/app/voyagePlace'),
+    sim: await import('../src/core/simulation'),
   };
   const c = m.regions.regionById(map)!.coast!;
   const t = c.pkg.terrain;
@@ -112,5 +113,26 @@ describe('Voyage: the start and the remembered place', { timeout: 60000 }, () =>
     expect(v2.mooring.berthId).toBe('oban-cargo');
     m.place.forgetPlace('oban', store);
     expect(m.place.savedPlace('oban', store)).toBeNull();
+  });
+
+  it('anchored: her anchor saved where it lies and set again on the way back (the timber run comes back to her there)', async () => {
+    m = await loadMap('oban');
+    const { world, vesselId, localPlayerId } = m.world.createWorld(new m.ids.IdFactory(), 'pilotBoat', { harbour: true });
+    world.environment.waves = [];
+    const v = world.vessels[vesselId];
+    m.vc.placeVessel(v, 2722, 0, -5981, 240); // Ardantrive Bay, 5 m of water
+    v.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
+    v.anchor = { phase: 'set', x: 2730, z: -5975, rodeM: 25, tension: 0, dragging: false };
+    const place = m.place.placeOf(world, v, localPlayerId);
+    expect(place.anchor).toEqual({ x: 2730, z: -5975, rodeM: 25 });
+    const w2 = m.world.createWorld(new m.ids.IdFactory(), 'pilotBoat', { harbour: true });
+    w2.world.environment.waves = [];
+    const v2 = w2.world.vessels[w2.vesselId];
+    expect(m.place.restorePlace(w2.world, v2, w2.localPlayerId, JSON.parse(JSON.stringify(place)))).toBe(true);
+    expect(v2.anchor.phase).toBe('set');
+    // A minute on: still holding, near where she was.
+    for (let i = 0; i < 1200; i++) m.sim.stepWorld(w2.world, [], 1 / 20);
+    expect(v2.anchor.phase).toBe('set');
+    expect(Math.hypot(v2.position[0] - 2722, v2.position[2] + 5981)).toBeLessThan(40);
   });
 });

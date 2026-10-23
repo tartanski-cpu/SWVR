@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Handoff test links</title>
+    <style>
+      :root {
+        --bg: #f4f2ec;
+        --panel: #ffffff;
+        --ink: #1d2428;
+        --muted: #5b666c;
+        --line: #d6d2c8;
+        --accent: #1f6f8b;
+        --bad: #a23a2a;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #14191c;
+          --panel: #1d2428;
+          --ink: #e9ecec;
+          --muted: #9aa6ab;
+          --line: #34404a;
+          --accent: #6cb6d0;
+          --bad: #e48a7a;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.45 system-ui, sans-serif;
+      }
+      main {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 20px 16px 40px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+      }
+      p.lede {
+        color: var(--muted);
+        margin: 0 0 18px;
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 0 0 10px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        gap: 10px 14px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: var(--ink);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 6px 8px;
+        min-width: 0;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 90px;
+        font: 13px/1.4 ui-monospace, monospace;
+      }
+      button {
+        font: inherit;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: var(--panel);
+        border-radius: 6px;
+        padding: 6px 12px;
+        cursor: pointer;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+        align-items: center;
+      }
+      .out {
+        word-break: break-all;
+        font: 13px/1.4 ui-monospace, monospace;
+        margin-top: 8px;
+      }
+      .out a {
+        color: var(--accent);
+      }
+      .bad {
+        color: var(--bad);
+      }
+      .check {
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Handoff test links</h1>
+      <p class="lede">
+        Make and read the envelopes that Workboat World and the Timber game pass in the address (<code>mv</code>, docs/metaverse-contract.md). Use it to test either side without the other.
+      </p>
+
+      <section>
+        <h2>The envelope</h2>
+        <div class="grid">
+          <label>Site <select id="site"></select></label>
+          <label>Handoff id <input id="id" maxlength="6" /></label>
+          <label>Boat id <input id="boatId" value="pilotBoat" /></label>
+          <label>Boat name <input id="boatName" value="Pilot boat 11.2 m" /></label>
+          <label>Latitude <input id="lat" type="number" step="0.00001" /></label>
+          <label>Longitude <input id="lon" type="number" step="0.00001" /></label>
+          <label>Heading (°) <input id="hdg" type="number" value="240" /></label>
+          <label>Hour (0-24) <input id="hour" type="number" step="0.25" value="14.5" /></label>
+          <label>Status (on the way back) <select id="status"><option value="barge_ready">barge_ready</option><option value="none">none</option></select></label>
+          <label>Logs (on the way back) <input id="logs" type="number" value="20" min="0" /></label>
+        </div>
+        <label style="margin-top: 10px">Return address (Workboat World, without mv) <input id="ret" /></label>
+      </section>
+
+      <section>
+        <h2>Out: Workboat World → Timber</h2>
+        <div class="row"><button id="makeOut">Make the outbound link</button></div>
+        <div class="out" id="outLink"></div>
+      </section>
+
+      <section>
+        <h2>Back: Timber → Workboat World</h2>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="issue" checked /> Issue this id in this browser first (so Workboat World accepts the return once)</label>
+        </div>
+        <div class="row"><button id="makeBack">Make the return link</button></div>
+        <div class="out" id="backLink"></div>
+      </section>
+
+      <section>
+        <h2>Read an envelope</h2>
+        <textarea id="decodeIn" placeholder="Paste an mv value, or a whole address with ?mv=..."></textarea>
+        <div class="row"><button id="decode">Read it</button></div>
+        <div class="out" id="decodeOut"></div>
+      </section>
+    </main>
+    <script type="module">
+      import { SITES, encodeEnvelope, decodeEnvelope, issueId, newHandoffId, outboundUrl } from '../src/voyage/metaverse.ts';
+
+      const $ = (id) => document.getElementById(id);
+      for (const s of SITES) $('site').add(new Option(`${s.id} (${s.name})`, s.id));
+      const site = () => SITES.find((s) => s.id === $('site').value) ?? SITES[0];
+      const fill = () => {
+        const s = site();
+        $('lat').value = s.lat;
+        $('lon').value = s.lon;
+        $('ret').value = new URL(`../voyage.html?map=${s.mapId}`, location.href).toString();
+      };
+      $('site').addEventListener('change', fill);
+      $('id').value = newHandoffId();
+      fill();
+
+      const envelope = (from) => ({
+        v: 1,
+        id: $('id').value,
+        from,
+        site: site().id,
+        return: $('ret').value,
+        boat: { id: $('boatId').value, name: $('boatName').value },
+        pos: { lat: Number($('lat').value), lon: Number($('lon').value), hdg: Number($('hdg').value) },
+        time: { hour: Number($('hour').value) },
+        status: from === 'timber' ? $('status').value : 'none',
+        cargo: { logs: from === 'timber' && $('status').value === 'barge_ready' ? Number($('logs').value) : 0 },
+      });
+      const link = (el, url) => {
+        el.innerHTML = '';
+        const a = document.createElement('a');
+        a.href = a.textContent = url;
+        el.append(a);
+      };
+
+      $('makeOut').addEventListener('click', () => link($('outLink'), outboundUrl(site(), envelope('workboat'))));
+      $('makeBack').addEventListener('click', () => {
+        const e = envelope('timber');
+        if ($('issue').checked) issueId(e.id);
+        const ret = e.return;
+        link($('backLink'), `${ret}${ret.includes('?') ? '&' : '?'}mv=${encodeEnvelope(e)}`);
+      });
+      $('decode').addEventListener('click', () => {
+        const text = $('decodeIn').value.trim();
+        let mv = text;
+        try {
+          mv = new URL(text).searchParams.get('mv') ?? text;
+        } catch {
+          // Not an address: the value itself.
+        }
+        const e = decodeEnvelope(mv);
+        $('decodeOut').className = e ? 'out' : 'out bad';
+        $('decodeOut').textContent = e ? JSON.stringify(e, null, 2) : 'Not a version-1 envelope (a game would ignore it and start normally).';
+        $('decodeOut').style.whiteSpace = 'pre-wrap';
+      });
+    </script>
+  </body>
+</html>

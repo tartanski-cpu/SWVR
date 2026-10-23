@@ -64,7 +64,7 @@ import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { SurfListener } from '../world/surf';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
-import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
+import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
 import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthId } from '../voyage/plan';
 import { PlanTable, planTableSpot } from '../voyage/planTable';
 import type { HeardBoat } from '../audio/boatVoices';
@@ -177,6 +177,9 @@ import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
 import { fuelTankL } from '../vessel/fuelTank';
+import { consumeReturn, issueId, newHandoffId, outboundUrl, takeEnvelope, type Envelope, type MetaverseSite } from '../voyage/metaverse';
+import { bargeFromCamp, bargesKey, bargesToSave, HotspotWatch, merchantsOn, parseBarges, positionFor, restoreBarges, saleOffer, saleText, sellBarge, sitesOn, hotspotAt } from '../voyage/timber';
+import { TimberView } from '../voyage/timberView';
 
 /**
  * Top-level wiring. Owns the renderer, the simulation state and the per-frame loop:
@@ -190,6 +193,8 @@ const CHART_KEY = 'swvr.chart';
 /** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
 const BATTERY_KEY = 'swvr.battery';
 /** ...and the boat you launched last in a Voyage game (multi-boat M5). */
+/** Voyage's account (the timber merchant's money; all maps): kept in this browser. */
+const VOYAGE_MONEY_KEY = 'swvr.voyage.money';
 const LAST_BOAT_KEY = 'swvr.voyage.lastBoat';
 /** Voyage mode: the crew's plan for a map, saved by the host (voyage/plan.ts). */
 const planKey = (map: string) => `swvr.voyage.plan.${map}`;
@@ -394,6 +399,18 @@ export class App {
   private planTableBerth: string | null = null;
   /** Seconds since the voyage place was last remembered (rememberVoyagePlace). */
   private rememberT = 0;
+  /** Voyage's timber run (voyage/timber.ts): the bays on this map, the watch for anchoring in one, what's drawn. */
+  private readonly timberSites: MetaverseSite[] = MODE === 'voyage' ? sitesOn(VOYAGE_MAP_ID) : [];
+  private readonly timberWatch = new HotspotWatch();
+  private timberView: TimberView | null = null;
+  private timberOffered: string | null = null;
+  private saleShown: string | null = null;
+  private leavingForCamp = false;
+  private readonly timberPrompt = new HelmPrompt(118);
+  private readonly fade = document.createElement('div');
+  private timberNote: string | null = null;
+  /** The chart's special places: the timber camp's bay, the merchant (chartPlotter specials). */
+  private readonly timberSpecials: { x: number; z: number; r?: number; label: string; kind: 'anchorage' | 'merchant' }[] = [];
   private readonly trialsPanel = new TrialsPanel();
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
@@ -709,8 +726,11 @@ export class App {
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
     this.startVesselId = created.vesselId;
+    // Back from the timber camp? The envelope off the address first, then her place, then the barge.
+    const handoff = MODE === 'voyage' ? this.takeHandoff() : null;
     this.restoreVoyagePlace();
     this.setupPlanTable();
+    this.setupTimber(handoff);
     // Our own working clothes, as crew who join will see us (net/avatarOutfits.ts).
     this.world.players[this.localPlayerId].look = randomLook();
 
@@ -1102,6 +1122,7 @@ export class App {
       const plotter = this.homeView.chart;
       if (plotter) {
         plotter.marks = CONFIG.chartMarks.showOnPlotter ? this.marks : null;
+        plotter.specials = this.timberSpecials;
         plotter.update(this.world, this.testVesselId, dt, this.dashInView());
       }
       this.updateRadioSound();
@@ -3119,6 +3140,9 @@ export class App {
         return `Next: ${pointLabel(n.p, n.i)}, ${d.toFixed(1)} nm`;
       },
       goPlanTable: () => this.pushEnvIntent('plan', 1, 'goto'),
+      timberLine: () => this.timberLine(),
+      timberButton: (i: number) => this.timberButton(i),
+      timberPress: (i: number) => this.timberPress(i),
       crewMember: (i: number) => {
         // You first, then the others in the order they came.
         const all = Object.values(this.world.players);
@@ -4900,6 +4924,177 @@ export class App {
     this.rememberT = 0;
     const v = this.world.vessels[this.testVesselId];
     if (v) rememberPlace(VOYAGE_MAP_ID, placeOf(this.world, v, this.localPlayerId));
+    // The timber run's barges and the money from them (voyage/timber.ts).
+    try {
+      localStorage.setItem(bargesKey(VOYAGE_MAP_ID), JSON.stringify(bargesToSave(this.world, this.testVesselId, headingOf)));
+      if (this.world.career) localStorage.setItem(VOYAGE_MONEY_KEY, String(Math.round(this.world.career.money)));
+    } catch {
+      // Not saved.
+    }
+  }
+
+  /**
+   * Voyage: the handoff envelope (`mv`) taken off the address at once, so a refresh never
+   * replays it (voyage/metaverse.ts), and checked: from the timber camp, with an id we issued
+   * and haven't consumed. Anything else: nothing comes of it.
+   */
+  private takeHandoff(): Envelope | null {
+    const { envelope, clean } = takeEnvelope(location.href);
+    if (clean) history.replaceState(history.state, '', clean);
+    return envelope ? consumeReturn(envelope) : null;
+  }
+
+  /**
+   * Voyage: the timber run set up (voyage/timber.ts). The money and barges saved for this map
+   * back, and if we're back from the camp with a barge, it at the site's spawn on our line;
+   * the bay's buoy and the merchant on the chart; the screen faded in if we came back.
+   */
+  private setupTimber(back: Envelope | null): void {
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || this.client) return;
+    const f = this.fade.style;
+    f.position = 'fixed';
+    f.inset = '0';
+    f.background = '#000';
+    f.pointerEvents = 'none';
+    f.transition = `opacity ${CONFIG.voyage.timber.fadeS}s`;
+    f.opacity = back ? '1' : '0';
+    f.zIndex = '50';
+    document.body.appendChild(this.fade);
+    if (back) setTimeout(() => (this.fade.style.opacity = '0'), 400);
+    const v = this.world.vessels[this.testVesselId];
+    try {
+      const money = Number(localStorage.getItem(VOYAGE_MONEY_KEY));
+      if (this.world.career && localStorage.getItem(VOYAGE_MONEY_KEY) !== null && Number.isFinite(money)) this.world.career.money = money;
+      if (!START_PARAMS.has('start')) restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
+    } catch {
+      // Storage blocked: none.
+    }
+    const site = back && this.timberSites.find((s) => s.id === back.site);
+    if (back && site && v) {
+      if (back.status === 'barge_ready' && back.cargo.logs > 0 && bargeFromCamp(this.world, site, v, back.cargo.logs)) {
+        const m = merchantsOn(VOYAGE_MAP_ID)[0];
+        this.timberNote = `Back aboard from the timber camp: a barge of ${back.cargo.logs} logs on your towline.${m ? ` Tow her to ${m.name} to sell.` : ''}`;
+      } else this.timberNote = 'Back aboard from the timber camp.';
+      this.rememberT = Infinity;
+      this.rememberVoyagePlace(0);
+    }
+    if (!this.timberSites.length && !merchantsOn(VOYAGE_MAP_ID).length) return;
+    this.timberView = new TimberView(this.timberSites);
+    this.scene.add(this.timberView.root);
+    for (const s of this.timberSites) {
+      const at = hotspotAt(s);
+      if (at) this.timberSpecials.push({ x: at.x, z: at.z, r: s.radiusM, label: 'Timber camp', kind: 'anchorage' });
+    }
+    for (const m of merchantsOn(VOYAGE_MAP_ID)) {
+      const b = berthWithId(m.berthId);
+      if (b) this.timberSpecials.push({ x: b.x, z: b.z, label: 'Timber merchant', kind: 'merchant' });
+    }
+  }
+
+  /** Alone, or hosting with nobody else aboard: the timber camp takes one player at a time (v1). */
+  private playingAlone(): boolean {
+    return !this.client && (!this.host || this.host.playerCount <= 1);
+  }
+
+  /**
+   * Voyage, each frame: the logs on the barges and the bay's buoy; the prompt when she's
+   * anchored in the bay (Enter or the Voyage tab: go ashore); the sale when a barge lies at
+   * the merchant's quay (Enter or the Voyage tab: sell).
+   */
+  private updateTimber(v: VesselState | undefined, dt: number): void {
+    if (!this.timberView) return;
+    if (this.timberNote) {
+      this.overlay.notify(this.timberNote, 8);
+      this.timberNote = null;
+    }
+    this.timberView.update(this.world, (x, z) => surfaceHeight(this.renderWaves, x, z));
+    const boat = this.world.vessels[this.testVesselId];
+    const site = this.timberWatch.update(boat, this.timberSites, dt, this.playingAlone() && !this.leavingForCamp);
+    if (site && this.timberOffered !== site.id) this.overlay.notify('Anchored off the timber camp. Go ashore? (Enter, or the menu: Voyage)', 6);
+    this.timberOffered = site?.id ?? null;
+    const sale = this.client ? null : saleOffer(this.world, boat, VOYAGE_MAP_ID);
+    const saleKey = sale ? `${sale.bargeId}|${sale.logs}` : null;
+    if (sale && this.saleShown !== saleKey) this.overlay.notify(`Alongside ${sale.merchant.name}: ${saleText(sale.logs, sale.total)}. Sell? (Enter, or the menu: Voyage)`, 6);
+    this.saleShown = saleKey;
+    this.timberPrompt.show(site ? 'Go ashore to the timber camp?   Enter: go   ·   menu, Voyage: not now' : sale ? `Sell ${saleText(sale.logs, sale.total)}?   Enter: sell` : '');
+    if (this.keyboard.actionPressed('timber')) {
+      if (site) this.goAshore(site);
+      else if (sale) this.timberPress(0);
+    }
+    void v;
+  }
+
+  /** Voyage tab: the timber run's line. */
+  private timberLine(): string {
+    const site = this.timberWatch.offered;
+    if (site) return `Anchored off the timber camp (${site.name})`;
+    const sale = saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID);
+    if (sale) return `At the merchant: ${saleText(sale.logs, sale.total)}`;
+    const towed = Object.entries(this.world.timber?.barges ?? {}).find(([id]) => this.world.tow?.lines?.[this.testVesselId]?.target === `v:${id}`);
+    if (towed) return `Log barge on tow: ${towed[1].logs} logs`;
+    const n = Object.keys(this.world.timber?.barges ?? {}).length;
+    return n ? `${n} log barge${n > 1 ? 's' : ''} lying off` : this.timberSites.length ? 'Anchor off the timber camp to go ashore' : '';
+  }
+
+  /** Voyage tab: its buttons' words (0: go or sell, 1: not now). */
+  private timberButton(i: number): string {
+    if (this.timberWatch.offered) return i === 0 ? 'Go ashore' : 'Not now';
+    if (i === 0 && !this.client && saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID)) return 'Sell';
+    return '';
+  }
+
+  private timberPress(i: number): void {
+    const site = this.timberWatch.offered;
+    if (site) {
+      if (i === 0) this.goAshore(site);
+      else this.timberWatch.dismiss();
+      return;
+    }
+    const sale = i === 0 && !this.client ? saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID) : null;
+    if (!sale) return;
+    sellBarge(this.world, sale.bargeId, sale.merchant);
+    this.rememberT = Infinity;
+    this.rememberVoyagePlace(0);
+  }
+
+  /**
+   * Go ashore to the timber camp (voyage/metaverse.ts): the voyage saved as it is (anchored
+   * here), a handoff id issued, the envelope built, the screen faded to black, and the page
+   * goes to the Timber game. Only on the player's Go: anchoring never takes you by surprise.
+   */
+  private goAshore(site: MetaverseSite): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v || this.leavingForCamp || !VOYAGE_MAP_ID) return;
+    this.leavingForCamp = true;
+    this.rememberT = Infinity;
+    this.rememberVoyagePlace(0);
+    const id = newHandoffId();
+    issueId(id);
+    // Back to this map as it is: the place and plan kept (no one-off start or join parameters).
+    const ret = new URL(location.href);
+    for (const k of ['mv', 'start', 'join', 'fit', 'host', 'together', 'fresh', 't']) ret.searchParams.delete(k);
+    const envelope: Envelope = {
+      v: 1,
+      id,
+      from: 'workboat',
+      site: site.id,
+      return: ret.toString(),
+      boat: { id: v.defId, name: this.boatFavName(v) },
+      pos: positionFor(VOYAGE_MAP_ID, v, headingOf(v)),
+      time: { hour: Math.round(this.world.environment.timeOfDay * 100) / 100 },
+      status: 'none',
+      cargo: { logs: 0 },
+    };
+    this.timberPrompt.show('');
+    this.overlay.notify('Going ashore to the timber camp...', 3);
+    this.fade.style.opacity = '1';
+    const go = () => window.location.assign(outboundUrl(site, envelope));
+    // In the headset: out of VR first (the page that follows asks again).
+    const session = this.renderer.xr.getSession();
+    setTimeout(() => {
+      if (session) void session.end().finally(go);
+      else go();
+    }, CONFIG.voyage.timber.fadeS * 1000);
   }
 
   /** Ships, debris and buoys on the waves; ships' fog horns; the lookout calls new ships. */
@@ -4909,6 +5104,7 @@ export class App {
     this.skylineView.update(this.world, darkness, dt);
     this.rememberVoyagePlace(dt);
     this.updatePlan();
+    this.updateTimber(v, dt);
     const t = this.world.traffic;
     if (!t) return;
     if (this.hornSeen >= 0 && t.hornSeq !== this.hornSeen && t.hornFrom) {
