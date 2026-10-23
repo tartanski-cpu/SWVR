@@ -120,28 +120,34 @@ describe('the timber run on the Oban map', () => {
     expect(terrain.groundHeight(b.x, b.z)).toBeLessThan(-2);
   });
 
-  it('the prompt: anchored, stopped, inside, for 3 s; Not now holds until she leaves and comes back', async () => {
+  it('anchored in the bay, stopped, for 3 s: ashore, no prompt; an anchor already set as the page loads (back from the camp) does not send her straight back', async () => {
     const { v, t, m, control } = await oban();
     const s = m.SITES[0];
     const at = t.hotspotAt(s)!;
     control.placeVessel(v, at.x + 10, 0, at.z, 0);
     v.linearVelocity = [0, 0, 0];
-    const watch = new t.HotspotWatch();
-    expect(watch.update(v, [s], 5)).toBeNull(); // anchor stowed
+    // Loaded anchored there (back from the camp): nothing, however long she lies.
     v.anchor = { ...v.anchor, phase: 'set' };
-    expect(watch.update(v, [s], 2)).toBeNull();
-    expect(watch.update(v, [s], 1.5)!.id).toBe(s.id);
-    expect(watch.update(v, [s], 1, false)).toBeNull(); // not offered with crew aboard
-    watch.update(v, [s], 4);
-    watch.dismiss();
-    expect(watch.update(v, [s], 10)).toBeNull();
-    control.placeVessel(v, at.x + s.radiusM + 30, 0, at.z, 0);
-    watch.update(v, [s], 1);
-    control.placeVessel(v, at.x, 0, at.z, 0);
-    watch.update(v, [s], 1);
-    expect(watch.update(v, [s], 3)!.id).toBe(s.id);
-    // Moving: no.
+    const back = new t.HotspotWatch();
+    expect(back.update(v, [s], 30)).toBeNull();
+    // Weigh and let go again: then it goes.
+    v.anchor = { ...v.anchor, phase: 'weighing' };
+    back.update(v, [s], 1);
+    v.anchor = { ...v.anchor, phase: 'set' };
+    expect(back.update(v, [s], 2)).toBeNull();
+    expect(back.update(v, [s], 1.5)!.id).toBe(s.id);
+    // Sailing in and anchoring: stowed first, then set.
+    const watch = new t.HotspotWatch();
+    v.anchor = { ...v.anchor, phase: 'stowed' };
+    expect(watch.update(v, [s], 5)).toBeNull();
+    v.anchor = { ...v.anchor, phase: 'set' };
+    expect(watch.update(v, [s], 3.5)!.id).toBe(s.id);
+    expect(watch.update(v, [s], 1, false)).toBeNull(); // not with crew aboard
+    // Moving, or outside the radius: no.
     v.linearVelocity = [0.5, 0, 0];
+    expect(watch.update(v, [s], 5)).toBeNull();
+    v.linearVelocity = [0, 0, 0];
+    control.placeVessel(v, at.x + s.radiusM + 30, 0, at.z, 0);
     expect(watch.update(v, [s], 5)).toBeNull();
   });
 
