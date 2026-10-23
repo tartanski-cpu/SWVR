@@ -19,6 +19,14 @@ export const MODULES_CONFIG = {
    */
   modules: {
     /**
+     * Drawing moving gear smoothly between simulation ticks (mechanisms/tickSmoother.ts; owner,
+     * Oct 2026: the deck crane's slew stepped on the Quest). Each value follows the newest
+     * tick through two smoothing stages, each with a time constant `tauTicks` times the time
+     * between ticks: more smooths the 60-on-90 Hz staircase better but draws further behind
+     * (about 2 x tauTicks ticks: 1.0 is ~33 ms on the Quest).
+     */
+    smoothing: { tauTicks: 1.0 },
+    /**
      * control.throttle-lever (modules/throttleLever): the combined throttle/gear lever.
      * Travel either side of upright (deg), and the handle's length from its pivot to the
      * knob (m). `detent`: the magnetic neutral notch, as a fraction of full travel either

@@ -4,10 +4,9 @@
  * camp (the Timber game), and come back to a barge of logs on your towline to sell at the
  * timber merchant.
  *
- *   The hotspot    `HotspotWatch`: anchor set, under `maxSpeedKn`, inside the site's radius,
- *                  held `holdS` s: then the prompt "Go ashore to the timber camp?". Not now
- *                  hides it until she's left the radius and come back in. Nothing happens
- *                  without the player's Go.
+ *   The hotspot    `HotspotWatch`: the anchor let go and set there, under `maxSpeedKn`,
+ *                  inside the site's radius, held `holdS` s: then straight to the timber camp
+ *                  (owner: seamless, no prompt).
  *   The log barge  the towable work barge (CONFIG.vessels.barge, 9 m) with logs stacked on her
  *                  deck (voyage/timberView.ts), `world.timber.barges[id].logs`. The logs are
  *                  point masses on her deck (`logKg` each, cargo/cargo.ts payloadOf), so a full
@@ -103,34 +102,32 @@ export function sitesOn(mapId: string | null): MetaverseSite[] {
 export const speedKn = (v: VesselState): number => (Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) * 3600) / 1852;
 
 /**
- * Watching for the boat anchored in a hotspot: each frame, her state in, and whether to offer
- * the prompt (the site) out. Dismissed, it stays quiet until she has left the radius.
+ * Watching for the boat anchored in a hotspot: each frame, her state in, and the site to go
+ * ashore at out (owner, 23 Oct 2026: seamless, no prompt: anchor there and you're taken to
+ * the timber camp). It goes once the anchor has been let go and set there (not one that was
+ * already set as the page loaded: back from the camp she lies anchored in the bay, and must
+ * not go straight back), with her still and inside the radius for `holdS`.
  */
 export class HotspotWatch {
   private held = 0;
   private site: MetaverseSite | null = null;
-  private dismissed: string | null = null;
+  /** Seen her not anchored in a hotspot since the start: an anchor set in one now counts. */
+  private armed = false;
 
-  /** The site being offered now, or null. */
+  /** The site to go ashore at now, or null. */
   update(v: VesselState | undefined, sites: readonly MetaverseSite[], dt: number, allowed = true): MetaverseSite | null {
     const c = CONFIG.voyage.timber;
-    const inside = v ? sites.find((s) => {
-      const at = hotspotAt(s);
-      return at && Math.hypot(v.position[0] - at.x, v.position[2] - at.z) <= s.radiusM;
-    }) : undefined;
-    // Out of the radius: a dismissal is forgotten.
-    if (!inside) this.dismissed = null;
-    const ok = !!v && !!inside && allowed && v.anchor.phase === 'set' && speedKn(v) < c.maxSpeedKn && this.dismissed !== inside.id;
+    const inside = v
+      ? sites.find((s) => {
+          const at = hotspotAt(s);
+          return at && Math.hypot(v.position[0] - at.x, v.position[2] - at.z) <= s.radiusM;
+        })
+      : undefined;
+    if (v && (!inside || v.anchor.phase !== 'set')) this.armed = true;
+    const ok = !!v && !!inside && allowed && this.armed && v.anchor.phase === 'set' && speedKn(v) < c.maxSpeedKn;
     this.held = ok ? this.held + dt : 0;
     this.site = ok && this.held >= c.holdS ? inside! : null;
     return this.site;
-  }
-
-  /** Not now: quiet until she leaves the radius and comes back in. */
-  dismiss(): void {
-    if (this.site) this.dismissed = this.site.id;
-    this.site = null;
-    this.held = 0;
   }
 
   get offered(): MetaverseSite | null {

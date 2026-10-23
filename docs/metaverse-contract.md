@@ -5,7 +5,11 @@ The owner's spec, 23 Oct 2026, section 2. The same file goes in both repositorie
 - **Out:** Workboat World → Timber, when the player anchors in a marked bay and chooses to go ashore.
 - **Back:** Timber → Workboat World, when the player returns to the boat, with a barge of logs or without.
 
-Version 1 is single-player. In a multiplayer Voyage, the handoff is offered only when you're alone (solo, or hosting with no crew aboard).
+Version 1 is single-player. In a multiplayer Voyage, the handoff happens only when you're alone (solo, or hosting with no crew aboard).
+
+**Changed by the owner (23 Oct 2026): no prompt.** Anchoring in the hotspot (anchor set, under 0.5 kn, inside the radius, 3 s) goes straight to Timber, on desktop and in VR. Coming back anchored in the bay doesn't send the player straight back: the anchor has to be weighed and let go again.
+
+**For Timber, in VR:** Workboat no longer ends the VR session before navigating. Where the browser supports WebXR navigation, Timber's page receives a `sessiongranted` event on `navigator.xr` and can start its immersive session at once without a button press. Elsewhere, including the Quest browser by default as far as we know, the player presses Enter VR again. Workboat World doesn't listen for `sessiongranted` on the way back yet.
 
 ## The envelope
 
