@@ -171,7 +171,7 @@
    "Càrn Breugach",
    "Dunollie Fl(2)GWR.6s"
   ],
-  "bytes": 225917
+  "bytes": 226365
  },
  "houses": {
   "byType": {
@@ -214,7 +214,7 @@
    "lighthouse": 3,
    "monument": 2,
    "tower": 3,
-   "mast": 7,
+   "mast": 3,
    "turbine": 3,
    "church": 10,
    "castle": 3

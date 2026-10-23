@@ -55,6 +55,8 @@ export class RadioHandset {
   held: Handedness | null = null;
   /** Talking (the trigger in VR, V on the desktop). */
   tx = false;
+  /** Each hand within reach of it last frame (the tick in the controller as one arrives). */
+  private readonly near = { left: false, right: false };
   private readonly tmp = new THREE.Vector3();
   private readonly yawQ = new THREE.Quaternion();
   private readonly fwd = new THREE.Vector3();
@@ -97,10 +99,18 @@ export class RadioHandset {
     }
     this.setTx(false);
     this.clipOn(headPos, headQ);
+    const at = this.mesh.getWorldPosition(this.tmp);
+    for (const h of ['left', 'right'] as const) {
+      const f = hands[h];
+      // A free hand reaching it: a short tick, so you can find it without seeing it.
+      const inReach = f.tracked && !busy[h] && at.distanceTo(f.grip) < CONFIG.radio.grabRange;
+      if (inReach && !this.near[h]) pulse(h, CONFIG.radio.nearPulse[0], CONFIG.radio.nearPulse[1]);
+      this.near[h] = inReach;
+    }
     for (const h of ['left', 'right'] as const) {
       const f = hands[h];
       if (!f.tracked || busy[h] || !f.gripPressed) continue;
-      if (this.mesh.getWorldPosition(this.tmp).distanceTo(f.grip) < CONFIG.radio.grabRange) {
+      if (at.distanceTo(f.grip) < CONFIG.radio.grabRange) {
         this.held = h;
         used[h] = true;
         pulse(h, 0.5, 30);

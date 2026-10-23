@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The handheld VHF easier to find in VR (owner request, 23 Oct 2026)
+
+Owner: "very hard to find where it is because you can't see it ... a slightly bigger grab spot and ... a little bit of haptics when your hand reaches it."
+
+- `CONFIG.radio.grabRange`: 0.10 → 0.18 m.
+- A free hand coming within that reach gets a short tick in its controller (`CONFIG.radio.nearPulse` [0.3, 18 ms]), once each time it arrives. A hand already holding something gets none, as it can't take the radio (`player/radioHandset.ts`).
+- Test: `tests/radioHandsetReach.test.ts`: the tick at 15 cm (outside the old reach), not repeated while the hand stays, again after it leaves; the grab there; nothing for a busy hand.
+- Not checked: in the headset.
+
 ### Short, steep seas in enclosed water, long ones in the open (owner: always, textbook strength, both maps, 23 Oct 2026)
 
 `docs/FETCH_SEAS.md`, built.
