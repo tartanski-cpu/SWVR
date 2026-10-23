@@ -23,7 +23,8 @@ export interface RegionRequest {
   chunked?: boolean;
   /** Spine roles: a harbour's name, "auto", or for the anchorage a named spot ({ name, at: [lon, lat] }). */
   spine?: Record<string, string | { name: string; at: [number, number] }>;
-  currentZones?: { name: string; polygon: [number, number][]; direction: number; peakKts: number; periodHours: number }[];
+  /** Tidal races; `whirls`: whirlpools in it (points that knock the helm, drawn as whirls), none unless given (a Corryvreckan has them, the Falls of Lora don't). */
+  currentZones?: { name: string; polygon: [number, number][]; direction: number; peakKts: number; periodHours: number; whirls?: number }[];
   weatherProfile?: string;
   fish?: string[];
   goods?: string[];

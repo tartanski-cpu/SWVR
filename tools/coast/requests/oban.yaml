@@ -15,6 +15,7 @@ currentZones:                  # tidal races are not in open data: placed by han
     direction: 90
     peakKts: 6
     periodHours: 6
+    whirls: 0                  # no whirlpools at the Falls (owner): the fast tide and standing waves only
 weatherProfile: north-rough
 fish: [mackerel, haddock, lobster]
 goods: [feed, building-materials, whisky]

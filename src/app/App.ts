@@ -27,6 +27,7 @@ import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { beaufort, compass8, setLiveWeather, visibilityAt, windVector } from '../environment/weather';
 import { fetchLiveWeather } from '../world/coastWeather';
 import { liveWeatherText } from '../voyage/liveWeather';
+import { setShortSeasOff, updateWindSea, windSeaText } from '../ocean/windSea';
 import { voyageMap } from '../world/maps';
 import { gustZone } from '../environment/gusts';
 import { RainView } from '../environment/rainView';
@@ -880,6 +881,11 @@ export class App {
     const t1 = performance.now();
 
     // 3. Views, in this order: each reads what the one before posed.
+    // The wind sea's field for the wind now (ocean/windSea.ts): the host's sim keeps it, and a
+    // crew page (whose waves come from the host) works out its own the same way.
+    const wx = this.world.environment.weather;
+    setShortSeasOff(!!this.world.environment.shortSeasOff);
+    if (wx) updateWindSea(wx.now.wind, wx.now.windFrom);
     this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
     this.updatePlayer(dt, inXR);
     this.updateSurroundings(renderTime);
@@ -2395,8 +2401,11 @@ export class App {
       },
       weatherPreset: () => env().weather?.preset ?? '',
       setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
-      raceOverride: () => (env().raceOverride === 'peak' ? 1 : env().raceOverride === 'slack' ? 2 : 0),
+      raceOverride: () => (env().raceOverride === 'peak' ? 1 : env().raceOverride === 'slack' ? 2 : env().raceOverride === 'ebb' ? 3 : 0),
       setRaceOverride: (v) => this.pushEnvIntent('raceOverride', v),
+      shortSeas: () => !env().shortSeasOff,
+      setShortSeas: (on: boolean) => this.pushEnvIntent('shortSeas', on ? 1 : 0),
+      seaHereText: () => windSeaText(this.focus.x, this.focus.z),
       gustNow: () => {
         const v = this.world.vessels[this.testVesselId];
         const at = v ? v.position : [this.focus.x, 0, this.focus.z];
