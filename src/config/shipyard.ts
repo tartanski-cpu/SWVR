@@ -402,6 +402,12 @@ export const SHIPYARD_CONFIG = {
        */
       walk: { margin: 0.25, railHeight: 0.9, postSpacing: 1.2, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
       /**
+       * Run on aft of the wheelhouse (design.dhAft; owner, Oct 2026: the stern trawler's deck
+       * behind the bridge): it stops short of leaving less than this (m) of working deck
+       * forward of her transom.
+       */
+      aftDeck: 4,
+      /**
        * A cabin below it (parametric boats P2c, design.foreCabin; owner): its sole sunk so there's
        * `headroom` (m) under the trunk's top, but no lower than leaves the sole `minHalf` wide each
        * side of the centreline inside her hull (`hullClear` in from her plating) and `keelClear`

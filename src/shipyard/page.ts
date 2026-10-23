@@ -940,9 +940,12 @@ section('2. Wheelhouse');
   optionTiles('cabinFloor', 'Floor', CONFIG.cabinFloors.map((f) => ({ icon: floorIcon(f), name: f.name, info: `${f.name}: the floor inside.` })));
 
   // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.
-  group('Deckhouse', 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Its top can be walked, a deck round the wheelhouse with a rail and a ladder up from the main deck; inside, it can be the trunk of a cabin below, its floor sunk into her hull, with steps down from the wheelhouse and a V-berth forward.');
+  group('Deckhouse', 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward (or run on aft of it, Aft: a deck behind the wheelhouse its aft door opens onto, with a ladder down to the working deck), the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Its top can be walked, a deck round the wheelhouse with a rail and a ladder up from the main deck; inside, it can be the trunk of a cabin below, its floor sunk into her hull, with steps down from the wheelhouse and a V-berth forward.');
   measure('dhLength', 'Forward', (v) => (v ? m(v, 1) : 'none'), { off: 0.4 });
   measure('dhHeight', 'Height', (v) => m(v)).dataset.when = 'dhLength';
+  // Run on aft of the wheelhouse (owner, Oct 2026: the stern trawler's deck behind the bridge): its top walked, a ladder down its aft face.
+  labels.dhAft = 'Deckhouse aft';
+  slider('dhAft', 'Aft', (v) => (v ? `${SCALES.dhAft(v).toFixed(1)} m aft of the wheelhouse` : 'flush with it')).dataset.when = 'dhLength';
   {
     // Its width (owner, Oct 2026: "having this slider might help with the width of it"): one
     // slider, from only as wide as the wheelhouse (forward of it: her side decks clear, for a

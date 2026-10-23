@@ -10,6 +10,32 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The stern trawler: a deckhouse run on aft of the wheelhouse, up to 2.5 m high; less sheer; a longer raised foredeck (done, awaiting owner test)
+
+Owner, Oct 2026, from the Shipyard's view of the stern trawler: "the option to extend the deck house further aft of the wheelhouse ... there'll need to be some ladders or stairs to get you up there if it's high", "the deck house to be ... 2.5 meters high ... high enough to go over the bridge", and "slightly less shear by default and to allow the raised foredeck to come back significantly more". Done in this chat at the owner's word (Shipyard and hull-study files; see Shared changes).
+
+- **The deckhouse can run on aft of the wheelhouse** (new design choice `dhAft`; Wheelhouse step, Deckhouse group, **Aft**: flush, or 0.5 m steps to 6 m):
+  - its top is a deck behind the wheelhouse, the house's aft door opening onto it (any door steps stand on its top), always walked, railed right across its aft edge;
+  - a vertical ladder down its aft face on the centreline to the working deck (the same ladder as the walked deckhouse top's: climb with grip / Space);
+  - the deck gear keeps aft of it and its ladder: the A-frame, net drum, trawl winches, the deck crane, the skiff, poles, fenders, the tug's hook; the life ring and a rod rack on the aft wall go on its aft face;
+  - it stops short of leaving less than 4 m of working deck forward of the transom (`CONFIG.shipyard.deckhouse.aftDeck`), and says so;
+  - not with a deckhouse only as wide as the wheelhouse (that one is only forward of it), and the wheelhouse floor can't sink into it (its aft door opens onto the top): both said;
+  - it's weighed and priced as the rest of the deckhouse (its plate, its rail);
+  - travels as a link or file, not the short code.
+- **The deckhouse up to 2.5 m high** (was 1.5 m; `MEASURES.dhHeight`). Over 1.5 m it travels as a link or file.
+- **The stern trawler's sheer a little less:** her deck now rises about 1.15 m from aft to the stem at her standard size, not 1.5 m (the hull study's `sternTrawler` sheer: 2.1 m at the stem, 1.25 m at 70 % of her length). **Sheer** on the Hull step still adds more.
+- **The raised foredeck comes back much further:** its slider now runs from 1 to 15 m aft of the bow (was 8 m; `SCALES.fcLength`, 30 steps). As before, it never ends under the wheelhouse (it runs on aft past it) and stops short of the transom with room for its ladders.
+- **Shared changes** (small; for the other chats):
+  - `src/vessel/deckhouse.ts`: `DeckhouseLayout.houseAft`, set when it runs on aft of the house;
+  - `src/vessel/view/hullMesh.ts`: its rail then runs right across its aft edge;
+  - `src/vessel/layout.ts`: a deckhouse's walked top is kept clear of a house's door steps (they stand on it now);
+  - Shipyard files: `design.ts` (the `dhAft` field, the ranges), `parts/house.ts`, `parts/deckGear.ts`, `page.ts`, `src/config/shipyard.ts` (`deckhouse.aftDeck`); hull study: `src/hulls/designs.ts` (her sheer). Noted in `shipyard.md` and `hulls.md`.
+- **Checked:**
+  - typecheck, all of `npm test` (1443; three slow tests timed out while the screenshots ran alongside, and pass on their own), and the build;
+  - new tests (`tests/shipyard/deckhouseAft.test.ts`): it builds without warnings 2 m aft and 2.5 m high; the trawl gear stands aft of its ladder; you walk out of the aft door onto its top and climb its ladder (2.5 m) to the deck; the limits and their warnings; the raised foredeck builds at 8, 11 and 15 m;
+  - in the Shipyard (headless screenshots): the trawler with the deckhouse run 2 m aft and 2.5 m high (rail, ladder, gear aft of it), and with a 10.5 m raised foredeck running on past the house.
+- **Not checked:** climbing it in VR or on desktop in the game (the walk test covers it); stairs instead of a ladder (not built: say if you want a stair, like the raised foredeck's steep ladders, rather than the vertical one).
+
 ### The smoother on the A-frame and the other moving gear (done, awaiting owner test)
 
 Owner, Oct 2026, after the deck crane's: "use the smoother on the A-frame and other moving gear too".

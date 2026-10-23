@@ -10,6 +10,13 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The stern trawler: a deckhouse run on aft, up to 2.5 m high; a longer raised foredeck
+
+At the owner's word, in the modular builder's chat (its log, `docs/progress/modules.md`, has the details):
+- new design field `dhAft` (the deckhouse run on aft of the wheelhouse, 0.5 m steps to 6 m; not in the code): `design.ts`, `parts/house.ts` (its build, the door steps on its top, its ladder on the aft face), `parts/deckGear.ts` (aft-deck gear keeps aft of it), `page.ts` (the **Aft** slider), `src/config/shipyard.ts` (`deckhouse.aftDeck`, 4 m);
+- `MEASURES.dhHeight` to 2.5 m; `SCALES.fcLength` to 15 m (30 steps);
+- `tests/shipyard/deckhouseAft.test.ts`; `designDoc.test.ts` lists `dhAft` as not in the code.
+
 ### Rework, part 3 of 3: gear and furniture placed by pointing (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026: "the whole placement of furniture and deck equipment is a bit clunky, because if it doesn't allow you to place it, it basically saves a warning on the right hand panel, and then you get these pins all over the place ... people need an easy way to place and move equipment ... make sure it doesn't come up with all that junk on the right hand side."

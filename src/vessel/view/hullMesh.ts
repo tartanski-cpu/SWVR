@@ -1008,10 +1008,11 @@ function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => nu
   // Across the front.
   const zf = w.z0 + inset;
   gap(-half(w.z0), half(w.z0), zf, lad.face === 'front');
-  // Across the aft ends of the strips beside the house.
+  // Across the aft ends of the strips beside the house (or, run on aft of it, right across).
   const za = dh.z1 - inset;
   const ha = half(dh.z1);
-  if (ha - hw > 0.2) {
+  if (dh.houseAft !== undefined) gap(-ha, ha, za, lad.face === 'aft');
+  else if (ha - hw > 0.2) {
     gap(-ha, -hw - 0.02, za, lad.face === 'aft' && lad.x < 0);
     gap(hw + 0.02, ha, za, lad.face === 'aft' && lad.x > 0);
   }
