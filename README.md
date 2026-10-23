@@ -227,6 +227,16 @@ On the quay where a Voyage map starts, a few steps behind where you begin, stand
 - **The table follows the host:** when the host takes her boat to another harbour with the Voyage tab's **Go**, the table goes there too, on that harbour's quay.
 - The host's browser keeps the plan for each map, so it's there next time.
 
+### Live weather (Voyage mode)
+
+When a Voyage starts, the game asks Open-Meteo, a free weather service, for the real weather at that place now. You sail in it:
+- **What comes in:** the wind and its direction, visibility, rain and cloud, and the sea as the marine forecast has it, all held for the session.
+- **Where it's shown:** you're told as it comes in ("Live weather, Oban and Lorn 15:45: wind north-west 10 kn, gusts 18, overcast, sea 0.5 m"), and it's in the Voyage tab under Weather.
+- **Offline**, or if the service doesn't answer, the game's own weather runs as before.
+- **With crew:** they get the host's weather.
+
+Weather data by Open-Meteo.com (CC BY 4.0).
+
 ### The timber run (Voyage mode, Oban and Lorn)
 
 A loop with the Timber game. Cut logs ashore, then tow them to market.

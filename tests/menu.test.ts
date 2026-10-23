@@ -150,6 +150,8 @@ function fakeHost() {
     crewList: () => 'Just you',
     planLine: () => 'No plan yet',
     timberLine: () => '',
+    liveWeatherLine: () => '',
+    liveWeatherCredit: () => '',
     timberButton: () => '',
     timberPress: () => {},
     canHandBack: () => false,
