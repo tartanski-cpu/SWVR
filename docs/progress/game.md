@@ -10,6 +10,23 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### No whirlpools at the Falls of Lora; a plan for short steep seas in enclosed water (owner, 23 Oct 2026)
+
+- **The Falls of Lora** (Oban): no whirlpools (owner: "there's not a whirlpool at the Falls of Lora ... we just need the other effects and the fast tides"). Its race keeps its 6 kn tide, standing waves and overfalls, with no whirl points (no swirls drawn, no knocks on the helm).
+  - The coast pipeline now gives a race whirls only where the region request says so: `currentZones[].whirls`, default 0. Before, every real-coast race got 3.
+  - The built Oban package is changed to match (`knocks: 0`). Sruth Tarsk, hand-built, keeps its four.
+  - Test: `tests/fallsOfLora.test.ts`.
+- **Short steep seas everywhere enclosed water makes them:** `docs/FETCH_SEAS.md`, a plan.
+  - The wind sea grows with each spot's fetch by the JONSWAP relations: short and steep in a sound or loch, long in open water.
+  - It's carried by a few short wave trains everywhere (the race chop made general); the long waves become the swell, scaled by each spot's exposure.
+  - A fetch map per map, from the coast pipeline.
+  - Not started: the owner's questions at its end.
+
+**Shared changes:**
+- `tools/coast/src/common.ts`, `nav.ts`, `package.ts`: a race's `whirls`.
+- `tools/coast/requests/oban.yaml`: `whirls: 0`.
+- `src/world/regions/oban.coast.json`: `knocks: 0`.
+
 ### Debug: the tidal races pinned at the ebb, to see the overfalls (owner question, 23 Oct 2026)
 
 The owner: "I remember working on a steeper wave model ... I don't remember seeing that. Is there a debug option?"

@@ -452,7 +452,8 @@ const ferryRoutes: object[] = [];
 const PLACE_KINDS = new Set(['city', 'town', 'village', 'hamlet', 'suburb', 'island', 'islet', 'archipelago', 'sea', 'bay', 'cape', 'strait', 'peninsula', 'locality']);
 const places = ((F?.names ?? []) as { name: string; kind: string; x: number; z: number; rank: number }[]).filter((n) => PLACE_KINDS.has(n.kind));
 
-const currents = (nav.currents as { id: string; name: string; x: number; z: number; length: number; width: number; setDeg: number; peakKn: number; periodH: number }[]).map((c) => ({ id: c.id, name: c.name, x: c.x, z: c.z, length: c.length, width: c.width, setDeg: c.setDeg, peakKn: c.peakKn, periodH: c.periodH, phaseH: 0, waveFactor: 1.6, knocks: 3 }));
+// Whirls (the game's `knocks`) only where the request gives them: a real race needn't have whirlpools (owner, Oct 2026: the Falls of Lora don't).
+const currents = (nav.currents as { id: string; name: string; x: number; z: number; length: number; width: number; setDeg: number; peakKn: number; periodH: number; whirls?: number }[]).map((c) => ({ id: c.id, name: c.name, x: c.x, z: c.z, length: c.length, width: c.width, setDeg: c.setDeg, peakKn: c.peakKn, periodH: c.periodH, phaseH: 0, waveFactor: 1.6, knocks: c.whirls ?? 0 }));
 
 // Fishing grounds: open water of the species' depth, clear of harbours and each other.
 const fishingGrounds: object[] = [];
