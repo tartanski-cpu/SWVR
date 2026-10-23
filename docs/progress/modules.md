@@ -8,7 +8,76 @@ The running record for this area's chat: new modules (fitted parts) for the Ship
 
 Newest entry first. Each change set: what changed and why, the config keys, the tests, and what was and wasn't checked.
 
+## Waiting for your test round
+
+The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
+
+- [ ] **Stern trawler: deckhouse run on aft, up to 2.5 m; less sheer; raised foredeck to 15 m** (this log). Shipyard → Stern trawler → Wheelhouse step, Deckhouse: Forward 1 m, Height 2.5 m, **Aft** 2 m. Check the rail and the ladder on its aft face, and that the gear sits aft of it (Deck gear step). Hull step: Raised foredeck back to 10–15 m. In the game: out of the aft door onto the deckhouse top, climb down the ladder and back up (grip and pull in VR; Space or C on desktop). Is 2.5 m high enough to see over the gear?
+- [ ] **The smoother on the A-frame and the other moving gear** (this log). On the stern trawler: shoot and haul the trawl and watch the A-frame swing, the net drum and the trawl winches turn; swing the searchlight. On the pilot boat: the pod drives' swing as you steer, the fire monitor. All should glide, no stepping, especially in VR.
+- [ ] **A 750 kW diesel, the stern trawler's** (PROGRESS.md). Start her, run her up; the engine's sound and the speed (about 10 knots).
+- [ ] **The fast rescue boat, a 6 m RIB** (PROGRESS.md; Shipyard only). Shipyard: a big boat, Deck gear → Skiff → the rescue boat. In the game: launch her on the crane, drive her from the centre console (about 28 knots), recover her.
+- [ ] **The skiff as a rubber dinghy, 10 % smaller** (PROGRESS.md). On the workboat and the smaller Shipyard boats: launch and recover her on the crane, drive her, carry three crates, tie her up at the quay (she should sit level).
+- [ ] **Step 3 toward a trawler: the stern trawler hull type** (PROGRESS.md). Shipyard: pick her, try the Length slider, take her into the game; handling, harbours.
+- [ ] **Step 2: the net drum and the trawl winches** (PROGRESS.md). Shoot and haul the trawl: the net winds off and onto the drum, the warps off the winches.
+- [ ] **Trawling: the catch comes aboard in the net, the A-frame swings it in** (PROGRESS.md). Haul, lift the codend over the stern, release the catch, box it.
+- [ ] **Step 1: the fish hold and crew accommodation** (PROGRESS.md). Boxes go down into the hold; lift one out with the yellow button; the bunks, mess table, shower and head.
+
+(`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
+
 ## Changes
+
+### The stern trawler: a deckhouse run on aft of the wheelhouse, up to 2.5 m high; less sheer; a longer raised foredeck (done; on next, in your test round)
+
+Owner, Oct 2026, from the Shipyard's view of the stern trawler: "the option to extend the deck house further aft of the wheelhouse ... there'll need to be some ladders or stairs to get you up there if it's high", "the deck house to be ... 2.5 meters high ... high enough to go over the bridge", and "slightly less shear by default and to allow the raised foredeck to come back significantly more". Done in this chat at the owner's word (Shipyard and hull-study files; see Shared changes).
+
+- **The deckhouse can run on aft of the wheelhouse** (new design choice `dhAft`; Wheelhouse step, Deckhouse group, **Aft**: flush, or 0.5 m steps to 6 m):
+  - its top is a deck behind the wheelhouse, the house's aft door opening onto it (any door steps stand on its top), always walked, railed right across its aft edge;
+  - a vertical ladder down its aft face on the centreline to the working deck (the same ladder as the walked deckhouse top's: climb with grip / Space);
+  - the deck gear keeps aft of it and its ladder: the A-frame, net drum, trawl winches, the deck crane, the skiff, poles, fenders, the tug's hook; the life ring and a rod rack on the aft wall go on its aft face;
+  - it stops short of leaving less than 4 m of working deck forward of the transom (`CONFIG.shipyard.deckhouse.aftDeck`), and says so;
+  - not with a deckhouse only as wide as the wheelhouse (that one is only forward of it), and the wheelhouse floor can't sink into it (its aft door opens onto the top): both said;
+  - it's weighed and priced as the rest of the deckhouse (its plate, its rail);
+  - travels as a link or file, not the short code.
+- **The deckhouse up to 2.5 m high** (was 1.5 m; `MEASURES.dhHeight`). Over 1.5 m it travels as a link or file.
+- **The stern trawler's sheer a little less:** her deck now rises about 1.15 m from aft to the stem at her standard size, not 1.5 m (the hull study's `sternTrawler` sheer: 2.1 m at the stem, 1.25 m at 70 % of her length). **Sheer** on the Hull step still adds more.
+- **The raised foredeck comes back much further:** its slider now runs from 1 to 15 m aft of the bow (was 8 m; `SCALES.fcLength`, 30 steps). As before, it never ends under the wheelhouse (it runs on aft past it) and stops short of the transom with room for its ladders.
+- **Shared changes** (small; for the other chats):
+  - `src/vessel/deckhouse.ts`: `DeckhouseLayout.houseAft`, set when it runs on aft of the house;
+  - `src/vessel/view/hullMesh.ts`: its rail then runs right across its aft edge;
+  - `src/vessel/layout.ts`: a deckhouse's walked top is kept clear of a house's door steps (they stand on it now);
+  - Shipyard files: `design.ts` (the `dhAft` field, the ranges), `parts/house.ts`, `parts/deckGear.ts`, `page.ts`, `src/config/shipyard.ts` (`deckhouse.aftDeck`); hull study: `src/hulls/designs.ts` (her sheer). Noted in `shipyard.md` and `hulls.md`.
+- **Checked:**
+  - typecheck, all of `npm test` (1443; three slow tests timed out while the screenshots ran alongside, and pass on their own), and the build;
+  - new tests (`tests/shipyard/deckhouseAft.test.ts`): it builds without warnings 2 m aft and 2.5 m high; the trawl gear stands aft of its ladder; you walk out of the aft door onto its top and climb its ladder (2.5 m) to the deck; the limits and their warnings; the raised foredeck builds at 8, 11 and 15 m;
+  - in the Shipyard (headless screenshots): the trawler with the deckhouse run 2 m aft and 2.5 m high (rail, ladder, gear aft of it), and with a 10.5 m raised foredeck running on past the house.
+- **Not checked:** climbing it in VR or on desktop in the game (the walk test covers it); stairs instead of a ladder (not built: say if you want a stair, like the raised foredeck's steep ladders, rather than the vertical one).
+
+### The smoother on the A-frame and the other moving gear (done; on next, in your test round)
+
+Owner, Oct 2026, after the deck crane's: "use the smoother on the A-frame and other moving gear too".
+
+- **What's now drawn smoothly between the simulation's ticks** (the deck crane's smoother, `mechanisms/tickSmoother.ts`, `CONFIG.modules.smoothing.tauTicks`):
+  - the trawl **A-frame**'s swing on its rams;
+  - the **net drum** turning and its roll of net;
+  - the **trawl winches** turning and their warp;
+  - the **searchlight**'s and the **fire monitor**'s pan and tilt;
+  - the **outboards**' (and stern drives') swing as you steer;
+  - the **pod drives**' swing.
+- **Left as they were:** the tow winch's drum already turns smoothly, frame by frame. The skiff crane follows the skiff, whose own position is already smoothed. Switches, buttons and the fish hold's boxes don't glide anyway.
+- **The smoother now settles exactly** once a part comes to rest, so gear standing still isn't redrawn every frame.
+- **Cost:** the drawing runs about 30 ms behind the simulation, as the crane does. The trawl's net and codend (drawn by the main game's code) hang from the A-frame as the simulation has it, so at the A-frame's swing rate they can be up to about 1 cm apart while it moves: too small to see.
+- **Checked:**
+  - typecheck and all of `npm test`;
+  - the smoother's test now also checks it settles exactly;
+  - in the game (headless): the stern trawler (A-frame, drum, winches, searchlight) and the pilot boat (pod drives, searchlight, fire monitor) run with the engine started, the helm over, the searchlight swung and the trawl shot, with no errors.
+  - Smoothness itself is for the Quest: headless Chrome draws too slowly to judge it.
+- **Shared changes:** none.
+- **Test steps:**
+  - **VR:**
+    1. The stern trawler: shoot and haul the trawl, and watch the A-frame swing in, the drum and the winches turn.
+    2. Swing the searchlight and the fire monitor on their joysticks.
+    3. Put the wheel hard over on a boat with outboards or pod drives and watch them swing (Engine step's view, or from her stern).
+  - **Desktop:** the same, the joysticks with W A S D after clicking them.
 
 ### The stern trawler's exhaust as the tug's (approved by the owner; on next)
 

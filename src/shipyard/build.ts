@@ -72,6 +72,8 @@ export interface DesignedBoat {
   placed: Partial<Record<PlaceKey | FurnitureKey, { x: number; z: number; moved: boolean; onRoof?: boolean } | null>>;
   /** Why a piece placed by hand won't stand exactly where it was put, in a few words ("on her other gear or a ladder"): the Shipyard says it as you place it. */
   placeWhy: Partial<Record<PlaceKey | FurnitureKey, string>>;
+  /** Her deck as built, for the handles on the view: her bulwarks' height (m), and her raised foredeck's break (z, boat axes) and how much higher it is (m), or null. */
+  deck: { bulwarkM: number; foredeck: { z: number; raise: number } | null };
 }
 
 /**

@@ -21,6 +21,7 @@ import { CONFIG } from '../../config';
 import { Joystick } from '../../controls/Joystick';
 import { Toggle } from '../../controls/Toggle';
 import { busOf } from '../../modular/bus';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import type { ModuleDefinition } from '../../modular/module';
 import { poleBoxTop, poleFootprint, poleParts, type DeckPole } from '../../mechanisms/deckPole';
 import { Searchlight, type SearchlightLook } from '../../vessel/view/searchlight';
@@ -69,6 +70,7 @@ export const SEARCHLIGHT: ModuleDefinition<SearchlightConfig> = {
     frame: 'boat',
     build({ config, keys, socket }) {
       const lamp = new Searchlight(config);
+      const aim = new TickSmoother([60, 30]);
       const api: SearchlightApi = { lamp, darkness: 0 };
       const pole = config.pole;
       // On a deck pole: the pole, and its box with the SPOT switch and a joystick.
@@ -95,7 +97,11 @@ export const SEARCHLIGHT: ModuleDefinition<SearchlightConfig> = {
         movingParts: [lamp.root],
         controls,
         labels,
-        update: (read) => lamp.update(!!read.get(keys.on), read.num(keys.pan), read.num(keys.tilt), api.darkness, !!read.get(keys.live)),
+        update: (read, _s, dt) => {
+          // (Its pan and tilt drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
+          const [pan, tilt] = aim.update([read.num(keys.pan), read.num(keys.tilt)], dt);
+          lamp.update(!!read.get(keys.on), pan, tilt, api.darkness, !!read.get(keys.live));
+        },
         api,
       };
     },

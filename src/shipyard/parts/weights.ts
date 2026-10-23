@@ -96,6 +96,7 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     warnings,
     placed: { ...placed, ...p.furniturePlaced },
     placeWhy: { ...p.placeWhy, ...p.furnitureWhy },
+    deck: { bulwarkM: p.bulwarkHeight, foredeck: p.foredeck ? { z: p.foredeck.z, raise: p.foredeck.raise } : null },
     shaft,
     weights,
   };

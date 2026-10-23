@@ -6,6 +6,7 @@
 import { CONFIG } from '../../config';
 import { strakeLine, tyreSpots } from '../../vessel/physics/guards';
 import { guardParts } from '../design';
+import { catamaranHandling } from '../../vessel/catamaran';
 import { atDWL, type BuildArgs, type V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart } from './house';
@@ -56,14 +57,18 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   }
   const beamDeck = 2 * Math.max(...st.map((s) => s.halfBeamDeck));
   const lengthM = transom - stem;
-  const gyradius = { roll: 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
+  // A catamaran's handling (vessel/catamaran.ts): two slim hulls' resistance, and her roll
+  // inertia (her roll radius of gyration, and each hull's heave added mass acting half her
+  // hull spacing out) rather than a monohull's.
+  const cat = shape.catamaran ? catamaranHandling(shape, Math.round(h.lwl * 100) / 100, CONFIG.vessels.landingCraft.resistance.y) : null;
+  const gyradius = { roll: cat ? cat.rollGyradius : 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
   // Weighed (buildDesign), her centre of gravity is her parts': its height from the weights
   // below, her lines raised with it; along her it stays over her centre of buoyancy (level
   // trim: as her designer would trim her, with her tanks and ballast).
   if (given) cg[1] = Math.round((given.cgY + raise) * 1000) / 1000;
   const gm = h.kbY + h.iT / h.volume - cg[1];
   if (gm < 0.5) warnings.push(`Her stability is low (GM ${gm.toFixed(2)} m): give her more beam or less depth.`);
-  const iRoll = mass * gyradius.roll ** 2 * 1.25; // with its added mass
+  const iRoll = mass * gyradius.roll ** 2 * (1 + (cat ? cat.addedRoll : 0.25)); // with its added mass
   const rollCritical = 2 * Math.sqrt(iRoll * mass * g * Math.max(0.2, gm));
   const lc = CONFIG.vessels.landingCraft;
   const sizeK = (mass / lc.mass) * (lengthM / 10.2) ** 2;
@@ -83,10 +88,11 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const deadriseAft = deadrise(sy.deadriseAt);
   const deadriseMid = deadrise(0.5);
   const slam = Math.min(sy.slamMax, Math.max(sy.slamMin, Math.tan((sy.slamRefDeg * Math.PI) / 180) / Math.tan(Math.max(0.02, deadriseMid))));
-  const regime = base.regime === 'displacement' ? null : sy.regimes[base.regime];
+  // (A catamaran: no planing turn model; two slim hulls don't bank on a vee.)
+  const regime = base.regime === 'displacement' || cat ? null : sy.regimes[base.regime];
   const planing = regime ? { lean: Math.round((sy.leanBase + sy.leanPerSine * Math.sin(deadriseAft)) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
   const damping = { ...perArea, rollLift: sy.rollLift, verticalCd: Math.round(perArea.verticalCd * slam * 100) / 100, roll: Math.round(0.28 * rollCritical), pitch: Math.round(lc.damping.pitch * sizeK), yaw: Math.round(lc.damping.yaw * sizeK) };
 
-  return { beamDeck, cg, damping, deckMid, gm, guardKg, guardY, gyradius, h, hg, keelMid, lc, lengthM, mass, mid, pf, planing, prot, pushFender, rho, strakeM, tyres };
+  return { beamDeck, cat, cg, damping, deckMid, gm, guardKg, guardY, gyradius, h, hg, keelMid, lc, lengthM, mass, mid, pf, planing, prot, pushFender, rho, strakeM, tyres };
 }
 export type TrimPart = ReturnType<typeof trimPart>;

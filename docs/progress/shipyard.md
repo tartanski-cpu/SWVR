@@ -10,6 +10,122 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The stern trawler: a deckhouse run on aft, up to 2.5 m high; a longer raised foredeck
+
+At the owner's word, in the modular builder's chat (its log, `docs/progress/modules.md`, has the details):
+- new design field `dhAft` (the deckhouse run on aft of the wheelhouse, 0.5 m steps to 6 m; not in the code): `design.ts`, `parts/house.ts` (its build, the door steps on its top, its ladder on the aft face), `parts/deckGear.ts` (aft-deck gear keeps aft of it), `page.ts` (the **Aft** slider), `src/config/shipyard.ts` (`deckhouse.aftDeck`, 4 m);
+- `MEASURES.dhHeight` to 2.5 m; `SCALES.fcLength` to 15 m (30 steps);
+- `tests/shipyard/deckhouseAft.test.ts`; `designDoc.test.ts` lists `dhAft` as not in the code.
+
+### Handles in their own colours (approved by the owner 23 Oct 2026; on next)
+
+Owner, 23 Oct 2026: "different colors of drag handles for the breadth and the width and the depth and all the different things, just so you can see which ones you're dragging".
+
+- **Each handle its own colour** (`CONFIG.shipyard.handles.colours`, by the design choice it drags; `fallback` for any not listed): length orange, bow rake magenta, beam cyan, depth lime, bulwarks violet, sheer yellow, raised foredeck red, its height white. Picked to stand apart from each other, from the grey and painted hulls and from the blue sea; two pairs that looked alike in the first screenshots (pink and coral, yellow and orange) were moved apart.
+- **The slider's dot:** each slider with a handle on the view gets a dot of the handle's colour before its name (shipyard.html `.row.handled`; page.ts `showHandles`), so a handle and its slider read as one. Pointed at or held, the handle grows and lightens `hotLift` (0.4) of the way to white instead of turning yellow, and its slider's name and track light up in its colour; the dimension line while dragging is drawn in it too.
+- **The bulwarks' handle** moved from 70 % to 85 % of the way aft: on a gillnetter whose raised foredeck runs aft past her house, its break sat beside it seen from the side.
+- **Checked:** headless Chromium on the gillnetter with a raised foredeck (Bow ¾ and Starboard views, the beam handle dragged to its limit), screenshots; `npm run test:shipyard` and the typecheck pass. **Not checked:** how the colours read in the Quest's browser.
+- **Shared changes:** none.
+
+### The tug and trawler on a displacement hull's resistance; the catamaran redrawn, re-weighed, twin 400s as she comes (approved by the owner 23 Oct 2026; on next)
+
+Owner, 23 Oct 2026: do the hull chat's follow-ups "as they reach next". The hull chat's redrawn catamaran and its displacement curve (vessel/displacementHull.ts, `CONFIG.displacementHull`) went to next today.
+
+- **A displacement hull's resistance** (parts/hullDef.ts): a hull type with regime 'displacement' (the tug, the trawler) takes `displacementResistance(lwl, y)`, a curve that keeps climbing past hull speed, in place of the landing craft's planing curve, which levels off. The catamaran keeps her own; the planing and semi-planing types are as before.
+- **The catamaran's weight** (`CONFIG.shipyard.catamaran.scantlings` 0.8, parts/catalog.ts): on her redrawn lines (12.5 × 6.0 m) she came out 14.5 t light, against about 11 to 13 t for real aluminium work cats of her length (the hull chat's 15 to 18 t at 15 m, scaled). Almost all of the excess was her plating: two hulls carry far more plate for her length than one, but each is a small, short-spanned section, built lighter. At 0.8 she is 12.7 t light on twin 280s, 13.5 t on twin 400s.
+- **Twin 400 kW as she comes** (her defaults): on her redrawn lines twin 280s make 24.4 kn, under the owner's 25 to 28; twin 400s make 29.7 kn.
+- **Re-measured** (typeFit.ts TYPE_FACTS; the same method as before, which reproduced the trawler's previous figures exactly on the old curve):
+  - **Tug:** a little slower on every fit, as a displacement hull should be. Single 750 kW 10.2 to 9.1 kn; twin 450s 10.9 to 9.5; twin 400s 10.9 to 9.5. Bollard pulls unchanged. Her card: up to 10 kn (rounded from 9.5), 9.0 t.
+  - **Trawler:** within a tenth or two of a knot (she was already slow for her length): 750 kW 10.5 to 10.3 kn.
+  - **Catamaran:** twin 150 17.6 kn, twin 280 24.4, twin 400 29.7, twin tug diesels 31.6. Deck 92 crates as she comes (was 82, on her wider redrawn beam), 161 at her largest.
+- **Tests:**
+  - tests/shipyard/hullResistance.test.ts (new): only the displacement types get the curve; the cat's weight, and twin 400s as she comes.
+  - tests/shipyard/inTheGame.test.ts: the twin-engined tug's flat-out speed is now 8.92 kn (was 10.08).
+  - `npm run test:shipyard` (333), the full `npm test` and the typecheck pass.
+- README: the tug's, trawler's and catamaran's speeds, and the cat's engines and weight.
+- **Shared changes:**
+  - tests/displacementHull.test.ts (the hull chat's): its check that the planing curve let the tug run away compared against the tug as the Shipyard built her, which was the planing curve until now. It now checks that she is built on the displacement curve, and compares against the planing curve explicitly. Caught by the preview check (the full suite), not by `test:shipyard`.
+  - vessel/displacementHull.ts is the hull chat's, only used.
+
+### Handles on the 3D view, stop 2: the rest of the Hull step (approved by the owner 23 Oct 2026; on next)
+
+Owner, 23 Oct 2026: "yes, go ahead with the hull handles" (stop 2 of the handles plan below).
+
+- **Seven more handles** (handles.ts `HANDLES`), each where its slider shows on her and dragged along one line, through stop 1's framework (nothing new in how they're dragged, snapped, undone or shared):
+  - **Bow rake** where her stem crosses her DWL, dragged aft. Raking her keeps her stem head and cuts her forefoot back (catalog.ts `bowKeel`), so a stem-head handle wouldn't move; the waterline crossing is read off her stations (`stemAt`). Not on a landing bow, a push bow or the catamaran (`applies`).
+  - **Beam** at her starboard deck edge amidships, dragged out; its dimension is from her port deck edge.
+  - **Depth** on her deck amidships on the centreline, dragged up; its dimension is from her keel.
+  - **Bulwarks** on their top on her port quarter (70 % aft), dragged up; its dimension is from her deck.
+  - **Sheer** at her starboard deck edge a fifth of her length aft of the stem, dragged up.
+  - **Raised foredeck** at the break, on the centreline at the raised deck, dragged aft. With none, it sits half a metre aft of her stem head: drag it aft to make one. Its dimension is from her stem.
+  - **Its height** on the raised deck halfway from her stem to the break, dragged up. Shown only with a raised foredeck.
+- **Spread so they don't cover each other** in the usual views: the sheer to starboard and the bulwarks aft (from ahead and from the side they would sit on each other otherwise), and the foredeck's height forward of its break.
+- **Her length handle** stays at her stem head. It now sits on the raised foredeck when she has one (it was inside it).
+- **The builder says what the handles need** (build.ts `DesignedBoat.deck`): her bulwarks' height and her raised foredeck's break and rise, as built (the break can be moved clear of the wheelhouse or the transom), so the handles sit on what was built, not on a second guess.
+- **HandleDef `applies(d)`:** a handle is shown only for a design that has the choice (page.ts `showHandles`).
+- **Checked:**
+  - tests/shipyard/handles.test.ts: every Hull step handle moves its own way along its line from its lowest step to its highest, on every hull type it shows for; the bow rake handle goes aft while her stem head stays put; which types show the bow and foredeck-height handles.
+  - Headless Chromium on the stern trawler and the gillnetter, Starboard and Bow views: each handle hovered (its own name and value: none covered by another) and dragged (beam and depth to their limits, bulwarks 0.6 to 1.0 m, sheer, a raised foredeck made from none, its height, bow rake 25° to 37.5°), with screenshots. The catamaran, pilot boat and tug show the right handles.
+  - `npm run test:shipyard` (331) and the typecheck pass.
+  - **Not checked:** the Quest's browser (the laser as the pointer); a shared session.
+- **Shared changes:** none.
+
+### The small tug turns down twin 750 kW engines (approved by the owner 23 Oct 2026; on next)
+
+Owner, 23 Oct 2026, through the hull chat: two 750 kW engines don't fit a small tug; judge a single one.
+
+- **Measured first:** two 750s do fit *across* her (13 × 5.4 m as she comes): each 1.15 m wide engine's outer side is 1.8 m off her centreline, inside her 2.4 m half-breadth at the engine bed, and 1.3 m between them. What doesn't fit her is the **power**: 1,500 kW in a hull of about 56 t is about 27 kW a tonne. Working tugs and trawlers carry about 8 to 18 kW a tonne. A displacement hull's speed is held by her length, so the extra power only makes waves and overloads a propeller her draught keeps small (1.18 m for the twin; a 750 wants 1.9 m).
+- **The rule** (parts/engineRoom.ts; `CONFIG.shipyard.maxKwPerTonne` 20): a displacement hull (the tug, the trawler) takes at most 20 kW a tonne of her lines' displacement. Twin engines past that go in singly (when one is within it), with a warning saying so and what she takes. The tug as she comes takes about 1,120 kW: twin 450 kW tug diesels (900 kW) still go in; twin 750s are refused; a **single 750** (750 kW, about 13 kW a tonne) is accepted. A tug stretched to her longest takes more. The smallest tug (7 m, 23 t) refuses twin 450s too. The trawler is not affected: twin 750s are within her power limit, but they are too tall for her deck, as before.
+- **Her card:** the twin-750 trial is gone from TYPE_FACTS (typeFit.ts), so her figures read up to 11 kn (the twin 450s) and up to 9.0 t pull (was 18 kn and 13.0 t, which came from the power she can't take).
+- Test: tests/shipyard/bigEngine.test.ts.
+
+### The fast catamaran workboat: a Shipyard hull type (step 3 of the hull chat's three; approved by the owner 23 Oct 2026; on next)
+
+Owner, 23 Oct 2026, through the hull modifications chat (steps 1 and 2, her lines and her two-hull physics, are theirs, on `next`): "a catamaran workboat, a wider working platform for cranes etc., the wheelhouse forward OR aft, stiffer in roll, fast: 25-28 kn on all sizes with the engines we have". Her card (owner): made for Cargo, Fire and Exploring (a tag).
+
+- **The hull type** (parts/catalog.ts, the seventh: `catamaran: true`): the hull study's `workCat` scaled, her demihulls' spacing with her beam and her wet deck's height over her DWL with her depth; her own fine bows (no bow choice, no ramp or push fender); aluminium; the house forward (Position moves it aft); twin 280 kW by default. design.ts `HULL_TYPES` 7; not in the short code (a link or file).
+- **Her lines floated at her weight:** the wet deck rises with her lines (parts/hull.ts `raised`).
+- **Her stability:** the build's own waterplane measure (parts/common.ts `atDWL`) takes a catamaran's two strips, each hull's second moment about her centreline (`catStripsInertia`, as vessel/hydrostatics.ts does), not one strip across her tunnel: GM about 7 m at standard size.
+- **Her handling** (parts/trim.ts, hullDef.ts; vessel/catamaran.ts `catamaranHandling`, the hull chat's): her resistance a catamaran's, her roll radius of gyration and her added roll inertia; no planing turn model.
+- **Twin engines always, one in each hull** (parts/engineRoom.ts): engines, shafts, propellers and rudders at half her hull spacing out, under each hull's keel. Her engine space and hatch over the starboard hull's engine, sized to the inside of that hull (`catInside`), not across her tunnel. The 750 kW is too tall for her hulls (said so).
+- **Sections read by their outer side:** `halfBreadthAt` reads a section's last three points (a catamaran's starboard hull's keel, chine, deck edge; the same points as before on a monohull).
+- **Her trials** (gearbox matched; typeFit.ts TYPE_FACTS, her card):
+
+  | Size | Twin 150 kW | Twin 280 kW | Twin 400 kW | Twin 450 kW |
+  |---|---|---|---|---|
+  | 10 m (11.2 t) | 18.2 kn | | 31.3 kn | |
+  | 12.5 m (13.7 t) | 17.4 kn | **25.5 kn** | 30.6 kn | 29.3 kn |
+  | 14.7 m (17.3 t) | 13.5 kn | | 28.0 kn | |
+
+  Every size makes 25-28 kn and more on a twin she can take. The Shipyard weighs her heavier than the hull chat's estimate (13.7 t at standard against 9.3 t: her plating, both hulls and the bridge deck, and her outfit over her full deck), so the small engines make less than their table; 13.7 t is within what real 12 m aluminium work cats with twin V8s weigh. Deck: 82 crates (159 at her largest).
+- **Icons:** the stern trawler and the fast catamaran have their own Hull-step drawings (tiles.ts `trawler`, `catamaran`; the trawler had the workboat's).
+- **Checked:** `npm run test:shipyard` (the build, bow and engine-balance tests take her in: no bow choice; her CG 1.23 m from her LCB, her shafts already at their steepest with her house forward); the full suite; headless Chromium: her card with her picture, the Hull step (from ahead, both hulls and the tunnel), the Engine step (an engine, shaft, propeller and rudder in each hull), and the game (afloat at the quay, her house forward, both hulls from ahead). **Not checked:** the Quest; her sailing in the game by hand (her sea trials ran the game's physics); designing together.
+- **Shared changes:** tests/fleet.test.ts: the fast catamaran isn't in the game's fleet yet (as the stern trawler), so the one-boat-a-type check leaves her out; adding her to the fleet is the main game chat's call. (The catamaran physics itself is the hull chat's.)
+
+### Handles on the 3D view, stop 1: the framework, proved on her length (approved by the owner 23 Oct 2026; on next)
+
+Owner, 23 Oct 2026: "the next big step for the shipyard is to move away from sliders and to have interactive handles that you can drag on the 3D window wherever appropriate". Plan agreed (owner's choices: the view stays as it is when a handle is grabbed; the sliders fold into "Exact values" once the handles are in; start with stop 1):
+1. the framework, proved on Length; 2. the rest of the Hull step (beam, depth, bulwarks, bow rake, sheer, raised foredeck and its height); 3. the Wheelhouse (move it, its walls, width, headroom, offset, saloon, overhead, window rake, roof overhang); 4. the deckhouse and the console length, then the sliders folded away. Kept as sliders or tiles: choices (types, materials, styles, colours), the roof's thickness and edge angle, the floor height (perhaps a handle in a section view later).
+
+- **The handle** (handles.ts `HANDLES`, page.ts `showHandles` … `updateHandles`): a round handle on her at the point a slider sets, the same size on the screen however near or far, drawn over her; hidden when it would be dragged end-on to the view (her length handle in the Bow and Stern views), while placing, with a tool on, or in a live trial.
+- **Hover:** it lights up (and its slider's row), and says "Length 9.75 m · drag to change".
+- **Drag:** along its one line (her length: fore and aft), snapping to the slider's steps. Where the handle sits at each step is the builder's answer (her built at that step, about 40 ms, read off her: `anchor`), worked out a step at a time from when the pointer comes over it (nearest steps first), so the drag picks the step whose point is nearest the pointer (handles.ts `alongAxis`, `nearestStep`). Each step is applied as the slider does (page.ts `change`), so the boat reshapes live, undo merges the drag into one step, and in a session the others see it as they see a slider (and who's holding it).
+- **The dimension:** while dragged, a line from where it's measured (her transom, along her deck) to the handle, and its name and figure beside the pointer ("Length overall 11.46 m"); past her last step, "as far as it goes" in red.
+- **Her length handle:** at her stem head on the centreline, at the Hull step.
+- **Checked:** tests/shipyard/handles.test.ts (the pointer read along the line from a slanting ray, none end-on; snapping, steps not yet worked out passed over, the limit; her length handle at the stem head moving forward as she lengthens, the dimension her length). Headless Chromium on the gillnetter, Starboard view: the handle at her stem head, its tip and her slider lit; dragged forward to her longest (11.46 m, "as far as it goes"), the boat redrawn, the dimension line drawn; one undo back to 9.75 m. `npm run test:shipyard` and the typecheck pass. **Not checked:** the Quest's browser (the laser as the pointer); a session.
+- **Shared changes:** none.
+
+### Hull cards and the brief's engine search re-measured with the 750 kW diesel (approved by the owner 23 Oct 2026; on next)
+
+Owner, 23 Oct 2026: "yes, re-measure them with the 750".
+
+- **Re-measured** (typeFit.ts TYPE_FACTS `fits`): every hull type at standard size, bare, every engine fit single and twin, the 750 kW included, gearbox matched (trial.ts matchGear), the game's sea trials. **Fits whose engine won't go under her deck are left out** (the tug diesel and the 750 in the landing craft, the gillnetter and the workboat; the 750 in the pilot boat; twin 750s in the trawler), so the cards and the ranking never promise a boat that can't be built. The stern trawler as she comes (single 750): 10.5 kn, 48 nm, 11.2 t pull. The small tug: single 750 10.2 kn / 6.3 t; twin 750s 18.0 kn / 13.0 t.
+- **The brief's engine search** (page.ts startFrom) now tries only the engine fits that go under her deck (built first, about 40 ms each), so it can't fit one that doesn't.
+- **A crash fixed** (parts/hullDef.ts `lightshipLess`): twin 750s in the landing craft (9.6 t of engine in a boat of about 5 t) threw "the parts weigh more than the boat" on the builder's first pass (weighed as her lines' displacement, before her weights are known) and would have stopped the page. That pass's lightship isn't used; the second pass weighs her and warns.
+- **To raise with the main game chat** (shared vessel physics, not changed here): the small tug with twin 750s (1500 kW) trials at 18 kn, well past a 13 m displacement hull's speed (about 10 to 12 kn): her resistance curve doesn't climb steeply enough past her hull speed.
+- **Checked:** the measurements themselves (six hulls, every fit); tests/shipyard/bigEngine.test.ts (twin 750s in the landing craft build, warned); `npm run test:shipyard` and the typecheck pass.
+- **Shared changes:** none.
+
 ### Rework, part 3 of 3: gear and furniture placed by pointing (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026: "the whole placement of furniture and deck equipment is a bit clunky, because if it doesn't allow you to place it, it basically saves a warning on the right hand panel, and then you get these pins all over the place ... people need an easy way to place and move equipment ... make sure it doesn't come up with all that junk on the right hand side."

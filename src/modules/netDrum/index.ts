@@ -12,6 +12,7 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import type { GearFootprint, ModuleDefinition } from '../../modular/module';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 
@@ -57,6 +58,7 @@ export const NET_DRUM: ModuleDefinition<NetDrumConfig> = {
       const roll = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 2 * L - 0.04, 16).rotateZ(Math.PI / 2), new THREE.MeshLambertMaterial({ color: col.net, flatShading: true }));
       drum.add(frame, roll);
       let shown = -1;
+      const smooth = new TickSmoother([0.5]);
       const show = (net: number) => {
         // The roll's radius from the net's volume on it (an annulus: r² - core² grows with it).
         const r = Math.sqrt(c.core * c.core + net * (c.fullRadius * c.fullRadius - c.core * c.core));
@@ -71,8 +73,9 @@ export const NET_DRUM: ModuleDefinition<NetDrumConfig> = {
         staticParts: fixed,
         movingParts: [drum],
         controls: [],
-        update: (read) => {
-          const net = keys.net ? read.num(keys.net) : 1;
+        update: (read, _s, dt) => {
+          // (Drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
+          const net = smooth.update([keys.net ? read.num(keys.net) : 1], dt)[0];
           if (net !== shown) show(net);
         },
       };

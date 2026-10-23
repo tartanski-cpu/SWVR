@@ -62,6 +62,8 @@ export class TickSmoother {
     for (let i = 0; i < n; i++) {
       this.a[i] += (target[i] - this.a[i]) * k;
       this.b[i] += (this.a[i] - this.b[i]) * k;
+      // Arrived (within a hair of it): exactly there, so a part at rest stops being redrawn.
+      if (Math.abs(this.b[i] - target[i]) < this.snap[i] * 1e-5 && Math.abs(this.a[i] - target[i]) < this.snap[i] * 1e-5) this.a[i] = this.b[i] = target[i];
     }
     return this.b;
   }
