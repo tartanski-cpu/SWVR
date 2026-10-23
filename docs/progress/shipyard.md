@@ -10,7 +10,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### Handles in their own colours (done, on the preview)
+### Handles in their own colours (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026: "different colors of drag handles for the breadth and the width and the depth and all the different things, just so you can see which ones you're dragging".
 
@@ -20,7 +20,7 @@ Owner, 23 Oct 2026: "different colors of drag handles for the breadth and the wi
 - **Checked:** headless Chromium on the gillnetter with a raised foredeck (Bow ¾ and Starboard views, the beam handle dragged to its limit), screenshots; `npm run test:shipyard` and the typecheck pass. **Not checked:** how the colours read in the Quest's browser.
 - **Shared changes:** none.
 
-### The tug and trawler on a displacement hull's resistance; the catamaran redrawn, re-weighed, twin 400s as she comes (done, on the preview)
+### The tug and trawler on a displacement hull's resistance; the catamaran redrawn, re-weighed, twin 400s as she comes (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026: do the hull chat's follow-ups "as they reach next". The hull chat's redrawn catamaran and its displacement curve (vessel/displacementHull.ts, `CONFIG.displacementHull`) went to next today.
 
@@ -40,7 +40,7 @@ Owner, 23 Oct 2026: do the hull chat's follow-ups "as they reach next". The hull
   - tests/displacementHull.test.ts (the hull chat's): its check that the planing curve let the tug run away compared against the tug as the Shipyard built her, which was the planing curve until now. It now checks that she is built on the displacement curve, and compares against the planing curve explicitly. Caught by the preview check (the full suite), not by `test:shipyard`.
   - vessel/displacementHull.ts is the hull chat's, only used.
 
-### Handles on the 3D view, stop 2: the rest of the Hull step (done, on the preview)
+### Handles on the 3D view, stop 2: the rest of the Hull step (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026: "yes, go ahead with the hull handles" (stop 2 of the handles plan below).
 
@@ -63,7 +63,7 @@ Owner, 23 Oct 2026: "yes, go ahead with the hull handles" (stop 2 of the handles
   - **Not checked:** the Quest's browser (the laser as the pointer); a shared session.
 - **Shared changes:** none.
 
-### The small tug turns down twin 750 kW engines (done, on the preview)
+### The small tug turns down twin 750 kW engines (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026, through the hull chat: two 750 kW engines don't fit a small tug; judge a single one.
 
@@ -72,7 +72,7 @@ Owner, 23 Oct 2026, through the hull chat: two 750 kW engines don't fit a small 
 - **Her card:** the twin-750 trial is gone from TYPE_FACTS (typeFit.ts), so her figures read up to 11 kn (the twin 450s) and up to 9.0 t pull (was 18 kn and 13.0 t, which came from the power she can't take).
 - Test: tests/shipyard/bigEngine.test.ts.
 
-### The fast catamaran workboat: a Shipyard hull type (step 3 of the hull chat's three; done, on the preview)
+### The fast catamaran workboat: a Shipyard hull type (step 3 of the hull chat's three; approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026, through the hull modifications chat (steps 1 and 2, her lines and her two-hull physics, are theirs, on `next`): "a catamaran workboat, a wider working platform for cranes etc., the wheelhouse forward OR aft, stiffer in roll, fast: 25-28 kn on all sizes with the engines we have". Her card (owner): made for Cargo, Fire and Exploring (a tag).
 
@@ -95,7 +95,7 @@ Owner, 23 Oct 2026, through the hull modifications chat (steps 1 and 2, her line
 - **Checked:** `npm run test:shipyard` (the build, bow and engine-balance tests take her in: no bow choice; her CG 1.23 m from her LCB, her shafts already at their steepest with her house forward); the full suite; headless Chromium: her card with her picture, the Hull step (from ahead, both hulls and the tunnel), the Engine step (an engine, shaft, propeller and rudder in each hull), and the game (afloat at the quay, her house forward, both hulls from ahead). **Not checked:** the Quest; her sailing in the game by hand (her sea trials ran the game's physics); designing together.
 - **Shared changes:** tests/fleet.test.ts: the fast catamaran isn't in the game's fleet yet (as the stern trawler), so the one-boat-a-type check leaves her out; adding her to the fleet is the main game chat's call. (The catamaran physics itself is the hull chat's.)
 
-### Handles on the 3D view, stop 1: the framework, proved on her length (done, on the preview)
+### Handles on the 3D view, stop 1: the framework, proved on her length (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026: "the next big step for the shipyard is to move away from sliders and to have interactive handles that you can drag on the 3D window wherever appropriate". Plan agreed (owner's choices: the view stays as it is when a handle is grabbed; the sliders fold into "Exact values" once the handles are in; start with stop 1):
 1. the framework, proved on Length; 2. the rest of the Hull step (beam, depth, bulwarks, bow rake, sheer, raised foredeck and its height); 3. the Wheelhouse (move it, its walls, width, headroom, offset, saloon, overhead, window rake, roof overhang); 4. the deckhouse and the console length, then the sliders folded away. Kept as sliders or tiles: choices (types, materials, styles, colours), the roof's thickness and edge angle, the floor height (perhaps a handle in a section view later).
@@ -108,7 +108,7 @@ Owner, 23 Oct 2026: "the next big step for the shipyard is to move away from sli
 - **Checked:** tests/shipyard/handles.test.ts (the pointer read along the line from a slanting ray, none end-on; snapping, steps not yet worked out passed over, the limit; her length handle at the stem head moving forward as she lengthens, the dimension her length). Headless Chromium on the gillnetter, Starboard view: the handle at her stem head, its tip and her slider lit; dragged forward to her longest (11.46 m, "as far as it goes"), the boat redrawn, the dimension line drawn; one undo back to 9.75 m. `npm run test:shipyard` and the typecheck pass. **Not checked:** the Quest's browser (the laser as the pointer); a session.
 - **Shared changes:** none.
 
-### Hull cards and the brief's engine search re-measured with the 750 kW diesel (done, on the preview)
+### Hull cards and the brief's engine search re-measured with the 750 kW diesel (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026: "yes, re-measure them with the 750".
 
