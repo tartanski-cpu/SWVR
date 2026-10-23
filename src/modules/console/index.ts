@@ -29,7 +29,21 @@ import { LABEL_OFFSET } from '../../modular/module';
 import type { Socket } from '../../modular/socket';
 import { part } from '../../render/geometryUtils';
 
-export type ConsoleConfig = typeof CONFIG.modules.helmConsole & { wrap?: { centre: number; k: number; turn?: string[]; fixed?: string[] }; bare?: { screens: string[] } };
+export type ConsoleConfig = typeof CONFIG.modules.helmConsole & {
+  wrap?: { centre: number; k: number; turn?: string[]; fixed?: string[] };
+  bare?: { screens: string[] };
+  /**
+   * The dash's face leaning back from its foot (deg), as its screens and gauges do, so they lie
+   * flat on it rather than standing off an upright face (owner, Oct 2026: "I'd certainly not
+   * like the gauges or the instruments floating"). Upright when absent.
+   */
+  leanDeg?: number;
+  /**
+   * Switch groups up on the (leaning) dash face (CS6): each a plate across `x`, from `y[0]` up to
+   * `y[1]` (heights on the face, m), a coloured strip along its top with the title on it.
+   */
+  faceGroups?: { title: string; color: number; x: [number, number]; y: [number, number] }[];
+};
 
 /** A wrapped dash's setback at x (m aft), and a wing's turn (deg about y): 0 across the middle. */
 const setback = (c: ConsoleConfig, x: number) => (c.wrap ? Math.max(0, Math.abs(x) - c.wrap.centre) * c.wrap.k : 0);
@@ -70,6 +84,15 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
     build({ config: c }) {
       const d = c.dash;
       const staticParts = c.bare ? [] : splits(c, -d.halfWidth, d.halfWidth).map(([a, b]) => box(b - a, d.top - d.bottom, d.aft - d.front, (a + b) / 2, (d.top + d.bottom) / 2, (d.front + d.aft) / 2, 0x30363b));
+      // Its face leaning back from its foot (`leanDeg`): the aft face's top edge set forward.
+      const lean = Math.tan(((c.leanDeg ?? 0) * Math.PI) / 180);
+      if (lean)
+        for (const g of staticParts) {
+          const p = g.attributes.position;
+          for (let i = 0; i < p.count; i++) if (p.getZ(i) > d.aft - 1e-6) p.setZ(i, p.getZ(i) - (p.getY(i) - d.bottom) * lean);
+          p.needsUpdate = true;
+          g.computeVertexNormals();
+        }
       // Bare: each screen on a stalk from the console top up to the middle of its back, and a foot.
       for (const id of c.bare?.screens ?? []) {
         const sl = c.slots[id];
@@ -87,7 +110,25 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
           staticParts.push(box(x1 - x0, 0.005, 0.028, (x0 + x1) / 2, top + 0.0025, c.plates.front + 0.014, g.color));
         }
         const mx = (g.x[0] + g.x[1]) / 2;
-        labels.push({ text: g.title, at: [mx, top + 0.004, c.plates.front + 0.014 - LABEL_OFFSET + setback(c, mx)] as const, title: true });
+        // (On a wing, read along it: the strip angles back with the wing.)
+        const yaw = (wingYaw(c, mx) * Math.PI) / 180;
+        const back = c.plates.front + 0.014 + setback(c, mx);
+        labels.push({ text: g.title, at: [mx - Math.sin(yaw) * LABEL_OFFSET, top + 0.004, back - Math.cos(yaw) * LABEL_OFFSET] as const, title: true, yaw });
+      }
+      // Switch groups up on the dash face (`faceGroups`): a plate lying on the leaning face, its
+      // coloured strip along the top, the title on the strip, standing on the face.
+      for (const g of c.faceGroups ?? []) {
+        const along = (g.y[1] - g.y[0]) / Math.cos(Math.atan(lean));
+        const ym = (g.y[0] + g.y[1]) / 2;
+        const zAt = (y: number) => d.aft - (y - d.bottom) * lean;
+        const leanRad = Math.atan(lean);
+        const onFace = (geo: THREE.BufferGeometry, y: number, out: number) => geo.rotateX(-leanRad).translate((g.x[0] + g.x[1]) / 2, y, zAt(y) + out);
+        const w = g.x[1] - g.x[0];
+        staticParts.push(part(onFace(new THREE.BoxGeometry(w, along, 0.003), ym, 0.0015), 0x3b434a));
+        const stripY = g.y[1] - 0.011 * Math.cos(leanRad);
+        staticParts.push(part(onFace(new THREE.BoxGeometry(w, 0.022, 0.004), stripY, 0.002), g.color));
+        const mx = (g.x[0] + g.x[1]) / 2;
+        labels.push({ text: g.title, at: [mx, stripY, zAt(stripY) + 0.0045 + setback(c, mx)] as const, title: true, face: leanRad, offset: 0, size: [Math.min(0.16, w - 0.01), 0.018] as const });
       }
       // Wrapped: every piece set back at its x (the wings angle back with the windows).
       if (c.wrap)
@@ -106,7 +147,7 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
       // The middle of the dash's face: the app measures how far you are from the screens.
       const dashAnchor = new THREE.Object3D();
       dashAnchor.name = 'dashAnchor';
-      dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
+      dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft - ((d.top - d.bottom) / 2) * lean);
       return { staticParts, movingParts: [dashAnchor], controls: [], labels, update: () => {} };
     },
   },

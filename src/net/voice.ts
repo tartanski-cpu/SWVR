@@ -51,6 +51,8 @@ export interface VoiceSpeaker {
   peerId: string;
   head: { x: number; y: number; z: number };
   tx: boolean;
+  /** You've muted them (the Crew tab): their call stays up, their voice silent to you. */
+  muted?: boolean;
 }
 
 interface Remote {
@@ -177,12 +179,12 @@ export class VoiceChat {
         p.positionY.setTargetAtTime(s.head.y, now, 0.05);
         p.positionZ.setTargetAtTime(s.head.z, now, 0.05);
       } else p.setPosition(s.head.x, s.head.y, s.head.z);
-      r.near.gain.setTargetAtTime(route.near, now, 0.05);
-      r.radio.gain.setTargetAtTime(route.radio, now, 0.02);
-      const onAir = route.radio > 0;
+      r.near.gain.setTargetAtTime(s.muted ? 0 : route.near, now, 0.05);
+      r.radio.gain.setTargetAtTime(s.muted ? 0 : route.radio, now, 0.02);
+      const onAir = !s.muted && route.radio > 0;
       if (onAir !== r.onAir) this.squelch();
       r.onAir = onAir;
-      hiss = Math.max(hiss, route.hiss);
+      if (!s.muted) hiss = Math.max(hiss, route.hiss);
     }
     this.hiss.gain.setTargetAtTime(hiss * CONFIG.voice.staticMax, now, 0.1);
   }

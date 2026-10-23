@@ -24,12 +24,18 @@ import { paperColour } from '../render/nightPaper';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
-import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
+import { beaufort, compass8, setLiveWeather, visibilityAt, windVector } from '../environment/weather';
+import { fetchLiveWeather } from '../world/coastWeather';
+import { liveWeatherText } from '../voyage/liveWeather';
+import { voyageMap } from '../world/maps';
 import { gustZone } from '../environment/gusts';
 import { RainView } from '../environment/rainView';
 import { ChartTableView } from '../vessel/view/chartTable';
 import { dipstickReading } from '../vessel/maintenance';
 import { TrafficView } from '../traffic/trafficView';
+import { HarbourBoatsView } from '../world/view/harbourBoatsView';
+import { SkylineView } from '../world/view/skylineView';
+import { FerryView } from '../traffic/ferryView';
 import { SHIP_NAMES } from '../traffic/traffic';
 import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
 import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartOp } from '../chart/marks';
@@ -40,13 +46,13 @@ import type { FireMonitorApi } from '../modules/fireMonitor';
 import type { FireGauge } from '../fire/fireGauge';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { TenderCraneView } from '../controls/TenderCraneView';
-import { hasWheelhouse, houseFloorAt, houseFloorLow, housesOf, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
+import { hasWheelhouse, houseFloorAt, houseFloorLow, housesOf, houseX, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
 import { hullPlan, STEP_HEIGHT, vesselWalkArea, type WalkArea } from '../vessel/layout';
 import { standingHeight } from '../world/geography';
 import { climbOut, jump, swimArea, updateAir, updateSwim, yawOf, type BodyVessel } from '../player/body';
-import { rampCrossing, rampFloor, rampWalkable, slipOf } from '../world/slipway';
+import { beached, rampCrossing, rampFloor, rampWalkable, slipOf } from '../world/slipway';
 import { worldWalkArea } from '../world/landWalkArea';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
@@ -56,14 +62,21 @@ import { WristMenu } from '../ui/wristMenu';
 import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
-import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS, SKYLINE, SKYLINE_STYLE } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
+import { SurfListener } from '../world/surf';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
-import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
+import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
+import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthId } from '../voyage/plan';
+import { PlanTable, planTableSpot } from '../voyage/planTable';
+import type { HeardBoat } from '../audio/boatVoices';
+import { boatOwnerName, launchType, ownedBoat, playerBoats } from '../core/launch';
+import { berthWithId } from '../world/berths';
 import { groundHeight } from '../world/terrain';
 import { coastStreamer } from '../world/coastStream';
 import { setPaintNight } from '../render/pixelPaint';
+import { treeLevel } from '../world/view/treesView';
 import { MAX_SHELTERS } from '../world/shelter';
 import type { ShelterDef } from '../world/defs';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
@@ -80,6 +93,7 @@ import { HelmPrompt } from '../ui/helmPrompt';
 import { YardBoard } from '../ui/yardBoard';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
+import { fallHarm, fireExposure, stepHealth, wakeNow } from '../player/health';
 import { PropStrikeView } from '../rescue/propStrikeView';
 import { lookFromId, turnHands } from '../net/avatarOutfits';
 import { BoatView } from './boatView';
@@ -111,7 +125,7 @@ import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
-import { footprintsOf, gearOf, useDesign, useStarterKit, useWorkboatFit } from '../boats/sims';
+import { footprintsOf, gearOf, useStarterKit, useWorkboatFit } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
 import { sosCondition, sosStatus } from '../rescue/sos';
 import { RodGame } from '../fishing/rodGame';
@@ -122,7 +136,7 @@ import { LineGun } from '../tow/lineGun';
 import { FenderHands, type FenderHandsContext } from '../player/fenderHands';
 import type { FendersApi } from '../modules/fenders';
 import { LineGunView } from '../tow/lineGunView';
-import { lineLength, nearestTowTarget, towAlertT, towName, towPoint, towPostLocal, towStatus, towTargets, winchStalled } from '../tow/tow';
+import { lineLength, lineOf, nearestTowTarget, sternLocal, towAlertT, towName, towPoint, towStatus, towTargets, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
@@ -146,8 +160,9 @@ import { vesselReadout } from '../debug/vesselReadout';
 import { countBoatParts } from '../debug/boatParts';
 import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
-import { HULLS, LIBRARY, RECIPES } from '../boats/library';
-import { designToken, readDesign, sameDesign } from '../shipyard/designDoc';
+import { HULLS, LIBRARY, RECIPES, boatTokenOf, boatType, boatTypeOf, designCodeOf, ensureBoatTypes, isBoatType } from '../boats/library';
+import { buildDesign } from '../shipyard/build';
+import { readDesign, sameDesign } from '../shipyard/designDoc';
 import { groupCode, ShipyardCodes } from '../shipyard/takeHer';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
@@ -165,6 +180,9 @@ import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
 import { fuelTankL } from '../vessel/fuelTank';
+import { consumeReturn, issueId, newHandoffId, outboundUrl, takeEnvelope, type Envelope, type MetaverseSite } from '../voyage/metaverse';
+import { bargeFromCamp, bargesKey, bargesToSave, HotspotWatch, merchantsOn, parseBarges, positionFor, restoreBarges, saleOffer, saleText, sellBarge, sitesOn, hotspotAt } from '../voyage/timber';
+import { TimberView } from '../voyage/timberView';
 
 /**
  * Top-level wiring. Owns the renderer, the simulation state and the per-frame loop:
@@ -173,11 +191,16 @@ import { fuelTankL } from '../vessel/fuelTank';
  */
 /** Where the host keeps the whiteboard's notes between visits. */
 const BOARD_KEY = 'swvr.board';
-const LAST_CODE_KEY = 'swvr.lastGameCode';
 /** ...and the pencil marks on the paper chart. */
 const CHART_KEY = 'swvr.chart';
 /** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
 const BATTERY_KEY = 'swvr.battery';
+/** ...and the boat you launched last in a Voyage game (multi-boat M5). */
+/** Voyage's account (the timber merchant's money; all maps): kept in this browser. */
+const VOYAGE_MONEY_KEY = 'swvr.voyage.money';
+const LAST_BOAT_KEY = 'swvr.voyage.lastBoat';
+/** Voyage mode: the crew's plan for a map, saved by the host (voyage/plan.ts). */
+const planKey = (map: string) => `swvr.voyage.plan.${map}`;
 
 /**
  * The boat the game starts in: the page's `?boat=` (Debug > Boat > Start in, modular boats
@@ -229,17 +252,19 @@ const START_BOATS = [...FLEET_IDS, 'alaskan38'];
 let startDesignCode: string | null = null;
 
 function startBoat(): string | undefined {
-  // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts): the 'design' vessel type made her.
+  // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts).
   const code = new URLSearchParams(location.search).get('design');
   if (code) {
-    const read = readDesign(code);
-    if ('design' in read) {
-      useDesign(read.design);
-      startDesignCode = designToken(read.design);
-      return 'design';
+    // Her own vessel type, keyed by her token (multi-boat M1: boats/library.ts boatType).
+    const id = boatType(code);
+    if (id) {
+      startDesignCode = boatTokenOf(id);
+      return id;
     }
-    console.warn(`Shipyard code ${code}: ${read.error}`);
-    designCodeError = read.error;
+    const read = readDesign(code);
+    const error = 'error' in read ? read.error : 'cannot build her';
+    console.warn(`Shipyard code ${code}: ${error}`);
+    designCodeError = error;
   }
   const id = new URLSearchParams(location.search).get('boat');
   return id && RECIPES[id] && VESSEL_DEFS[id] && hasWheelhouse(VESSEL_DEFS[id]) ? id : undefined;
@@ -301,6 +326,8 @@ function rememberHosting(code: string | null): void {
 }
 /** A camera held flipped (player/cameraHold.ts `back`): a half turn about the hand's up, so it faces the holder. */
 const FLIPPED = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+/** The grab camera in a VR hand: tilted forward from the grip's axis (CONFIG.camera.holdPitchDeg). */
+const HOLD_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (CONFIG.camera.holdPitchDeg * Math.PI) / 180);
 
 /** The game code on the address (shareable), or none. */
 function showGameOnAddress(code: string | null): void {
@@ -334,7 +361,14 @@ export class App {
   /** Our id when playing alone, restored after leaving a game. */
   private readonly soloPlayerId: EntityId;
   /** The vessel the bridge, debug keys and audio act on (the MVP has exactly one). */
-  readonly testVesselId: EntityId;
+  /**
+   * Your boat: the one you're aboard (multi-boat M2), as long as she has a wheelhouse to work
+   * her from; otherwise the last one you were. The dash, sounds, gear mounts, bridge wiring and
+   * interior detail follow it (becomeAboard). It starts as the boat the page was built for.
+   */
+  private testVesselId: EntityId;
+  /** The boat this page was built for (the career's, the one `?boat=` / `?design=` named). */
+  private readonly startVesselId: EntityId;
   readonly intents = new IntentQueue();
   private readonly loop = new FixedStepLoop(CONFIG.sim.tickRate, CONFIG.sim.maxTicksPerFrame);
 
@@ -360,8 +394,25 @@ export class App {
   private touch: TouchControls | null = null;
   /** Board at the helm on the first frame (touch controls, CONFIG.touch.startAboard). */
   private boardOnStart = false;
+  /** Voyage mode: the planning table on the start quay (voyage/planTable.ts), the plan's changes saved, its last note shown. */
+  private planTable: PlanTable | null = null;
+  private planSaved = -1;
+  private planNoteT = -1;
+  /** The berth the table was placed by (null: the map's start). */
+  private planTableBerth: string | null = null;
   /** Seconds since the voyage place was last remembered (rememberVoyagePlace). */
   private rememberT = 0;
+  /** Voyage's timber run (voyage/timber.ts): the bays on this map, the watch for anchoring in one, what's drawn. */
+  private readonly timberSites: MetaverseSite[] = MODE === 'voyage' ? sitesOn(VOYAGE_MAP_ID) : [];
+  private readonly timberWatch = new HotspotWatch();
+  private timberView: TimberView | null = null;
+  private saleShown: string | null = null;
+  private leavingForCamp = false;
+  private readonly timberPrompt = new HelmPrompt(118);
+  private readonly fade = document.createElement('div');
+  private timberNote: string | null = null;
+  /** The chart's special places: the timber camp's bay, the merchant (chartPlotter specials). */
+  private readonly timberSpecials: { x: number; z: number; r?: number; label: string; kind: 'anchorage' | 'merchant' }[] = [];
   private readonly trialsPanel = new TrialsPanel();
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
@@ -445,6 +496,8 @@ export class App {
   private readonly rainHouse = { matrixWorld: new THREE.Matrix4(), min: new THREE.Vector3(), max: new THREE.Vector3() };
   /** The local player is inside the wheelhouse (wind muffled, rain drums on the roof). */
   private insideHouse = false;
+  /** The surf near you (world/surf.ts). */
+  private readonly surf = new SurfListener();
   /** Last lightning flash and forecast seen (thunder / VHF on change), and targets the lookout has called. */
   private lightningSeen = -1;
   private forecastSeen = -1;
@@ -465,6 +518,12 @@ export class App {
   private chartTable: ChartTableView | null = null;
   /** Passing ships, debris, hazard buoys; their horns; ships the lookout has called. */
   private readonly trafficView = new TrafficView();
+  /** The boats lying in a coast map's harbours (world/harbourBoats.ts). */
+  private readonly harbourBoatsView = new HarbourBoatsView();
+  /** A coast map's castles, masts, turbines... (world/view/skylineView.ts). */
+  private readonly skylineView = new SkylineView(SKYLINE, SKYLINE_STYLE === 'aegean');
+  /** A coast map's ferries on their real routes (traffic/ferryView.ts); made with the ocean. */
+  private ferryView: FerryView | null = null;
   private hornSeen = -1;
   private readonly shipsCalled = new Set<string>();
   private readonly tableRef = new THREE.Vector3();
@@ -544,8 +603,23 @@ export class App {
   private readonly camPreview = new CameraPreview();
   /** The red spray when a swimmer goes into a propeller (everyone sees it). */
   private readonly propStrikeView = new PropStrikeView();
-  /** Us struck by a propeller: seconds since (red, black, back aboard), or -1. */
+  /** Us struck by a propeller, or blacked out (health): seconds since (red, black, back aboard), or -1. */
   private strikeT = -1;
+  /** What's said when we come round from it (the propeller's own words if empty). */
+  private knockoutSays = '';
+  /**
+   * Our health (player/health.ts: 1 well, 0 blacked out), kept by our own game as our body
+   * is; and lying in a berth to rest (its press, 'berthRest'), the view dimmed.
+   */
+  private health = 1;
+  private resting = false;
+  /** Lain down hurt (up by yourself once well by day), or to sleep (up at the morning); the clock a moment ago. */
+  private restHurt = false;
+  private restClock = 0;
+  /** Below CONFIG.health.warnBelow already (said once each time it falls past). */
+  private healthWarned = false;
+  /** The desktop's health readout (shown only when hurt). */
+  private healthEl: HTMLDivElement | null = null;
   /** Crew-mates in the water (to say so once when one goes in). */
   private readonly overboard = new Set<string>();
   private readonly waveV = new THREE.Vector3();
@@ -603,6 +677,8 @@ export class App {
   /** Hosting: waiting for the PeerJS server to register the room code. */
   private hostStarting = false;
   private joinCode = '';
+  /** Crew-mates whose voices you've muted (player ids; the Crew tab, this page only). */
+  private readonly mutedCrew = new Set<string>();
   /** How our home boat was built (world.build as it was made here): crew joining compare theirs. */
   private builtAs: NonNullable<WorldState['build']> = {};
   /** The workboat's equipment the career wanted when last looked (null: not looked yet); see checkRefit. */
@@ -643,7 +719,7 @@ export class App {
     forgetStartParams();
     const created = createWorld(this.ids, boat, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
     this.world = created.world;
-    this.world.build = { ...(startDesignCode && boat === 'design' ? { design: startDesignCode } : {}), ...(without.length ? { without } : {}) };
+    this.world.build = { ...(startDesignCode && isBoatType(boat) ? { design: startDesignCode } : {}), ...(without.length ? { without } : {}) };
     this.builtAs = structuredClone(this.world.build);
     // Sent to crew with the boat, so a crew-mate on an older page knows (not part of her build).
     this.world.build.app = APP_BUILD;
@@ -651,7 +727,13 @@ export class App {
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
+    this.startVesselId = created.vesselId;
+    // Back from the timber camp? The envelope off the address first, then her place, then the barge.
+    const handoff = MODE === 'voyage' ? this.takeHandoff() : null;
     this.restoreVoyagePlace();
+    this.setupPlanTable();
+    this.setupTimber(handoff);
+    this.startLiveWeather();
     // Our own working clothes, as crew who join will see us (net/avatarOutfits.ts).
     this.world.players[this.localPlayerId].look = randomLook();
 
@@ -671,7 +753,7 @@ export class App {
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
-    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root);
+    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root, this.skylineView.root);
     // A test (owner): an outside model, the dirt bike, on the Calder Haven quay by where you
     // start, only with `?bike` in the address (public/models/mx_gold_dirt.glb: the owner's
     // file slimmed with glTF Transform, weld + simplify + quantize, 120,568 -> 19,508
@@ -693,27 +775,8 @@ export class App {
     this.scene.add(this.wildlife.root);
     this.scene.add(this.propStrikeView.pool.points);
     for (const vessel of Object.values(this.world.vessels)) this.addVesselView(vessel);
-    const tugView = this.vesselViews.get(this.testVesselId);
-    // The towline's lead from the winch drum over the stern roller; the trawl's warps from
-    // the A-frame's blocks (the winch, roller and A-frame are her modules, on the bridge).
-    if (tugView) this.towline.attachLead(tugView.root, this.world.vessels[this.testVesselId]);
-    this.trawlView.setBoat(this.world.vessels[this.testVesselId]);
     this.binoculars = new Binoculars(this.camera);
-    // The hand gear's places aboard are her hull's (M7): gear she has no place for isn't aboard.
-    const stowage = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId].stowage;
-    if (tugView && stowage?.binoculars) this.binoculars.stow(tugView.root, stowage.binoculars.at, stowage.binoculars.yawDeg);
-    // The rods stand upright in their rack (a module, deck.rod-rack): each in its own cup.
-    const rodRack = gearOf(this.world.vessels[this.testVesselId], 'rodRack');
-    const upright = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); // the rod's -z (its tip) up
-    if (tugView) {
-      for (const g of this.gear) {
-        if (g.kind === 'rod') {
-          const at = rodRack?.rods[g.slot];
-          if (at) g.mount(tugView.root, at, upright);
-        } else if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
-      }
-      if (rodRack) this.rodView.attachBucket(tugView.root);
-    }
+    this.mountOnHomeBoat();
     this.scene.add(this.handGearView.root, this.camPreview.screen, this.rodView.root, this.lineGunView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
@@ -774,6 +837,8 @@ export class App {
       const boat = new BoatView(vessel.id, def, modules, vessel.id === this.testVesselId);
       view.root.add(boat.root);
       this.boats.set(vessel.id, boat);
+      // A boat that came after the start (multi-boat M2): her controls work from now.
+      this.interaction?.addControls(boat.controls);
     }
   }
 
@@ -784,16 +849,7 @@ export class App {
   private syncVesselViews(): void {
     const vessels = this.world.vessels;
     for (const v of Object.values(vessels)) if (!this.vesselViews.has(v.id)) this.addVesselView(v);
-    for (const [id, view] of this.vesselViews) {
-      if (vessels[id]) continue;
-      view.root.removeFromParent();
-      view.root.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if (m.isMesh) m.geometry.dispose();
-      });
-      this.effects.get(id)?.dispose();
-      for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans, this.boats] as Map<EntityId, unknown>[]) map.delete(id);
-    }
+    for (const id of [...this.vesselViews.keys()]) if (!vessels[id]) this.dropVesselView(id);
   }
 
   start(): void {
@@ -939,6 +995,7 @@ export class App {
     this.updateGestures(inXR);
     this.updateLocomotion(dt, inXR);
     this.updateStrike(dt);
+    this.updateHealth(dt);
     this.syncRigToPlayer(0);
     this.updateLaser(dt);
     this.camera.getWorldPosition(this.focus);
@@ -998,6 +1055,10 @@ export class App {
   /** The workboat's engine, horn and alarm sounds; her boat view, tender crane and wheelhouse; the other boats' views (the skiff's tiller). */
   private updateOwnBoat(dt: number, nowMs: number, darkness: number): void {
     const frame = { darkness, viewer: this.focus };
+    // Your boat is the one you're aboard (multi-boat M2); your own launched boat (M3).
+    this.followOwnBoat();
+    const aboardNow = this.world.players[this.localPlayerId]?.aboardVesselId;
+    if (aboardNow && aboardNow !== this.testVesselId) this.becomeAboard(aboardNow);
     const testView = this.vesselViews.get(this.testVesselId);
     if (testView) {
       // Engine room sits roughly under the wheelhouse.
@@ -1009,6 +1070,7 @@ export class App {
       this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1]);
       const v = this.world.vessels[this.testVesselId];
       this.sound.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
+      this.updateBoatVoices(dt);
       // Bridge buzzer: high temperature always, low fuel while the engine runs, and no oil
       // pressure with the key on and the engine stopped (it stops when she runs, owner).
       const diesel = gearOf(v, 'diesel');
@@ -1048,13 +1110,22 @@ export class App {
       for (const [id, boat] of this.boats) {
         const sv = this.world.vessels[id];
         if (id === this.testVesselId || !sv) continue;
+        // A boat beyond `mid` of the viewer (multi-boat M4): her controls and screens aren't moved; beyond `far`, not drawn.
+        const dv = Math.hypot(sv.position[0] - this.focus.x, sv.position[2] - this.focus.z);
+        boat.setFar(dv > CONFIG.lod.far);
+        if (dv > CONFIG.lod.mid) continue;
         boat.update(sv, dt, false, null, frame);
         const tiller = boat.api<TillerApi>('control.tiller')?.tiller;
         if (tiller) this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, tiller.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+        // A tender with an engine (the rescue boat's outboard): her own engine voice, from her transom.
+        const ob = sv.tender && gearOf(sv, 'diesel');
+        const root = ob && this.vesselRoots.get(id);
+        if (ob && root) this.sound.tenderEngine.update(sv, root.localToWorld(this.tmpV.set(0, 0.5, VESSEL_DEFS[sv.defId].hull.stations[0].z)).distanceTo(this.focus));
       }
       const plotter = this.homeView.chart;
       if (plotter) {
         plotter.marks = CONFIG.chartMarks.showOnPlotter ? this.marks : null;
+        plotter.specials = this.timberSpecials;
         plotter.update(this.world, this.testVesselId, dt, this.dashInView());
       }
       this.updateRadioSound();
@@ -1066,8 +1137,11 @@ export class App {
     let slam = 0;
     let lap = 0;
     for (const [id, fx] of this.effects) {
-      if (!this.world.vessels[id]) continue;
-      const hit = fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness, renderTime);
+      const v = this.world.vessels[id];
+      if (!v) continue;
+      // By the viewer's distance (multi-boat M4): smoke within `near`, wake and spray within `mid`.
+      const d = id === this.testVesselId ? 0 : Math.hypot(v.position[0] - this.focus.x, v.position[2] - this.focus.z);
+      const hit = fx.update(dt, v, this.renderWaves, this.focus, darkness, renderTime, d <= CONFIG.lod.near ? 'full' : d <= CONFIG.lod.mid ? 'noSmoke' : 'none');
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.towline.update(this.world, this.vesselRoots, this.testVesselId, this.renderWaves);
@@ -1120,6 +1194,12 @@ export class App {
 
   /** Port lights, weather, the rescue's people and gear and their sounds. */
   private updateSceneViews(dt: number, renderTime: number, darkness: number): void {
+    // The ferries (their wakes ride the ocean's waves, so they're made once the ocean is).
+    if (!this.ferryView) {
+      this.ferryView = new FerryView(this.ocean.sharedUniforms);
+      this.scene.add(this.ferryView.root);
+    }
+    this.ferryView.update(this.world, this.renderWaves, darkness, renderTime, this.focus);
     // Regions: which are drawn in full for this viewer, which outlines are in sight today;
     // the ocean shader's shelter zones follow the resident set.
     this.worldView.update(this.focus, this.environment.visibility, dt);
@@ -1231,10 +1311,11 @@ export class App {
   private updateVoice(): void {
     const inGame = !!this.host || this.client?.status === 'connected';
     const ctx = this.sound.engine.context;
-    if (!inGame || !this.netPeer || !ctx || !userSettings.voiceChat) return;
-    // Hosting: our own network id, for the crew to call (in the snapshots with us).
+    // Hosting: our own network id, for the crew to call (in the snapshots with us), and for
+    // their Crew tab to tell which of them is the host. Whether voice chat is on or not.
     const me = this.world.players[this.localPlayerId];
     if (this.host && me) me.peerId = this.hostPeerId;
+    if (!inGame || !this.netPeer || !ctx || !userSettings.voiceChat) return;
     if (!this.voice) {
       this.voice = new VoiceChat(this.netPeer, ctx);
       this.voice.setMuted(this.voiceMuted);
@@ -1246,7 +1327,7 @@ export class App {
       const frame = (p.aboardVesselId && this.vesselRoots.get(p.aboardVesselId)) || this.scene;
       const h = p.avatar.head;
       const w = frame.localToWorld(new THREE.Vector3(h[0], h[1], h[2]));
-      list.push({ peerId: p.peerId, head: w, tx: !!p.avatar.radio?.tx });
+      list.push({ peerId: p.peerId, head: w, tx: !!p.avatar.radio?.tx, muted: this.mutedCrew.has(p.id) });
     }
     this.voice.update({ head: this.focus, tx: this.radio.tx }, list);
   }
@@ -1464,7 +1545,7 @@ export class App {
     if (this.partsIn <= 0 && root) {
       this.partsIn = 0.5;
       const wh = this.testDef.layout.wheelhouse;
-      const n = countBoatParts(root, (p) => Math.abs(p.x) < wh.halfWidth && p.z > wh.front && p.z < wh.aft && p.y > wh.floorY - 0.2 && p.y < wh.roofY);
+      const n = countBoatParts(root, (p) => Math.abs(p.x - houseX(wh)) < wh.halfWidth && p.z > wh.front && p.z < wh.aft && p.y > wh.floorY - 0.2 && p.y < wh.roofY);
       const mods = this.homeView?.moduleList ?? [];
       const shared = Object.entries(this.homeView?.sharedCounts ?? {}).map(([k, c]) => `${c} ${k}`);
       this.partsText = `\nboat parts drawn ${n.drawn} (wheelhouse ${n.inside})${shared.length ? `\nshared parts (one draw each): ${shared.join(', ')}` : ''}\nmodules ${mods.length}: ${mods.join(', ') || 'none'}`;
@@ -1570,13 +1651,13 @@ export class App {
     if (!gun || !v) return;
     gun.tick(dt);
     const root = this.vesselRoots.get(v.id);
-    const stern = root ? root.localToWorld(this.tmpV.fromArray(towPostLocal(v))) : this.tmpV.fromArray(v.position);
+    const stern = root ? root.localToWorld(this.tmpV.fromArray(sternLocal(v))) : this.tmpV.fromArray(v.position);
     const tip = new THREE.Vector3();
     const dir = this.tmpV2;
     gun.tipWorld(tip, dir);
     const held = !!gun.held;
-    const targets = held || this.lineGun.phase !== 'ready' ? towTargets(this.world).flatMap((key) => {
-      const p = towPoint(this.world, key, new THREE.Vector3());
+    const targets = held || this.lineGun.phase !== 'ready' ? towTargets(this.world, v.id).flatMap((key) => {
+      const p = towPoint(this.world, key, new THREE.Vector3(), v.id);
       return p ? [{ key, pos: { x: p.x, y: p.y, z: p.z } }] : [];
     }) : [];
     const wasFlying = this.lineGun.phase === 'flying';
@@ -1602,7 +1683,7 @@ export class App {
       case 'made': {
         const key = this.lineGun.madeKey;
         if (!key) break;
-        if (this.world.tow?.line) this.overlay.notify('Our towline is already fast: cast it off first', 3);
+        if (lineOf(this.world, this.testVesselId)) this.overlay.notify('Our towline is already fast: cast it off first', 3);
         else this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control: 'towMake', value: 1, ref: key, args: [1] });
         break;
       }
@@ -1731,7 +1812,7 @@ export class App {
    * a crew-mate's, falling off with distance. Nothing once it's empty.
    */
   private extinguisherLoudness(): number {
-    if ((extinguisherShip(this.world)?.extCharge ?? 1) <= 0) return 0;
+    if ((extinguisherShip(this.world, this.localPlayerId)?.extCharge ?? 1) <= 0) return 0;
     const mine = this.gear[0];
     if (mine.held) return mine.on ? 1 : 0;
     let best = 0;
@@ -1763,7 +1844,7 @@ export class App {
     for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind, g.slot);
     // Spraying an empty extinguisher: say so once.
     const ext = this.gear[0];
-    const empty = (extinguisherShip(this.world)?.extCharge ?? 1) <= 0;
+    const empty = (extinguisherShip(this.world, this.localPlayerId)?.extCharge ?? 1) <= 0;
     if (ext.held && ext.on && empty && !this.extEmptySaid) this.overlay.notify('Extinguisher empty: hang it back on its bracket for a full one', 4);
     this.extEmptySaid = !!ext.held && empty;
   }
@@ -1810,9 +1891,14 @@ export class App {
       return true;
     }
     if (mode === 'air') {
+      // Falling this fast (down) as we land: the harm of the fall (player/health.ts).
+      const falling = -(p.velocity?.[1] ?? 0);
       const ev = updateAir(p, dt, headOffset, this.bodyVessels(), this.worldArea, this.renderWaves);
       if (ev) this.keepViewOnReparent = true;
-      if (ev === 'landedDeck' || ev === 'landedLand') pulseBoth(0.5, 50);
+      if (ev === 'landedDeck' || ev === 'landedLand') {
+        pulseBoth(0.5, 50);
+        this.hurt(fallHarm(falling), 'A hard landing');
+      }
       if (ev === 'splash') {
         pulseBoth(0.7, 120);
         this.sound.water.splash(1);
@@ -1828,6 +1914,7 @@ export class App {
       chest.y -= 0.6;
       if (struckByPropeller(this.world, chest)) {
         this.strikeT = 0;
+        this.health = Math.max(0, this.health - CONFIG.health.propHit);
         this.rescueCtx().push('rescuePropStrike', undefined, 1, [chest.x, chest.y, chest.z]);
         pulseBoth(1, 400);
       }
@@ -1889,6 +1976,16 @@ export class App {
     this.camera.getWorldDirection(this.headFwd);
     if (inXR && this.vrFlyOn) {
       this.updateVrFly(dt);
+      this.placeDebugPanel(inXR);
+      return;
+    }
+    // Lying in a berth: you stay put; a step (the stick, the keys) or a jump gets you up.
+    if (this.resting) {
+      const [lx, ly] = this.xrInput.hands.left.stick;
+      const w = this.desktop.walk;
+      const jump = inXR ? this.xrInput.wasPressed('right', XR_BUTTON.primary) : this.keyboard.actionPressed('jump');
+      if (Math.hypot(lx, ly) > 0.5 || Math.hypot(w.x, w.z) > 0.1 || jump) this.getUp('');
+      this.comfortOverlay.update(dt, 0, false);
       this.placeDebugPanel(inXR);
       return;
     }
@@ -2017,8 +2114,8 @@ export class App {
     const aftShut = v.controls.door <= 0.5;
     const sideShut = !!sd && (v.controls.sideDoor ?? 0) <= 0.5;
     if (!aftShut && !sideShut) return area;
-    const inAft = (x: number, z: number, y: number) => aftShut && Math.abs(x) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < houseFloorAt(wh, wh.aft) + 0.5;
-    const inSide = (x: number, z: number, y: number) => sideShut && !!sd && Math.abs(x + wh.halfWidth) < 0.3 && z > sd.z0 - 0.15 && z < sd.z1 + 0.15 && y < wh.floorY + 0.5;
+    const inAft = (x: number, z: number, y: number) => aftShut && Math.abs(x - houseX(wh)) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < houseFloorAt(wh, wh.aft) + 0.5;
+    const inSide = (x: number, z: number, y: number) => sideShut && !!sd && Math.abs(x - houseX(wh) + wh.halfWidth) < 0.3 && z > sd.z0 - 0.15 && z < sd.z1 + 0.15 && y < wh.floorY + 0.5;
     return { ...area, walkable: (x, z, y) => area.walkable(x, z, y) && !inAft(x, z, y) && !inSide(x, z, y) };
   }
 
@@ -2066,6 +2163,8 @@ export class App {
       turnStick: inXR && !this.gestures.ownsStick('right') ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
       fly,
+      // The desktop's fly camera (J): the body stays at its height, whatever is under the camera.
+      noFloor: !inXR && this.desktop.mode === 'fly',
     });
     for (const h of ['left', 'right'] as const) if (this.locomotion.grabStarted[h]) this.xrInput.pulse(h, 0.3, 30);
 
@@ -2142,8 +2241,24 @@ export class App {
       targetId: this.localPlayerId,
       control: 'board',
       value: aboard ? 0 : 1,
-      ref: aboard ? undefined : this.testVesselId,
+      ref: aboard ? undefined : this.nearestBoat(),
     });
+  }
+
+  /** The boat to board from where you stand (multi-boat M2): the nearest with a wheelhouse within reach, else your boat. */
+  private nearestBoat(): EntityId {
+    const p = this.world.players[this.localPlayerId];
+    const at = p?.aboardVesselId ? null : p?.position;
+    if (!at) return this.testVesselId;
+    let best = this.testVesselId;
+    let bd = CONFIG.spawn.boardReach;
+    for (const v of Object.values(this.world.vessels)) {
+      const def = VESSEL_DEFS[v.defId];
+      if (!def || !hasWheelhouse(def) || def.tow || !this.boats.has(v.id)) continue;
+      const d = Math.hypot(v.position[0] - at[0], v.position[2] - at[2]);
+      if (d < bd) [best, bd] = [v.id, d];
+    }
+    return best;
   }
 
   private toggleSeaTrials(): void {
@@ -2220,11 +2335,11 @@ export class App {
     const cr = gearOf(v, 'tenderCrane');
     const craneRun = hyd && (tp === 'lowering' || tp === 'hoisting') ? 1 : 0;
     // Tow winch: a button held; stalled heaving against more pull than it has.
-    const line = this.world.tow?.line;
+    const line = lineOf(this.world, v.id);
     const c = v.controls;
     const heave = (c.winchHeave ?? 0) > 0.5;
     const payOut = (c.winchPayOut ?? 0) > 0.5;
-    const stalled = hyd && winchStalled(this.world);
+    const stalled = hyd && winchStalled(this.world, v.id);
     // The drum only turns while the line can still move (inside the winch's limits).
     const w = CONFIG.tow.winch;
     const L = line ? lineLength(line) : 0;
@@ -2234,19 +2349,22 @@ export class App {
     // Net drum: shooting or hauling, by the switch or the A-frame's buttons.
     const f = this.world.fishing;
     // A button only turns the drum while there's net left to pay out or haul in.
-    const jog = ((c.netOut ?? 0) > 0.5 && (f?.t ?? 0) < 1) || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
-    const trawlRun = hyd && f && (f.net === 'shooting' || f.net === 'hauling' || jog) ? 1 : 0;
+    // (And the A-frame's rams, swinging the codend in and out: their pumps sound the same.)
+    const jog = ((c.netOut ?? 0) > 0.5 && ((f?.t ?? 0) < 1 || (f?.lift ?? 0) > 0)) || ((c.netIn ?? 0) > 0.5 && f?.net !== 'stowed' && ((f?.t ?? 0) > 0 || (f?.lift ?? 0) < 1));
+    const trawlRun = hyd && f && (f.net === 'shooting' || f.net === 'hauling' || f.net === 'lifting' || f.net === 'stowing' || jog) ? 1 : 0;
     // The same drum takes the towline and the trawl warps: it turns only while one of them
     // is really moving under pressure (+1 coming in, -1 going out).
-    const netIn = f?.net === 'hauling' || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
+    const netIn = f?.net === 'hauling' || f?.net === 'lifting' || f?.net === 'stowing' || ((c.netIn ?? 0) > 0.5 && f?.net !== 'stowed');
     const drum = this.homeView?.api<TowWinchApi>('deck.tow-winch');
-    if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun ? (netIn ? 1 : -1) : 0;
+    // (With trawl winches of her own, the warps are theirs: the tow winch only tows.)
+    const ownWinches = !!gearOf(v, 'trawlWinches');
+    if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun && !ownWinches ? (netIn ? 1 : -1) : 0;
     const af = aFrameOf(v);
     this.sound.hydraulics.update(
       {
         crane: { run: craneRun, load: tp === 'hoisting' ? 0.7 : 0.5, distance: cr ? dist(cr.column[0], cr.shoulderY, cr.column[1]) : 1e9 },
         winch: { run: winchRun, load: line ? Math.min(1, line.tension / CONFIG.tow.winch.pullN) : 0, stalled, distance: tw ? dist(0, 1.2, tw.lead[2]) : 1e9 },
-        trawl: { run: trawlRun, load: f?.net === 'hauling' || (c.netIn ?? 0) > 0.5 ? 0.7 : 0.3, distance: af ? dist(0, af.top - 0.3, af.headZ) : 1e9 },
+        trawl: { run: trawlRun, load: f?.net === 'hauling' || f?.net === 'lifting' || (c.netIn ?? 0) > 0.5 ? 0.7 : 0.3, distance: af ? dist(0, af.top - 0.3, af.headZ) : 1e9 },
       },
       this.insideHouse ? this.closed : 0,
     );
@@ -2273,7 +2391,7 @@ export class App {
         const n = w.now;
         const vis = visibilityAt(env(), this.focus.x, this.focus.z);
         const visText = vis >= 10000 ? 'good' : vis >= 2000 ? 'moderate' : vis >= 1000 ? 'poor' : `fog ${Math.round(vis)} m`;
-        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`;
+        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · ${w.live ? 'live, held' : `next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`}`;
       },
       weatherPreset: () => env().weather?.preset ?? '',
       setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
@@ -2294,6 +2412,13 @@ export class App {
       setWeatherFixed: (on) => this.pushEnvIntent('weatherFixed', on ? 1 : 0),
       weatherFast: () => (env().weather?.speed ?? 1) > 1,
       setWeatherFast: (on) => this.pushEnvIntent('weatherSpeed', on ? 10 : 1),
+      treeDetail: () => userSettings.treeDetail,
+      treeLevel: () => treeLevel(),
+      setTreeDetail: (d) => {
+        if (d !== 'auto' && d !== 'quest' && d !== 'desktop') return;
+        userSettings.treeDetail = d;
+        saveSettings();
+      },
       rainQuality: () => userSettings.rainQuality,
       setRainQuality: (q) => {
         if (q !== 'high' && q !== 'low' && q !== 'off') return;
@@ -2345,7 +2470,7 @@ export class App {
       toggleBoard: () => this.toggleBoard(),
       boardSkiff: () => {
         const skiff = this.skiff();
-        if (skiff?.tender?.phase === 'stowed') return this.overlay.notify('The skiff is under her cover in the cradle: launch her first (SKIFF CRANE)', 3);
+        if (skiff?.tender?.phase === 'stowed') return this.overlay.notify('The skiff is in her cradle: launch her first (SKIFF CRANE)', 3);
         if (skiff) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: skiff.id });
       },
       skiffBattery: () => this.skiff()?.battery ?? 0,
@@ -2419,6 +2544,7 @@ export class App {
       },
       dockStatus: () => {
         const slip = slipOf(boat());
+        if (beached(boat())) return { text: 'Beached (walk off down the ramp; go astern to come off)', ready: true, docked: true };
         if (slip) return { text: boat().slip!.phase === 'landed' ? `Landed: ${slip.name} (walk off down the ramp; go astern to come off)` : `Landing: ${slip.name}`, ready: true, docked: true };
         const m = boat().mooring;
         const b = berthById(m.berthId);
@@ -2481,11 +2607,11 @@ export class App {
       rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),
       rescueAboard: () => this.pushVesselIntent('rescueDebugAboard', 1),
       rescues: () => this.world.rescue?.completed ?? 0,
-      towStatus: () => towStatus(this.world),
-      towFast: () => !!this.world.tow?.line,
+      towStatus: () => towStatus(this.world, this.testVesselId),
+      towFast: () => !!lineOf(this.world, this.testVesselId),
       towToggle: () => {
         // Cast off whatever's on the line, or make fast to the nearest thing in reach.
-        if (!this.world.tow?.line && !nearestTowTarget(this.world)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our stern roller: back our stern up to a bow eye or debris`);
+        if (!lineOf(this.world, this.testVesselId) && !nearestTowTarget(this.world, this.testVesselId)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our stern roller: back our stern up to a bow eye or debris`);
         else this.pushVesselIntent('towToggle', 1);
       },
       towsDelivered: () => this.world.tow?.delivered ?? 0,
@@ -2526,9 +2652,17 @@ export class App {
       teleportToPort: (i) => {
         const port = PORTS[i];
         if (!port) return;
-        this.pushVesselIntent('teleportToPort', 1, port.id);
-        // Off the boat (ashore, swimming): come along, at the helm.
-        if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
+        // Your own boat goes (owner, Oct 2026: "everybody to be able to teleport their boat
+        // around"): alone or hosting, the game's own boat; crew, the one you launched (none
+        // yet: launch one first; the host's boat is the host's to send).
+        const mine = this.client ? ownedBoat(this.world, this.localPlayerId) : this.world.vessels[this.world.homeVesselId ?? ''];
+        if (!mine) {
+          this.overlay.notify('Launch a boat of your own first (Crew > Your boat): Go sends your boat, with you aboard', 4);
+          return;
+        }
+        this.intents.push({ playerId: this.localPlayerId, targetId: mine.id, control: 'teleportToPort', value: 1, ref: port.id });
+        // Wherever you are (ashore, swimming, aboard another boat): along with her, at the helm.
+        if (this.world.players[this.localPlayerId].aboardVesselId !== mine.id) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: mine.id });
         this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, make fast at the cleats` : `${port.name}: in the bay, let go the anchor`, 3);
       },
       homeBoat: () => {
@@ -2536,6 +2670,52 @@ export class App {
         return defId === 'workboat' && new URLSearchParams(location.search).get('fit') === 'all' ? 'workboat:all' : defId;
       },
       setHomeBoat: (defId) => this.restartPage(restartIn(defId)),
+      spawnBoat: (defId) => {
+        if (this.client) return this.overlay.notify('Only the host puts boats in the world', 3);
+        this.pushEnvIntent('spawnBoat', 1, defId);
+      },
+      launchBoat: (ref) => {
+        try {
+          localStorage.setItem(LAST_BOAT_KEY, ref);
+        } catch {
+          // Not remembered.
+        }
+        // Alone or hosting (owner, Oct 2026: launching a favourite added her beside the pilot
+        // boat instead of replacing her, and a crew-mate joining was put aboard the empty
+        // one): she replaces your boat, where you are. The page starts again in her, as the
+        // Office's Take her does (a host's crew follow); the place on the map is kept.
+        if (!this.client) {
+          const url = FLEET.some((f) => f.id === ref) ? restartIn(ref) : restartInDesign(ref);
+          url.searchParams.delete('start');
+          this.rememberVoyagePlace(Infinity);
+          this.overlay.notify('Starting again in her, where you are (in VR: enter VR again once she is loaded)', 4);
+          this.restartPage(url);
+          return;
+        }
+        this.pushEnvIntent('launchBoat', 1, ref);
+        this.launchAskedAt = performance.now();
+        this.overlay.notify('Asking the harbour for a berth for her...', 3);
+      },
+      lastBoat: () => {
+        const ref = this.lastBoatRef();
+        if (!ref) return null;
+        const id = launchType(ref);
+        return id ? this.boatLabel(id) : null;
+      },
+      launchLast: () => {
+        const ref = this.lastBoatRef();
+        if (ref) this.menuHost().launchBoat(ref);
+      },
+      withdrawBoat: () => this.pushEnvIntent('withdrawBoat', 1),
+      canHandBack: () => !!this.client && !!ownedBoat(this.world, this.localPlayerId),
+      myBoat: () => {
+        // Alone or hosting, your boat is the game's own: a launch replaces her.
+        const mine = this.client ? ownedBoat(this.world, this.localPlayerId) : this.world.vessels[this.world.homeVesselId ?? ''];
+        if (!mine) return 'None yet: launch one of your own';
+        const name = this.boatLabel(mine.defId);
+        if (mine.mooring.phase === 'moored') return `${name}, moored at ${(mine.mooring.berthId && berthWithId(mine.mooring.berthId)?.name) ?? 'the quay'}`;
+        return mine.anchor.phase === 'set' ? `${name}, at anchor off the harbour` : `${name}, under way`;
+      },
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
       debugPanel: () => this.overlay.visible,
@@ -2608,6 +2788,9 @@ export class App {
       leaveGame: () => {
         this.netMessage = '';
         this.leaveGame();
+        // The next game is typed afresh (owner: the old code was still in the box to delete).
+        this.joinCode = '';
+        this.mutedCrew.clear();
       },
       shipyardCodes: () => this.shipyardCodes,
       takeDesign: (code) => {
@@ -2622,8 +2805,8 @@ export class App {
         if (defId === 'alaskan38') return 'The Alaskan 38';
         const fleet = FLEET.find((f) => f.id === defId);
         if (fleet) return `The ${fleet.name.toLowerCase()}`;
-        if (defId !== 'design') return defId;
-        const token = new URLSearchParams(location.search).get('design') ?? '';
+        if (!isBoatType(defId)) return defId;
+        const token = boatTokenOf(defId) ?? '';
         const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));
         const read = readDesign(token);
         return fav ? `${fav.name} (Shipyard)` : 'design' in read && read.name ? `${read.name} (Shipyard)` : `Shipyard boat ${groupCode(token)}`;
@@ -2663,6 +2846,8 @@ export class App {
     client.sendIntents(remote);
     const snap = client.latest;
     if (snap) {
+      // A boat new to this page (another player's, launched since): her type from her token.
+      ensureBoatTypes(snap);
       // All of it (the pots and the fuel hoses too: they were missed when listed one by
       // one), but our own body, which is ours.
       const w = this.world as unknown as Record<string, unknown>;
@@ -2686,15 +2871,19 @@ export class App {
     if (this.camMode.on && this.world.players[this.localPlayerId]) return this.sendCameraPose(dt, this.world.players[this.localPlayerId]);
     if (!this.host && this.client?.status !== 'connected') {
       // Solo: no pose to send, but the simulation still needs your hand gear (the
-      // extinguisher on a fire), which it reads from your avatar like a crew-mate's.
+      // extinguisher on a fire) and whether you're lying in a berth (sleep: the clock runs
+      // on), which it reads from your avatar like a crew-mate's.
       const me = this.world.players[this.localPlayerId];
       if (!me) return;
       const frame = this.playerFrame();
       frame.updateMatrixWorld();
       this.invFrame.copy(frame.matrixWorld).invert();
       const gear = this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null;
-      if (gear) me.avatar = { ...(me.avatar ?? { head: [0, 0, 0, 0, 0, 0, 1], left: null, right: null }), gear };
-      else if (me.avatar) me.avatar.gear = null;
+      if (gear || this.resting) me.avatar = { ...(me.avatar ?? { head: [0, 0, 0, 0, 0, 0, 1], left: null, right: null }), gear, resting: this.resting };
+      else if (me.avatar) {
+        me.avatar.gear = null;
+        me.avatar.resting = false;
+      }
       return;
     }
     const p = this.world.players[this.localPlayerId];
@@ -2748,6 +2937,7 @@ export class App {
       rightQ: handQ('right'),
       poses: inXR ? this.gestures.codes() : undefined,
       swimming: p.mode === 'swim',
+      resting: this.resting,
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
       gear: this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null,
@@ -2755,7 +2945,7 @@ export class App {
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, swimming: pose.swimming, tool: pose.tool, laser: pose.laser, gear: pose.gear, radio: pose.radio };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, swimming: pose.swimming, resting: pose.resting, tool: pose.tool, laser: pose.laser, gear: pose.gear, radio: pose.radio };
       return;
     }
     this.poseTimer += dt;
@@ -2863,11 +3053,6 @@ export class App {
       this.netMessage = 'Type the 5-digit game code first';
       return;
     }
-    try {
-      localStorage.setItem(LAST_CODE_KEY, this.joinCode);
-    } catch {
-      // Not remembered.
-    }
     const transport = new PeerClientTransport(this.joinCode);
     this.connectClient(transport);
     this.netPeer = transport.peer;
@@ -2924,6 +3109,62 @@ export class App {
         const names = Object.values(this.world.players).map((p) => (p.id === this.localPlayerId ? `${p.name} (you)` : p.name));
         return names.length > 1 ? `Aboard: ${names.join(', ')}` : 'Just you';
       },
+      boatFavourite: () => {
+        if (this.boatSaved && performance.now() < this.boatSaved.until) return this.boatSaved.text;
+        const v = this.boatAboard();
+        if (!v) return 'Step aboard a boat to save her to your favourites';
+        return designCodeOf(v.defId) ? this.boatFavName(v) : `${this.boatLabel(v.defId)}: not a Shipyard design, can't be saved`;
+      },
+      canSaveBoat: () => {
+        const v = this.boatAboard();
+        return !!v && !!designCodeOf(v.defId);
+      },
+      saveBoatFavourite: () => {
+        const v = this.boatAboard();
+        const code = v && designCodeOf(v.defId);
+        if (!v || !code) return;
+        const read = readDesign(code);
+        let summary = '';
+        if ('design' in read) {
+          // Her figures: a Shipyard boat's already built; a fleet boat's built from her design once.
+          const f = (boatTypeOf(v.defId) ?? buildDesign(read.design, code, 'favourite')).figures;
+          summary = [`${f.lengthM.toFixed(1)} m`, `${f.massT.toFixed(1)} t`, f.engine].join(' · ');
+        }
+        const text = this.shipyardCodes.saveBoat(code, this.boatFavName(v), summary);
+        this.boatSaved = { text, until: performance.now() + 6000 };
+        this.overlay.notify(text, 4);
+      },
+      planLine: () => {
+        const n = nextPoint(this.world);
+        const v = this.world.vessels[this.testVesselId];
+        if (!this.world.plan?.points.length) return 'No plan yet: plan one on the chart table on the start quay';
+        if (!n) return 'Plan done: every point reached';
+        const d = v ? Math.hypot(n.p.x - v.position[0], n.p.z - v.position[2]) / 1852 : 0;
+        return `Next: ${pointLabel(n.p, n.i)}, ${d.toFixed(1)} nm`;
+      },
+      goPlanTable: () => this.pushEnvIntent('plan', 1, 'goto'),
+      timberLine: () => this.timberLine(),
+      liveWeatherLine: () => this.world.environment.weather?.live?.text ?? '',
+      liveWeatherCredit: () => this.world.environment.weather?.live?.credit ?? '',
+      timberButton: (i: number) => this.timberButton(i),
+      timberPress: (i: number) => this.timberPress(i),
+      crewMember: (i: number) => {
+        // You first, then the others in the order they came.
+        const all = Object.values(this.world.players);
+        const list = [...all.filter((p) => p.id === this.localPlayerId), ...all.filter((p) => p.id !== this.localPlayerId)];
+        const p = list[i];
+        if (!p) return null;
+        const hostPeer = this.host ? this.hostPeerId : this.client && this.joinCode.length === 5 ? peerIdForRoom(this.joinCode) : '';
+        // Your own name as you've set it (playing alone, the world's player still has the default).
+        return { name: p.id === this.localPlayerId ? userSettings.playerName : p.name, you: p.id === this.localPlayerId, host: !!p.peerId && p.peerId === hostPeer, muted: this.mutedCrew.has(p.id) };
+      },
+      toggleCrewMute: (i: number) => {
+        const all = Object.values(this.world.players).filter((p) => p.id !== this.localPlayerId);
+        const p = all[i - 1];
+        if (!p) return;
+        if (this.mutedCrew.has(p.id)) this.mutedCrew.delete(p.id);
+        else this.mutedCrew.add(p.id);
+      },
     };
   }
 
@@ -2941,19 +3182,17 @@ export class App {
       this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
       // The host's page is another version: reload this one, fresh, once (it may be the old one).
       if (!this.sameVersionAsHost(world)) return;
-      // The host's boat built here as theirs is (else we start again in hers and join again).
-      if (!this.sameBoatAsHost(world)) return;
-      // Same boats on both sides (tows come and go, so they don't count).
-      if (!Object.values(world.vessels).every((v) => this.vesselViews.has(v.id) || VESSEL_DEFS[v.defId]?.tow)) {
-        this.netMessage = 'That game is a different version';
-        this.leaveGame();
-        return;
-      }
+      // The host's boats this page hasn't got: built from their tokens (multi-boat M1).
+      ensureBoatTypes(world);
+      // The host's boats become ours to draw (multi-boat M5: no restart to become the host's
+      // boat; a view here for a boat of another type is rebuilt for hers).
+      // Become the player the host made for us first (both pages start as player-1: taken
+      // under the old id, our own state wrote over the host's player in the copy).
+      this.movePlayer(playerId);
+      this.adoptHostWorld(world);
       this.togetherTries = 0; // in: no more retries if this game ends
       this.inSharedGame = true;
       showGameOnAddress(this.joinCode);
-      // Become the player the host made for us; keep standing where we are.
-      this.movePlayer(playerId);
       this.overlay.notify('Joined: you are aboard the host\'s world', 3);
     };
     client.onClosed = (reason) => {
@@ -3050,9 +3289,10 @@ export class App {
     const was = this.slipWas;
     this.slipWas = now;
     const slip = slipOf(v);
-    if (slip && v!.slip!.phase === 'landing') this.overlay.notify(`Landing on the ${slip.name}`, 3);
+    if (beached(v)) this.overlay.notify('Beached: walk off down the ramp. Go astern to come off', 5);
+    else if (slip && v!.slip!.phase === 'landing') this.overlay.notify(`Landing on the ${slip.name}`, 3);
     else if (slip) this.overlay.notify(`Landed on the ${slip.name}: walk off down the ramp. Go astern to come off`, 5);
-    else if (was) this.overlay.notify('Off the slip', 2.5);
+    else if (was) this.overlay.notify(was.endsWith(':beach') ? 'Off the beach' : 'Off the slip', 2.5);
   }
 
   /** The equipment the career has not got (upgrade ids, comma-joined), or null if she isn't a boat the career kits out. */
@@ -3076,7 +3316,7 @@ export class App {
       this.restartPage(url);
       return;
     }
-    if (this.client) return;
+    if (this.client || this.testVesselId !== this.startVesselId) return;
     const want = this.wantedFit();
     if (this.fitWanted === null || want === null) {
       this.fitWanted = want;
@@ -3090,37 +3330,59 @@ export class App {
   }
 
   /**
-   * A crew-mate's check on the host's welcome: is their boat built as ours? If not, the page
-   * starts again building hers (her Shipyard code, the workboat's fit-out) and joins again.
-   * Returns false if we're leaving for that.
+   * On the host's welcome (multi-boat M5): every boat of theirs gets a view here, and a view
+   * we had for a vessel of theirs of another type (our start boat under the same id, when
+   * the host is in a different boat) is rebuilt for theirs; the home wiring follows. Our body
+   * stays where it is, unless it was aboard a boat that changed under it or stands far from
+   * the host's boat: then it boards hers.
    */
-  private sameBoatAsHost(world: WorldState): boolean {
-    const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
-    const theirs = home?.defId ?? 'workboat';
-    const b = world.build ?? {};
-    const ours = this.world.vessels[this.testVesselId]?.defId;
-    const same = theirs === ours && (b.design ?? '') === (this.builtAs.design ?? '') && (b.without ?? []).join(',') === (this.builtAs.without ?? []).join(',');
-    if (same) return true;
-    // Already rebuilt for this game once (or her code can't be read): a different version.
-    const buildable = (theirs !== 'design' || !!b.design) && !!RECIPES[theirs];
-    if (START_JOIN === this.joinCode || !buildable) {
-      this.netMessage = 'That game is a different version';
-      this.leaveGame();
-      return false;
+  private adoptHostWorld(world: WorldState): void {
+    const me = this.world.players[this.localPlayerId];
+    const myVessel = me?.aboardVesselId;
+    let rewire = false;
+    for (const v of Object.values(world.vessels)) {
+      const view = this.vesselViews.get(v.id);
+      if (!view) continue;
+      if (this.world.vessels[v.id]?.defId === v.defId) continue;
+      this.dropVesselView(v.id);
+      if (v.id === this.testVesselId) rewire = true;
     }
-    const url = new URL(location.href);
-    for (const k of ['design', 'boat', 'fit']) url.searchParams.delete(k);
-    if (theirs === 'design') url.searchParams.set('design', b.design!);
-    else if (theirs !== CONFIG.career.boat) url.searchParams.set('boat', theirs);
-    if (KIT_BOATS.includes(theirs)) {
-      const fitted = CONFIG.career.upgrades.filter((u) => u.fit && !(b.without ?? []).includes(u.id)).map((u) => u.id);
-      url.searchParams.set('fit', b.without?.length ? fitted.join(',') : 'all');
+    const w = this.world as unknown as Record<string, unknown>;
+    for (const [k, val] of Object.entries(world)) if (k !== 'players') w[k] = val;
+    this.world.players = { ...world.players, ...(me ? { [this.localPlayerId]: me } : {}) };
+    this.syncVesselViews();
+    if (rewire) {
+      this.boats.get(this.testVesselId)?.setHome(true);
+      this.interior?.showAll();
+      this.interior = null;
+      this.mountOnHomeBoat();
+      this.wireHomeBoat();
     }
-    url.searchParams.set('join', this.joinCode);
-    this.overlay.notify("Building the host's boat: joining again in a moment", 4);
-    this.leaveGame();
-    setTimeout(() => location.assign(url.toString()), 1500);
-    return false;
+    // Aboard the boat the host is on (her own, or one she's stepped aboard), else the game's
+    // own: a page's own start boat has the same id as the host's, so it's always boarded anew.
+    const hostPeer = this.joinCode.length === 5 ? peerIdForRoom(this.joinCode) : '';
+    const host = Object.values(world.players).find((p) => p.peerId && p.peerId === hostPeer);
+    const hostBoat = host?.aboardVesselId && playerBoats(world).some((v) => v.id === host.aboardVesselId) ? world.vessels[host.aboardVesselId] : undefined;
+    const target = hostBoat ?? (world.homeVesselId ? world.vessels[world.homeVesselId] : undefined);
+    if (me && target && (rewire || myVessel !== target.id || !myVessel)) {
+      this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: target.id });
+    }
+  }
+
+  /** A vessel's views taken out of the scene (she's gone, or she's being rebuilt as another type). */
+  private dropVesselView(id: EntityId): void {
+    const view = this.vesselViews.get(id);
+    if (!view) return;
+    view.root.removeFromParent();
+    view.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) m.geometry.dispose();
+    });
+    this.effects.get(id)?.dispose();
+    const gone = this.boats.get(id);
+    if (gone) this.interaction?.removeControls(gone.controls);
+    this.interiors.delete(id);
+    for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans, this.boats] as Map<EntityId, unknown>[]) map.delete(id);
   }
 
   /** Stop hosting, or leave the game we joined; play on alone from where things are. */
@@ -3212,6 +3474,213 @@ export class App {
   }
 
   /** What the app feeds the home boat's modules, the interaction system (every boat's controls) and desktop mouse/reticle. */
+  /**
+   * What hangs on the home boat (multi-boat M2: done again when she changes): the towline's
+   * lead from the winch drum over the stern roller; the trawl's warps from the A-frame's
+   * blocks; the binoculars and the hand gear in her places (M7: gear she has no place for
+   * isn't aboard); the rods upright in her rack, each in its own cup.
+   */
+  private mountOnHomeBoat(): void {
+    const v = this.world.vessels[this.testVesselId];
+    const root = this.vesselViews.get(this.testVesselId)?.root;
+    if (!v || !root) return;
+    this.towline.attachLead(root, v);
+    this.trawlView.setBoat(v);
+    const stowage = VESSEL_DEFS[v.defId].stowage;
+    if (stowage?.binoculars) this.binoculars.stow(root, stowage.binoculars.at, stowage.binoculars.yawDeg);
+    const rodRack = gearOf(v, 'rodRack');
+    const upright = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); // the rod's -z (its tip) up
+    for (const g of this.gear) {
+      if (g.kind === 'rod') {
+        const at = rodRack?.rods[g.slot];
+        if (at) g.mount(root, at, upright);
+      } else if (stowage?.[g.kind]) g.mount(root, stowage[g.kind]!);
+    }
+    if (rodRack) this.rodView.attachBucket(root);
+  }
+
+  /**
+   * Her bridge wired to the app (multi-boat M2: done again when the home boat changes): her
+   * tender crane given the skiff it carries, her whiteboard, wind sock, searchlight, chart,
+   * fire gauge, duty board and chart table.
+   */
+  private wireHomeBoat(): void {
+    const v = this.world.vessels[this.testVesselId];
+    const home = this.homeView;
+    if (!v || !home) return;
+    const crane = home.api<TenderCraneView>('deck.tender-crane');
+    const tender = Object.values(this.world.vessels).find((t) => t.tender?.hostId === v.id);
+    if (crane && tender && !this.cranes.includes(crane)) {
+      crane.attach(tender.id, VESSEL_DEFS[tender.defId]);
+      this.vesselViews.get(tender.id)?.root.add(crane.remote);
+      this.cranes.push(crane);
+      this.interaction?.addControls(crane.buttons);
+    }
+    this.board?.rayLine.removeFromParent();
+    this.board = home.whiteboard;
+    if (this.board) this.scene.add(this.board.rayLine);
+    this.windSock = home.api<MastApi>('mount.mast')?.windSock ?? null;
+    this.searchlight = home.api<SearchlightApi>('deck.searchlight');
+    home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
+    this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
+    this.dutyBoard = home.dutyBoard;
+    this.chartTools?.root.removeFromParent();
+    this.chartTools = null;
+    this.chartTable = home.chartTable;
+    if (this.chartTable) {
+      this.chartTools = new ChartTools(this.chartTable);
+      // On the leaf: the marks and tools fold with it.
+      this.chartTable.leafFrame.add(this.chartTools.root);
+    }
+  }
+
+  /** A boat's name for the menu: a fleet boat's, a Shipyard design's, or her type. */
+  private boatLabel(defId: string): string {
+    const fleet = FLEET.find((f) => f.id === defId);
+    if (fleet) return `The ${fleet.name.toLowerCase()}`;
+    if (!isBoatType(defId)) return defId;
+    const token = boatTokenOf(defId) ?? '';
+    const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));
+    const read = readDesign(token);
+    return fav ? fav.name : 'design' in read && read.name ? read.name : `Shipyard boat ${groupCode(token)}`;
+  }
+
+  /** What Boat > Save her last did, shown on its row a few seconds. */
+  private boatSaved: { text: string; until: number } | null = null;
+
+  /** The boat you're aboard (to save her as a favourite), or null ashore. */
+  private boatAboard(): VesselState | null {
+    const id = this.world.players[this.localPlayerId]?.aboardVesselId;
+    return (id && this.world.vessels[id]) || null;
+  }
+
+  /**
+   * Her name as a favourite: the fleet boat's own, a Shipyard design's (or the favourite she
+   * already is), else whose she is: "Bosun's boat".
+   */
+  private boatFavName(v: VesselState): string {
+    const fleet = FLEET.find((f) => f.id === v.defId);
+    if (fleet) return fleet.name;
+    const label = this.boatLabel(v.defId);
+    if (!label.startsWith('Shipyard boat')) return label;
+    return v.owner && v.owner !== this.localPlayerId ? `${this.world.players[v.owner]?.name ?? 'A crew-mate'}'s boat` : label;
+  }
+
+  /** Where the listener was last frame (for its speed: the Doppler shift of boats going by). */
+  private readonly lastEar = new THREE.Vector3(NaN, 0, 0);
+  private readonly heardBoats: HeardBoat[] = [];
+
+  /**
+   * The other players' boats heard where they are (audio/boatVoices.ts): every player's boat
+   * but the one you're on, drawn where she's drawn, with her engine's state and her horn.
+   */
+  private updateBoatVoices(dt: number): void {
+    const list = this.heardBoats;
+    list.length = 0;
+    for (const v of playerBoats(this.world)) {
+      if (v.id === this.testVesselId) continue;
+      const root = this.vesselRoots.get(v.id);
+      if (!root) continue;
+      const at = root.getWorldPosition(this.tmpV);
+      const diesel = gearOf(v, 'diesel');
+      list.push({
+        id: v.id,
+        x: at.x,
+        y: at.y + 1,
+        z: at.z,
+        vx: v.linearVelocity[0],
+        vz: v.linearVelocity[2],
+        voice: diesel?.voice ?? 'inlineSix',
+        ratedRpm: diesel?.engine.ratedRpm ?? 1800,
+        twin: !!diesel?.twin,
+        rpm: v.engine.rpm,
+        load: v.engine.rack,
+        running: v.engine.phase === 'running',
+        cranking: v.engine.phase === 'cranking',
+        horn: v.controls.horn > 0 && isPowered(v),
+      });
+    }
+    const ear = this.focus;
+    const moved = Number.isNaN(this.lastEar.x) || dt <= 0 ? null : { vx: (ear.x - this.lastEar.x) / dt, vz: (ear.z - this.lastEar.z) / dt };
+    this.lastEar.copy(ear);
+    // A jump (a teleport, boarding another boat) isn't a speed: heard as standing still.
+    const fast = moved && Math.hypot(moved.vx, moved.vz) > 40;
+    this.sound.boats.update(list, { x: ear.x, y: ear.y, z: ear.z, vx: fast || !moved ? 0 : moved.vx, vz: fast || !moved ? 0 : moved.vz });
+  }
+
+  /** The other boats' interior detail (multi-boat M4), by vessel id. */
+  private readonly interiors = new Map<EntityId, InteriorDetail>();
+
+  /** The crew's boats the lookout has called (multi-boat M5). */
+  private readonly boatsCalled = new Set<EntityId>();
+
+  /** The boat you asked for last time, as remembered on this device (multi-boat M5). */
+  private lastBoatRef(): string | null {
+    try {
+      return localStorage.getItem(LAST_BOAT_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  /** The boat you launched last (multi-boat M3), so a new one is boarded once. */
+  private ownedSeen: EntityId | null = null;
+  /** When you last asked for a boat (ms): nothing come in CONFIG.spawn.launchWaitS, you're told. */
+  private launchAskedAt = 0;
+
+  /**
+   * Your own boat (multi-boat M3): when the host puts her in the world, board her (your body
+   * is your page's). A boat gone from under you (handed back, her player gone): back aboard
+   * the host's boat, and the home boat the host's again.
+   */
+  private followOwnBoat(): void {
+    const me = this.world.players[this.localPlayerId];
+    if (!me) return;
+    const mine = ownedBoat(this.world, this.localPlayerId);
+    if (this.launchAskedAt && mine && mine.id !== this.ownedSeen) this.launchAskedAt = 0;
+    if (this.launchAskedAt && performance.now() - this.launchAskedAt > CONFIG.spawn.launchWaitS * 1000) {
+      this.launchAskedAt = 0;
+      this.overlay.notify(this.client && this.client.status !== 'connected' ? 'Not in the game: the host never got the request' : 'No room for her: no berth her length fits, and nowhere to anchor off', 5);
+    }
+    if (mine && mine.id !== this.ownedSeen) {
+      this.ownedSeen = mine.id;
+      if (me.aboardVesselId !== mine.id && this.boats.has(mine.id)) {
+        this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: mine.id });
+        this.overlay.notify(`${this.boatLabel(mine.defId)} is yours: ${mine.mooring.phase === 'moored' ? 'moored at the quay' : 'at anchor off the harbour'}`, 4);
+      }
+    } else if (!mine) this.ownedSeen = null;
+    const home = this.world.homeVesselId;
+    if (me.aboardVesselId && !this.world.vessels[me.aboardVesselId] && home && this.world.vessels[home]) {
+      this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: home });
+    }
+    if (!this.world.vessels[this.testVesselId] && home && this.world.vessels[home] && this.boats.has(home)) this.becomeAboard(home);
+  }
+
+  /**
+   * Your boat is the one you're aboard (multi-boat M2): stepping onto another boat with a
+   * wheelhouse (not a tow, not the skiff) makes her the home boat: her controls send plain
+   * channels, the dash, sounds, gear and bridge wiring are hers, her interior detail is the
+   * one managed. The boat you left keeps her view and her controls, routed to her.
+   */
+  private becomeAboard(id: EntityId): void {
+    if (id === this.testVesselId) return;
+    const v = this.world.vessels[id];
+    const def = v && VESSEL_DEFS[v.defId];
+    if (!def || !hasWheelhouse(def) || def.tow || !this.boats.has(id) || !this.vesselViews.has(id)) return;
+    this.boats.get(this.testVesselId)?.setHome(false);
+    this.boats.get(id)?.setHome(true);
+    this.interior?.showAll();
+    this.interior = this.interiors.get(id) ?? null;
+    this.interiors.delete(id);
+    this.testVesselId = id;
+    this.mountOnHomeBoat();
+    this.wireHomeBoat();
+    this.fitWanted = this.wantedFit();
+    this.slipWas = '';
+    const fleet = FLEET.find((f) => f.id === v.defId);
+    this.overlay.notify(`Aboard ${fleet ? `the ${fleet.name.toLowerCase()}` : 'her'}: she's your boat now`, 3);
+  }
+
   private setupBridge(): void {
     const v = this.world.vessels[this.testVesselId];
     const view = this.vesselViews.get(this.testVesselId);
@@ -3219,40 +3688,13 @@ export class App {
     // Her boat view (her modules, from her recipe) was built with her vessel view.
     const home = this.homeView;
     if (!home) throw new Error(`the home boat (${v.defId}) has no modules to work her by`);
-    // Her tender crane (a module) is given the skiff it carries: its LAUNCH / RECOVER
-    // buttons, her tarpaulin, and the remote that rides in her.
-    const crane = home.api<TenderCraneView>('deck.tender-crane');
-    const tender = Object.values(this.world.vessels).find((t) => t.tender?.hostId === v.id);
-    if (crane && tender) {
-      crane.attach(tender.id, VESSEL_DEFS[tender.defId]);
-      this.vesselViews.get(tender.id)?.root.add(crane.remote);
-      this.cranes.push(crane);
-    }
-    // The crew whiteboard, the duty board and the chart table are modules (M3c); the app
-    // hands them what isn't the boat's: the notes, the game's tasks, the pencil and dividers.
-    this.board = home.whiteboard;
-    if (this.board) this.scene.add(this.board.rayLine);
-    // The roof's modules the app feeds: the mast's wind sock (the weather), the searchlight
-    // (how dark it is; its light goes to the ocean), the fire monitor's gauge (the fire job).
-    this.windSock = home.api<MastApi>('mount.mast')?.windSock ?? null;
-    this.searchlight = home.api<SearchlightApi>('deck.searchlight');
-    // The plotter cuts the hand-built regions' coast from the terrain their views build (nav/chartLand.ts).
-    home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
-    this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
-    this.dutyBoard = home.dutyBoard;
-    this.chartTable = home.chartTable;
-    if (this.chartTable) {
-      this.chartTools = new ChartTools(this.chartTable);
-      // On the leaf: the marks and tools fold with it.
-      this.chartTable.leafFrame.add(this.chartTools.root);
-    }
+    this.wireHomeBoat();
     this.restoreBatteries();
     try {
       // The career (money, reputation, upgrades, her condition) carries on from the last
       // session here, in the slot last used. A first career starts with the first voyage.
       if (!this.client) this.career.restore();
       this.fitWanted = this.wantedFit();
-      this.joinCode = localStorage.getItem(LAST_CODE_KEY) ?? '';
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
       // Rescues completed in this browser so far (milestone 4).
@@ -3285,8 +3727,10 @@ export class App {
     this.interaction = new InteractionSystem(
       // Every boat's controls (the home boat's first), the crane's buttons, the gear brackets.
       // (Boats that come later, the tows, have none.)
-      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.filter((g) => g.aboard).map((g) => g.bracket)],
+      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.filter((g) => g.aboard).map((g) => g.bracket), ...(this.planTable?.controls ?? [])],
       (channel, value) => {
+        // A berth: lie down in it, or get up (yours, not the boat's: nothing goes to her).
+        if (channel === 'berthRest' || channel.endsWith(':berthRest')) return this.toggleRest();
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
@@ -3659,6 +4103,8 @@ export class App {
       hf.updateMatrixWorld();
       const quat = hf.getWorldQuaternion(this.camQ).multiply(this.camQ2.set(hq[0], hq[1], hq[2], hq[3]));
       const pos = hf.localToWorld(this.camW.fromArray(hand)).add(this.camLens.fromArray(CONFIG.camera.lens).applyQuaternion(quat));
+      // Tilted forward from the grip's axis (up out of the fist), so it looks where the hand points.
+      quat.multiply(HOLD_TILT);
       // Rigid with the hand (owner: it moves exactly as the hand, angle and all): the lens
       // looks out along the hand; flipped, it's turned round in the hand to face the holder.
       if (hold!.back) quat.multiply(FLIPPED);
@@ -3770,6 +4216,89 @@ export class App {
    * Struck by a propeller: the view red at once, fading to black; put back aboard our boat
    * (as if hauled out and patched up) while it's black; then the view clears.
    */
+  /**
+   * Our health this frame (player/health.ts): the cold in the water, a fire's flames and smoke
+   * where our head is, a berth's rest; running out, we black out (the propeller's fade, then
+   * aboard: updateStrike). Lying in a berth, we get up by ourselves once well by day.
+   */
+  private updateHealth(dt: number): void {
+    const p = this.world.players[this.localPlayerId];
+    if (!p) return;
+    const was = this.health;
+    const smoke = fireExposure(this.world, [this.headW.x, this.headW.y, this.headW.z]);
+    this.health = stepHealth(this.health, { swimming: p.mode === 'swim', fire: smoke.fire, smoke: smoke.smoke, resting: this.resting }, dt);
+    if (this.health < was) this.comfortOverlay.hurt(Math.min(1, (was - this.health) * 60));
+    this.afterHarm(was, smoke.fire ? 'The fire' : smoke.smoke ? 'The smoke' : 'The cold');
+    if (this.resting) {
+      const now = this.world.environment.timeOfDay;
+      if (wakeNow(this.health, this.restHurt, this.restClock, now)) this.getUp(this.restHurt ? 'Rested and well again: up you get.' : 'Morning: up you get.');
+      this.restClock = now;
+    }
+    this.showHealth();
+  }
+
+  /** Something hurts us at a blow (a fall): `harm` off our health, a red flash, and why. */
+  private hurt(harm: number, why: string): void {
+    if (harm <= 0) return;
+    const was = this.health;
+    this.health = Math.max(0, this.health - harm);
+    this.comfortOverlay.hurt(0.4 + harm * 2);
+    this.xrInput.pulse('left', 0.8, 150);
+    this.xrInput.pulse('right', 0.8, 150);
+    if (this.health > 0) this.overlay.notify(`${why}: hurt (health ${Math.round(this.health * 100)} %).`, 3);
+    this.afterHarm(was, why);
+  }
+
+  /** After harm: a warning past CONFIG.health.warnBelow; at nothing, black out (once). */
+  private afterHarm(was: number, why: string): void {
+    const c = CONFIG.health;
+    if (this.health >= c.warnBelow) this.healthWarned = false;
+    else if (!this.healthWarned && was >= c.warnBelow) {
+      this.healthWarned = true;
+      this.overlay.notify(`${why} is getting to you (health ${Math.round(this.health * 100)} %). Rest in a berth to recover.`, 5);
+    }
+    if (this.health <= 0 && was > 0 && this.strikeT < 0) {
+      this.strikeT = 0;
+      this.knockoutSays = `${why} was too much: you blacked out and came round aboard. Rest in a berth to recover.`;
+    }
+  }
+
+  /** A berth pressed: lie down in it (not from the water), or get up again. */
+  private toggleRest(): void {
+    if (this.resting) return this.getUp('');
+    const p = this.world.players[this.localPlayerId];
+    if (!p || (p.mode ?? 'walk') !== 'walk' || this.strikeT >= 0) return;
+    this.resting = true;
+    this.restHurt = this.health < 1;
+    this.restClock = this.world.environment.timeOfDay;
+    this.comfortOverlay.rest(0.85);
+    this.overlay.notify(`Resting in the berth (health ${Math.round(this.health * 100)} %). With everyone aboard in a berth you sleep and the hours pass. A step gets you up.`, 6);
+  }
+
+  /** Up out of the berth: the view comes back; `says`, if anything. */
+  private getUp(says: string): void {
+    if (!this.resting) return;
+    this.resting = false;
+    this.comfortOverlay.rest(0);
+    if (says) this.overlay.notify(says, 4);
+  }
+
+  /** On the desktop, a small health readout while we're hurt (or resting). In VR the warnings, the red flash and the dimming say it. */
+  private showHealth(): void {
+    const show = this.health < 0.995 || this.resting;
+    if (!show && !this.healthEl) return;
+    if (!this.healthEl) {
+      this.healthEl = document.createElement('div');
+      Object.assign(this.healthEl.style, { position: 'fixed', right: '12px', bottom: '12px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(0,0,0,0.55)', color: '#fff', font: '600 14px system-ui, sans-serif', pointerEvents: 'none', zIndex: '20' });
+      document.body.appendChild(this.healthEl);
+    }
+    this.healthEl.hidden = !show;
+    const pc = Math.round(this.health * 100);
+    const text = `Health ${pc} %${this.resting ? ' · resting' : ''}`;
+    if (this.healthEl.textContent !== text) this.healthEl.textContent = text;
+    this.healthEl.style.color = this.health < CONFIG.health.warnBelow ? '#ff9a8a' : '#fff';
+  }
+
   private updateStrike(dt: number): void {
     if (this.strikeT < 0) return;
     const c = CONFIG.rescue.propStrike;
@@ -3778,7 +4307,10 @@ export class App {
     const t = this.strikeT;
     if (was < c.respawnAt && t >= c.respawnAt) {
       this.toggleBoardTo(true);
-      this.overlay.notify('Hauled out of the water and patched up. Neutral near swimmers!', 5);
+      // Blacked out (the health ran out): you come round aboard, weak.
+      if (this.health <= 0) this.health = CONFIG.health.wakeHealth;
+      this.overlay.notify(this.knockoutSays || 'Hauled out of the water and patched up. Neutral near swimmers!', 5);
+      this.knockoutSays = '';
     }
     const red = t < c.blackAt ? 1 : Math.max(0, 1 - (t - c.blackAt) / (c.clearAt - c.blackAt));
     const black = t < c.blackAt ? t / c.blackAt : t < c.respawnAt + 0.4 ? 1 : Math.max(0, 1 - (t - c.respawnAt - 0.4) / (c.clearAt - c.respawnAt - 0.4));
@@ -3972,7 +4504,7 @@ export class App {
     const wh = this.testDef.layout.wheelhouse;
     const boat = this.vesselViews.get(this.testVesselId)?.root;
     const l = boat ? boat.worldToLocal(this.tableRef.copy(this.focus)) : this.tableRef.set(0, wh.floorY, 0); // the wheelhouse's frame
-    const near = Math.abs(l.x) < wh.halfWidth + 0.3 && l.z > wh.front - 0.3 && l.z < wh.aft + 0.6 && l.y > wh.floorY - 0.5;
+    const near = Math.abs(l.x - houseX(wh)) < wh.halfWidth + 0.3 && l.z > wh.front - 0.3 && l.z < wh.aft + 0.6 && l.y > wh.floorY - 0.5;
     this.chartTable.setDetail(near);
     if (this.chartTools) this.chartTools.root.visible = near;
     this.chartTools?.refresh(this.marks);
@@ -4162,9 +4694,32 @@ export class App {
     // (owner: the buttons and joystick vanished at the helm after a cargo run).
     const eye = root.worldToLocal(this.camera.getWorldPosition(this.detailV));
     this.interior.update(eye);
+    // Every other boat with a wheelhouse the same way (multi-boat M4): her small parts only
+    // with the eye in her house; far off, none of them are drawn.
+    for (const [id, boat] of this.boats) {
+      if (id === this.testVesselId) continue;
+      const v = this.world.vessels[id];
+      const r = this.vesselRoots.get(id);
+      const def = v && VESSEL_DEFS[v.defId];
+      if (!r || !def || !hasWheelhouse(def) || def.tow) continue;
+      let detail = this.interiors.get(id);
+      if (!detail) {
+        detail = new InteriorDetail([boat.root, r], r, def);
+        this.interiors.set(id, detail);
+      }
+      const far = Math.hypot(v.position[0] - this.focus.x, v.position[2] - this.focus.z) > CONFIG.lod.mid;
+      detail.update(far ? null : r.worldToLocal(this.camera.getWorldPosition(this.detailV)));
+    }
+    for (const id of this.interiors.keys()) if (!this.boats.has(id)) this.interiors.delete(id);
     // The skiff's outboard and tiller, her painter cleat: under her tarpaulin in the cradle
     // (not drawn, not usable).
-    for (const [id, boat] of this.boats) if (id !== this.testVesselId) boat.setCovered(this.world.vessels[id]?.tender?.phase === 'stowed');
+    // (Under her tarpaulin only if her crane has one: the dinghy's; the rescue boat sits uncovered.)
+    for (const [id, boat] of this.boats) {
+      if (id === this.testVesselId) continue;
+      const t = this.world.vessels[id]?.tender;
+      const host = t && this.world.vessels[t.hostId];
+      boat.setCovered(t?.phase === 'stowed' && (!host || (gearOf(host, 'tenderCrane')?.cover ?? true)));
+    }
   }
 
   /** Wind noise: the apparent wind where you are (minus your boat's way), muffled inside. */
@@ -4176,7 +4731,7 @@ export class App {
     const ax = this.windV.x - (v?.linearVelocity[0] ?? 0);
     const az = this.windV.z - (v?.linearVelocity[2] ?? 0);
     // In any of her houses (P2a): the sound inside, out of the weather.
-    const inside = !!v && v.id === this.testVesselId && housesOf(this.testDef.layout).some((wh) => Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3);
+    const inside = !!v && v.id === this.testVesselId && housesOf(this.testDef.layout).some((wh) => Math.abs(p.position[0] - houseX(wh)) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3);
     this.insideHouse = inside;
     // How shut-in the wheelhouse is: the aft door decides.
     const home = this.homeView;
@@ -4190,6 +4745,10 @@ export class App {
     this.sound.wind.update(Math.hypot(ax, az), inside, dt, this.closed);
     // A tidal race's roar: its strength where you are, or fading in from outside it.
     this.sound.race.update(raceRoarLevel(this.focus.x, this.focus.z), inside, this.closed);
+    // Surf on the shore near you (a look round every `CONFIG.surf.every` s, a few bearings a
+    // frame); heard only with the engine of the boat you're aboard stopped (ashore, always).
+    const surf = this.surf.step(this.focus.x, this.focus.z, this.world.environment.waves, this.renderWaves, dt);
+    this.sound.surf.update(surf, v?.engine.phase === 'running', inside, this.closed, this.focus);
   }
 
   /**
@@ -4210,8 +4769,8 @@ export class App {
       const hs = housesOf(this.testDef.layout);
       const ov = this.testDef.layout.roof.overhang;
       this.rainHouse.matrixWorld.copy(view.root.matrixWorld);
-      this.rainHouse.min.set(-Math.max(...hs.map((h) => h.halfWidth)) - ov, Math.min(...hs.map((h) => h.floorY)) - 1.5, Math.min(...hs.map((h) => h.front)) - ov);
-      this.rainHouse.max.set(Math.max(...hs.map((h) => h.halfWidth)) + ov, Math.max(...hs.map((h) => h.roofY)) + 0.3, Math.max(...hs.map((h) => h.aft)) + ov);
+      this.rainHouse.min.set(Math.min(...hs.map((h) => houseX(h) - h.halfWidth)) - ov, Math.min(...hs.map((h) => h.floorY)) - 1.5, Math.min(...hs.map((h) => h.front)) - ov);
+      this.rainHouse.max.set(Math.max(...hs.map((h) => houseX(h) + h.halfWidth)) + ov, Math.max(...hs.map((h) => h.roofY)) + 0.3, Math.max(...hs.map((h) => h.aft)) + ov);
       house = this.rainHouse;
     }
     windVector(env, this.windV);
@@ -4307,6 +4866,61 @@ export class App {
     window.addEventListener('pagehide', () => this.rememberVoyagePlace(Infinity));
   }
 
+  /**
+   * Voyage mode: the planning table on the start quay (voyage/planTable.ts), and the plan
+   * saved for this map last time (alone or hosting: the crew get the host's). Its saved
+   * note isn't news: it's not shown again.
+   */
+  private setupPlanTable(): void {
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
+    if (!this.client) {
+      try {
+        const saved = parsePlan(localStorage.getItem(planKey(VOYAGE_MAP_ID)));
+        if (saved) this.world.plan = saved;
+      } catch {
+        // Storage blocked: no saved plan.
+      }
+    }
+    this.planSaved = this.world.plan?.seq ?? -1;
+    this.planTableBerth = tableBerthId(this.world);
+    const at = planTableSpot(this.planTableBerth);
+    if (!at) return;
+    this.planTable = new PlanTable(at, {
+      send: (ref, args) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'plan', value: 1, ref, ...(args ? { args } : {}) }),
+      notify: (text) => this.overlay.notify(text, 3),
+    });
+    this.scene.add(this.planTable.root);
+    this.interaction?.addControls(this.planTable.controls);
+  }
+
+  /**
+   * Voyage mode, each frame: the planning table (only while you're near enough to see it),
+   * a point reached told once, and the plan saved when it changes (alone or hosting).
+   */
+  private updatePlan(): void {
+    const plan = this.world.plan;
+    // The host went to another harbour with the Go button: the table goes there too.
+    const berth = tableBerthId(this.world);
+    if (berth !== this.planTableBerth && this.planTable) {
+      this.planTableBerth = berth;
+      const at = planTableSpot(berth);
+      if (at) this.planTable.moveTo(at);
+    }
+    if (this.planTable && this.focus.distanceTo(this.planTable.root.position) < 250) this.planTable.update(this.world);
+    if (plan?.note && plan.note.t !== this.planNoteT) {
+      if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);
+      this.planNoteT = plan.note.t;
+    }
+    if (plan && !this.client && VOYAGE_MAP_ID && plan.seq !== this.planSaved) {
+      this.planSaved = plan.seq;
+      try {
+        localStorage.setItem(planKey(VOYAGE_MAP_ID), savePlanText(plan));
+      } catch {
+        // Not saved.
+      }
+    }
+  }
+
   /** Voyage mode: remember where we are on this map, every few seconds and as the page closes (alone or hosting). */
   private rememberVoyagePlace(dt: number): void {
     if (MODE !== 'voyage' || !VOYAGE_MAP_ID || this.client) return;
@@ -4315,12 +4929,188 @@ export class App {
     this.rememberT = 0;
     const v = this.world.vessels[this.testVesselId];
     if (v) rememberPlace(VOYAGE_MAP_ID, placeOf(this.world, v, this.localPlayerId));
+    // The timber run's barges and the money from them (voyage/timber.ts).
+    try {
+      localStorage.setItem(bargesKey(VOYAGE_MAP_ID), JSON.stringify(bargesToSave(this.world, this.testVesselId, headingOf)));
+      if (this.world.career) localStorage.setItem(VOYAGE_MONEY_KEY, String(Math.round(this.world.career.money)));
+    } catch {
+      // Not saved.
+    }
+  }
+
+  /**
+   * Voyage: the handoff envelope (`mv`) taken off the address at once, so a refresh never
+   * replays it (voyage/metaverse.ts), and checked: from the timber camp, with an id we issued
+   * and haven't consumed. Anything else: nothing comes of it.
+   */
+  private takeHandoff(): Envelope | null {
+    const { envelope, clean } = takeEnvelope(location.href);
+    if (clean) history.replaceState(history.state, '', clean);
+    return envelope ? consumeReturn(envelope) : null;
+  }
+
+  /**
+   * Voyage: the timber run set up (voyage/timber.ts). The money and barges saved for this map
+   * back, and if we're back from the camp with a barge, it at the site's spawn on our line;
+   * the bay's buoy and the merchant on the chart; the screen faded in if we came back.
+   */
+  private setupTimber(back: Envelope | null): void {
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || this.client) return;
+    const f = this.fade.style;
+    f.position = 'fixed';
+    f.inset = '0';
+    f.background = '#000';
+    f.pointerEvents = 'none';
+    f.transition = `opacity ${CONFIG.voyage.timber.fadeS}s`;
+    f.opacity = back ? '1' : '0';
+    f.zIndex = '50';
+    document.body.appendChild(this.fade);
+    if (back) setTimeout(() => (this.fade.style.opacity = '0'), 400);
+    const v = this.world.vessels[this.testVesselId];
+    try {
+      const money = Number(localStorage.getItem(VOYAGE_MONEY_KEY));
+      if (this.world.career && localStorage.getItem(VOYAGE_MONEY_KEY) !== null && Number.isFinite(money)) this.world.career.money = money;
+      if (!START_PARAMS.has('start')) restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
+    } catch {
+      // Storage blocked: none.
+    }
+    const site = back && this.timberSites.find((s) => s.id === back.site);
+    if (back && site && v) {
+      if (back.status === 'barge_ready' && back.cargo.logs > 0 && bargeFromCamp(this.world, site, v, back.cargo.logs)) {
+        const m = merchantsOn(VOYAGE_MAP_ID)[0];
+        this.timberNote = `Back aboard from the timber camp: a barge of ${back.cargo.logs} logs on your towline.${m ? ` Tow her to ${m.name} to sell.` : ''}`;
+      } else this.timberNote = 'Back aboard from the timber camp.';
+      this.rememberT = Infinity;
+      this.rememberVoyagePlace(0);
+    }
+    if (!this.timberSites.length && !merchantsOn(VOYAGE_MAP_ID).length) return;
+    this.timberView = new TimberView(this.timberSites);
+    this.scene.add(this.timberView.root);
+    for (const s of this.timberSites) {
+      const at = hotspotAt(s);
+      if (at) this.timberSpecials.push({ x: at.x, z: at.z, r: s.radiusM, label: 'Timber camp', kind: 'anchorage' });
+    }
+    for (const m of merchantsOn(VOYAGE_MAP_ID)) {
+      const b = berthWithId(m.berthId);
+      if (b) this.timberSpecials.push({ x: b.x, z: b.z, label: 'Timber merchant', kind: 'merchant' });
+    }
+  }
+
+  /**
+   * Voyage: the map's real weather now (world/coastWeather.ts, Open-Meteo), asked once as the
+   * session starts, alone or hosting (crew get the host's through the snapshots). It comes in
+   * held for the session, the sea at the marine model's height where there is one. Nothing
+   * back within the timeout (offline, the service down): the game's own weather, as ever.
+   */
+  private startLiveWeather(): void {
+    const map = MODE === 'voyage' && VOYAGE_MAP_ID ? voyageMap(VOYAGE_MAP_ID) : undefined;
+    if (!map?.weatherAt || this.client) return;
+    void fetchLiveWeather(map.weatherAt).then((live) => {
+      if (!live || this.client || !this.world.environment.weather) return;
+      const text = liveWeatherText(map.name, live);
+      setLiveWeather(this.world.environment, { wind: live.wind, windFrom: live.windFrom, visibility: live.visibility, rain: live.rain, cloud: live.cloud }, live.preset, this.world.time, { text, credit: CONFIG.liveWeather.credit }, live.sea?.scale);
+      this.overlay.notify(text, 8);
+    });
+  }
+
+  /** Alone, or hosting with nobody else aboard: the timber camp takes one player at a time (v1). */
+  private playingAlone(): boolean {
+    return !this.client && (!this.host || this.host.playerCount <= 1);
+  }
+
+  /**
+   * Voyage, each frame: the logs on the barges and the bay's buoy; anchored in the bay, ashore
+   * to the timber camp; the sale when a barge lies at the merchant's quay (Enter or the
+   * Voyage tab: sell).
+   */
+  private updateTimber(v: VesselState | undefined, dt: number): void {
+    if (!this.timberView) return;
+    if (this.timberNote) {
+      this.overlay.notify(this.timberNote, 8);
+      this.timberNote = null;
+    }
+    this.timberView.update(this.world, (x, z) => surfaceHeight(this.renderWaves, x, z));
+    const boat = this.world.vessels[this.testVesselId];
+    // Anchored in the bay: straight ashore (owner: seamless, no prompt).
+    const site = this.timberWatch.update(boat, this.timberSites, dt, this.playingAlone() && !this.leavingForCamp);
+    if (site) this.goAshore(site);
+    const sale = this.client ? null : saleOffer(this.world, boat, VOYAGE_MAP_ID);
+    const saleKey = sale ? `${sale.bargeId}|${sale.logs}` : null;
+    if (sale && this.saleShown !== saleKey) this.overlay.notify(`Alongside ${sale.merchant.name}: ${saleText(sale.logs, sale.total)}. Sell? (Enter, or the menu: Voyage)`, 6);
+    this.saleShown = saleKey;
+    this.timberPrompt.show(this.leavingForCamp ? '' : sale ? `Sell ${saleText(sale.logs, sale.total)}?   Enter: sell` : '');
+    if (sale && this.keyboard.actionPressed('timber')) this.timberPress(0);
+    void v;
+  }
+
+  /** Voyage tab: the timber run's line. */
+  private timberLine(): string {
+    if (this.leavingForCamp) return 'Going ashore to the timber camp...';
+    const sale = saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID);
+    if (sale) return `At the merchant: ${saleText(sale.logs, sale.total)}`;
+    const towed = Object.entries(this.world.timber?.barges ?? {}).find(([id]) => this.world.tow?.lines?.[this.testVesselId]?.target === `v:${id}`);
+    if (towed) return `Log barge on tow: ${towed[1].logs} logs`;
+    const n = Object.keys(this.world.timber?.barges ?? {}).length;
+    return n ? `${n} log barge${n > 1 ? 's' : ''} lying off` : this.timberSites.length ? 'Anchor off the timber camp to go ashore' : '';
+  }
+
+  /** Voyage tab: its buttons' words (0: go or sell, 1: not now). */
+  private timberButton(i: number): string {
+    if (i === 0 && !this.client && saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID)) return 'Sell';
+    return '';
+  }
+
+  private timberPress(i: number): void {
+    const sale = i === 0 && !this.client ? saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID) : null;
+    if (!sale) return;
+    sellBarge(this.world, sale.bargeId, sale.merchant);
+    this.rememberT = Infinity;
+    this.rememberVoyagePlace(0);
+  }
+
+  /**
+   * Go ashore to the timber camp (voyage/metaverse.ts): the voyage saved as it is (anchored
+   * here), a handoff id issued, the envelope built, the screen faded to black, and the page
+   * goes to the Timber game. In the headset the VR session isn't ended first: a browser that
+   * can carry VR across pages (WebXR navigation) keeps you in it.
+   */
+  private goAshore(site: MetaverseSite): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v || this.leavingForCamp || !VOYAGE_MAP_ID) return;
+    this.leavingForCamp = true;
+    this.rememberT = Infinity;
+    this.rememberVoyagePlace(0);
+    const id = newHandoffId();
+    issueId(id);
+    // Back to this map as it is: the place and plan kept (no one-off start or join parameters).
+    const ret = new URL(location.href);
+    for (const k of ['mv', 'start', 'join', 'fit', 'host', 'together', 'fresh', 't']) ret.searchParams.delete(k);
+    const envelope: Envelope = {
+      v: 1,
+      id,
+      from: 'workboat',
+      site: site.id,
+      return: ret.toString(),
+      boat: { id: v.defId, name: this.boatFavName(v) },
+      pos: positionFor(VOYAGE_MAP_ID, v, headingOf(v)),
+      time: { hour: Math.round(this.world.environment.timeOfDay * 100) / 100 },
+      status: 'none',
+      cargo: { logs: 0 },
+    };
+    this.timberPrompt.show('');
+    this.overlay.notify('Going ashore to the timber camp...', 3);
+    this.fade.style.opacity = '1';
+    setTimeout(() => window.location.assign(outboundUrl(site, envelope)), CONFIG.voyage.timber.fadeS * 1000);
   }
 
   /** Ships, debris and buoys on the waves; ships' fog horns; the lookout calls new ships. */
   private updateTraffic(v: VesselState | undefined, darkness: number, dt: number): void {
     this.trafficView.update(this.world, this.renderWaves, darkness, dt);
+    this.harbourBoatsView.update(this.world, this.renderWaves, darkness, this.focus);
+    this.skylineView.update(this.world, darkness, dt);
     this.rememberVoyagePlace(dt);
+    this.updatePlan();
+    this.updateTimber(v, dt);
     const t = this.world.traffic;
     if (!t) return;
     if (this.hornSeen >= 0 && t.hornSeq !== this.hornSeen && t.hornFrom) {
@@ -4332,6 +5122,19 @@ export class App {
     if (!v) return;
     const fwd = this.tmpV.set(0, 0, -1).applyQuaternion(this.lookQ.fromArray(v.orientation));
     const heading = Math.atan2(fwd.x, -fwd.z);
+    // A crew-mate's boat coming into sight (multi-boat M5): called out once, by whose she is.
+    const sight = Math.min(CONFIG.traffic.sightRange, visibilityAt(this.world.environment, v.position[0], v.position[2]) * CONFIG.traffic.sightVis);
+    for (const b of playerBoats(this.world)) {
+      if (b.id === v.id || this.boatsCalled.has(b.id)) continue;
+      const dx = b.position[0] - v.position[0];
+      const dz = b.position[2] - v.position[2];
+      const d = Math.hypot(dx, dz);
+      if (d > sight || d < 60) continue;
+      this.boatsCalled.add(b.id);
+      const rel = (Math.atan2(dx, -dz) - heading + Math.PI * 4) % (Math.PI * 2);
+      const clock = Math.round((rel / (Math.PI * 2)) * 12) || 12;
+      this.overlay.notify(`Lookout: ${boatOwnerName(this.world, b)}'s boat, ${clock} o'clock, ${d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${Math.round(d / 10) * 10} m`}`, 5);
+    }
     for (const s of t.ships) {
       if (!s.sighted || this.shipsCalled.has(s.id)) continue;
       this.shipsCalled.add(s.id);
@@ -4394,13 +5197,17 @@ export class App {
    * key, preheat, start) or stops her; otherwise it points to the real procedure.
    */
   private requestEngineStartStop(): void {
-    const v = this.world.vessels[this.testVesselId];
+    // The boat you're standing in if she has an engine (the rescue boat), else your own.
+    const driven = this.world.vessels[this.drivenVesselId()];
+    const id = driven && gearOf(driven, 'diesel') ? driven.id : this.testVesselId;
+    const v = this.world.vessels[id];
     if (!v) return;
+    const send = (control: string, value: number) => this.pushIntentTo(id, control, value);
     const diesel = gearOf(v, 'diesel');
     // Quick start is a session setting (CONFIG.vessels.workboat.electrics.quickStart), for a boat with batteries and a diesel.
     if (!diesel || !gearOf(v, 'batteries') || !CONFIG.vessels.workboat.electrics.quickStart) {
       if (v.engine.phase === 'off') this.overlay.notify('Start her properly: master, INSTR breaker, key, wait for the GLOW lamp, START (see the card). Menu > Tests > Quick start does it all.', 5);
-      else this.pushVesselIntent('key', 0);
+      else send('key', 0);
       return;
     }
     if (v.engine.phase === 'off') {
@@ -4408,10 +5215,10 @@ export class App {
         this.overlay.notify('Engine won\'t start: lever not in neutral');
         this.xrInput.pulse('right', 0.8, 150);
       }
-      this.pushVesselIntent('quickStart', 1);
+      send('quickStart', 1);
       return;
     }
-    this.pushVesselIntent('key', 0); // stop: key off
+    send('key', 0); // stop: key off
   }
 
   /**
@@ -4559,15 +5366,15 @@ export class App {
 
   /** The next boat to start in after the one you're in (the touch controls' switch). */
   private nextStartBoat(): string | null {
-    const here = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
+    const here = this.world.vessels[this.startVesselId]?.defId ?? 'workboat';
     const i = START_BOATS.indexOf(here);
     const next = START_BOATS[(i + 1) % START_BOATS.length];
     return next !== here && RECIPES[next] ? next : null;
   }
 
-  /** The workboat's tender (the first outboard boat), if any. */
+  /** Our boat's tender (the skiff or the rescue boat), else the first tender there is. */
   private skiff(): VesselState | undefined {
-    return Object.values(this.world.vessels).find((v) => gearOf(v, 'outboard'));
+    return this.ourSkiff() ?? Object.values(this.world.vessels).find((v) => v.tender);
   }
 
   /** The boat the driving keys steer: the one you're standing in, else the workboat. */

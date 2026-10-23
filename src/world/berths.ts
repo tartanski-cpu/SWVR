@@ -29,7 +29,7 @@ const ROOM = 4;
 const isPontoon = (b: BlockDef) => b.kind === 'pier' && b.top < 1;
 
 /** Is (x, z) on the block (its deck's footprint, with `grace` m to spare)? */
-function inBlock(b: BlockDef, x: number, z: number, grace = 0.5): boolean {
+export function inBlock(b: BlockDef, x: number, z: number, grace = 0.5): boolean {
   const yaw = (b.yawDeg * Math.PI) / 180;
   const dx = x - b.x;
   const dz = z - b.z;
@@ -48,6 +48,7 @@ function generate(): BerthDef[] {
   const off = 2.5; // boat centreline to the face: half beam plus fenders
   let n = 0;
   for (const b of BLOCKS) {
+    if (b.farm) continue; // a fish farm's rings and lines: solid, but nowhere to tie up
     const faces = [
       { nx: 1, nz: 0, half: b.halfLength, offset: b.halfWidth, alongX: false },
       { nx: -1, nz: 0, half: b.halfLength, offset: b.halfWidth, alongX: false },
@@ -113,6 +114,113 @@ function generate(): BerthDef[] {
     }
   }
   return out;
+}
+
+/** A block's local axes in world: (lx, lz) = (dx, dz) projected on them (the inverse of toWorld). */
+export function toLocal(b: BlockDef, x: number, z: number): { lx: number; lz: number } {
+  const yaw = (b.yawDeg * Math.PI) / 180;
+  const dx = x - b.x;
+  const dz = z - b.z;
+  return { lx: dx * Math.cos(yaw) + dz * Math.sin(yaw), lz: -dx * Math.sin(yaw) + dz * Math.cos(yaw) };
+}
+
+/** One face of a block, in its frame: its outward normal, half-length, how far out it stands, and whether it runs along local X. */
+export interface BlockFace {
+  nx: number;
+  nz: number;
+  half: number;
+  offset: number;
+  alongX: boolean;
+}
+
+/**
+ * Where the bollards stand along a face (positions along it, m from its middle): at the two
+ * tie points of every berth on that face (its centre ± its bollard half-spacing, where the
+ * mooring lines are drawn to: vessel/view/mooringLines.ts), and, on a face with no berth, one
+ * every 12 m from 3 m in as before. (The owner, Oct 2026: the bollards on the start quay
+ * didn't stand where the lines tied: a coast map's berths come every 16 m from the pipeline,
+ * the hand-built quays' named berths wherever they were put, and the bollards were drawn on
+ * their own 12 m grid.)
+ */
+export function faceBollards(b: BlockDef, f: BlockFace, berths: readonly BerthDef[] = BERTHS): number[] {
+  const at: number[] = [];
+  for (const berth of berths) {
+    // On this face: her shore side is the face's inward normal, she lies off the face by her
+    // shoreDist, and within its length.
+    const { lx, lz } = toLocal(b, berth.x, berth.z);
+    const along = f.alongX ? lx : lz;
+    const across = f.alongX ? lz : lx;
+    const outward = f.alongX ? f.nz : f.nx;
+    if (across * outward < f.offset - 0.5 || across * outward > f.offset + 8 || Math.abs(along) > f.half + 1) continue;
+    const { lx: sx, lz: sz } = toLocal({ ...b, x: 0, z: 0 }, berth.shoreX, berth.shoreZ);
+    if ((f.alongX ? sz : sx) * outward > -0.7) continue; // her shore isn't this way
+    const half = berth.bollardHalf ?? BOLLARD_HALF_SPACING;
+    for (const k of [-1, 1]) {
+      const s = along + k * half;
+      if (Math.abs(s) <= f.half - 0.3 && !at.some((t) => Math.abs(t - s) < 0.6)) at.push(s);
+    }
+  }
+  if (!at.length) {
+    for (let s = -f.half + 3; s <= f.half - 3; s += 12) at.push(s);
+    return at;
+  }
+  at.sort((p, q) => p - q);
+  // And on along the rest of the face, at the same 12 m spacing (owner, Oct 2026: a 24 m
+  // trawler at the start quay had only her berth's two bollards, both within her length, so her
+  // bow and stern lines ran inwards; vessel/view/mooringLines.ts leads each to the bollard
+  // beyond her end). A gap between two berths' bollards wider than the spacing is shared out.
+  const step = 2 * BOLLARD_HALF_SPACING;
+  const end = f.half - 3;
+  const out: number[] = [];
+  for (let s = at[0] - step; s >= -end; s -= step) out.push(s);
+  for (let i = 0; i < at.length; i++) {
+    out.push(at[i]);
+    const gap = i + 1 < at.length ? at[i + 1] - at[i] : 0;
+    const n = Math.ceil(gap / step - 0.05) - 1;
+    for (let k = 1; k <= n; k++) out.push(at[i] + (gap * k) / (n + 1));
+  }
+  for (let s = at[at.length - 1] + step; s <= end; s += step) out.push(s);
+  return out.sort((p, q) => p - q);
+}
+
+let tieCache: Map<string, { x: number; z: number }[]> | null = null;
+
+/**
+ * The bollards (world x, z) along the face a berth lies off: the ones its lines can be led to
+ * (vessel/view/mooringLines.ts). Empty for a pontoon's berth (its lines go to its own cleats).
+ */
+export function berthBollards(berth: BerthDef): { x: number; z: number }[] {
+  tieCache ??= new Map();
+  const hit = tieCache.get(berth.id);
+  if (hit) return hit;
+  const found: { x: number; z: number }[] = [];
+  // Her line of tie points: half a metre in from the face, along her heading.
+  const tx = berth.x + berth.shoreX * (berth.shoreDist + 0.5);
+  const tz = berth.z + berth.shoreZ * (berth.shoreDist + 0.5);
+  for (const b of BLOCKS) {
+    if (b.farm || isPontoon(b)) continue;
+    if (Math.hypot(b.x - berth.x, b.z - berth.z) > b.halfLength + b.halfWidth + 40) continue;
+    for (const f of blockFaces(b)) {
+      for (const s of faceBollards(b, f)) {
+        const p = toWorld(b, f.alongX ? s : f.nx * (f.offset - 0.5), f.alongX ? f.nz * (f.offset - 0.5) : s);
+        // On her line: within a metre of it across (off the shore direction).
+        const across = (p.x - tx) * berth.shoreX + (p.z - tz) * berth.shoreZ;
+        if (Math.abs(across) < 1 && !found.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 0.6)) found.push(p);
+      }
+    }
+  }
+  tieCache.set(berth.id, found);
+  return found;
+}
+
+/** A block's four faces, as the world view walks them. */
+function blockFaces(b: BlockDef): BlockFace[] {
+  return [
+    { nx: 1, nz: 0, half: b.halfLength, offset: b.halfWidth, alongX: false },
+    { nx: -1, nz: 0, half: b.halfLength, offset: b.halfWidth, alongX: false },
+    { nx: 0, nz: 1, half: b.halfWidth, offset: b.halfLength, alongX: true },
+    { nx: 0, nz: -1, half: b.halfWidth, offset: b.halfLength, alongX: true },
+  ];
 }
 
 /** A berth's bollards stand this far either side of its centre, along the face (half the 12 m spacing), and 0.5 m in from the edge. */

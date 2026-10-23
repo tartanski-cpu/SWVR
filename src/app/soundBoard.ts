@@ -18,6 +18,8 @@ import { FmRadio } from '../audio/fmRadio';
 import { WildlifeAudio } from '../audio/wildlifeAudio';
 import { WindAudio } from '../audio/windAudio';
 import { RaceAudio } from '../audio/raceAudio';
+import { SurfAudio } from '../audio/surfAudio';
+import { BoatVoices } from '../audio/boatVoices';
 
 /**
  * The game's sound systems in one place (split out of App). Each makes its own sounds; the
@@ -28,6 +30,8 @@ import { RaceAudio } from '../audio/raceAudio';
 export class SoundBoard {
   /** The diesel (and the shared AudioContext). */
   readonly engine = new EngineAudio();
+  /** A tender's engine (the rescue boat's outboard: your own boat's engine is `engine`). */
+  readonly tenderEngine = new EngineAudio();
   /** The electric horn and the console alarm. */
   readonly horn = new HornAudio();
   readonly alarm = new AlarmAudio();
@@ -59,12 +63,17 @@ export class SoundBoard {
   readonly fm = new FmRadio();
   /** A tidal race's roar (regions). */
   readonly race = new RaceAudio();
+  /** Surf on the shore, with your engine off (world/surf.ts). */
+  readonly surf = new SurfAudio();
+  /** The other players' boats: their engines, the rush of water and their horns, in 3D. */
+  readonly boats = new BoatVoices();
 
   /** On a user gesture: start audio (again harmless). */
   unlock(): void {
     this.engine.unlock();
     const ctx = this.engine.context;
-    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.handset, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race]) s.attach(ctx);
+    this.tenderEngine.attach(ctx);
+    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.handset, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race, this.surf, this.boats]) s.attach(ctx);
     watchVoices();
   }
 }

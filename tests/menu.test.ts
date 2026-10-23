@@ -34,6 +34,12 @@ function fakeHost() {
     timeOfDay: () => state.time,
     homeBoat: () => 'workboat',
     setHomeBoat: (id) => calls.push(`boat ${id}`),
+    spawnBoat: (id) => calls.push(`spawn ${id}`),
+    launchBoat: (ref) => calls.push(`launch ${ref}`),
+    withdrawBoat: () => calls.push('withdraw'),
+    myBoat: () => 'None',
+    lastBoat: () => null,
+    launchLast: () => calls.push('launch last'),
     shiftTime: (h) => calls.push(`shift ${h.toFixed(3)}`),
     timeScale: () => state.scale,
     setTimeScale: (v) => (state.scale = v),
@@ -47,6 +53,9 @@ function fakeHost() {
     setWeatherFixed: () => {},
     weatherFast: () => false,
     rainQuality: () => 'high',
+    treeDetail: () => 'auto',
+    treeLevel: () => 'desktop',
+    setTreeDetail: () => 0,
     setRainQuality: () => 0,
     bilgeStatus: () => 'Bilge 0 %',
     floodBilge: () => 0,
@@ -139,6 +148,19 @@ function fakeHost() {
     tutorialSkip: () => calls.push('skip'),
     tutorialRestart: () => calls.push('restart'),
     crewList: () => 'Just you',
+    planLine: () => 'No plan yet',
+    timberLine: () => '',
+    liveWeatherLine: () => '',
+    liveWeatherCredit: () => '',
+    timberButton: () => '',
+    timberPress: () => {},
+    canHandBack: () => false,
+    boatFavourite: () => 'The small tug',
+    canSaveBoat: () => true,
+    saveBoatFavourite: () => calls.push('save boat'),
+    goPlanTable: () => calls.push('plan table'),
+    crewMember: (i: number) => (i === 0 ? { name: 'Skipper', you: true, host: false, muted: false } : null),
+    toggleCrewMute: (i: number) => calls.push(`mute ${i}`),
     voiceStatus: () => '',
     voiceChat: () => false,
     setVoiceChat: () => {},
@@ -290,11 +312,11 @@ describe('crew tab', () => {
 });
 
 describe('office > your boats (Shipyard boats into the game)', () => {
-  it('lists the Shipyard favourites from this browser, newest first; Take her restarts in one', () => {
+  it('lists the Shipyard favourites from this browser by name (owner: the figures made it too long to read), newest first; Take her restarts in one', () => {
     const { host, calls } = fakeHost();
     const rows = mainMenu(host);
-    expect(findButton(rows, 'Pilot one · 14 m · 24 kn', 'Office')).toBeTruthy();
-    expect(findButton(rows, 'Little lander · 9 m', 'Office')).toBeTruthy();
+    expect(findButton(rows, 'Pilot one', 'Office')).toBeTruthy();
+    expect(findButton(rows, 'Little lander', 'Office')).toBeTruthy();
     findButton(rows, 'Take her', 'Office').press!();
     expect(calls).toEqual([`take ${PILOT}`]);
   });

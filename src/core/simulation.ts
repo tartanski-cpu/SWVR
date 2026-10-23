@@ -1,3 +1,5 @@
+import { stepHarbourBoats } from '../world/harbourBoats';
+import { poseFerries, stepFerries } from '../traffic/ferries';
 import { applySlipIntent, isSlipIntent, stepSlipway } from '../world/slipway';
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
 import { stepWeather } from '../environment/weather';
@@ -9,6 +11,7 @@ import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
 import { vesselContacts } from '../vessel/physics/vesselContact';
 import { applyPlayerIntent } from '../player/playerControl';
+import { sleepHours } from '../player/health';
 import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue';
 import { applySosIntent } from '../rescue/sos';
 import { applyBoardIntent, isBoardIntent } from '../board/board';
@@ -24,6 +27,9 @@ import { stepHullWear } from '../vessel/wear';
 import { vesselRuntime } from '../boats/sims';
 import { stepForecast } from '../environment/forecast';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
+import { applySpawnBoatIntent } from './spawnBoat';
+import { applyLaunchIntent, isLaunchIntent, stepLaunched, teleportToPortSlot } from './launch';
+import { heldInPlace, lodStations, vesselLod } from './lod';
 import { stepDuties } from '../duties/duties';
 import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
 import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
@@ -33,7 +39,8 @@ import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/pot
 import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
-import { stepFishing, trawlForces } from '../fishing/fishing';
+import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
+import { holdPayload, stepHold } from '../fishing/fishHold';
 import { stepRodSale } from '../fishing/rod';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
@@ -41,6 +48,8 @@ import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import { homeVessel, type WorldState } from './world';
 import { regionAt } from '../world/regions';
+import { applyPlanIntent, isPlanIntent, stepPlan, tableFollows } from '../voyage/plan';
+import { PORTS } from '../world/archipelago';
 
 /** Optional per-vessel diagnostics written during a tick (not part of WorldState). */
 export type SimDebug = Map<EntityId, HydroDebug>;
@@ -95,6 +104,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyFireIntent(world, intent);
     } else if (isTowIntent(intent.control)) {
       applyTowIntent(world, intent);
+    } else if (isPlanIntent(intent.control)) {
+      applyPlanIntent(world, intent);
     } else if (isTutorialIntent(intent.control)) {
       applyTutorialIntent(world, intent);
     } else if (isCareerIntent(intent.control)) {
@@ -113,6 +124,15 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyCraneIntent(world, intent);
     } else if (intent.control === 'trafficSpawn') {
       applyTrafficIntent(world, intent);
+    } else if (intent.control === 'spawnBoat') {
+      applySpawnBoatIntent(world, intent);
+    } else if (isLaunchIntent(intent.control)) {
+      applyLaunchIntent(world, intent);
+    } else if (intent.control === 'teleportToPort' && intent.ref && world.vessels[intent.targetId]) {
+      // With several boats about (multi-boat M5): a free berth, else the bay.
+      if (!teleportToPortSlot(world, world.vessels[intent.targetId], intent.ref)) applyVesselIntent(world.vessels[intent.targetId], intent);
+      // The host's boat sent somewhere: the planning table goes with her (voyage/plan.ts).
+      if (intent.targetId === world.homeVesselId && PORTS.some((p) => p.id === intent.ref)) tableFollows(world, intent.ref);
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {
@@ -127,6 +147,9 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepCameraHolds(world);
   // 2. Integrate systems. Forces are evaluated at the start-of-tick time.
   stepEnvironment(world.environment, dt);
+  // Everyone lying in a berth: asleep, the clock runs on (player/health.ts).
+  const slept = sleepHours(world, dt);
+  if (slept) world.environment.timeOfDay = (world.environment.timeOfDay + slept) % 24;
   // The weather director follows the profile of the region the home boat is in.
   const hv = homeVessel(world);
   const hvRegion = hv ? regionAt(hv.position[0], hv.position[2]) : undefined;
@@ -138,6 +161,11 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);
   // Boat against boat (the tender alongside), from the start-of-tick states.
   // A tender in her cradle or on the crane rides her ship instead (stepped below, after it).
+  // The harbour boats near any vessel, posed for this tick's collisions (world/harbourBoats.ts);
+  // the ferries on their routes, and those near a vessel posed likewise (traffic/ferries.ts).
+  stepHarbourBoats(world);
+  stepFerries(world, dt);
+  poseFerries(world);
   const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId], onCrane);
   // The towline (towing missions): its pull on us and on the tow.
   for (const [id, f] of towlineForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
@@ -153,6 +181,10 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       debug.set(vessel.id, dbg);
     }
     const payload = payloadOf(world, vessel.id);
+    // (The catch in her fish hold, where it stands: fishing/fishHold.ts.)
+    payload.push(...holdPayload(vessel));
+    // (And a codend full of fish hanging from her A-frame: fishing.ts.)
+    payload.push(...codendPayload(world, vessel.id));
     // Water in the bilge is weight low in the hull (vessel/wear.ts).
     if (vessel.bilge) payload.push({ mass: vessel.bilge * CONFIG.wear.bilgeMassFull, pos: new THREE.Vector3(0, VESSEL_DEFS[vessel.defId].hull.params.keelY + 0.35, 0) });
     const deckBefore = deckVelocitiesBefore(world, vessel);
@@ -162,7 +194,10 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     const external = wind ? [...(ext ?? []), wind] : ext;
     // The autopilot (the helm assist panel) sets the wheel before her steering reads it.
     stepAutopilot(vessel);
-    stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, external);
+    // Her level of detail by the nearest player (core/lod.ts): far and free, every other tick at twice the step.
+    const lod = (vessel.lod = vesselLod(world, vessel));
+    const everyOther = lod === 'far' && CONFIG.lod.everyOtherTick && !heldInPlace(world, vessel, !!ext?.length);
+    if (!everyOther || world.tick % 2 === 0) stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, everyOther ? dt * 2 : dt, dbg, world.geography === 'archipelago', payload, external, lodStations(VESSEL_DEFS[vessel.defId].hull, lod));
     // In a running race, its whirl points knock her head and heel about.
     if (world.geography === 'archipelago') stepRaceKnocks(vessel, world.time, dt);
     // On a slipway (a bow-ramp boat landed): held where she lies, the waves no longer moving her.
@@ -183,6 +218,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
 
   stepForecast(world);
   stepTraffic(world, dt);
+  stepLaunched(world);
+  stepPlan(world);
   stepDuties(world);
   stepRescue(world, dt, simWaves);
   stepTow(world, dt);
@@ -193,6 +230,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepFire(world, dt);
   stepSalvage(world, dt);
   stepFishing(world, dt);
+  stepHold(world);
   stepCareer(world);
   stepTutorial(world);
   world.tick += 1;

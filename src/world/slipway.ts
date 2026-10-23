@@ -6,6 +6,9 @@ import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import type { SlipState, VesselState } from '../vessel/vesselState';
 import { SLIPWAYS, type SlipwayDef } from './archipelago';
+import { hullContactPoints } from '../vessel/physics/contacts';
+import { softShore } from './coastShore';
+import { groundHeight } from './terrain';
 
 /**
  * Landing on a slipway (owner, Oct 2026): a boat with a bow ramp comes in slowly bow first,
@@ -140,6 +143,49 @@ function startLanding(v: VesselState, s: SlipwayDef, at = 0): void {
   v.mooring = { ...v.mooring, phase: 'free', bow: 0, stern: 0, t: 0 };
 }
 
+/**
+ * Beached (the coast extras plan, C3): a boat with a bow ramp, her ramp down, slower than
+ * CONFIG.beaching.maxSpeed, her forefoot (the lowest points of her foremost stations) on soft
+ * ground: a coast map's sand or shingle (world/coastShore.ts).
+ */
+export function onBeach(v: VesselState): boolean {
+  const def = VESSEL_DEFS[v.defId];
+  if (!def?.layout.bowRamp || !rampDown(v)) return false;
+  if (Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) > CONFIG.beaching.maxSpeed) return false;
+  const pts = hullContactPoints(def.hull);
+  const front = Math.min(...pts.map((p) => p[2]));
+  const q = new THREE.Quaternion().fromArray(v.orientation);
+  const p = new THREE.Vector3();
+  for (const [x, y, z] of pts) {
+    if (z > front + 1.5) continue;
+    p.set(x, y, z).applyQuaternion(q).add(new THREE.Vector3(...v.position));
+    if (softShore(p.x, p.z) && groundHeight(p.x, p.z) >= p.y - 0.15) return true;
+  }
+  return false;
+}
+
+/** Hold her where she has run up the beach (her pose as it is: a beach has no plane to lay her on). */
+function startBeaching(v: VesselState): void {
+  v.slip = {
+    id: BEACH,
+    phase: 'landed',
+    t: 0,
+    dur: 0,
+    from: { position: [...v.position], orientation: [...v.orientation] },
+    to: { position: [...v.position], orientation: [...v.orientation] },
+    flapDeg: CONFIG.beaching.flapDeg,
+  };
+  v.mooring = { ...v.mooring, phase: 'free', bow: 0, stern: 0, t: 0 };
+}
+
+/** The slip id a beached boat's landing carries (no slipway has it). */
+export const BEACH = 'beach';
+
+/** Is she beached (landed on a beach, not a slip)? */
+export function beached(v: VesselState | undefined): boolean {
+  return v?.slip?.id === BEACH;
+}
+
 const qa = new THREE.Quaternion();
 const qb = new THREE.Quaternion();
 
@@ -152,6 +198,7 @@ export function stepSlipway(v: VesselState, dt: number): void {
     // (Not while going astern: backing off a slip with her ramp still down, she'd land again.)
     const s = v.controls.lever >= 0 ? slipInRange(v) : null;
     if (s) startLanding(v, s);
+    else if (v.controls.lever >= 0 && onBeach(v)) startBeaching(v);
     else return;
   }
   const sl = v.slip!;

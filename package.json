@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "trials": "vitest run tests/seaTrials.test.ts --silent=false"
+    "test:shipyard": "vitest run tests/shipyard",
+    "test:modules": "vitest run tests/modular",
+    "test:map": "vitest run tests/coast tests/currents tests/places tests/regions tests/regionView tests/skyline tests/surf tests/trees tests/voyagePlace tests/trafficCoast",
+    "trials": "vitest run tests/seaTrials.test.ts --silent=false",
+    "crewcheck": "node tools/crewCheck.mjs"
   },
   "dependencies": {
     "peerjs": "1.5.4",

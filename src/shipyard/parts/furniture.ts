@@ -10,7 +10,7 @@ import type { Mount } from '../../modular/recipe';
 import type { Socket } from '../../modular/socket';
 import type { FurnitureConfig, FurnitureKind } from '../../modules/furniture';
 import { planHalfWidth } from '../../vessel/vesselDef';
-import { furnitureAt, type FurnitureKey } from '../design';
+import { FURNITURE_SLOTS, furnitureAt, type FurnitureKey } from '../design';
 import type { BuildArgs, V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, InteriorPart } from './house';
@@ -32,15 +32,22 @@ interface Floor {
 type Rect = [number, number, number, number];
 const overlaps = (a: Rect, b: Rect) => a[0] < b[1] && b[0] < a[1] && a[2] < b[3] && b[2] < a[3];
 
-/** The pieces, in the order they're placed (the biggest first), their pin's field, and their name in words. */
-const PIECES: { kind: FurnitureKind; key: FurnitureKey; name: string }[] = [
-  { kind: 'head', key: 'headAt', name: 'head' },
-  { kind: 'locker', key: 'lockerAt', name: 'locker' },
-  { kind: 'galley', key: 'galleyAt', name: 'galley' },
-  { kind: 'settee', key: 'setteeAt', name: 'settee' },
-  { kind: 'berth', key: 'berthAt', name: 'berth' },
-  { kind: 'seat', key: 'seatAt', name: 'seat' },
-];
+/**
+ * The pieces, in the order they're placed (the biggest first; of a kind, the first placed
+ * first), their field, their place's id and their name in words: "the berth", the second
+ * one "berth 2" (furnitureSocketId, furnitureName).
+ */
+const PIECES: { kind: FurnitureKind; key: FurnitureKey; id: string; name: string }[] = (['head', 'shower', 'locker', 'bunk', 'galley', 'mess', 'settee', 'berth', 'seat'] as const).flatMap((kind) =>
+  FURNITURE_SLOTS[kind].map((key, i) => ({ kind, key, id: furnitureSocketId(kind, i), name: furnitureName(kind, i) })),
+);
+/** A piece's place id: furniture.berth for the first, furniture.berth2 for the second. */
+export function furnitureSocketId(kind: FurnitureKind, i: number): string {
+  return `furniture.${kind}${i ? i + 1 : ''}`;
+}
+/** A piece's name in words: berth, berth 2. */
+export function furnitureName(kind: FurnitureKind, i: number): string {
+  return `${kind}${i ? ` ${i + 1}` : ''}`;
+}
 
 /**
  * Her furniture, each piece where its pin is: on the floor the pin lands on (the wheelhouse's,
@@ -55,7 +62,7 @@ const PIECES: { kind: FurnitureKind; key: FurnitureKey; name: string }[] = [
  */
 export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & EngineHatchPart & InteriorPart & HullDefPart) {
   const { d } = a;
-  const { FA, aft, cf, chartTableAt, ctab, cx, floorY, helmAft, hull, hw, layout, levels, roofAt, saloonL, sb, sideDoor, stack, transom, warnings, wall } = p;
+  const { FA, aft, cf, chartTableAt, ctab, cx, floorY, helmAft, hull, hw, hx, layout, levels, roofAt, saloonL, sb, sideDoor, stack, transom, warnings, wall } = p;
   const fc = CONFIG.shipyard.furniture;
   const mf = CONFIG.modules.furniture;
   const r2 = (v: number) => Math.round(v * 1000) / 1000;
@@ -81,26 +88,31 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   inHouse([cx - fc.helmRoom.halfWidth, cx + fc.helmRoom.halfWidth, cf, cf + 0.5 + fc.helmRoom.depth]);
   inHouse([-fc.doorWay.halfWidth, fc.doorWay.halfWidth, aft - wall - fc.doorWay.depth, aft + 0.1]);
   if (sideDoor) inHouse([-inside - 0.1, -inside + fc.doorWay.depth, sideDoor.z0 - 0.15, sideDoor.z1 + 0.15]);
-  if (chartTableAt) inHouse([chartTableAt[0], chartTableAt[0] + ctab.width + fc.chartRoom, chartTableAt[2] - 0.05, chartTableAt[2] + ctab.depth + 0.05]);
+  // (Laid out in the house's own frame: what's in her axes, the chart table and the hatch, taken across into it; housePart `hx`.)
+  if (chartTableAt) inHouse([chartTableAt[0] - hx, chartTableAt[0] - hx + ctab.width + fc.chartRoom, chartTableAt[2] - 0.05, chartTableAt[2] + ctab.depth + 0.05]);
   for (const h of layout.wheelhouse?.floorHoles ?? []) inHouse([h.x0 - fc.holeClear, h.x1 + fc.holeClear, h.z0 - fc.holeClear, h.z1 + fc.holeClear + 0.4]);
   const eh = layout.engineHatch;
-  if (eh && eh.y === undefined) inHouse([eh.x0 - 0.1, eh.x1 + 0.1, eh.z0 - 0.1, eh.z1 + 0.1]);
+  if (eh && eh.y === undefined) inHouse([eh.x0 - hx - 0.1, eh.x1 - hx + 0.1, eh.z0 - 0.1, eh.z1 + 0.1]);
   for (const pipe of stack?.pipes ?? []) inHouse([pipe.x - 0.3, pipe.x + 0.3, pipe.z - 0.3, pipe.z + 0.3]);
 
   const furnitureSockets: Socket[] = [];
   const furnitureMounts: Mount[] = [];
   /** Where each piece went (boat axes), and whether off its pin; null: left off. */
   const furniturePlaced: Partial<Record<FurnitureKey, { x: number; z: number; moved: boolean } | null>> = {};
+  /** Why a piece left off won't go where it was put, in a few words. */
+  const furnitureWhy: Partial<Record<FurnitureKey, string>> = {};
   let furnitureKg = 0;
   for (const piece of PIECES) {
     const pin = furnitureAt(d[piece.key] ?? 0);
     if (!pin) continue;
-    const px = pin.x;
+    // (Its pin in her axes; the house's floors in its own frame: an offset house's, across from its middle.)
+    const px = pin.x - hx;
     const pz = transom - pin.fromTransom;
     const floor = floors.find((f) => pz >= f.z0 - 0.3 && pz <= f.z1 + 0.3 && Math.abs(px) <= f.half(Math.min(f.z1, Math.max(f.z0, pz))) + 0.3);
     if (!floor) {
       warnings.push(`The ${piece.name}'s pin isn't inside the wheelhouse${saloonL ? ', the saloon' : ''}${cabin ? ' or the cabin below' : ''}: left off.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `not inside the wheelhouse${saloonL ? ', the saloon' : ''}${cabin ? ' or the cabin below' : ''}`;
       continue;
     }
     const size = mf[piece.kind];
@@ -108,6 +120,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     if (piece.kind !== 'seat' && L > floor.z1 - floor.z0 && !floor.aftWall) {
       warnings.push(`The ${piece.name} is longer (${L.toFixed(2)} m) than ${floor.name}'s floor has room for (${(floor.z1 - floor.z0).toFixed(2)} m): left off.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `longer than ${floor.name}'s floor`;
       continue;
     }
     // Its back against which wall: the nearest of port, starboard and (if it's a wall) aft; the seat stands free.
@@ -154,31 +167,51 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     if (!found) {
       warnings.push(`There's no room for the ${piece.name} in ${floor.name} near its pin (clear of the helm, the doorways and what's there already): left off.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = 'no room here, clear of the helm, the doorways and what’s there already';
       continue;
     }
     const [x0, x1, z0, z1] = found.rect;
     const mid: V3 = [r2((x0 + x1) / 2), r2(floor.y), r2((z0 + z1) / 2)];
     // The head and the locker stand to just under the ceiling.
     const ceiling = Math.min(floor.ceiling(z0), floor.ceiling(z1), floor.ceiling(mid[2])) - floor.y;
-    if (piece.kind === 'head' && ceiling < fc.headroom) {
-      warnings.push(`There's only ${ceiling.toFixed(2)} m of headroom for the head in ${floor.name} (${fc.headroom} m at least): left off.`);
+    if ((piece.kind === 'head' || piece.kind === 'shower') && ceiling < fc.headroom) {
+      warnings.push(`There's only ${ceiling.toFixed(2)} m of headroom for the ${piece.name} in ${floor.name} (${fc.headroom} m at least): left off.`);
       furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `only ${ceiling.toFixed(2)} m of headroom here`;
       continue;
     }
-    const height = r2(piece.kind === 'head' || piece.kind === 'locker' ? ceiling - mf.ceilingGap : piece.kind === 'berth' ? mf.berth.top + mf.berth.cushion : piece.kind === 'settee' ? mf.settee.back : piece.kind === 'galley' ? mf.galley.top : mf.seat.back);
+    // Two-high bunks want room to sit up in the top one.
+    const bunkRoom = mf.bunk.upper + mf.bunk.cushion + mf.bunk.sitUp;
+    if (piece.kind === 'bunk' && ceiling < bunkRoom) {
+      warnings.push(`There's only ${ceiling.toFixed(2)} m under the ceiling in ${floor.name} for the ${piece.name} (${bunkRoom.toFixed(2)} m to sit up in the top one): left off. A berth fits lower.`);
+      furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `only ${ceiling.toFixed(2)} m under the ceiling here (a berth fits lower)`;
+      continue;
+    }
+    const height = r2(piece.kind === 'head' || piece.kind === 'locker' || piece.kind === 'shower' ? ceiling - mf.ceilingGap : piece.kind === 'berth' ? mf.berth.top + mf.berth.cushion : piece.kind === 'settee' ? mf.settee.back : piece.kind === 'galley' ? mf.galley.top : piece.kind === 'bunk' ? mf.bunk.upper + mf.bunk.cushion + mf.bunk.rail : piece.kind === 'mess' ? mf.mess.back : mf.seat.back);
     // Its turn: its back (+z its axes) to the wall.
     const yaw = found.wall === 'starboard' ? 90 : found.wall === 'port' ? -90 : 0;
     blocked.push({ rect: [x0 - 0.02, x1 + 0.02, z0 - 0.02, z1 + 0.02], house: onHouse });
-    const id = `furniture.${piece.kind}`;
+    const id = piece.id;
     const where = `${floor.name[0].toUpperCase()}${floor.name.slice(1)}, ${found.wall === 'free' ? 'standing free' : `against the ${found.wall} wall`}`;
-    furnitureSockets.push({ id, type: 'cabin.furniture', transform: { position: mid, rotationDeg: [0, yaw, 0] }, label: `${where}: the ${piece.name}` });
+    const put: V3 = [r2(mid[0] + hx), mid[1], mid[2]];
+    furnitureSockets.push({ id, type: 'cabin.furniture', transform: { position: put, rotationDeg: [0, yaw, 0] }, label: `${where}: the ${piece.name}` });
     const config: FurnitureConfig = { kind: piece.kind, length: L, depth: D, height };
     furnitureMounts.push({ socket: id, module: 'furniture.piece', config: config as unknown as Record<string, unknown> });
     furnitureKg += size.kg;
-    furniturePlaced[piece.key] = { x: mid[0], z: mid[2], moved: Math.hypot(mid[0] - px, mid[2] - pz) > fc.movedOver };
+    furniturePlaced[piece.key] = { x: put[0], z: mid[2], moved: Math.hypot(mid[0] - px, mid[2] - pz) > fc.movedOver };
+  }
+  // The cabin below's V-berth (drawn with her, hullMesh.ts): a place to lie down in it and rest
+  // (owner, Oct 2026: "the berth ... in the cabin which appears under the wheelhouse"; modules/furniture REST_SPOT).
+  if (cabin?.berth) {
+    const zm = (cabin.z0 + cabin.berth.z1) / 2;
+    const id = 'furniture.cabinBerth';
+    furnitureSockets.push({ id, type: 'cabin.furniture', transform: { position: [0, r2(cabin.berth.top), r2(zm)], rotationDeg: [0, 90, 0] }, label: 'The cabin below: the V-berth' });
+    const spot = { length: r2(cabin.berth.z1 - cabin.z0), width: r2(1.6 * planHalfWidth(cabin.plan, zm)), top: 0 };
+    furnitureMounts.push({ socket: id, module: 'furniture.restSpot', config: spot });
   }
   // Her places include the furniture's (P4b: gathered into her hull definition).
   hull.sockets.push(...furnitureSockets);
-  return { furnitureKg, furnitureMounts, furniturePlaced };
+  return { furnitureKg, furnitureMounts, furniturePlaced, furnitureWhy };
 }
 export type FurniturePart = ReturnType<typeof furniturePart>;

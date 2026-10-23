@@ -87,7 +87,9 @@ export interface DesignHull {
   name: string;
   /** Her form, scaled (length, beam and depth factors), with her bow (its step: SCALES.bow, the stem's rake). */
   form(L: number, B: number, D: number, bow: number, sheer: number, forecastle?: { from: number; raise: number }): HullDefinition['form'];
-  /** A raised foredeck can be chosen (design.fcLength; owner, Oct 2026: the fishing boat only, for now). */
+  /** Her wheelhouse can be offset across her (design.houseX; owner, Oct 2026: the landing craft's, a narrow one to port or starboard). */
+  offsetHouse?: boolean;
+  /** A raised foredeck can be chosen (design.fcLength; owner, Oct 2026: the fishing boat, then the tug). */
   raisedForedeck?: boolean;
   /**
    * How she rides at speed (CONFIG.shipyard.regimes): a planing hull (a fast boat's propeller,
@@ -103,6 +105,12 @@ export interface DesignHull {
    * it is, faced with a rubber push fender (modules/pushFender).
    */
   pushBow?: boolean;
+  /**
+   * A big diesel's dry exhaust stacks up through the wheelhouse's aft corners and her cooling
+   * water out of her side (the small tug's; owner, Oct 2026: the stern trawler's too). See
+   * parts/hullDef.ts.
+   */
+  exhaustStacks?: boolean;
   /**
    * A landing bow (the landing craft, owner: a square platform on a planing hull): her own
    * forefoot, the bottom sweeping up to a raked square bow plate at the waterline under her
@@ -141,6 +149,12 @@ export interface DesignHull {
    * proportions). Its lower half is as every hull's (SCALES.scale).
    */
   growsTo?: number;
+  /**
+   * Her size range shrinks below the usual (owner, Oct 2026: "a really tiny tug"): her length
+   * factor at the slider's first step (the usual is 0.8), up in equal ratios to her base size
+   * at step 8; her beam and depth shrink with it (CONFIG.shipyard.shrink).
+   */
+  shrinksTo?: number;
 }
 
 /** What a hull and its houses are built of (CONFIG.shipyard.materials). */
@@ -148,10 +162,12 @@ export type Material = 'aluminium' | 'steel';
 /**
  * Her length as a factor of her type's base (the length slider's step `i`): every hull's
  * 0.8 to 1.175 (SCALES.scale); a hull that `growsTo` more, the same up to her base size
- * (step 8), then up in equal ratios to `growsTo` at the top (step 15).
+ * (step 8), then up in equal ratios to `growsTo` at the top (step 15); a hull that
+ * `shrinksTo` less, from that at step 0 up in equal ratios to her base size at step 8.
  */
-export function sizeScale(base: Pick<DesignHull, 'growsTo'>, i: number): number {
+export function sizeScale(base: Pick<DesignHull, 'growsTo' | 'shrinksTo'>, i: number): number {
   const top = base.growsTo;
+  if (base.shrinksTo && i < 8) return Math.round(base.shrinksTo ** ((8 - i) / 8) * 1000) / 1000;
   if (!top || i <= 8) return SCALES.scale(i);
   return Math.round(top ** ((i - 8) / 7) * 1000) / 1000;
 }
@@ -239,6 +255,9 @@ export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: nu
   return { keel: ts.map((t) => [t, at(t)]), base: ts.map((t) => [t, line(t)]) };
 }
 
+/** The small tug's hull (its index in DESIGN_HULLS): a tug's wheelhouse kept forward, her towing hook amidships. */
+export const TUG_HULL = 4;
+
 export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Landing craft: 9 m aluminium, square landing bow with a ramp',
@@ -249,6 +268,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     regime: 'planing',
     ramp: true,
     landingBow: true,
+    offsetHouse: true,
     cockpit: 1.0,
     foredeck: 1.6,
     defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 }),
@@ -303,19 +323,50 @@ export const DESIGN_HULLS: DesignHull[] = [
     material: 'steel',
     scantlings: 1.5,
     ballastKg: 18000,
+    // Down to a 7 m tug (owner, Oct 2026: "a really tiny tug").
+    shrinksTo: 0.54,
     // Her bow is her own (a square push plate, the bottom sweeping up to it): no bow choice.
-    form: (L, B, D, _bow, sheer) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null, false, sheer) }),
+    form: (L, B, D, _bow, sheer, forecastle) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null, false, sheer, forecastle) }),
+    // A raised foredeck as the fishing boat's (owner, Oct 2026): a harbour tug's forecastle.
+    raisedForedeck: true,
     regime: 'displacement',
     ramp: false,
     pushBow: true,
+    exhaustStacks: true,
     // A long towing deck aft; the foredeck short, up to the push bow.
     cockpit: 3.0,
     foredeck: 1.6,
     // The owner's reference: a short house forward of amidships, raised to see over the
     // high bow, windows a little reverse-raked; a low towing deck aft; twin screws; a
     // rubbing strake; red and grey. One slow-revving tug diesel (owner: an engine with the
-    // tug in mind; single only).
+    // tug in mind; single or twin).
     defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 7, guard: 2 }),
+  },
+  {
+    // Step 3 toward a trawler (owner, Oct 2026, from a 24 m trawler's general arrangement): a
+    // hull type of her own, 16 to 23.5 m (the length slider's usual 0.8 to 1.175 of 20 m). Not
+    // in the design code (a sixth type would change how every earlier code reads): she
+    // travels as a link or file.
+    name: 'Stern trawler: 20 m hard-chine steel, a whaleback forward, a long working deck aft',
+    material: 'steel',
+    scantlings: CONFIG.shipyard.sternTrawler.scantlings,
+    ballastKg: CONFIG.shipyard.sternTrawler.ballastKg,
+    form: (L, B, D, bow, sheer, forecastle) => ({ kind: 'lofted', design: scaledStudy(study('sternTrawler'), L, B, D, bow, false, sheer, forecastle) }),
+    // Her whaleback: a raised foredeck as the fishing boat's and the tug's, her wheelhouse standing on it.
+    raisedForedeck: true,
+    regime: 'displacement',
+    ramp: false,
+    // The working deck aft for the net drum, the trawl winches and the A-frame; the foredeck short under the whaleback.
+    cockpit: 6.0,
+    foredeck: 2.0,
+    // Her exhaust as the tug's (owner, Oct 2026): stacks up through the wheelhouse's aft
+    // corners, her cooling water out of her side.
+    exhaustStacks: true,
+    // A trawler's: the wheelhouse forward of amidships on the whaleback, which runs aft under
+    // it; one slow-revving diesel (the 750 kW, owner, Oct 2026: she needed a bigger engine)
+    // turning a big propeller in a Kort nozzle; the trawl gear,
+    // its net drum and winches, and a fish hold; fishing green.
+    defaults: { ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 7, bow: 2, housePos: 12, houseLength: 12, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 4, twin: 0, paint: 3 }), nozzle: 1, fcLength: 2, fcHeight: 2, aFrame: 1, netDrum: 1, trawlWinches: 1, fishHold: 1, sternRoller: 0 },
   },
 ];
 
@@ -327,7 +378,8 @@ export const DESIGN_HULLS: DesignHull[] = [
  *              at 1000 rpm, 1.8 times a 1800 rpm engine's). Its torque curve, idle, governor
  *              droop and starter are the 1800 rpm engine's with every rpm scaled to it, so it
  *              is slower all through its range (owner): idling at 333 rpm, flat out near 1000.
- *              It goes in singly only (design.ts SINGLE_ONLY_ENGINES; owner).
+ *              It goes on a shaft only (design.ts SHAFT_ONLY_ENGINES), singly or as a twin
+ *              (owner, Oct 2026: more power for the tugs; it was single only).
  *   propMaxM   the biggest propeller it's given (m). Slow revs (and a lower gearbox ratio to
  *              suit) turn a bigger, slower propeller: it throws more water slower, which pulls
  *              harder for the same power, what a tug wants (see `propD` in buildDesign).
@@ -341,7 +393,12 @@ export const ENGINES = [
   { name: '150 kW diesel (straight six)', kw: 150, kg: 600, voice: 'inlineSix' as const, rackRise: 1.2, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.47, 0.62, 0.78] as const },
   { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.32, 0.86, 0.8] as const },
   { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.52, 0.96, 0.9] as const },
-  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)', kw: 450, kg: 2200, voice: 'inlineSix' as const, /* owner, Oct 2026: tried the big-six voice (CONFIG.engineVoices.bigSix) and preferred this one */ rackRise: 1.0, ratedRpm: 1000, idleRpm: 450, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
+  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm)', kw: 450, kg: 2200, voice: 'inlineSix' as const, /* owner, Oct 2026: tried the big-six voice (CONFIG.engineVoices.bigSix) and preferred this one */ rackRise: 1.0, ratedRpm: 1000, idleRpm: 450, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
+  // A bigger one of the same kind (owner, Oct 2026: "the 24-metre trawler is going to need a
+  // bigger engine ... 750 kilowatt ... based on the straight six"): a medium-speed straight six,
+  // the tug diesel's revs, with bigger cylinders; it turns the biggest propeller, for a stern
+  // trawler towing her net or a big tug. Shaft only, as the tug diesel.
+  { name: '750 kW medium-speed diesel (big straight six, 1000 rpm)', kw: 750, kg: 4800, voice: 'inlineSix' as const, rackRise: 0.9, ratedRpm: 1000, idleRpm: 420, propMaxM: 1.9, pricePerKw: 180, size: [3.3, 1.15, 1.7] as const, about: 'The biggest, for a trawler or a big tug: a medium-speed straight six turning the biggest, slowest propeller, for a hard pull on a net or a tow. Heavy and tall: it wants a long, deep hull.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */

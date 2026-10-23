@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { houseFloorLow, houseRoofAt, type WheelhouseDef } from '../vessel/vesselDef';
+import { houseFloorLow, houseRoofAt, houseX, type WheelhouseDef } from '../vessel/vesselDef';
 
 /**
  * Draw-call saving (performance pass): the wheelhouse's small parts - switches, knobs,
@@ -75,7 +75,7 @@ export class InteriorDetail {
         this.box.applyMatrix4(inv);
         this.box.getBoundingSphere(this.sphere);
         const c = this.sphere.center;
-        const inside = Math.abs(c.x) < wh.halfWidth && c.z > wh.front && c.z < wh.aft && c.y > houseFloorLow(wh) - 0.2 && c.y < houseRoofAt(wh, c.z);
+        const inside = Math.abs(c.x - houseX(wh)) < wh.halfWidth && c.z > wh.front && c.z < wh.aft && c.y > houseFloorLow(wh) - 0.2 && c.y < houseRoofAt(wh, c.z);
         if (inside && this.sphere.radius < maxRadius) this.small.push(o);
       }
     }
@@ -85,11 +85,17 @@ export class InteriorDetail {
     return this.small.length;
   }
 
+  /** Every part shown again (she's no longer the boat whose detail is managed: multi-boat M2). */
+  showAll(): void {
+    this.shown = true;
+    for (const o of this.small) o.visible = true;
+  }
+
   /** @param viewer the viewer's eye in the vessel's frame (null: nowhere near her) */
   update(viewer: THREE.Vector3 | null): void {
     const wh = this.def.layout.wheelhouse;
     const m = 1.2; // at the door, or leaning in at a window: show them
-    const near = !!viewer && Math.abs(viewer.x) < wh.halfWidth + m && viewer.z > wh.front - m && viewer.z < wh.aft + m && viewer.y > houseFloorLow(wh) - 1;
+    const near = !!viewer && Math.abs(viewer.x - houseX(wh)) < wh.halfWidth + m && viewer.z > wh.front - m && viewer.z < wh.aft + m && viewer.y > houseFloorLow(wh) - 1;
     if (near === this.shown) return;
     this.shown = near;
     for (const o of this.small) o.visible = near;

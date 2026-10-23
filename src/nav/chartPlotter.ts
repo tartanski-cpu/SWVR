@@ -4,12 +4,19 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { CURRENTS, FISHING_GROUNDS, MARKS, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, MARKS, PLACES, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+
+/** The place names, most prominent first (they claim their room on the screen first). */
+const PLACES_BY_RANK = [...PLACES].sort((a, b) => a.rank - b.rank);
 import { raceReading } from '../world/currents';
 import { REGIONS } from '../world/regions';
 import type { RegionDef } from '../world/defs';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
+import { MODE } from '../mode';
+import { ferriesInSight } from '../traffic/ferries';
+import { boatOwnerName, playerBoats } from '../core/launch';
+import { nextPoint, pointLabel } from '../voyage/plan';
 import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
@@ -79,6 +86,12 @@ export class ChartPlotter {
   showPots = CONFIG.potting.showOnPlotter;
   /** The crew's pencil marks, drawn faintly over the map (null: not shown). */
   marks: ChartMarks | null = null;
+  /**
+   * Special places drawn on the chart (Voyage's timber run, voyage/timber.ts): an anchorage
+   * with something ashore (a ring of its radius and an anchor), or a merchant at a quay (a
+   * square). Each with its name.
+   */
+  specials: { x: number; z: number; r?: number; label: string; kind: 'anchorage' | 'merchant' }[] = [];
   /** Its case and its brackets to the roof (root axes), to be merged with the boat's other fixed parts. */
   readonly fixedParts: THREE.BufferGeometry[];
   /** Its zoom buttons, − AUTO + (on the strip under the screen). */
@@ -295,6 +308,7 @@ export class ChartPlotter {
     const towS = job && job.phase === 'accepted' ? world.vessels[job.vesselId] : undefined;
     const tow = towS && !CONFIG.rescue.plotYourself ? towS : undefined;
     const fireJob = world.fire?.job && world.fire.job.phase !== 'calling' && !CONFIG.rescue.plotYourself ? world.fire.job : null;
+    const planNext = nextPoint(world);
     if (inc) {
       [fx, fz] = [inc.x, inc.z];
       label = 'SEARCH';
@@ -307,6 +321,10 @@ export class ChartPlotter {
     } else if (dest && !cargoPaused(world)) {
       [fx, fz] = [dest.x, dest.z];
       label = dest.name.replace(' (anchorage)', '');
+    } else if (planNext) {
+      // The crew's voyage plan (voyage/plan.ts): its next point, when no job wants us.
+      [fx, fz] = [planNext.p.x, planNext.p.z];
+      label = pointLabel(planNext.p, planNext.i).replace(/^(\w+) (\d+): /, '$1 $2 ').toUpperCase();
     } else {
       const near = [...PORTS].sort((a, b) => Math.hypot(a.x - sx, a.z - sz) - Math.hypot(b.x - sx, b.z - sz))[0];
       [fx, fz] = [near.x, near.z];
@@ -384,7 +402,36 @@ export class ChartPlotter {
       g.stroke();
     }
 
-    // Ports.
+    // Special places: the timber camp's anchorage, the timber merchant.
+    g.font = 'bold 16px system-ui, sans-serif';
+    g.textBaseline = 'middle';
+    for (const o of this.specials) {
+      const [px, py] = toPx(o.x, o.z);
+      if (px < -60 || px > W + 60 || py < -30 || py > H + 30) continue;
+      g.strokeStyle = '#c99a5a';
+      g.fillStyle = '#c99a5a';
+      g.lineWidth = 2;
+      if (o.kind === 'anchorage') {
+        g.setLineDash([5, 4]);
+        g.beginPath();
+        g.arc(px, py, Math.max(8, (o.r ?? 50) / mpp), 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
+        // An anchor: shank, stock and crown.
+        g.beginPath();
+        g.moveTo(px, py - 7);
+        g.lineTo(px, py + 6);
+        g.moveTo(px - 4, py - 4);
+        g.lineTo(px + 4, py - 4);
+        g.moveTo(px - 6, py + 2);
+        g.quadraticCurveTo(px, py + 10, px + 6, py + 2);
+        g.stroke();
+      } else g.fillRect(px - 5, py - 5, 10, 10);
+      g.fillText(o.label, px + 12, py - 12);
+    }
+
+    // Ports (their names' boxes kept, so the place names below keep clear of them).
+    const labels: [number, number, number, number][] = [];
     g.font = 'bold 18px system-ui, sans-serif';
     g.textBaseline = 'middle';
     for (const p of PORTS) {
@@ -403,7 +450,34 @@ export class ChartPlotter {
         g.stroke();
       }
       // Zoomed out wide, the names would pile up: only the destination's.
-      if (isDest || span <= 8000) g.fillText(p.name.replace(' (anchorage)', ''), px + 10, py - 12);
+      if (isDest || span <= 8000) {
+        const name = p.name.replace(' (anchorage)', '');
+        g.fillText(name, px + 10, py - 12);
+        labels.push([px + 10, py - 24, px + 10 + g.measureText(name).width, py]);
+      }
+    }
+
+    // Place names (a coast map's, the coast extras plan C4): rank 1 (towns, the big waters) on
+    // the widest ranges, down to rank 4 (islets, small points) close in (CONFIG.places
+    // plotterSpan); the sea's names in italic blue, islands in capitals, towns and villages
+    // plain; one that would overprint a port's name or another place's is left out.
+    const spans = CONFIG.places.plotterSpan;
+    for (const pl of PLACES_BY_RANK) {
+      if (span > (spans[pl.rank - 1] ?? 0)) continue;
+      const [px, py] = toPx(pl.x, pl.z);
+      if (px < -80 || px > W + 80 || py < -20 || py > H + 20) continue;
+      const water = pl.kind === 'bay' || pl.kind === 'strait' || pl.kind === 'sea';
+      const isle = pl.kind === 'island' || pl.kind === 'islet' || pl.kind === 'archipelago';
+      const text = isle ? pl.name.toUpperCase() : pl.name;
+      g.font = `${water ? 'italic ' : isle ? 'bold ' : ''}${pl.rank <= 2 ? 17 : 14}px system-ui, sans-serif`;
+      const w = g.measureText(text).width;
+      const box: [number, number, number, number] = [px - w / 2 - 3, py - 10, px + w / 2 + 3, py + 10];
+      if (labels.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+      labels.push(box);
+      g.textAlign = 'center';
+      g.fillStyle = water ? '#8ec8e8' : isle ? '#e8e2cc' : '#c8c2ae';
+      g.fillText(text, px, py);
+      g.textAlign = 'left';
     }
 
     // Tidal races (regions): the zone outlined, turned to its set, an arrow the way the water
@@ -602,6 +676,109 @@ export class ChartPlotter {
       g.fillStyle = '#7af0c0';
       g.font = 'bold 14px system-ui, sans-serif';
       g.fillText(ship.name.toUpperCase(), px + 10, py + 14);
+    }
+
+    // The ferries (a coast map's, C7) on AIS: in Voyage (no receiver to buy there) or with the
+    // receiver; each a triangle along her heading with her name, a 6-minute line when under way.
+    if (MODE === 'voyage' || world.career?.upgrades.includes('ais'))
+      for (const { f, p } of ferriesInSight(world)) {
+        const [px, py] = toPx(p.x, p.z);
+        if (px < -40 || px > W + 40 || py < -40 || py > H + 40) continue;
+        g.strokeStyle = '#7af0c0';
+        g.lineWidth = 2;
+        if (f.v > 0.3) {
+          const [ex, ey] = toPx(p.x + Math.sin(p.heading) * f.v * 360, p.z - Math.cos(p.heading) * f.v * 360);
+          g.beginPath();
+          g.moveTo(px, py);
+          g.lineTo(ex, ey);
+          g.stroke();
+        }
+        g.save();
+        g.translate(px, py);
+        g.rotate(p.heading);
+        g.beginPath();
+        g.moveTo(0, -11);
+        g.lineTo(6, 8);
+        g.lineTo(-6, 8);
+        g.closePath();
+        g.stroke();
+        g.restore();
+        g.fillStyle = '#7af0c0';
+        g.font = 'bold 14px system-ui, sans-serif';
+        g.fillText(f.ship.toUpperCase(), px + 10, py + 14);
+      }
+
+    // The crew's boats (multi-boat M5): every other player's boat as an AIS-like target in
+    // the crew's colour, with whose she is; no receiver needed (you're one crew).
+    for (const b of playerBoats(world)) {
+      if (b.id === vesselId) continue;
+      const [px, py] = toPx(b.position[0], b.position[2]);
+      if (px < -40 || px > W + 40 || py < -40 || py > H + 40) continue;
+      const [bx, by, bz, bw] = b.orientation;
+      const course = Math.atan2(-(2 * (bx * bz + bw * by)), 1 - 2 * (bx * bx + by * by));
+      const sp = Math.hypot(b.linearVelocity[0], b.linearVelocity[2]);
+      const [ex, ey] = toPx(b.position[0] + Math.sin(course) * sp * 360, b.position[2] - Math.cos(course) * sp * 360);
+      g.strokeStyle = '#ffd27a';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(px, py);
+      g.lineTo(ex, ey);
+      g.stroke();
+      g.save();
+      g.translate(px, py);
+      g.rotate(course);
+      g.beginPath();
+      g.moveTo(0, -10);
+      g.lineTo(6, 7);
+      g.lineTo(-6, 7);
+      g.closePath();
+      g.stroke();
+      g.restore();
+      g.fillStyle = '#ffd27a';
+      g.font = 'bold 14px system-ui, sans-serif';
+      g.fillText(boatOwnerName(world, b).toUpperCase(), px + 10, py + 14);
+    }
+
+    // The voyage plan: the route joined up (legs done dashed grey), each point numbered, the next ringed.
+    const plan = world.plan;
+    if (plan?.points.length) {
+      const pts = plan.points;
+      g.lineWidth = 3;
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = toPx(pts[i - 1].x, pts[i - 1].z);
+        const [bx, by] = toPx(pts[i].x, pts[i].z);
+        g.strokeStyle = i <= plan.next ? '#8a8a8a' : '#e040a0';
+        g.setLineDash(i <= plan.next ? [8, 8] : []);
+        g.beginPath();
+        g.moveTo(ax, ay);
+        g.lineTo(bx, by);
+        g.stroke();
+      }
+      g.setLineDash([]);
+      g.font = 'bold 14px system-ui, sans-serif';
+      pts.forEach((p, i) => {
+        const [px, py] = toPx(p.x, p.z);
+        g.fillStyle = i < plan.next ? '#8a8a8a' : '#e040a0';
+        g.beginPath();
+        if (p.kind === 'stop') g.rect(px - 7, py - 7, 14, 14);
+        else if (p.kind === 'look') {
+          g.moveTo(px, py - 9);
+          g.lineTo(px + 9, py);
+          g.lineTo(px, py + 9);
+          g.lineTo(px - 9, py);
+          g.closePath();
+        } else g.arc(px, py, 6, 0, Math.PI * 2);
+        g.fill();
+        if (i === plan.next) {
+          g.strokeStyle = '#ffd23a';
+          g.lineWidth = 3;
+          g.beginPath();
+          g.arc(px, py, 14, 0, Math.PI * 2);
+          g.stroke();
+        }
+        g.fillStyle = '#ffe0f0';
+        g.fillText(`${i + 1}${p.name ? ` ${p.name.toUpperCase()}` : ''}`, px + 11, py - 9);
+      });
     }
 
     // Own ship: a triangle pointing along the heading.

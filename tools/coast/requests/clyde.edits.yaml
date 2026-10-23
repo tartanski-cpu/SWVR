@@ -1,0 +1,26 @@
+# Hand edits for the Firth of Clyde region (coast pipeline stage 7, src/harbours.ts). Applied
+# after the harbours and buildings are generated from OpenStreetMap, so re-running the
+# pipeline keeps them. Pieces are matched by their source (an OSM id such as way/255707549), a
+# harbour by its id or name (a name also matches the pieces carrying it: use the id to change
+# a harbour alone). See oban.edits.yaml for the forms.
+
+change:
+  # The big jetty 1.4 km south of Inverkip (way/255707549: a trestle out to a head with
+  # mooring dolphins, where Inverkip power station stood) has no name in OpenStreetMap, so it
+  # took the nearest place's, "Wemyss Bay pier", the same as the real ferry pier 2.4 km south.
+  # Its id stays (a saved Voyage may name it); its name says where it is. (Kip Marina, at
+  # Inverkip itself, is its own harbour, mapped and named.)
+  - match: wemyss-bay-pier-2
+    set: { name: Inverkip jetty }
+  # Rothesay: the marina point inside the inner harbour would name the whole harbour; it's
+  # Rothesay Harbour (the pier's own name in the map), and Voyage starts you there by this id.
+  - match: rothesay-marina
+    set: { name: Rothesay Harbour, id: rothesay-harbour }
+  # Largs pier: its ferry terminal point is "Largs Slip", but two slipways along the front
+  # are Largs slips already; the pier is Largs pier.
+  - match: largs-slip
+    set: { name: Largs pier, id: largs-pier }
+  # The long L-shaped pier south of Fairlie: the map's boatyard point there is "Fairlie Quay
+  # Boatyard & Shed"; the place is Fairlie Quay.
+  - match: fairlie-quay-boatyard-shed
+    set: { name: Fairlie Quay, id: fairlie-quay }

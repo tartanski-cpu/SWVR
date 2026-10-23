@@ -20,7 +20,8 @@
  *
  * Writes public/regions/<id>/forest.bin and trees.json (the layout, the kinds' spacing and
  * species, their colours, and counts for the report). Run: node src/trees.ts [requestId]
- * (after reconcile; the package stage puts it in the game's package).
+ * (after reconcile, before mesh, which colours the ground under the woods from it; the
+ * package stage puts it in the game's package).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

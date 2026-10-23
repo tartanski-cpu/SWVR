@@ -122,12 +122,18 @@ export type GearKind =
   | 'bilgePump'
   | 'chartTable'
   // The helm assist panel (owner, Oct 2026)
-  | 'autopilot';
+  | 'autopilot'
+  // A fish hold (owner, Oct 2026)
+  | 'fishHold'
+  // The trawl deck gear (owner, Oct 2026)
+  | 'netDrum'
+  | 'trawlWinches';
 
 /** What the world's systems need to know about each kind of gear (the boat's axes, m). */
 export interface GearFacts {
   /** Where the towline leaves her: the top of the stern roller. */
-  towPoint: { point: [number, number, number] };
+  /** `point`: where the line pulls on her; `stern`: where it's passed aboard (the roller), if not there (a tug's hook amidships). */
+  towPoint: { point: [number, number, number]; stern?: [number, number, number] };
   /** Where the wire comes off the winch drum. */
   towWinch: { lead: [number, number, number] };
   /** The A-frame: the starboard foot (port is -x) and head, the blocks' x, the brace feet, the control box height. */
@@ -163,6 +169,16 @@ export interface GearFacts {
   swimLadder: { x: number; z: number; bottom: number; top: number; deckX: number; range: number; width: number };
   /** The life ring: where it hangs stowed, and the cleat its line is made fast to. */
   lifeRing: { stow: [number, number, number]; cleat: [number, number, number] };
+  /**
+   * A fish hold (modules/fishHold): where each box stands in it (the boat's axes, its base
+   * middle, in the order they're stowed: its length is what it holds), and its hatch (the
+   * coaming's top middle, and the opening's extent).
+   */
+  fishHold: { slots: [number, number, number][]; hatch: { centre: [number, number, number]; x0: number; x1: number; z0: number; z1: number } };
+  /** The net drum: where the net leads off it (the top of a full roll, her axes). */
+  netDrum: { lead: [number, number, number] };
+  /** The trawl winches: where the starboard warp leaves its drum (port is -x). */
+  trawlWinches: { lead: [number, number, number] };
   /** The boat hook: in its clips at (x, y), from z0 to z1. */
   boatHook: { stow: [number, number, number, number] };
   /** The fishing rods' rack (owner, Oct 2026): each rod's butt (it stands upright there), the wall's facing (deg, 0 aft), the bucket on deck, which side (-1 port, 1 starboard). */
@@ -427,6 +443,12 @@ export interface EngravedLabel {
   offset?: number;
   /** On the underside of a panel, read from below (the overhead panel). */
   underside?: boolean;
+  /**
+   * Standing on a face that leans back this far from upright (rad), below what it names by
+   * `offset` down the face (CS6: switches on the dash face). The assembler sets it for a label
+   * whose socket stands its module out from such a face.
+   */
+  face?: number;
 }
 
 /** A box you can't walk or stand cargo in (m; from a module in its socket's axes, from the assembler in the boat's). */

@@ -1,5 +1,5 @@
 /**
- * Hull study designs: eleven workboat types, small to large, monohull and catamaran. Each is
+ * Hull study designs: twelve workboat types, small to large, monohull and catamaran. Each is
  * an original design that takes its proportions and character from the type (no real
  * boat's lines are copied). Numbers are metres; see loft.ts for what each curve means.
  * Draught is set by the keel curve: the design waterline is y = 0.
@@ -29,6 +29,16 @@
  *   - Small push tug (owner's reference render of a small tug, Oct 2026): ~13 x 5.4 m, L/B
  *     about 2.4, hard chine, a high square push bow with a rubber push fender, the bottom
  *     sweeping up to it; low aft deck, house forward of amidships, twin screws.
+ *   - Fast catamaran workboat (owner, Oct 2026: a wide working platform for cranes, the
+ *     house forward or aft, stiff in roll, 25-28 kn): ~12.5 x 6.0 m, semi-planing hard-chine
+ *     demihulls, aluminium; drawn to float on her lines at the Shipyard's weight for her
+ *     (~15 t), the wet deck 1.25 m up so it stays well clear at every size.
+ *   - Stern trawler (owner, Oct 2026, from a 24 m trawler's general arrangement: "so we can
+ *     eventually build something like this"): ~20 x 7 m, L/B about 2.9, B/T about 2.5; a
+ *     hard-chine steel hull (the game's stations take one chine), deep with a drag aft (more draught aft than forward) for a big
+ *     slow propeller in a nozzle, a high flared bow with a strong sheer and a whaleback
+ *     forward, the wheelhouse forward of amidships and a long working deck aft for the net
+ *     drum, the trawl winches and the gantry over the stern.
  */
 import type { HullDesign } from './loft';
 
@@ -678,5 +688,128 @@ export const DESIGNS: HullDesign[] = [
     ],
     wheelhouse: { z0: 1.0, z1: -2.0, halfWidth: 1.7, height: 2.2, frontRake: 0.25, sill: 1.0, head: 1.9, panesFront: 3, panesSide: 2, panesBack: 2, overhang: 0.25 },
     colours: { topsides: 0x6d6a66, bulwark: 0xd8352c, bottom: 0x25272a, boot: 0xd8352c, house: 0xf1f1ee, deck: 0x5d6a5e, roof: 0xd8352c },
+  },
+  {
+    id: 'sternTrawler',
+    name: 'Stern trawler (20 m type)',
+    blurb: 'North Sea-style stern trawler: a hard-chine steel hull (as many small steel trawlers are built), deep, with a drag aft for a big propeller in a nozzle; a high flared bow with a strong sheer under a whaleback; the wheelhouse forward of amidships and a long working deck aft for the net drum, the trawl winches and the gantry. 20.0 x 7.0 m, draught 2.8 m aft.',
+    length: 20.0,
+    // Full amidships and well aft (a wide working deck to the transom), a fine entry.
+    halfBeam: [
+      [0, 3.05],
+      [0.25, 3.45],
+      [0.55, 3.5],
+      [0.78, 3.05],
+      [0.93, 1.6],
+      [1, 0],
+    ],
+    // A low working deck aft, rising in a strong sheer to the bow.
+    sheer: [
+      [0, 0.95],
+      [0.4, 1.0],
+      [0.7, 1.35],
+      [1, 2.45],
+    ],
+    // A drag aft: deepest under the propeller, the keel rising forward to the forefoot and stem.
+    keel: [
+      [0, -2.2],
+      [0.1, -2.8],
+      [0.35, -2.7],
+      [0.65, -2.35],
+      [0.88, -1.6],
+      [1, 0.4],
+    ],
+    rake: [
+      [0, 0.15],
+      [0.6, 0],
+      [1, -0.5],
+    ],
+    // Hard chine (the game's stations take one chine): a full section, the chine well out
+    // and low amidships, near-upright sides, flaring forward.
+    section: {
+      chineBeam: [
+        [0, 0.82],
+        [0.5, 0.88],
+        [1, 0.35],
+      ],
+      chineHeight: [
+        [0, 0.38],
+        [0.5, 0.32],
+        [1, 0.5],
+      ],
+      flare: [
+        [0, 0.03],
+        [0.6, 0.06],
+        [1, 0.5],
+      ],
+    },
+    bulwark: [
+      [0, 1.1],
+      [0.6, 1.1],
+      [0.75, 1.0],
+      [1, 1.0],
+    ],
+    forecastle: { from: 0.72, raise: 1.4 },
+    wheelhouse: { z0: -1.0, z1: -5.2, halfWidth: 2.4, height: 2.3, frontRake: 0.3, sill: 1.0, head: 1.9, panesFront: 5, panesSide: 3, panesBack: 3, overhang: 0.25, above: 1.4 },
+    colours: { topsides: 0x2f5a3a, bulwark: 0x2f5a3a, bottom: 0x8c2a22, boot: 0xe8e4d8, house: 0xf1f0ea, deck: 0x5f6a62 },
+  },
+  {
+    id: 'workCat',
+    name: 'Fast catamaran workboat',
+    blurb: 'Fast aluminium workboat catamaran: two hard-chine demihulls, semi-planing with a flat run aft and fine raked bows, under a wide flat bridge deck with a high wet deck. A wide working deck for cranes and cargo, very stiff in roll; the wheelhouse forward here (it can go aft). Drawn to float on her lines at the Shipyard\'s weight for her (about 15 t), her wet deck well clear of the water at every size; 25 to 30 kn on twin engines. 12.5 x 6.0 m, draught 0.83 m.',
+    length: 12.5,
+    // Each demihull: 1.9 m wide at the deck, its centre 2.05 m off hers (6.0 m overall). The wet
+    // deck 1.25 m up: at the Shipyard's smallest (10 m, heavier for her size: her engines, house
+    // and outfit don't shrink with her) it's still over 0.8 m clear of the water.
+    catamaran: { spacing: 4.1, tunnel: 1.25 },
+    halfBeam: [
+      [0, 0.92],
+      [0.4, 0.95],
+      [0.7, 0.88],
+      [0.9, 0.55],
+      [1, 0.07],
+    ],
+    sheer: [
+      [0, 1.9],
+      [0.5, 1.95],
+      [1, 2.35],
+    ],
+    // A straight, nearly level run aft for planing lift; the forefoot rising to a fine bow.
+    keel: [
+      [0, -0.68],
+      [0.4, -0.83],
+      [0.7, -0.79],
+      [0.9, -0.37],
+      [1, 1.0],
+    ],
+    rake: [
+      [0, 0.05],
+      [0.7, 0],
+      [1, -0.6],
+    ],
+    section: {
+      // A hard chine low aft (a moderate vee for planing), rising to a deep vee entry.
+      chineBeam: [
+        [0, 0.82],
+        [0.5, 0.78],
+        [1, 0.35],
+      ],
+      chineHeight: [
+        [0, 0.19],
+        [0.5, 0.21],
+        [1, 0.45],
+      ],
+      flare: [
+        [0, 0.04],
+        [1, 0.15],
+      ],
+    },
+    bulwark: [
+      [0, 0.6],
+      [1, 0.6],
+    ],
+    // The wheelhouse forward of amidships, the working deck aft (the Shipyard lets it go aft).
+    wheelhouse: { z0: -0.5, z1: -3.6, halfWidth: 2.3, height: 2.2, frontRake: 0.35, sill: 1.0, head: 1.9, panesFront: 4, panesSide: 3, panesBack: 2, overhang: 0.25 },
+    colours: { topsides: 0xd9622b, bulwark: 0xd9622b, bottom: 0x2a2f33, boot: 0xeeeeea, house: 0xf2f2ee, deck: 0x5e6660, roof: 0xd3d6d8 },
   },
 ];

@@ -2,6 +2,8 @@
 
 This file lets a new session pick up the work cold. Keep it current at the end of every milestone.
 
+**From 23 Oct 2026 each area keeps its own log** (CLAUDE.md, "Working in areas"): `docs/progress/game.md` (the main game: Career, Voyage, multiplayer), `shipyard.md`, `modules.md`, `map.md` and `hulls.md`. New change sets go there, so the chats working side by side don't all edit this file. This file keeps the shared decisions, the roadmap and known issues, and the history up to that date, which is still the place to look for how anything came to be.
+
 ## Project decisions (agreed with the owner)
 
 - **Headset:** Meta Quest 3. The target is 90 Hz, falling back to 72 Hz if needed.
@@ -5243,6 +5245,204 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - The dev branch (`claude/admiring-dirac-v9wwih`, which deploys https://tartanski-cpu.github.io/SWVR/) had sat at 17 October (the FM radio change and its revert, no net change) while `next` ran on to 21 October: the three modes, the real maps, the fleet, the Shipyard's growth, the regions, and the rest of `docs/RELEASE_NOTES_next.md`. `next` was merged with the dev branch (nothing to resolve) and pushed to both. The README's status line says so; the release note's "what's where" too.
 - **Checked:** typecheck, `npm test` on the merged head; the publishing run for the dev branch succeeded and the live build reports the commit. **Not checked:** the owner's own careers against the new build (the save format is as it was; new careers start in the beginner boat, existing ones keep their boat).
 
+### Fenders and a life ring at the yard (owner)
+
+- **The owner:** add fenders and a life ring to the yard upgrades (flagged when the beginner boat became the owner's Gillnetter 7.8 m: she has neither, and the yard sold neither).
+- `CONFIG.career.upgrades`: **Fenders** (£600, no reputation needed; `design` `guard` 1: fenders along her sides and the basket, so knocks alongside land on them and the roving fender works) and **Life ring** (£400; `lifeRing` 1: the ring and the boat hook on the aft wall, and with it the rescue calls). Both are add-ons (the game starts again with her refitted, as the searchlight) with an empty `fit`: the old workboat has hers in her recipe and keeps them, so nothing changes on a workboat career; on the beginner boat they go into her design as the searchlight and fire monitor do. A career saved before the yard kit existed still gets everything, as before.
+- **Tests:** `tests/starterBoat.test.ts` (+1): none to start; bought, the fenders, ring station and boat hook rack are aboard, no rubbing strake. `tests/starterWorkboat.test.ts`: the equipment list has the two more.
+- **Checked:** typecheck, `npm test`, headless: the beginner boat at Calder with fenders and the ring fitted (screenshot). **Not checked:** VR; buying them through the board in a live career (the same code path as the searchlight).
+
+### Multi-boat M1: boats by token (owner: "go ahead with the next step")
+
+- **The plan** (`docs/MULTI_BOAT.md`): M1 is the foundation for several boats in one Voyage game: a boat's type built from her design token on any page, so a boat can travel in a snapshot and be built by whoever gets it. Nothing visible changes yet.
+- **Boat types by token** (`boats/library.ts` `boatType`, `boatTypeId`, `boatTokenOf`, `boatTypeOf`, `isBoatType`, `ensureBoatTypes`): a Shipyard boat is a vessel type of her own, `boat:<hash>`, the hash from her token (her short code or her document token: a boat from a file travels whole), so every page gives her the same id. Built on first use: hull, recipe, vessel def and machinery, as the fleet's boats are. Any number of them at once: the game's one-at-a-time `'design'` slot is no longer what the game starts in (`?design=` makes her own type); the Shipyard page, its trials and the tests keep the `'design'` slot as it was.
+- **Her token on her** (`VesselState.build`): set when she's made (`createVesselState`), so every welcome and snapshot carries it; `world.build.design` is still set for older hosts. `VESSEL_DEFS` (vessel/vesselDef.ts) now resolves any id (a Proxy over the registry), and a type can be added one at a time (`putVesselDef`).
+- **Crew:** on the host's welcome and on every snapshot the page builds any boat it hasn't got from her token (`ensureBoatTypes`), so a boat launched later (M3) appears without a word. The crew's page still starts again to *become* the host's boat when hers is another type than theirs: that's the home-boat wiring in App.ts (the dash, sounds, gear mounts, bridge), which M2 moves to "the boat you're aboard"; the type itself no longer needs it.
+- **Tests:** `tests/boatTypes.test.ts` (+4): a token makes a type, the same id each time, her token on it, unknown tokens refused; two different Shipyard boats (one from a document token) in one world, both afloat, each her own type; a world from elsewhere with an unknown boat built from her token; a crew-mate's welcome and snapshots carry the token. The multiplayer, fleet, Shipyard-in-the-game, starter-boat and takeover tests as they were.
+- **Checked:** typecheck, `npm test`, headless: the career game started in a Shipyard boat by code (`career.html?design=CODE`) at Calder. **Not checked:** VR; a real two-page join across the broker with a boat from a file (the loopback test covers the token's travel).
+
+### Bollards where the lines tie; the owner's multi-boat answers (owner)
+
+- **The owner:** the bollards on the start quayside don't match where the mooring lines tie. And the multi-boat questions: the biggest boats anchor, which ones worked out from each quay face's length (fit the boats that fit); a boat goes with her player when they leave; there's no career in Voyage, so no pot. Recorded in `docs/MULTI_BOAT.md`.
+- **Why:** the lines are drawn to each berth's two tie points (6 m either side of her centre, half a metre in from the face), but the bollards were drawn on their own 12 m grid along every face. The hand-built regions' generated berths sit on that grid, so they matched; the named berths (Calder's) and a coast map's berths (every 16 m from the pipeline) didn't.
+- **Now** (`world/berths.ts` `faceBollards`, used by `worldView.buildBlock`): on a face with berths the bollards stand at every berth's tie points (a berth's own `bollardHalf` respected: a short pontoon's cleats); a face with none keeps the 12 m look. No change to where the lines go or to the mooring itself.
+- **Tests:** `tests/bollards.test.ts` (+3): Calder's cargo and fuel berths each have a bollard at both tie points, the landward face keeps the grid; a long pier's bollards still 12 m apart; Oban's start berth has bollards at its tie points.
+- **Checked:** typecheck, `npm test` (three timeouts in engine and weather tests while a headless run shared the machine; they pass on their own), headless: Oban's quay with the bollards beside the pilot boat. **Not checked:** VR; by eye at Calder (the headless camera wouldn't look down).
+
+### Multi-boat M2: your boat is the one you're aboard (owner: "go ahead with milestone 2")
+
+- **The plan** (`docs/MULTI_BOAT.md` M2): everything about *you* follows the boat you're aboard, not the one the page was built for, so that in M3 a crew-mate can walk from their boat onto yours and work her, and you theirs.
+- **The app** (`App.becomeAboard`, each frame from the player's `aboardVesselId`): stepping onto another boat with a wheelhouse (not a tow, not the skiff) makes her the home boat: her controls send plain channels and the boat you left has hers routed to her (`BoatView.setHome`); the towline lead, the trawl's warps, the binoculars, the hand gear and the rods move to her places (`mountOnHomeBoat`, the constructor's wiring pulled out); her tender crane, whiteboard, wind sock, searchlight, chart source, fire gauge, duty board and chart table are wired (`wireHomeBoat`, pulled out of `setupBridge`); the interior detail culling is hers (the old one shows every part again). The engine sound already voices whatever boat it's given. `startVesselId` keeps the page's own boat for what is the page's: the career's refit check (not while you're aboard another boat), the join check against the host, the touch controls' next boat. The board key from ashore takes the nearest boat with a wheelhouse within `CONFIG.spawn.boardReach` (40 m), not always the first.
+- **Controls that come later** (`InteractionSystem.addControls` / `removeControls`): the system took every control once at the start; a boat added after (a snapshot's, the second boat) has hers wired in as her view is made, and out when she goes.
+- **A second boat to try it** (`core/spawnBoat.ts`, the `spawnBoat` environment intent; Debug → Boat → **Second boat**, a button per fleet boat; `CONFIG.spawn.abeam` 6 m): the host (or a solo player) puts one afloat beside the home boat on her water side, lying the same way, stopped. Crew get her in the next snapshot. A tow or the skiff is refused.
+- **Not in M2:** the game systems that ask `homeVessel(world)` (duties, rescue, fire and tow calls, traffic spawning, the forecast, salvage) still mean the host's start boat: M3's launch flow decides per boat. The crew's one reload to become the host's boat on joining stays for the same reason.
+- **Tests:** `tests/secondBoat.test.ts` (+2): the intent puts a tug afloat beside the home boat in deep water, settled; tows and the skiff refused; the player boards a landing craft and drives her 30 m while the home boat stays moored with her engine off. `tests/menu.test.ts` knows the new host call.
+- **Checked:** typecheck, `npm test`, headless: the pilot boat at Calder, a tug spawned alongside (106 controls wired, hers among them), boarded by intent: the home boat became the tug (her view named bridge, the pilot boat's controls routed to her, the tow lead on the tug), screenshot from the tug's helm with the TOW LINE screen. **Not checked:** VR; walking across between two boats by foot (the body's boarding code is unchanged); a crew-mate aboard the host's second boat.
+
+### Multi-boat M3: berth slots, the anchorage and the launch menu (owner: "go ahead with milestone 3"; Voyage only)
+
+- **The owner's answers** (in `docs/MULTI_BOAT.md`): the biggest boats anchor, worked out from each quay face's length; a boat goes with her player when they leave; no pot (no career in Voyage); and, mid-way: multi-boat is for **Voyage mode only** to begin with.
+- **Slots are worked out, not stored** (`world/slots.ts`; `CONFIG.spawn` `slotMargin` 1.5, `underKeel` 1, `nearFace` 10): every dockable berth of the harbour (`berths.ts allBerths`: the named ones and one per bollard pair along every face with water) is a candidate. She fits one when her length plus the margin each end lies within the face, there's her draught and a metre of water under her whole hull (five stations by three across, where `berthPose` would lie her), no quay, pier or pontoon block under any part of her (Oban's first candidate had a block across it: every boat put there was thrown off), and no other boat lies along that stretch (boats within 10 m of the face count). Nearest the port's own berth first. A boat that leaves frees her stretch. Oban's quays take about 18 of the tug before the faces are full.
+- **The anchorage** (`anchorSpotFor`; `anchorOff` [80, 240] m, `anchorDepth` [4, 30], `anchorClear` 35): the port's anchorage circle (spread about it), else rings 80 to 240 m off the port in deep enough water with water all round for swinging, 35 m (or 1.5 lengths) from every other boat. She lies to her anchor set ahead at the usual scope, windlass down, bow to the port; she holds (a tug drifts 1.5 m in 30 s on her scope).
+- **The launch** (`core/launch.ts`; the `launchBoat` and `withdrawBoat` environment intents, any player's): `launchBoat` with a fleet boat's id or a design token (a code or a document: the type built by `boats/library.ts boatType`, which registers itself as the resolver so core code needn't import the library) makes her for the asking player (`VesselState.owner`) at the game's harbour (the port the home boat is moored at, else the nearest): moored where she fits, else anchored, else refused. Launching again replaces her; `withdrawBoat` removes her; `stepLaunched` removes any boat whose player has left (the owner's rule). A tow, the skiff or nonsense is refused. The launching page boards her itself when she appears (App `followOwnBoat`: bodies are each page's own), and goes back aboard the host's boat if she vanishes from under them.
+- **The menu** (Crew tab, Voyage mode only): **Your boat**: where she is (moored at which berth, at anchor, under way), **Hand her back**; **Launch** a fleet boat; the Shipyard favourites with Launch each; a code (typed in Office → Your boats, or Paste) with Launch. Debug → Boat → Second boat is Voyage-only now too.
+- **Tests:** `tests/launch.test.ts` (+4, Oban): a crew-mate's lander moored at a free Oban berth of its own, lines fast, afloat and still; launching again replaces her, a document token launches a Shipyard boat with her token on her, handing back removes her, a tow refused; two players get two berths and a leaver's boat goes; the coaster finds the long quay, the anchorage spot is deep and clear, and once the faces are full a tug anchors and holds. `tests/menu.test.ts` knows the new calls.
+- **Checked:** typecheck, `npm test`, headless: Voyage Oban, a tug launched through the menu's call, boarded, "moored at Oban (quay berth)", handed back (the menu says "None: you sail with the host", back aboard the pilot boat), and after 20 s of stepped simulation still moored. **Not checked:** VR; two real pages through the broker (the loopback multiplayer tests cover the intents and the snapshots carrying `owner` and `build`).
+
+### Multi-boat M4: level of detail by distance (owner: "go ahead with milestone 4")
+
+- **The plan** (`docs/MULTI_BOAT.md` M4): four boats in one game mustn't cost four times a boat on the Quest. The owner's rule: near boats move exactly in the waves; far ones are simulated cheaply.
+- **Measured first:** one boat's physics is about 0.75 ms a tick in Node (25 stations, three wave samples each); four alongside 4.5 ms a tick, 20 ticks a second.
+- **The simulation** (`core/lod.ts`; `CONFIG.lod` `near` 150 m, `mid` 600 m, `farStations` 4, `everyOtherTick`): only the other players' boats get a level (a wheelhouse, not the game's home boat, not a tow or the skiff: `lodApplies`), so the home boat, the tows, the skiff and the traffic are simulated exactly as before wherever the players stand (the sea trials, the goldens and the tow tests, which put the player ashore miles from the boat, had every boat going far). Each such boat's level by her distance to the nearest player (a player aboard her: 0; one aboard another boat counts where that boat is), set on her state (`VesselState.lod`) by the host each tick, so crew get it. Near: every physics station, every tick, as always. Mid: every second station, each carrying the integration weight of those it stands for (`reducedStations`: Σ weight, so her displacement and trim, the same to first order; built once per hull). Far: four stations, and, when nothing holds her (not moored, not touching another hull, not on a slip or a crane, not towed or towing: `heldInPlace`), stepped every other tick at twice the step. A far tug floats within 5 cm of a near one and makes the same speed under way. Four boats: 4.5 ms a tick alongside, 1.7 ms spread over the sound.
+- **The views** (App.ts, by the viewer's own distance, not the host's level): wake and spray drawn within `mid`, smoke within `near` (`VesselEffects.update` takes a level and hides what's off); a boat beyond `mid` has her controls and screens left as they are; beyond `far` (1500 m) a boat's controls, labels, screens and the shared bats and caps aren't drawn at all (`BoatView.setFar`; her hull, house, baked parts and lights are); every boat with a wheelhouse gets the home boat's interior-detail culling (her small parts shown only with your eye in her house), which the home boat alone had. Headless at Oban, three boats beside the pilot boat and then 3 km off in the Sound of Kerrera: each boat's drawn objects fall from 58 to 66 alongside to 34 to 42 far (the hull, house and her modules' own views remain, which the merged far mesh of the plan would cut: not done). The debug second boat now finds a clear spot for each extra boat (three spawned on one spot were three hulls in one another's space, which the contact forces don't survive).
+- **Not done:** the merged static mesh beyond `far` (a build step per boat type: later if the Quest's frame time asks for it); thinner snapshots for far boats (the whole world at 20 Hz is a few KB for four boats; the chunked channel carries it).
+- **Tests:** `tests/lod.test.ts` (+3): reduced stations keep her displacement and her ends, near is every station; the level follows the nearest player (aboard, another boat, ashore) and what holds her; a far free boat floats as a near one and is stepped every other tick while the home boat is stepped every tick, both making the same way.
+- **Checked:** typecheck, `npm test`, headless as above (a far tug, pilot boat and landing craft in real waves: no blow-up over 30 s at any setting, `CONFIG.lod.everyOtherTick` on or off). **Not checked:** VR (the frame-time check on the Quest is the owner's); a crew-mate's view of a far boat stepped every other tick (the snapshots interpolate as before).
+
+### The desktop fly camera no longer sinks over the water (owner)
+
+- **The owner:** the debug fly camera doesn't fly properly over the water: it drops into the water like a human; it should fly wherever it goes.
+- **Why:** the desktop's fly camera (J) flies inside the rig while the body stays where it was, and each frame the locomotion settles the rig onto the floor under the *head*, the camera. Over land that floor was the quay you stood on; over the harbour it was the seabed's wading level, 1.4 m lower, so the rig and the camera with it sank. (The VR fly in the headset has no floor at all and was fine.)
+- **Now** (`player/locomotion.ts` `LocomotionInput.noFloor`, set by `App.runLocomotion` while the desktop camera is in fly mode): no floor settling while the camera is flying; the body keeps its height and the camera flies free. Walking resumes as before when fly is switched off.
+- **Tests:** `tests/flyCamera.test.ts` (+1): with a floor under the head 1.4 m lower, the rig settles to it walking and stays put with `noFloor`.
+- **Checked:** typecheck, `npm test`, headless: the career start, J, the camera flown 40 m over the harbour: the feet stayed at the quay's 1.6 m (they went to 0.2 m before). **Not checked:** VR (unchanged).
+
+### The owner's two-browser test; Go to a port in Voyage; a launch that finds no room says so (owner)
+
+- **The owner's test:** two browsers on one machine; the host in the pilot boat teleported elsewhere by the Debug menu, then hosted and shared the address; the second browser joined, launched a different boat and could see the pilot boat, but the host's driving didn't show in it. And: a way to get about the map that isn't the Debug menu.
+- **Reproduced headlessly through the real broker** (two pages, the host teleported to Brandy Rock pier by the Debug menu, hosting; the second page joined by the address): the join works, the crew's launch request reaches the host and the boat comes back in the snapshot moored at that port, and the host's boat driven on (the host's world stepped by hand, the headless frame loop being far below real time) moves in the crew's copy. So no fault found in that path; the crew's page in the owner's test may not have been in the game (the Crew tab's first line says "In game CODE" or "Playing alone"). One thing was silent: a launch the harbour has no room for told nobody. The owner will test again.
+- **Go** (Menu → Voyage → the ports list, Voyage mode only): a Go button per port puts your boat there (the `teleportToPort` intent, as the Debug menu's), at its cargo berth or in its bay; a crew-mate's goes to the host like any other intent. (With several boats it doesn't yet check the berth is free: the launch's slot logic is next for it.)
+- **A launch with no room** (`core/launch.ts`; `CONFIG.spawn.launchWaitS` 12): no free berth and no anchorage spot at the harbour, she anchors off the home boat herself (`anchorSpotFor` takes any point now); still nothing, or nothing come in 12 s (`App.followOwnBoat`), the asker is told: no room, or not in the game.
+- **Tests:** `tests/launch.test.ts`: the anchor spot off any point. **Checked:** typecheck, `npm test`, the two-page headless runs above. **Not checked:** two real devices.
+
+### Multi-boat M5: the crew's boats in the game (owner: "Start Milestone 5")
+
+- **The plan** (`docs/MULTI_BOAT.md` M5): gameplay and polish with several boats about: the systems that still meant the host's boat, the crew's boats known to the chart and the lookout, the join without a restart, the boat choice remembered.
+- **The players' boats** (`core/launch.ts` `playerBoats`: the home boat and every launched one; `boatOf`: the boat a player is aboard, else the home boat; `boatOwnerName`: her owner, the host's boat whoever is aboard, else "the host"): a fire is wetted by every player boat's monitor, summed and capped (`fire.ts wettingAll`); the forecast is received when any player boat's radio is on; every boat sells her own rod catch when moored at a port; the hand extinguisher's charge is the holder's boat's. Rescue, towing, potting and the duties still work from the home boat: the ring, the line and the survivors' places are one boat's state (`rescue/recovery.ts`), so a rescue by two boats is a later piece of work, not a line.
+- **The chart and the lookout:** the chartplotter draws every other player's boat as an AIS-like target in the crew's amber, a six-minute course line and whose she is, with no AIS receiver (you're one crew); the lookout calls a crew-mate's boat once as she comes within sight.
+- **Go** (the Voyage tab) with several boats about (`teleportToPortSlot`, the `teleportToPort` intent routed through it): the port's berth when it's free for her, else the next free berth her length fits, else the bay; a port with no room leaves her where she is.
+- **Joining a host in another boat without a restart** (`App.adoptHostWorld`, replacing the reload and the "same boats on both sides" check): on the welcome the host's world is taken as a whole; a view this page had for a vessel of theirs of another type (its own start boat under the same id) is dropped and rebuilt for theirs (`dropVesselView`, shared with the tows' removal), and the home boat rewired (M2's wiring); the body stays where it is, boards the host's boat if it was aboard one that changed under it, and when it stands more than 150 m from the host's boat. The reload for the host changing boat mid-game stays (the restart notice).
+- **The boat you launched last** (`swvr.voyage.lastBoat` on the device): Crew → Your boat shows "Last time: her name" with **Launch again**.
+- **Where a game starts** (the plan's open question, decided): the host's harbour: a joiner is aboard the host's boat, and a launch goes to the harbour the host's boat is at or nearest to.
+- **Tests:** `tests/crewBoats.test.ts` (+3): the players' boats, whose each is, the boat a player is aboard (a tow doesn't count); the forecast heard on the crew-mate's boat alone, her rod catch sold from her; two boats sent to one port by Go lie apart, a port that doesn't exist refused; a burning boat wetted by both monitors, the crew-mate's alone still wetting it. `tests/menu.test.ts` knows the new calls.
+- **Checked:** typecheck, `npm test`. **Not checked:** VR; the join without a restart with two real pages (the headless broker runs of the day joined with the same boat on both sides; the rebuilt-view path is new); the chart's drawing by eye.
+
+### Multi-boat towing (owner: "anything that's towable towed by more vessels at the same time ... two tugboats pushing [the ship] into position")
+
+- **A towline per boat** (`tow/tow.ts`): `TowState.line` (one line in the world, from the first boat with a stern roller) is now `TowState.lines`, keyed by the towing boat's id. Every boat with a stern roller (`towPoint`) has her own; any number may be on one tow, debris or log. Each line is the same spring-damper as before, worked out on its own (`lineForce`); the forces on a tow from several lines add up. Debris and logs on several lines are pulled by their sum (`pullOn`). A line goes when its boat does (handed back, her player gone). The tow intents act for the boat they're sent to: the one the player is aboard (`towerFor`). The calls, the debug tows and the jobs are unchanged and still come to the home boat (`tug`). Helpers: `lineOf(world, boatId)`, `towLines`, `linesOn(world, key)`, `onAnyLine`, `castOffKey`, `castOffBoat`. `towStatus`, `towReach`, `towTargets`, `towPoint`, `nearestTowTarget`, `winchStalled` and `salvageStatus` take the boat's id. The status line counts the other boats on the tow, and tells a boat without her line on that the tow is under way and she can add her pull. Tow state isn't saved, so no save changes.
+- **Bow fairleads for a second line** (`towFittingLocal`, `fittingFor`, `TowLine.at`; `CONFIG.tow.fairleadAft` 0.12): the first line goes on the tow's bow eye. A second boat's goes on the free fitting nearest her stern roller: the eye, or the port or starboard bow fairlead (that fraction of her length aft of the stem, at the deck edge). Why: two lines on the one eye converge. Each pulls its boat's stern in toward the tow and swings her bow out, and the off-centre pull swings the tow's head too. With a tow point at the transom the lever arm is long and the rudder can't hold her. In the tests, unsteered, the two boats sheered apart within a minute until they lay across the tow pulling against each other (the pontoon slowed from 3 to 0.3 m/s); steered, the workboat still broke away within two minutes with her wheel hard over (a real towing hazard; real tugs carry the hook near amidships for this reason). With the second line on a fairlead, the pair hold their course within a few degrees.
+- **What a second boat buys** (tests, both boats steered to hold their heading, lever 0.8): the coaster (1,060 t) a minute after full ahead, 1.53 m/s with the workboat alone against 2.59 with the small tug alongside; the crane pontoon, steady 2.79 against 3.05; a light barge, no gain, because the workboat already tows her at about the speed the small tug can make. In tandem (the small tug on the workboat's bow eye, ahead of her), the pontoon goes 3.07 m/s and both boats stay straight. With the coaster astern, a full-power start in tandem snatches the tug's line and parts it: take up the strain gently, as ever.
+- **Pushing needed nothing new:** hull-against-hull contact is already worked out between every pair of boats, push fenders and friction included (`vessel/physics/vesselContact.ts`). Two small tugs with their bows on the coaster's side at lever 0.6 shift her 26.6 m in a minute, against 17.1 m with one.
+- **Drawing** (`tow/towlineView.ts`; `CONFIG.tow.drawLines` 4): every boat's line, to the eye or the fairlead it's on, in the one instanced mesh as before (one draw call; past four lines the extra ones still pull but aren't drawn). The winch lead is drawn on the boat you're aboard only.
+- **The rest, per boat:** the boat hook and the line gun make fast and cast off your boat's line (`rescueHands.ts`, `App.ts`); the winch sound is your boat's; the menu's Tow button, its status and Make fast work on your boat's line. The detail levels keep a boat full-time while she's towing or towed (`core/lod.ts`). The SOS tug lets go her line and any line on her (`rescue/sos.ts`). Salvage logs sold, or debris cleared, cast off every line on them.
+- **Tests:** `tests/multiTow.test.ts` (+5), each with a helmsman holding each boat on her heading as the autopilot does. Two boats side by side on the coaster and the pontoon: the second line on the starboard fairlead, both holding course, the tow faster. Tandem on the pontoon. Each boat's line her own: her status, casting off one, a boat handed back taking hers. Debris on two lines pulled by both. Two tugs pushing the coaster shift her further than one. The existing tow, salvage, distress, gauge and gear tests read the per-boat line (`lineOf`) and pass unchanged otherwise.
+- **Checked:** typecheck, `npm test`, and headless Chromium (Voyage, Oban): the pilot boat and a second boat (the small tug) both made fast to a crane pontoon, the two lines drawn, one to her bow eye and one to her starboard fairlead. **Not checked:** VR; a real two-player tow over the network (the lines ride in the snapshots like the old one did).
+
+### A tug tows from a hook amidships; her wheelhouse kept forward (owner: "move the towline position to midships on the tugs, these missions are targeted at tugs"; "tugs should always have the wheelhouse forward")
+
+- **Why:** a towline pulling off to one side acts on the boat where it's made fast. From the transom the lever arm about her pivot point (near her middle) is half her length, so the tow holds her stern and her rudder can't swing her; from a hook near amidships the arm is short and she turns with a tow on. It's why tugs carry the towing hook there, and why a tug towing from her stern can be girted (hauled broadside by her own tow). Test: the small tug towing the crane pontoon, helm hard over for 40 s: 127° from the hook, 31° from the stern roller.
+- **The hook** (`shipyard/parts/deckGear.ts` `towHook`; `CONFIG.shipyard.deckGear.tug.hook` aftOfMidships 0.12, clearOfHouse 0.6, height 1.4, postRadius 0.1, winchGap 0.7): a boat on the tug hull (`TUG_HULL` in `catalog.ts`, the small tug's) with a stern roller gets a towing hook on a pedestal on her centreline. It goes 12 % of her length aft of amidships, at least 0.6 m clear of the wheelhouse, and her winch's usual place is 0.7 m forward of it. Both move aft until they stand clear of the wheelhouse door and the gear already placed. A winch pinned by hand stays where it's pinned. With no room for a hook she tows from the roller, with a warning. On the fleet's small tug: the hook 1.96 m aft of amidships (her centre of gravity 0.81 m aft), 1.4 m over the deck; the winch's lead 1.37 m aft.
+- **The tow point** (`modules/sternRoller`): the stern roller module takes the hook in its settings (`hook: {z, height}`), draws it (pedestal, swivel, the hook pointing aft) and gives it as the boat's tow point (`towPoint.point`). Where the line is passed aboard stays the roller (`towPoint.stern`, `tow.ts sternLocal`), so the make-fast distances (16 m, the line gun's 50 m) are measured from the stern as before; the pull, the line's length and the drawing start at the hook. Other hulls are unchanged: their tow point is the roller.
+- **The drawn line** (`tow/towlineView.ts`): from a hook it crosses the tug's own aft deck. A slack bight lies on the deck and goes out over the bulwark at the transom, not through them; taut, it runs straight from the hook.
+- **A tug's wheelhouse** (`shipyard/parts/house.ts`; `CONFIG.shipyard.deckGear.tug.houseAftOfMidships` 0): placed by her house position as any boat's, and stopped at amidships if it would lie further aft. A house already forward stays where it is, so the fleet's small tug is unchanged (her wheelhouse ends 0.31 m forward of amidships). The doorway warning ("roof low over the deck outside") now measures the deck at the aft door, where you step out, not the highest deck under the house. With the tug's deck rising to her bow, the default design stopped at amidships was warned for a deck 1.2 m forward of her door.
+- **Tests:** `tests/towHook.test.ts` (+3): where the Shipyard puts the hook and the winch on the small tug, and the roller on a workboat hull; a tug wheelhouse set right aft stops at amidships, one set forward stays put, another hull's goes right aft; the hard-over turn with the pontoon on, from the hook and from the roller.
+- **Checked:** typecheck, `npm test`, headless Chromium (Voyage, Oban: the small tug with a crane pontoon on her hook; the hook on its pedestal aft of the winch, the slack line over her deck and her port quarter). **Not checked:** VR; the Shipyard page by eye with a tug design.
+
+### The Crew tab in order, a mute per crew-mate, a two-browser check; flicker on the ferries and the quays (owner, Oct 2026)
+
+- **The Crew tab** (owner: "host should be at the top ... then you want to see who's in your session, mute them, and then ... boats"; `ui/mainMenu.ts`): the status line; **Host a game** / Stop hosting / Leave game; **Or join: code** with its keypad (blank while you're in a game); **Aboard**: one row for each player (you first, the host marked "· host"), with **Mute** by each crew-mate; your name, voice chat, the voice status and your microphone; in Voyage, **Your boat**; the recording camera last.
+- **Mute a crew-mate** (`MenuHost.crewMember`, `toggleCrewMute`; `App.mutedCrew`; `net/voice.ts VoiceSpeaker.muted`): their call stays up, their voice (near and on the radio) and its squelch and static silent to you only. For this page; cleared when you leave the game. The host now stamps her network id on her player whether voice chat is on or not, so the crew's tab can tell which player is the host.
+- **The join box starts empty** (owner: "it still has the number from the last time, so you have to delete it every time"): the last code is no longer remembered (`swvr.lastGameCode` gone), and leaving a game empties the box. The automatic rejoins after a restart or a host takeover still carry their code.
+- **Two-browser check** (owner: "add a two browser check"; `tools/crewCheck.mjs`, `npm run crewcheck`, needs `npm run dev` running and the pre-installed Chromium): two separate browser profiles through the real PeerJS broker. The host starts a game in Voyage (Tayvallich); the crew page, started in the small tug, joins with the code and takes the host's world (the pilot boat) without reloading; both tabs list both players, the host marked; the host mutes and unmutes the crew-mate; the crew launches her small tug and is aboard her on both pages; a barge astern of her, she makes her towline fast from her own page and the line is in both worlds (the host's boat has none); she leaves, her boat goes with her, her join box is empty; no errors in either page. 15 checks, all passing. The host's simulation is stepped by hand between steps (headless runs the game far below real time).
+- **The ferries flickered** (owner: "a bit of z-fighting on the ferry"; `traffic/ferryKit.ts hullBands`): the boot-topping, the white car-deck shell and the Aegean band were drawn as hair-larger copies of the hull over it; from a few hundred metres the depth buffer couldn't tell their sides from the hull's. The hull is now built of stacked slices, one per colour band, so no two side faces lie on each other. All three ferry types.
+- **Overlapping quay and pier blocks flickered** (owner: "when you have quaysides which are intersecting"; `world/blockSteps.ts`, `world/view/worldView.ts`; `CONFIG.render.blockStepM` 0.015): the coast maps cut piers into straight runs whose boxes reach past their ends to close the corners, so neighbours overlap with their decks, and often their sides, in one plane. Overlapping blocks at one deck height: Clyde 125 pairs, Oban 52, Syros 18, Tayvallich 2. Each block now gets a drawing step different from every block it overlaps at its deck height (a greedy colouring), and its slab is drawn that many 1.5 cm steps lower and narrower; the deepest step on any map is under 10 cm. Drawing only: walking, mooring and collisions use the blocks as they are. Tests: `tests/blockSteps.test.ts` (+3).
+- **Wemyss Bay pier and Inverkip Marina** (owner: "Wemyss Bay pier wasn't where I would expect ... the pier was absolutely massive"; "the large one north of Wemyss Bay is actually Inverkip Marina"): found, not fixed here. The Clyde map has two harbours named "Wemyss Bay pier". The real one, at the ferry terminal (`wemyss-bay-pier`, OSM ways 151832187 and 151832188, mapped as areas 143 by 36 m and 73 by 24 m), is about the right size. The second (`wemyss-bay-pier-2`, 2.4 km north) is Kip Marina at Inverkip: OSM way 255707549, `man_made=pier`, `area=yes`, `mooring=private`, an outline drawn round all the marina's pontoon fingers. The coast pipeline (`tools/coast/src/harbours.ts`) turns a pier area into the smallest box round it, so the marina became one solid pier deck 332 by 286 m (its real pontoon area is about 3,400 m², 3 % of that box) with 35 berths along its sides; with no marina outline mapped round it, it took the nearest place's name. The piers weren't made bigger for multiplayer: the berth slots use the map's own quay faces. Rothesay has one like it (a pier block 224 by 130 m). The fix belongs to the coast pipeline (a pier area that fills little of its box becomes boxes along its fingers, floating when it has moorings; a hand edit naming it Inverkip Marina) and a Clyde rebuild, which re-downloads the map and rewrites the files the "Map" session is working on: handed to that session, not done here.
+- **Checked:** typecheck, `npm test`, `npm run crewcheck` (15 of 15), a headless screenshot of the new Crew tab. **Not checked:** VR; the ferries and the quays by eye (the headless Clyde map builds its harbours around you too slowly to reach Wemyss Bay in a test run).
+
+### Voyage planning table (owner: "in the harbour that you spawn in ... a large map table with a chart laid out ... that you can cooperatively plan on ... you plan a little route, where you're going to stop, what you're going to look at, and then you jump in your boats and you go")
+
+- **The plan** (`voyage/plan.ts`; `world.plan`, plain data in the snapshots, the host decides): points (waypoint, stop, look), the next one to make for, the table's view, a note when a point is reached. The env intent `plan` (ref `add:way|stop|look`, `remove`, `undo`, `clear`, `zoom`, `out`, `whole`, `goto`; args the spot on the chart). A stop takes the nearest harbour's name (within `nameStopM` 1.5 km), a look the nearest named castle, monument, tower, hill, wreck or light (`nameLookM` 2.5 km), else "off" the nearest town. `stepPlan`: the next point is reached when any player's boat comes within its reach (`reach` way 150 m, stop 300 m, look 900 m); a note to everyone, and the next comes up; after the last, "voyage done". Removing a point before the next keeps the same next point. At most `maxPoints` 30.
+- **The table** (`voyage/planTable.ts`; `CONFIG.voyage.plan.table` width 2.4, depth 1.6, height 0.9, back 3.2, keyDepth 0.12): Voyage mode only, on the start quay. `planTableSpot` takes the nearest spot to the start spot, at least `back` m from it and out to 80 m, with level ground under all four legs (within 0.25 m; quay, pier or flat land), clear of buildings; its far edge faces away from the start spot. Oban, the Clyde (Rothesay) and Syros: right behind the start spot; Tayvallich (a pontoon start, water behind): 7 m along the pontoon. The chart (`nav/paperChart.ts drawPaperChart` for the view's rectangle, `drawPx` 2048, the last 6 views kept) is drawn north up as read from the table's near side, whichever way the quay runs, as a chart on a real table. The view is shared: one table, one chart. Zoom halves the sea shown (down to `minSpan` 1.5 km), centred where pressed; the view stays on the map. A transparent route sheet over it (redrawn when the plan changes); the players' boats as blue arrows (one instanced mesh); nine keys (Waypoint, Stop, Look at, Remove, Zoom in: the tool, yours on this page; Zoom out, Whole map, Undo, Clear, pressed twice). Its route marks and names drawn large enough to read standing at it.
+- **Pressing a spot on the chart:** `Control.pressPoint` (new): the interaction system tells a press control where it was pressed (the VR ray's hit, the controller's tip when touching, the desktop click's hit). The chart's face is a press control that turns that into chart metres.
+- **Afloat** (`nav/chartPlotter.ts`): every plotter draws the route (legs done grey and dashed, points numbered and named, the next ringed); with no job on (rescue, fire, tow, cargo), it steers for the plan's next point instead of the nearest harbour. The app shows a reached note once (`App.updatePlan`).
+- **Voyage tab:** a Voyage plan row, the next point and its distance, and **Go to the table** (the `plan` intent `goto`: ashore at the start spot).
+- **Saved:** the host or solo player saves the plan for each map (`swvr.voyage.plan.<map>`: points, how far along, the view); crew get the host's. A new key: no save format changed.
+- **Tests:** `tests/voyagePlan.test.ts` (+5): the kinds and names; remove, undo, clear, the cap; the view (zoom, out, whole, kept on the map, minSpan); reaching points by any player's boat, the notes, the last point, a point removed before the next; saved and read back, malformed dropped, Go to the table. `npm run crewcheck` (now 19 checks): the crew presses a stop on her table's chart, the host's plan has it named; the host's waypoint shows on the crew's page; the crew's Voyage tab names the next point.
+- **Checked:** typecheck, `npm test`, `npm run crewcheck` (19 of 19), headless Chromium (Tayvallich: the table on the pontoon, stops and waypoints pressed on its chart through its controls, named; zoomed in; the boat's arrow; the plotter steering "WAYPOINT 1 018° 0.51 nm"; Oban, Clyde, Syros: the table found its spot). **Not checked:** VR (the ray and the tip on the chart, reading it from the quay); a real two-player plan by hand.
+- **Not in it yet (ideas):** pencil marks on it as on the boat's chart table; a point dragged to move it; the plan on the boat's paper chart.
+
+### Save the boat you're aboard to your favourites; favourites listed by name (owner, Oct 2026)
+
+- **Why** (owner: "it's not very easy to get a saved ship from another player saved in VR ... a button that allows you to save the ship that you're currently on to your favourites"): the Shipyard is a desktop page, and the favourites are kept per browser, so the Quest's list and the desktop's differ.
+- **Boat tab → Favourite** (`ui/mainMenu.ts`; `App` `boatFavourite`, `canSaveBoat`, `saveBoatFavourite`): the boat you're aboard, by name, and **Save her**. Ashore it says to step aboard; an old hand-built type (the workboat, the landing craft) says she isn't a Shipyard design. Her design code (`boats/library.ts designCodeOf`: a fleet boat's from her design file, a Shipyard boat's her token, the same code the Shipyard saves) goes into this browser's favourites (`shipyard/takeHer.ts ShipyardCodes.saveBoat`, `saveBoatFavourite`) with her name (the fleet boat's, the design's, or "Bosun's boat"), a line of her figures (length, weight, engine; no top speed, which is the Shipyard's sea trial) and no picture. The same design already saved: said so, nothing added. A name already taken by another design gets a number. She can then be launched from Crew → Your boat (Voyage) or taken from Office → Your boats (Career).
+- **Favourites by name only** (owner, from a screenshot: "too long to read in this menu, shorten it to the name"): Crew → Your boat's Shipyard favourites and Office → Your boats show the name alone; the Shipyard page still shows the figures.
+- **Tests:** `tests/saveBoat.test.ts` (+3): every fleet boat and Shipyard boat has her code, the old types none; saved, again (said, unchanged), a name taken (numbered); into the browser's storage and read back, storage that won't take it said. `tests/menu.test.ts`: the favourites listed by name.
+- **Checked:** typecheck, `npm test`, headless Chromium (Tayvallich: ashore "Step aboard"; aboard the Boat tab's row "Pilot boat 11.2 m" with Save her; saved, saved again "already, as ..."; the Crew tab listing her by name). **Not checked:** VR.
+
+### The planning table follows the host (owner: "a short-term fix where this collaborative planning table appears wherever the host teleports to")
+
+- **Why:** placed at the map's start only, the table could land in odd spots (a slope between a quay block and a warehouse, from the owner's screenshot), and was out of the way once the crew had moved on. The pub plan (`docs/HARBOUR_PUB.md`) is the longer answer; the owner's chosen workflow is recorded there (Voyage starts in the pub, the map is chosen there, then sail, or free roam).
+- **What:** the plan keeps the port the table stands at (`VoyagePlan.harbour`; `voyage/plan.ts tableFollows`, `tableBerthId`). The Go button sending the home boat (the host's) to a port sets it (`core/simulation.ts`, after `teleportToPortSlot`); a crew-mate's Go with her own boat leaves it. Every page moves its table there (`App.updatePlan`, `PlanTable.moveTo`, `planTableSpot(berthId)`: the same search, from that harbour's cargo berth's spot ashore). Go to the table (the `plan` intent `goto`) puts you ashore by that berth. Saved with the plan.
+- **Tests:** `tests/voyagePlan.test.ts` (+1): the host's Go moves it, a crew-mate's doesn't, Go to the table lands there, kept in the save (an unknown port dropped).
+- **Checked:** typecheck, `npm test`, headless Chromium (Oban: Go to Brandy Rock pier, the table moved there, on the pier's timber deck, level; Go to the table put the player beside it). **Not checked:** VR; two players by hand.
+
+### Multiplayer fix: a launch replaces your boat; Go sends your own boat; joining puts you aboard the host's (owner, Oct 2026)
+
+- **What went wrong** (owner: "I spawned in randomly at an anchorage ... joined ... I couldn't see any other player boats ... the pilot boat appeared, but it wasn't in the place ... and there was no player inside it"; then the clue: "when I ... spawn in one of my favourites, it spawns it in addition. It doesn't replace the boat you're in"):
+  1. Alone or hosting, **Launch** added a second boat beside the game's own pilot boat (often at anchor, the harbour full), and you went aboard her.
+  2. A crew-mate joining was put aboard the game's own boat, the empty pilot boat, not the one the host was on.
+  3. The crew-mate's **Go** sent the boat the page called hers. Both pages start with the same ids (`vessel-1`, `player-1`), so that was the host's pilot boat, moved by someone else.
+  4. On joining, the crew page took the host's world while still under its own player id (`player-1`, the host's too), so its own state wrote over the host's player in its copy for a moment.
+- **Fixes** (`app/App.ts`):
+  - **Launch alone or hosting replaces your boat:** the page starts again in her where you are, as Office → Take her does (a fleet boat `?boat=`, a design `?design=`; `?start` dropped and the place remembered first, so she's where you were). A host's crew follow, as for any change of boat. As crew, Launch is as it was: a boat of your own.
+  - **Go sends your own boat, with you aboard:** alone or hosting, the game's own boat; crew, the one you launched. With none yet, it says to launch one and moves nothing.
+  - **Joining:** the crew page takes the host's id for its player first, then the host's world. It's then put aboard the boat the host is on (the host's player recognised by its network id), else the game's own.
+  - **Crew → Your boat:** alone or hosting, it names your boat (the game's own) instead of "you sail with the host"; **Hand her back** only for a boat you launched as crew (`MenuHost.canHandBack`).
+- **Two-browser check** (`npm run crewcheck`, now 25 checks): alone, the host launches the small tug and the page starts again in her, one boat; the crew (started in the fishing boat) joins and is aboard the host's boat; her Go with no boat of her own leaves the host's boat where it was; she launches, Go sends her boat 4.5 km to Keills pier with her aboard, the host's boat stays, both pages put her boat in the same place (0 m apart).
+- **Checked:** typecheck, `npm test`, `npm run crewcheck` (25 of 25). **Not checked:** VR, and a Quest joining a desktop host by hand.
+
+### Motion coupling runs evenly from 0 to 100 % (owner: "I don't notice any difference between 0 and 90 ... when I go to 100, it's locked")
+
+- **Measured** (`player/comfort.ts MotionDecoupler`, an 8 deg, 5 s roll and a 0.5 m heave): the boat moved past the view 8.0, 8.1 and 7.1 deg at 0, 30 and 50 % (alike), still 2.6 deg and 0.16 m of heave at 90 % and 2.3 deg at 95 %, then nothing at 100 % (a step). The smoothing caused both: a long lag at the bottom (up to 1.6 s) kept the view well behind the deck whatever the setting, and its 0.12 s floor kept a lag, and so a mismatch, right up to 99 %, until the rigid branch at 100 % dropped it at once.
+- **Fix:** the smoothing's time constant is `CONFIG.comfort.maxTimeConstant` (now 0.4 s, was 1.6 s) times (1 - coupling), shrinking to nothing at 100 % (`minTimeConstant` gone). The view takes the coupling's share of the deck's tilt and heave, with a light smoothing on top. The owner then added: "at 90 % there should just be a very gentle smoothing of bumps" (mostly for desktop players). With (1 - c) rather than (1 - c)^2, 90 % keeps some bump smoothing. In an 8 deg, 5 s roll the boat moves past you about 6.4, 5.0, 3.1, 2.1, 1.1 and 0 deg at 30, 50, 70, 80, 90 and 100 %, and a sharp 4 deg slam is felt as 1.4, 2.0 and 2.8 deg at 70, 80 and 90 %: even, with no step at the top. Heading and walking are untouched. The desktop's own setting (30 %) uses the same filter, so it now follows a little more of the boat's motion than before.
+- **Tests:** `tests/comfortScale.test.ts` (+2): falling at every 10 % step, within 1.3 deg of (1 - coupling) of the roll, under 1.2 deg at 90 %, none at 100 %; a slam softened by about a third at 90 %, more at 70 %, taken whole at 100 %.
+- **Checked:** typecheck, `npm test`. **Not checked:** VR (how it feels), the desktop's default by eye.
+
+### Fix: a boat's mooring lines, chain and smoke left behind when she goes (owner: "when you change the boat, the docking lines stay attached to the quayside ... a kind of spider web")
+
+- **Cause:** a boat's view, when removed (handed back, a crew-mate gone, rebuilt as another type: `App.dropVesselView`), took her wake and spray out of the world, but not her smoke, anchor chain and mooring lines, which live in the world too (`vessel/view/vesselEffects.ts`, the `Equipment`). Each boat changed or handed back at a berth left her lines tied to the quay.
+- **Fix:** `VesselEffects.dispose` takes all five out (wake, spray, smoke, chain, lines) and frees their geometry and materials.
+- **And the pilot boat left behind:** that was a launch alone or hosting adding a boat instead of replacing yours, fixed in "Multiplayer fix: a launch replaces your boat" above (on `next`, not yet on the build the owner tried).
+- **Tests:** `tests/effectsDispose.test.ts` (+1): the pilot boat's five effects all gone when she goes (with the old dispose, three were left).
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye in the game.
+
+### The grab camera held in VR looks where the hand points (owner: "when I grab it, it's kind of pointing up at the ceiling and the model's rotated back ... rotate it 85 degrees forward")
+
+- **Cause:** a VR crew-mate holding a desktop player's recording camera (the "grab camera", `player/cameraHold.ts`) got it rigid with the controller's grip pose, whose axis runs up out of the fist. So the camera looked at the ceiling, its body tilted back.
+- **Fix:** a fixed forward tilt between the hand and the camera, `CONFIG.camera.holdPitchDeg` -85 (about the hand's side-to-side axis), on both the camera's own view (`App`, after the hand's pose, before the flip) and its model in the holder's hand (`net/avatarView.ts`). Flipped to film the holder, it turns round about the tilted axis, as before.
+- **Checked:** typecheck, the camera tests. **Not checked:** in VR (the owner's 85 deg is the figure to tune there).
+
+### The crew's boats heard: engines, the rush of water and horns, in 3D (owner: "hear your friends whizzing past you in a motorboat ... spatialised ... and the horn has to work so you can beep at your friends")
+
+- **Before:** only your own boat's engine and horn were heard; every other player's boat was silent.
+- **What** (`audio/boatVoices.ts BoatVoices`, on the sound board; fed by `App.updateBoatVoices` each frame from every player's boat but the one you're on, where she's drawn; `CONFIG.boatSounds`): each of the nearest `maxBoats` 3 within `range` 700 m gets:
+  - her engine (the same synthesised diesel as your own, in her engine's voice and rated revs, `twinLevel` louder for a twin), her revs and load from her state;
+  - the rush of water: noise band-passed round 700 Hz, `rushLevel` 0.35 at `rushFullSpeed` 14 m/s, rising as her speed squared;
+  - her horn while it's pressed and she has power (your own horn's tones), `hornLevel` 0.6.
+
+  All of it goes through a low-pass for the air (`airLp` 14 kHz near, less by 11 kHz a km) and a 3D panner where she is (equal-power: cheap enough for three on the Quest; inverse distance from `refDistance` 12 m).
+- **The zoom (Doppler):** the browser's 3D sound doesn't shift pitch, so her revs as heard (and the rush's pitch) are scaled by (c + your speed toward her) / (c - her speed toward you), within ±`dopplerMax` 25 %. Your speed comes from your head's movement (a teleport or boarding jump isn't counted).
+- **Tests:** `tests/boatVoices.test.ts` (+2): coming, going, crossing and your own speed in the Doppler factor, its limit; the nearest few within range heard. `npm run crewcheck` (now 27): the host hears the crew's boat once she's launched beside him; her horn pressed on her page sounds in the host's world.
+- **Checked:** typecheck, `npm test`, `npm run crewcheck` (27 of 27). **Not checked:** by ear (headless has no speakers); the Quest's audio load with three boats.
+
+### Bollards along the whole quay; long boats' lines lead out from her ends (owner, Oct 2026)
+
+Owner: "the key site in career mode probably needs more bollards. This is what happens when I spawn in the 24-meter trawler or the big trawler." A quay face only had its berths' two bollards, 6 m either side of the berth's middle, so a long boat's bow and stern lines ran back inside her length.
+
+- A face with berths now has bollards all along it at the same 12 m spacing, on past the berths' own pair to the face's ends; a gap between two berths' bollards wider than 12 m is shared out (`world/berths.ts faceBollards`). Faces with no berth and pontoons are as before.
+- Each line is drawn to the bollard nearest `CONFIG.docking.lineLead` (4 m) beyond her cleat, forward for the bow line and aft for the stern line, within `lineLeadMax` (12 m); none there, her berth's own pair as before (`berthBollards`, `vessel/view/mooringLines.ts`). Drawing only: how the lines hold her is unchanged.
+- Test: `tests/bollards.test.ts` (Calder Haven's quay has bollards past a 24 m boat's ends, at most 12 m apart). Checked in headless Chromium with a stern trawler at the start quay.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
@@ -5571,6 +5771,16 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Cost:** the shapes are made the first time a square comes into view, nearest first, at most `CONFIG.chartPlotter.buildMs` (4 ms) a redraw (the plotter redraws ~2.5 times a second, only when it can be seen), and kept while the square's loaded; each square's shapes are written as one SVG path text that the canvas reads in a single call (drawing them corner by corner cost ~1 s on the Clyde; this, ~10 ms). Headless Chromium on desktop: the first redraw on a fresh map 13 ms (Clyde) to 26 ms (Oban, whose whole mesh is sorted into squares once); after that the redraw costs the same as before. No new draw calls, textures or memory to speak of (a few MB of path text on Oban).
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
+
+### Shipyard layout, steps 1-3: key figures, the view's size, the right column (done, awaiting owner test)
+
+Owner, Oct 2026: "the 3D window dominates, whereas the side windows ... are a little bit too constrained. Specifically, the right-hand side, I want to see the price and the speed ... or the main design criteria to be kind of more obvious. I don't mind if you make the 3D window much smaller, as long as you've got an option to kind of make it bigger and push the other panels out of the way." A review and an eight-step plan followed; the owner: "go with your figures and start steps 1-3". (Steps 4-8 still to do: one tidy toolbar row, a shorter left panel, the Trials step's live trials beside the scorecard, smaller screens, polish.)
+
+- **1. Key figures** (shipyard.html `#keys`, page.ts `showKeys`): a row of big figures under the step bar: price, top speed, range flat out, GM, deck cargo (pots for a potting brief; bollard pull added for a towing one), each with the brief's target, a tick or cross and a green or red edge (never colour alone), and a last box: how much of the brief she meets (clicking it shows the brief's lines). The trial's figures go grey while a new trial runs. It replaces the strip of figures along the bottom of the 3D view (GM, Disp., Draught, Deck, Top, Turn, Stop, Roll): those are all in the right column.
+- **2. The view's size** (`#viewSize`, page.ts `setViewSize`; kept in this browser, `swvr.shipyard.viewSize`): **Design**, the new default, widens the panels (left 26 % of the window, 360-460 px; right 25 %, 340-440 px) and gives the view what's left (at 1920 wide: ~1020 px, was ~1200); **Balanced** is the old layout (380 / 340 px); **Big view** gives the view the whole width, the step and the right column sliding in over it from the edges on a tab each (Step, Brief & figures). Under 1200 px wide the layout is as before (two columns, the right one under the view), Balanced not offered; on a phone, no switch.
+- **3. The right column:** the brief line by line, then **Needs attention** (her warnings, raised from below her figures, with a count; hidden when none), the to-do, her figures in groups that fold (Size & form; Stability & balance, with the roll period; Deck; Machinery; Price & weight, her weights part by part), then the sea trial (its table, its charts folded inside it), then the sketches. Each group's title carries its headline (e.g. "GM 1.84 m"), so it reads folded; open or shut is kept in this browser (`swvr.shipyard.folds`). Figures tables have a fixed label column and wrap long values, so nothing is cut off at the panel's edge (before: "Alu", "9.00 ×").
+- **No change** to designs, codes or the game. The live trials panel (Trials step) now sits at the bottom of the view where the strip was.
+- **Checked:** typecheck; Shipyard tests; full suite (below). Headless Chromium at 1920 x 1080, 1366 x 768, 1024 x 768 and a 400 px phone: each size, Big view with both panels open (their tabs and the size switch move out to the panels' edges, so they can be closed). **Not checked:** the Quest browser.
 
 ### Gillnetter: the wheelhouse forward by default (done, awaiting owner test)
 
@@ -6449,6 +6659,565 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Coast extras: the plan (owner's list, not started)
+
+The owner's choice from the suggested additions to the map pipeline, all but tides: fish farms, sound from the map, the shore's material, place names, landmarks with lights, AI ferries on the real routes, charted hazards in play, and a check for overlapping piers. Order: after the harbour boats (settlements milestone 6, done). **Settlements milestone 7 (tuning across the regions) moves to the end of this plan**, so everything is tuned once together, not twice.
+
+**Rules for all of it:**
+- From the map data only. Where the data is silent, nothing is guessed: a cable with no clearance given has no clearance rule; a coast with no wrecks in the data has none.
+- Every map, every harbour, as before.
+- **Within the baseline budget on the Quest** (settlements milestone 1's numbers). Each milestone measures draw calls, triangles and frame time at the same spots as the baseline, and says so.
+- **Original designs:** the ferries, farms and landmarks are the game's own models. The ferries carry no real operator's name, emblem or ship names (their colours: see the owner's change below). A castle is a generic tower house, not a copy of Dunstaffnage.
+- Saves keep working: re-running the maps keeps berth and harbour ids (a Voyage remembers where you are by berth). Each re-run checks the ids against the last.
+
+**Owner's changes to the plan (22 Oct 2026):**
+- **C5 is surf only:** "the only sounds I think that really make sense are surf, if the wave's height over a certain height ... and your engine's off, because you don't hear most of the sounds when your engine's on". The foghorns, bells, gulls and livestock are dropped.
+- **C7, the ferries, goes next:** "the one I think I really want to prioritize is the ferries".
+  - **The livery:** "I'd like to have the Caledonian MacBrayne distinctive colors for the ferries", "slightly more detailed than some of the AI vessels ... like the coaster".
+  - So: the colour scheme a Clyde or Hebridean ferry is known by (black hull, a red band at the waterline, white upperworks, red funnels with a black top), on the game's own ship designs, with invented names. No emblem (the lion on the yellow disc), no company name.
+- **New order:** C7, then C5 (surf), C6, C8.
+- **The frame-rate floor** for all of it: 65 fps on the Quest at the worst spot, Oban harbour (owner measured 67).
+
+**C1. Pipeline: read it all, check the piers (owner's 8).**
+- One pass of the fetch stage gets everything the later milestones need:
+  - marine farms (already read, not yet packaged);
+  - fog signals on the lights;
+  - shore and land cover (beach, shingle, rock, cliff; farmland, moor);
+  - place names (bays, headlands, sounds, islands, villages);
+  - landmarks (castles, towers, masts, churches with towers, wind turbines);
+  - ferry routes and terminals;
+  - wrecks;
+  - submarine and overhead cables and pipelines, with any charted clearance.
+- The package carries them; the game ignores what it doesn't use yet.
+- **The overlap check:** the report warns where quay or pier blocks overlap at different deck heights (Rothesay's start spot). The worst cases can be fixed in the region's edits file.
+- Re-run all four maps; compare the ids.
+- **Nothing to see in the game** except where a re-run moves a pier. The report lists what each map holds.
+
+**C2. Fish farms and landmarks (owner's 1 and 5).**
+- **Farms:** the round pens or long mussel lines the data shows, from the Fjord's farm models (`src/world/farms.ts`), instanced, with their yellow marker buoys and lights. They are solid to a boat, and on the charts.
+- **Landmarks:** a small kit (tower house, church tower, lattice mast, wind turbine with turning blades, monument), instanced, with fixed red lights at night on the masts and turbines. Seen from far off like the hills; on the paper chart as the symbols a chart uses.
+
+**C3. What the shore is made of (owner's 3).**
+- Sand, shingle, rock and cliff tint the land mesh along the waterline (colour only, no extra drawing). Farmland and moor tint the land behind.
+- **Beaching:** a bow-ramp boat may land on sand or shingle as on a slipway. Running onto rock or cliff damages the hull, scaled by speed. Every other boat grounds as now.
+
+**C4. Place names (owner's 4).**
+- Names on the chartplotter and the paper chart, thinned out by zoom (sounds and islands first, then bays and villages, then headlands and skerries), kept clear of the soundings and marks.
+- Radio calls and job messages give the nearest name ("a dinghy adrift off Toward Point") as well as the position.
+
+**C5. Sound from the map (owner's 2).** *Cut down by the owner to surf only (22 Oct 2026); done, see "Coast extras C5" below. The rest of this list was dropped.*
+- **Foghorns:** at lights the data says have a fog signal, sounding their charted pattern in fog, heard miles off.
+- **A church bell on the hour:** from the church buildings, heard across a calm harbour.
+- **Gulls and shore sounds:** gulls over harbours and fish quays; surf on exposed rocky shores (from C3's rock) in a swell; livestock faintly from farmland, where the wind carries it.
+- Only the few nearest sources play; nothing is drawn. The game makes all its sounds in code, so this needs no sound files.
+- If the sheep and cattle don't sound convincing in code, they're left out rather than fake. Any small recorded clip would come to you first.
+
+**C6. Charted hazards in play (owner's 7).**
+- **Wrecks:** on the charts as a chart shows them (dangerous or not, the depth over them where known). A shallow one grounds a boat like a rock. Wrecks hold fish, so the fishing finds better catches over one.
+- **Cables and pipelines:** charted areas on the plotter and the paper chart. Anchor in one and the anchor fouls: it won't come up until you work it free (a slow, careful heave, or slip the anchor).
+- **Overhead power cables** across narrows, with their charted clearance: a boat whose mast or gear stands higher than the clearance strikes the cable (damage, a VHF call). Her height comes from her design. The plotter warns as you approach.
+
+**C7. Ferries on the real routes (owner's 6).**
+- Each ferry route in the data gets the game's own ferry design (a small open-deck island ferry, or a larger drive-through one by the route's length). She runs to a timetable between the real terminals, slows into port and lies at the linkspan.
+- **Kept cheap:** a ferry follows her route as the traffic ships do (no full physics), with her bow wave and wake. At most the two or three nearest are sailing; the rest only keep time on paper.
+- On AIS and the plotter. She calls on the VHF leaving and arriving. She keeps her course and expects you to keep clear, as a ferry would, but stops rather than run you down.
+
+**C8. Tuning across all maps (settlements milestone 7, moved here).**
+- Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
+- Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
+
+### Fix: harbour names on the Clyde ("Largs Marina is named as Fairlie")
+
+Owner, in the Clyde map: "there's three Fairley piers, where actually one of them is Largs Marina ... So maybe just check the source in the map again there."
+
+- **Not from the pier pass before it:** these names were wrong from the start. The harbours stage named a harbour after a marina, ferry terminal or harbour only when the map drew it as an outline. Many are mapped as **a single point** (Largs Yacht Haven, Fairlie Quay's boatyard, Tighnabruaich Pier, Ardnadam Pier, Kilcreggan Pier) or **a relation** (Holy Loch Marina). With none found, a harbour took the nearest place's name, and near Fairlie that's a locality called "Fairlie Pier": hence three "Fairlie Pier pier"s.
+- **Fixed** (`tools/coast/src/harbours.ts`): points and relations count too, and a harbour's name is, most trusted first: its marina's or harbour's; its pier's own; its ferry terminal's (with "pier" added when that's only the town's name: "Wemyss Bay" → "Wemyss Bay pier"); the nearest place's.
+- **Three set by hand** (`tools/coast/requests/clyde.edits.yaml`): Rothesay Harbour (a marina point inside it would name it "Rothesay Marina"; Voyage starts you there by its id, `rothesay-harbour`, which stays); Largs pier (its ferry point is "Largs Slip", and two slipways are Largs slips already); Fairlie Quay (the map's point is "Fairlie Quay Boatyard & Shed").
+- **What changed** (the Clyde only, as the owner asked; harbours, boats and package re-run, the pieces and ground unchanged):
+
+  | was | now |
+  |---|---|
+  | Fairlie Pier pier (the long L south of Fairlie) | Fairlie Quay |
+  | Fairlie Pier pier (the pontoons south of Largs) | Largs Yacht Haven |
+  | Sandbank | Holy Loch Marina |
+  | Sandbank pier | Ardnadam Pier |
+  | Port Driseach pier | Tighnabruaich Pier |
+  | Cumbrae Ferry Terminal | Cumbrae Slip |
+  | Colintraive pier (on the Bute side) | Rhubodach pier |
+  | Colintraive pier (the other) | Colintraive pier |
+  | Kilcreggan pier | Kilcreggan Pier |
+
+  Their ids change with their names (`largs-yacht-haven` etc.): a Voyage saved at one of their berths starts at Rothesay once. The ferries' ends and the chart take the new names.
+- **Still sharing a name** (the map names none of them): two Dunoon piers (the old pier and the breakwater 300 m south), two Hunterston Jetty piers, two The Lorn piers 1.5 km apart. Left for the owner.
+- **Tests:** `tests/coastClyde.test.ts` (1 new): Largs Yacht Haven, Fairlie Quay, Largs pier, Holy Loch Marina, Rhubodach and Colintraive piers, Rothesay Harbour kept; no "Fairlie Pier pier". `tests/coastFeatures.test.ts`: the overlap at Sandbank is now reported as Holy Loch Marina's.
+- **Test steps (VR and desktop):** Voyage → The Firth of Clyde, Menu → Debug → World → To port: the list reads Largs pier, Largs Yacht Haven, Fairlie pier, Fairlie Quay; Holy Loch Marina; Rhubodach and Colintraive at the narrows. The chartplotter's port names match.
+
+### Fix: piers drawn as one huge box ("Wemyss Bay pier ... absolutely massive"), the Clyde
+
+Brought by the Main game session at the owner's request: Wemyss Bay pier "not where I would expect" and "absolutely massive"; the large one north of Wemyss Bay taken to be Kip Marina.
+
+- **What it really was** (the owner agrees: "It was the Inverkip power station pier, which is a big one"): OpenStreetMap way 255707549, 1.4 km south of Inverkip, where Inverkip power station stood: a jetty drawn as one outline round all its parts (a trestle out from the shore, a head, mooring dolphins on catwalks, a long berthing line). Tagged a pier area, it has no name. The harbours stage made every pier area its smallest box, so it became one solid pier 332 x 286 m (its real deck is about 3,400 m2, 4% of that), named after the nearest place: "Wemyss Bay pier", the same as the real ferry pier 2.4 km south. **It isn't Kip Marina:** that's mapped and named at Inverkip itself (its own harbour, unchanged).
+- **The same fault elsewhere:** any pier drawn as an L, a T or a bending jetty got one box round it, filling in the water inside the bend: Rothesay's harbour pier (224 x 130 m over the inner harbour, and the low pier inside it, where the owner was stood "underneath the big wooden one"), Fairlie's (396 x 151 m), Dunoon's, Hunterston's, Greenock West's and others; 36 outlines on the Clyde in all.
+- **Fixed in the pipeline** (`tools/coast/src/harbours.ts`):
+  - **a pier area filling less than `sparseFill` 0.55 of its smallest box** is built along its outline's straight runs instead: a piece on each run, standing inside the outline, as thick as the outline is there (looked for across the run, both ways, up to `sparseThick` 30 m), the same piece seen from its other side left out. Rectangular piers are one box, as before.
+  - **It still joins the harbour it always did,** grouped by where its box was, in its old place in the list, so every harbour keeps its id, name and place.
+  - **No berth along a piece under `berthMinWidth` 1.5 m** (a catwalk to a dolphin has no deck to step off onto; a walkway pier, 1.8 m, and a pontoon, 2.5 m, have).
+  - **Cargo and fuel berths only on a deck at least `namedDeck` 2.4 m wide** (`tools/coast/src/package.ts`: the game puts you ashore 2 m in from the face).
+  - (On the way: the straight-runs finder now handles a closed outline, which it saw as no runs at all.)
+- **The name** (`tools/coast/requests/clyde.edits.yaml`, new): the jetty's harbour is **"Inverkip jetty"**. Its id stays `wemyss-bay-pier-2`, so nothing saved breaks.
+- **The Clyde rebuilt** (harbours to package). What changed in the game:
+  - pier pieces 219 → 308 (the outlines' parts). Headless at the jetty and at Rothesay: 79 and 85 draw calls (not measured at those spots before, so not a before-and-after);
+  - all 78 harbours and all 82 named berths keep their ids; cargo and fuel berths moved 10-180 m onto the piers' real faces;
+  - ports 56, as before, but one out and one in: **Cammes Reinach Pier** (Hunter's Quay) is no longer a cargo port (its berths with room for a boat are all on a 1.8 m walkway; it was a port only because the box gave it a false 8 m deck: you can still moor there), and **The Lorn's second pier** is now one (it has room);
+  - about 125 more harbour buildings, at the landward ends of the piers built along their outlines (within `buildingReach` of a piece);
+  - the overlapping-pier warning at Rothesay's start is gone (the box was the overlap); Sandbank's pontoon under its pier is still reported.
+  - The ground was rebuilt with it (the basins follow the pieces), which shifts the mesh a little everywhere, as every rebuild does.
+- **Not yet done:** Oban has one outline like this (the Kerrera ferry terminal) and Syros seven (one a 17,000 m2 box in Ermoupoli harbour); the owner: not yet ("I don't want you to go and do that on the other maps yet"). The pipeline's quay boxes overlapping at their ends (125 pairs on the Clyde, drawn apart in the game by the Main game session's `blockSteps`) are also left as they are.
+- **Tests:** `tests/coastClyde.test.ts` (2 new): no pier on the Clyde wider than 50 m both ways (Hunterston's long straight 442 x 33 m jetty is what it is); the jetty named Inverkip jetty, one Wemyss Bay pier, Kip Marina its own. `tests/coastFeatures.test.ts`: no overlap reported at Rothesay now, Sandbank's still. `tests/voyageBerths.test.ts` (as before): every berth's spot ashore on its own deck.
+- **Checked headless:** the jetty from 260 m off (a long low line across the water, no slab) and Rothesay harbour from the bay. Plots of the Rothesay, Inverkip and Fairlie outlines against the new pieces: they follow the shapes. **Not checked:** walking on the new pieces in VR.
+- **Test steps (VR and desktop):** Voyage → The Firth of Clyde.
+  1. Rothesay (you start there): the harbour pier is a T along the front with its stem, open water inside it, not a slab.
+  2. Menu → Debug → World → To port → **Inverkip jetty**: a long trestle out to a head with dolphins, not a 300 m block. Wemyss Bay pier (the ferry terminal) is the only one by that name.
+  3. Fairlie: an L-shaped pier.
+
+### Fix: boats at anchor drifting from side to side (owner, testing)
+
+Owner: "the boats at anchor, they move laterally, so they move from side to side ... all I really want them to do is to bob up and down, and if it's not performance heavy, to point into wind."
+
+- **Why:** each boat on a mooring or at anchor had a slow yaw about her lie (14° either way over 45 s), and I swung her about her buoy or anchor rather than about her own middle. A boat at anchor lies up to 40 m from her anchor, so that swept her about 10 m from side to side.
+- **Now:** she lies head to wind and stays on that spot, only bobbing on the waves (rise, pitch and roll, as before). When the wind shifts (the weather turns it gradually) she swings round to it. In light airs (below `calmWind` 3 m/s) she still lies more and more her own way, as boats held by the tide do.
+- **Where she swings about** (the owner: "it shouldn't pivot around the center of the boat, it should pivot around a point let's say 15 to 20 meters in front of the boat, because it's where the anchor hits the seabed"):
+  - **at anchor**, the spot where her chain lies on the seabed, `anchorPivot` 15-20 m ahead of her bow (`anchorScope` 3 x the depth, kept within that: 15 m in shallow water, 20 m in deep). It was up to 40 m, the anchor itself;
+  - **on a mooring**, her buoy, `pennant` 3 m ahead of her bow, as before.
+- **Cost:** none added; slightly less work than before. `CONFIG.harbourBoats.wanderDeg` and `wanderPeriod` are gone; `anchorPivot` is new.
+- **Tests:** `tests/harbourBoats.test.ts`: a moored boat now points within 1° of the wind (it allowed the wander before); a boat at anchor swings about a point 15 m ahead of her bow in shallow water and 20 m in deep, her bow on it whichever way the wind blows.
+- **Not checked headless:** the motion itself (a still picture can't show it). **Test steps (VR and desktop):** Voyage → Oban and Lorn or the Clyde. Watch a field of moored yachts or a boat at anchor for a minute: she bobs but stays put, bow to the wind. With Menu → Debug → Weather, change the weather: as the wind comes round, they swing to it together, a boat at anchor turning about a point 15-20 m ahead of her bow.
+
+### Coast extras C5: surf on the shore (done, owner approved)
+
+**Owner's test (22 Oct 2026):** "The surf sounds really good. I'm very happy with that." The levels stay as they are.
+
+Owner: "the only sounds I think that really make sense are surf, if the wave's height over a certain height, let's say, and your engine's off, because you don't hear most of the sounds when your engine's on." Then "Next milestone?".
+
+- **Where it breaks** (`src/world/surf.ts`): waves break roughly where the water is shallower than 1.3 times their height. Looking out from you along `rays` 24 bearings to 500 m (`radii`), the first place each bearing crosses that depth is its surf line: from deep to shallow when you're afloat, from shore to sea when you're ashore. Aground or wading, it's right where you are.
+- **How loud:**
+  - **The surf's height:** the open sea's significant height times the shelter at that stretch of shore (the waves' amplitudes just seaward of the line against the open sea's). So a bay behind a headland, or a sea loch, stays quiet when the open coast is roaring. Nothing below `minHs` 0.4 m, full at `fullHs` 2 m. For scale: the Debug menu's Slight sea is 0.65 m (faint surf on an open shore), Moderate 1.3 m, Rough 2.3 m; the weather's Clear (5 m/s wind) builds 0.8 m, Squall 2.7 m.
+  - **Which way the shore faces:** a shore the waves run onto is at full; one with its back to them is `lee` 0.3 as loud.
+  - **Distance:** full within `near` 40 m, fading to nothing at `hearRange` 500 m.
+  - A long shore all round you is up to `spread` 0.3 louder than one stretch.
+- **Only with your engine off** (the owner's rule): it fades out over about `engineFade` 1.5 s when the engine of the boat you're aboard starts, and back when it stops. Ashore or in the water you always hear it. Muffled inside the wheelhouse, more with the doors shut, like the wind.
+- **What it sounds like** (`src/audio/surfAudio.ts`), made in code from noise, no sound files:
+  - each breaker comes in time with the biggest swell's period, give or take 15%, with every seventh one of a set bigger;
+  - three parts: a low **boom** as it lands, the **wash** running up the shore over a low murmur, and a **hiss** (spray at the crash, then the backwash);
+  - **mixed by what the shore is made of** (C3's shore map, `kinds`): rock and cliff boom; shingle rattles as the backwash drags the stones; sand washes long and soft; where the map says nothing (most of the Clyde's foreshore, and the hand-built islands), a middle mix;
+  - **placed where the surf is** (a panner at the shore, cheap equal-power panning), so you can tell which way the shore lies, in fog too.
+- **The cost:** no drawing. A whole look round costs about 0.05 ms in the browser, spread over half a second (`every` 0.5 s, a few bearings a frame); five noise filters and a panner in the audio.
+- **Works on every map,** the hand-built career islands too, where the ground is.
+- **Tests:** `tests/surf.test.ts` (6), on a stretch of the hand-built islands' shore facing open water: nothing in a calm or a slight sea; heard off the shore in a 1.5 m swell, louder nearer and in a bigger sea, nothing 700 m out; heard from the shore's side; a third as loud with the waves running off the shore; rock booms, sand washes and shingle hisses; spread over frames, the same answer.
+- **Checked headless:** at Oban (a rocky stretch, boom-heavy mix) and on the Clyde, aboard with a 1.8 m swell: the surf found 100-140 m off, its volume up with the engine off and down to nothing once the engine runs; no errors. **Not checked:** how it sounds. Headless has no ears, so the sound itself is for your test. The levels are first guesses (`CONFIG.surf.gain` and `kinds`).
+- **Test steps:**
+  - **Desktop:** Voyage → Oban and Lorn. Set a big sea: Menu → Debug → Sea → **Rough** (about 2.3 m), with Weather → **Fixed weather** so the wind doesn't take it back. Motor out of Oban Bay, then stop the engine within a couple of hundred metres of the rocks on the open side of Kerrera or the shore north of Ganavan: you should hear breakers in time with the swell, from the shore's side. Turn your head (or the view): the sound stays with the shore. Start the engine and it fades away. Then try a sand beach (Ganavan Bay) for the softer wash.
+  - **VR:** the same. Also step into the wheelhouse and shut the doors: the surf goes dull and quiet. Tell me if it's too loud, too quiet, or doesn't sound like surf; the levels are easy to change.
+
+### Coast extras C7: ferries on the real routes (done, awaiting owner test)
+
+Owner: "the one I think I really want to prioritize is the ferries ... I'd like to have the Caledonian MacBrayne distinctive colors for the ferries and have them slightly more detailed than some of the AI vessels, so that they're like the coaster".
+
+- **The routes, from the map data** (the package stage, `tools/coast/src/package.ts`; the features stage now also keeps each route's operator and whether it carries cars):
+  - each mapped ferry route is cut to its longest run inside the map (150 m in from the edge);
+  - **each end** is a terminal where she berths (the route ends inside the map), or the map's edge, where she sails out of sight to an island beyond it;
+  - **the ends are named** from the route's own name ("Rothesay - Wemyss Bay"), each part put at the end nearer a port, terminal or place of that name;
+  - **her class:** a passenger launch on a foot-passenger route, a small double-ended car ferry on a crossing under 8 km in all, a large drive-through ferry otherwise;
+  - **her livery:** the Clyde and Hebridean colours on routes the map says that company runs; a dark-blue hull and blue funnel with a white band on anyone else's (Hunter's Quay - McInroy's Point); white with a blue band in the Aegean;
+  - **her name:** invented, from a list for each theme (Morvern Star, Ardlamont, Glen Eacharn ...; Galini, Meltemi ...). No real ship's name.
+  - **On the maps:** the Clyde 6 routes (Rothesay - Wemyss Bay large, both ends terminals; Colintraive - Rhubodach, Largs - Cumbrae and Hunter's Quay - McInroy's Point small; Gourock to Dunoon and to Kilcreggan launches); Oban 7 (six island routes out of Oban pier, large, sailing out past the map's edge; the Kerrera ferry, small); Syros 9; Tayvallich 1 (the Craighouse launch).
+- **The ships** (`src/traffic/ferryKit.ts`), the game's own designs, each one merged mesh:
+  - **large** (72 m): the hull in the dark hull colour with a red boot-topping, the car deck's shell white above it with a row of ventilation openings, a bow visor seam and stern ramp, two decks of lounges with window bands, the bridge with wings, mast and radar, the funnel aft (red with a black top), orange lifeboats and liferaft canisters. 784 triangles.
+  - **small** (38 m): double-ended with a ramp each end, the lounge and wheelhouse along one side, a small funnel. 296 triangles.
+  - **launch** (20 m): a cabin and wheelhouse. 144 triangles.
+  - **The livery is the colour scheme only:** black hull, red boot-topping, white upperworks, red funnel with a black top. No emblem, no company name, as agreed.
+  - **After dark:** masthead, sidelights, stern light and two decks of lit windows (light points, no extra draw call by day).
+- **The sailing** (`src/traffic/ferries.ts`, plain shared state stepped by the host, `CONFIG.ferries`):
+  - **To a timetable:** she lies at a terminal `dwell` 480 s, sails at her class's speed (large 7.2 m/s, about 14 kn), slows over `brake` 4 of her lengths into port and berths `stopShort` 6 m short of the linkspan. Out past the map's edge she's away `away` 1800 s.
+  - **On the VHF** when your boat is within `radio` 6 km: "Ardlamont, leaving Rothesay for Wemyss Bay." and "Ardlamont, arriving Rothesay."
+  - **She keeps her course and expects you to keep clear,** but stops rather than run you down: a boat within `hold.ahead` 120 m ahead of her bow and `hold.side` 20 m beyond her side stops her until it moves.
+  - **Solid:** her hull is a box her size in the collisions (a fendered bump, like a pier's).
+- **Fleets (found in testing):** Oban's six island routes all leave the one pier down the one sound, and Syros's nine share two terminals. One ship a route would have had them sailing through each other and berthing on top of each other. So:
+  - routes with ends within `shareReach` 300 m of each other are one **fleet**, sailed by at most `fleet` 3 ships, each with her own name and design. A ship coming back in from the map's edge takes the fleet's next route (Oban's ships take the islands in turn). Oban now has 3 large ships and the Kerrera ferry; Syros 3; the Clyde 6 (the two Gourock launches are one fleet of two).
+  - **Port to port:** she keeps `lane` 1.5 of her beams to starboard of the route's line, easing onto it over `laneTaper` 1.5 of her lengths into a terminal.
+  - **Stepping aside:** a ship meeting her head on (on another route alongside hers, or where routes cross) that will pass closer than `avoid.clear` 2.5 x their beams, she eases away from at `avoid.rate` 1.2 m/s, up to `avoid.most` 3 beams, and back once clear.
+  - **One at the berth:** she lies off `berthWait` 3 of her lengths short of a terminal while another of the fleet has the berth or is still leaving it.
+  - **Station keeping:** a ship of her own fleet ahead going her way stops her as a boat would.
+- **On the chartplotter:** each ferry an AIS triangle with her name and a 6-minute course line, in Voyage (no receiver to buy there).
+- **Drawing** (`src/traffic/ferryView.ts`): the ferries within `drawDistance` 9 km, riding the swell, eased between the host's snapshots for crew; her wake (the boats' own foam ribbon) within 2.5 km, not drawn while she's lying at a terminal.
+- **The cost:** one draw call a ferry by day, two after dark, and a wake near her. At Oban pier, with three ships in sight, that's about 6-9 draw calls and under 3,000 triangles. Headless at Oban with three ferries in sight: 75 draw calls in all. The 65 fps floor still needs your Quest reading.
+- **Tests:** `tests/ferries.test.ts` (14):
+  - the Clyde's routes, classes, liveries, named ends and unique names; Oban's ends; Oban's fleets;
+  - she berths, waits, leaves with the call; away and back; holds for a boat; is solid;
+  - fleets: two routes from one terminal one fleet; meeting ships pass port to port; one keeps station behind another; one at the berth at a time; back in on the fleet's other route;
+  - six hours at Oban and at Syros: every ship keeps making trips and no two come closer than 1.5 beams (closest seen: 39 m at Oban, 29 m at Syros, centre to centre).
+- **Checked headless:** the three designs in all three liveries; Ardlamont on the Rothesay - Wemyss Bay crossing by day and by night (lit windows and lights), berthed at Rothesay pier; three ferries off Oban; the chartplotter showing ARDLAMONT with her course line. **Not checked:** the Quest frame rate; a crew member's view in multiplayer; the radio calls heard in a live game (the tests check the words).
+- **Test steps:**
+  - **Desktop:** Voyage → The Firth of Clyde. You start at Rothesay; the Wemyss Bay ferry will be at the pier or on her way. Watch her come in, slow and berth, and listen for her call on the VHF. Look at the chartplotter for her triangle and name. Get in her way at sea: she stops rather than hit you. Then Voyage → Oban and Lorn: the island ferries come and go from Oban pier one at a time, passing each other port to port in the sound.
+  - **VR:** the same, at Oban pier with the perf panel (B/Y): with ferries in sight, the frame rate should stay at or above 65. Also have a look after dark (Debug → time).
+
+### Fix: shimmering in the distance by the woods; far woods as flat colour (owner, testing on the Quest)
+
+Owner, after a VR test of Oban harbour: the worst case is about 67 fps (13.x ms a frame), "still comfortable to use in VR ... I wouldn't want to drop too much more below that ... 65, I think, would be my sort of lower comfort level". Then: "a little bit of Z fighting ... in the distance or shimmering. I think it's where the forests areas are." And: "after a certain distance you can't see that that's 3D. It can literally become a flat vector color or vertex color."
+
+- **The budget from now on:** 65 fps on the Quest at the worst spot (Oban harbour, measured 67). Every later milestone (C5-C8) is held to it.
+- **Why it shimmered:**
+  - The camera's depth runs from 5 cm (so controls in front of your face draw) to 14 km. Far off it can't tell surfaces apart that are closer than about 1 m at 1 km, or 5 m at 2 km, and those flicker as the head moves.
+  - The far canopy sat at the height of the middle band's tree crowns, so the trees standing in it fought it.
+  - Scrub (1.4 m) and orchards (4 m) in the canopy fought the ground itself.
+- **Fixed** (`CONFIG.trees`):
+  - **The canopy stands lower:** its top at `canopyTop` 0.8 of the crown height, so the middle band's trees rise clear of it.
+  - **It's drawn a little deeper than it is** (`canopyDepthOffset`, a polygon offset), so a tree standing in it always draws in front.
+  - **Kinds under `canopyMinHeight` 5 m** (scrub, orchards) aren't in the canopy.
+- **Far woods as flat colour (the owner's idea):**
+  - **When a map is made,** the mesh stage colours the ground under each wood (density 6 of 15 or more) in that wood's own colour: its species' colours mixed by their shares, a shade darker, as the canopy is coloured. Scrub and orchards tint it part way (45%).
+  - The trees stage now runs before the mesh stage. All four maps were re-made; the shapes are unchanged.
+  - **In the game the 3D canopy reaches only `canopyDistance` 1.5 km** (it was 5 km; desktop 3.5 km, was 9 km). Beyond that the woods are the ground's own colour: nothing a few metres over the ground to shimmer, and no triangles.
+  - **The saving:** a mile off Dunstaffnage at the Quest setting, the canopy went from 21,300 triangles to 2,050, and the whole scene from 190,000 to 171,000. (The canopy was already one merged mesh, so draw calls are unchanged at 66.)
+- **Tests:** `tests/trees.test.ts` adds one: no scrub or orchard in the canopy, its top at least 2 m below a plantation's crowns, the depth offset set.
+- **Checked headless:** a mile off Dunstaffnage at the Quest setting, the wooded hills across the water read as darker green on the ground, clean-edged, with the turbines and trees in front. **Not checked:** the shimmer itself. Headless rendering doesn't show depth flicker the way the Quest does, so that's for your next VR test.
+- **Test steps (VR):** Voyage → Oban and Lorn, the same worst-case spot. Look across at the wooded hills while moving your head: no shimmering in the woods. Read the frame rate on the perf panel (B/Y); it should be the same or a little better than your 67.
+
+### Coast extras C4: place names (done, awaiting owner test)
+
+Owner: "Do C4".
+
+- **The names** (the package's `places`, from C1's features): the map's towns, villages, hamlets, islands, islets, localities and the sea's own names (bays, sounds and straits, headlands, peninsulas), ranked:
+  - **1:** towns and the big waters;
+  - **2:** villages, islands, bays, sounds;
+  - **3:** hamlets, headlands;
+  - **4:** islets and small localities.
+  - **Left out:** farms, single houses and town quarters, which a chart doesn't print.
+  - **Also left out:** islands and archipelagos mostly outside the map. "GREAT BRITAIN" was printed on the mainland, and "Inner Hebrides" and "Hebrides" in a corner; in the map data their outlines are mostly beyond the download. The features stage now skips any relation more than half of whose outline is missing, or any island spanning over 60 km (`biggestIsland`).
+  - **How many:** Oban 69, Tayvallich 35, Syros 130 (in Latin letters), Clyde 268. That's 2-21 kB in each package.
+- **On the paper chart,** lettered as a chart does:
+  - the sea's names in sloping blue (Oban Bay, Ganavan Bay, Kyles of Bute, Loch Striven, Firth of Clyde);
+  - islands in bold capitals (KERRERA, BUTE, GREAT CUMBRAE);
+  - towns and villages upright, bigger by rank.
+  - All ranks on a map's own sheet, the first two on the overview. The most prominent go first, and any name that would overprint another name, a port's or the compass rose is left out. The soundings already keep clear of names.
+- **On the chartplotter** (`CONFIG.places.plotterSpan`): rank 1 shows on every range, rank 2 at 8 km across or less, rank 3 at 4 km, rank 4 at 2 km.
+  - Same lettering: the sea's names italic light blue, islands in capitals, towns plain.
+  - Port names keep their place, and a name that would overprint one is left out.
+- **In the radio's calls** (`world/places.ts` `placePhrase`; `CONFIG.places`): the rescue, tow and fire calls now say where in words, ahead of the bearing or the position. For example: "MAYDAY RELAY. Man overboard from a yacht ..., in Rothesay Bay, bearing 095°, 1.2 miles from you."
+  - The name is the nearest within `reach` 3 km. A more prominent name counts as nearer: each rank down adds `rankWeight` 0.3 of its distance, so a town beats a hamlet at the same distance.
+  - "In" for a bay, sound or strait within `inside` 900 m of its name; "off" for anything else.
+  - Where there's no name near, and on the hand-built career regions (no names), the call is as before.
+- **Tests:** `tests/places.test.ts` (2):
+  - "in" a bay near its name and "off" it farther out; "off" a headland; the town beats the bay halfway between; "in the Narrows"; nothing far away;
+  - Oban's "in Ganavan Bay" and the Clyde's "in Rothesay Bay";
+  - no farms or houses among the names.
+- **Checked headless:**
+  - Oban's paper chart (Ganavan Bay, Camas Bàn, Oban Bay, Dunbeg, Kerrera clear of the rose);
+  - the Clyde's paper chart (Kyles of Bute, Loch Striven, BUTE, the Bute bays, Firth of Clyde);
+  - the chartplotter at Rothesay on 2, 8 and 16 km (Rothesay Bay and Rothesay close in; the villages at 8 km; only the towns at 16 km).
+  - **Not checked:** a call on the air with a name in it (the test checks the words it would add); the Quest.
+- **Test steps:**
+  - **VR and desktop:** Voyage → The Firth of Clyde. Look at the chartplotter and zoom out with −: the names thin out from bays and villages to the towns. The paper chart on the chart table carries the full set.
+  - Take a rescue or tow call (Debug → Missions): it names where, "off ..." or "in ...", before the bearing.
+
+### Coast extras C3: what the shore is made of (done, awaiting owner test)
+
+Owner: "Next milestone".
+
+- **A new pipeline stage, the shore** (`tools/coast/src/shore.ts`, after features, before mesh; `npm run shore`). It writes `shore.bin`, a map on the 10 m grid of what the shore band is made of. The band is cells within 40 m of the coastline, from 3 m deep to 8 m high: where a hull meets the ground. **Nothing guessed:**
+  - **sand** where the map has a beach (no surface tagged counts as sand), **shingle** (shingle, pebbles, gravel), **rock** (bare rock);
+  - **cliff** within 12 m of a mapped cliff line;
+  - **rock** on steep ground (rise over run above 1, as the mesh draws it);
+  - **any other shore is "foreshore":** the map says nothing about it, so it's neither beach nor rock;
+  - **the shallow seabed off a classed shore** takes its class (within 30 m): the sand off a beach is where a beaching bow touches first.
+  - The same file marks the **mapped fields** (farmland, meadow).
+  - Run-length packed: 14-157 kB a map. The package carries its layout (`shore`), and the game fetches it with the terrain (`world/coastShore.ts`).
+- **What I changed and why:** the mesh used to draw every low, gentle shore as sand, a beige band along the whole coast. Classing all of that as sand would have let the landing craft beach almost anywhere on what is mostly a rocky West Highland coast. So:
+  - the mesh now draws **mapped beaches as sand** (or grey **shingle**), mapped **rock**, darker **cliff**;
+  - **the rest of the low shore in a neutral weed-brown "foreshore"** (`themes.ts` `foreshore`; pale stone on Syros), so a beach you can land on looks like one;
+  - **mapped fields** on open grassland are greener (`fields`).
+  - The mesh's shape is untouched: Oban's file differs only in its colours, and every chunk on the Clyde and Syros is the same size as before.
+- **What each map has:**
+
+  | | Oban | Tayvallich | Syros | Clyde |
+  |---|---|---|---|---|
+  | Sand (10 m cells) | 1,370 | 121 | 1,596 | 7,122 |
+  | Shingle | 0 | 0 | 0 | 32 |
+  | Rock | 283 | 104 | 7,271 | 3,854 |
+  | Cliff | 219 | 0 | 100 | 177 |
+
+  Syros is mostly rock, as the Cyclades are. The rest of each shore is foreshore.
+- **Beaching** (`CONFIG.beaching`; `vessel/physics/contacts.ts` marks each ground touch soft or not, `vesselPhysics.ts`):
+  - **A boat with a bow ramp** (the landing craft, a Shipyard landing craft) running onto **sand, shingle or a slipway's concrete** takes no harm up to `impactSafe` 3 m/s (about 6 knots). Past it, only the speed over 3 m/s counts as a hit (wear.ts). Sliding up the beach is no grinding.
+  - **Rock, cliff, foreshore and anything else** are as hard as ever: a hit over 1 m/s damages, and grinding wears. **Every other boat grounds exactly as before.**
+  - **Landing on a beach:** with her ramp down, slower than `maxSpeed` 1.5 m/s, her forefoot on sand or shingle and the lever not astern, she **lands and is held** where she ran up, as on a slipway (`world/slipway.ts` `onBeach`).
+    - Her ramp's toe flaps hang at `flapDeg` 25° for the walk ashore, and you walk off down the ramp onto the beach.
+    - The lever astern takes her off. The menu says "Beached (walk off down the ramp; go astern to come off)".
+    - Unlike a slipway, she lies at the angle she ran up at: a beach has no plane to lay her on.
+- **Tests:** `tests/beaching.test.ts` (4):
+  - Oban's shore map holds sand, rock and cliff, and nothing off the map;
+  - a ground contact says whether it's soft, a pier's never is;
+  - at 2.5 m/s the landing craft runs onto sand unharmed, is holed on rock, and the workboat is holed on sand;
+  - with her ramp down, slowly onto sand, she lands, is held for 20 s, and comes off astern; on rock she never lands.
+  - (In the career world with a stand-in shore map laid over it; a coast map's comes from its pipeline, and the rules are the same.)
+- **Checked headless:** Ganavan Bay from the water: pale sand on its mapped beaches, the foreshore weed-brown either side. **Not checked:** the landing craft beaching in the game itself (the tests drive the physics), and the Quest.
+- **Test steps:**
+  - **Desktop or VR:** Debug → Boat → Start in → the fast landing craft, then Voyage → Oban and Lorn.
+    - Ganavan Bay, north of Oban past Dunollie, has a sand beach (the pale strip). Lower the ramp and come in slowly, bow first, under 3 knots: she runs up and is held.
+    - Walk off down the ramp onto the sand. Back aboard, the lever astern takes her off.
+    - Try the brown foreshore or the rocks at speed: you're damaged there, as before.
+  - **Everyone:** look at the shores. Sand only where there's a mapped beach; grey-brown foreshore, grey rock and dark cliffs elsewhere; greener fields on the low ground.
+
+### Coast extras C2: fish farms and the skyline (done, awaiting owner test)
+
+Owner: "Next milestone".
+
+- **Fish farms from the map** (the package stage, from C1's features; drawn and solid through the Fjord's farm code, `world/farms.ts`, `worldView.buildFarm`):
+  - **The lease:** a farm's mapped outline is its lease. The package fits its smallest enclosing rectangle and keeps 30 m in from its edges.
+  - **A fish farm** gets cage rings in a grid: the Fjord's design, 12 m rings 32 m apart, up to 2 rows of 6. Oban's has 6 in a row off Kerrera.
+  - **A shellfish farm, or one whose kind isn't mapped,** gets rows of mussel long-lines: black floats every `CONFIG.regions.lineFloat` 6 m and an orange buoy at each end, lines 25 m apart, up to 6. This is the plainer choice where the map doesn't say: cages would claim a salmon farm that may not be there. Oban's second farm and the Clyde's one are unmapped kinds.
+  - **Solid:** each ring and each line is a low block (`FarmDef.kind` 'cages' / 'lines', `lineLength`). Farm blocks are marked `farm` and **offer no berth**; before, the berth finder would have made berths along the Fjord's cage rings.
+  - **Corner marks:** a yellow special mark at each corner of the lease (a can with an X topmark), lit **Fl Y 5s**. That's how farms are marked; the map doesn't chart the marks themselves. The lights are among the region's lights, so they flash with the others. **Yellow is a new light colour** (`LightDef.color`), and charts it as Y.
+  - **On the paper chart:** the lease in a magenta pecked line with "Fish farm (lit Fl Y 5s)". The four corner lights aren't labelled separately (they were clutter).
+  - **Harbour boats:** the boats stage now runs after the features stage and keeps its mooring fields 40 m clear of a farm lease. No mooring moved on the four maps.
+- **The skyline** (`world/view/skylineView.ts`; the package's `skyline`, `skylineStyle`): castles, towers, masts, chimneys, water towers, monuments, churches and wind turbines from the map.
+  - **Left out:** lighthouses (already drawn from the lights) and any church the house kit already builds.
+  - **Designs of the game's own:**
+    - a castle is a tower house with a corner turret;
+    - a church a harled nave with a slated roof and a tower and spire (in the Aegean, a white chapel with a blue dome and a little belfry);
+    - a mast a slim three-sided taper with a dish;
+    - a chimney a tapered stack; a water tower a tank on a column; a monument an obelisk.
+  - **Heights:** from the map where tagged, else the kind's own (`CONFIG.skyline.heights`): castle 14 m, mast 45, chimney 35, turbine hub 65 and so on. A castle's keep is a third of its mapped span across, 8-18 m (`castleFootprint`).
+  - **Wind turbines:** tower, nacelle and three blades (each 0.6 × the hub height, `turbine.blade`).
+    - **They face the wind and turn with it:** from 3 m/s (`cutIn`) up to 15 rpm at 12 m/s (`rated`), and stopped above 25 m/s (`cutOut`). Each turns a little out of step with its neighbours.
+  - **Red obstruction lights after dark:** steady on masts and on chimneys over 35 m; on turbines, flashing together every 2 s (`CONFIG.skyline.lights`). They're 1.2 × a harbour light's size, meant to be seen from afar. This is the usual practice, not charted in the map.
+  - **Cheap:** everything that stands still is one merged mesh (one draw call), remade when a big map's ground streams in under it so nothing floats. The turbines' nacelles and rotors are two instanced meshes (a few dozen matrices a frame), and the lights one set of points: **4 draw calls in all.**
+  - **On the paper chart,** as a chart prints landmarks: the position circle with its dot and Cas / Tr / Mast / Chy / Mon / Ch. Castles are named ("Dunollie Cas"). Turbines get their three-bladed sign, a group named once ("Wind farm"). Churches and monuments appear on the detail sheets only.
+  - **What each map has:**
+    - **Oban:** 22 (3 castles, 7 masts, 3 turbines, 4 churches, 3 towers, 2 monuments);
+    - **Tayvallich:** 4;
+    - **Syros:** 77 (64 chapels, 5 turbines);
+    - **Clyde:** 164 (17 castles, 52 turbines, 34 masts, 40 churches).
+- **Also fixed on the way:** the features stage's line thinning reduced every closed outline (farms, beaches) to two points. Closed outlines are now split at their farthest point and each half thinned.
+- **Re-run of features, boats and package on all four maps:** only farms, the farm lights, the skyline and the features reference changed. Every port, berth and slipway id is identical; packages grew 1-13 kB.
+- **Tests:** `tests/skyline.test.ts` (4):
+  - Oban's two farms: cages and lines, each with four lit corner marks, inside its lease;
+  - mussel lines as solid strips;
+  - no berth along any farm ring;
+  - Oban's skyline has its monument, masts and turbines, and no lighthouse or kit church twice;
+  - heights from the map or the kind.
+- **Checked headless:**
+  - Oban's six cages off Kerrera with a yellow corner mark;
+  - the mussel lines' floats;
+  - a turbine on the far shore and Dunollie's tower house;
+  - a Clyde turbine by day (blades turning between frames) and at night (its red light on the hub, small at 1.5 km);
+  - Oban's paper chart.
+  - Scene with the skyline in view: 68-78 draw calls (the 4 new ones included).
+- **Not checked:** the Quest's frame time.
+- **Test steps:**
+  - **VR and desktop:** Voyage → Oban and Lorn. Steer out of the bay to the north end of Kerrera and round to its west side (the paper chart marks "Fish farm" there): the six cages, the yellow corner marks flashing at dusk.
+    - Bump a ring: you stop.
+    - North of Oban, off Dunollie, the castle's tower house on its point. A small wind turbine stands on Kerrera by the marina (two more inland), facing the wind; change the weather and it swings round.
+    - At night: red lights on the masts, and on the turbines flashing together.
+    - The paper chart: the farms, "Dunollie Cas", masts and the wind turbine signs.
+  - **Clyde:** its 52 turbines (the paper chart shows where each group stands) and the castles along the shore.
+  - **Syros:** white chapels with blue domes on the hills.
+
+### Coast extras C1: read it all, check the piers (done)
+
+Owner: "Next milestone". **Nothing to see in the game:** this milestone gathers the data the next six use, and adds the check for piers drawn over each other.
+
+- **A new pipeline stage** (`tools/coast/src/features.ts`, after nav; `npm run features`) reads, in one pass over the map data already downloaded:
+  - **farms:** the marine farms' outlines (nav.ts already read them; never packaged), and their kind from `seamark:marine_farm:category`;
+  - **landmarks:** castles, towers, masts, chimneys, water towers, monuments, lighthouses, wind turbines and churches, with their height where tagged;
+  - **the shore:** beaches by surface (sand, shingle, pebbles; plain "beach" where untagged), shingle, bare rock, and cliff lines;
+  - **farmland:** each field's middle and area (the livestock heard in C5);
+  - **names:** towns, villages, hamlets, islands and islets, bays, headlands, straits and peninsulas, ranked for the chart (1 farthest out, 4 close in), Greek in Latin letters as before;
+  - **fog signals:** on lights, and on their own;
+  - **wrecks:** with their depth and category;
+  - **cables and pipelines** laid under the water;
+  - **power lines' spans over the water**, with their charted clearance where tagged;
+  - **ferry routes** (one copy each, however often they're mapped) and **ferry terminals**.
+  - Lines are thinned to 5 m. Everything is cut to the map's box.
+- **Written to `public/regions/<id>/features.json`.** The package names the file and its counts (`features: { file, counts }`). The game will fetch it when a milestone needs it, like the forest map; inlining it would have added about 70 kB to every copy of the game, career included, since Oban's and Tayvallich's packages are built in. Type: `src/world/coastFeatures.ts`.
+- **What the maps hold:**
+
+  | | Oban | Tayvallich | Syros | Clyde |
+  |---|---|---|---|---|
+  | Marine farms | 2 | 0 | 0 | 1 |
+  | Landmarks | 31 (3 castles, 7 masts, 3 turbines, 10 churches) | 5 | 94 (75 churches, 6 lighthouses, 5 turbines) | 197 (17 castles, 52 turbines, 34 masts, 67 churches) |
+  | Shore areas / cliff lines | 30 / 54 | 50 / 14 | 123 / 17 | 77 / 47 |
+  | Farmland fields | 59 | 5 | 256 | 812 |
+  | Names | 80 | 44 | 146 | 326 |
+  | Fog signals | 0 | 0 | 0 | 1 (a bell at Rothesay pier) |
+  | Wrecks | 0 | 0 | 0 | 1 (MV Captayannis, the "sugar boat") |
+  | Cables / pipelines under water | 3 (to Kerrera and Mull) | 1 | 0 | 5 / 1 (the Kintyre-Hunterston link) |
+  | Power-line spans over water | 0 | 0 | 0 | 0 |
+  | Ferry routes / terminals | 7 / 3 | 1 / 1 | 9 / 2 | 6 / 10 |
+
+- **Thin data, said plainly** (also in each map's report):
+  - **Fog signals** are barely mapped: one in four maps. C5's foghorns will be few unless more are mapped. Nothing is guessed.
+  - **Wrecks:** one.
+  - **Overhead power lines:** none cross the water on any of the four maps. C6's clearance rule will have nothing to act on here yet; it's for maps that have them.
+- **The overlapping-pier check** (owner's 8, in the package stage):
+  - Each pier and quay is sampled every 2 m. Wherever two overlap at decks more than 0.3 m apart over at least 40 m², the report warns, naming the nearest harbour, the place, both deck heights and the area.
+  - A pontoon's end resting on a quay's edge is smaller than that, and normal.
+  - **Found, all on the Clyde:** Rothesay's start spot (228 m², the one you met), Rhu marina (68 m²), and five at Sandbank, where the Holy Loch marina's pontoons run under a quay (44-216 m²).
+  - The game stands you on the higher deck in each case (the Rothesay fix). The worst can be tidied in the region's edits file if you meet one.
+  - **Also fixed:** the package's "not a port" warnings piled up in the report on each re-run. Each warning is now listed once.
+- **Re-run on all four maps:** only the package's new `features` reference changed (each package under 1 kB larger). Every port, berth and slipway id is identical, so saves and Voyage positions are unaffected.
+- **Tests:** `tests/coastFeatures.test.ts` (8):
+  - each map's file is where its package says, its counts match, and everything lies inside the map;
+  - Oban's three castles, its Craignure ferry, its Kerrera cables;
+  - the Clyde's Rothesay-Wemyss Bay route ending at Rothesay, the fog bell there, the Captayannis, its turbines and towns;
+  - Syros's names all in Latin letters, its ferries;
+  - the report names Rothesay's overlap, and lists each warning once.
+- **Checked:** the stage's output by name against the places (above). **Not checked:** in the game, since nothing is drawn from it yet.
+- **Test steps:** none in the game (no change you can see). C2 (fish farms and landmarks) is next.
+
+### Fix: put ashore under the pier at Rothesay (owner)
+
+Owner (a screenshot on the Clyde, standing on concrete with the timber pier's deck, bollards and yellow edge at head height): "It spawned in on the Clyde, and I seem to be on a pier, a concrete one, but underneath the big wooden one."
+
+- **Why:** at Rothesay's start spot two quay blocks from the map data overlap: the harbour pier (deck 2.4 m, the berth's own) and a small low pier, deck 0.5 m, drawn inside its outline. The game's deck lookup (`src/world/geography.ts`, `blockTop` / `standingHeight`) took whichever block it found first, here the low one.
+- **Now:** where decks overlap, you stand on the highest. The same lookup sets buildings, pumps and cargo stacks down, so they also sit on the top deck now.
+- **Only Rothesay:** of the 110 berths on the four Voyage maps, Rothesay's cargo berth (the Clyde's start) was the only spot ashore with two decks over it.
+- **Test:** `tests/voyageBerths.test.ts`, a second set: every berth's spot ashore, on every Voyage map, has a deck over it, the highest at the berth's own deck height.
+- **Checked headless:** Clyde from a fresh start (`&start`): the player stands at 2.4 m on the timber deck, the boat's roof below, Rothesay's buildings along the pier.
+- **Test steps:**
+  - **VR and desktop:** open https://tartanski-cpu.github.io/SWVR/next/voyage.html?map=clyde&start (the `&start` starts at the harbour, not where you last left her). You're on the timber pier's deck beside the boat, not under it. Step aboard and back ashore (the same spot).
+
+### Trees to suit the device: far trees on a desktop (owner)
+
+Owner: "The Tree model should detect the hardware and render appropriately, the quest LOD is ok but on my desktop it should be able to render the trees from far away."
+
+- **Telling the device** (`src/render/device.ts`, `isStandaloneHeadset`): the browser's user-agent string names the Quest's browser (and Pico, any Android). A standalone headset draws on its own phone-class chip and keeps the milestone 5 settings unchanged. Anything else is a desktop, in VR through a cable or Air Link too, and draws on the PC's graphics card.
+- **Settings → Game → Trees:** **Auto** (the default; the button says which it chose, far or near), **Near (Quest)** or **Far (desktop)**, to override the guess. Saved on the device (`userSettings.treeDetail`: `auto` / `quest` / `desktop`). It takes effect at once.
+- **The desktop's reach** (`CONFIG.trees.desktop`, laid over `CONFIG.trees`):
+  - full trees to `nearDistance` 900 m (Quest 320), up to `maxNear` 12,000;
+  - the middle band's cheap trees to `midDistance` 3 km, up to `maxMid` 20,000, so woods a mile or two off are trees, not only canopy;
+  - the canopy from `canopyFrom` 870 m out to `canopyDistance` 9 km (the clearest day's haze hides all beyond 13.5 km);
+  - placed again after `moveAgain` 30 m / `midMoveAgain` 120 m;
+  - `placeBudgetMs` 4 ms a frame to place them in (Quest 2 ms).
+  - The middle band may now stand on a big map's coarse ground (it reaches past the detailed squares streamed in round the boat). The near band still waits for the detailed ground.
+- **Making it cheap enough** (it first cost 35 ms a frame with 65-85 ms pauses on the desktop setting):
+  - **Placing is spread over frames.** Each band has two sets of tree meshes. The new placing is written into the hidden set a few milliseconds a frame (`placeBudgetMs`) and then swapped in, so the trees in view never flicker or half-fill.
+  - **Each tree's ground height is looked up once and kept**, looked up again only when the detailed ground arrives under it. Placings run again when new ground streams in, so trees placed over the coarse ground settle onto the detailed one.
+  - **Scattering woods reuses patterns.** A tile of scattered wood took one of four patterns, made once and turned or mirrored by the tile's own seed, instead of working a fresh pattern each time (a millisecond or more a tile; a desktop's bands cover thousands of tiles). Tiles with no scattered wood skip it. Same trees each visit, as before.
+  - **The canopy's merge no longer works out normals** (its material is flat-shaded, so each face's own is worked out as it's drawn). This was the last big pause.
+- **Measured** (headless Chromium in software rendering, so slower than a real PC; at Dunstaffnage):
+  - **Desktop setting:** 12,000 near + 20,000 middle trees; the tree view about 2 ms a frame. The worst single frame while placing after a move is about 14 ms, mostly a new canopy square being made.
+  - **Desktop setting, a mile offshore:** 20,000 middle-band trees on the far shores; the whole scene about 330k triangles in 61 draw calls.
+  - **Quest setting:** unchanged in what it draws (725 near, about 2,200 middle); the worst frame while placing about 6 ms.
+  - On a real desktop the far bands fill in within a few seconds of arriving. Headless, at a few frames a second, they take far longer, so the screenshot script ran the placing to the end first.
+- **Tests:** `tests/trees.test.ts` (device: the Quest browser's user-agent string is a headset, desktop Chrome's isn't; the Far and Near settings give the desktop's and the Quest's reach). `tests/menu.test.ts` (the fake menu host has the Trees setting). Full suite pass; typecheck clean.
+- **Not checked:** a real desktop graphics card's frame rate (headless is software rendering); the Quest (it should be unchanged); the Quest browser's user-agent string in practice (the test uses its published form).
+- **Test steps:**
+  - **Desktop:** Voyage → Oban and Lorn. Settings → Game → Trees should say **Auto (far)**. Board, look across to Kerrera and the Lorn shore: woods a mile or two off are individual trees, and the far hills' woods read as forest out to about 9 km. Switch Trees to **Near (Quest)** to compare (the far trees go and the canopy comes in closer), then back. Watch for stutters as you motor along.
+  - **VR (Quest):** Settings → Game → Trees should say **Auto (near)**, and the woods look and run as before. (Choosing Far on the Quest will cost frame rate; it's there for a PC headset.)
+
+### Fix: Voyage start berths too close to the rocks (owner)
+
+Owner (a screenshot of Syros, the boat at Ermoupoli's cargo berth with her bow on the rocks): "Some of the default starting positions on the voyage maps are too close to the rocks."
+
+- **Why:** the package picked each harbour's named berths (cargo, fuel; the cargo berth is where a map starts) as the fixed faces nearest the harbour's middle. Nothing checked that a whole boat fits there. Ermoupoli's was at the inner corner of the big quay, where the quay meets the rocky shore.
+- **Now** (`tools/coast/src/package.ts`): a berth must have room for a boat.
+  - **The check:** points every 2 m along the face, `berthClear` (11 m) either way from the berth, at the berth and out to `berthBeam` (5 m) from the face. Each must be over water and clear of other piers.
+  - **Against the game's own ground:** the package reads the region's mesh through the game's terrain lookup (`src/world/coastTerrain.ts`, chunks read as needed), not the pipeline's coarser 10 m grid.
+  - **Ranking:** berths with room come first, then fixed faces before pontoons, then nearest the middle.
+  - **Fixed on the way:** a pier drawn as one line is several boxes, and an L-shaped pier's arm can lie right across a berth on its stem. Only the boxes under the berth's own face count as her pier.
+  - **No room anywhere:** a harbour where no berth has room (a drying pier) is drawn but is no longer a port. Achladi on Syros; Ormidale Lodge, the second Kilchattan Bay pier and the second Lorn pier on the Clyde. They're listed in the report's warnings.
+- **What moved:** Ermoupoli's cargo berth moved 16 m along the quay, clear of the corner; Oban's 18 m. Tayvallich's and Rothesay's were already clear.
+- **Test:** `tests/voyageBerths.test.ts` checks every Voyage map's start berth and every cargo berth against the game's ground (streamed in for the big maps): a 14 m boat centred on the berth, out 2 m from her line, over water and clear of other piers.
+  - The tests run in the career world, so it reads the coast's own ground: the hand-built islands lie where the maps are placed, and the first try mistook one for Oban's ground.
+- **Checked headless:** moored at Ermoupoli, open water ahead along the quay, the shore well astern.
+- **Not changed:** some berths are shallow (ground just under the water at a few small piers). That's a separate question from rocks; tell me if a boat grounds at one.
+- **Test steps:**
+  - **VR and desktop:** Voyage → Syros. You start at Ermoupoli with water ahead and astern along the quay. Then Oban and Lorn (moved along Oban's quay), and Debug → World → To port to the other harbours: no bow on the rocks.
+
+### Settlements, part C: harbour boats, milestone 6 (done, awaiting owner test)
+
+Owner: "Next milestone". The brief (as recorded in milestone 1): harbour boats, moored, alongside and at anchor, bobbing and swinging to the wind, within the Quest budget, the number shown near you capped.
+
+- **Where they lie: a new pipeline stage** (`tools/coast/src/boats.ts`, run after harbours; the package stage carries its output as the package's `boats`):
+  - **The map's own mooring buoys** where mapped (`seamark:type=mooring`). Hardly any are: two in the whole Clyde, none on the other maps.
+  - **So each harbour gets a mooring field laid by the stage**, as a harbour authority would lay one:
+    - on a 40 m grid (`spacing`), within 500 m of a harbour (`reach`; a pier's 280 m);
+    - in 2.5-14 m of water;
+    - 30 m off the shore, 40 m off any pier or quay, 60 m off any berth (the water in front of a face stays clear for coming alongside);
+    - not in a marina (those are pontoons);
+    - sheltered: land within 2.5 km in at least 7 of 16 directions;
+    - **out of every harbour's fairway:** 70 m either side of the line from the harbour, and from the middle of its berths, out along its most open way to sea. (Without it, Ermoupoli's open basin filled with moorings.)
+    - The most sheltered spots first, as many as `6 + 0.5 x berths` (at most 40; a pier 8).
+  - **Times the theme's share** (`themes.ts` `boats.moorings`): 1 in the West Highlands; 0.35 in the Aegean, where boats mostly lie stern-to along the quays.
+  - **At anchor:** 4 boats in each anchorage (the spine's, and any mapped anchorage area), 80 m apart, in up to 18 m of water.
+  - **The theme's mix** (`themes.ts` `BoatStyle`): which kinds lie alongside, on moorings and at anchor, and the hull colours.
+  - **Re-run of the package stage on all four maps:** checked that only the new `boats` field changed (ids, berths, everything else identical).
+- **Alongside:** the game fills a share of the berths it already finds along the pontoons and quays: `CONFIG.harbourBoats.pontoonShare` 0.55, `quayShare` 0.2.
+  - Each berth is picked by its id, so the same boats every time and on every player's machine.
+  - **None within `namedClear` 25 m of a named berth** (cargo, fuel, the start), so those stay free for you.
+  - A berth with a boat in it isn't offered for making fast (`vessel/physics/mooring.ts`).
+  - **They make way for players' boats:** a harbour boat alongside isn't there while a vessel is made fast over her stretch of quay. That covers a saved game moored in her berth, and the multiplayer launch (`world/slots.ts`, the other session's new work) putting a boat in a berth beside hers; an 80 m coaster still gets Oban's long quay.
+  - The launch's anchoring spot keeps clear of the moored and anchored harbour boats' swinging circles.
+- **The boats** (`world/harbourBoats.ts`, plain data and pure functions, the same on every machine; nothing extra sent over the network):
+
+  | | creel | yacht | cruiser | RIB | caique |
+  |---|---|---|---|---|---|
+  | Length × beam (m) | 9.5 × 3.6 | 10.5 × 3.4 | 9 × 3.2 | 5.8 × 2.3 | 9 × 3.2 |
+  | Draught / freeboard (m) | 1.2 / 1.3 | 1.7 / 1.1 | 0.9 / 1.4 | 0.4 / 0.8 | 1.1 / 1.2 |
+
+  - Sizes are in `CONFIG.harbourBoats.kinds`.
+  - **Swinging:** on a mooring or at anchor she lies bow to the wind, her middle downwind of the buoy (half her length plus the pennant, `pennant` 3 m) or of the anchor (`anchorScope` 3 × the depth).
+    - She yaws slowly about that lie (`wanderDeg` 14°, `wanderPeriod` 45 s).
+    - Below `calmWind` 3 m/s she lies more and more to her own whim (the tide's stand-in).
+  - **Solid:** each is a box (her length and beam, the forward part tapered to the stem, keel to deck) that your hull's points bump off like a fendered pier.
+    - Only those within `stepReach` 250 m of a vessel are worked out each tick.
+    - Tested: a boat driven at a moored yacht stops against her.
+- **Drawing** (`world/view/harbourBoatsView.ts`, `harbourBoatKit.ts`):
+  - **Five designs of the game's own:**
+    - a creel boat (wheelhouse forward, creels on the after deck);
+    - a sloop (mast, boom, sail cover);
+    - a motor cruiser (long cabin, flybridge);
+    - a RIB (grey tubes, console, outboard);
+    - a caique (painted hull, white sheer strake, tall stem, small wheelhouse aft).
+  - 92-148 triangles each. One instanced mesh per design, the hull taking each boat's own colour.
+  - **Shown:** the nearest `maxShown` 120 within `drawDistance` 1500 m, re-picked every `refresh` 1 s. On a desktop (the same device level as the trees, Settings → Trees) 400 within 3.5 km.
+  - **On the waves:** within `bobDistance` 400 m (desktop 900) they ride the waves: rise, pitch and roll from three wave samples, as the traffic's ships. Farther ones only rise and fall.
+  - A moored boat's buoy floats at its mooring. An anchored boat shows her white anchor light at the masthead after dark.
+  - **Cost on the Quest setting:** at most 7 draw calls (five designs, the buoys, the lights) and about 14,000 triangles for 120 boats.
+- **The numbers:**
+  - **Oban:** 227 boats (75 alongside, 148 moored, 4 at anchor).
+  - **Tayvallich:** 42.
+  - **Syros:** 83 (25 caiques).
+  - **Clyde:** 1,280 (420 alongside, 852 moored, 8 at anchor).
+  - **Whole scene, aboard, headless** (draw calls and triangles):
+    - Oban at Dunstaffnage, 90 boats shown: 68 calls, 179k triangles. The baseline at Oban's start was 76 calls, 171k.
+    - Syros at the start: 71 calls, 201k.
+    - Clyde at Rothesay: 72 calls, 187k (baseline 110 calls, 179k).
+- **Tests:** `tests/harbourBoats.test.ts` (8):
+  - every Voyage map's moorings over water in the game's own ground (the detailed mesh), clear of the piers and of the start berth;
+  - a share of the berths filled, none by a named berth, the same every time;
+  - a moored boat lies downwind of her buoy, bow to the wind, and swings when it backs;
+  - the collision box pushes a point out through her nearer side, clear past her stem and above her deck;
+  - a vessel driven at a boat stops against her.
+- **Checked headless:**
+  - Dunstaffnage's mooring field and marina pontoons;
+  - the five designs side by side;
+  - Oban's anchorage at night (anchor lights);
+  - Syros and the Clyde from their start berths.
+  - **Fixed on the way:** a boat alongside first stepped aside for any vessel within 7 m, so she vanished as you came close. Now she only steps aside for a vessel made fast in her berth (or put right on her spot).
+- **Not checked:** the Quest's frame time; the mooring fields' look in every harbour (four looked at, from above on the stage's own maps).
+- **Not done:** boats moving about the harbours (the traffic does that offshore); mooring pick-up lines (no ropes); the harbour boats on the chartplotter (they aren't on AIS).
+- **Test steps:**
+  - **VR and desktop:** Voyage → Oban and Lorn, then Debug → World → To port → Dunstaffnage Marina.
+    - Yachts and creel boats lie along the pontoons, and a field of yachts on moorings in the bay, all bows to the wind.
+    - Change the wind (Debug → weather presets, or wait) and watch them swing round.
+    - Nose gently into one: you stop against her (soft, like a fendered pier).
+    - Try to make fast in a pontoon berth with a boat in it: you can't. An empty one works.
+  - **Night:** set the time to 23:00 and look at the anchorage south of the marina: the anchored yachts show white masthead lights.
+  - **Syros:** caiques along Ermoupoli's quays and at Foinikas, few swinging moorings.
+  - **Clyde:** Rothesay and the Kyles' harbours busy with boats.
+
 ### Settlements, part B: trees, milestone 5: distance bands and the canopy (done, awaiting owner test)
 
 Owner: "Next milestone". The brief's milestone 5. Test: a forested hillside reads as forest from a mile offshore, at budget.
@@ -6852,6 +7621,8 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
 
+- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6), C1-C5 and C7 are done (C5 as surf only, by the owner's choice); C6 (charted hazards) is next, then C8. The owner says "Next milestone" to advance, as before.
+
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 
 1. **Owner VR test** of fuel and temperatures, harbours, anchoring and refuelling. Then tune contact stiffness, the shelter factors and the menu size and placement.
@@ -7002,3 +7773,465 @@ Owner, Oct 2026: "go to 5". The plan's P5: "berth, settee, galley run, seat, loc
   - **Desktop:** Shipyard, pilot boat, Wheelhouse step: Saloon aft 3 m. Deck gear: open **Inside: furniture**; **Place** the galley and click on the roof over the saloon to starboard; the settee to port; the head near the aft end; the seat beside the helm; a berth; a locker. Each card says where it went. Try a berth in a small wheelhouse: she says why not. Trials & handover, play her: walk round the furniture; click the head's door to open it, walk in.
   - **VR:** the same boat: walk round the pieces, press the head's door, look in.
 
+### Shipyard: furniture placed from above with the roof cut away (done, awaiting owner test)
+
+Owner, Oct 2026: "it's difficult to place the furniture because the roof is in the way... a top-down view... or the roof should be transparent... whatever you think is the right way". Both, in a way: pressing **Place** (or **Move**) on a piece of furniture now turns the view to look straight down (Plan, flat), closer in over her houses, with her cut away above a level `CONFIG.shipyard.furniture.planCut` (1.25 m) over the wheelhouse floor: the roof and the tops of the walls are gone, so the floor, the console, the companionway and the furniture already there show, and a click lands on what shows (what's cut away isn't there to click). Once the pin is placed, or the tool put down, she's whole again and the view goes back as it was (page.ts `cutOpen`: a clipping plane on her materials while placing). A see-through roof alone would still have caught the click, and a plain top-down view would still have shown the roof. The cabin below is still under the deckhouse's top: click over it as before.
+
+- **Checked:** headless Chromium, the furnished pilot boat: Place on the galley cut her open from above (the galley's sink and stove, the settee and berth cushions, the console, the companionway all seen), a click by the port wall moved the galley there, and the view came back with the roof on. Typecheck clean, the Shipyard's tests pass. **Not checked:** the Quest (the Shipyard is a desktop page).
+- **Test steps (desktop):** Shipyard, a boat with furniture, Deck gear, Inside: furniture: **Move** (or Place) on one: the view turns to above with the roof off; click where it goes; the roof comes back. Moving one piece can shift the others along (they're placed in turn: head, locker, galley, settee, berth, seat).
+
+### Shipyard: furniture a step of its own, several of each piece (done, awaiting owner test)
+
+Owner, Oct 2026: "you can only place one of each furniture type. So ... split furniture into a different part of the workflow, keep it separate from deck equipment, where there usually is just one, but the furniture should be allowed to place multiple. So the UI needs to change there."
+
+- **A Furniture step** after Deck gear (page.ts `showFurniture`; the steps are now Brief, Hull, Wheelhouse, Deck gear, Furniture, Engine, Controls, Paint, Trials & handover). A card for each piece (icon, a line on it, how many on her) with **Add** / **Add another**; under it, each one on her (Berth, Berth 2...) with where it went, **Move** and **Take off**. Add and Move turn the view to above with the roof cut away, as before; the click puts the piece there at once (no pin: furniture doesn't go on the to-do). The Deck gear step no longer lists furniture, nor does a pin's equipment list.
+- **Up to four of each piece; one head** (its door is the boat's one head door, bus key `furniture.headDoor`: a second head would need its own). Each copy is a design field (design.ts `FURNITURE_SLOTS`: `berthAt` as before, then `berthAt2`, `berthAt3`, `berthAt4`; the head's spare fields `headAt2..4` always 0). Adding takes the first empty one; taking one off moves those after it up (shipyard/furnishing.ts), so they're always numbered without gaps.
+- **The builder** (shipyard/parts/furniture.ts) places every copy in turn, the same rules as before, each on a place of its own (`furniture.berth`, `furniture.berth2`...), each weighed and priced.
+- **Saved designs:** every link, file and saved project from before reads as before (one of each; the new fields none). Still not in the short code (a link or file).
+- **Not changed:** the furniture itself, where it's allowed, the game.
+- **Checked:** typecheck; tests/shipyard/furnishing.test.ts (4: the next field, four at most, one head; taking one off renumbers; two settees and two seats built, each placed and weighed, through a link and back; an older design reads); pinGear and designDoc tests updated; full suite (below). Headless Chromium, the pilot boat with a saloon: the Furniture step, Add a berth (the view from above, roof cut away), click; Add another, click; a settee: listed with where each went. **Not checked:** the Quest.
+- **Test steps (desktop):** Shipyard, the pilot boat, Wheelhouse: Saloon aft 3 m. **Furniture** step: **Add** a berth, click on the floor to port; **Add another**, click further forward; a settee to starboard. Each is listed under its card; **Move** one, **Take off** Berth (Berth 2 becomes Berth). Try her in the game (VR or desktop): both berths are there, and you walk round them.
+- **Follow-up, owner: "yes keep the view from above on the Furniture step".** The Furniture step now opens with her seen from above, the roof cut away (page.ts `cutOpen`), and stays so while it's open: Add or Move, click, and the next piece goes in without the view moving (her rebuilt boat is cut again each time, `recut`). Leaving the step puts the view back as it was. You can still turn and zoom it, or press a view button, while the step is open. Headless Chromium: three pieces placed one after another, the view stayed above; going on to Engine, the 3D view came back.
+
+### Shipyard: a section tool (done, awaiting owner test)
+
+Owner, Oct 2026, after the furniture cut-away: "the obvious addition to this would be to make a section cutting tool so you can cut the ship through as you want". **✂ Section** (with Pin and Sketch over the view) opens a small panel, bottom right of the view:
+
+- **Waterline / Buttock / Station:** the three planes of her lines plan. A level cut (her waterplane, or her decks and floors from above), an upright cut fore and aft (her profile inside), an upright cut across her (her body section). Pressing one cuts her and turns the view square on to the cut face, flat (a station filling the view).
+- **A slider** slides the plane along her, anywhere within her extent, in `CONFIG.shipyard.section.step` (0.05 m) steps, the place in words: "0.40 m above the design waterline", "0.50 m to starboard", "7.00 m forward of the transom". Each starts where you'd look first: the design waterline, the centreline, a station `stationAt` (0.5) of the way from transom to stem.
+- **⇄ Flip** keeps the other side (above the waterline, the starboard half, the forward part) and looks at that cut face. **Look at the cut** turns the view back square on after you've turned it; you can turn and zoom freely with the cut on. **Off** (or ✂ Section again) puts her back whole.
+- The cut stays through her changes and from step to step, and a pin, a gear placement or a furniture click lands only on what's left (what's cut off isn't there to click). Placing furniture with a section on cuts by both.
+- **How:** a clipping plane on her drawing's materials (page.ts `applyCuts`, `sectionTool`, shared with the furniture cut-away); while cut, her materials draw both sides, so you see her plating from within rather than through it. **Not done:** the cut faces aren't filled in solid as a hatched section on a drawing would be (her hull and houses are drawn as skins, so a fill would be wrong in places); say if you want it tried.
+- **Checked:** typecheck, full test suite, build; headless Chromium on the furnished pilot boat: a station amidships (the wheelhouse, the berth and settee, the engine room in section), flipped (the forward part from aft: the console and wheel), a buttock 0.5 m to starboard (her profile inside, the engine), a waterline at deck height (her deck plan, the inside of her bow), turned to Bow ¾ with the cut on, and Off (whole again). **Not checked:** with a real mouse; the Quest (the Shipyard is a desktop page).
+- **Test steps (desktop):** Shipyard, any boat: **✂ Section**: a station amidships, square on. Drag the slider fore and aft through her. **Buttock**, slide it off the centreline; **Waterline**, slide it up through her decks. **⇄ Flip**; turn the view with the mouse, then **Look at the cut**. Change something (the wheelhouse length) with the cut on: she stays cut. **Off**.
+- **Follow-up, owner: "The furniture cut of the roof ... not really needed. We could just use the section cut. But ... when you go to the furniture page, it should try to cut at the roof level by default."** The Furniture step's own roof cut is gone; the step now turns on the section tool (another session's ✂ Section: waterline, buttock or station) at a waterline `CONFIG.shipyard.furniture.planCut` (1.25 m) over the wheelhouse floor, looking down on it, flat (page.ts `furnitureView`). Its panel can slide it, flip it or turn it off; leaving the step puts the cut and the view back as they were. Also fixed: the page's clipping switch (`renderer.localClippingEnabled`) went with the old cut, so it's now set beside the section plane (without it the section tool cut nothing). Headless Chromium: the step opens cut at 3.02 m above the waterline on the pilot boat (her floor + 1.25 m), the roof off, the berths and settee showing; pieces placed by clicking; Engine puts the 3D view back.
+
+### Health, berths that heal, and sleep (done, awaiting owner test)
+
+Owner, Oct 2026: "The berth, either in the cabin which appears under the wheelhouse or the placeable berth, should have the function of healing the player." There was no player health, so I asked: the owner chose **both** (a berth heals, and sleeping in it passes time), hurt by **cold water, a propeller, falls, and fire and smoke**.
+
+- **The model** (player/health.ts, plain numbers, tested; tunables `CONFIG.health`): one number, 1 well to 0 blacked out.
+  - Cold water: full to nothing in `coldMinutes` 8 (game-paced: at the sea's 14 C a real person lasts an hour or more).
+  - Flames: inside the fire's `hitRadius` and below its flame height, `firePerS` 0.2 at full blaze. Smoke: downwind of the fire, a plume `smokeReach` 40 m long widening `smokeSpread` 0.25 m a metre each side, thinning with distance (in a calm, under `calmWind` 1 m/s, rising all round out to twice its radius), `smokePerS` 0.03 at its thickest. Both scale with how hard it's burning.
+  - A propeller: `propHit` 0.6 at a blow (the strike's red, black and haul-out as before).
+  - A fall: harmless from `safeFall` 2.5 m, then `fallPerM` 0.2 a metre more (from the speed you land at).
+  - A berth: from nothing to full in `restFullS` 90 s, only while nothing's hurting.
+  - Blacked out: the propeller's fade and haul-out aboard, you come round at `wakeHealth` 0.5. A warning below `warnBelow` 0.35.
+- **Who keeps it:** each player's own game (it runs their body: walking, swimming, falling, and already finds the propeller strike), as it keeps their position. Only "lying in a berth" goes to the host (a new pose field `resting`, `PlayerState.avatar.resting`); solo, the game sets it on your avatar the same way.
+- **Sleep** (core/simulation.ts with `sleepHours`): with every player in the game lying in a berth, the clock runs on `sleepHoursPerS` 0.25 game hours a real second (8 hours in about half a minute). Lain down hurt, you get up by yourself once well by day; else you sleep until the clock comes round to `wakeHour` 07:00 (`nightFrom` 20:00). A step or a jump gets you up any time.
+- **Berths** (modules/furniture): every Shipyard berth (furniture.piece, kind berth) has a press on its mattress (`BerthRest`, channel `berthRest`: handled by the app, not sent to the boat); a Shipyard boat's cabin-below V-berth gets the same press from a new module `furniture.restSpot` mounted on it (shipyard/parts/furniture.ts). Not on the Alaskan 38's fore-cabin berth (a separate boat; easy to add if wanted).
+- **What you see:** a red flash when hurt (ComfortOverlay `hurt`), the view dimmed while resting (`rest`), messages (hurt, low, blacked out, resting, up again); on the desktop, "Health N %" at the bottom right while below full or resting. In VR there's no permanent readout: the messages, the flash and the dimming say it.
+- **Not done:** health isn't saved with the career (a reload starts you well), and crew-mates don't see each other's health.
+- **Checked:** typecheck; tests/health.test.ts (6: the cold's pace, a berth's healing and not while hurt, falls, flames and smoke downwind and none upwind or once out, a calm's smoke, sleep only with everyone resting, getting up by day or at the morning; the berth and V-berth presses and a recipe that validates); full suite (below). Headless Chromium, the game with a Shipyard fishing boat with a cabin below: its V-berth press is among the controls; a 4.5 m fall took 0.4; lying down dimmed the view and set the avatar's `resting`, healing ran and the clock ran on at 0.25 h a second of simulation; a step's get-up brought the view back. **Not checked:** the Quest; a real fire's smoke in play (tested in the model only).
+- **Test steps:**
+  - **Desktop:** take a Shipyard boat with a berth (or a cabin below) into the game. Jump off the wheelhouse roof onto the deck or quay: "A hard landing: hurt", a red flash, Health at the bottom right. Swim a while: the cold wears you down (a warning at 35 %). Climb back aboard, walk to the berth, click its mattress: the view dims, health climbs; at full by day you get up by yourself. Lie down again at full health: the clock runs (watch the light) until 07:00, or press W to get up.
+  - **VR:** the same, the trigger on the mattress; push the stick to get up.
+
+### Screen sizes (full, strip, quarter); an ANCHOR screen; the TOW LINE a strip (done, awaiting owner test)
+
+Owner, Oct 2026, after a Voyage multiplayer session: "the instrument doesn't tell you how much anchor chain is out ... is the chain going down? Is the anchor set? Is the chain going up? Is it in?"; and "the instrument [tow line] is too big. In the future, I want to create more modular instruments where we basically have ... a full size screen, and then ... a half size or a quarter size. So you might want to start that and make this towing [one] like two quarters next to each other".
+
+- **Screen sizes** (controls/instruments.ts): a screen is made of quarter cells, 256 x 128 px (half a full screen's width and height): a full screen 2 x 2 (as every screen was), a **strip** 2 x 1 (two quarters side by side), a **quarter** 1 x 1. A screen says its size (`Screen.cells`); the shared display atlas packs them into its grid (`packCells`: each at the first free place, row by row); the screen module (modules/screen) sizes the glass to match (that part of a full screen's `CONFIG.modules.screen` width and height). Still one texture and one draw call for all a boat's screens. The atlas grew from 1024 x 768 to 1024 x 1024 (32 cells): the tug with the advanced instruments now has six full screens, a strip and a quarter (27 cells). It's repainted and uploaded only when a reading changes, as before.
+- **ANCHOR**, a quarter screen (paintAnchorScreen), beside the speed screen on every Shipyard boat with an anchor, basic controls too: the chain out (m) big, a bar of it against all she carries (her windlass's `chainM`), and what it's doing: ▼ LETTING GO (flashing), SET (green), DRAGGING (flashing red), ▲ HEAVING IN (flashing), OFF BOTTOM (hanging clear; NO BOTTOM with all the chain out), HOUSED (stowed). The small anchor line on the speed screen stays.
+- **TOW LINE** is now a strip (two quarters side by side): the same readings (kN, SLACK / TAUT / EASE OFF, PARTED, NO LINE, % of breaking, the bar with its amber and red marks and the held peak), laid out for the lower screen.
+- **The console's screen row** (shipyard/parts/recipe.ts) lays each screen out at its own width, all shrunk together only if the row is longer than the dash, as before. Order: speed, anchor, heading, rpm, engine monitor, tow line.
+- **Why the owner saw nothing in Voyage:** the speed screen did show the anchor ("LETTING GO 23 m" and so on) but as one small line under the speed; not checked in multiplayer itself. The new screen makes it plain.
+- **Checked:** typecheck; Shipyard and tow tests (the screen row never overlaps on any hull type, the anchor and tow screens where they should be, the packing: full, strip and quarter cells, eight full screens fill the atlas and a ninth is refused); updated tests for the row's new member; full suite (below). Headless Chromium, the small tug in the game letting go her anchor: the row at the helm with the ANCHOR quarter showing "4 m ▼ LETTING GO" and its bar, the TOW LINE strip ("NO LINE"). **Not checked:** the Quest (whether the quarter's lettering reads at arm's length), and in multiplayer.
+- **Test steps (desktop and VR):** take a Shipyard boat (the fishing boat, or the tug for the tow strip) into the game. At the helm, the small ANCHOR screen sits left of the heading screen. Flick the ANCHOR switch: ▼ LETTING GO and the metres climb; SET once it holds; flick it back: ▲ HEAVING IN, the metres fall, HOUSED. On the tug, make a tow fast and watch the TOW LINE strip.
+- **Follow-up, owner: "you could use the space above as well for the half height ones"; "quick stacking".** The console's row (shipyard/parts/recipe.ts) now stacks the half-height screens two high in one full screen's place: strips along the bottom first, then quarters side by side above them (centred), the place standing where the first of them is in the row; a lone one stays in the middle of its place. The screen module raises or lowers a screen along the tilted dash face (`ScreenConfig.rise`, m). On the tug: speed, then the ANCHOR quarter over the TOW LINE strip, heading, engine, engine monitor: five places where there were six. On a boat without a tow line the ANCHOR quarter stands alone as before. Tests: the row's overlap test allows screens stacked one above the other; the tow strip and anchor quarter share the place beside the speed screen, the strip below. Headless Chromium: the tug's console, the two stacked. The bigger version (dynamic console sockets: the dash as a grid of quarter cells, then placing instruments by hand in the Shipyard) is noted for later, if wanted.
+
+### Dynamic console sockets (milestone; owner, Oct 2026: "start the dynamic console sockets milestone")
+
+The owner: "place sockets on the console, dynamic sockets, of course, depending on the size of the console, so we can eventually place the instruments where we want". The plan, in steps:
+
+- **CS1, the dash as a grid (done, awaiting owner test).** The console's dash is a grid of quarter cells (a quarter of a full screen: `(screen width + gap) / 2` across, half a screen high), two rows high, as many columns as the screens need. Each screen takes its size in cells (full 2 x 2, strip 2 x 1, quarter 1 x 1: instruments.ts `cells`). The builder places them by rules in their order of importance (shipyard/parts/consoleGrid.ts `packDash`): each at the first place, column by column, where it fits; full screens and strips on even columns, so they share places in pairs; strips at the bottom, quarters at the top; columns left empty dropped. `placeOnDash` turns cells into metres: the row centred over the wheel, a half-height screen alone in its columns in the middle of the dash's height, a quarter alone over a strip in the middle of the pair. All of it smaller together if the row is longer than the dash, as before. Each boat's grid is kept in her console config (`dashGrid`: its columns, rows, pitch and each screen's cells) for CS3. **No visible change** from the stacking just before (one detail: a quarter is now half a screen less half the gap, 0.18 m, so two side by side keep the gap). Tests: tests/shipyard/consoleGrid.test.ts (3: the placing rules, a lone quarter's column dropped, the metres: centred, stacked, a lone quarter in the middle); the console row tests as before. Headless Chromium: the tug's and the beginner boat's consoles, as before.
+- **CS2, the switch panel as a grid (done, awaiting owner test).** The flat panel in front of the dash is a row of switch cells `CONFIG.shipyard.helm.switchPitch` (0.14 m) apart (shipyard/parts/consoleGrid.ts `packPanel`). Each group is a run of cells, its switches side by side in the middle of it under its coloured plate (inset `plateInset` 0.02 m): LIGHTS (nav lights, cabin, wipers), then SEARCH / FIRE / SEARCH · FIRE (spotlight, fire pump), packed in from the port end; ENGINE (start, key; the warning lamps and the start-up card in its middle), then DECK (the ANCHOR switch, the skiff crane's button), in from the starboard end; the horn alone `wheelClear` (0.11 m) port of the wheel's middle, under the rim beside the hub. The groups keep `groupClear` (0.36 m) from the wheel's middle: the rim is 0.22 m but, the panel being further from the eye, it hides about 1.4 times that, and a switch behind the rim is hard to see and reach. Short of room, the cells close up, but not under `minPitch` (0.1 m). Built after the basic controls are taken off, so a basic console's groups close up round what's left. Each boat's panel is kept in her console config (`panelGrid`: its pitch and each group's members and run) for CS3. **Visible changes, small:** groups sit against the ends of the console rather than spread in proportion; DECK now sits next to ENGINE (it was near the wheel); ENGINE lost its spare empty cell. On the smallest console (the landing craft's) SPOT still sits partly behind the rim: the port side is full at the least pitch (CS3's hand placing, or a second row, would cure it). Tests: tests/shipyard/consoleGrid.test.ts (3 more: the packing; closing up, not under the least pitch; on every hull type, basic and advanced, each switch in its group's plate, the plates apart and on the panel). Headless Chromium: the tug, the fishing boat, the beginner boat and the landing craft from the helm.
+- **CS3, placing by hand in the Shipyard (done, awaiting owner test).** On the Controls step the view turns to the console from behind the wheel (page.ts `frameConsole`: inside the wheelhouse at standing eye height, a 68 degree lens there, the usual 45 elsewhere) with a **Console layout** panel under it (`showConsoleEditor`, an SVG): the dash's whole grid (as many columns as it has room for at the full pitch, `dashCap`) with her screens, the panel's whole row of switch cells with her groups, the wheel drawn across. Drag a screen or a group to free cells, or click it then a cell; the first move pins everything where it stands (all the fields written), so the rest stay put; **Automatic** clears them. Switches move as whole groups, so each keeps its plate.
+  - **In the design** (design.ts): `DASH_SLOTS` (dashSpeed, dashAnchor, dashHeading, dashRpm, dashMonitor, dashTow: 0 automatic, else 1 + column x 2 + row) and `PANEL_SLOTS` (panelLights, panelSearch, panelHorn, panelEngine, panelDeck: 0 automatic, else 1 + the group's first cell). Not in the short code: a link or file. Older designs read as automatic.
+  - **The builder** (shipyard/parts/recipe.ts, consoleGrid.ts `placeDashByHand`, `placePanelByHand`): with any placement, the whole grid is used: each placed item where it was put if it's on the grid and free, in order; the rest (new ones, or ones that no longer fit) placed as the rules would (screens nearest the middle; port groups from the port end, starboard ones from the starboard end, the horn nearest the middle), with a warning for each that had a place ("doesn't fit where it was placed: put where the rules would"; with no room at all it's left off, saying so). Placed by hand, a quarter screen stays where it's put (no centring over its strip). Both grids are kept in her console config (`dashGrid`, `panelGrid`) for the editor.
+  - **Tests:** tests/shipyard/consoleGrid.test.ts (3 more: pinned where it stands gives the same console within half a cell; a switch group moved to free cells goes there, one put on another goes back by the rules with a warning; a screen moved to a free cell goes there, Automatic is the rules again, it travels in her link). designDoc's list of fields not in the code.
+  - **Headless Chromium:** the tug at the Controls step: the console view and the panel; DECK moved by click to a free cell, the console in the view with it. **Not checked:** the Quest (it's a Shipyard feature: desktop), dragging with a finger on a touch screen.
+- **CS4, three tiers of instruments (done, awaiting owner test; owner, Oct 2026: "three tiers of instruments, old school (analogue), basic electronic, and then advanced. The options in the shipyard should follow this to begin with").** The Controls step's choice is now three cards: **Old school (analogue)**, **Basic electronic** (the old "basic") and **Advanced** (as before). Old school is the basic controls with round analogue gauges in place of the small screens: a magnetic compass (a turning card with a lubber line), the log (knots), depth (with SHALLOW under 2 m), the anchor chain counter (with a boat that has an anchor: metres out against all she carries, the needle on the length, and HOUSED / ▼ OUT / ▲ IN / SET / DRAGGING / HANGING beside it), the rev counter (red from her rated revs), coolant temperature (red from her alarm) and fuel (E, half, F). Each is a quarter cell, so they lay out on the CS1 grid, two rows, and can be placed by hand (CS3) like any screen.
+  - **How it's built:** instruments.ts `dial` paints a gauge (cream face, black figures, orange needle, a 270 degree sweep; its name on the plate to its left, a note to its right) and seven painters (`dialRpm`, `dialSpeed`, `dialDepth`, `dialTemp`, `dialFuel`, `dialCompass`, `dialChain`) on the same display atlas, so they cost no extra draw calls and repaint only when a reading changes. The design has a new field `oldSchool` (design.ts; 1 with `controls` 0; ignored with Advanced); the recipe swaps the speed, rpm and anchor screens for the gauges, and the gauges have their own `DASH_SLOTS` for placing by hand. Price: `CONFIG.shipyard.oldSchoolPrice` (£4,000, against £6,000 for the basic screens). Not in the short code: a link or file.
+  - **Fixed on the way:** (1) a screen raised up the dash (the top one of two stacked half-height screens) had its top edge inside the dash, hiding its top third: the dash's face is upright and the screens lean back 14 degrees, and the stand-off allowed only for the screen's own height. Now it stands off as if it were part of a screen centred on its slot reaching as far as its outer edge (modules/screen `reach`), so stacked screens lie in the plane of a full one. It showed on the tug's ANCHOR quarter only slightly; with two rows of gauges it was plain. (2) The Console layout panel drew switch groups by their cells, so when the rules closed the switches up (a short console), DECK and ENGINE overlapped there; they're now drawn where they really are. The boat was right; only the drawing was wrong.
+  - **Tests:** tests/shipyard/build.test.ts (1 more: old school builds the seven gauges and none of the screens, basic the three screens, advanced the same whatever the old-school flag); designDoc's list of fields not in the code.
+  - **Headless Chromium:** the beginner boat with old-school instruments from the helm and close to (the gauges whole, figures clear of the names), the painted atlas; the beginner boat with the basic screens and the tug's stacked ANCHOR and TOW LINE (whole); the Shipyard's Controls step with each tier picked (the right card lit, the gauges in the Console layout, DECK and ENGINE side by side). **Not checked:** the Quest; the gauges at night (they're lit as the screens are).
+- **CS5, the ship's clock, warning lamps in every tier, and the advanced touchscreen (done, awaiting owner test).** Agreed with the owner (Oct 2026) from a list of possible extra readings: no new gauges for volts (the switchboard's voltmeter has it), rudder angle (not needed), oil temperature or bilge (a warning lamp is enough, "in all the packages"); a ship's clock "would be good"; "then I would continue with the touchscreen build-up".
+  - **Warning lamps:** the engine panel's lamps (OIL, CHARGE, GLOW, NEUTRAL, BILGE, HULL, ENGINE) gain **TEMP** (blinking with the coolant over its alarm) and **FUEL** (on under the low-fuel mark): before, those two alarms showed only on the advanced engine monitor (and the old school temperature gauge). The lamp panel is on every tier's console. modular/busKeys.ts `lamp.temp`, `lamp.fuel` (vessel/physics/engineThermal.ts `engineAlarms`); controls/ignition.ts LAMPS; `CONFIG.modules.warningLamps.spacing` 0.066 to 0.056 m so nine lamps take about the old row's length. The golden runs record every bus key, so their fixtures were recorded again: the only change, checked line by line, is the two new keys, "off" throughout.
+  - **The ship's clock:** a quarter on the dash, last in the row: the old school's a brass-rimmed twelve-hour clock with hands, the screens' the time in figures (24 hours); the world's time of day. On most boats it stacks under the ANCHOR quarter, so the row is no longer. instruments.ts `clock`, `dialClock`; placeable by hand (`dashClock`, `dashClockDial`).
+  - **The touchscreen** (Controls step, with Advanced: **Screens**: Separate screens / One touchscreen / Two touchscreens; design field `touch`, not in the short code): a full-size screen in place of her separate console screens, a row of tabs along its top (the wheel's rim hides a dash screen's foot from the helm): SPEED, HDG, ENGINE, SYSTEMS (the engine monitor), ANCHOR (with an anchor), TOW (with a tow point), WIND, and the time. Press a tab (hand or laser) and it turns to that page; the page is the boat's (`controls.touchPage1`, `touchPage2`, like the chartplotter's zoom), so the whole crew sees what was picked. Two: the first opens on SPEED, the second on ENGINE. Each page is the existing screen drawn whole into it (a quarter or a strip drawn large). Cost: one atlas region, repainted only when the page, what it shows or the minute changes; the tabs are invisible press targets (controls/TouchTab.ts), no draw calls. The overhead NAV / WIND display and the chartplotter stay as they are. Price: `CONFIG.shipyard.touchPrice` (2,500 each, on top of the advanced package). instruments.ts `touchScreen`, `TOUCH_PAGES`, `touchTabs`; modules/screen builds it with the boat's `pages`, `channel` and `first`.
+  - **Tests:** tests/touchscreen.test.ts (2: a press target over each tab, sending its page on its channel, in a row along the top; the page kept in range); tests/shipyard/build.test.ts (1 more: one or two touchscreens in place of the screens, the right pages, the second on ENGINE, ignored with the basic controls); the console tests counting the clock; designDoc's list of fields not in the code.
+  - **Headless Chromium:** the beginner boat old school (the brass clock beside FUEL), basic, and with one touchscreen (the ANCHOR and ENGINE pages; the tabs first along the foot, hidden by the wheel's rim, so moved to the top); the tug with two touchscreens (TOW and ENGINE); the lamp row with TEMP and FUEL lit; the Shipyard's Controls step (Screens shown only with Advanced, the touchscreen in the Console layout). **Not checked:** the Quest (pressing a tab with a hand), a crew member seeing the page change.
+  - **Old school gauges set into the dash (owner, Oct 2026: "a circular backing plate, and integrate more directly onto the" dash):** each analogue gauge is now just the round gauge on a dark circular backing plate with four screws, its name beside it on the dash: no screen's black rectangle or bezel. instruments.ts: a screen's `round` flag paints it on a clear ground, which the display atlas's material cuts away (`alphaTest` 0.5; the screens are opaque, so unchanged), and a gauge shows without 12 V too. Still one draw call for all the screens and gauges. Headless Chromium: the old school helm, from the wheel and close to.
+  - **The dash leans back; screens and gauges lie flat on it (owner, Oct 2026: "they're not flat onto the plastic of the console ... I'd certainly not like the gauges or the instruments floating"):** the dash's face was upright and every dash screen leaned back 14 degrees in front of it, its top edge standing off. Now, on Shipyard boats, the face leans back by the screens' tilt from its foot (so the switch panel in front is untouched; never so far that its top is under 2 cm deep: modules/console `leanDeg`), and each dash screen and gauge lies flat on it, 6 mm proud (modules/screen `faceBack`, the face's lean-back at the slot). All raised 3 cm up the face (`CONFIG.shipyard.helm.screenLift`): the lower row's foot was behind the ledge in front of the dash. Boats from hand-written recipes keep the upright dash; low sills (screens on stalks) unchanged. Headless Chromium: the old school dash from the side (flat, the lower row whole), the tug's faceted dash and a touchscreen from the helm.
+  - **Navigation lights in every tier (owner, Oct 2026: "yes, add nav lights to all tiers"):** the old school and basic consoles keep the NAV LIGHTS switch (alone on the LIGHTS plate) and the boat her navigation lights; before, both came only with Advanced. shipyard/parts/recipe.ts (the basic `keep` list); the Controls step's tier notes say so. Test: tests/shipyard/build.test.ts (each tier has the lights and the switch at the helm). Headless Chromium: the old school helm with the LIGHTS plate.
+- **CS6, a narrow console for a narrow wheelhouse (done, awaiting owner test; owner, Oct 2026: "an option that allows you to make a more narrow console, so we can have more narrow wheelhouses"; "I'm okay with that minimum width" (1.2 m); "the switches can go on the upright part as well").**
+  - **Console length** (Wheelhouse step, Inside group; design field `consoleLen`, not in the short code): Full width (as before: as wide as the wheelhouse, up to `CONFIG.shipyard.helm.maxConsole`) or 0.8 to 2.15 m (design.ts `consoleLengthM`). A note under it gives the shortest console that holds her instruments full size (recipe `consoleMin`: for each number of switch groups moved up onto the face, the longer of what the dash's grid and the flat panel need; the least of those). Shorter, the screens and gauges are drawn smaller together and the Shipyard says so (only for consoles shorter than any before CS6).
+  - **Narrower wheelhouses:** the narrowest is now `CONFIG.shipyard.helm.minInside` (1.2 m inside; it was 1.7 m, widened with a warning); the Width slider goes down to 0.4 of the deck (under 0.65: a link or file).
+  - **Switches up on the dash face:** when a side's switch groups don't fit the flat panel at the closest pitch clear of the wheel's rim, whole groups move up onto the leaning dash face beside the screens, in `CONFIG.shipyard.helm.faceSwitchOrder` (DECK, SEARCH, LIGHTS, ENGINE) until the rest fit. Each is a strip on the dash's grid (two switches to a quarter cell), its plate, coloured strip and title on the face (console.standard `faceGroups`), its switches standing square out of the face (toggles turned a quarter, rocking side to side, to fit the strip), their names engraved on the face under them (labels now stand on a leaning face: module.ts `face`, set by the assembler for a module stood out from one). ENGINE takes the warning lamps with it; on a console shorter than any before (`lampsUpBelow`, 1.58 m) the lamps' row goes up anyway, clear of the rim. The horn stays beside the wheel. Not with low sills (no dash face) or a switch panel placed by hand. In the Console layout panel the face strips show on the dash grid, placed by the rules; moving a screen now pins only the dash (pinning the panel too would keep its groups off the face).
+  - **The one fleet boat that changes:** the landing craft's DECK and SEARCH groups go up onto the face: its SPOT switch was partly behind the wheel's rim (a known leftover from CS2).
+  - **Tests:** tests/shipyard/narrowConsole.test.ts (4: a touchscreen boat on 1.2 m, every face switch on the leaning face, inside the dash, apart, its group off the flat panel, its shortest length building without the warning; every hull type at 0.8 m, basic and advanced, valid with every switch placed and the warning when too short; full width as before; every hull type down to 1.2 m inside).
+  - **Headless Chromium:** a touchscreen boat on 1.2 m; old school on 1.2 m (all eight gauges at 59%, the warning); the fishing boat at 1.2 m inside with one touchscreen (the lamps up on the face, START and KEY clear of the rim); the landing craft; the Shipyard's Wheelhouse and Controls steps. (These shots show the wheelhouse's small parts as from inside: from outside the game hides them, on a narrow console the screens and gauges too.) **Not checked:** the Quest; walking round the console in a 1.2 m wheelhouse.
+  - **Fix, faceted dashes (owner, Oct 2026, the pilot boat: "some of the instruments are effectively clipped ... the side ones don't get an angle that fits with the facet"):** measured against the dash's face, the screens straddling a wing's corner had their outer half up to 39 mm inside the wing (the row was laid out straight across, the wings set back in front of it), and the wing screens' tops 7 mm in (a sheared wing face leans less in its own frame). Now a faceted front's row is laid out facet by facet (shipyard/parts/recipe.ts `facetPlan`, `facetX`): the middle face's columns centred over the wheel, each wing's from its corner outward along the angled face, split only between screens, all smaller together if they don't fit (the pilot boat's to 83%: a screen on each wing, three columns in the middle); each wing screen leans as its wing does (the lean times the wing's cosine). Every corner now 6 to 7 mm proud of its face. Placed by hand on a faceted dash: as before (straight across). Test: tests/shipyard/narrowConsole.test.ts (every hull type with three facets, basic and advanced: every dash screen corner 2 to 12 mm proud of the face behind it). Headless Chromium: the pilot boat from the helm.
+  - **Fix, labels on the switch panel (owner, Oct 2026, the pilot boat's starboard wing: "some of the labels are not very clear"):** the warning lamps' row sat on the plates' front edge, its names standing over the DECK and ENGINE title strips; on a wing the row ran straight across while the plates angled back; the group titles on a wing were square across too; and dark titles on the brown DECK and green ENGINE strips hardly showed. Now the lamps stand on the console body's step in front of the dash's foot, 0.12 m up, clear of the plates (CONFIG.modules.helmConsole and landingCraft.json `lamps` [.., 0.121, -0.315]; that step had also hidden them when first moved forward), turned with a wing; a wing's titles read along it (console.standard, label `yaw`); the DECK, SEARCH and ENGINE strips are lighter so their dark titles read (DECK 0xd0a24c, SEARCH 0xe0664a, ENGINE 0x5cc46c). Test: tests/modular/helmConsole.test.ts (the lamps' new place). Headless Chromium: the pilot boat's starboard wing close to, the tug.
+  - **Fix, the Shipyard shows her screens and gauges (owner, Oct 2026: picking the analogue gauges, "you don't get a preview of them on that view"):** the Shipyard never ran the instruments, so every display in its view stood blank. Now each time it builds her it draws them once, as at the berth (page.ts `showDisplays`: a fresh boat of her design, battery master and breakers on, engine stopped, noon): the gauges, the screens, the touchscreen's first page. (They don't change while you look: she isn't running.) Headless Chromium: the Controls step with old school and with advanced.
+- **CS7, more instruments to place.** Possible later: the chart as a touchscreen page (the chartplotter draws its own chart: a bigger job), a larger touchscreen for a single-screen console, a third row of switches on a tall dash.
+
+
+### The tug gets the raised foredeck (done, awaiting owner test)
+
+Owner, Oct 2026: "the raised foredeck of the tugboat seems to have disappeared or at least I can't find where I set that". It never had one: the Raised foredeck slider was the fishing boat's only. Until now the tug's could be faked with a full-width deckhouse (Wheelhouse step). Owner: "yes, add the raised foredeck slider for the tug".
+
+- **Now** (shipyard/parts/catalog.ts, the small tug's `DESIGN_HULLS` entry): `raisedForedeck: true`, her lofted form taking the break (`forecastle`) as the fishing boat's does. The Hull step shows **Raised foredeck** and **Its height** for her; everything else is the fishing boat's (`CONFIG.shipyard.foredeck`): ladders each side at the break, a landing aft of her door when the house stands on it, the fo'c'sle cabin below.
+- **What follows the raised bow:** her push fender's knees run up to the raised bulwark top (trim.ts reads her deck after the break is made). Her tyres and strake follow the deck. Her towing hook still stands on the low towing deck aft of the break: its search starts aft of the house's door, and the break is never further aft than the landing.
+- Her wheelhouse is kept well forward, so most lengths put the break under the house: it then runs on aft past it, the house standing on it, as on a harbour tug with a forecastle. Only a short one (about 1.5 m) stays forward of the house.
+- **Checked:** tests/raisedForedeck.test.ts: the fleet tug with a long raised foredeck: deck steps at the break, the deck raised by its height forward of it, the push fender's top raised by the same, the towing hook aft of the break, the recipe valid; the pilot boat still offers none. Headless Chromium: the tug with short and long raised foredecks, sides and bow. Full suite passes. **Not checked:** the Quest.
+
+### Step 1 toward a trawler: a fish hold and crew accommodation (done, awaiting owner test)
+
+Owner, Oct 2026, with a 24 m stern trawler's general arrangement: "start building out some more modules so we can eventually build something like this ... a fish hold and ... a little bit more interior accommodation, including like a kitchen and sleeping quarters". Agreed plan: (1) the hold and accommodation, as modules any hull can take, tried first on the gillnetter; (2) trawl deck gear (net drum, trawl winches, gantry, net crane, forward boom); (3) a stern trawler hull type (16 to 24 m) with a nozzle, whaleback and shelter deck. The gillnetter itself stays a 9.75 m boat: the Shipyard scales her to 11.5 m at most, so a 24 m trawler is a hull type of her own. This is step 1.
+
+**The fish hold** (design.fishHold, Deck gear step: **Fish hold: None / Under the deck**):
+- **Where** (shipyard/parts/hold.ts): under her open deck, the longest stretch clear of the houses, the engine and its space (`engineGap` from them), the propeller and rudder (`aftClear` from the transom), the cabin below and a raised foredeck. On the gillnetter: aft of the wheelhouse, over her working deck, as on a trawler.
+- **Size:** its floor `soleClear` over her bottom and `shaftClear` over the propeller shaft running under it; as wide as her hull inside at the floor less `frame`; its ceiling her deck. On a narrow V bottom the floor comes up until a box lies across it. At least `minLength` long and `minDepth` deep, else left off saying why. Default gillnetter: 2.8 m long, 4.0 m wide, 1.2 m deep, **60 fish boxes**; with the wheelhouse lengthened for a crew, 48.
+- **Its hatch:** on deck on a coaming (`hatch.coaming` 0.3 m), 0.9 m square (down to `hatch.min` 0.6 m to fit), as near the hold's middle as it can be clear of the deck gear (along her first, then to one side: beside the A-frame's braces). The deck is cut out under it (hullMesh.ts). The lid (the engine hatch's: a chequer plate hinged on its starboard side, a yellow ring) opens and shuts with a press (`hatch.hold.open`). You walk round the coaming, not over it.
+- **Drawn** (modules/fishHold): a light insulated lining, battens along its sides, the ceiling round the hatch, and the boxes in it, iced, stacked tier by tier from the ends in (one instanced mesh: one draw call however many). Its floor is below the sea, so it has a water stop as the engine space does (the sea isn't drawn inside it).
+- **The catch** (fishing/fishHold.ts): the trawl's boxes now go down into the hold while there's room (each box's species kept), and onto the deck only once it's full ("Hold and deck full"). The status line shows "hold 12/60". **The yellow button on the coaming** (`hold.lift`) lifts the last box stowed up onto the deck beside the hatch, with the lid open: carry it ashore and sell it as before.
+- **Its weight:** each box bears on her where it stands in the hold (added to her payload, simulation.ts): low down, so a full hold sinks her by its weight and makes her stiffer, not tender. The hold itself (insulated lining `kgPerM2` and the hatch's `hatch.kg`) is in her weights, priced at `pricePerM3` of hold.
+- **Keys:** `hatch.hold.open`, `hold.lift`, `hold.boxes` (docs/BUS_KEYS.md). Gear `fishHold` (its box slots and hatch), socket type `hold.fish`.
+- **Config:** `CONFIG.shipyard.fishHold { engineGap, aftClear, minLength, minDepth, soleClear, shaftClear, frame, hatch { length, width, min, coaming, clear, kg }, boxGap, headGap, kgPerM2, pricePerM3 }`.
+- **Not done:** you don't climb down into it (the gillnetter's is 1.2 m deep: you work it from the deck through the hatch); a box carried back can't be put down into it; what's in it isn't kept in a career save (as deck cargo isn't).
+
+**Crew accommodation** (Furniture step, three new pieces, placed as the rest are):
+- **Bunks, two high** (up to four): two berths between end boards, a lee rail on the upper one, rungs up to it; either one to lie down in. They want `sitUp` headroom over the top cushion, else left off saying why (a berth fits lower).
+- **Mess table and benches** (up to two): a table against the wall on a pedestal, a bench with a back at each end.
+- **Shower** (one): a tray, three walls to the ceiling, a rose, a curtain half drawn across its front; you step in past the open half. Needs the head's headroom.
+- **Config:** `CONFIG.modules.furniture.bunk { length, depth, lower, upper, cushion, rail, sitUp, kg }`, `.mess { length, depth, table, bench, seat, back, kg }`, `.shower { length, depth, wall, kg }`, colour `curtain`.
+- On the default gillnetter the cabin below can't go in (her engine is under the wheelhouse), so her crew lives in the wheelhouse: lengthened to 4.6 m (Wheelhouse step), it takes the bunks and shower to port, the mess and the galley to starboard, and the hold still fits aft. A fo'c'sle cabin under a raised foredeck with its own way down from the deck is the natural next piece for the trawler.
+- **Checked:** typecheck; tests/shipyard/fishHold.test.ts (6: link/file only; on the gillnetter aft of the house clear of the engine and shaft, its hatch in the hold, 30+ boxes, weighed and priced; every hull type fitted or left off saying why; the coaming walked round; the deck cut over the hatch only; the catch stowed to full, its weight low in her, LIFT does nothing with the lid shut and brings a box up, species kept, with it open) and tests/shipyard/crewQuarters.test.ts (3); goldens re-recorded for the three new keys only (checked: every recorded value otherwise identical); full suite. Headless Chromium: the game (the hold open from above with its boxes iced; the deck beside it with a box lifted out; the crewed wheelhouse looking forward and aft) and the Shipyard (the Fish hold row and "60 fish boxes"; a station and a buttock cut through the hold; the Furniture step's new cards). **Not checked:** the Quest.
+- **Test steps:**
+  - **Desktop:** Shipyard, the gillnetter. Deck gear: **Fish hold: Under the deck**; her figures say how many boxes. ✂ Section, Buttock: the hold under her aft deck. Wheelhouse: Length 4.6 m. Furniture: add **Bunks**, **Shower** (port), **Mess table**, **Galley** (starboard). Deck gear: the A-frame. Into the game: on deck, press the hatch lid's ring to open it and look down; go trawling on a ground: the status line counts the hold; back in harbour press the yellow button on the coaming to lift a box out, carry it ashore.
+  - **VR:** the same: lift the lid, look down into the hold, press LIFT; inside, lie down in the upper bunk, sit at the mess, step into the shower.
+
+### The Kort nozzle drawn on the Engine step (done, awaiting owner test)
+
+Owner, Oct 2026: "Can you do a visual preview of the cork nozzle on the tugboat in the engine page? Again, it doesn't need to appear in the 3D model in the game."
+
+- **Now** (shipyard/enginePreview.ts `buildNozzle`, drawn by `buildMachinery` when the engine's recipe has `nozzle`): a duct round each propeller, on its shaft line, turned from a foil section after the common 19A duct. Inside, the mouth flares wider forward and closes to a throat at the blade tips; outside, nearly straight. Its leading edge is thick and rounded, its trailing edge thin. A headbox plate carries it from her bottom. The rudder is drawn just aft of the outlet, allowing for the shaft's angle; on the tug that is a few centimetres aft of the rudder stock's design place (`rudderPos`, transom − 0.25), which sits inside the duct's length. The propeller's tag reads "in a Kort nozzle". Shipyard only: the game doesn't draw shafts, propellers or nozzles.
+- **Config** (`CONFIG.nozzle.look`, in propeller diameters D): `lengthD` 0.5, `tipGap` 0.01, `inletFlare` 0.15, `noseD` 0.1, `headbox` true.
+- **Checked:** tests/shipyard/enginePreview.test.ts: a twin installation with nozzles has one round each propeller, clear of the blade tips, the rudder aft of the outlet; none without. Headless Chromium: the tug's Engine step from ahead, the side and astern, single and twin. Full suite passes. **Not checked:** the Quest.
+
+### Fix: the deck floods hung on the roof edge, no light inside the wheelhouse (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the tug): "the forward deck and aft deck lights ... they're not positioned at the edge of the roof. And then, so when you're inside and you turn them on, you actually get some bleed into the cabin."
+
+- **Why:** the floods stood on the roof top, set in from its edges (on a reverse-raked front, behind the front wall's foot). The game's lights cast no shadows, so a beam passes through the roof and walls: with a 60° half-angle aimed at the middle of a short deck, nearly straight down, the wheelhouse floor lay inside the beam.
+- **Now** (shipyard/parts/places.ts): each lamp hangs `flood.out` beyond the roof's outer edge, half way up its thickness: forward, on the visor's edge (set back with a faceted front's corner); aft, on the roof's aft overhang. `floodAim` then aims each one. If the beam aimed at the middle of its deck clears the inside of the wheelhouse wall at that end by `margin`, it aims there. Otherwise it tilts outboard until it does (no flatter than `minBelowDeg` below the horizon; narrowed, never under `minAngleDeg`, only if that cap is reached). For the front wall, the inside points run up the wall to the sill, then up the glass to its head; for the aft wall, from the floor to the roof. The light.flood module takes each lamp's own `angleDeg`. On all five fleet boats the floods keep their full 60° beam, tilted out.
+- **Config** (`CONFIG.shipyard.workLights.flood`): `out` 0.07 (replaces `inset`), `margin` 4°, `minBelowDeg` 15, `minAngleDeg` 35.
+- **Checked:** headless Chromium in the game at night, the fleet tug, from inside the wheelhouse with the floods off and on: before, the floor lit up; now it doesn't change. The decks outside are lit. The Shipyard: the lamps on the roof's front and aft edges (the tug and the pilot boat). Full suite passes. **Not checked:** the Quest.
+
+### Fix: bulwarks along a full-width deckhouse, level, not a sawtooth (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the tug): "when the deck house ... is full width, it doesn't cut the bulwarks properly". Along a full-width deckhouse her bulwark is raised to guard its top. Each piece (station to station) was raised by the deckhouse top's height over her deck at the piece's middle, so its top followed her sheer and stepped back up at the next station: a sawtooth.
+
+- **Now** (vessel/view/hullMesh.ts `levelPlate`): along the deckhouse each piece is a plate whose foot follows her deck edge and whose top is level, at the deckhouse top plus her bulwark height; its rail is level at the deckhouse top plus the rail height (the stanchions were already right). Closed at its ends where it rises above her ordinary bulwark.
+- **Checked:** headless Chromium, the Shipyard: the tug with a full-width deckhouse from the starboard quarter and from port: the bulwark's top level along it. Full suite passes. **Not checked:** the Quest.
+
+### Shipyard: the Engine step as pictures (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of the Engine step): "these side menus are still too much text. I'd like it to be more pictorial, so images. And it could be there's a tooltip to give you all that information, right? Or an information button."
+
+- **Now** (shipyard/tiles.ts, new; page.ts's Engine section; styles in shipyard.html): every choice on the Engine step is a picture tile: a small line drawing (drawn for the game, 48 × 32, in the text's colour), its name and one line. Its full description sits behind an **i** button and opens under the tiles, in place, so it works on a touchscreen and in the headset's browser too; it's also the tile's hover tooltip.
+  - **Engines:** the four as tiles ("150 kW", "diesel six · 600 kg"...), each drawn as its kind: a straight six, a V8, the bigger V8 with two turbos, the tug diesel with its flywheel.
+  - **Drive:** Twin, Stern drive, Pod drives, Kort nozzle, as on/off tiles. Each still has its checkbox inside, so page.ts ticks and disables them as before; the tile shows ticked or greyed out.
+  - **Exhaust stacks** (raked, straight) and **Or outboards** (none, two, three, four), as tiles.
+  - Up to four tiles stand in one row, no tile alone on a row.
+- `pickTiles` (one of several: `data-key`/`data-i`, marked `on` by syncControls as before) and `toggleTiles` (on/off fields) are for the other steps too, if the owner likes this one.
+- **Checked:** headless Chromium, the Engine step: the tug (the tug diesel and the nozzle chosen; Twin, Stern drive and Pod drives greyed out; the nozzle's description open) and the landing craft (Twin ticked by its tile, the 280 kW chosen by its tile: the design changed). Full suite passes. **Not checked:** the Quest's browser.
+
+### Tugs: more power, lighter small ones, and a tiny tug down to 7 m (done, awaiting owner test)
+
+Owner, Oct 2026: "I'd like the big tug engine to power the tugs to a little bit higher speed ... the smallest one could be like 14, 15, and the biggest one, 12 ... I'd like to make a really tiny tug." Measured first, with the 450 kW tug diesel matched by trial: 10.4 m 8.3 kn, 13 m 9.0 kn, 15.3 m 8.9 kn. Flagged to the owner: the physics was about right. At 13 m, 12 kn is Fn ≈ 0.55, up the wave-making hump; doubling the power alone gave 10.5 kn. A smaller displacement tug is slower at the same Fn, not faster. Two real faults: the same fixed 18 t of ballast at every size, so the 10.4 m tug weighed 48 t; and her propeller is bounded by her draught. The owner chose "real physics, more power" and "down to about 7 m".
+
+- **Twin tug diesels** (design.ts: `SINGLE_ONLY_ENGINES` now empty; the tug diesel goes on a shaft only, `SHAFT_ONLY_ENGINES`, no stern drive or pods): two 450 kW engines on two screws, as a twin-screw harbour tug (her lines already have the twin propellers' raised run aft). Lifts the owner's earlier "single only".
+- **Ballast scales with her hull's volume** (weights.ts: `ballastKg` × length × beam × depth factors; hull.ts returns `size`).
+- **A tiny tug** (catalog.ts `shrinksTo` 0.54 on the small tug; `sizeScale`): her length slider's steps 0–8 run from 0.54 to 1.0 of her base in equal ratios (7.0 m to 13 m; steps 8–15 as before). Below her base size her beam and depth shrink too, to a power of the length factor (`CONFIG.shipyard.shrink`: beam 0.65, depth 0.75), so she stays beamy and deep. Tug designs saved at length steps 0–7 come out a little shorter and narrower than before; the fleet tug (step 8) is unchanged.
+- **Her towing hook on a short deck** (deckGear.ts): where the hook and her tow winch just forward of it don't both fit (the 7 m tug), the hook stands alone and the winch finds its own place.
+- **Results** (matched by trial, the fleet tug's layout): 7.0 × 3.6 m, 21 t, single 450 kW: 11.3 kn (GM 0.58 m; a twin doesn't fit under her floor); 8.2 m twin: 14.5 kn; 9.6 m single 9.6 kn, twin 13.6 kn; 13 m single 8.7 kn (the fleet tug, as before), twin 11.3 kn; 15.3 m single 8.7 kn, twin 10.7 kn.
+- **Checked:** the trials above (tests run in vitest); headless Chromium: the 7 m tug in the Shipyard (her hook, her winch aft). Full suite passes. **Not checked:** the Quest.
+
+### Narrow console: switches in front of the wheel before the dash face (done, awaiting owner test)
+
+Owner, Oct 2026 (screenshot of a narrow console with two touchscreens): "This shouldn't really happen ... it's scaled all the screens down, but those buttons there could be placed on the empty part of the console in front of the wheel." On a short console every switch group had gone up onto the dash face (only the horn left on the flat panel), so the screens were drawn at 59 % and the face was crowded.
+
+- **Now** (shipyard/parts/recipe.ts `switchesAt`): on a console too short for its groups clear of the wheel (`groupClear`), they first close up onto the flat panel in front of the wheel too: each side's up to `centreClear` m (0.03) from the middle, the horn with the port side's, nearest the middle. Only then do groups go up onto the face, one at a time, each from a side that still doesn't fit (in `faceSwitchOrder`).
+- **The shortest console that holds it all full size** (`consoleMin`, the Shipyard's warning): worked out with the same rule, length by length in 5 cm steps.
+- On the landing craft with a 1.2 m console: two touchscreens, before all four groups were on the face and the screens at 59 %; now LIGHTS, the horn, DECK and ENGINE are on the panel, SEARCH and the warning lamps on the face, the screens at 80 %. One touchscreen: everything full size, no warning.
+- **Config:** `CONFIG.shipyard.helm.centreClear` 0.03.
+- **Checked:** tests/shipyard/narrowConsole.test.ts (switches in front of the wheel, only SEARCH on the face, no warning at `consoleMin`); headless Chromium: the Controls step's layout and the helm in the game, one and two touchscreens. Full suite passes. **Not checked:** the Quest (reaching switches behind the wheel's rim).
+
+### Trawling: the catch comes aboard in the net, the A-frame swings it in (done, awaiting owner test)
+
+Owner, Oct 2026: "I'd like the A-frame trawling equipment to have a more advanced animation when you pull the net in, and ... maybe the whole mechanism needs to be updated. I'd like it to pull the fish in the net instead of auto-loading the crates." Before, a ready-packed box simply appeared on the aft deck every 40 s or so of good trawling; the A-frame was a fixed frame.
+
+- **The catch in the net** (fishing.ts): trawling fills the **codend** a box's worth at a time (each its ground's species), up to `CONFIG.fishing.codendBoxes` (12); full, it stops fishing ("Codend full: haul it"). Nothing comes aboard until it's hauled.
+- **The haul** (new net states): `hauling` (the warps in, `haulTime`; the trawl doors come up to hang on the stern quarters) → `lifting` (`liftTime` 12 s: the net up over the stern, the codend up from astern and deep to the surface, then up to hang under the A-frame's middle block, then the A-frame swings forward on its feet to bring it in over the deck) → `aboard` (hanging inboard; "RELEASE on the A-frame's box empties it") → `stowing` (`stowTime` 8 s: the A-frame swings back out, the empty net goes back on its drum) → `stowed`. Shot again from aboard, the codend goes back over the stern first, and what's in it stays in it. By hand: HAUL with the warps in brings the net up and aboard; PAY OUT lowers it back first, then pays out. Nothing moves without deck hydraulics, as before.
+- **RELEASE** (a third button, `net.release`): empties the codend on deck, in a heap beside where it hangs (clear of a fish hold's coaming); the crew boxes the heap a box every `boxTime` (3 s), into the fish hold first if she has one with room, else on deck by the heap; with no room on deck the heap waits ("Deck full: N boxes of fish waiting on deck").
+- **Its weight:** once it's out of the water, the codend and its catch hang on her at the A-frame (a point load in her payload, simulation.ts): she squats and trims aft as it comes up, and it moves inboard as the frame swings.
+- **The A-frame swings** (modules/aFrame): its braces are now hydraulic rams (a red barrel pinned to the deck, a steel rod to the leg) and the frame turns on its feet through `aFrame.luffDeg` (55°) as the net comes aboard (`aFrame.luff`, worked out by fishing.ts; fishing/codend.ts has the geometry, shared by the simulation and the drawing). A lifting block in the middle of the crossbeam. Its control box moved off the leg (it would swing with it) onto a post on deck inboard of the starboard foot (`aFrame.box`), now with PAY OUT, HAUL and RELEASE.
+- **Drawn** (fishing/trawlView.ts): the trawl doors (two steel otter boards, one instanced mesh) on the warps astern, hanging on the stern quarters when the net's in; the net's body coming up over the stern as netting (one line mesh); the codend, as big as what's in it, the fish's colours showing through its mesh, coming up from astern, hanging under the A-frame and swung inboard; the fish pouring out of it onto the deck (`codend.pourTime`) into a heap that goes down as it's boxed (one instanced mesh). About five more draw calls while the net's aboard; none of it physics or rope.
+- **Config:** `CONFIG.fishing { codendBoxes, liftTime, stowTime, boxTime, codend { astern, depth, surfaceAft, surfaceAt, hangAt, hang, radius, radiusPerBox, pourTime } }`, `CONFIG.vessels.workboat.fishing.aFrame { luffDeg, box { inboard, forward } }` (the old `boxInset` is gone). Keys: `net.release`, `aFrame.luff`.
+- **The fishing duty** now reads: shoot, tow on a ground, haul aboard and RELEASE, carry the boxes ashore.
+- **Goldens:** re-recorded; checked that only the trawl run differs beyond the two new keys (its last three checkpoints: the caught box is in the codend, not on her deck, so her motion differs very slightly).
+- **Checked:** typecheck; tests/fishing.test.ts (7: the catch builds in the codend, not on deck; hauled, lifting then aboard with the A-frame swung in and the codend's weight inboard of its feet; RELEASE to a heap, boxed one at a time with the ground's species, then stowed and swung back out; the codend full stops fishing, and shot again from aboard keeps its catch; fouled, slow, fast and outside as before; a box landed ashore; by hand out and in, part way, and HAUL/PAY OUT up and down the stern); the walk test (the control box's post) and the shared button caps (5 deck caps); full suite. Headless Chromium, the gillnetter with the A-frame and a fish hold: trawling (warps and floats astern), the doors up, the codend hanging under the A-frame over the stern, swung aboard (rams pulled in, codend over the deck, coloured with fish), the heap on deck beside the hold's coaming. **Not checked:** the Quest; the starting workboat's A-frame in the browser (her tests pass).
+- **Test steps:**
+  - **Desktop:** a boat with the trawl gear (the Shipyard gillnetter with the A-frame, or the workboat). On a fishing ground, TRAWL on, tow at 2-4.5 kn for a couple of minutes: the status line counts the codend. TRAWL off: watch from the aft deck as the doors come up, the codend comes up the stern and the A-frame swings it in over the deck. Press **RELEASE** on the A-frame's box (the post by the starboard foot): the fish pour onto the deck and are boxed one by one (into the hold, if she has one with the lid open or not). The A-frame swings back out.
+  - **VR:** the same, standing on the aft deck clear of the A-frame's swing: watch the codend come in overhead, press RELEASE, pick up a box from beside the heap.
+
+### Shipyard: every step as pictures (done, awaiting owner test)
+
+Owner, Oct 2026, after the Engine step's tiles: "yes, do the picture tiles for the other steps".
+
+- **Now** (shipyard/tiles.ts: new drawings `HULL_ICONS`, `HOUSE_ICONS`, `CONTROL_ICONS`, colour samples `liningIcon` and `floorIcon`, `aboutHeading`; page.ts `optionTiles`, `cardAbout`):
+  - **Hull:** the hull types as tiles, each drawn from the side (the landing craft's ramp, the gillnetter's house forward, the pilot boat's long house, the tug's sheer, push bow and stack), her length on the line under. Hull protection (none, fenders, strake, tyres, strake and fenders), rails and what she's built of, as tiles.
+  - **Wheelhouse:** front (flat, three facets), sides and aft, sills, console side, chart table, the deckhouse's top and inside, as drawn tiles. Lining and floor as colour samples (the ceiling over the walls, beams where it has them; the floor's planks or grip).
+  - **Deck gear / Furniture:** the cards keep their icons; each one's description is now behind an **i** by its name (and its tooltip). The fish hold as tiles.
+  - **Controls:** the three instrument tiers (a gauge, small screens, big screens over switches), the screens choice and helm assist as tiles.
+  - **Every step:** one line under its title, the rest behind an **i** (STEP_GUIDE, STEP_MORE); each group's long note (hull protection, the deckhouse, console layout) behind an **i** on its heading.
+  - **Paint** was already colour swatches: unchanged.
+- The old `choices()` list builder is gone; `options()` stays for Paint's two rows.
+- **Checked:** headless Chromium, every step's panel; clicking tiles changes the design (hull type, protection, rails, material, front, lining, fish hold, the tiers, one touchscreen), a card's **i** opens its description. Full suite passes. **Not checked:** the Quest's browser (the **i** buttons' size under the pointer).
+
+### Step 2 toward a trawler: the trawl deck gear, a net drum and trawl winches (done, awaiting owner test)
+
+Owner, Oct 2026: "go to step 2, the trawl deck gear". From the plan: a net drum, trawl winches, a gantry, a net crane and a forward boom. The gantry is already done: the A-frame swings on its rams (the change set above), and it does the net crane's job of bringing the codend in. So this step is the **net drum** and the **trawl winches**. The landing boom is left for when the owner wants it; the Shipyard's deck crane can already be fitted for lifting.
+
+- **Shipyard** (Deck gear → Fishing, each "with the A-frame"; design.netDrum, design.trawlWinches; not in the short code): fitted, not placed.
+  - **Placement** (shipyard/parts/deckGear.ts): the trawl winches go at her deck edges `deckGear.trawlWinches.gap` forward of the A-frame's rams' feet, `edge` in from the edge. The net drum goes on the centreline `deckGear.netDrum.gap` forward of them. Each moves forward in 10 cm steps until it stands clear (`search` m at most), else it's left off saying why.
+  - **Clear deck:** the A-frame's rams' feet and its control box's post are now kept clear on deck too.
+  - **Without the A-frame:** left off, saying "need the trawl A-frame".
+  - **No tow winch needed:** with the trawl winches, the warps lead off them; without them, off the tow winch as before.
+  - **Hydraulics:** any boat with the A-frame now gets the deck hydraulic pump, which the trawl needs. Before, it came with the tow winch.
+  - **Weight and price:** `CONFIG.shipyard.weights.gear.netDrum` / `.trawlWinches` and `deckGear.price.netDrum` / `.trawlWinches`.
+- **modules/netDrum** (`deck.net-drum`):
+  - Two blue stands, a cross-member and the hydraulic motor on the starboard stand.
+  - The drum has flanges with spokes, so you see it turn.
+  - The net on it is a green roll whose radius follows the net's volume (an annulus). It turns `turnsPerNet` times from full to empty as the net comes off or on (`trawl.netOnDrum`).
+  - Config: `CONFIG.modules.netDrum { length, flange, core, fullRadius, axleHeight, stand, turnsPerNet, colours }`.
+  - Gear `netDrum` gives where the net leads off it: the net in the water is now drawn from the drum's top.
+- **modules/trawlWinches** (`deck.trawl-winches`):
+  - A mirrored pair, each a base, two cheeks, a drum of warp and its motor outboard.
+  - The warp's roll runs down as the warps go out and the drum turns (`trawl.warpOut`, `turns` from full to empty).
+  - Config: `CONFIG.modules.trawlWinches { drumRadius, drumWidth, flange, fullRadius, axleHeight, base, turns, colours }`.
+  - Gear `trawlWinches` gives the warp's lead: the warps are drawn from the winch drums up to the A-frame's blocks, then on to the doors.
+- **The net on its drum** (fishing.ts `drum`):
+  - All on it stowed.
+  - Off over the first quarter of the warps going out.
+  - Back on as the net comes up the stern, to 0.85 with the codend hanging aboard.
+  - The rest as it's stowed.
+  - Off again as the codend is lowered back. Written to `VesselState.trawlGear { warp, net }` for the modules.
+- **The trawl doors** now hang outboard against her quarters when the net's in, instead of on the deck side of the bulwark.
+- With trawl winches, the tow winch's drum no longer turns for the trawl. The hydraulic sound is unchanged.
+- **Keys:** `trawl.warpOut`, `trawl.netOnDrum` (docs/BUS_KEYS.md).
+- **Goldens:** re-recorded. Checked that every recorded value is identical apart from the two new keys.
+- **Checked:**
+  - Typecheck.
+  - tests/shipyard/trawlGear.test.ts (4):
+    - link/file only, and needs the A-frame;
+    - on the gillnetter: the winches at the edges and the drum on the centreline forward of the rams, no tow winch, the recipe valid with its pump, weighed and priced;
+    - every hull type's recipe holds or the gear is left off saying why;
+    - at sea: the net off the drum part way through the shoot, all off fishing, still out with the warps in, back on up the stern, all on stowed.
+  - The gear menu's fitted list and the pin list updated. Full suite passes.
+  - Headless Chromium, the gillnetter with the A-frame, drum, winches and a fish hold:
+    - stowed (the drum's green roll full);
+    - fishing (the drum bare, the warps from the winches up to the blocks and out astern);
+    - the net coming in (the netting from the drum to the codend);
+    - a winch close up;
+    - the Shipyard's Stern ¾ view with both, and the Fishing cards.
+- **Not checked:** the Quest.
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard, the gillnetter. Deck gear → Fishing: the A-frame, then **Net drum** and **Trawl winches**. She needs no tow winch.
+    2. Into the game, on a fishing ground: TRAWL on. Watch the drum turn as the net comes off it, and the winches' warp run out.
+    3. Haul: the winches wind the warps in, then the drum winds the net back on as it comes up the stern.
+    4. RELEASE, then watch the rest of the net wind on as it's stowed.
+  - **VR:** the same, standing on the aft deck between the winches: the drums turning, the warps leading past you up to the blocks.
+
+### Step 3 toward a trawler: the stern trawler hull type (done, awaiting owner test)
+
+Owner, Oct 2026: "go to step 3, the stern trawler hull". The Shipyard's sixth hull type, after the plan's 24 m reference GA.
+
+- **The hull** (`src/hulls/designs.ts` `sternTrawler`, also shown in `hulls.html`): 20 m, hard chine (the game's hull stations take one chine, not a round bilge), 7 m beam. A fine entrance with a raked stem. Full sections from amidships aft to a wide transom. A whaleback forecastle (the raised foredeck) with the wheelhouse forward on it. A long low working deck aft.
+- **In the Shipyard** (`parts/catalog.ts`, the last DESIGN_HULLS entry): steel, a displacement hull. She comes outfitted as a trawler:
+  - the A-frame, net drum and trawl winches;
+  - the fish hold;
+  - the slow tug diesel in a Kort nozzle;
+  - no stern roller.
+
+  The Length slider runs from 16 to 23.5 m.
+- **Weight and stability:** heavy scantlings (`CONFIG.shipyard.sternTrawler.scantlings` 1.8: plating weight against the standard) and fixed ballast (`ballastKg` 60 t) bring her down to a trawler's draught. Without them a steel hull this size floated high and light. "She floats at what she weighs" sets her lines from that weight:
+
+  | Length | Displacement | Draught | Freeboard amidships | GM | Speed |
+  |---|---|---|---|---|---|
+  | 16 m | 106 t | 2.2 m | 1.6 m | 2.0 m | 8.7 kn |
+  | 20 m | 129 t | 2.2 m | 1.6 m | 2.0 m | 9.2 kn |
+  | 23.5 m | 186 t | 2.3 m | 1.8 m | 2.8 m | 9.1 kn |
+
+  She builds with no warnings at any length.
+- **The short code:** the code holds five hull types (`CODE_HULLS` in `design.ts`; `HULL_TYPES` is now 6). She travels as a link or file, and every existing code reads exactly as before. A short code for her would need the code's hull field widened: a new code version, not worth it for one type.
+- **Brief:** her row in the "which type suits my brief" table (`typeFit.ts` `TYPE_FACTS`) was measured as the others were: bare hull, every engine fit on sea trial.
+  - Deck: 163 crates or 105 pots.
+  - Speed: 5.6 to 10.6 kn; range 35 to 54 nm.
+  - Price: about £0.5 M.
+  - Good for trawling and cargo.
+- **In the game:** she starts at the career berth alongside without touching the quay, sits level, and draws in the normal budget (53 draw calls in the harbour view).
+- **Tests:** `tests/shipyard/sternTrawler.test.ts` checks:
+  - her place in the lists;
+  - link or file only, with the earlier types still coding;
+  - her build: steel, about 20 m, heavy, deep, stable, level, no warnings, trawl gear and hold fitted, recipe holding;
+  - every length builds without warnings.
+  - Older tests that took the last hull type to be the tug, or ran every hull through the short code, now name the tug and stop at the code's five types. The fleet test leaves her out: she isn't one of the fleet's boats yet. The wheelhouse-steps walk test now starts aft of the outermost door step: at the highest floor she has four steps, running 1.1 m aft of the door.
+- **Not done yet**, from the plan's step 3:
+  - a shelter deck over the working deck;
+  - a landing boom.
+
+  Both are for when the owner wants them.
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard → Hull: pick the **Stern trawler**. Look her over with ✂ Section (Buttock) to see the engine room aft and the hold under the working deck.
+    2. Slide Length from shortest to longest; no warnings.
+    3. Trials & handover → into the game. On a fishing ground, TRAWL on, tow at 2–4.5 kn, haul. The boxes go down the hold.
+  - **VR:** the same. Stand on her working deck between the winches, then go up into the wheelhouse on the whaleback and look aft over the deck.
+
+### The landing craft's wheelhouse offset to port or starboard (done, awaiting owner test)
+
+Owner, Oct 2026 (a plan view of a landing craft with the narrowest wheelhouse): "on the landing craft only, I would like the ability to offset the wheelhouse when it's narrow enough ... to the port or starboard".
+
+- **Design:** `houseX` (design.ts: step 20 the centreline, 5 cm a step, ±1 m; `houseOffsetM`). Not in the short code: a link or file. The Wheelhouse step's **Offset** slider (Size and place) shows only on a hull type with `offsetHouse` (catalog.ts: the landing craft), and says where it went.
+- **How far:** as far as leaves the house's outer wall `CONFIG.shipyard.offsetEdge` (0.08 m) inside her deck edge all along it (housePart, warned when it's less than asked: a 1.2 m-inside house on the default landing craft goes 0.61 m). Not with a deckhouse under it or an overhead aft (both built on her centreline): it stays there, and the Shipyard says why.
+- **One frame for the house:** `layout.wheelhouse.x` (vesselDef.ts `houseX`) says where the house's middle stands; everything else in the wheelhouse layout stays in the house's own frame (its walls at ±halfWidth, door, steps, console span, floor holes). Whatever reads it adds `x`:
+  - the mesh (hullMesh.ts: the house built as before, then moved across; the deck cut under a sunk floor follows it; the floor's hatch taken across into the house's frame);
+  - where you walk (layout.ts houseWalk: points taken across from its middle; her gear and the chart table stay in her axes);
+  - the player's walls (body.ts), cargo kept off it (cargo/deck.ts), the doors (boatView.ts), rain on the glass (rainGlass.ts), what's hidden from outside (interiorDetail.ts), App's checks (door, chart table, rain shelter, parts count).
+- **The Shipyard:** the house laid out as before from its own middle, then its places moved across with it: places.ts (every place in and on it, not the engine's), house.ts (the chart table, the side door's buttons and the side deck it opens onto), furniture.ts (laid out in the house's frame, the pins and the chart table and hatch taken across), engineRoom.ts (a hatch in the cabin floor within its moved walls, over the engine), deckGear.ts (the house's footprint deck gear keeps off, the roof gear stands on, the life ring and the rod rack), hullDef.ts (the extinguisher, torch, binoculars, line gun), recipe.ts (the nav lights), pinGear.ts (a pin on its roof).
+- **Not modelled:** an offset house's weight doesn't heel her (her weights have no athwartships centre).
+- **Checked:** tests/shipyard/houseOffset.test.ts (to port as far as her deck allows, its wall inside her deck edge, the helm, door buttons and cabin light moved with it, a valid recipe; to starboard: its floor walked inside, its wall solid, the side deck beside it walked, out of its aft door; only the landing craft, not with a deckhouse, not in the code). Headless Chromium: the Shipyard (plan, both sides) and the game (at the helm, looking aft out of the door, from the quay), to port and to starboard. Full suite passes. **Not checked:** the Quest (walking round it).
+### The skiff becomes a rubber dinghy, 10 % smaller (done, awaiting owner test)
+
+Owner, Oct 2026: "take the existing skiff and crane and make the boat slightly smaller so it fits more easily on the smaller work boats ... turn it into a rubber dinghy ... maybe 10% smaller". This is part 1 of the plan agreed with the owner. Part 2, a 6 m fast rescue boat (a RIB, 150 hp, Shipyard only), follows.
+
+- **What was measured first:** none of the five fleet boats could take the old skiff and crane. The space needed is the cradle plus the crane column beside it, about 4.2 × 3.3 m with clearances. With it all scaled down 10%, the fishing boat (foredeck) and the small tug (aft deck) take her. 20% gained nothing more. 30% was needed for the landing craft. The pilot boat never could at her standard size.
+- **The dinghy** (`CONFIG.vessels.skiff`):
+  - The skiff's lines scaled 0.9: 3.25 × 1.45 m.
+  - 240 kg: the old 330 kg times 0.9³, so she floats at the same lines.
+  - Damping and radii of gyration scaled to her.
+  - Grey tubes (the new module `hull.tubes`, `CONFIG.modules.tubes.dinghy`: radius 0.2 m, 0.25 m past the transom). The tubes are merged with her fixed parts: no extra draw call.
+  - A grey hull and floor (her hull's `livery`), the same electric outboard and tiller.
+  - Her id stays `skiff`, for saves and multiplayer, and the game still calls her the skiff.
+  - The tubes are looks only: at rest a small inflatable floats on her floor and keel.
+- **Her cargo:** the floor between the tubes takes **three crates one behind another** (the skiff took five abreast), or two drums, up to 250 kg. Real 3.2 m inflatables are about 0.85 m wide inside. The helmsman's spot moved aft to the tiller's handle to make room (`boardingSpot`, `cargo.aftClear` 0.55, `cargo.edge` 0.18).
+- **The crane** (`CONFIG.vessels.workboat.tenderCrane`, the module's defaults): 10% smaller with her.
+  - Changed: the cradle, her place in it, the column's offset from her, the arms, and the column height.
+  - The carried boat's own figures moved out of the drawing code into the crane's settings (`tender`: her keel, the cradle saddles, the bridle's lifting eyes on her tubes). The fast rescue boat will need her own.
+  - Her tarpaulin now covers the tubes.
+- **A bug the light dinghy showed up:** at a quay, her mooring lines heeled her 30–60°.
+  - Why: the lines' stiffness and damping are set for the big boats. On a 240 kg boat with her lines made fast high on her tubes, each tick's damping push was more than her small roll inertia could take, so it overshot and grew.
+  - Fix: lines on a boat under `CONFIG.docking.lightBoatKg` (2 t: only the dinghy) are scaled down by her mass. The big boats are unchanged. She now lies level, resting on her tubes against the quay.
+- **Golden runs:** only the two that use the skiff moved (`crane`, `skiff`). The dinghy is a little quicker on the same motor and turns tighter. Every other boat's run is unchanged.
+- **Tests:**
+  - `tests/dinghy.test.ts`: her size, and that she fits the fishing boat and the small tug.
+  - Her tubes' path, and that they draw with her fixed parts.
+  - She lies level at a quay (`skiffLines`).
+  - Three crates (`cargo`).
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard: open the fishing boat (Projects, or the debug menu's design file). Deck gear → **Skiff and crane** → Place on the foredeck, starboard. She fits, with no warning.
+    2. Into the game: SKIFF CRANE on the dash (engine running, DECK HYD on). Watch her go over the side.
+    3. Board her and drive her. Tie her up at a quay with both cleats.
+  - **VR:** the same. Stand in her by the tiller: the tubes are your gunwale. Load three crates.
+
+### Deck gear up on a raised foredeck (done, awaiting owner test)
+
+Owner, Oct 2026: "the skiff and the crane don't respect the raised foredeck. So they place on the main deck underneath it, not on the raised foredeck."
+
+- **Was:** deckGear.ts placed the foredeck gear "just forward of the house", which with the break forward of the house is the lower deck between them; their heights were right for where they stood, but nothing knew about the break or the ladders, so the skiff's cradle could reach across the break and a crane could stand on a ladder.
+- **Now (shipyard/parts/deckGear.ts):** with a raised foredeck (house.ts `foredeck.z`, the break):
+  - every piece stands wholly on one deck or the other: its plan shape (which has about 10 cm margin) may reach at most `CONFIG.shipyard.foredeck.gearReach` (0.08 m) past the break;
+  - the ladders (`layout.deckSteps`, plus 10 cm) are taken, so nothing stands on them;
+  - when the break lies forward of the house: the foredeck **deck crane** goes up on the raised deck as near its break as it stands clear, else on the deck below, as near the house as it stands clear, else left off, saying why; the foredeck **skiff** tries the raised deck first, then the deck below (warned);
+  - a searchlight or monitor pole on the foredeck tries further forward, and just inboard of the ladders, before it's left off.
+  - When the raised foredeck runs on under the house, nothing changes: all the foredeck is raised.
+- **What changes for existing boats:** a few designs whose crane stood on a ladder or straddled the break (e.g. a small tug with a short raised foredeck) now lose it, with a warning saying a longer raised foredeck or the wheelhouse further aft makes room. Checked by comparing every placement across the fishing boat, tug and trawler with raised foredecks of 0 to 9 m, before and after.
+- **Checked:** tests/raisedForedeck.test.ts (the gillnetter's crane up on it at its height; the stern trawler's skiff and its crane up on it, no warnings, a valid recipe; the small tug's crane left off, saying why). Headless Chromium: the gillnetter's crane on the raised foredeck; the trawler's skiff, skiff crane and deck crane on it, the skiff launching (hoisted and swung out over her side). Full suite passes. **Not checked:** the Quest; recovering the skiff onto the raised deck.
+### The fast rescue boat: a 6 m RIB on a bigger crane, in the Shipyard (done, awaiting owner test)
+
+Owner, Oct 2026: "a slightly bigger one, which should be rigid inflatable boat type. So fast lifeboat type of boat ... the crane can be the same potentially ... a central seating position with a wheel and an outboard motor ... one of the motors from the main boat ... 28 knots ... similar sea keeping to one of the smaller planing boats". Agreed: 6 m, a 150 hp outboard (not the 400 hp V8: on a 1.4 t boat that would be over 40 kn, and its weight would squat her stern), Shipyard only, not sold in the career. Part 2 of the plan, after the dinghy.
+
+- **The boat** (`CONFIG.vessels.rib`, `boats/ribHull.ts`, recipe `boats/rib.ts`, vessel type `rib`):
+  - A 6 × 2 m hard-chine deep-V from the game's hull generator, about 20° deadrise aft.
+  - Orange tubes (`hull.tubes`, `CONFIG.modules.tubes.rib`: radius 0.26 m).
+  - 1.39 t as she floats. Mass and centre of gravity set so she lies level on her design waterline. GM 0.76 m.
+- **Her helm:**
+  - The new module `deck.rib-console` draws the centre console and the leaning post (`CONFIG.vessels.rib.console`), merged with her fixed parts. You walk round them.
+  - On the console's top, the standard helm console module (`console.standard`) with her own small layout: the wheel on its aft face, the throttle to starboard, the key and START to port, and the speed and rev screens.
+- **Her outboard:** the main boats' outboard module (`propulsion.outboard`, the V8's look and steering), as one smaller unit (`CONFIG.vessels.rib.motor`):
+  - 112 kW (150 hp), the V8's torque curve scaled 0.373, a lighter flywheel, a cooler sized to it;
+  - a 0.34 m high-pitch propeller (`j0` 1.5: a fast boat's 13 × 19 in) on 2.0:1 gears;
+  - 210 kg; 150 L of fuel in the console.
+- **Speed: 27.9 kn flat out** at 5,090 rpm, 132 nm range flat out. Reached by sea trial:
+  - The V8's prop (`j0` 1.25) gave 25 kn.
+  - More gearing made her slower.
+  - The high-pitch prop gave 27.3 kn, but held the engine down; a slightly smaller one let it rev.
+  - Her planing drag: past the hump her wave resistance levels off at resistance/weight 0.10 rather than the landing craft's 0.115. A light deep-V planes cleaner, and planing craft run about 0.08–0.12.
+- **Seakeeping:** set up exactly as the Shipyard's planing hulls are (`shipyard/parts/trim.ts`) for her size and deadrise:
+  - the landing craft's per-area damping;
+  - roll at 28% of critical; pitch and yaw scaled by mass × length²;
+  - a deep vee's gentle slamming (`verticalCd` 0.73);
+  - leaning into her turns (`planing.lean` 1.04 = 0.7 + sin 20°).
+
+  The test throws her hard over at full speed and checks she leans in.
+- **Her crane** (`CONFIG.vessels.rib.crane`): the same tender crane module and controls as the dinghy's, sized for a 1.4 t boat.
+  - A 2.7 m column, longer arms, a 6.45 m cradle, slower moves.
+  - The crane's settings now name the boat it carries (`tenderDefId`: `skiff` or `rib`), so the world gives a boat the right tender.
+  - Whether she's under a tarpaulin in her cradle (`cover`): the rescue boat sits uncovered, console and all.
+  - How tall the cradle's footprint is (`tender.height`).
+- **Where she fits** (about 6.8 × 4.4 m of clear deck):
+  - the stern trawler at her standard 20 m and longer (not at 16 m), on her aft deck alongside all her trawl gear, with no warnings;
+  - the small tug at her longest;
+  - the big landing craft.
+
+  The fishing boat and the pilot boat can't take her, and the Shipyard says so ("no room ... for the rescue boat's cradle").
+- **In the Shipyard:**
+  - Deck gear → **Ship's boat (with the skiff crane)**: Dinghy / Rescue boat, a new design field `rescueBoat` with two small drawings. The skiff's card places either.
+  - She weighs 2.1 t with her crane and costs £78,000 (`CONFIG.shipyard.weights.gear.rescueBoat`, `deckGear.price.rescueBoat`).
+  - Not in the short code: a design with her travels as a link or file.
+- **In the game:**
+  - The crane's buttons and remote work her as they work the dinghy.
+  - The driving keys drive the boat you're standing in.
+  - The quick-start key now starts the boat you're in if she has an engine (before, always your own).
+  - Her outboard has its own engine voice (`soundBoard.tenderEngine`, a second engine sound on the same audio context); the game only voiced your own boat's engine.
+  - She isn't your "home" boat when aboard. Like the dinghy she's driven from where you stand, and her screens aren't lit until you're at them.
+- **Tests:** `tests/rescueBoat.test.ts`:
+  - recipe, level flotation, weight, GM, her 150 hp outboard;
+  - the stern trawler carries her with no warnings, a link or file only, too big for the fishing boat;
+  - at sea: launched by her crane, started, 26.5–30 kn after 40 s at full throttle, leaning into a hard turn, recovered to her cradle.
+- **Not done:** she isn't in the career's yard (as agreed); no fleet boat carries her yet.
+- **Test steps:**
+  - **Desktop:**
+    1. Shipyard: Stern trawler. Deck gear → Ship's boat: **Rescue boat**. Skiff and crane → Place on the aft deck. No warnings.
+    2. Trials & handover → the game. Engine on, DECK HYD on, SKIFF CRANE. Watch her go over the side.
+    3. Board her, press the quick-start key (or turn the key and hold START on her console), then full throttle with the driving keys. About 28 kn; put the wheel hard over and feel her lean in.
+    4. Bring her back alongside under the crane, slow, and press the remote on the post by her console.
+  - **VR:** the same. Stand at her helm against the leaning post, the wheel in front of you, the throttle to your right.
+
+### A 750 kW diesel, the stern trawler's (done, awaiting owner test)
+
+Owner, Oct 2026: "It looks like the 24-meter trawler is going to need a bigger engine ... let's go for a 750 kilowatt engine based on the straight six diesel."
+
+- **The engine** (catalog.ts ENGINES, the fifth): a medium-speed straight six, 750 kW at 1000 rpm (the tug diesel's revs, bigger cylinders), idling at 420, 4.8 t with its gearbox, 3.3 × 1.15 × 1.7 m, a propeller up to 1.9 m (`propMaxM`), £180 a kW, the straight six's voice. Shaft only (design.ts SHAFT_ONLY_ENGINES), single or twin. Drawn as the tug diesel (engineModels.ts ENGINE_LOOKS, its own colour); its own picture tile on the Engine step (tiles.ts ENGINE_ICONS.medium).
+- **The stern trawler's as she comes** (catalog.ts defaults `engine: 4`).
+- **What it does for her** (sea trials, her gearbox matched as the Shipyard does it): at 20 m, about 10.5 kn flat out and an 11.2 t bollard pull, against the 450 kW tug diesel's 9.2 kn and 6.6 t. She's near her hull speed (a 20 m hull's waves hold her to about 10 to 11 kn), so the extra power shows mostly as pull on her net or a tow, not speed. On the small tug it gives 10.2 kn (the tug diesel 8.8).
+- **Where it fits:** a single one fits the trawler at every length. Twins stand 10 to 20 cm too tall on their off-centre shafts at the shorter lengths; the Shipyard says so. On a small hull (the landing craft) it doesn't fit and makes her tender (GM about 0.16 m), and the Shipyard says both.
+- **The engine bed** takes up to 1500 kW now (engineRoom.ts, the `engine.bay` socket's `maxPowerKw`): twin 750s.
+- **Not in the short code** (design.ts `CODE_ENGINES` 4, as `CODE_HULLS`): another engine in it would change how every earlier code reads, so a boat with it travels as a link or file.
+- **Checked:** tests/shipyard/bigEngine.test.ts (the trawler's as she comes, fits under her deck; faster and a far harder pull than the tug diesel, at its rated revs); the engine tests updated for a fifth engine (brief, build, designDoc, enginePreview, tugEngine, tugVoice). Headless Chromium: the Engine step on the trawler (the tile, her engine on its shaft). Full suite passes. **Not checked:** the Quest; its sound in the game.

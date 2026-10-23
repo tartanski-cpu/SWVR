@@ -19,6 +19,7 @@ import type {
   CutDef,
   FishingGroundDef,
   FarmDef,
+  FerryRouteDef,
   FlatDef,
   FogBankDef,
   ShoalDef,
@@ -27,11 +28,13 @@ import type {
   LampDef,
   LightDef,
   MarkDef,
+  PlaceDef,
   PortDef,
   PortFloodDef,
   PottingGround,
   RidgeDef,
   ShelterDef,
+  SkylineDef,
   SlipwayDef,
   WreckDef,
 } from './defs';
@@ -47,6 +50,13 @@ export const BLOCKS: BlockDef[] = REGIONS.flatMap((r) => [...r.blocks, ...(r.far
 export const CHANNELS: ChannelDef[] = REGIONS.flatMap((r) => r.channels ?? []);
 export const SHOALS: ShoalDef[] = REGIONS.flatMap((r) => r.shoals ?? []);
 export const FARMS: FarmDef[] = REGIONS.flatMap((r) => r.farms ?? []);
+/** What stands against a coast map's sky (castles, masts, turbines...: world/view/skylineView.ts). */
+export const SKYLINE: SkylineDef[] = REGIONS.flatMap((r) => r.skyline ?? []);
+/** A coast map's place names (charts, radio calls: world/places.ts). */
+export const PLACES: PlaceDef[] = REGIONS.flatMap((r) => r.places ?? []);
+/** A coast map's ferry routes (traffic/ferries.ts). */
+export const FERRY_ROUTES: FerryRouteDef[] = REGIONS.flatMap((r) => r.ferries ?? []);
+export const SKYLINE_STYLE: string | undefined = REGIONS.find((r) => r.skylineStyle)?.skylineStyle;
 export const GUSTS: GustZoneDef[] = REGIONS.flatMap((r) => r.gusts ?? []);
 export const BUILDINGS: BuildingDef[] = REGIONS.flatMap((r) => r.buildings);
 export const MARKS: MarkDef[] = REGIONS.flatMap((r) => r.marks);

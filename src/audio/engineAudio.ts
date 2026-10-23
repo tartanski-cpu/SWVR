@@ -323,6 +323,13 @@ export class EngineAudio {
     this.build();
   }
 
+  /** Play on another sound's context (a second engine: the rescue boat's, beside our boat's own). */
+  attach(ctx: AudioContext | null): void {
+    if (!ctx || this.ctx) return;
+    this.ctx = ctx;
+    this.build();
+  }
+
   /**
    * (Re)build the sound in the wanted voice (and rated rpm, which shapes its pulses), one per
    * engine; the old one is stopped once the new is ready.

@@ -128,8 +128,8 @@
         "pedestals": {"x": [0.42, -0.42], "halfWidth": 0.13, "front": -0.08, "aft": 0.3, "floor": -0.95},
         "groups": [
           {"title": "LIGHTS", "x": [-0.88, -0.5], "color": 14200872},
-          {"title": "SEARCH", "x": [-0.48, -0.3], "color": 12599338},
-          {"title": "ENGINE", "x": [0.42, 0.88], "color": 3840586}
+          {"title": "SEARCH", "x": [-0.48, -0.3], "color": 14706250},
+          {"title": "ENGINE", "x": [0.42, 0.88], "color": 6079596}
         ],
         "plates": {"front": -0.27, "aft": -0.05},
         "slots": {
@@ -143,7 +143,7 @@
           "heat": {"position": [0.5, 0.01, -0.18]},
           "start": {"position": [0.63, 0.01, -0.18]},
           "key": {"position": [0.77, 0.01, -0.18]},
-          "lamps": {"position": [0.65, 0.015, -0.28]},
+          "lamps": {"position": [0.65, 0.121, -0.315]},
           "card": {"position": [0.72, -0.31, 0.005]},
           "spotJoystick": {"position": [-0.42, 0.01, 0.17]},
           "speed": {"position": [-0.6, 0.21, -0.34]},

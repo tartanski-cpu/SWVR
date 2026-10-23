@@ -14,6 +14,7 @@
 import { CONFIG } from '../config';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
+import { engineAlarms } from '../vessel/physics/engineThermal';
 import { gearOf } from '../boats/sims';
 import { engageAutopilot, quickStart } from '../vessel/autopilot';
 import { toggleDock } from '../vessel/physics/mooring';
@@ -147,7 +148,7 @@ function circuitKeys(): Record<`circuit.${BreakerName}.live`, BusKeySpec> {
  */
 type Lamp = 'off' | 'on' | 'blink';
 const LAMP = ['off', 'on', 'blink'] as const;
-function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge' | 'hull' | 'engine'): Lamp | undefined {
+function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge' | 'hull' | 'engine' | 'temp' | 'fuel'): Lamp | undefined {
   const diesel = gearOf(s, 'diesel');
   if (!diesel) return undefined;
   const instr = isPowered(s, 'instruments');
@@ -176,6 +177,13 @@ function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bi
       const w = e.wear ?? 0;
       return !instr || w <= CONFIG.duties.wearAt ? 'off' : w > CONFIG.wear.badAt ? 'blink' : 'on';
     }
+    // Every tier's warnings (owner, Oct 2026: "some kind of warning light should be in all the
+    // packages"): the coolant over its alarm (blinking: stop her), the fuel under its low mark.
+    // Before, only the advanced engine monitor showed these two alarms.
+    case 'temp':
+      return instr && engineAlarms(s, diesel).highTemp ? 'blink' : 'off';
+    case 'fuel':
+      return instr && engineAlarms(s, diesel).lowFuel ? 'on' : 'off';
   }
 }
 
@@ -378,6 +386,10 @@ export const BUS_KEYS = {
   }),
   'net.payOut': control('netOut', 'Trawl PAY OUT button on the A-frame, held.', { aliases: ['netOut'] }),
   'net.haul': control('netIn', 'Trawl HAUL button on the A-frame, held.', { aliases: ['netIn'] }),
+  'net.release': control('netRelease', "Trawl RELEASE button on the A-frame's box: the codend, hanging over the deck, emptied (fishing.ts).", { aliases: ['netRelease'] }),
+  'trawl.warpOut': state('number', (s) => s.trawlGear?.warp ?? 0, "How far the trawl's warps are paid out, 0 (in) .. 1 (fishing): what the trawl winches' drums show (fishing.ts).", { unit: '0..1' }),
+  'trawl.netOnDrum': state('number', (s) => s.trawlGear?.net ?? 1, 'How much of the trawl net is wound on its drum, 0 .. 1 (all of it, stowed): what the net drum shows (fishing.ts).', { unit: '0..1' }),
+  'aFrame.luff': state('number', (s) => s.aFrameLuff ?? 0, 'How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts).', { unit: '0..1' }),
   'firePump.on': control('firePump', 'FIRE PUMP switch.', { aliases: ['firePump'] }),
   'monitor.pan': setting('monPan', [-mon.panLimitDeg, mon.panLimitDeg], 'deg', 'Fire monitor pan, + to starboard.', { hold: 'monPan', aliases: ['monPan'] }),
   'monitor.tilt': setting('monTilt', [mon.tiltMinDeg, mon.tiltMaxDeg], 'deg', 'Fire monitor elevation.', { hold: 'monPan', aliases: ['monTilt'], default: 20 }),
@@ -390,6 +402,9 @@ export const BUS_KEYS = {
   'ramp.bow.down': control('bowRamp', 'The bow ramp lowered (starts raised; the landing craft).', { aliases: ['bowRamp'] }),
   'hatch.engine.open': control('engineHatch', 'The engine hatch in the wheelhouse floor open.', { aliases: ['engineHatch'] }),
   'furniture.headDoor': control('headDoor', "The head's door open (starts shut; a Shipyard boat's furniture).", { aliases: ['headDoor'] }),
+  'hatch.hold.open': control('holdHatch', "The fish hold's hatch lid open (starts shut; a Shipyard boat's fish hold).", { aliases: ['holdHatch'] }),
+  'hold.lift': control('holdLift', "The fish hold's LIFT button: a box lifted out onto the deck by the hatch (the lid open; fishing/fishHold.ts).", { aliases: ['holdLift'] }),
+  'hold.boxes': state('number', (s) => s.hold?.boxes.length ?? 0, 'Fish boxes in the fish hold.', { unit: 'boxes' }),
   'chartTable.leafOpen': {
     ...control('chartLeaf', "The chart table's drop leaf unfolded (folded: against the wall).", { aliases: ['chartLeaf'], default: true }),
     bind: {
@@ -416,6 +431,8 @@ export const BUS_KEYS = {
   'lamp.bilge': state('enum', (s) => lamp(s, 'bilge'), 'BILGE lamp: blinking with the bilge over its alarm level.', { values: LAMP }),
   'lamp.hull': state('enum', (s) => lamp(s, 'hull'), 'HULL lamp: on with hull damage worth a repair, blinking when bad.', { values: LAMP }),
   'lamp.engine': state('enum', (s) => lamp(s, 'engine'), 'ENGINE lamp: on with engine wear worth an overhaul, blinking when bad.', { values: LAMP }),
+  'lamp.temp': state('enum', (s) => lamp(s, 'temp'), 'TEMP lamp: blinking with the coolant over its alarm temperature.', { values: LAMP }),
+  'lamp.fuel': state('enum', (s) => lamp(s, 'fuel'), 'FUEL lamp: on with the fuel under its low mark.', { values: LAMP }),
 
   // ── Navigation (from her motion) ──
   'nav.speedKts': state('number', (s) => Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) / KNOT, 'Speed over ground.', { unit: 'kn', writer: 'core' }),

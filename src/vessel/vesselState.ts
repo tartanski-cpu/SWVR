@@ -3,6 +3,7 @@ import type { EntityId } from '../core/ids';
 import { CONFIG } from '../config';
 import type { Quat, Vec3 } from '../core/math';
 import { freshModuleStates, gearOf, hasPullDownBoard } from '../boats/sims';
+import { vesselBuildToken } from './vesselDef';
 
 /** Control positions as set by players (via intents). */
 export interface VesselControls {
@@ -64,6 +65,10 @@ export interface VesselControls {
   chartLeaf?: number;
   /** The head's door (a Shipyard boat's furniture, P5) open (1) or shut (0, or unset). */
   headDoor?: number;
+  /** A fish hold's hatch lid (modules/fishHold) open (1) or shut (0, or unset). */
+  holdHatch?: number;
+  /** The fish hold's LIFT button pressed (1 until the hold's tick has lifted a box out: fishing/fishHold.ts). */
+  holdLift?: number;
   /** Fire monitor on the roof: pump on (0/1), and its pan (deg, + to starboard) and elevation (deg). */
   firePump: number;
   monPan: number;
@@ -88,6 +93,8 @@ export interface VesselControls {
   craneHook?: number;
   netOut?: number;
   netIn?: number;
+  /** RELEASE on the A-frame's box pressed (1 until the fishing tick has emptied the codend: fishing.ts clears it). */
+  netRelease?: number;
   /**
    * Pod drives' joystick (modules/pods): vector mode on (1) or off (0 / unset), and the stick:
    * `joyX` to starboard, `joyY` ahead, `joyR` twisted clockwise (bow to starboard), each -1..1
@@ -96,6 +103,9 @@ export interface VesselControls {
   joyMode?: number;
   /** The chartplotter's zoom (nav/chartPlotter.ts): 0 AUTO, k the k-th of CONFIG.chartPlotter.ranges. One for the boat: the crew see what the helmsman set. */
   chartZoom?: number;
+  /** Each advanced touchscreen's page (controls/instruments.ts `touchScreen`; CS5): the index of its tab. One for the boat, as the chartplotter's zoom: the crew see the page whoever pressed it chose. */
+  touchPage1?: number;
+  touchPage2?: number;
   joyX?: number;
   joyY?: number;
   joyR?: number;
@@ -218,6 +228,24 @@ export interface EngineState {
 export interface VesselState {
   id: EntityId;
   defId: string;
+  /**
+   * What's in her fish hold (a Shipyard boat's, modules/fishHold), box by box in the order
+   * they went down: each one's species ('' if it isn't named). Absent: none in it (or no hold).
+   */
+  hold?: { boxes: string[] };
+  /** Her trawl's warps out (0..1) and its net on its drum (0..1): what the trawl winches and net drum show (fishing.ts). Absent: in, and all on the drum. */
+  trawlGear?: { warp: number; net: number };
+  /** How far her A-frame has swung inboard on its rams (0 raked aft over the stern, 1 in over the deck; fishing/codend.ts). Absent: 0. */
+  aFrameLuff?: number;
+  /**
+   * The design token her type was built from (multi-boat M1: a `boat:` type, boats/library.ts):
+   * travels with her in every snapshot, so any page can build her type. Unset on the fixed types.
+   */
+  build?: string;
+  /** The player she belongs to (multi-boat M3: launched by them, core/launch.ts); unset on the game's own boats. */
+  owner?: EntityId;
+  /** How closely she's simulated this tick (multi-boat M4, core/lod.ts): by her distance to the nearest player. Set by the host. */
+  lod?: 'near' | 'mid' | 'far';
   /** World position of the vessel origin (centreline, amidships, DWL). */
   position: Vec3;
   /** Orientation, vessel -> world. */
@@ -326,9 +354,11 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
   // What she carries decides what state she has (modular boats M6b: her modules' gear).
   const v = { defId };
   const diesel = gearOf(v, 'diesel');
+  const build = vesselBuildToken(defId);
   return {
     id,
     defId,
+    ...(build ? { build } : {}),
     position: [0, 0, 0],
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],

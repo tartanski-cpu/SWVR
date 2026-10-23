@@ -27,6 +27,7 @@ export const ENGINE_LOOKS = [
   { kind: 'v8', block: 0xa8483e },
   { kind: 'v8', block: 0x7d8792 },
   { kind: 'bigSix', block: 0x4f8a6c },
+  { kind: 'bigSix', block: 0x8c5a3c },
 ] as const;
 
 const mats = new Map<number, THREE.MeshStandardMaterial>();

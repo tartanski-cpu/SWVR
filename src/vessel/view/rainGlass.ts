@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
-import { frontMullions, type WheelhouseDef } from '../vesselDef';
+import { frontMullions, houseX, type WheelhouseDef } from '../vesselDef';
 import { facetDz, frontRake } from './hullMesh';
 import { houseFlare } from '../houseFlare';
 
@@ -216,6 +216,8 @@ export class RainGlass {
     // unchanged, so the shader's pane coordinates (x across, y up) still hold.
     this.root.matrixAutoUpdate = false;
     this.root.matrix.copy(frontRake(wh).matrix);
+    // (A house standing off her centreline: houseX.)
+    if (houseX(wh)) this.root.matrix.premultiply(new THREE.Matrix4().makeTranslation(houseX(wh), 0, 0));
     this.pose(-1);
   }
 

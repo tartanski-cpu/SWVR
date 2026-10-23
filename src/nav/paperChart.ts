@@ -13,7 +13,7 @@
  * table): sized to be read from standing height on desktop without leaning in.
  */
 import { CONFIG } from '../config';
-import { CURRENTS, LIGHTS, MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../world/archipelago';
+import { CURRENTS, FARMS, LIGHTS, MARKS, MAX_DEPTH, PLACES, PORTS, SKYLINE, WRECKS, type MarkKind } from '../world/archipelago';
 import { slackTimes } from '../world/currents';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
@@ -175,6 +175,32 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
     } else label(p.name, px(p.x), pz(p.z) + Math.sign(dz) * 26 * u, font, '#7a1f1a');
   }
 
+  // Place names (a coast map's, the coast extras plan C4), as a chart letters them: the sea's
+  // own (bays, sounds, straits) in sloping blue capitals and lower case, islands in bold
+  // capitals, towns and villages upright; all ranks on a detail sheet, the first two on the
+  // overview. Most prominent first; one that would overprint another name is left out.
+  const PLACE_FONT = (kind: string, rank: number) => {
+    const size = (rank <= 1 ? 22 : rank === 2 ? 18 : 15) * u;
+    return kind === 'island' || kind === 'islet' || kind === 'archipelago' ? `bold ${size}px Georgia, serif` : kind === 'bay' || kind === 'strait' || kind === 'sea' ? `italic ${size}px Georgia, serif` : `${size}px Georgia, serif`;
+  };
+  // (The compass rose's place, bottom left, drawn later: kept clear of the names too.)
+  const roseBox: [number, number, number, number] = [W * 0.13, H * 0.79 - 20 * u, Math.min(W, H) * 0.1 + 10 * u, Math.min(W, H) * 0.1 + 30 * u];
+  for (const pl of [...PLACES].sort((a, b) => a.rank - b.rank)) {
+    if (pl.x < b.x0 || pl.x > b.x1 || pl.z < b.z0 || pl.z > b.z1) continue;
+    if (sheet.textScale < 1 && pl.rank > 2) continue;
+    const isle = pl.kind === 'island' || pl.kind === 'islet' || pl.kind === 'archipelago';
+    const water = pl.kind === 'bay' || pl.kind === 'strait' || pl.kind === 'sea';
+    const text = isle ? pl.name.toUpperCase() : pl.name;
+    const font = PLACE_FONT(pl.kind, pl.rank);
+    g.font = font;
+    const hw = g.measureText(text).width / 2;
+    const hh = parseFloat(font.replace(/^\D*/, '')) * 0.6;
+    const x = px(pl.x);
+    const y = pz(pl.z);
+    if ([...taken, roseBox].some(([cx, cy, w, h]) => Math.abs(cx - x) < w + hw && Math.abs(cy - y) < h + hh)) continue;
+    label(text, x, y, font, water ? '#2a4a7a' : '#3a2e1a');
+  }
+
   // Wrecks: the dangerous-wreck symbol (a hull line crossed by three short strokes) in a
   // dotted danger line, with the name.
   for (const w of WRECKS) {
@@ -196,6 +222,59 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
     }
     g.stroke();
     label(`Wk ${w.name}`, x - 40 * u, y + 24 * u, `italic ${15 * u}px Georgia, serif`, INK);
+  }
+  // Fish farms (a coast map's, C2): the lease's outline in a magenta pecked line, as a chart
+  // draws a marine farm, with what it is; its corner marks are the region's lights.
+  for (const f of FARMS) {
+    if (!f.corners || f.corners.length < 4) continue;
+    const [a, bb, c, d] = f.corners;
+    g.strokeStyle = '#9a1f78';
+    g.lineWidth = 1.5 * u;
+    g.setLineDash([5 * u, 4 * u]);
+    g.beginPath();
+    for (const [i, [x, z]] of [a, bb, d, c, a].entries()) (i ? g.lineTo : g.moveTo).call(g, px(x), pz(z));
+    g.stroke();
+    g.setLineDash([]);
+    const mx = (a[0] + bb[0] + c[0] + d[0]) / 4;
+    const mz = (a[1] + bb[1] + c[1] + d[1]) / 4;
+    label(`${f.name} (lit Fl Y 5s)`, px(mx), pz(mz), `italic ${13 * u}px Georgia, serif`, '#9a1f78');
+  }
+  // Landmarks a chart prints for the navigator (a coast map's skyline, C2): the position
+  // circle with its dot and the chart's abbreviation (Cas, Tr, Mast, Chy, Mon, Ch); a wind
+  // turbine its three-bladed sign, a group of them named once as a wind farm.
+  const ABBR: Record<string, string> = { castle: 'Cas', tower: 'Tr', mast: 'Mast', chimney: 'Chy', water_tower: 'Tr', monument: 'Mon', church: 'Ch' };
+  const farmLabelled: { x: number; z: number }[] = [];
+  for (const s of SKYLINE) {
+    if (s.x < b.x0 || s.x > b.x1 || s.z < b.z0 || s.z > b.z1) continue;
+    const x = px(s.x);
+    const y = pz(s.z);
+    g.strokeStyle = INK;
+    g.fillStyle = INK;
+    g.lineWidth = 1.6 * u;
+    if (s.kind === 'turbine') {
+      g.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = -Math.PI / 2 + (k * 2 * Math.PI) / 3;
+        g.moveTo(x, y);
+        g.lineTo(x + Math.cos(a) * 7 * u, y + Math.sin(a) * 7 * u);
+      }
+      g.stroke();
+      if (!farmLabelled.some((p) => Math.hypot(p.x - s.x, p.z - s.z) < 2500)) {
+        farmLabelled.push({ x: s.x, z: s.z });
+        const n = SKYLINE.filter((o) => o.kind === 'turbine' && Math.hypot(o.x - s.x, o.z - s.z) < 2500).length;
+        label(n > 2 ? 'Wind farm' : 'Wind turbine', x, y + 22 * u, `italic ${13 * u}px Georgia, serif`, INK);
+      }
+      continue;
+    }
+    g.beginPath();
+    g.arc(x, y, 5 * u, 0, Math.PI * 2);
+    g.stroke();
+    g.beginPath();
+    g.arc(x, y, 1.6 * u, 0, Math.PI * 2);
+    g.fill();
+    // Churches and the smaller towers on the detail sheets only (they'd crowd the overview).
+    if (sheet.textScale < 1 && (s.kind === 'church' || s.kind === 'monument')) continue;
+    label(s.name && s.kind === 'castle' ? s.name.replace(/ Castle$/, ' Cas') : ABBR[s.kind] ?? '', x + 10 * u, y - 8 * u, `italic ${12 * u}px Georgia, serif`, INK);
   }
   // Buoys: a small pillar (can, cone) in the mark's colours with its topmark, the light's
   // magenta flare and its character (as charted).
@@ -222,9 +301,11 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
     // A small light beside a port's name or a buoy goes unlabelled (the harbour is named, and
     // its labels would pile up); one of a pair labels on the side away from the other.
     if (!big && (PORTS.some((p) => Math.hypot(p.x - l.x, p.z - l.z) < 120) || MARKS.some((m) => Math.hypot(m.x - l.x, m.z - l.z) < 120))) continue;
+    // (A fish farm's corner lights: the farm's own label says so, not four of them.)
+    if (l.color === 'yellow' && FARMS.some((f) => f.corners?.some(([x, z]) => Math.hypot(x - l.x, z - l.z) < 1))) continue;
     const mate = LIGHTS.find((o) => o !== l && Math.hypot(o.x - l.x, o.z - l.z) < 250);
     const left = !!mate && mate.x > l.x;
-    const colour = l.color === 'white' ? 'W' : l.color === 'red' ? 'R' : 'G';
+    const colour = l.color === 'white' ? 'W' : l.color === 'red' ? 'R' : l.color === 'yellow' ? 'Y' : 'G';
     const ch = l.period > 0 ? `Fl ${colour} ${l.period}s` : `F ${colour}`;
     g.textAlign = left ? 'right' : 'left';
     label(ch, x + (left ? -10 : big ? 24 : 16) * u, y - 2 * u, `italic ${(big ? 15 : 12) * u}px Georgia, serif`, '#9a1f78');

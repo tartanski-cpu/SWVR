@@ -15,9 +15,10 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 import type { HullDefPart } from './hullDef';
 import type { RecipePart } from './recipe';
 import type { FurniturePart } from './furniture';
+import type { HoldPart } from './hold';
 
 /** Her weights built up part by part (what she's built of, her houses, machinery and gear), her price, and the designed boat itself. */
-export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & RecipePart): DesignedBoat {
+export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart & RecipePart): DesignedBoat {
   const { d } = a;
   const { aFrame, afc, aft, anchorAt, at, base, basketAt, batteriesKg, beamDeck, bowRamp, bulwarkHeight, cabinM2, cr, craneAt, deckMid, deckhouse, dg, dhArea, dhRailM, eng, floorY, front, gear, gm, grownPlate, guardKg, guardY, h, hasMonitor, houseL, hull, hw, keelMid, kw, layout, lengthM, level, mass, mat, material, n, nOb, nozzle, obc, onTop, outboards, pc, pdc, pf, placed, podPropD, podSet, pods, powerKw, propD, pushFender, recipe, ring, rodRack, roofDrop, roofY, saloonL, sd, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, sideDoor, skiffAt, st, stem, sternRoller, strakeM, tankL, transom, twin, tyres, warnings, wc, winchAt } = p;
   // ── Her weights, built up (owner, Oct 2026: aluminium or steel, the houses counted) ──
@@ -37,9 +38,11 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     ...(winchAt ? [[wc.gear.towWinch, winchAt[2]] as [number, number]] : []),
     ...(aFrame ? [[wc.gear.aFrame, transom - afc.footFromTransom] as [number, number]] : []),
     ...(sternRoller ? [[wc.gear.sternRoller, transom] as [number, number]] : []),
-    ...(skiffAt ? [[wc.gear.skiff, skiffAt[2]] as [number, number]] : []),
+    ...(skiffAt ? [[d.rescueBoat ? wc.gear.rescueBoat : wc.gear.skiff, skiffAt[2]] as [number, number]] : []),
     ...(anchorAt ? [[wc.gear.anchor, anchorAt.at[2]] as [number, number]] : []),
     ...(rodRack ? [[wc.gear.rodRack, rodRack.bucket[2]] as [number, number]] : []),
+    ...(p.netDrumAt ? [[wc.gear.netDrum, p.netDrumAt[2]] as [number, number]] : []),
+    ...(p.trawlWinchesAt ? [[wc.gear.trawlWinches, p.trawlWinchesAt.z] as [number, number]] : []),
   ];
   const gearKg = gearAt.reduce((a, [m]) => a + m, 0);
   const gearKgZ = gearAt.reduce((a, [m, z]) => a + m * z, 0);
@@ -59,10 +62,12 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     { name: 'Deck gear', kg: gearKg, y: deckMid + 0.5, z: gearKg > 0 ? gearKgZ / gearKg : 0 },
     { name: 'Hull protection', kg: guardKg + pushKg, y: guardKg + pushKg > 0 ? (guardKg * guardY + (pushFender ? (pushKg * (pushFender.top + pushFender.bottom)) / 2 : 0)) / (guardKg + pushKg) : deckMid, z: guardKg + pushKg > 0 ? (guardKg * ((stem + transom) / 2) + (pushFender ? pushKg * pushFender.z : 0)) / (guardKg + pushKg) : 0 },
     { name: 'Furniture', kg: p.furnitureKg, y: floorY + 0.4, z: (front + aft) / 2 },
+    { name: 'Fish hold: insulated lining and hatch', kg: p.holdKg, y: p.holdY, z: p.holdZ },
     { name: 'Fit-out: wiring, interior, windows, fittings, paint', kg: wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, y: deckMid + 0.3, z: shellM2z / shellM2 },
     { name: 'Fuel (half her tanks)', kg: tankL * wc.fuelShare * wc.fuelDensity, y: keelMid + 0.35 * (deckMid - keelMid), z: h.lcb },
     { name: 'Crew and stores', kg: wc.crewKg + wc.storesKg, y: deckMid + 0.8, z: (front + aft) / 2 },
-    { name: 'Ballast', kg: base.ballastKg ?? 0, y: keelMid + 0.15, z: h.lcb },
+    // (Scaled with her hull's volume: a smaller tug carries less; owner, Oct 2026.)
+    { name: 'Ballast', kg: (base.ballastKg ?? 0) * p.size.L * p.size.B * p.size.D, y: keelMid + 0.15, z: h.lcb },
   ]
     .filter((it) => it.kg > 0)
     .map((it) => ({ name: it.name, kg: Math.round(it.kg), y: Math.round(it.y * 1000) / 1000, z: Math.round(it.z * 1000) / 1000 }));
@@ -78,18 +83,19 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   };
   // Her build: her structure (hull, bulwarks, houses) at the material's price a kilo, built
   // (aluminium dearer to buy and to weld; steel heavier, cheaper), and her fit-out.
-  const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Cockpit overhead|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg + p.furnitureKg * CONFIG.shipyard.furniture.pricePerKg;
+  const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Cockpit overhead|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg + p.furnitureKg * CONFIG.shipyard.furniture.pricePerKg + p.holdPrice;
 
   const gp = dg.price;
-  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
+  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? (d.rescueBoat ? gp.rescueBoat : gp.skiff) : 0) + (p.netDrumAt ? gp.netDrum : 0) + (p.trawlWinchesAt ? gp.trawlWinches : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
-  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 + Math.min(2, d.touch ?? 0) * CONFIG.shipyard.touchPrice : d.oldSchool ? CONFIG.shipyard.oldSchoolPrice : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,
     recipe,
     figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : pods ? podPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : pods ? ', on pod drives' : ''}${nozzle ? (twin ? ', in Kort nozzles' : ', in a Kort nozzle') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
     warnings,
     placed: { ...placed, ...p.furniturePlaced },
+    placeWhy: { ...p.placeWhy, ...p.furnitureWhy },
     shaft,
     weights,
   };

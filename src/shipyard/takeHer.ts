@@ -12,8 +12,8 @@
  * tests/takeHer.test.ts). The restart itself is the app's (App.ts takeDesign).
  */
 import { ALPHABET } from './design';
-import { isDocToken, readDesign } from './designDoc';
-import { readFavourites, type Favourite, type Store } from './favourites';
+import { isDocToken, readDesign, sameDesign } from './designDoc';
+import { addFavourite, cleanName, readFavourites, writeFavourites, type Favourite, type Store } from './favourites';
 import { DESIGN_HULLS } from './build';
 
 /** Longest code the keypad takes (characters): today's are 17-20, more with gear placed by hand. */
@@ -101,6 +101,18 @@ export class ShipyardCodes {
     this.pasted = false;
   }
 
+  /**
+   * Save a boat that's in the game to this browser's favourites (owner, Oct 2026: "that's a
+   * cool ship, I'd like to save this to my favourites", from VR, where the Shipyard isn't to
+   * hand): her design code, a name, a line of her figures, no picture. Says what it did.
+   */
+  saveBoat(code: string, name: string, summary: string, now = Date.now()): string {
+    const list = this.favourites();
+    const r = saveBoatFavourite(list, code, name, summary, now);
+    if (!r.list) return r.text;
+    return writeFavourites(this.store(), r.list) ? r.text : 'This browser won’t save (private window, or storage switched off)';
+  }
+
   /** Pasted text (a code, the Shipyard's play link with ?design=, or a link to her document): kept if it reads as a boat (true), else left as it was. */
   paste(text: string): boolean {
     const doc = text.match(/doc\.[A-Za-z0-9_-]+/)?.[0];
@@ -110,4 +122,18 @@ export class ShipyardCodes {
     this.pasted = true;
     return true;
   }
+}
+
+/**
+ * The favourites with a boat from the game added (ShipyardCodes.saveBoat), and what to say.
+ * Already there (the same design, whatever it's called): unchanged, and said so. A name
+ * another favourite has already gets a number, so it's not saved over.
+ */
+export function saveBoatFavourite(list: Favourite[], code: string, name: string, summary: string, now: number): { list: Favourite[] | null; text: string } {
+  const had = list.find((f) => sameDesign(f.code, code));
+  if (had) return { list: null, text: `She's in your favourites already, as “${had.name}”` };
+  const base = cleanName(name, 'Shipyard boat');
+  let n = base;
+  for (let k = 2; list.some((f) => f.name.toLowerCase() === n.toLowerCase()); k++) n = cleanName(`${base.slice(0, 36)} ${k}`, base);
+  return { list: addFavourite(list, { name: n, code, savedAt: now, picture: '', summary }), text: `Saved to your favourites as “${n}”` };
 }

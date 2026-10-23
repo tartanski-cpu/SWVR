@@ -1,6 +1,7 @@
 import { CONFIG } from '../config';
+import { playerBoats } from '../core/launch';
 import type { Intent } from '../core/intents';
-import { homeVessel, type WorldState } from '../core/world';
+import { type WorldState } from '../core/world';
 import { earn } from '../career/career';
 import { nearestPort } from '../rescue/rescue';
 import { groundAt } from './fishing';
@@ -58,11 +59,13 @@ export function applyRodIntent(s: VesselState, intent: Intent): boolean {
 
 /** The bucket is sold when she's tied up at a port. */
 export function stepRodSale(world: WorldState): void {
-  const v = homeVessel(world);
-  const b = v?.rodCatch;
-  if (!v || !b || b.count <= 0 || v.mooring.phase !== 'moored') return;
-  const near = nearestPort(v.position[0], v.position[2]);
-  if (near.dist > near.port.clearRadius) return;
-  earn(world, 'rod', { port: near.port.id, kg: b.kg, text: `Rod fish sold at ${near.port.name.replace(' (anchorage)', '')}: ${b.count} fish, ${b.kg.toFixed(1)} kg` });
-  v.rodCatch = { count: 0, kg: 0 };
+  // Every player's boat sells her own bucket (multi-boat M5).
+  for (const v of playerBoats(world)) {
+    const b = v.rodCatch;
+    if (!b || b.count <= 0 || v.mooring.phase !== 'moored') continue;
+    const near = nearestPort(v.position[0], v.position[2]);
+    if (near.dist > near.port.clearRadius) continue;
+    earn(world, 'rod', { port: near.port.id, kg: b.kg, text: `Rod fish sold at ${near.port.name.replace(' (anchorage)', '')}: ${b.count} fish, ${b.kg.toFixed(1)} kg` });
+    v.rodCatch = { count: 0, kg: 0 };
+  }
 }

@@ -41,6 +41,7 @@ import { placesPart } from './parts/places';
 import { deckGearPart, houseGearPart } from './parts/deckGear';
 import { hullDefPart } from './parts/hullDef';
 import { furniturePart } from './parts/furniture';
+import { holdPart } from './parts/hold';
 import { recipePart } from './parts/recipe';
 import { weightsPart } from './parts/weights';
 import { atDWL, type BuildArgs } from './parts/common';
@@ -69,6 +70,8 @@ export interface DesignedBoat {
    * within a metre of its pin and is in its usual place.
    */
   placed: Partial<Record<PlaceKey | FurnitureKey, { x: number; z: number; moved: boolean; onRoof?: boolean } | null>>;
+  /** Why a piece placed by hand won't stand exactly where it was put, in a few words ("on her other gear or a ladder"): the Shipyard says it as you place it. */
+  placeWhy: Partial<Record<PlaceKey | FurnitureKey, string>>;
 }
 
 /**
@@ -128,6 +131,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const p10 = { ...p9, ...houseGearPart(a, p9) };
   const p11 = { ...p10, ...hullDefPart(a, p10) };
   const p12 = { ...p11, ...furniturePart(a, p11) };
-  const p13 = { ...p12, ...recipePart(a, p12) };
+  const p12b = { ...p12, ...holdPart(a, p12) };
+  const p13 = { ...p12b, ...recipePart(a, p12b) };
   return weightsPart(a, p13);
 }

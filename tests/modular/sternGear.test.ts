@@ -25,6 +25,7 @@ import { hullPlan } from '../../src/vessel/layout';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 import { startEngine } from '../helpers/engine';
 import { fakeCanvas } from './fakes';
+import { lineOf } from '../../src/tow/tow';
 
 beforeAll(fakeCanvas);
 
@@ -131,7 +132,7 @@ describe('the stern gear, placeable', () => {
     run(1);
     send('towDebugNear', 1);
     send('towMake');
-    const line = world.tow!.line!;
+    const line = lineOf(world)!;
     const made = line.length!;
     send('winch.heaveIn', 1);
     run(3);

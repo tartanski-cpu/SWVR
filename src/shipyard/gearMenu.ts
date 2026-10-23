@@ -25,15 +25,14 @@ export interface GearGroup {
 export const GEAR_GROUPS: GearGroup[] = [
   { name: 'Rescue and firefighting', items: ['skiff', 'lifeRing', 'searchlight', 'fireMonitor'] },
   { name: 'Towing', items: ['towWinch', 'sternRoller'] },
-  { name: 'Fishing', items: ['aFrame', 'rodRack'] },
+  { name: 'Fishing', items: ['aFrame', 'netDrum', 'trawlWinches', 'rodRack'] },
   { name: 'Cargo', items: ['deckCrane'] },
   { name: 'Her fittings', items: ['anchor', 'sideDoor'] },
-  { name: 'Inside: furniture', items: ['berth', 'settee', 'galley', 'seat', 'locker', 'head'] },
 ];
 
 /** What each piece is for, in a line. */
 export const GEAR_ABOUT: Record<string, string> = {
-  skiff: 'A small boat on deck, with its own crane to launch and recover her: for reaching people in the water and running to the beach.',
+  skiff: 'A 3.25 m rubber dinghy with an electric outboard, in a cradle on deck, with its own crane to launch and recover her: for reaching people in the water and running goods to the beach (three crates). Needs about 3.7 m of clear deck.',
   lifeRing: 'Thrown on its line to someone in the water; the boat hook beside it to bring them alongside.',
   rodRack: 'Four handheld rods standing in a rack on a wall of the wheelhouse, a bucket beside them: cast over the side, play what bites, sell the bucket in port.',
   searchlight: 'A steerable lamp for searching at night.',
@@ -41,6 +40,8 @@ export const GEAR_ABOUT: Record<string, string> = {
   towWinch: 'A powered drum for the tow line: tows things far heavier than she is.',
   sternRoller: 'A roller in the transom for the tow line or a net to run over.',
   aFrame: 'An A-frame over the transom with a trawl net and its winch.',
+  netDrum: 'The net wound on a big hydraulic drum forward of the A-frame: it comes off as you shoot and winds back on as you haul. Needs the A-frame.',
+  trawlWinches: 'A pair of winches at the deck edges for the trawl warps, leading aft to the A-frame\'s blocks: she needs no tow winch to trawl. Needs the A-frame.',
   deckCrane: 'A small crane for lifting cargo on and off her deck.',
   anchor: 'An anchor and its windlass, to hold her in one place. Every boat should have one.',
   sideDoor: 'A sliding door in the wheelhouse’s port wall, out to the side deck.',
@@ -50,24 +51,33 @@ export const GEAR_ABOUT: Record<string, string> = {
   seat: 'A seat on a pedestal, standing free, facing forward: beside the helm, or for a passenger.',
   locker: 'A cupboard to the ceiling, for oilskins and gear.',
   head: 'A small compartment with a toilet, and a door you open and shut.',
+  bunk: 'Two berths one over the other, for the crew: a lee rail on the upper one, rungs up to it. Needs headroom to sit up in the top bunk.',
+  mess: 'A table against a wall with a bench at each end: where the crew eat. Put it by the galley.',
+  shower: 'A shower stall with a curtain, to the ceiling.',
 };
 
 /** How it goes on her (above). */
 export function gearKind(eq: Equipment): 'place' | 'fit' {
-  return eq.how === 'grid' || eq.how === 'side' || eq.how === 'skiff' || eq.how === 'rack' || eq.how === 'inside' ? 'place' : 'fit';
+  return eq.how === 'grid' || eq.how === 'side' || eq.how === 'skiff' || eq.how === 'rack' ? 'place' : 'fit';
 }
 
 const svg = (body: string) => `<svg class="gearIcon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 /** Each piece's icon (SVG markup). */
 export const GEAR_ICONS: Record<string, string> = {
-  // Furniture (P5): each seen from the side, as a plain line drawing.
+  // Furniture (P5; the Furniture step, page.ts): each seen from the side, as a plain line drawing.
   berth: svg('<path d="M3 17V10M3 13h18v4M21 13v4M5 13v-2.5h5V13"/>'),
   settee: svg('<path d="M4 18v-6h16v6M4 12V7h16v5M6 15h12"/>'),
   galley: svg('<path d="M3 10h18M4 10v10h16V10M12 10v10M6 8.5h4M15 7.5a1.5 1.5 0 0 0 3 0"/>'),
   seat: svg('<path d="M8 4v7h8M7 11h10M12 11v7M8 20h8"/>'),
   locker: svg('<path d="M6 3h12v18H6zM12 3v18M10 12h0.5M13.5 12h0.5"/>'),
   head: svg('<path d="M5 3h14v18H5zM8 21V12h6v9M12.5 16.5h0.5"/>'),
+  // Two berths stacked between end boards.
+  bunk: svg('<path d="M4 3v18M20 3v18M4 17h16M4 9h16M6 15.5h5M6 7.5h5"/>'),
+  // A table between two benches with backs.
+  mess: svg('<path d="M8 11h8M12 11v8M3 6v13M3 15h4v4M21 6v13M21 15h-4v4"/>'),
+  // The stall, its rose and the curtain.
+  shower: svg('<path d="M5 3v18M19 3v18M5 21h14M9 5h4v2M11 7v1M9.5 10l-.5 1.5M12 10v1.5M14.5 10l.5 1.5M5 4h8"/>'),
   // The ring, its shank and stock, the curved arms with their flukes.
   anchor: svg('<circle cx="12" cy="4.5" r="2"/><path d="M12 6.5V20.5M8.5 9.5h7M5 13.5c0 4 3 7 7 7s7-3 7-7M3.5 15l1.5-1.5 1.5 1.5M17.5 15l1.5-1.5 1.5 1.5"/>'),
   // The ring and its four bands of tape.
@@ -87,6 +97,10 @@ export const GEAR_ICONS: Record<string, string> = {
   // The roller in a notch of the transom, the line running over it.
   sternRoller: svg('<circle cx="12" cy="13" r="2.6"/><path d="M3 19.5h18M4.5 19.5V9h4.5v4.5M19.5 19.5V9H15v4.5M12 10.4V3.5M12 3.5l-1.8 1.8M12 3.5l1.8 1.8"/>'),
   // The A-frame, its block, the net hanging under it.
+  // The drum seen end on, the net on it, and its stand.
+  netDrum: svg('<circle cx="12" cy="10" r="7"/><circle cx="12" cy="10" r="4.5"/><circle cx="12" cy="10" r="1.5"/><path d="M8 17l-2 4h12l-2-4M19 10h3"/>'),
+  // Two winch drums at the deck edges, their warps leading aft to a block.
+  trawlWinches: svg('<circle cx="5" cy="15" r="2.5"/><circle cx="19" cy="15" r="2.5"/><path d="M5 12.5L11 4M19 12.5L13 4M10 4h4M2.5 20h5M16.5 20h5"/>'),
   aFrame: svg('<path d="M5 21L12 3l7 18M8.2 13h7.6M12 3v7M9.5 10h5l-1 8.5h-3zM10 13h4M10.4 15.8h3.2M11 10l-.5 8.5M13 10l.5 8.5"/>'),
   // A door with its window and handle.
   sideDoor: svg('<rect x="6.5" y="3" width="11" height="18" rx="1"/><rect x="8.5" y="5" width="7" height="5" rx=".5"/><path d="M14.5 13.5h1.2"/>'),

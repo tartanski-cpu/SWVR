@@ -7,11 +7,12 @@ export class HelmPrompt {
   private readonly el = document.createElement('div');
   private text = '';
 
-  constructor() {
+  /** @param bottom how far up from the bottom of the screen (px): another prompt can stand above the helm's. */
+  constructor(bottom = 72) {
     const s = this.el.style;
     s.position = 'fixed';
     s.left = '50%';
-    s.bottom = '72px';
+    s.bottom = `${bottom}px`;
     s.transform = 'translateX(-50%)';
     s.padding = '6px 14px';
     s.borderRadius = '14px';

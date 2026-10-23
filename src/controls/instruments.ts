@@ -18,10 +18,16 @@ import { formatPosition } from '../nav/geo';
  * display atlas they share.
  *
  * Modular boats (M3): each screen is its own instrument module (src/modules/screen), and
- * the screens a boat carries all share ONE canvas (an atlas of 512 x 256 regions) and ONE
- * merged mesh whose UVs map each screen to its region: one texture upload and one draw
- * call, redrawn at a modest rate (CONFIG.interaction.displayHz), cheap on the headset.
- * The assembler owns the atlas; a screen module claims a region with its painter.
+ * the screens a boat carries all share ONE canvas (an atlas) and ONE merged mesh whose UVs
+ * map each screen to its region: one texture upload and one draw call, redrawn at a modest
+ * rate (CONFIG.interaction.displayHz), cheap on the headset. The assembler owns the atlas;
+ * a screen module claims a region with its painter.
+ *
+ * Screen sizes (owner, Oct 2026: "a full size screen, and then there'll be a half size or
+ * a quarter size"): a screen is made of quarter cells (256 x 128 px: half a full screen's
+ * width and half its height): a full screen is 2 x 2 of them (512 x 256), a
+ * strip 2 x 1 (two quarters side by side: the TOW LINE), a quarter 1 x 1 (the ANCHOR). The
+ * atlas packs them in its grid of cells; the screen module sizes the glass to match.
  *
  * The atlas repaints (and re-uploads) only when something shown has changed: each screen
  * gives a key, its values rounded to what you could see change (a tenth of a knot, a
@@ -32,11 +38,13 @@ import { formatPosition } from '../nav/geo';
  * directly, as they always have. They only READ, like any other view.
  */
 const W = 1024;
-const H = 768;
-const RW = 512;
-const RH = 256;
-const COLS = W / RW;
-const MAX_REGIONS = (W / RW) * (H / RH);
+/** (1024 tall since the ANCHOR and TOW LINE screens: a tug with the advanced instruments carries six full screens, a strip and a quarter: 27 cells.) */
+const H = 1024;
+/** A quarter cell (px): half a full screen's width and height. */
+const CW = 256;
+const CH = 128;
+const COLS = W / CW;
+const ROWS = H / CH;
 const AMBER = '#ffb340';
 const DIM = '#6b4a1a';
 const BG = '#0d1210';
@@ -51,13 +59,48 @@ type ScreenKey = (s: VesselState, def: VesselDef, env: EnvironmentState | null) 
 export interface Screen {
   paint: Painter;
   key: ScreenKey;
+  /** Its size in quarter cells, across and down: [2, 2] a full screen (the default), [2, 1] a strip, [1, 1] a quarter. */
+  cells?: [1 | 2, 1 | 2];
+  /**
+   * An analogue gauge (old school; owner, Oct 2026: "a circular backing plate, and integrate
+   * more directly onto the" dash): painted on a clear ground, so only the round gauge and its
+   * name show on the dash, with no screen's black rectangle or bezel; and shown without 12 V
+   * too (a gauge doesn't go black).
+   */
+  round?: boolean;
 }
 
-/** A screen as fitted: its region, its circuit, its plane (vessel axes). */
+/** A screen's size in quarter cells. */
+export const cellsOf = (s: Screen): [number, number] => s.cells ?? [2, 2];
+
+/** A screen as fitted: its region's corner and size (atlas px), its circuit. */
 interface Region {
   screen: Screen;
   circuit: BreakerName;
-  index: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Where screens of these sizes (quarter cells, across and down) go in the atlas's grid, in
+ * turn: each at the first place, row by row, where all its cells are free. Throws if one
+ * doesn't fit (more screens than the atlas holds).
+ */
+export function packCells(sizes: [number, number][]): { col: number; row: number }[] {
+  const used = Array.from({ length: ROWS }, () => new Array<boolean>(COLS).fill(false));
+  return sizes.map(([w, h]) => {
+    for (let row = 0; row + h <= ROWS; row++)
+      for (let col = 0; col + w <= COLS; col++) {
+        let free = true;
+        for (let r = row; r < row + h && free; r++) for (let c = col; c < col + w && free; c++) free = !used[r][c];
+        if (!free) continue;
+        for (let r = row; r < row + h; r++) for (let c = col; c < col + w; c++) used[r][c] = true;
+        return { col, row };
+      }
+    throw new Error(`the display atlas is full (it holds ${COLS * ROWS} quarter cells)`);
+  });
 }
 
 export class DisplayAtlas {
@@ -86,20 +129,23 @@ export class DisplayAtlas {
    * they are remapped into the screen's region of the atlas.
    */
   add(screen: Screen, plane: THREE.BufferGeometry, circuit: BreakerName): void {
-    const index = this.regions.length;
-    if (index >= MAX_REGIONS) throw new Error(`the display atlas holds ${MAX_REGIONS} screens`);
-    const cx = (index % COLS) * RW;
-    const cy = Math.floor(index / COLS) * RH;
+    // Its place: packed with those before it (they keep theirs).
+    const sizes = [...this.regions.map((r) => [r.w / CW, r.h / CH] as [number, number]), cellsOf(screen)];
+    const at = packCells(sizes).at(-1)!;
+    const [cw, ch] = cellsOf(screen);
+    const region = { screen, circuit, x: at.col * CW, y: at.row * CH, w: cw * CW, h: ch * CH };
     const uv = plane.attributes.uv as THREE.BufferAttribute;
-    for (let k = 0; k < uv.count; k++) uv.setXY(k, (cx + uv.getX(k) * RW) / W, 1 - (cy + (1 - uv.getY(k)) * RH) / H);
-    this.regions.push({ screen, circuit, index });
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, (region.x + uv.getX(k) * region.w) / W, 1 - (region.y + (1 - uv.getY(k)) * region.h) / H);
+    this.regions.push(region);
     this.planes.push(plane);
   }
 
   /** Merge the fitted screens into one mesh (after every screen is added). */
   finish(): THREE.Mesh | null {
     if (!this.planes.length) return null;
-    this.mesh = new THREE.Mesh(mergeGeometries(this.planes), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false })));
+    // (Alpha-tested: an analogue gauge's clear ground is cut away, so it sits on the dash; the
+    // screens are opaque, unchanged.)
+    this.mesh = new THREE.Mesh(mergeGeometries(this.planes), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false, alphaTest: 0.5 })));
     this.mesh.name = 'instruments';
     return this.mesh;
   }
@@ -109,32 +155,40 @@ export class DisplayAtlas {
     this.sinceDraw += dt;
     if (this.sinceDraw < 1 / CONFIG.interaction.displayHz) return;
     this.sinceDraw = 0;
-    // Only repaint (and re-upload the 3 MB atlas) when something shown has changed: moored
+    // Only repaint (and re-upload the 4 MB atlas) when something shown has changed: moored
     // or drifting with the engine off, the screens cost nothing. No 12 V: black (drawn once).
-    const powered = this.regions.map((r) => isPowered(state, r.circuit));
+    const powered = this.regions.map((r) => r.screen.round || isPowered(state, r.circuit));
     const key = this.regions.map((r, i) => (powered[i] ? r.screen.key(state, def, env) : 'off')).join('#');
     if (key === this.lastKey) return;
     this.lastKey = key;
     const g = this.g;
     this.regions.forEach((r, i) => {
       g.save();
-      g.translate((r.index % COLS) * RW, Math.floor(r.index / COLS) * RH);
+      g.translate(r.x, r.y);
       g.beginPath();
-      g.rect(0, 0, RW, RH);
+      g.rect(0, 0, r.w, r.h);
       g.clip();
       if (!powered[i]) {
         g.fillStyle = '#020303';
-        g.fillRect(0, 0, RW, RH);
+        g.fillRect(0, 0, r.w, r.h);
+        g.restore();
+        return;
+      }
+      if (r.screen.round) {
+        // A gauge: on a clear ground (cut away by the material's alpha test), no bezel.
+        g.clearRect(0, 0, r.w, r.h);
+        r.screen.paint(g, state, def, env);
         g.restore();
         return;
       }
       g.fillStyle = BG;
-      g.fillRect(0, 0, RW, RH);
+      g.fillRect(0, 0, r.w, r.h);
       r.screen.paint(g, state, def, env);
-      // Bezel.
+      // Bezel (thinner round a small screen).
+      const b = r.h < 2 * CH ? 6 : 10;
       g.strokeStyle = '#2b2f2c';
-      g.lineWidth = 10;
-      g.strokeRect(5, 5, RW - 10, RH - 10);
+      g.lineWidth = b;
+      g.strokeRect(b / 2, b / 2, r.w - b, r.h - b);
       g.restore();
     });
     this.texture.needsUpdate = true;
@@ -630,34 +684,38 @@ const paintNav: Painter = (g, s, def, env) => {
 
 /**
  * TOW LINE (owner, Oct 2026: the tension, and "how close it is to snapping"; on a boat that
- * can tow, with the advanced instruments): the line's pull in kN, and a bar of its load
- * toward parting (CONFIG.tow.gauge: the nearer of its tension to its breaking force and its
- * stretch to the most it takes), green, amber from half, red near breaking, with the highest
- * load lately held as a white mark (a snatch is over before you can look). Says SLACK, TAUT,
- * EASE OFF, PARTED, or NO LINE.
+ * can tow, with the advanced instruments). A strip, two quarter cells side by side (512 x
+ * 128; owner: "the instrument is too big"): the line's pull in kN and what it's doing (SLACK,
+ * TAUT, EASE OFF; PARTED or NO LINE), and a bar of its load toward parting (CONFIG.tow.gauge:
+ * the nearer of its tension to its breaking force and its stretch to the most it takes),
+ * green, amber from half, red near breaking, with the highest load lately held as a white
+ * mark (a snatch is over before you can look).
  */
 const paintTowline: Painter = (g, s) => {
   const t = s.towLine;
   const c = CONFIG.tow.gauge;
-  title(g, 'TOW LINE');
-  text(g, 'LOAD TO BREAKING', 492, 16, DIM, SMALL_PX, 'right');
+  g.fillStyle = DIM;
+  g.font = font(SMALL_PX);
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.fillText('TOW LINE', 14, 10);
   const load = t?.fast ? Math.min(1, t.load) : 0;
   const colour = load >= c.red ? RED : load >= c.amber ? AMBER : GREEN;
-  g.textAlign = 'left'; // (the big reading from the left edge, whatever was right-aligned above)
   if (!t?.fast) {
-    big(g, t?.parted ? 'PARTED' : 'NO LINE', 20, 92, 56, t?.parted ? RED : DIM);
+    big(g, t?.parted ? 'PARTED' : 'NO LINE', 14, 52, 36, t?.parted ? RED : DIM);
   } else {
-    big(g, (t.tension / 1000).toFixed(1), 20, 92, 72, AMBER);
-    text(g, 'kN', 20 + g.measureText((t.tension / 1000).toFixed(1)).width + 10, 104, DIM);
+    g.textAlign = 'left';
+    big(g, (t.tension / 1000).toFixed(1), 14, 52, 44, AMBER);
+    text(g, 'kN', 14 + g.measureText((t.tension / 1000).toFixed(1)).width + 8, 52, DIM, SMALL_PX);
     const state = t.tension < 50 ? 'SLACK' : load >= c.red ? 'EASE OFF' : 'TAUT';
-    text(g, state, 492, 76, state === 'EASE OFF' ? RED : state === 'SLACK' ? DIM : GREEN, 28, 'right');
-    text(g, `${Math.round(load * 100)} %`, 492, 112, colour, TEXT_PX, 'right');
+    text(g, state, 498, 30, state === 'EASE OFF' ? RED : state === 'SLACK' ? DIM : GREEN, 24, 'right');
+    text(g, `${Math.round(load * 100)} % OF BREAKING`, 498, 60, colour, SMALL_PX, 'right');
   }
   // The bar: its frame, the load, the amber and red marks, the peak held.
-  const x0 = 20;
-  const x1 = 492;
-  const y0 = 160;
-  const bh = 34;
+  const x0 = 14;
+  const x1 = 498;
+  const y0 = 88;
+  const bh = 24;
   g.strokeStyle = DIM;
   g.lineWidth = 2;
   g.strokeRect(x0, y0, x1 - x0, bh);
@@ -671,15 +729,323 @@ const paintTowline: Painter = (g, s) => {
   ] as const) {
     const x = x0 + (x1 - x0) * f;
     g.fillStyle = col;
-    g.fillRect(x - 1, y0 - 6, 3, bh + 12);
+    g.fillRect(x - 1, y0 - 4, 3, bh + 8);
   }
   if (t?.fast && t.peak > load + 0.02) {
     const x = x0 + (x1 - x0) * Math.min(1, t.peak);
     g.fillStyle = '#ffffff';
     g.fillRect(x - 2, y0 - 2, 4, bh + 4);
   }
-  text(g, '0', x0, y0 + bh + 10, DIM, SMALL_PX);
-  text(g, 'BREAK', x1, y0 + bh + 10, RED, SMALL_PX, 'right');
+};
+
+/**
+ * ANCHOR (owner, Oct 2026: from the helm "you need to know, is the chain going down? Is the
+ * anchor set? Is the chain going up? Is it in?"). A quarter screen (256 x 128) beside the
+ * speed screen: the chain out (m) and what the anchor's doing, with an arrow while the chain
+ * moves: ▼ LETTING GO, SET (holding; red DRAGGING), ▲ HEAVING IN, OFF THE BOTTOM (hanging:
+ * in too deep, or coming up), and HOUSED once it's stowed in the roller; a bar of the chain
+ * out against all she carries.
+ */
+const paintAnchorScreen: Painter = (g, s) => {
+  const a = s.anchor;
+  const chainM = gearOf(s, 'anchor')?.chainM ?? 0;
+  const flash = Math.floor(performance.now() / 500) % 2 === 0;
+  g.fillStyle = DIM;
+  g.font = font(SMALL_PX);
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.fillText('ANCHOR', 12, 10);
+  let state: string;
+  let colour = AMBER;
+  switch (a.phase) {
+    case 'stowed':
+      state = 'HOUSED';
+      colour = DIM;
+      break;
+    case 'paying':
+      state = '▼ LETTING GO';
+      colour = flash ? AMBER : DIM;
+      break;
+    case 'set':
+      state = a.dragging ? 'DRAGGING' : 'SET';
+      colour = a.dragging ? (flash ? RED : DIM) : GREEN;
+      break;
+    case 'weighing':
+      state = '▲ HEAVING IN';
+      colour = flash ? AMBER : DIM;
+      break;
+    default:
+      state = chainM && a.rodeM >= chainM ? 'NO BOTTOM' : 'OFF BOTTOM';
+      colour = AMBER;
+  }
+  g.textAlign = 'right';
+  big(g, a.phase === 'stowed' ? '0' : a.rodeM.toFixed(0), 168, 54, 44, a.phase === 'stowed' ? DIM : AMBER);
+  g.textAlign = 'left';
+  big(g, 'm', 174, 60, 20, DIM);
+  text(g, state, 12, 80, colour, 18);
+  // The chain out against all she carries.
+  if (chainM > 0) {
+    const x0 = 12;
+    const x1 = 244;
+    g.fillStyle = '#1f2a24';
+    g.fillRect(x0, 106, x1 - x0, 10);
+    g.fillStyle = a.phase === 'stowed' ? DIM : AMBER;
+    g.fillRect(x0, 106, (x1 - x0) * Math.min(1, a.rodeM / chainM), 10);
+    text(g, `${chainM.toFixed(0)}`, x1, 10, DIM, SMALL_PX, 'right');
+  }
+};
+
+// ── Old school (owner, Oct 2026: "three tiers of instruments, old school (analogue), basic
+// electronic, and then advanced") ──
+// Round analogue gauges, each a quarter cell (a dial in a black panel): cream faces, black
+// figures, an orange needle. Drawn on the same atlas as the screens (no more draw calls).
+
+const FACE = '#efe6cf';
+const INK = '#1b1a17';
+const NEEDLE = '#e2571f';
+
+/**
+ * A round gauge in a quarter cell (256 x 128): its face, `ticks` major marks from `min` to
+ * `max` round a 270 degree sweep (with figures at each, `fig` choosing what's written), a red
+ * arc from `red` up if given, its label and units, and the needle at `value`.
+ */
+/** A gauge's round backing plate on the dash, and its four screws: behind the rim. */
+function backingPlate(g: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
+  g.fillStyle = '#1b1f22';
+  g.beginPath();
+  g.arc(cx, cy, r + 10, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#5a6066';
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + (k * Math.PI) / 2;
+    g.beginPath();
+    g.arc(cx + Math.cos(a) * (r + 6), cy + Math.sin(a) * (r + 6), 2, 0, Math.PI * 2);
+    g.fill();
+  }
+}
+
+function dial(g: CanvasRenderingContext2D, o: { min: number; max: number; value: number; ticks: number; label: string; units?: string; red?: number; fig?: (v: number) => string; note?: string; noteColour?: string }): void {
+  const cx = 128;
+  const cy = 64;
+  const r = 52;
+  backingPlate(g, cx, cy, r);
+  // The rim and face.
+  g.fillStyle = '#3a3d3c';
+  g.beginPath();
+  g.arc(cx, cy, r + 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = FACE;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fill();
+  const a0 = (135 * Math.PI) / 180;
+  const sweep = (270 * Math.PI) / 180;
+  const angle = (v: number) => a0 + sweep * Math.max(0, Math.min(1, (v - o.min) / (o.max - o.min)));
+  if (o.red !== undefined) {
+    g.strokeStyle = '#c2321e';
+    g.lineWidth = 6;
+    g.beginPath();
+    g.arc(cx, cy, r - 6, angle(o.red), angle(o.max));
+    g.stroke();
+  }
+  g.strokeStyle = INK;
+  g.fillStyle = INK;
+  g.font = font(13);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (let k = 0; k <= o.ticks; k++) {
+    const v = o.min + ((o.max - o.min) * k) / o.ticks;
+    const a = angle(v);
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * (r - 3), cy + Math.sin(a) * (r - 3));
+    g.lineTo(cx + Math.cos(a) * (r - 12), cy + Math.sin(a) * (r - 12));
+    g.stroke();
+    g.fillText(o.fig ? o.fig(v) : String(Math.round(v)), cx + Math.cos(a) * (r - 22), cy + Math.sin(a) * (r - 22));
+  }
+  if (o.units) {
+    g.font = font(11);
+    // In the gap at the foot of the sweep.
+    g.fillText(o.units, cx, cy + 30);
+  }
+  // Its name on the plate to the left of the dial, clear of the figures.
+  g.fillStyle = FACE;
+  g.font = font(15);
+  g.fillText(o.label, 38, cy);
+  // The needle, and its boss.
+  const a = angle(o.value);
+  g.strokeStyle = NEEDLE;
+  g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(cx - Math.cos(a) * 8, cy - Math.sin(a) * 8);
+  g.lineTo(cx + Math.cos(a) * (r - 8), cy + Math.sin(a) * (r - 8));
+  g.stroke();
+  g.fillStyle = INK;
+  g.beginPath();
+  g.arc(cx, cy, 6, 0, Math.PI * 2);
+  g.fill();
+  // A word beside the dial (the chain counter's state), on the plate to its right.
+  if (o.note) {
+    g.fillStyle = o.noteColour ?? AMBER;
+    g.font = font(12);
+    g.fillText(o.note, 218, cy);
+  }
+}
+
+/** The rev counter: rpm in hundreds, red from her rated revs. */
+const paintDialRpm: Painter = (g, s) => {
+  const rated = gearOf(s, 'diesel')?.engine.ratedRpm ?? 3000;
+  const max = Math.ceil((rated * 1.15) / 500) * 500;
+  dial(g, { min: 0, max, value: s.engine.rpm, ticks: max / 500, label: 'RPM', units: 'x100', red: rated, fig: (v) => String(Math.round(v / 100)) });
+};
+/** The speed log: knots, 0 to 30. */
+const paintDialSpeed: Painter = (g, s) => dial(g, { min: 0, max: 30, value: knots(s), ticks: 6, label: 'LOG', units: 'kn' });
+/** The depth gauge: the water under her keel, 0 to 50 m (red under 2 m: a mark, as on an old sounder). */
+const paintDialDepth: Painter = (g, s, def) => dial(g, { min: 0, max: 50, value: depthUnderKeel(s, def), ticks: 5, label: 'DEPTH', units: 'm', note: depthUnderKeel(s, def) < 2 ? 'SHALLOW' : undefined, noteColour: RED });
+/** Coolant temperature, 40 to 120 C, red from her alarm. */
+const paintDialTemp: Painter = (g, s) => {
+  const alarm = gearOf(s, 'diesel')?.engine.thermal.alarmC ?? 95;
+  dial(g, { min: 40, max: 120, value: s.engine.coolantC, ticks: 4, label: 'TEMP', units: '°C', red: alarm });
+};
+/** Fuel, empty to full (E, half, F), red under her low-fuel mark. */
+const paintDialFuel: Painter = (g, s) => {
+  const diesel = gearOf(s, 'diesel');
+  const tank = s.engine.tankL ?? diesel?.engine.fuel.tankL ?? 1;
+  dial(g, { min: 0, max: 1, value: s.engine.fuelL / tank, ticks: 2, label: 'FUEL', fig: (v) => (v === 0 ? 'E' : v === 1 ? 'F' : '½') });
+};
+/**
+ * The magnetic compass: a card turning so her heading stands at the lubber line (top), its
+ * points marked; the heading in figures under it.
+ */
+const paintDialCompass: Painter = (g, s) => {
+  const cx = 128;
+  const cy = 64;
+  const r = 52;
+  const h = headingDeg(s);
+  backingPlate(g, cx, cy, r);
+  g.fillStyle = '#3a3d3c';
+  g.beginPath();
+  g.arc(cx, cy, r + 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#20262a';
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = FACE;
+  g.strokeStyle = FACE;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (let d = 0; d < 360; d += 10) {
+    // The card turns the other way to her: her heading at the top.
+    const a = ((d - h - 90) * Math.PI) / 180;
+    const major = d % 30 === 0;
+    g.lineWidth = major ? 2.5 : 1.2;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2));
+    g.lineTo(cx + Math.cos(a) * (r - (major ? 11 : 7)), cy + Math.sin(a) * (r - (major ? 11 : 7)));
+    g.stroke();
+    if (d % 90 === 0) {
+      g.font = font(16);
+      g.fillStyle = d === 0 ? '#ff7a5a' : FACE;
+      g.fillText(['N', 'E', 'S', 'W'][d / 90], cx + Math.cos(a) * (r - 22), cy + Math.sin(a) * (r - 22));
+      g.fillStyle = FACE;
+    }
+  }
+  // The lubber line, and the heading in figures.
+  g.fillStyle = NEEDLE;
+  g.fillRect(cx - 2, cy - r - 4, 4, 16);
+  g.font = font(16);
+  g.fillStyle = AMBER;
+  g.fillText(bearing(h), cx, cy + 6);
+  g.fillStyle = FACE;
+  g.font = font(15);
+  g.fillText('HDG', 38, cy);
+};
+/** The chain counter: the chain out against all she carries, and what the anchor's doing. */
+const paintDialChain: Painter = (g, s) => {
+  const a = s.anchor;
+  const chainM = gearOf(s, 'anchor')?.chainM ?? 60;
+  const flash = Math.floor(performance.now() / 500) % 2 === 0;
+  const note = a.phase === 'stowed' ? 'HOUSED' : a.phase === 'paying' ? '▼ OUT' : a.phase === 'weighing' ? '▲ IN' : a.phase === 'set' ? (a.dragging ? 'DRAGGING' : 'SET') : 'HANGING';
+  const colour = a.phase === 'set' && !a.dragging ? GREEN : a.dragging ? (flash ? RED : DIM) : a.phase === 'stowed' ? DIM : flash ? AMBER : DIM;
+  dial(g, { min: 0, max: chainM, value: a.phase === 'stowed' ? 0 : a.rodeM, ticks: Math.max(2, Math.round(chainM / 20)), label: 'CHAIN', units: 'm', note, noteColour: colour });
+};
+
+// ── The ship's clock (CS5; owner, Oct 2026: "a ship's clock would be good") ──
+
+/** The time of day as hours and minutes (the world's clock; noon with no environment). */
+function clockOf(env: EnvironmentState | null): { h: number; m: number } {
+  const t = ((env?.timeOfDay ?? 12) % 24 + 24) % 24;
+  const h = Math.floor(t);
+  return { h, m: Math.floor((t - h) * 60) };
+}
+/** "14:05". */
+const hhmm = (env: EnvironmentState | null) => {
+  const { h, m } = clockOf(env);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+const clockKey: ScreenKey = (_s, _d, env) => hhmm(env);
+
+/** Old school: a brass-rimmed ship's clock, twelve hours, an hour and a minute hand. */
+const paintDialClock: Painter = (g, _s, _def, env) => {
+  const cx = 128;
+  const cy = 64;
+  const r = 52;
+  backingPlate(g, cx, cy, r);
+  g.fillStyle = '#a8843a';
+  g.beginPath();
+  g.arc(cx, cy, r + 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = FACE;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = INK;
+  g.fillStyle = INK;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = font(12);
+  for (let k = 1; k <= 12; k++) {
+    const a = (k / 12) * Math.PI * 2 - Math.PI / 2;
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * (r - 3), cy + Math.sin(a) * (r - 3));
+    g.lineTo(cx + Math.cos(a) * (r - 9), cy + Math.sin(a) * (r - 9));
+    g.stroke();
+    g.fillText(String(k), cx + Math.cos(a) * (r - 18), cy + Math.sin(a) * (r - 18));
+  }
+  const { h, m } = clockOf(env);
+  const hand = (turns: number, len: number, width: number) => {
+    const a = turns * Math.PI * 2 - Math.PI / 2;
+    g.lineWidth = width;
+    g.beginPath();
+    g.moveTo(cx, cy);
+    g.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+    g.stroke();
+  };
+  g.strokeStyle = INK;
+  hand(((h % 12) + m / 60) / 12, r * 0.5, 5);
+  hand(m / 60, r * 0.78, 3);
+  g.beginPath();
+  g.arc(cx, cy, 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = FACE;
+  g.font = font(15);
+  g.fillText('TIME', 38, cy);
+};
+
+/** Basic electronic: the time in figures, 24 hours. */
+const paintClock: Painter = (g, _s, _def, env) => {
+  g.fillStyle = DIM;
+  g.font = font(SMALL_PX);
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.fillText('TIME', 12, 10);
+  g.fillStyle = AMBER;
+  g.font = font(54);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(hhmm(env), 128, 70);
 };
 
 /** The screens there are, for the screen module (modules/screen) to pick from. */
@@ -690,7 +1056,112 @@ export const SCREENS = {
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
-  towline: { paint: paintTowline, key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
+  towline: { paint: paintTowline, cells: [2, 1], key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
+  // Old school: the analogue gauges, each a quarter.
+  dialRpm: { paint: paintDialRpm, cells: [1, 1], round: true, key: (s) => String(Math.round(s.engine.rpm / 25)) },
+  dialSpeed: { paint: paintDialSpeed, cells: [1, 1], round: true, key: (s) => knots(s).toFixed(1) },
+  dialDepth: { paint: paintDialDepth, cells: [1, 1], round: true, key: (s, def) => Math.min(60, depthUnderKeel(s, def)).toFixed(1) },
+  dialTemp: { paint: paintDialTemp, cells: [1, 1], round: true, key: (s) => s.engine.coolantC.toFixed(0) },
+  dialFuel: { paint: paintDialFuel, cells: [1, 1], round: true, key: (s) => s.engine.fuelL.toFixed(0) },
+  dialCompass: { paint: paintDialCompass, cells: [1, 1], round: true, key: (s) => Math.round(headingDeg(s)).toString() },
+  dialChain: {
+    paint: paintDialChain,
+    cells: [1, 1],
+    round: true,
+    key: (s) => {
+      const a = s.anchor;
+      const moving = a.phase === 'paying' || a.phase === 'weighing' || (a.phase === 'set' && a.dragging);
+      return [a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, moving ? Math.floor(performance.now() / 500) % 2 : 0].join('|');
+    },
+  },
+  anchor: {
+    paint: paintAnchorScreen,
+    cells: [1, 1],
+    key: (s) => {
+      const a = s.anchor;
+      const moving = a.phase === 'paying' || a.phase === 'weighing' || (a.phase === 'set' && a.dragging);
+      return [a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, moving ? Math.floor(performance.now() / 500) % 2 : 0].join('|');
+    },
+  },
+  // The ship's clock: in figures, or the old school's round clock.
+  clock: { paint: paintClock, cells: [1, 1], key: clockKey },
+  dialClock: { paint: paintDialClock, cells: [1, 1], round: true, key: clockKey },
+  // The advanced touchscreen (a full screen; the screen module makes each one with her own
+  // pages: touchScreen below). This one, every page, is what's listed.
+  touch: { paint: (g, s, def, env) => touchScreen([...TOUCH_PAGES], 'touchPage1', 0).paint(g, s, def, env), key: () => '' },
 } satisfies Record<string, Screen>;
 
 export type ScreenName = keyof typeof SCREENS;
+
+// ── The touchscreen (CS5; owner, Oct 2026: "with the advanced package ... just one screen that
+// you have tabs that you have to flip between to see the different information") ──
+
+/** The pages a touchscreen can show, in tab order: each is one of the screens above, drawn in it. */
+export const TOUCH_PAGES = ['speed', 'heading', 'rpm', 'engineMonitor', 'anchor', 'towline', 'nav'] as const;
+export type TouchPage = (typeof TOUCH_PAGES)[number];
+/** What each page's tab says. */
+export const TOUCH_TABS: Record<TouchPage, string> = { speed: 'SPEED', heading: 'HDG', rpm: 'ENGINE', engineMonitor: 'SYSTEMS', anchor: 'ANCHOR', towline: 'TOW', nav: 'WIND' };
+/**
+ * The tab bar and the page area, in the screen's own pixels (512 x 256; the bezel is the outer
+ * 10). The tabs are along the top: from the helm the wheel's rim hides a dash screen's foot.
+ */
+export const TOUCH_BAR = { y0: 12, y1: 42, x0: 12, x1: 420, clockX: 466 } as const;
+const TOUCH_PAGE = { y: 46, h: 210 } as const;
+/** Each tab's span across the bar (px), for `n` tabs: the screen draws them, the screen module presses them. */
+export function touchTabs(n: number): { x0: number; x1: number }[] {
+  const w = (TOUCH_BAR.x1 - TOUCH_BAR.x0) / Math.max(1, n);
+  return Array.from({ length: n }, (_, i) => ({ x0: TOUCH_BAR.x0 + i * w + 2, x1: TOUCH_BAR.x0 + (i + 1) * w - 2 }));
+}
+/** The page a touchscreen is on: the boat's (`channel` in her controls, so the whole crew sees the same page), else its first. */
+export function touchPageOf(s: VesselState, channel: 'touchPage1' | 'touchPage2', first: number, n: number): number {
+  return Math.max(0, Math.min(n - 1, Math.round(s.controls[channel] ?? first)));
+}
+
+/**
+ * A touchscreen with these pages: the page shown (any of the screens, scaled whole into the page
+ * area: a quarter or a strip drawn large) and the tab bar over it, the page's tab lit, the time
+ * at its end. Repainted only when the page, what it shows or the minute changes, like any screen.
+ */
+export function touchScreen(pages: readonly TouchPage[], channel: 'touchPage1' | 'touchPage2', first: number): Screen {
+  const at = (s: VesselState) => touchPageOf(s, channel, first, pages.length);
+  return {
+    cells: [2, 2],
+    key: (s, def, env) => {
+      const i = at(s);
+      return [i, SCREENS[pages[i]].key(s, def, env), hhmm(env)].join('#');
+    },
+    paint: (g, s, def, env) => {
+      const i = at(s);
+      const inner: Screen = SCREENS[pages[i]];
+      const [cw, ch] = cellsOf(inner);
+      const iw = cw * CW;
+      const ih = ch * CH;
+      const k = Math.min(512 / iw, TOUCH_PAGE.h / ih);
+      g.save();
+      g.beginPath();
+      g.rect(0, TOUCH_PAGE.y, 512, TOUCH_PAGE.h);
+      g.clip();
+      g.translate((512 - iw * k) / 2, TOUCH_PAGE.y + (TOUCH_PAGE.h - ih * k) / 2);
+      g.scale(k, k);
+      inner.paint(g, s, def, env);
+      g.restore();
+      // The tab bar.
+      g.fillStyle = '#16201b';
+      g.fillRect(0, 0, 512, TOUCH_BAR.y1 + 4);
+      g.font = font(13);
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      const ym = (TOUCH_BAR.y0 + TOUCH_BAR.y1) / 2;
+      touchTabs(pages.length).forEach((t, j) => {
+        const on = j === i;
+        g.fillStyle = on ? AMBER : '#24302a';
+        g.fillRect(t.x0, TOUCH_BAR.y0, t.x1 - t.x0, TOUCH_BAR.y1 - TOUCH_BAR.y0);
+        g.fillStyle = on ? BG : AMBER;
+        g.fillText(TOUCH_TABS[pages[j]], (t.x0 + t.x1) / 2, ym + 1);
+      });
+      g.fillStyle = AMBER;
+      g.font = font(18);
+      g.fillText(hhmm(env), TOUCH_BAR.clockX, ym + 1);
+    },
+  };
+}

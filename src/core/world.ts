@@ -1,4 +1,5 @@
 import type { FuelState } from '../fuel/fuelHose';
+import type { TimberState } from '../voyage/timber';
 import { gearOf } from '../boats/sims';
 import type { BoardState } from '../board/board';
 import { CONFIG } from '../config';
@@ -16,6 +17,7 @@ import { stowTender } from '../vessel/tenderCrane';
 import { createWeather, rebuildWaves, seaForWind } from '../environment/weather';
 import type { Forecast } from '../environment/forecast';
 import type { TrafficState } from '../traffic/traffic';
+import type { FerriesState } from '../traffic/ferries';
 import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
 import { createTowState, type TowState } from '../tow/tow';
@@ -26,6 +28,7 @@ import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
 import { startBerthId } from '../world/startSpot';
 import type { BerthDef } from '../world/defs';
+import type { VoyagePlan } from '../voyage/plan';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -74,6 +77,8 @@ export interface WorldState {
   forecast?: Forecast;
   /** Passing ships, floating debris (traffic/traffic.ts). */
   traffic?: TrafficState;
+  /** A coast map's ferries on its real routes (traffic/ferries.ts). */
+  ferries?: FerriesState;
   /** Towing missions: the tow job and its towline (tow/tow.ts). */
   tow?: TowState;
   /** Fire missions: the fire job (fire/fire.ts). */
@@ -88,6 +93,8 @@ export interface WorldState {
   fishing?: FishingState;
   /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */
   career?: CareerState;
+  /** Voyage: the log barges brought back from the timber camp (voyage/timber.ts). */
+  timber?: TimberState;
   /**
    * How the home boat was built, so crew who join build her the same (net: the welcome):
    * her Shipyard code if she's a design, and the workboat's equipment she was fitted out
@@ -107,12 +114,18 @@ export interface WorldState {
    * ringing still runs its course. Forecasts and harbour chatter carry on.
    */
   quietCalls?: boolean;
+  /** Boats put in the world by the spawnBoat intent so far (core/spawnBoat.ts): their ids count up. */
+  spawned?: number;
+  /** Boats players have launched so far (core/launch.ts): their ids count up. */
+  launched?: number;
+  /** The crew's voyage plan from the planning table (Voyage mode; voyage/plan.ts). */
+  plan?: VoyagePlan;
 }
 
 export function createWorld(
   ids: IdFactory,
   vesselDefId: string = CONFIG.testScene.vesselDefId,
-  /** Also give the workboat her tender (the skiff, in her cradle on the foredeck): the game does, tests may. */
+  /** Also give the workboat her tender (the skiff, or the rescue boat: in her cradle on deck): the game does, tests may. */
   /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
   /** tows / fires: towing and fire calls come by themselves (the game). */
   /** harbour: she starts moored in Calder Haven and you on the quay (the game); else at sea at her spawn (tests). */
@@ -123,8 +136,10 @@ export function createWorld(
   const vessel = createVesselState(vesselId, vesselDefId);
   if (opts.harbour) mooredAtStart(vessel);
   else dropVessel(vessel);
-  // Her tender only if she has a crane to carry it (the workboat; M7: not every boat does).
-  const tender = opts.tender && gearOf({ defId: vesselDefId }, 'tenderCrane') ? createVesselState(ids.next('vessel'), 'skiff') : null;
+  // Her tender only if she has a crane to carry it (the workboat; M7: not every boat does):
+  // the boat her crane is made for (the dinghy, or the rescue boat on its bigger crane).
+  const crane = opts.tender ? gearOf({ defId: vesselDefId }, 'tenderCrane') : null;
+  const tender = crane ? createVesselState(ids.next('vessel'), crane.tenderDefId) : null;
   const player = createPlayerState(localPlayerId, 'Player 1');
   placeAshore(player);
   const world: WorldState = {

@@ -107,3 +107,34 @@ describe('the far bands (milestone 5)', () => {
     expect(canopyArrays(f, f.layout.x0 - 4 * S, f.layout.z0 - 4 * S).position.length).toBe(0);
   });
 });
+
+describe('tree detail by device', () => {
+  it('a standalone headset is the Quest level; a desktop browser far; the setting overrides', async () => {
+    const { isStandaloneHeadset } = await import('../src/render/device');
+    const { treeLevel, treeSettings } = await import('../src/world/view/treesView');
+    const { userSettings } = await import('../src/player/userSettings');
+    const { CONFIG } = await import('../src/config');
+    expect(isStandaloneHeadset('Mozilla/5.0 (X11; Linux x86_64; Quest 3) AppleWebKit/537.36 OculusBrowser/35.0 Chrome/126 VR Safari/537.36')).toBe(true);
+    expect(isStandaloneHeadset('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36')).toBe(false);
+    userSettings.treeDetail = 'desktop';
+    expect(treeLevel()).toBe('desktop');
+    expect(treeSettings().nearDistance).toBe(CONFIG.trees.desktop.nearDistance);
+    expect(treeSettings().midDistance).toBeGreaterThan(CONFIG.trees.midDistance);
+    userSettings.treeDetail = 'quest';
+    expect(treeSettings().nearDistance).toBe(CONFIG.trees.nearDistance);
+    userSettings.treeDetail = 'auto';
+  });
+
+  it("the canopy against shimmering far off: below the crowns, no scrub or orchards in it, drawn a little deeper", async () => {
+    const { canopyCellHeight } = await import('../src/world/view/treesView');
+    const { CONFIG } = await import('../src/config');
+    const t = CONFIG.trees;
+    expect(canopyCellHeight('scrub', 15)).toBe(0);
+    expect(canopyCellHeight('orchard', 15)).toBe(0);
+    // A full plantation's canopy stands below its trees' crowns, by at least a couple of metres.
+    expect(canopyCellHeight('plantation', 15)).toBeCloseTo(t.canopyHeight.plantation * t.canopyTop, 5);
+    expect(t.canopyHeight.plantation - canopyCellHeight('plantation', 15)).toBeGreaterThanOrEqual(2);
+    expect(t.canopyDepthOffset.factor).toBeGreaterThan(0);
+  });
+});
+

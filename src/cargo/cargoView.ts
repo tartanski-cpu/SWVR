@@ -18,7 +18,7 @@ const STRAP = 0xe8641c;
  * lying in it - plain blocks with a tail, in different colours (cod grey, mackerel blue,
  * haddock brown, red gurnard, silver whiting). Origin at the middle of its base.
  */
-function fishBoxGeometry(size: readonly number[], ice: boolean): THREE.BufferGeometry {
+export function fishBoxGeometry(size: readonly number[], ice: boolean): THREE.BufferGeometry {
   const [L, H, W] = size;
   const wood = 0xb07a40;
   const post = 0x7a5028;

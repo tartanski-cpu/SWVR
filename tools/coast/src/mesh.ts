@@ -14,14 +14,17 @@
  *                  nothing on ground no boat can see (a viewshed from the sea), half in the
  *                  shallows, nothing in deep water (the sea is opaque). So the shore, cliffs
  *                  and harbours get the triangles; hidden glens get a few big ones.
- *   Colour         per face, from the land cover at its middle and the theme's palette; steep
- *                  faces are rock; low, gentle ground by the water is sand; under water the
- *                  seabed shades from sand to dark by depth.
+ *   Colour         per face, from the land cover at its middle and the theme's palette; where
+ *                  the map says what the shore is (shore.ts), sand, shingle, rock or cliff;
+ *                  else steep faces are rock, and low, gentle ground by the water is foreshore
+ *                  (not drawn as a beach: the map doesn't say it is one); mapped fields on open
+ *                  grassland greener; the ground under a wood in the wood's own colour (the
+ *                  forest map, trees.ts); under water the seabed shades from sand to dark by depth.
  *   Chunks         CHUNK m squares; a face belongs to the one its middle is in.
  *
  * Writes public/regions/<id>/terrain.bin (vertices Float32 x, y, z; faces Uint32 a, b, c;
  * colours Uint8 r, g, b per face; land-cover class Uint8 per face; faces sorted by chunk) and region.json (where each array
- * starts, the chunks, the counts, the credits). Run: node src/mesh.ts [requestId] (last: after harbours, whose basins it dredges).
+ * starts, the chunks, the counts, the credits). Run: node src/mesh.ts [requestId] (after harbours, whose basins it dredges, shore and trees).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -94,6 +97,60 @@ const rd = (name: string, Ctor: Float32ArrayConstructor | Uint8ArrayConstructor)
 const heights = rd('heights.bin', Float32Array) as Float32Array;
 const cover = rd('cover.bin', Uint8Array) as Uint8Array;
 const dist = rd('dist.bin', Float32Array) as Float32Array;
+// What the shore is made of (shore.ts, run first; the coast extras plan, C3): the shore's
+// class in bits 0-2 (1 sand, 2 shingle, 3 rock, 4 cliff), bit 3 the map says so, bit 4 a
+// mapped field. Absent (an older run): none, and the shore is drawn as before.
+const shore = new Uint8Array(W * H);
+if (existsSync(join(D.out, 'shore.bin'))) {
+  const src = readFileSync(join(D.out, 'shore.bin'));
+  for (let i = 0, k = 0; i + 1 < src.length && k < shore.length; i += 2) {
+    shore.fill(src[i + 1], k, Math.min(shore.length, k + src[i]));
+    k += src[i];
+  }
+}
+const SHORE_COLOUR = [0, theme.sand, theme.shingle, theme.rock, theme.cliff];
+// The woods (trees.ts's forest map, run first): the ground under a wood takes the wood's own
+// colour, its species' colours mixed by their shares a shade darker, as the game's canopy is
+// coloured (world/view/treesView.ts canopyArrays). Far off the game draws no canopy, only
+// this (owner: "after a certain distance ... it can literally become a flat vector color"):
+// nothing a few metres over the ground to shimmer, and no triangles. A thin wood (density
+// under FOREST_MIN of 15) is left to the land cover; scrub and orchards, too low to be in the
+// canopy (CONFIG.trees.canopyMinHeight), tint the ground only part way (FOREST_LOW).
+const FOREST_MIN = 6;
+const FOREST_LOW = 0.45;
+const FOREST_KINDS = ['plantation', 'broadleaf', 'mixed', 'natural', 'scrub', 'orchard'] as const;
+const forestPath = join(D.out, 'forest.bin');
+const forestLayout = existsSync(join(D.out, 'trees.json')) ? JSON.parse(readFileSync(join(D.out, 'trees.json'), 'utf8')) : null;
+const forest = forestLayout && existsSync(forestPath) ? new Uint8Array(forestLayout.width * forestLayout.height) : null;
+if (forest) {
+  const src = readFileSync(forestPath);
+  for (let i = 0, k = 0; i + 1 < src.length && k < forest.length; i += 2) {
+    forest.fill(src[i + 1], k, Math.min(forest.length, k + src[i]));
+    k += src[i];
+  }
+}
+const woodColour = FOREST_KINDS.map((kind) => {
+  const st = theme.forest.kinds[kind];
+  const total = st.species.reduce((t, [, w]) => t + w, 0);
+  const c = [0, 0, 0];
+  for (const [sp, w] of st.species) {
+    const hex = (theme.forest.colours[sp] ?? [0x4a6a34])[0];
+    const [r, g, b] = [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+    c[0] += (r * w) / total;
+    c[1] += (g * w) / total;
+    c[2] += (b * w) / total;
+  }
+  return c.map((v) => v * 0.88) as [number, number, number];
+});
+/** The wood at (x, z): its kind (0-5) and whether it's thick enough to colour the ground, or null. */
+const woodAt = (x: number, z: number): number | null => {
+  if (!forest) return null;
+  const i = Math.floor((x - forestLayout.x0) / forestLayout.cell);
+  const j = Math.floor((z - forestLayout.z0) / forestLayout.cell);
+  if (i < 0 || j < 0 || i >= forestLayout.width || j >= forestLayout.height) return null;
+  const v = forest[j * forestLayout.width + i];
+  return v >> 4 && (v & 15) >= FOREST_MIN ? (v >> 4) - 1 : null;
+};
 const coast = JSON.parse(readFileSync(join(D.work, 'coast.json'), 'utf8')) as [number, number][][];
 // The harbours' dredged basins (harbours.ts): at least their depth round the piers and quays.
 const dredgeFile = join(D.work, 'dredge.json');
@@ -465,8 +522,9 @@ for (let t = 0; t < tri.length / 3; t++) {
     const [r1, g1, b1] = rgb(theme.shallow);
     const [r2, g2, b2] = rgb(theme.deep);
     col = [r1 + (r2 - r1) * s, g1 + (g2 - g1) * s, b1 + (b2 - b1) * s];
-  } else if (up < 0.7) col = rgb(theme.rock);
-  else if (mh < 2.2 && dist[k] < 30 && up > 0.85 && cover[k] !== 10 && cover[k] !== 50) col = rgb(theme.sand);
+  } else if (shore[k] & 8) col = rgb(SHORE_COLOUR[shore[k] & 7]); // the map says what the shore is
+  else if (up < 0.7) col = rgb(theme.rock);
+  else if (mh < 2.2 && dist[k] < 30 && up > 0.85 && cover[k] !== 10 && cover[k] !== 50) col = rgb(theme.foreshore); // low shore the map is silent on: not drawn as a beach
   else {
     // Land the land cover calls water: right at the sea coast that's the satellite's coastline
     // disagreeing with the map's by a few metres (it would show as blue holes in the shore),
@@ -474,7 +532,16 @@ for (let t = 0; t < tri.length / 3; t++) {
     const cls = (cover[k] === 80 || cover[k] === 0) && dist[k] < T.shoreWater ? (up < 0.7 ? 60 : 30) : cover[k];
     col = rgb(theme.cover[cls] ?? theme.cover[30]);
     // Open hill above the fields: grass shading into moor (themes.ts moor).
-    if (theme.moor && (cover[k] === 30 || cover[k] === 100)) {
+    const wood = woodAt(mx, mz);
+    if (wood !== null) {
+      const w = woodColour[wood];
+      const t = FOREST_KINDS[wood] === 'scrub' || FOREST_KINDS[wood] === 'orchard' ? FOREST_LOW : 1;
+      col = [col[0] + (w[0] - col[0]) * t, col[1] + (w[1] - col[1]) * t, col[2] + (w[2] - col[2]) * t];
+    } else if (shore[k] & 16 && cover[k] === 30) {
+      // A mapped field on open grassland: greener, the improved pasture of the low ground.
+      const f = rgb(theme.fields);
+      col = [col[0] + (f[0] - col[0]) * 0.7, col[1] + (f[1] - col[1]) * 0.7, col[2] + (f[2] - col[2]) * 0.7];
+    } else if (theme.moor && (cover[k] === 30 || cover[k] === 100)) {
       const t = Math.min(1, Math.max(0, (mh - theme.moor.from) / (theme.moor.to - theme.moor.from)));
       const m = rgb(theme.moor.colour);
       col = [col[0] + (m[0] - col[0]) * t, col[1] + (m[1] - col[1]) * t, col[2] + (m[2] - col[2]) * t];

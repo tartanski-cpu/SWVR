@@ -3,7 +3,7 @@ import { fitPaint, flatVertexColorMaterial, mergeParts, paintLocal, part } from 
 import type { PaintName } from '../../render/pixelPaint';
 import { LAMPS, LIGHTS, PORT_FLOODS, type BlockDef, type BuildingDef, type CurrentZoneDef, type RegionDef, type ShelterDef, type SlipwayDef, type WreckDef } from '../archipelago';
 import type { FallDef, FarmDef, YardDef } from '../defs';
-import { ringCentres } from '../farms';
+import { lineEnds, ringCentres } from '../farms';
 import { CONFIG } from '../../config';
 import { groundHeight } from '../terrain';
 import { standingHeight } from '../geography';
@@ -14,7 +14,8 @@ import type { TerrainRequest, TerrainResult } from './terrainWorker';
 import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
 import { CoastTerrainView, coastSilhouetteArrays } from './coastView';
 import { buildKitHouse, isKitBuilding } from './houseKit';
-import { shortCleat } from '../berths';
+import { faceBollards, shortCleat } from '../berths';
+import { blockSteps } from '../blockSteps';
 
 /**
  * Everything static in the world, region by region (regions, milestone 2):
@@ -325,8 +326,10 @@ const BOLLARD = 0x2a2c30;
  */
 function* structureParts(region: RegionDef, at: (x: number, z: number, far?: boolean) => THREE.BufferGeometry[]): Generator<void> {
   let parts: THREE.BufferGeometry[];
-  for (const b of region.blocks) {
-    buildBlock(b, at(b.x, b.z));
+  // Blocks overlapping at one deck height drawn a step apart (world/blockSteps.ts).
+  const steps = blockSteps(region.blocks);
+  for (const [i, b] of region.blocks.entries()) {
+    buildBlock(b, at(b.x, b.z), steps[i] * CONFIG.render.blockStepM);
     yield;
   }
   for (const s of region.slipways) {
@@ -400,7 +403,7 @@ function* structureParts(region: RegionDef, at: (x: number, z: number, far?: boo
  * rotated to its bearing. A quay is a solid concrete wall; a pier is a timber deck on piles.
  * Fenders and bollards go only along faces that have water in front of them.
  */
-function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
+function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[], sink = 0): void {
   const yaw = (b.yawDeg * Math.PI) / 180;
   // Local X (across) -> world (cos yaw, sin yaw) as in geography.ts; local Z runs along the
   // axis (reversed, which doesn't matter: everything here is symmetric end to end).
@@ -408,11 +411,16 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
   const local: THREE.BufferGeometry[] = [];
   const L = b.halfLength;
   const W = b.halfWidth;
+  // Its deck slab `sink` m lower and narrower than the block (an overlapping block's: drawn
+  // apart from its neighbours, blockSteps); the fittings stand where the block is.
+  const SL = L - sink;
+  const SW = W - sink;
+  const ST = b.top - sink;
   // Painted parts take their pixels in the block's own frame, square to its edges (pixel paint).
   const add = (g: THREE.BufferGeometry, color: number, paint?: PaintName) => local.push(paint ? paintLocal(part(g, color, paint)) : part(g, color));
 
   if (b.kind === 'quay') {
-    add(new THREE.BoxGeometry(2 * W, b.top + 6, 2 * L).translate(0, (b.top - 6) / 2, 0), CONCRETE, 'concrete');
+    add(new THREE.BoxGeometry(2 * SW, ST + 6, 2 * SL).translate(0, (ST - 6) / 2, 0), CONCRETE, 'concrete');
   } else if (b.kind === 'barge') {
     // A fish farm's feed barge: a steel hull floating 1.2 m deep, a house at one end, the
     // feed silo at the other (the pellets are blown down hoses to the cages).
@@ -425,11 +433,11 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
   } else if (b.top < 1) {
     // A pontoon (a coast region's marina berths): a low deck on floats, rising and falling
     // with the tide in life (here it stays at its height); no piles.
-    add(new THREE.BoxGeometry(2 * W, 0.3, 2 * L).translate(0, b.top - 0.15, 0), 0xa8a49a, 'concrete');
-    add(new THREE.BoxGeometry(2 * W - 0.3, 0.6, 2 * L - 0.3).translate(0, b.top - 0.6, 0), 0x2c3236);
+    add(new THREE.BoxGeometry(2 * SW, 0.3, 2 * SL).translate(0, ST - 0.15, 0), 0xa8a49a, 'concrete');
+    add(new THREE.BoxGeometry(2 * SW - 0.3, 0.6, 2 * SL - 0.3).translate(0, ST - 0.6, 0), 0x2c3236);
   } else {
     // Deck planks laid across the pier.
-    add(new THREE.BoxGeometry(2 * W, 0.45, 2 * L).translate(0, b.top - 0.225, 0), TIMBER, 'wood');
+    add(new THREE.BoxGeometry(2 * SW, 0.45, 2 * SL).translate(0, ST - 0.225, 0), TIMBER, 'wood');
     for (let s = -L + 2; s <= L - 2; s += 6) {
       for (const side of [-1, 1]) add(new THREE.CylinderGeometry(0.28, 0.28, b.top + 9, 7).translate(side * (W - 0.4), (b.top - 9) / 2 - 0.4, s), PILE);
     }
@@ -461,7 +469,8 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
       const z = f.alongX ? f.nz * (f.offset + 0.12) : s;
       if (b.fendered) add(new THREE.BoxGeometry(f.alongX ? 0.5 : 0.25, 1.6, f.alongX ? 0.25 : 0.5).translate(x, b.top - 0.9, z), FENDER);
     }
-    for (let s = -f.half + 3; s <= f.half - 3; s += 12) {
+    // Bollards where the berths' lines tie (world/berths.ts faceBollards).
+    for (const s of faceBollards(b, f)) {
       const x = f.alongX ? s : f.nx * (f.offset - 0.5);
       const z = f.alongX ? f.nz * (f.offset - 0.5) : s;
       add(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 8).translate(x, b.top + 0.25, z), BOLLARD, 'worn');
@@ -703,7 +712,7 @@ function buildLightTower(x: number, z: number, lampY: number, color: string, tow
   if (tower === 'none') return;
   const ground = groundHeight(x, z);
   if (tower === 'post') {
-    const c = color === 'red' ? 0xc8281e : color === 'green' ? 0x1f8a3a : 0xe8e8e0;
+    const c = color === 'red' ? 0xc8281e : color === 'green' ? 0x1f8a3a : color === 'yellow' ? 0xe8c020 : 0xe8e8e0;
     const h = lampY - ground - 0.4;
     parts.push(part(new THREE.CylinderGeometry(0.45, 0.6, h, 8).translate(x, ground + h / 2, z), c, 'worn'));
     parts.push(part(new THREE.CylinderGeometry(0.3, 0.3, 0.6, 8).translate(x, lampY, z), 0xf0f0e8));
@@ -768,12 +777,31 @@ function buildFall(f: FallDef, parts: THREE.BufferGeometry[]): void {
 }
 
 /**
- * A fish farm (FarmDef): each cage ring a black float pipe with a handrail on stanchions
- * and the net's jump fence above the water, orange buoys at the grid's corners. Low-poly
- * (a couple of hundred triangles a ring). The rings' solid part is a low block each
- * (farms.ts), in the collision.
+ * A fish farm (FarmDef). Cages: each ring a black float pipe with a handrail on stanchions
+ * and the net's jump fence above the water, orange buoys at the grid's corners (a couple of
+ * hundred triangles a ring). Mussel lines (a coast map's, C2): a row of black floats every
+ * `lineFloat` m along each line, an orange buoy at each end. A coast map's lease also has a
+ * yellow special mark at each corner (a can with an X topmark; its light, Fl Y 5s, is one of
+ * the region's lights). The solid parts are low blocks (farms.ts), in the collision.
  */
 function buildFarm(f: FarmDef, parts: THREE.BufferGeometry[]): void {
+  for (const [x, z] of f.corners ?? []) {
+    parts.push(part(new THREE.CylinderGeometry(0.55, 0.65, 1.6, 8).translate(x, 0.6, z), 0xe8c020));
+    parts.push(part(new THREE.BoxGeometry(0.9, 0.12, 0.12).rotateZ(Math.PI / 4).translate(x, 1.75, z), 0xe8c020));
+    parts.push(part(new THREE.BoxGeometry(0.9, 0.12, 0.12).rotateZ(-Math.PI / 4).translate(x, 1.75, z), 0xe8c020));
+  }
+  if (f.kind === 'lines') {
+    for (const [[x0, z0], [x1, z1]] of lineEnds(f)) {
+      const L = Math.hypot(x1 - x0, z1 - z0);
+      const n = Math.max(2, Math.floor(L / CONFIG.regions.lineFloat));
+      for (let k = 0; k <= n; k++) {
+        const t = k / n;
+        const end = k === 0 || k === n;
+        parts.push(part(new THREE.CylinderGeometry(end ? 0.5 : 0.32, end ? 0.5 : 0.32, end ? 0.8 : 0.5, 6).translate(x0 + (x1 - x0) * t, 0.15, z0 + (z1 - z0) * t), end ? 0xe8701a : 0x1a1c1e));
+      }
+    }
+    return;
+  }
   const r = f.ringRadius;
   const centres = ringCentres(f);
   for (const [x, z] of centres) {
@@ -870,7 +898,7 @@ function buildWreck(w: WreckDef, parts: THREE.BufferGeometry[]): void {
 
 // ── Lights ───────────────────────────────────────────────────────────────────────
 
-const LIGHT_COLORS = { red: 0xff3020, green: 0x30ff60, white: 0xfff4d8 };
+const LIGHT_COLORS = { red: 0xff3020, green: 0x30ff60, white: 0xfff4d8, yellow: 0xffd020 };
 
 /**
  * Harbour and lighthouse lights: one Points draw call with a constant on-screen size (so a

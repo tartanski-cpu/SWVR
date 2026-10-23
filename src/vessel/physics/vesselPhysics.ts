@@ -54,7 +54,7 @@ import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
-import { physicsStations } from '../hullForm';
+import { physicsStations, type Station } from '../hullForm';
 import { contactAt, guardContactAt, hullContactPoints, type ContactResult, type GuardMaterial } from './contacts';
 import { localSeaAt } from '../../ocean/waves';
 
@@ -91,6 +91,8 @@ const pt = new THREE.Vector3();
 const portW = new THREE.Vector3();
 const stbdW = new THREE.Vector3();
 const centreW = new THREE.Vector3();
+/** A catamaran's demihull centreline at a station (world). */
+const hullW = new THREE.Vector3();
 const sub: SubmergedSection = { area: 0, cx: 0, cy: 0, maxDepth: 0 };
 const depths: number[] = [];
 const dq = new THREE.Quaternion();
@@ -107,6 +109,14 @@ const fStern = { x: 0, y: 0, z: 0 };
 const cgL = new THREE.Vector3();
 /** A station's chine height (vessel axes): its widest point in the lower half of its section. */
 const chines = new WeakMap<object, number>();
+/**
+ * Half the width of a station's waterplane strip, her bottom's chine to chine: her chines'
+ * half-beam; a catamaran's two demihulls together (her tunnel isn't in the water).
+ */
+function wetHalf(st: { halfBeamChine: number; demihull?: { halfBeamChine: number } }): number {
+  return st.demihull ? 2 * st.demihull.halfBeamChine : st.halfBeamChine;
+}
+
 function chineY(st: { polygon: readonly (readonly number[])[] }): number {
   let y = chines.get(st);
   if (y === undefined) {
@@ -207,6 +217,8 @@ export function stepVessel(
   payload: readonly { mass: number; pos: THREE.Vector3 }[] = [],
   /** Other forces this tick (world force at a world point): another boat's hull against this one. */
   external: readonly ExternalForce[] = [],
+  /** The stations to float her on: all of them, or a far boat's few (core/lod.ts). */
+  stations: readonly Station[] = physicsStations(def.hull),
 ): void {
   const rho = CONFIG.ocean.density;
   const g = CONFIG.ocean.gravity;
@@ -253,7 +265,7 @@ export function stepVessel(
   // Σ of each station's lateral area times its half-beam squared: the roll damping her hull
   // gives as a lifting surface going ahead (below).
   let rollLiftArea = 0;
-  for (const st of physicsStations(def.hull)) {
+  for (const st of stations) {
     const b = Math.max(st.halfBeamChine, 0.05);
     // Water surface at port chine, centreline and starboard chine (at DWL height).
     toWorld(-b, 0, st.z, portW);
@@ -291,10 +303,26 @@ export function stepVessel(
     // slamming / water-entry losses: negligible at seakeeping velocities (~0.3 m/s), but
     // it dominates on violent entry and stops the hull rebounding out of the water.
     const wet = Math.min(1, sub.maxDepth / 0.3);
-    const strip = 2 * b * st.weight * wet;
-    const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
-    const fv = -(d.vertical * strip * relV + 0.5 * rho * d.verticalCd * strip * Math.abs(relV) * relV);
-    addForceAt(tmp.set(0, fv, 0), centreW);
+    if (st.demihull) {
+      // A catamaran: each hull's heave damped at its own centreline, against the water's
+      // motion there (the surface's between her centre and that side's chine). Rolling, one
+      // hull goes down as the other comes up, so this damps her roll too, as her hulls' real
+      // damping does; heave and pitch are damped as before.
+      const o = st.demihull.offset;
+      const half = 2 * st.demihull.halfBeamChine * st.weight * wet;
+      for (const [side, sSide] of [[-1, sP], [1, sS]] as const) {
+        toWorld(side * o, 0, st.z, hullW);
+        const water = sC.velocity[1] + (sSide.velocity[1] - sC.velocity[1]) * (o / b);
+        const relV = pointVelocity(hullW, tmp).y - water;
+        const fv = -(d.vertical * half * relV + 0.5 * rho * d.verticalCd * half * Math.abs(relV) * relV);
+        addForceAt(tmp.set(0, fv, 0), hullW);
+      }
+    } else {
+      const strip = 2 * wetHalf(st) * st.weight * wet;
+      const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
+      const fv = -(d.vertical * strip * relV + 0.5 * rho * d.verticalCd * strip * Math.abs(relV) * relV);
+      addForceAt(tmp.set(0, fv, 0), centreW);
+    }
 
     // ── Horizontal drag at the immersed centroid, in vessel axes ──
     pointVelocity(pt, tmp);
@@ -308,7 +336,8 @@ export function stepVessel(
     //     sway and yaw damping (Y_v, N_r) and a sensible turning circle.
     //   - crossflow drag, quadratic in v (dominant at low speed and large drift),
     //   - a small linear term for settling at rest.
-    const aLat = sub.maxDepth * st.weight;
+    // (A catamaran has two keels, a demihull each: twice the lifting surface.)
+    const aLat = sub.maxDepth * st.weight * (st.demihull ? 2 : 1);
     rollLiftArea += aLat * b * b;
     const uFwd = Math.abs(tmp.z);
     const fx = -(
@@ -393,7 +422,8 @@ export function stepVessel(
   //     thrown past it.
   //   With how much of her is in the water.
   const pl = def.planing;
-  if (pl && immersion > 0) {
+  // (Not a catamaran: two slim hulls don't bank into a turn on a vee bottom's lift; she stays near level.)
+  if (pl && immersion > 0 && !def.hull.catamaran) {
     const fn = Math.abs(U) / Math.sqrt(g * def.resistance.lwl);
     const t = Math.min(1, Math.max(0, (fn - pl.fnStart) / (pl.fnFull - pl.fnStart)));
     const fade = t * t * (3 - 2 * t);
@@ -402,7 +432,7 @@ export function stepVessel(
       let awp = 0;
       for (const st of def.hull.stations) {
         b = Math.max(b, st.halfBeamChine);
-        awp += 2 * st.halfBeamChine * st.weight;
+        awp += 2 * wetHalf(st) * st.weight;
       }
       const f = fade * immersion * pl.bank * 0.5 * rho * awp * Math.abs(U) * vSway;
       // Up at the starboard chine when sliding to starboard (vSway > 0), down at port.
@@ -441,6 +471,12 @@ export function stepVessel(
     // her mass, so k/m and c/m (what sets the step's stability) stay the same. Unscaled,
     // the 330 kg skiff would bounce off a beach and blow up.
     const scale = Math.min(1, def.mass / CONFIG.contacts.referenceMass);
+    // A bow-ramp boat beaching (the coast extras plan, C3): on soft ground (sand, shingle, a
+    // slip) only a landing faster than CONFIG.beaching.impactSafe counts as a hit, and only by
+    // the speed over it; sliding up the beach is no grinding. Elsewhere, as for every boat.
+    const beaches = !!def.layout.bowRamp;
+    const softAllow = CONFIG.beaching.impactSafe - CONFIG.wear.impactSafe;
+    let sliding = 0;
     for (const [lx, ly, lz] of hullContactPoints(def.hull)) {
       toWorld(lx, ly, lz, pt);
       pointVelocity(pt, ptV);
@@ -448,7 +484,12 @@ export function stepVessel(
       addForceAt(cf.set(contact.fx * scale, contact.fy * scale, contact.fz * scale), pt);
       touching++;
       c.force += contact.normal * scale;
+      if (beaches && contact.soft) {
+        c.impact = Math.max(c.impact, contact.approach - softAllow);
+        continue;
+      }
       c.slide += contact.slide;
+      sliding++;
       c.impact = Math.max(c.impact, contact.approach);
     }
     // Guards on her sides (vessel/physics/guards.ts): the crew's fenders while they're out, a
@@ -481,7 +522,7 @@ export function stepVessel(
       if (sideGuard) guard(sideGuard.probes, CONFIG.contacts.guards[sideGuard.kind]);
       if (pushFender) guard(pushFender.probes, CONFIG.contacts.guards.pushFender);
     }
-    if (touching > 0) c.slide /= touching;
+    if (sliding > 0) c.slide /= sliding;
     if (guardTouching > 0) c.guardSlide! /= guardTouching;
     // Her anchor (a module, M5a): the chain's pull at the hawse.
     machinery?.mooring(port, dt);
@@ -493,7 +534,7 @@ export function stepVessel(
       pointVelocity(lineBow, lineBowV);
       toWorld(sternCleat.x ?? 0, sternCleat.lineY, sternCleat.z, lineStern);
       pointVelocity(lineStern, lineSternV);
-      stepMooring(state, { bow: bowCleat.z, stern: sternCleat.z, inshore: bowCleat.inshore }, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
+      stepMooring(state, { bow: bowCleat.z, stern: sternCleat.z, inshore: bowCleat.inshore, massKg: def.mass }, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
       if (state.mooring.phase !== 'free') {
         addForceAt(cf.set(fBow.x, 0, fBow.z), lineBow);
         addForceAt(cf.set(fStern.x, 0, fStern.z), lineStern);

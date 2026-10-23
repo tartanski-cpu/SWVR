@@ -1,0 +1,56 @@
+/**
+ * The Furniture step (owner, Oct 2026: "split furniture into a different part of the workflow,
+ * keep it separate from deck equipment, where there usually is just one, but the furniture
+ * should be allowed to place multiple"). Each piece can be added more than once (up to four;
+ * one head), each copy a field of its own (design.ts FURNITURE_SLOTS: berthAt, berthAt2...).
+ * Adding one takes the piece's first empty field; taking one off moves those after it up, so
+ * the copies are always numbered 1, 2, 3 with no gaps.
+ *
+ * Pure: the page gives the click's point (the boat's axes, m) and her transom.
+ */
+import { FURNITURE_SLOTS, furnitureCell, type FurnitureKey, type FurniturePiece, type ShipDesign } from './design';
+
+/** The Furniture step's pieces, in the menu's order, with their names. */
+export const FURNITURE_MENU: { kind: FurniturePiece; name: string }[] = [
+  { kind: 'berth', name: 'Berth' },
+  { kind: 'settee', name: 'Settee' },
+  { kind: 'galley', name: 'Galley' },
+  { kind: 'seat', name: 'Seat' },
+  { kind: 'locker', name: 'Locker' },
+  { kind: 'head', name: 'Head (toilet) with a door' },
+  { kind: 'bunk', name: 'Bunks, two high' },
+  { kind: 'mess', name: 'Mess table and benches' },
+  { kind: 'shower', name: 'Shower' },
+];
+
+/** The fields of a piece that are set (placed), in order. */
+export function placedOf(kind: FurniturePiece, d: ShipDesign): FurnitureKey[] {
+  return FURNITURE_SLOTS[kind].filter((k) => d[k]);
+}
+
+/** The field a new piece of this kind goes in, or null if she has as many as she can. */
+export function nextSlot(kind: FurniturePiece, d: ShipDesign): FurnitureKey | null {
+  return FURNITURE_SLOTS[kind].find((k) => !d[k]) ?? null;
+}
+
+/** Which piece a field is, and which copy (0 the first). */
+export function slotOf(key: FurnitureKey): { kind: FurniturePiece; i: number } {
+  for (const [kind, keys] of Object.entries(FURNITURE_SLOTS) as [FurniturePiece, FurnitureKey[]][]) {
+    const i = keys.indexOf(key);
+    if (i >= 0) return { kind, i };
+  }
+  throw new Error(`not a furniture field: ${key}`);
+}
+
+/** The design change that puts a piece (its field `key`) where she was clicked (`p`: boat axes, m). */
+export function placeFurniture(key: FurnitureKey, p: readonly number[], transom: number): Partial<ShipDesign> {
+  return { [key]: furnitureCell(p[0], transom - p[2]) } as Partial<ShipDesign>;
+}
+
+/** The design change that takes a piece off: the copies after it move up a place. */
+export function removeFurniture(key: FurnitureKey, d: ShipDesign): Partial<ShipDesign> {
+  const { kind, i } = slotOf(key);
+  const keys = FURNITURE_SLOTS[kind];
+  const kept = keys.filter((k, j) => j !== i && d[k]).map((k) => d[k]);
+  return Object.fromEntries(keys.map((k, j) => [k, kept[j] ?? 0])) as Partial<ShipDesign>;
+}

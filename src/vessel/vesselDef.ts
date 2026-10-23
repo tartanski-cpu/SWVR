@@ -45,6 +45,13 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
     /** A cabin below the deck under the deckhouse (parametric boats P2c, a Shipyard design's): see CabinBelow. */
     cabin?: CabinBelow;
     /**
+     * A fish hold under the open deck (a Shipyard design's, modules/fishHold): its inside
+     * (x0..x1 across, z0..z1 along, its floor at `sole`), and its hatch's opening, which is cut
+     * out of the deck (hullMesh.ts). Below the deck is solid for walking as before: you work it
+     * from the deck through the hatch.
+     */
+    fishHold?: { x0: number; x1: number; z0: number; z1: number; sole: number; hatch: { x0: number; x1: number; z0: number; z1: number } };
+    /**
      * A cockpit overhead (parametric boats P2b, owner): the house's aft roof carried on aft over
      * the working deck, from `z0` (the house's aft wall) to `z1`, its underside at `y`, `thickness`
      * thick, out to `halfWidth` each side. It stands on a wing each side: a plate `wing` thick
@@ -65,6 +72,11 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
   };
 
 /** Every house she has, the helm's first (none: an open boat). */
+/** Where a house's middle stands across her (m, + starboard): its layout's `x`, else the centreline. */
+export function houseX(wh: { x?: number }): number {
+  return wh.x ?? 0;
+}
+
 export function housesOf(layout: { wheelhouse?: WheelhouseLayout; houses?: WheelhouseLayout[] }): WheelhouseLayout[] {
   return [...(layout.wheelhouse ? [layout.wheelhouse] : []), ...(layout.houses ?? [])];
 }
@@ -199,6 +211,14 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
   Partial<Pick<WorkboatLayout['wheelhouse'], 'sideDoor' | 'sideRaise' | 'frontSill' | 'frontRakeDeg'>> & {
     /** A shaped house (the Shipyard's): drawn by its own builder (hullMesh.ts buildShapedHouse). */
     shape?: HouseShape;
+    /**
+     * Where the house's middle stands across her (m, + to starboard; owner, Oct 2026: a narrow
+     * wheelhouse offset to port or starboard on the landing craft). Everything else in this
+     * layout is in the house's own frame, across from that middle (its walls at ±halfWidth, its
+     * door, steps, console, floor holes); whatever reads it adds this (houseX). Unset: 0, on her
+     * centreline.
+     */
+    x?: number;
     /**
      * The walls, windows and roof are the boat's own geometry (boats/oneOffViews.ts, the
      * Alaskan 38): the hull mesh draws only her floor, console and door steps. Everything
@@ -525,7 +545,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
 }
 
 /** The vessel types, by def id (the ids live on in saves and snapshots: never rename). */
-export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'dory', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'landingCraft', 'alaskan38', 'design', 'lander', 'fishingBoat', 'pilotBoat', 'smallTug', 'starterBoat'] as const;
+export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'dory', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'landingCraft', 'alaskan38', 'design', 'lander', 'fishingBoat', 'pilotBoat', 'smallTug', 'starterBoat', 'rib'] as const;
 
 let built: Record<string, VesselDef> | null = null;
 let builder: (() => Record<string, VesselDef>) | null = null;
@@ -545,14 +565,35 @@ function defs(): Record<string, VesselDef> {
 }
 
 /**
- * Registry of vessel types, each built from her recipe (modular boats M6a: the hull plus her
- * modules, modular/vesselAssembly.ts). Built on first use. To add a boat: a hull, a recipe,
- * and its id here.
+ * A vessel type made at run time (multi-boat M1: a boat built from her design token,
+ * boats/library.ts `boatType`): added to the registry as it stands, or kept for when it's
+ * first built.
  */
-export const VESSEL_DEFS: Record<string, VesselDef> = Object.defineProperties(
-  {},
-  Object.fromEntries(VESSEL_IDS.map((id) => [id, { enumerable: true, get: () => defs()[id] }])),
-);
+export function putVesselDef(id: string, def: VesselDef, token?: string): void {
+  if (built) built[id] = def;
+  else if (builder) built = { ...builder(), [id]: def };
+  if (token) TOKENS.set(id, token);
+}
+
+const TOKENS = new Map<string, string>();
+
+/** The design token a run-time type was built from (null for the fixed types). Kept here, a leaf module, so vessel state can ask without importing the library. */
+export function vesselBuildToken(defId: string): string | null {
+  return TOKENS.get(defId) ?? null;
+}
+
+/**
+ * Registry of vessel types, each built from her recipe (modular boats M6a: the hull plus her
+ * modules, modular/vesselAssembly.ts). Built on first use. The fixed types are VESSEL_IDS;
+ * boats built from a design token at run time (`boat:...`, multi-boat M1) are in it too, so
+ * any id is looked up (an unknown one is undefined, as before).
+ */
+export const VESSEL_DEFS: Record<string, VesselDef> = new Proxy({} as Record<string, VesselDef>, {
+  get: (_t, id) => (typeof id === 'string' ? defs()[id] : undefined),
+  has: (_t, id) => typeof id === 'string' && id in defs(),
+  ownKeys: () => Object.keys(defs()),
+  getOwnPropertyDescriptor: (_t, id) => (typeof id === 'string' && id in defs() ? { enumerable: true, configurable: true, writable: false, value: defs()[id] } : undefined),
+});
 
 /** The towable kinds (towing missions), by def id. */
 export const TOW_DEFS = ['derelict', 'dory', 'logRaft', 'barge', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster'] as const;

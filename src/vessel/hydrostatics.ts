@@ -100,8 +100,27 @@ export function uprightHydrostatics(def: VesselDef): UprightHydrostatics {
   let mAwp = 0;
   let it = 0;
   for (const st of physicsStations(def.hull)) {
-    let half = 0;
     const p = st.polygon;
+    if (st.demihull) {
+      // A catamaran: the waterline crosses her section four times (each demihull's outer and
+      // inner side): a strip for each hull, and the second moment of each about her centreline
+      // (the parallel-axis term that makes her so stiff), not one strip across her tunnel.
+      const xs: number[] = [];
+      for (let i = 0; i < p.length; i++) {
+        const [x0, y0] = p[i];
+        const [x1, y1] = p[(i + 1) % p.length];
+        if ((y0 - s) * (y1 - s) < 0) xs.push(x0 + ((x1 - x0) * (s - y0)) / (y1 - y0));
+      }
+      xs.sort((a, b) => a - b);
+      for (let j = 0; j + 1 < xs.length; j += 2) {
+        const w = xs[j + 1] - xs[j];
+        awp += w * st.weight;
+        mAwp += w * st.weight * st.z;
+        it += ((xs[j + 1] ** 3 - xs[j] ** 3) / 3) * st.weight;
+      }
+      continue;
+    }
+    let half = 0;
     for (let i = 0; i < p.length; i++) {
       const [x0, y0] = p[i];
       const [x1, y1] = p[(i + 1) % p.length];

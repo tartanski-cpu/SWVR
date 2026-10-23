@@ -115,6 +115,11 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       // The chartplotter's zoom buttons (nav/chartPlotter.ts): 0 AUTO, k the k-th range.
       s.controls.chartZoom = clamp(Math.round(intent.value), 0, CONFIG.chartPlotter.ranges.length);
       break;
+    case 'touchPage1':
+    case 'touchPage2':
+      // A touchscreen's tab pressed (modules/screen): the page it shows (the screen keeps it in range).
+      s.controls[intent.control] = clamp(Math.round(intent.value), 0, 9);
+      break;
     case 'fenders':
       s.controls.fenders = intent.value > 0.5 ? 1 : 0;
       if (!s.controls.fenders) s.walkFender = null; // in with the rest
@@ -136,6 +141,17 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     case 'headDoor':
       s.controls.headDoor = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'holdHatch':
+      s.controls.holdHatch = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'netRelease':
+      // A press: set until the fishing tick empties the codend (fishing.ts clears it).
+      if (intent.value > 0.5) s.controls.netRelease = 1;
+      break;
+    case 'holdLift':
+      // A press: set until the hold's tick lifts a box (fishing/fishHold.ts clears it).
+      if (intent.value > 0.5) s.controls.holdLift = 1;
       break;
     case 'engineHatch':
       s.controls.engineHatch = intent.value > 0.5 ? 1 : 0;

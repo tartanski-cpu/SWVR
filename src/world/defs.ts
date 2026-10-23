@@ -111,6 +111,8 @@ export interface BlockDef {
   top: number;
   /** Rubber fenders along the faces (softer, slippery contact). */
   fendered: boolean;
+  /** A fish farm's cage ring or mussel line (world/farms.ts): solid, but no berth to tie up at. */
+  farm?: boolean;
 }
 
 export interface BuildingDef {
@@ -155,7 +157,8 @@ export interface LightDef {
   z: number;
   /** Height of the lamp above MSL (m). */
   y: number;
-  color: 'red' | 'green' | 'white';
+  /** (Yellow: a special mark's, a fish farm's corner buoys.) */
+  color: 'red' | 'green' | 'white' | 'yellow';
   /** Flash period (s); 0 = fixed light. */
   period: number;
   /** Tower to draw under it. */
@@ -471,15 +474,97 @@ export interface FallDef {
  * low block). The farm's feed barge is one of the region's blocks (`barge`); its goods and
  * berth are a port's.
  */
-export interface FarmDef {
-  name: string;
+/** The game's harbour-boat designs (world/view/harbourBoatKit.ts): original small craft. */
+export type HarbourBoatKind = 'creel' | 'yacht' | 'cruiser' | 'rib' | 'caique';
+
+/** Where a harbour boat lies on a mooring or at anchor (the coast pipeline's boats stage). */
+export interface HarbourBoatSpot {
   x: number;
   z: number;
+  /** Water there (m). */
+  depth: number;
+  /** The harbour or anchorage it belongs to. */
+  harbour: string;
+  kind: 'mooring' | 'anchor';
+  /** One of the map's own mooring buoys (else laid by the pipeline). */
+  mapped?: boolean;
+}
+
+/** A region's harbour boats (the settlements brief, Part C): its moorings and anchor spots, and which kinds lie where. */
+export interface HarbourBoatsDef {
+  style: {
+    alongside: [HarbourBoatKind, number][];
+    moored: [HarbourBoatKind, number][];
+    anchored: [HarbourBoatKind, number][];
+    hulls: number[];
+    moorings: number;
+  };
+  spots: HarbourBoatSpot[];
+}
+
+export interface FarmDef {
+  name: string;
+  /** Cage rings in a grid (a fish farm: the Fjord's, and a coast map's mapped as fish), or rows of mussel long-lines (the coast extras plan, C2). Unset: cages. */
+  kind?: 'cages' | 'lines';
+  /** The first ring's middle (cages), or the first line's start (lines). */
+  x: number;
+  z: number;
+  /** The rows run along this bearing (deg). */
   yawDeg: number;
   rows: number;
   cols: number;
+  /** Between rings, or between lines (m). */
   spacing: number;
   ringRadius: number;
+  /** Lines: each line's length (m). */
+  lineLength?: number;
+  /** The lease's corners, each with a yellow special mark (a coast map's: its light is in the region's lights). */
+  corners?: [number, number][];
+}
+
+/**
+ * A ferry route from the map (the coast extras plan, C7; a coast map's): the route cut to the
+ * map, each end a terminal (`dock`: she berths there) or the map's edge (she sails in from
+ * beyond, or out of sight), each named. Her class, livery and (invented) name; the path's
+ * length (m). Sailed by traffic/ferries.ts, drawn by traffic/ferryView.ts.
+ */
+export interface FerryRouteDef {
+  id: string;
+  name: string;
+  ship: string;
+  cls: 'large' | 'small' | 'launch';
+  livery: 'calmac' | 'other' | 'aegean';
+  path: [number, number][];
+  ends: { dock: boolean; name: string }[];
+  length: number;
+}
+
+/**
+ * A place name from the map (the coast extras plan, C4; a coast map's): a town, village,
+ * island or islet, or the sea's own (a bay, a headland, a strait). On the charts by `rank`
+ * (1 shown farthest out, 4 only close in), and in the radio's calls (world/places.ts).
+ */
+export interface PlaceDef {
+  name: string;
+  kind: string;
+  x: number;
+  z: number;
+  rank: number;
+}
+
+/**
+ * What stands up against the sky from the sea (the coast extras plan, C2; a coast map's,
+ * from the map data): drawn by world/view/skylineView.ts, on the paper chart as a chart's
+ * landmark symbols. `height` (m) where the map tags it, else the kind's own; `size` its
+ * footprint's span where mapped as an area (m).
+ */
+export interface SkylineDef {
+  kind: 'castle' | 'tower' | 'mast' | 'chimney' | 'water_tower' | 'monument' | 'turbine' | 'church';
+  name: string;
+  x: number;
+  z: number;
+  height?: number;
+  size?: number;
 }
 
 /**
@@ -572,6 +657,15 @@ export interface RegionDef {
   /** Waterfalls, fish farms, katabatic gust zones (milestone 5: the Fjord). */
   falls?: FallDef[];
   farms?: FarmDef[];
+  /** What stands up against its sky (castles, masts, turbines...; a coast map's), and the region's look for them ('aegean': white chapels with domes). */
+  skyline?: SkylineDef[];
+  skylineStyle?: string;
+  /** Its place names (a coast map's, from the map data): charts and radio calls. */
+  places?: PlaceDef[];
+  /** Its ferry routes (a coast map's, from the map data: traffic/ferries.ts). */
+  ferries?: FerryRouteDef[];
+  /** Boats lying in its harbours, on moorings and at anchor (a coast map's; world/harbourBoats.ts). */
+  harbourBoats?: HarbourBoatsDef;
   gusts?: GustZoneDef[];
   /**
    * A coast region (real coastline from open map data, tools/coast; coastRegion.ts): its

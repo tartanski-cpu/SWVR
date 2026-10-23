@@ -7,10 +7,10 @@ import { BODY_RADIUS, CONFIG } from '../../config';
 import { hullQueries } from '../../modular/hull';
 import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, OverheadLayout } from '../../vessel/vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../../vessel/deckhouse';
-import { MEASURES, SCALES } from '../design';
+import { consoleLengthM, houseOffsetM, MEASURES, SCALES } from '../design';
 import type { Socket } from '../../modular/socket';
 import { halfBreadthAt, type BuildArgs, type V3 } from './common';
-import { facetCentre, frontMullions, type DesignHull } from './catalog';
+import { facetCentre, frontMullions, TUG_HULL, type DesignHull } from './catalog';
 import { hullFormOf } from '../../modular/hull';
 import type { ShipDesign } from '../design';
 import type { HullPart } from './hull';
@@ -90,6 +90,10 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // ── The wheelhouse, within the deck free for it ──
   const queries = () => hullQueries({ hull: shape, layout: { bulwarkHeight, railHeight: 0, deckEdgeMargin: 0.25, bodyRadius: BODY_RADIUS } as LayoutConfig });
   let q = queries();
+  // A tug's wheelhouse is kept forward: its aft end no further aft than near amidships
+  // (CONFIG.shipyard.deckGear.tug), the aft deck clear for her towing hook and the towline.
+  // Placed as any other (housePos), then stopped there if it would lie further aft.
+  const tugAft = d.hull === TUG_HULL ? (stem + transom) / 2 + CONFIG.shipyard.deckGear.tug.houseAftOfMidships * (transom - stem) : Infinity;
   const zAft = transom - base.cockpit;
   const zFwd = stem + base.foredeck + (base.ramp ? 0.6 : 0);
   let houseL = d.houseLength;
@@ -111,7 +115,7 @@ export function housePart(a: BuildArgs, p: HullPart) {
   /** The wheelhouse's own length; `houseL` from here on is the whole house's, saloon and all. */
   const helmL = houseL;
   houseL += saloonL;
-  const aft = zAft - d.housePos * (zAft - zFwd - houseL);
+  const aft = Math.max(zFwd + houseL, Math.min(tugAft, zAft - d.housePos * (zAft - zFwd - houseL)));
   const front = aft - houseL;
   /** Where the wheelhouse ends and the saloon begins (the house's aft, without one). */
   const helmAft = front + helmL;
@@ -129,9 +133,29 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const narrowest = Math.min(...along(8).map((z) => q.halfBeam(z)));
   const sideDeck = 0.28;
   let hw = d.houseWidth * (narrowest - sideDeck);
-  if (hw < 0.85) {
-    warnings.push('Her wheelhouse is too narrow for the console: widened to 1.7 m, leaving narrow side decks.');
-    hw = Math.min(0.85, narrowest - 0.12);
+  // No narrower than `minInside` inside (CS6, owner, Oct 2026: about 1.2 m, one at a short
+  // console; it was 1.7 m when the console had to hold a full row of screens and switches).
+  const minHw = CONFIG.shipyard.helm.minInside / 2 + 0.06;
+  if (hw < minHw) {
+    warnings.push(`Her wheelhouse is too narrow: widened to ${CONFIG.shipyard.helm.minInside.toFixed(1)} m inside, leaving narrow side decks.`);
+    hw = Math.min(minHw, narrowest - 0.12);
+  }
+  // Offset across her (owner, Oct 2026: on the landing craft, a narrow wheelhouse to port or
+  // starboard; design.houseX, a hull type that allows it: `offsetHouse`): its middle `hx` m to
+  // starboard (negative to port), no further than leaves its outer wall `offsetEdge` inside
+  // her deck edge along it. Not with a deckhouse under it or an overhead aft (they're built on
+  // her centreline): it stays there then. Everything of the house is laid out in its own
+  // frame, as if on her centreline, and moved across with it (layout.wheelhouse.x, and the
+  // places and gear in and on it: places.ts, deckGear.ts, furniture.ts...).
+  let hx = 0;
+  if (base.offsetHouse && (d.houseX ?? 20) !== 20) {
+    const want = houseOffsetM(d.houseX);
+    if (d.dhLength || d.overhead) warnings.push(`Her wheelhouse stays on her centreline with ${d.dhLength ? 'a deckhouse under it' : 'an overhead aft'}: the offset is for a wheelhouse standing on her deck.`);
+    else {
+      const most = Math.max(0, Math.floor((narrowest - hw - CONFIG.shipyard.offsetEdge) * 100) / 100);
+      hx = Math.max(-most, Math.min(most, want));
+      if (Math.abs(hx) < Math.abs(want) - 1e-6) warnings.push(`Her wheelhouse can go only ${most.toFixed(2)} m to ${want < 0 ? 'port' : 'starboard'} at this width: its wall at her deck edge.`);
+    }
   }
   const deckHi = Math.max(...along(8).map((z) => q.deckY(z)));
   const deckLo = Math.min(...along(8).map((z) => q.deckY(z)));
@@ -343,7 +367,9 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // it; to port, the middle or starboard): no longer than `maxConsole`, its middle `cx`. A
   // faceted front's console wraps round the middle pane: it stays in the middle.
   const helmCfg = CONFIG.shipyard.helm;
-  const consoleHalf = Math.min(hw - wall, helmCfg.maxConsole / 2);
+  // (Or as long as set, `consoleLen`: CS6, a short console for a narrow wheelhouse.)
+  const setLen = consoleLengthM(d.consoleLen ?? 0);
+  const consoleHalf = Math.min(hw - wall, helmCfg.maxConsole / 2, setLen ? setLen / 2 : Infinity);
   const short = consoleHalf < hw - wall - 0.005;
   let side = d.consoleSide ?? 0;
   if (side && !short) side = 0; // (as wide as the cabin: nowhere to move to)
@@ -370,14 +396,14 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const roofTopAt = (z: number) => roofAt(z) + roofThickness;
   // On the roof, forward: clear of its front edge (the visor's top, set back by its rake) whichever way the windows rake.
   const roofFront = Math.max(front, zHead - house.visor + roofThickness * Math.tan((house.roofEdgeDeg * Math.PI) / 180));
-  return { F, FA, aft, ahead, along, cf, consoleBack, consoleHalf, cx, deckHi, deckLo, deckhouse, dhArea, dhRailM, dhc, doorHeight, floorY, foreEndAt, foredeck, form, front, headroom, shape, st, helmAft, house, houseL, hw, inside, level, levels, nSteps, onTop, q, rise, rnd, roofAt, roofBack, roofDrop, roofFront, roofThickness, roofTopAt, roofY, saloonDrop, saloonL, saloonRoof, sb, short, side, sill, steps, tread, wall, windowHead, windowRake, zHead };
+  return { F, FA, aft, ahead, along, cf, consoleBack, consoleHalf, cx, deckHi, hx, deckLo, deckhouse, dhArea, dhRailM, dhc, doorHeight, floorY, foreEndAt, foredeck, form, front, headroom, shape, st, helmAft, house, houseL, hw, inside, level, levels, nSteps, onTop, q, rise, rnd, roofAt, roofBack, roofDrop, roofFront, roofThickness, roofTopAt, roofY, saloonDrop, saloonL, saloonRoof, sb, short, side, sill, steps, tread, wall, windowHead, windowRake, zHead };
 }
 export type HousePart = ReturnType<typeof housePart>;
 
 /** Her bow ramp, if she has one, and her deck layout (the wheelhouse, roof, deckhouse, bulwarks and rails) for walking and drawing. */
 export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
   const { d } = a;
-  const { aft, base, bulwarkHeight, consoleBack, consoleHalf, cx, deckHi, deckhouse, doorHeight, floorY, foredeck, front, grownPlate, q, house, hw, levels, rnd, roofThickness, roofY, saloonDrop, saloonRoof, short, sill, st, stem, steps, wall, warnings, windowHead, windowRake } = p;
+  const { aft, base, bulwarkHeight, consoleBack, consoleHalf, cx, deckhouse, doorHeight, floorY, foredeck, front, grownPlate, q, house, hw, levels, rnd, roofThickness, roofY, saloonDrop, saloonRoof, short, sill, st, stem, steps, wall, warnings, windowHead, windowRake } = p;
 
   // Her bow ramp (the landing craft's), across her square bow.
   const bowHalf = st[st.length - 1].halfBeamDeck;
@@ -391,7 +417,7 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
+    wheelhouse: { halfWidth: hw, ...(p.hx ? { x: p.hx } : {}), front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     // A cockpit overhead (design.overhead): fitted below, once the deck gear has its places.
     overhead: undefined as OverheadLayout | undefined,
@@ -413,7 +439,11 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
     layout.deckSteps = treads;
     layout.extraFloors = [...(layout.extraFloors ?? []), ...treads];
   }
-  if (layout.wheelhouse && roofY - deckHi < 1.8) warnings.push('Her wheelhouse roof is low over the deck outside: the doorway will be a squeeze.');
+  // Her door is in the house's aft wall: what counts is the deck you step out onto just aft
+  // of it (not the highest deck under the house, which forward on a hull rising to her bow is
+  // well above it). The side door's own height is worked out below.
+  const doorDeck = Math.max(...[aft, aft + 0.3].map((z) => q.deckY(Math.min(z, st[0].z))));
+  if (layout.wheelhouse && roofY - doorDeck < 1.8) warnings.push('Her wheelhouse roof is low over the deck outside: the doorway will be a squeeze.');
 
   return { bowRamp, layout };
 }
@@ -460,7 +490,7 @@ export type OverheadPart = ReturnType<typeof overheadPart>;
 /** Inside the wheelhouse: the chart table, the side door, and a cabin below the deckhouse with its companionway (P2c). */
 export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart) {
   const { d } = a;
-  const { F, FA, aft, at, bowRamp, cf, deckLo, deckhouse, dg, engZ0, engZ1, floorY, foredeck, front, helmAft, hw, layout, levels, outboards, q, r2, rnd, roofAt, roofY, saloonDrop, saloonL, sb, side, st, stem, wall, warnings, windowHead } = p;
+  const { F, FA, aft, at, bowRamp, cf, deckLo, deckhouse, dg, engZ0, engZ1, floorY, foredeck, front, helmAft, hw, hx, layout, levels, outboards, q, r2, rnd, roofAt, roofY, saloonDrop, saloonL, sb, side, st, stem, wall, warnings, windowHead } = p;
   // The chart table (owner: its own choice): along the port wall at the aft end, its hinge
   // corner forward, if her house is wide enough to pass inboard of it and long enough to
   // leave the helm clear.
@@ -468,7 +498,7 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   let chartTableAt: V3 | null = null;
   if (d.chartTable) {
     const z0 = aft - wall - 0.3 - ctab.depth;
-    if (hw - wall - ctab.width >= 0.35 && z0 >= cf + 1.0 + sb(hw) && (!saloonDrop || z0 >= levels[levels.length - 1].z0)) chartTableAt = [-(hw - wall), FA, Math.round(z0 * 1000) / 1000];
+    if (hw - wall - ctab.width >= 0.35 && z0 >= cf + 1.0 + sb(hw) && (!saloonDrop || z0 >= levels[levels.length - 1].z0)) chartTableAt = [rnd(hx - (hw - wall)), FA, Math.round(z0 * 1000) / 1000];
     else warnings.push(`Her wheelhouse is too ${hw - wall - ctab.width < 0.35 ? 'narrow' : 'short'} for the chart table along its port wall: left off.`);
   }
   // The side door (owner): a sliding door in the port wall, aft of the console with room to
@@ -484,7 +514,8 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
     // (Onto the deckhouse's walked top, when the house stands on one as wide as her: below.)
-    const deckOutside = deckhouse?.walk && !d.dhNarrow ? Infinity : q.halfBeam(z0 + sdc.width / 2) - hw;
+    // (Her port deck edge to the house's port wall: the wall is at hx - hw, offset across her.)
+    const deckOutside = deckhouse?.walk && !d.dhNarrow ? Infinity : q.halfBeam(z0 + sdc.width / 2) - hw + hx;
     // On a house raised on a deckhouse as wide as it, the door opens onto the side deck below
     // with no steps (owner: the crew jump in and out; if that's too high it's a bad design).
     // A sliding door wants a flat wall to slide along (owner): not with the windows raked out.
@@ -615,8 +646,8 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(chartTableAt ? [{ id: 'chartTable', type: 'cabin.furniture' as const, transform: { position: chartTableAt }, capacity: { size: [ctab.width, roofAt(chartTableAt[2]) - chartTableAt[1], ctab.depth] as V3 }, label: 'Port wall, aft: the chart table' }] : []),
     ...(sideDoor
       ? ([
-          { id: 'sideDoorIn', type: 'wall.panel', transform: { position: [r2(-hw + wall), r2(F + sideDoor.buttonHeight), r2(sideDoor.z0 - 0.04)], rotationDeg: [-90, -90, 0] }, label: 'Side door jamb, inside' },
-          { id: 'sideDoorOut', type: 'wall.panel', transform: { position: [-hw, r2(F + sideDoor.buttonHeight), r2(sideDoor.z0 - 0.04)], rotationDeg: [-90, 90, 0] }, label: 'Side door jamb, outside' },
+          { id: 'sideDoorIn', type: 'wall.panel', transform: { position: [r2(hx - hw + wall), r2(F + sideDoor.buttonHeight), r2(sideDoor.z0 - 0.04)], rotationDeg: [-90, -90, 0] }, label: 'Side door jamb, inside' },
+          { id: 'sideDoorOut', type: 'wall.panel', transform: { position: [r2(hx - hw), r2(F + sideDoor.buttonHeight), r2(sideDoor.z0 - 0.04)], rotationDeg: [-90, 90, 0] }, label: 'Side door jamb, outside' },
         ] as Socket[])
       : []),
   ];

@@ -67,6 +67,13 @@ export abstract class Control {
    * (`<vesselId>:<channel>`).
    */
   route: string | null = null;
+  /**
+   * Where it was last pressed (world), when the interaction system knows: the pointer ray's
+   * hit (VR at a distance, the desktop's click), else the controller's tip (VR, touching);
+   * null when the press came some other way. Set just before `pressStart` (the planning
+   * table's chart reads it: voyage/planTable.ts).
+   */
+  pressPoint: THREE.Vector3 | null = null;
   private lockedShown = false;
   held = false;
   /** Whether two hands may hold it at once (the wheel). */

@@ -65,11 +65,24 @@ export class VesselEffects {
   }
 
   /** Take the world-space effects out of the scene (a tow taken away; never the workboat). */
+  /**
+   * Her effects out of the world (she's gone, or rebuilt as another type): the wake and spray,
+   * and her smoke, anchor chain and mooring lines, which live in the world too. (Leaving those
+   * behind, owner Oct 2026: "when you change the boat, the docking lines stay attached to the
+   * quayside ... a kind of spider web of docking lines".)
+   */
   dispose(): void {
-    for (const o of [this.wake.mesh, this.spray.points] as THREE.Mesh[]) {
+    const e = this.equip;
+    for (const o of [this.wake.mesh, this.spray.points, e.smoke?.view.root, e.chain?.line, e.lines?.mesh]) {
+      if (!o) continue;
       o.removeFromParent();
-      o.geometry.dispose();
-      (o.material as THREE.Material).dispose();
+      o.traverse((x) => {
+        const m = x as THREE.Mesh;
+        m.geometry?.dispose();
+        const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(mat)) for (const k of mat) k.dispose();
+        else mat?.dispose();
+      });
     }
   }
 
@@ -78,17 +91,25 @@ export class VesselEffects {
    * @param time     render time (s), the waves' clock
    * @returns slam and lap strengths 0..1 this frame (bow hitting the water), for sound and haptics
    */
-  update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number): { slam: number; lap: number } {
+  /** What's drawn by the viewer's distance (multi-boat M4): all; no smoke beyond `near`; no wake or spray either beyond `mid`. */
+  private level: 'full' | 'noSmoke' | 'none' = 'full';
+
+  update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number, level: 'full' | 'noSmoke' | 'none' = 'full'): { slam: number; lap: number } {
     const light = 1 - 0.8 * darkness;
     const e = this.equip;
-    if (e.smoke) {
+    if (level !== this.level) {
+      this.level = level;
+      if (e.smoke) e.smoke.view.root.visible = level === 'full';
+      this.wake.mesh.visible = this.spray.points.visible = level !== 'none';
+    }
+    if (e.smoke && level === 'full') {
       e.smoke.view.setLight(light);
       e.smoke.view.update(dt, s, e.smoke.exhaust, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
     }
     e.chain?.update(s, this.root);
     e.lines?.update(s, e.def, this.root);
-    // A tender in her cradle or on the crane throws no wake or spray.
-    if (s.tender && s.tender.phase !== 'free') return { slam: 0, lap: 0 };
+    // A tender in her cradle or on the crane throws no wake or spray; nor does a far boat.
+    if ((s.tender && s.tender.phase !== 'free') || level === 'none') return { slam: 0, lap: 0 };
     this.wake.update(s, this.root, waves, time);
     return this.spray.update(dt, s, this.root, waves, viewer, light);
   }

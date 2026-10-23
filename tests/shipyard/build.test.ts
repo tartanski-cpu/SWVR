@@ -29,13 +29,14 @@ describe('Shipyard: the boats it builds', () => {
         const h = uprightHydrostatics(VESSEL_DEFS.design);
         expect(Math.abs(h.sinkage), `${hull}/${engine} sinkage`).toBeLessThan(0.02);
         expect(Math.abs(h.lcgMinusLcb), `${hull}/${engine} trim`).toBeLessThan(0.02);
-        // Stable; a tender one (a heavy engine high in a light hull) is told so.
-        expect(h.gmt, `${hull}/${engine} GM`).toBeGreaterThan(0.3);
+        // Stable; a tender one (a heavy engine high in a light hull) is told so. (The 750 kW
+        // diesel, nearly 5 t, makes the smallest hulls tender: still stable, and told.)
+        expect(h.gmt, `${hull}/${engine} GM`).toBeGreaterThan(engine === 4 ? 0.1 : 0.3);
         if (h.gmt < 0.5) expect(boat.warnings.some((w) => w.startsWith('Her stability is low')), `${hull}/${engine}`).toBe(true);
         expect(gearOf({ defId: 'design' }, 'diesel')!.engine.powerKw).toBe(ENGINES[engine].kw);
-        // The tall tug diesel doesn't fit under a shallow hull's floor (machinery.ts): said so,
-        // and nothing else. (It fits the tug, below.)
-        if (engine === 3) expect(boat.warnings.filter((w) => !w.startsWith('The 450 kW slow-revving tug diesel doesn’t fit') && !w.startsWith("The 450 kW slow-revving tug diesel doesn't fit") && !w.startsWith('Her stability is low')), `${hull}/${engine}`).toEqual([]);
+        // The tall tug diesel and the 750 kW don't fit under a shallow hull's floor
+        // (machinery.ts): said so, and nothing else. (They fit the tug and the trawler, below.)
+        if (engine >= 3) expect(boat.warnings.filter((w) => !/^The (450|750) kW .* doesn(’|')t fit/.test(w) && !w.startsWith('Her stability is low')), `${hull}/${engine}`).toEqual([]);
         else expect(boat.warnings, `${hull}/${engine}`).toEqual([]);
       }
   });
@@ -58,7 +59,7 @@ describe('Shipyard: the boats it builds', () => {
       }
   });
 
-  it('basic controls are the wheel, throttle, starting, speed and depth, rpm and the VHF; advanced adds the rest', () => {
+  it('basic controls are the wheel, throttle, starting, nav lights, speed and depth, rpm and the VHF; advanced adds the rest', () => {
     const ids = (controls: number) => {
       useDesign({ ...DEFAULT_DESIGN, controls, searchlight: 0 });
       return flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id);
@@ -66,13 +67,56 @@ describe('Shipyard: the boats it builds', () => {
     const basic = ids(0);
     const advanced = ids(1);
     for (const id of ['control.wheel', 'control.throttle-lever', 'control.key-switch', 'propulsion.diesel-inboard']) expect(basic).toContain(id);
-    expect(basic.filter((id) => id === 'instrument.screen').length).toBe(2);
+    // Speed and rpm, the ANCHOR quarter screen (she has an anchor), and the clock (CS5).
+    expect(basic.filter((id) => id === 'instrument.screen').length).toBe(4);
     // Every boat has a VHF (owner, Oct 2026): she answers calls, hears the forecasts.
     expect(basic).toContain('radio.vhf');
-    for (const id of ['radio.fm', 'light.navigation', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {
+    for (const id of ['radio.fm', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {
       expect(basic).not.toContain(id);
       expect(advanced).toContain(id);
     }
+    // Navigation lights, and their switch at the helm, in every tier (owner, Oct 2026).
+    for (const patch of [{ controls: 0, oldSchool: 1 }, { controls: 0, oldSchool: 0 }, { controls: 1 }]) {
+      useDesign({ ...DEFAULT_DESIGN, searchlight: 0, ...patch });
+      const mounted = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+      expect(mounted.some((m) => m.def.id === 'light.navigation'), JSON.stringify(patch)).toBe(true);
+      expect(mounted.some((m) => m.path === 'helm/navLights'), JSON.stringify(patch)).toBe(true);
+    }
+  });
+
+  it('three tiers (owner, Oct 2026): old school swaps the basic screens for round analogue gauges; advanced ignores it', () => {
+    const screens = (patch: Partial<ShipDesign>) => {
+      useDesign({ ...DEFAULT_DESIGN, searchlight: 0, ...patch });
+      expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+      const mods = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+      return mods.filter((m) => m.def.id === 'instrument.screen').map((m) => (m.config as { screen: string }).screen).sort();
+    };
+    const old = screens({ controls: 0, oldSchool: 1 });
+    // She has an anchor, so a chain counter too.
+    expect(old).toEqual(['dialChain', 'dialClock', 'dialCompass', 'dialDepth', 'dialFuel', 'dialRpm', 'dialSpeed', 'dialTemp']);
+    expect(screens({ controls: 0, oldSchool: 0 })).toEqual(['anchor', 'clock', 'rpm', 'speed']);
+    // The advanced tier keeps its screens whatever the old-school flag says.
+    expect(screens({ controls: 1, oldSchool: 1 })).toEqual(screens({ controls: 1, oldSchool: 0 }));
+  });
+
+  it('touchscreens (CS5): with the advanced controls, one or two in place of her screens, a tab for each page she has; the basic ignore it', () => {
+    const touch = (patch: Partial<ShipDesign>) => {
+      useDesign({ ...DEFAULT_DESIGN, searchlight: 0, ...patch });
+      expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+      const flat = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+      const screens = flat.filter((m) => m.def.id === 'instrument.screen' && m.path.includes('helm'));
+      return { screens: screens.map((m) => m.config as { screen: string; pages?: string[]; channel?: string; first?: number }) };
+    };
+    const one = touch({ controls: 1, touch: 1 });
+    expect(one.screens.map((c) => c.screen)).toEqual(['touch']);
+    // She has an anchor: its page; no tow point on the default boat: no TOW page.
+    expect(one.screens[0].pages).toEqual(['speed', 'heading', 'rpm', 'engineMonitor', 'anchor', 'nav']);
+    const two = touch({ controls: 1, touch: 2 });
+    expect(two.screens.map((c) => [c.channel, c.first])).toEqual([['touchPage1', 0], ['touchPage2', 2]]);
+    // A tow point (her stern roller): the TOW page too.
+    expect(touch({ controls: 1, touch: 1, sternRoller: 1 }).screens[0].pages).toContain('towline');
+    // The basic controls: no touchscreen, whatever the field says.
+    expect(touch({ controls: 0, touch: 2 }).screens.map((c) => c.screen)).not.toContain('touch');
   });
 
   it('the bow choice, a stem raked 0 (plumb) to 50 deg, each hull: more rake cuts away more forefoot, but only near the stem (not a push bow or a landing bow)', () => {
@@ -158,13 +202,15 @@ describe('Shipyard: the boats it builds', () => {
         useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...fromSteps({ floor }) });
         const def = VESSEL_DEFS.design;
         const wh = def.layout.wheelhouse!;
+        // Walking in from the deck aft of the door's steps (with a high floor they run more than 0.65 m aft of it).
+        const start = Math.max(wh.aft + 0.65, ...(wh.steps ?? []).map((s) => s.z1 + 0.1));
         const deck = hullPlan(def).deckY(wh.aft + 0.15);
         const levels = [deck, ...(wh.steps ?? []).map((s) => s.y), wh.floorY].sort((a, b) => a - b);
         for (let i = 1; i < levels.length; i++) expect(levels[i] - levels[i - 1], `hull ${hull} floor ${floor}`).toBeLessThanOrEqual(0.351);
         // Walking in at the door, along the centreline: each spot's floor within a step of the last.
         const walk = vesselWalkArea(def, def.layout);
         let y = deck;
-        for (let z = wh.aft + 0.65; z > wh.aft - 0.9; z -= 0.05) {
+        for (let z = start; z > wh.aft - 0.9; z -= 0.05) {
           const here = walk.floorsAt(0, z).filter((f) => Math.abs(f - y) <= 0.4);
           expect(here.length, `hull ${hull} floor ${floor} at z ${z.toFixed(2)}`).toBeGreaterThan(0);
           y = here.reduce((a, f) => (Math.abs(f - wh.floorY) < Math.abs(a - wh.floorY) ? f : a));

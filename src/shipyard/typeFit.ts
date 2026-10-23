@@ -93,6 +93,17 @@ export const TYPE_FACTS: TypeFacts[] = [
     maxPots: 83,
     fits: [fit(0, 0, 6.2, 35, 1.56, 443_000), fit(0, 1, 7.7, 41, 3.13, 461_000), fit(1, 0, 7.6, 36, 2.87, 459_000), fit(1, 1, 9.1, 46, 5.73, 492_000), fit(2, 0, 8.4, 43, 4.16, 473_000), fit(2, 1, 10.1, 56, 8.32, 521_000), fit(3, 0, 9.0, 44, 5.05, 501_000)],
   },
+  {
+    // The stern trawler (measured Oct 2026, as the others, bare: no deck gear pinned): big,
+    // heavy and slow, with the longest working deck and the biggest payload of them all.
+    what: 'A stern trawler: 20 m of steel, a whaleback forward, the house forward and a long working deck aft for the trawl.',
+    goodFor: ['trawl', 'cargo'],
+    crates: 163,
+    pots: 105,
+    maxCrates: 305,
+    maxPots: 198,
+    fits: [fit(0, 0, 5.6, 36, 1.91, 476_000), fit(0, 1, 7.9, 40, 3.83, 512_000), fit(1, 0, 7.8, 35, 3.5, 495_000), fit(1, 1, 9.4, 45, 7.01, 543_000), fit(2, 0, 8.7, 43, 5.09, 507_000), fit(2, 1, 10.2, 53, 10.17, 569_000), fit(3, 0, 9.2, 44, 6.65, 527_000), fit(3, 1, 10.6, 54, 13.3, 623_000)],
+  },
 ];
 
 export interface TypeLine {

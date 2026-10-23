@@ -15,6 +15,7 @@
  * A cleat with its line fast casts that end off; with neither end fast she's free. The menu's
  * Dock / Cast off does both ends at once (toggleDock).
  */
+import { berthTaken } from '../../world/harbourBoats';
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import type { BerthDef } from '../../world/archipelago';
@@ -50,6 +51,8 @@ export function berthInRange(s: VesselState): { berth: BerthDef; reversed: boole
   for (const b of berthsNear(s.position[0], s.position[2])) {
     const d = Math.hypot(s.position[0] - b.x, s.position[2] - b.z);
     if (d > c.range || d >= bestDist) continue;
+    // A harbour boat lies there (world/harbourBoats.ts), unless she has stepped aside for this one.
+    if (berthTaken(b.id) && d > 5) continue;
     const a = berthAxis(b, false);
     const dot = bow.x * a.x + bow.z * a.z;
     if (Math.abs(dot) < cosMax) continue;
@@ -149,11 +152,12 @@ export function berthPose(s: { defId: string }, b: BerthDef): { x: number; z: nu
  * Advance docking/mooring and return the line forces at the bow and stern line points.
  * @param cleats             the stations (vessel z) of her bow and stern cleats, and how much
  *                           closer to the quay than the berth's marks she lies (`inshore`, m:
- *                           a small boat; the marks are set for the workboat's beam)
+ *                           a small boat; the marks are set for the workboat's beam); her
+ *                           mass (`massKg`: a light boat's lines are scaled to her)
  * @param bow, stern          line points on the boat (world) and their velocities
  * @param outBow, outStern    horizontal forces (world, N)
  */
-export function stepMooring(s: VesselState, cleats: { bow: number; stern: number; inshore?: number }, bow: V, bowVel: V, stern: V, sternVel: V, dt: number, outBow: V, outStern: V): void {
+export function stepMooring(s: VesselState, cleats: { bow: number; stern: number; inshore?: number; massKg?: number }, bow: V, bowVel: V, stern: V, sternVel: V, dt: number, outBow: V, outStern: V): void {
   const c = CONFIG.docking;
   const m = s.mooring;
   outBow.x = outBow.y = outBow.z = 0;
@@ -173,9 +177,11 @@ export function stepMooring(s: VesselState, cleats: { bow: number; stern: number
   m.t += dt;
   const docking = m.phase === 'docking';
   const ramp = docking ? Math.min(1, m.t / c.warpTime) : 1;
-  const k = c.stiffness * ramp;
-  const damp = c.damping * ramp;
-  const cap = docking ? c.warpForce : c.holdForce;
+  // A light boat's lines scaled to her (CONFIG.docking.lightBoatKg).
+  const light = Math.min(1, (cleats.massKg ?? c.lightBoatKg) / c.lightBoatKg);
+  const k = c.stiffness * ramp * light;
+  const damp = c.damping * ramp * light;
+  const cap = (docking ? c.warpForce : c.holdForce) * light;
   const a = berthAxis(b, m.reversed);
   let worst = 0;
   const line = (p: V, v: V, tx: number, tz: number, out: V) => {

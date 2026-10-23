@@ -239,6 +239,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `trawl.shoot` | on / off | player sets; also set by fishing | legacy | `trawl` | TRAWL switch: shoot the net (on) / haul it (off). It follows the net when worked by hand. |
+| `trawl.warpOut` | 0..1 | read only | legacy |  | How far the trawl's warps are paid out, 0 (in) .. 1 (fishing): what the trawl winches' drums show (fishing.ts). |
+| `trawl.netOnDrum` | 0..1 | read only | legacy |  | How much of the trawl net is wound on its drum, 0 .. 1 (all of it, stowed): what the net drum shows (fishing.ts). |
 
 ## net
 
@@ -246,6 +248,13 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `net.payOut` | on / off | player sets | legacy | `netOut` | Trawl PAY OUT button on the A-frame, held. |
 | `net.haul` | on / off | player sets | legacy | `netIn` | Trawl HAUL button on the A-frame, held. |
+| `net.release` | on / off | player sets | legacy | `netRelease` | Trawl RELEASE button on the A-frame's box: the codend, hanging over the deck, emptied (fishing.ts). |
+
+## aFrame
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `aFrame.luff` | 0..1 | read only | legacy |  | How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts). |
 
 ## firePump
 
@@ -290,12 +299,20 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `hatch.engine.open` | on / off | player sets | legacy | `engineHatch` | The engine hatch in the wheelhouse floor open. |
+| `hatch.hold.open` | on / off | player sets | legacy | `holdHatch` | The fish hold's hatch lid open (starts shut; a Shipyard boat's fish hold). |
 
 ## furniture
 
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `furniture.headDoor` | on / off | player sets | legacy | `headDoor` | The head's door open (starts shut; a Shipyard boat's furniture). |
+
+## hold
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `hold.lift` | on / off | player sets | legacy | `holdLift` | The fish hold's LIFT button: a box lifted out onto the deck by the hatch (the lid open; fishing/fishHold.ts). |
+| `hold.boxes` | boxes | read only | legacy |  | Fish boxes in the fish hold. |
 
 ## chartTable
 
@@ -335,6 +352,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `lamp.bilge` | off / on / blink | read only | legacy |  | BILGE lamp: blinking with the bilge over its alarm level. |
 | `lamp.hull` | off / on / blink | read only | legacy |  | HULL lamp: on with hull damage worth a repair, blinking when bad. |
 | `lamp.engine` | off / on / blink | read only | legacy |  | ENGINE lamp: on with engine wear worth an overhaul, blinking when bad. |
+| `lamp.temp` | off / on / blink | read only | legacy |  | TEMP lamp: blinking with the coolant over its alarm temperature. |
+| `lamp.fuel` | off / on / blink | read only | legacy |  | FUEL lamp: on with the fuel under its low mark. |
 
 ## nav
 

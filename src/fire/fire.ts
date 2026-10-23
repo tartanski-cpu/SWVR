@@ -19,10 +19,12 @@
  *
  * Random choices use a deterministic hash of a counter in the state.
  */
+import { placePhrase } from '../world/places';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
+import { playerBoats } from '../core/launch';
 import { windVector } from '../environment/weather';
 import { formatPosition } from '../nav/geo';
 import { isPowered } from '../vessel/electrics';
@@ -160,6 +162,13 @@ export function jetPath(world: WorldState, v: VesselState, out: THREE.Vector3[],
 const path = Array.from({ length: 60 }, () => new THREE.Vector3());
 
 /** How much of the jet lands on the fire (0..1): the arc passing through its volume. */
+/** The jets of every player's boat with a fire monitor, summed (multi-boat M5: a fire fought by two boats). */
+function wettingAll(world: WorldState, job: FireJob): number {
+  let sum = 0;
+  for (const b of playerBoats(world)) if (gearOf(b, 'fireMonitor')) sum += wetting(world, b, job);
+  return Math.min(1, sum);
+}
+
 function wetting(world: WorldState, v: VesselState, job: FireJob): number {
   if (!jetOn(v)) return 0;
   return arcWetting(path, jetPath(world, v, path), job);
@@ -253,9 +262,10 @@ export function startFireCall(world: WorldState, v: VesselState, kind?: FireKind
   const job: FireJob = { kind: real, x: spot.x, z: spot.z, y: spot.y, yawDeg: rand(f) * 360, intensity: c.startIntensity, wetting: 0, phase: 'calling', callT: world.time, alertT: world.time };
   f.job = job;
   const [bx, , bz] = v.position;
-  const where = CONFIG.rescue.plotYourself
+  const phrase = placePhrase(job.x, job.z); // where, in words, on a coast map (world/places.ts)
+  const where = (phrase ? `${phrase}, ` : '') + (CONFIG.rescue.plotYourself
     ? `in position ${formatPosition(job.x, job.z)}`
-    : `bearing ${bearing(bx, bz, job.x, job.z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(job.x - bx, job.z - bz) / 1852).toFixed(1)} miles from you`;
+    : `bearing ${bearing(bx, bz, job.x, job.z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(job.x - bx, job.z - bz) / 1852).toFixed(1)} miles from you`);
   sayRadio(world, 'distress', `PAN-PAN. Fire reported: ${KIND_NAME[real]}, ${where}. You have a fire monitor, skipper: can you attend?`);
   return job;
 }
@@ -300,7 +310,8 @@ export function stepFire(world: WorldState, dt: number): void {
     return;
   }
   if (job.phase === 'accepted') {
-    job.wetting = wetting(world, v, job);
+    // Every player's boat with a monitor on it counts (multi-boat M5).
+    job.wetting = wettingAll(world, job);
     // Plus any hand extinguishers on it (fire/extinguisher.ts, stepped just before).
     const hand = CONFIG.handGear.extinguisher.douse * (job.handWet ?? 0);
     job.intensity = Math.min(1, Math.max(0, job.intensity + (c.growth - c.douse * (job.wetting + hand)) * dt));
@@ -319,7 +330,7 @@ export function stepFire(world: WorldState, dt: number): void {
     return;
   }
   // Out: the wet, smoking wreck stays a while, then the job is over.
-  job.wetting = wetting(world, v, job);
+  job.wetting = wettingAll(world, job);
   if (world.time - (job.outT ?? 0) > c.removeAfter) {
     f.job = null;
     f.nextAt = world.time + between(f, c.every);

@@ -1,0 +1,1815 @@
+/**
+ * The boats' own settings: each vessel's layout, hull, engine, gear and controls (CONFIG.vessels).
+ *
+ * Part of CONFIG (src/config.ts joins every area's file into it): read it as CONFIG.<key>,
+ * as ever. Units are SI unless the name says otherwise.
+ */
+
+/**
+ * How wide a player's body is for walking into things (m: half their width): house walls,
+ * gear and the deck's edge keep this far off. Every boat's layout uses it (`bodyRadius`),
+ * Shipyard designs too (shipyard/build.ts). 0.22 kept people out of narrow side decks: with
+ * the deck-edge margin (0.25-0.3), a side deck had to be over half a metre wide. Shoulders
+ * turn sideways down a narrow deck, so 0.14 (owner, Oct 2026).
+ */
+export const BODY_RADIUS = 0.14;
+
+// Towable hulls (CONFIG.vessels.derelict / logRaft / barge): displacement at the DWL (kg) and
+// LCB (m aft), as their physics stations (`physicsStations`) integrate them, so they float
+// level on their DWL.
+const DERELICT_MASS = 2800;
+const DERELICT_LCB = 1.29;
+const LOGRAFT_MASS = 6490;
+const LOGRAFT_LCB = 1.02;
+const BARGE_MASS = 10540;
+const BARGE_LCB = 1.43;
+const DORY_MASS = 1310;
+const DORY_LCB = 1.04;
+const YACHT_MASS = 11010;
+const YACHT_LCB = 2.05;
+const TRAWLER_MASS = 70110;
+// The coaster (a tug's tow, Oct 2026): 1,064 t at her 3.4 m draught (uprightHydrostatics at her DWL).
+const COASTER_MASS = 1063840;
+const COASTER_LCB = 9.73;
+const TRAWLER_LCB = 3.26;
+const PONTOON_MASS = 123240;
+const PONTOON_LCB = 3.17;
+/**
+ * The landing craft's cabin floor (m, vessel axes): 0.19-0.23 m below the deck around the
+ * cabin, so you step down into it for the headroom (2.2 m to the roof). Everything in her
+ * cabin is placed from it.
+ */
+const LC_FLOOR = 0.77;
+/** The Alaskan 38's house floor (m above the DWL): her pilothouse's, a step up from the cockpit deck (1.02 at the door). */
+const A38_FLOOR = 1.25;
+export const VESSELS_CONFIG = {
+  vessels: {
+    /**
+     * 12 m hard-chine displacement workboat. Axes: +X starboard, +Y up, -Z forward;
+     * origin on the centreline, amidships, at the design waterline (DWL).
+     * Hydrostatics of this hull at DWL (computed from the stations, see tests/vessel.test.ts):
+     *   displacement 17.9 m^3 = 18.3 t, LCB 2.26 m aft of amidships, KB 0.62 m,
+     *   GM ~1.31 m with VCG at +0.45 (KG 1.40 m), GZ max ~0.58 m at 40 deg.
+     * Deck 4.6 m wide with the parallel body carried to 62 % of the length, so the side
+     * decks stay ~0.75 m wide all along the wheelhouse (walk-around space, owner request);
+     * the chine (and so the waterline) is unchanged: the extra width is flare.
+     */
+    workboat: {
+      hull: {
+        length: 12.0,
+        beamDeck: 4.6,
+        beamChine: 3.7,
+        keelY: -0.95,
+        chineYAft: -0.4,
+        chineYBow: 0.5,
+        deckYAft: 0.95,
+        deckYBow: 1.5,
+        stations: 17,
+        deckParallel: 0.62,
+      },
+      /** kg. Chosen to float at the DWL. */
+      mass: 18300,
+      /** Centre of gravity (m, vessel axes). z = LCB so she floats level. */
+      cg: [0, 0.45, 2.25] as [number, number, number],
+      /** Radii of gyration (m): roll ~0.4 B, pitch and yaw ~0.25-0.27 L. */
+      gyradius: { roll: 1.8, pitch: 3.0, yaw: 3.2 },
+      /**
+       * Frequency-independent added mass / added inertia as a fraction of the rigid-body
+       * value, applied in proportion to how much of the hull is immersed. Slows the
+       * motions to a realistic pace without changing the equilibrium.
+       */
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: {
+        /**
+         * Vertical damping per m^2 of waterplane (N*s/m per m^2), applied on the centreline
+         * of every station against velocity relative to the water particles.
+         * Gives heave and pitch damping (~20 % of critical in heave; raised from 800, ~13 %,
+         * owner feedback: too bouncy for the crew watching on desktop).
+         */
+        vertical: 1300,
+        /**
+         * Quadratic vertical drag coefficient on each station's waterplane strip. Stands in
+         * for slamming / water-entry losses so a hard landing doesn't bounce elastically.
+         */
+        verticalCd: 1.5,
+        /**
+         * Lateral force per station on its draft x spacing area: linear settling term
+         * (N*s/m per m^2), hull lift slope (per rad, force = 0.5*rho*a*A*U*v) and crossflow Cd.
+         */
+        lateralLinear: 400,
+        lateralLift: 1.2,
+        lateralCd: 1.0,
+        /** Small linear surge damping per station section area (N*s/m per m^2), only to
+         *  settle residual creep; calm-water resistance is the `resistance` curve below. */
+        surgeLinear: 20,
+        /**
+         * Angular damping (N*m*s/rad). Roll: ~30 % of critical in the free-decay trial
+         * (critical = 2*sqrt(Delta*g*GM * I_roll) ~ 233 kN*m*s for this hull): a hard-chine
+         * hull with deep bilge keels / a gentle roll-damping system. Raised from 24000
+         * (~11 %) and 33000 (~15 %) on owner feedback (motion sickness); pitch likewise.
+         */
+        roll: 70000,
+        pitch: 40000,
+        yaw: 20000,
+      },
+      /**
+       * Calm-water resistance R(V) = R_friction + R_wave, applied at mid-draft at the LCB.
+       *   R_friction = 0.5*rho*S*V^2 * C_F(Re) * (1 + k),  C_F = ITTC-57 line
+       *   R_wave     = Delta*g * cap * tanh(w / cap),  w = waveA*Fn^4 + waveB*max(0, Fn - waveKnee)^2
+       * w is the steep rise past Fn ~0.35 toward hull speed; the tanh levels it off at
+       * R_wave/Delta = `waveCap` over the hump (Fn ~0.5+), as for a transom-sterned workboat
+       * hull that can be driven past hull speed with enough power (no planing lift modelled:
+       * still a displacement boat). Below ~9 kn it is within ~8 % of the plain curve.
+       * Owner request: top speed ~13 kn (Fn ~0.64). S (wetted surface) is computed from the
+       * hull stations at the DWL.
+       */
+      resistance: {
+        lwl: 11.0,
+        formFactor: 0.2,
+        waveA: 1.0,
+        waveB: 0.94,
+        waveKnee: 0.3,
+        waveCap: 0.115,
+        /** Going astern (transom first) is less efficient. */
+        asternFactor: 3.6,
+        /** Height (vessel y) at which resistance acts (~ mid-draft). */
+        y: -0.45,
+      },
+      /**
+       * Single slow-revving heavy-duty inboard diesel through a reverse/reduction gearbox to
+       * one large fixed-pitch propeller. The shaft is a torque balance, not an RPM target:
+       *   (I_engine + I_prop / i^2) * dw/dt = rack * Q_max(rpm) - Q_friction - Q_prop / (i * eta)
+       * with an all-speed droop governor setting the fuel rack. Under heavy prop load
+       * (bollard, towing, crash stop) RPM sags and the engine digs in.
+       */
+      engine: {
+        /** Rated power (kW) at rated RPM - for reference; the torque curve is what's used. */
+        powerKw: 400,
+        idleRpm: 600,
+        ratedRpm: 1800,
+        /**
+         * Full-load torque curve (rpm, N*m): heavy-duty 6-cyl, ~25 % torque rise, cut-out at
+         * 1950. Uprated from 200 to 400 kW for ~13 kn (owner request).
+         */
+        torqueCurve: [
+          [0, 0],
+          [300, 1000],
+          [600, 1700],
+          [1000, 2500],
+          [1300, 2640],
+          [1600, 2420],
+          [1800, 2122],
+          [1900, 1200],
+          [1950, 0],
+        ] as [number, number][],
+        /** Internal friction torque: a + b*rpm (N*m). */
+        frictionTorque: 100,
+        frictionPerRpm: 0.08,
+        /** Rotating inertia at the crankshaft, engine + flywheel + gearbox (kg*m^2). */
+        inertia: 4.5,
+        /** Governor droop: full rack this many RPM below the set speed. */
+        droopRpm: 120,
+        /** Turbo / smoke limiter: fuel rack may rise at most this much per second. */
+        rackRiseRate: 0.45,
+        /** Starter motor torque (N*m) up to its maximum speed, and cranking time before firing. */
+        starterTorque: 700,
+        starterMaxRpm: 160,
+        crankTime: 1.6,
+        /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
+        startOnlyInNeutral: true,
+        /**
+         * Ignition (diesel): key ON (the glow plugs preheat on their own, GLOW lamp lit), wait for the lamp to go out, then hold START.
+         * The preheat needed is `preheatTime` stone cold (coolant at sea temperature),
+         * falling to `preheatHotTime` once the coolant is at `coldBelowC` and above (a warm
+         * engine barely needs it). Unheated, a cold engine needs up to `unheatedExtraCrank`
+         * more seconds of cranking to catch. Glow plugs cool again at `glowCoolRate` (s of
+         * preheat lost per s).
+         */
+        preheatTime: 2.5,
+        preheatHotTime: 0.6,
+        unheatedExtraCrank: 5,
+        coldBelowC: 40,
+        glowCoolRate: 0.25,
+        gearRatio: 3.0,
+        gearEfficiency: 0.97,
+        /** Clutch: lever must sit in the new direction this long, near idle, before it engages (s). */
+        shiftDelay: 0.6,
+        /** Lever travel either side of centre that counts as neutral (detent). */
+        neutralBand: 0.08,
+        /**
+         * Trolling valve (propulsion.ts leverDemand): lever travel (from centre) over which
+         * the engine stays at idle and the clutch slips, the propeller turning from
+         * `trollingMinShaft` of its speed at the detent up to all of it here. 0: none (the
+         * workboat). The landing craft and the Shipyard's boats have one (owner: their big
+         * engines idling in gear were too fast to handle).
+         */
+        trollingLever: 0,
+        trollingMinShaft: 0.3,
+        /**
+         * Fuel. The rack sets fuel per stroke and strokes per second follow RPM, so fuel flow
+         * follows indicated power:  m_dot = sfc(rack) * rack * Q_max(rpm) * omega,
+         * sfc(rack) = sfc * (1 + partLoadPenalty * (1 - rack)^2)  (worse at light load).
+         * At full ahead (~13 kn) that is ~83 L/h; at idle ~1.8 L/h.
+         */
+        fuel: {
+          tankL: 900,
+          /** Fuel aboard at the start (L). */
+          startL: 630,
+          /** Specific fuel consumption at full rack, on indicated power (g/kWh). */
+          sfcGPerKWh: 205,
+          partLoadPenalty: 0.3,
+          densityKgPerL: 0.84,
+          /** Low-fuel warning below this fraction of the tank. */
+          lowFraction: 0.1,
+          /** Fuel berth delivery rate (L/s). */
+          refuelRateLps: 2.5,
+        },
+        /**
+         * Cooling and temperatures. One lumped heat capacity (block + coolant):
+         *   C dT/dt = Q_in - UA (T - T_sea)
+         *   Q_in = heatToCoolant * fuel energy rate (m_dot * LHV)
+         *   UA   = baseLoss + exchanger * thermostat opening (0 at openC .. 1 at fullC)
+         *          * (rpm / rated)^pumpFlowExp: the engine-driven raw-water pump's flow;
+         *   lugging  the rack ahead of the revs (rack - rpm / rated, when positive: full fuel
+         *          with the revs held down) puts `lugHeat` x that much more of the fuel's heat
+         *          into the water: smoke and a hot exhaust.
+         * The exchanger is sized so flat out at rated revs she settles in the mid 80s (°C);
+         * towing flat out, or a hull that won't plane, overheats: alarm, derate, not shutdown.
+         * Oil follows the coolant with a lag, running hotter under load.
+         */
+        thermal: {
+          heatToCoolant: 0.3,
+          lhvMJPerKg: 42.7,
+          /** kJ/K; about half a real engine's, so warming up takes minutes rather than half an hour. */
+          heatCapacity: 150,
+          thermostatOpenC: 80,
+          thermostatFullC: 88,
+          /** Sea-water heat exchanger conductance, thermostat fully open, pump at rated revs (kW/K). */
+          exchangerKwPerK: 4.4,
+          /** The raw-water pump's flow with the revs: (rpm / rated) to this power (1: in proportion). */
+          pumpFlowExp: 1,
+          /** Extra heat to the water per unit of lugging (rack - rpm / rated): 1 = 20 % more at 0.2. */
+          lugHeat: 1,
+          /** Losses with the thermostat shut or the engine stopped (kW/K). */
+          baseLossKwPerK: 0.03,
+          /** A failed raw-water pump impeller leaves this fraction of the exchanger working. */
+          faultExchangerFraction: 0.08,
+          /** High-temperature alarm (°C). */
+          alarmC: 95,
+          /** Governor derates the rack linearly to `derateRack` between these (°C)... */
+          derateStartC: 100,
+          derateFullC: 110,
+          derateRack: 0.3,
+          /** ...and the engine protection stops it above this (°C). */
+          shutdownC: 115,
+          /** Oil temperature lag behind the coolant (s) and extra rise at full load (°C). */
+          oilLagS: 90,
+          oilLoadRiseC: 12,
+        },
+      },
+      propeller: {
+        /** Large, slow, four-blade workboat propeller (m). Tip just below the keel line. */
+        diameter: 1.05,
+        /**
+         * Linearised open-water coefficients, J = Va / (n*D), pitch ratio ~1.15 (matched so
+         * the 400 kW engine just reaches rated RPM at ~13 kn, J ~0.52; open-water efficiency
+         * ~0.55 there):
+         *   K_T(J) = kt0 * (1 - J / j0)     thrust = K_T * rho * n^2 * D^4
+         *   K_Q(J) = kq0 * (1 - J / jq0)    torque = K_Q * rho * n^2 * D^5
+         */
+        kt0: 0.57,
+        j0: 1.15,
+        kq0: 0.077,
+        jq0: 1.25,
+        /** Astern: thrust and torque as fractions of the ahead values (blades work backwards). */
+        asternEfficiency: 0.5,
+        asternTorque: 0.9,
+        /** Prop + shaft rotating inertia at the propeller (kg*m^2). */
+        inertia: 4.5,
+        /** Taylor wake fraction w and thrust deduction t (bigger, slower prop: a bit higher). */
+        wake: 0.18,
+        thrustDeduction: 0.18,
+        /** Shaft line position (vessel axes, m). */
+        position: [0, -0.5, 4.9] as [number, number, number],
+        /**
+         * Prop walk: a right-handed prop (turns clockwise seen from astern when going ahead)
+         * walks the stern to starboard ahead and, much more strongly, to PORT going astern.
+         * Side force = fraction of thrust at the prop, fading out with speed through water.
+         */
+        rightHanded: true,
+        propWalkAhead: 0.03,
+        propWalkAstern: 0.12,
+        /** Speed (m/s) at which prop walk has dropped to half. */
+        propWalkFadeSpeed: 1.5,
+      },
+      rudder: {
+        /** Sized to the big prop: ~1.05 m span x 0.6 m chord, mostly in the slipstream. */
+        area: 0.62,
+        /** Normal-force slope dC_N/dalpha (per rad) for a low aspect-ratio spade rudder, and stall angle. */
+        liftSlope: 2.4,
+        stallDeg: 28,
+        maxAngleDeg: 35,
+        /**
+         * Steering gear rate (deg/s) for hydraulic steering, or null for direct mechanical
+         * steering (cable / chain from the wheel, as on a boat this size: owner feedback) -
+         * the rudder is wherever the wheel puts it, no lag.
+         */
+        rateDegPerS: null as number | null,
+        /** Fraction of the propeller's slipstream momentum increase seen at the rudder. */
+        washFactor: 0.8,
+        /** Cap on the slipstream's extra rudder force, as a fraction of propeller thrust. */
+        washMaxFraction: 0.55,
+        /** Hull flow straightening of the lateral inflow at the rudder (0..1). */
+        flowStraightening: 0.5,
+        /**
+         * Extra rudder force from the flow past the hull (the skeg and deadwood ahead of the
+         * rudder work with it): the steerage she keeps with no power on, coasting. Raised
+         * from 1 (owner feedback: more steerage with the engine in neutral). It fades out as
+         * propeller thrust builds to `coastFadeThrust` (N), so steering under power (the
+         * turning circle) is as before.
+         */
+        coastSteer: 1.5,
+        coastFadeThrust: 8000,
+        position: [0, -0.55, 5.65] as [number, number, number],
+      },
+      /**
+       * Deck layout (vessel axes, m). The wheelhouse is a box from `front` to `aft` with
+       * walls of thickness `wall`, an aft doorway and a window band all round. These numbers
+       * drive both the visible geometry and the walkable area, so they can't disagree.
+       */
+      layout: {
+        wheelhouse: {
+          halfWidth: 1.45,
+          front: -1.9,
+          aft: 1.5,
+          /** Interior floor height; must be above the deck under the house (deck sheer). */
+          floorY: 1.2,
+          roofY: 3.35,
+          wall: 0.08,
+          doorWidth: 0.8,
+          doorHeight: 2.0,
+          /** Window band, heights above the wheelhouse floor. */
+          windowSill: 0.75,
+          windowHead: 1.95,
+          /**
+           * The front windows' sill (above the floor), higher than the sides': level with
+           * the top of the instrument dash (`bridge.dash.top`), so the front glass starts
+           * where the view over the dash does (owner request).
+           */
+          frontSill: 1.36,
+          /**
+           * Pilot-house front (owner request): the front from its window sill up leans
+           * forward this many degrees (reverse rake: the glass top is forward of its foot,
+           * so it sheds spray and cuts glare). The windows, mullions and the panel above
+           * them lean; the front wall below the sill stays upright. A brow carries the roof
+           * edge out over the raked glass. 0 for an upright front.
+           */
+          frontRakeDeg: 22,
+          /**
+           * The side windows' sill raised alongside the helm console (owner sketch): from the
+           * front back to `z1`, the side wall stands solid up to `height` above the floor
+           * (the console top), then slopes back down to the normal sill over `slope` m.
+           */
+          sideRaise: { height: 0.95, z1: -1.32, slope: 0.35 },
+          /**
+           * A sliding door in the port side wall, between the helm console and the chart
+           * table (owner request): opening z0..z1, `height` above the floor. Like the aft
+           * door it slides aft along the outside of the wall, worked by a push button on its
+           * forward jamb inside and out (`buttonHeight` above the floor). Vessel control
+           * `sideDoor` (1 open), shut at the start.
+           */
+          sideDoor: { z0: -1.12, z1: -0.37, height: 2.0, buttonHeight: 1.15 },
+          /** Helm console across the front of the house. */
+          consoleDepth: 0.5,
+          consoleHeight: 0.95,
+        },
+        /** Wheelhouse roof: walkable, with a rail around it (opening at the ladder head). */
+        roof: { thickness: 0.12, overhang: 0.1, railHeight: 0.9, edgeMargin: 0.3 },
+        /**
+         * Vertical ladder up the aft face of the wheelhouse, starboard of the door: centre x,
+         * width, and how far aft of the wall the climbing zone reaches.
+         */
+        ladder: { x: 0.92, width: 0.5, depth: 0.5 },
+        /**
+         * The door's push buttons, on its starboard jamb inside and out (the door slides to
+         * port, the ladder is further to starboard): x, and height above the wheelhouse floor.
+         */
+        doorButtons: { x: 0.48, height: 1.15 },
+        /**
+         * The engine hatch in the wheelhouse floor, aft to starboard (vessel x0..x1, z0..z1),
+         * hinged on its outboard edge, and how deep the engine space under it is (m below
+         * the floor). Open, the hole can't be walked into.
+         */
+        engineHatch: { x0: 0.42, x1: 1.2, z0: -0.18, z1: 0.76, pitDepth: 0.85 },
+        /** Bulwark and rail heights above the deck, and how close a player may get to the deck edge. */
+        bulwarkHeight: 0.3,
+        railHeight: 1.0,
+        /** Notch in the transom bulwark on the centreline for the towline's stern roller (width, m; 0 none). */
+        fairleadGap: 0.44,
+        /**
+         * A gate in the starboard bulwark and rail at the working deck (owner request: for
+         * getting into and out of the skiff alongside with cargo). Between z0 and z1 (m),
+         * clear of the midship cleat forward and the swim ladder aft. Hinged on its forward
+         * post, it swings inboard (`openDeg`) at a press of the green button on its aft post
+         * (inboard and outboard faces, `buttonHeight` above the deck). Vessel control
+         * `sideGate` (1 open), shut at the start. Open, you can walk out to the deck edge
+         * in the gateway and jump down; jump up from the skiff (or climb out of the water)
+         * within `boardRange` (m) outboard of it and you're aboard, helped by a fixed step on
+         * the hull side `stepDrop` (m) below the deck.
+         */
+        sideGate: { side: 1, z0: 2.6, z1: 3.4, openDeg: 90, buttonHeight: 0.85, boardRange: 1.8, stepDrop: 0.55 },
+        deckEdgeMargin: 0.3,
+        /** Player body radius used for collision with walls (BODY_RADIUS, top of this file). */
+        bodyRadius: BODY_RADIUS,
+      },
+      /**
+       * Bridge (vessel axes, m). Since modular boats M3 the helm console and its controls and
+       * screens are modules (CONFIG.modules.helmConsole and friends, mounted by the recipe
+       * src/boats/starterWorkboat.json); here are only the places the hull offers them, and
+       * the overhead sets still built by the bridge.
+       *   console     the helm console's reference point: its top (floorY + consoleHeight =
+       *               2.15), on the centreline, at its aft face (z -1.32). The helmsman
+       *               stands at z ~ -0.75.
+       *   navDisplay  the NAV / WIND screen (owner request: position and wind data):
+       *               overhead on the centreline, just forward of the overhead panel, tilted
+       *               steeply down toward the helm, above the line of sight out of the
+       *               windscreen (which tops out at 3.15 m).
+       */
+      bridge: {
+        console: { position: [0, 2.15, -1.32] as [number, number, number] },
+        navDisplay: { position: [0, 3.2, -1.32] as [number, number, number] },
+        /**
+         * Where the VHF hangs (the hull's 'vhf' socket): close under the wheelhouse roof, out
+         * to port above the window head (3.15 m) so it doesn't block the view (owner
+         * feedback), turned toward the helm (yaw: + turns its face toward starboard). The set
+         * is a module: CONFIG.modules.vhf.
+         */
+        radio: { position: [-1.0, 3.2, -1.45] as [number, number, number], yawDeg: 35 },
+        /** Where the chartplotter hangs ('chartplotter' socket): the same out to starboard. */
+        chart: { position: [0.98, 3.17, -1.45] as [number, number, number], yawDeg: -35 },
+        /** SKIFF CRANE: launch / recover the skiff from the helm (DECK group; she's in view ahead). */
+        craneButton: [0.65, 2.16, -1.52] as [number, number, number],
+      },
+      /**
+       * Wet exhaust: smoke and engine cooling water leave through one outlet in the transom,
+       * starboard side, just above the DWL, blowing aft (vessel axes; +z is aft).
+       */
+      exhaust: {
+        position: [0.9, 0.22, 6.04] as [number, number, number],
+        direction: [0, -0.12, 1] as [number, number, number],
+      },
+      /**
+       * Swim ladder (owner request): hooked over the starboard bulwark on the aft deck, at
+       * `z`, its foot `bottom` m below the waterline. From the water, grip any rung (VR) or
+       * press jump within `range` m of it (desktop) to climb aboard at its head.
+       */
+      swimLadder: { z: 4.3, bottom: -0.9, width: 0.42, range: 2.0 },
+      /** Navigation lights (vessel axes): masthead, sidelights, stern light. */
+      navLights: {
+        masthead: [0, 4.62, 0.33] as [number, number, number],
+        port: [-1.52, 3.42, -1.75] as [number, number, number],
+        starboard: [1.52, 3.42, -1.75] as [number, number, number],
+        stern: [0, 2.0, 5.92] as [number, number, number],
+      },
+      /**
+       * Anchor, chain and windlass. Chain tension at the bow (horizontal), with x the
+       * horizontal distance bow -> anchor, h the bow height above the seabed, L the chain out:
+       *   x < x_taut = sqrt(L² - h²):  T = w·h·exp((x - x_taut) / softness)   (catenary lifting)
+       *   x ≥ x_taut:                  T = w·h + k·(x - x_taut) + c·dx/dt       (bar taut)
+       * Above `holdingN` the anchor drags. Scope paid out: `scopeRatio` × water depth, at least
+       * `minScopeFromRoller` × the bow roller's height above the seabed.
+       */
+      anchor: {
+        /** Bow roller / hawse (vessel axes). */
+        hawse: [0, 1.35, -5.7] as [number, number, number],
+        chainM: 60,
+        /** 10 mm chain, weight in water (N/m). */
+        chainWeightNPerM: 16,
+        /** Holding power in sand/mud of a ~25 kg anchor (N). */
+        holdingN: 20000,
+        /**
+         * Chain paid out per metre of water depth (owner: 5:1 minimum, 7:1 recommended).
+         * 5 keeps her from swinging wide in shallow anchorages; 7 holds better in a blow.
+         */
+        scopeRatio: 5,
+        /** Never less than this ratio from the bow roller (below 3:1 the anchor holds poorly). */
+        minScopeFromRoller: 3,
+        payOutRate: 2.0,
+        heaveRate: 0.6,
+        /** Windlass stalls above this pull (N). */
+        windlassPullN: 9000,
+        tautStiffness: 30000,
+        tautDamping: 15000,
+        catenarySoftness: 3,
+      },
+      /**
+       * 12 V electrics (vessel/electrics.ts). Two batteries (start and house in a real boat;
+       * here simply 1 and 2, picked by the selector), a battery master switch, and loads
+       * that draw a fixed current while switched on. The alternator charges while the engine
+       * runs. Resting voltage follows the charge (flat .. full); under load it sags by
+       * I x R (cranking pulls it down hard), on charge it rises toward `chargeVolts`.
+       * Below `cutoffSoc` a battery is flat: nothing works from it.
+       */
+      electrics: {
+        batteryAh: 100,
+        restVolts: [11.8, 12.7] as [number, number],
+        internalOhm: 0.012,
+        chargeVolts: 14.2,
+        cutoffSoc: 0.02,
+        // What each device draws is its module's (modular boats M4a, M5a): the instruments,
+        // chartplotter, VHF, FM, chart lamp, the panel itself and the windlass in
+        // CONFIG.modules; the starter, glow plugs and alternator in modules.dieselInboard; the
+        // bilge and hydraulic pumps in theirs; the lights, horn and wiper motor in the recipe.
+        /** Battery master (big red key) on the aft wall, starboard of the door, low down. */
+        masterSwitch: { position: [0.8, 1.75, 1.41] as [number, number, number] },
+        /** Battery selector (1 / BOTH / 2) beside it. */
+        selectorSwitch: { position: [1.08, 1.75, 1.41] as [number, number, number] },
+        /**
+         * Quick start (casual sessions, desktop crew): the desktop E key / one press does it
+         * all - master, the main breakers, key, preheat, start. Off: start her properly.
+         */
+        quickStart: false,
+        /**
+         * Leaving the battery master on in harbour drains the batteries between sessions
+         * (`drainPerHour` of a full charge per hour away). Off by default; with it on, the
+         * batteries' charge also carries over from the last session.
+         */
+        drainBetweenSessions: false,
+        drainPerHour: 0.05,
+        /**
+         * Where the breaker panel goes (the hull's 'breakerPanel' socket): against the
+         * starboard wall just under the window sill (the side walls are windows above it),
+         * its face tilted up toward you by `tiltDeg`. The panel itself (the voltmeter and the
+         * breakers) is a module: CONFIG.modules.breakerPanel.
+         */
+        panel: { position: [1.22, 1.84, -0.85] as [number, number, number], tiltDeg: 40 },
+      },
+      /**
+       * Fenders: three a side (vessel z), hung over the rail when out; stowed lying along
+       * the bulwark. One press on the fender basket (aft deck, starboard) puts them all out
+       * or takes them in. The aft pair and the basket stand clear of the deck gate
+       * (layout.sideGate) and its swing (they were at z 3.4 and 2.4).
+       */
+      fenders: { z: [-2.4, 0.6, 3.9], basket: [1.75, 1.95] as [number, number] },
+      /**
+       * Engine oil (vessel/maintenance.ts): level 0..1 when the session starts; burnt at
+       * `use` per second running (more under load); a check is due every `checkEvery` s of
+       * running. Below `lowAt` the dipstick says top up; below `lampAt` the OIL lamp
+       * blinks. The engine sits in its own space under the wheelhouse floor, reached through
+       * a hatch in the floor (layout.engineHatch; owner request: the waist-high casing was in
+       * the way). `engine`: the block's centre (x, z) and size (fore-aft length, width,
+       * height), its top just under the floor. On it: the dipstick on its inboard side
+       * ([x, z]), the oil filler cap on the rocker cover ([x, z]); the oil can stands on a
+       * shelf on the engine space's outboard side ([x, z], `shelfDrop` below the floor).
+       */
+      maintenance: {
+        oilStart: 0.72,
+        use: 0.00025,
+        checkEvery: 900,
+        lowAt: 0.4,
+        lampAt: 0.12,
+        engine: { x: 0.8, z: 0.28, length: 0.72, width: 0.42, height: 0.56 },
+        dipstick: [0.56, 0.12] as [number, number],
+        filler: [0.8, 0.46] as [number, number],
+        oilCan: [1.16, 0.6] as [number, number],
+        shelfDrop: 0.32,
+      },
+      /**
+       * Bilge (vessel/bilge.ts): a damaged hull leaks into it (wear.leakRate); the bilge pump
+       * (BILGE breaker, float switch) empties it at `pumpRate` (fraction/s). The BILGE lamp
+       * lights above `alarmAt`.
+       */
+      bilge: { pumpRate: 1 / 90, alarmAt: 0.3 },
+      /**
+       * Tender crane (vessel/tenderCrane.ts, controls/TenderCraneView.ts), vessel axes: the
+       * skiff in a cradle on the foredeck, bow forward, put over the side by a knuckle-boom
+       * crane on the starboard foredeck, as yachts carry their tenders (owner request: the
+       * stern davit was in the way of towing and trawling).
+       *   column     the crane's base (x, z) on deck; `shoulderY` the boom's pivot height
+       *              (absolute); `boom` and `jib` the two arms' lengths
+       *   stow       her origin in the cradle; `cradle` its footprint (half-width, z0..z1),
+       *              kept clear of walking and cargo
+       *   lift       the hook on her (her axes): the 4-leg bridle's apex, over her CG
+       *   clear      how high she's hoisted out of the cradle before slewing (her keel
+       *              clears the bow rail)
+       *   outboard   her origin (x, z) over the side, alongside the starboard bow, where
+       *              she's lowered to `waterY` and let go, and recovered from
+       * LAUNCH first unfolds the crane and hooks on (`rigTime`, she stays in the cradle), then
+       * hoists (`hoistTime`), slews (`slewTime`), lowers (`lowerTime`). RECOVER (she
+       * must be within `recoverRange` of the outboard spot, moving slower than
+       * `recoverSpeed` relative to us) lines her up under the hook in `alignTime`, then runs
+       * it backwards, ending with the crane unhooked and folded. In the cradle she's under a
+       * tarpaulin (her motor and fittings aren't drawn) and her battery charges from the ship
+       * (`chargeMinutes` from flat to full). `fold`: the crane's transport position while
+       * she's stowed or away (deg): slewed (`slewDeg`, -90 = forward), the boom just below
+       * level (`boomDeg`), the jib folded back over it (`jibDeg`, its direction).
+       */
+      tenderCrane: {
+        // (Oct 2026: 10 % smaller with her, the dinghy: the cradle and her place in it, and the
+        // column's offset from her, scaled 0.9 about the column; the arms and the column too.)
+        column: [1.125, -2.25] as [number, number],
+        columnRadius: 0.12,
+        shoulderY: 2.33,
+        boom: 1.4,
+        jib: 1.3,
+        /**
+         * The workboat's deck height at the column (m). Placed elsewhere (its socket is the
+         * foot of the column), its heights move with the deck there.
+         */
+        deckAtColumn: 1.2099609375,
+        stow: [0, 1.74, -3.78] as [number, number, number],
+        cradle: { halfWidth: 0.81, z0: -5.49, z1: -2.07 },
+        lift: [0, 0.99, 0.68] as [number, number, number],
+        clear: 1.0,
+        outboard: [3.15, -2.55] as [number, number],
+        waterY: 0.0,
+        rigTime: 2.5,
+        hoistTime: 3,
+        slewTime: 6,
+        lowerTime: 6,
+        alignTime: 2.5,
+        recoverRange: 3.0,
+        recoverSpeed: 1.2,
+        chargeMinutes: 5,
+        fold: { slewDeg: -90, boomDeg: -8, jibDeg: 165 },
+        /**
+         * The boat it carries (`tenderDefId`, her vessel type: the dinghy, 'skiff'), and in her
+         * axes her keel's height (`keelY`), the cradle's two saddles under her (`saddles`: their
+         * z, and `saddleWidth` across), and the bridle's four lifting eyes (`legs`: on her
+         * tubes' tops, forward and aft).
+         */
+        tenderDefId: 'skiff' as string,
+        /** In her cradle she's under a tarpaulin (her motor and fittings not drawn). */
+        cover: true,
+        tender: {
+          /** Her top above her origin (the tubes' and outboard's): the cradle's footprint is that tall. */
+          height: 0.6,
+          keelY: -0.13,
+          saddles: [-0.99, 0.9],
+          saddleWidth: 0.95,
+          legs: [
+            [-0.5, 0.52, -0.9],
+            [0.5, 0.52, -0.9],
+            [-0.58, 0.47, 1.4],
+            [0.58, 0.47, 1.4],
+          ] as [number, number, number][],
+        },
+        /**
+         * LAUNCH / RECOVER buttons: on the column's control box, on its outboard side facing
+         * starboard (reached from the starboard side deck); a SKIFF CRANE button on the
+         * console (bridge.craneButton); and a remote on a post in the skiff by the helmsman
+         * (`remote`: x, z in her axes, and its height), to call a recovery from the water.
+         */
+        button: [1.34, 2.15, -2.25] as [number, number, number],
+        remote: { x: 0.35, z: 1.17, height: 0.9 },
+        /** Crew still in her when she's back in the cradle step out here (x, z on our foredeck). */
+        stepOff: [
+          [-1.25, -2.7],
+          [1.45, -2.9],
+          [-1.25, -3.4],
+          [1.35, -3.5],
+        ] as [number, number][],
+      },
+      /**
+       * Rescue gear (vessel axes): the life ring hangs on the aft face of the wheelhouse,
+       * its line made fast to a cleat on the starboard quarter rail; the boat hook lies in
+       * clips along the port bulwark (x, y, from z0 to z1). `stern` is the transom centre at
+       * the waterline, where a survivor on the line comes aboard.
+       */
+      rescueGear: {
+        ringStow: [-0.85, 2.3, 1.58] as [number, number, number],
+        ringCleat: [0.95, 1.9, 5.7] as [number, number, number],
+        hookStow: [-1.92, 1.55, 2.6, 5.0] as [number, number, number, number],
+        stern: [0, 0.2, 6.05] as [number, number, number],
+        /** Where survivors sit once aboard (vessel axes, on the aft deck). */
+        seats: [
+          [-0.9, 2.6],
+          [0.9, 2.6],
+          [0, 2.4],
+        ] as [number, number][],
+      },
+      /**
+       * Deck cargo. Items sit wherever they're put on the open deck; their masses and
+       * positions go into the hull's mass, CG and inertia, so a load shifting to one side
+       * gives her a list. Anything on open deck (clear of the houses and the gear on it) can be
+       * strapped down where it stands (owner, Oct 2026: no D-rings to find).
+       */
+      cargo: {
+        maxPayloadKg: 5000,
+        /** Item limit in cargo slots (see CONFIG.cargo.kinds); 0: no limit, only space and mass. */
+        slots: 0,
+        /** Deck kept clear of cargo at the narrow bow and at the transom (m from stem / transom). */
+        bowClear: 1.5,
+        aftClear: 0.25,
+        /** Cargo stays where it's put (true), or slides about the deck in a seaway (false). */
+        fixed: false,
+      },
+      /**
+       * Cabin light: a ceiling lamp in the wheelhouse (vessel axes) and its light (cd, m).
+       * One real PointLight, hidden when off (no per-pixel cost; one shader recompile per switch).
+       */
+      /** Ceiling lamp: white `intensity`, or red at `redIntensity` (night: enough to see the controls, not to dazzle). */
+      cabinLight: { position: [0, 3.22, -0.2] as [number, number, number], intensity: 3, redIntensity: 0.45, distance: 6 },
+      /**
+       * Where the overhead switch panel goes (the hull's 'overhead' socket): under the
+       * wheelhouse roof, just ahead of and above the helm (well above the windscreen
+       * sightline); the centre of its face. The panel is a module: CONFIG.modules.overheadPanel.
+       */
+      overheadPanel: {
+        position: [0, 3.27, -1.05] as [number, number, number],
+      },
+      /**
+       * Where the crew whiteboard hangs (the hull's 'whiteboard' socket): inside the
+       * wheelhouse on the aft wall, port of the door, facing forward (its centre). The board
+       * is a module: CONFIG.modules.whiteboard.
+       */
+      whiteboard: { position: [-0.9, 2.5, 1.4] as [number, number, number] },
+      /**
+       * Chart table along the port wall, aft half (vessel axes): its footprint (x0..x1
+       * across, z0..z1 fore-aft) and top height above the wheelhouse floor. You stand on
+       * its inboard side facing the wall (port), so north on the chart points to port.
+       * On it: the paper chart, a pen holder (pencil, eraser), dividers, and a lamp (its
+       * shade over the chart at `head`) with its own switch
+       * (Deck lights breaker). All positions are on the table top: [x, z].
+       */
+      // Pushed aft against the aft wall (owner feedback), under the whiteboard: more room
+      // behind the helm.
+      // A drop leaf on the port wall (owner request: with the logbook gone the fixed table was
+      // too big): just long enough for the chart and the pen holder, 75 cm deep (the chart
+      // covers its depth). `lamp`: on a stalk fixed to the table (owner): its base by the wall
+      // edge (`base` z), its height above the table, and its shade over the chart's middle
+      // (`head` [x, z]); the lamp switch on the batten at its aft end ([x, z]).
+      chartTable: {
+        x0: -1.37,
+        x1: -0.62,
+        z0: 0.1,
+        z1: 1.05,
+        height: 0.95,
+        holder: [-1.3, 0.97] as [number, number],
+        lamp: { base: [-1.37, 0.52] as [number, number], height: 0.5, head: [-0.98, 0.52] as [number, number] },
+        lampSwitch: [-1.34, 0.99] as [number, number],
+      },
+      /**
+       * Where the duty board hangs (the hull's 'dutyBoard' socket): on the starboard wall in
+       * the aft half of the side window (behind the helm, where it blocks the least of the
+       * view), facing inboard. The board is a module: CONFIG.modules.dutyBoard.
+       */
+      dutyBoard: { position: [1.355, 2.5, 0.78] as [number, number, number] },
+      /**
+       * Deck lights. Floods: a lamp on the wheelhouse roof edge aimed at a point on deck,
+       * each ONE real SpotLight (cd, m, half-angle, penumbra), hidden when off (no per-pixel
+       * cost; one shader recompile per switch). Rail lights: LED strips along the inside of the bulwark tops - glow
+       * only, no real light (cheap on Quest).
+       */
+      deckLights: {
+        fore: { position: [0, 3.36, -1.98] as [number, number, number], target: [0, 1.3, -3.9] as [number, number, number] },
+        aft: { position: [0, 3.36, 1.58] as [number, number, number], target: [0, 1.0, 4.2] as [number, number, number] },
+        intensity: 160,
+        distance: 14,
+        angleDeg: 60,
+        penumbra: 0.6,
+        railColor: 0xc4e8ff,
+      },
+      /**
+       * Searchlight on the wheelhouse roof (vessel axes): beam (cd, m, half-angle deg,
+       * penumbra 0..1), travel limits and joystick rates (deg/s at full deflection).
+       */
+      spotlight: {
+        position: [0, 3.62, -1.55] as [number, number, number],
+        intensity: 30000,
+        distance: 300,
+        angleDeg: 6,
+        penumbra: 0.35,
+        panLimitDeg: 170,
+        tiltMinDeg: -35,
+        tiltMaxDeg: 12,
+        /**
+         * Stabilised like the fire monitor (owner request): the lamp holds its aim against
+         * her roll and pitch, so the beam stays on a target in a seaway. Pan is still from
+         * the bow (turn her and the beam turns), elevation from the horizon.
+         */
+        stabilised: true,
+      },
+      /**
+       * Fire monitor (fire missions, fire/fire.ts): a water cannon on the wheelhouse roof,
+       * aft of the searchlight, fed by an engine-driven pump. In the wheelhouse: the FIRE
+       * PUMP switch on the console and the monitor joystick on its own pedestal (red knob),
+       * both port of the searchlight's (SEARCH · FIRE group): pan (+ to starboard) and elevation
+       * at a rate, like the searchlight's. The jet leaves the nozzle at `nozzleSpeed` m/s
+       * (`flowLpm` L/min) and flies a ballistic arc, slowed a little by the air
+       * (`airDrag`, 1/s) and blown downwind (`windDrift` of the wind's speed); it only
+       * flows with the pump on AND the engine running (no pressure otherwise).
+       */
+      /**
+       * Fishing: the TRAWL switch on the console, and the A-frame over the transom where the
+       * warps lead and the net's drag acts (fishing/fishing.ts, trawlView.ts).
+       */
+      fishing: {
+        /**
+         * The A-frame over the transom (fishing/fishing.ts aFrameOf; owner request, now the
+         * stern is clear of the skiff): two legs from the quarters (`footInset` in from the
+         * deck edge, `footFromTransom` forward of it), raked aft to a crossbeam `height` above
+         * the deck, `headAft` beyond the transom, each leg braced from part way up down to the
+         * deck `braceForward` m forward of its foot. The warps run through a block on the beam
+         * each side (`blockX`). The braces are its hydraulic rams: hauling the net (owner, Oct
+         * 2026) they swing it forward on its feet through `luffDeg` to bring the codend in over
+         * the deck (fishing/codend.ts). Its control box (PAY OUT and HAUL, hold-to-run, and
+         * RELEASE for the codend) stands on a post on the deck inboard of the starboard foot
+         * (`box`: `inboard` of the leg, `forward` of its foot, `buttonHeight` above the deck),
+         * clear of the frame as it swings.
+         */
+        aFrame: { footInset: 0.2, footFromTransom: 0.55, height: 3.0, headAft: 0.3, braceForward: 0.8, blockX: 0.75, buttonHeight: 1.0, luffDeg: 55, box: { inboard: 0.55, forward: 0.35 } },
+      },
+      /**
+       * The tow winch (tow/tow.ts stepTowWinch): a small drum on the aft deck centreline just
+       * forward of the transom (`z`, drum radius and width), the line leading aft from it
+       * over the stern roller in the transom bulwark (CONFIG.tow.fairlead), driven from a
+       * gearbox housing on its starboard end (`housing` width and height above the deck) with
+       * the HEAVE IN / PAY OUT buttons (hold-to-run) on its top. You stand forward of it
+       * facing aft: the winch, the stern roller and the tow beyond. The trawl warps lead off the
+       * same winch to the A-frame's blocks.
+       */
+      towWinch: { z: 5.3, drumRadius: 0.16, drumWidth: 0.5, housing: { width: 0.4, height: 0.8 } },
+      fireMonitor: {
+        position: [0, 3.75, -0.55] as [number, number, number],
+        /**
+         * The fire gauge on the console ahead of the joystick (fire/fireGauge.ts; owner:
+         * better feedback): bar centre (vessel axes), bar length (m), and how far right of
+         * the bar's end the ON TARGET lamp sits (m).
+         */
+        gauge: { position: [-0.66, 2.162, -1.52] as [number, number, number], length: 0.12, lampX: 0.05 },
+        panLimitDeg: 170,
+        tiltMinDeg: -10,
+        tiltMaxDeg: 55,
+        nozzleSpeed: 30,
+        flowLpm: 2400,
+        airDrag: 0.12,
+        windDrift: 0.35,
+        /**
+         * Stabilised (owner request: too hard to keep it on a fire as she rolls): the
+         * monitor holds its aim against the boat's roll and pitch, like a gyro-stabilised
+         * monitor. Pan is still from the bow (turn the boat and the jet turns with her),
+         * elevation from the horizon, not the roof.
+         */
+        stabilised: true,
+      },
+      /**
+       * Mooring cleats (owner request: they replace the DOCK button): a horn cleat on the
+       * bulwark top forward and aft on each side. Click one alongside a berth and its line
+       * goes to that berth's bollard; click it again to let go. `cleatFwdZ` / `cleatAftZ`:
+       * where they stand (vessel z, m; the bow line's and stern line's points on the boat).
+       * `lineY`: the height the lines pull at (m, vessel axes; they pull horizontally).
+       */
+      mooring: {
+        cleatFwdZ: -4.3,
+        cleatAftZ: 4.4,
+        /**
+         * Midship cleats, just aft of the wheelhouse at the fore end of the working deck
+         * (owner request): for the skiff's painter while working cargo over the side.
+         */
+        cleatMidZ: 2.0,
+        lineY: 1.2,
+      },
+      /**
+       * Windage for leeway (CONFIG.weather): projected areas above the water, side-on and
+       * end-on (m2: hull topsides ~12 x 1.1 plus the wheelhouse ~3.4 x 2.2; 4.6 x 1.1 plus
+       * 2.9 x 2.2 end-on), and the centre of effort (vessel axes).
+       */
+      /**
+       * Windage for leeway: areas side-on and end-on (m2), and the centre of effort with
+       * the wind on the beam (x, y; z as an offset from the hull's centre of lateral
+       * resistance, + aft). See physics/windage.ts.
+       */
+      windage: { side: 21, front: 11, center: [0, 1.9, 0] as [number, number, number] },
+      /** Where a player stands after boarding (vessel axes): at the helm, facing forward. */
+      boardingSpot: [0, 1.2, -0.75] as [number, number, number],
+      /** Debug: spawn/drop point and drop height (m above the DWL). */
+      spawn: { x: 0, z: -22, dropHeight: 4, headingDeg: 90 },
+    },
+
+    /**
+     * The landing craft (modular boats M7): the hull study's `landingCraft` design (src/hulls/
+     * designs.ts: her lines), lofted into the game's stations (vessel/hullForm.ts
+     * hullFormFromDesign). A 9 m aluminium work boat with a square landing bow, a cabin aft
+     * of amidships and an open foredeck; one small inboard diesel. Lofted upright at the deck
+     * edge, her deck runs 10.2 m from transom to bow (the raked bow lengthens it); axes as
+     * always: origin amidships at the DWL, z = +5.1 the transom, -5.1 the bow.
+     * Here: her mass, handling, deck layout and where her modules go. Her machinery's
+     * settings (the engine, propeller and rudder) are her recipe's (src/boats/landingCraft.json),
+     * as any boat's modules' are.
+     */
+    landingCraft: {
+      /**
+       * kg, as weighed (engine and batteries in): the displacement of her stations at the
+       * DWL (7.66 m3 of sea water), so she floats on her design waterline. CG: z = her LCB
+       * (level trim), height about 0.45 m above the DWL (the cabin and the engine high in a
+       * shallow hull). Radii of gyration as for the workboat: roll ~0.4 B, pitch / yaw ~0.25 L.
+       */
+      mass: 7850,
+      /** Of which her engine with its gearbox (her recipe's diesel declares the same), at its bed. */
+      engineKg: 800,
+      cg: [0, 0.45, 1.025] as [number, number, number],
+      gyradius: { roll: 1.1, pitch: 2.5, yaw: 2.6 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      /**
+       * The workboat's per-area damping (it scales with her waterplane by itself); the angular
+       * damping scaled to her size: roll ~30 % of critical (critical ~57 kN*m*s for 7.85 t,
+       * GM ~1.1 m, I_roll from the gyradius), pitch and yaw likewise. Her linear surge term
+       * (`surgeLinear`, a small drag for settling at rest) is a quarter of the workboat's: at
+       * her 20 kn it would otherwise add ~4 kN on top of her resistance curve.
+       */
+      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 17000, pitch: 12000, yaw: 5000 },
+      /**
+       * As the workboat's curve, on her 8.8 m waterline: past the hump (Fn ~0.5, ~9 kn) the
+       * wave term levels off at R/Delta = 0.115, about what a planing hull of her size needs,
+       * so she can be driven to 20 kn (owner request; her 280 kW diesel and 0.6 m propeller in
+       * her recipe). No planing lift is modelled yet: she doesn't rise or trim at speed.
+       */
+      resistance: { lwl: 8.8, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.115, asternFactor: 3.6, y: -0.25 },
+      /**
+       * A planing hull banks into a turn (owner): sliding outward, the outer half of her vee
+       * bottom lifts more than the inner, rolling her in against her CG's outward heel
+       * (vessel/physics/vesselPhysics.ts). `bank` scales that lift pair, 1/2 rho Awp U v at
+       * her chines; it fades in from Fn `fnStart` to `fnFull` (~5 to ~13 kn on her 8.8 m
+       * waterline). Tuned: at 16 kn with the helm 40 % over she leans ~6 deg into the turn
+       * (it was ~8 deg out); thrown hard over at 20 kn she leans in up to ~15 deg as she
+       * carves round, then settles near upright as she slows (to ~9 kn: the hull's sideways
+       * drag isn't a planing hull's yet).
+       */
+      planing: { bank: 0.06, fnStart: 0.3, fnFull: 0.7 },
+      /** Side-on: hull ~10 x 1.2 m plus the cabin ~2.7 x 2.0; end-on 2.8 x 1.2 plus 2.1 x 2.0 (m2). */
+      windage: { side: 17, front: 7.5, center: [0, 1.3, 0.6] as [number, number, number] },
+      /**
+       * Deck layout (as the workboat's: these numbers drive the drawn cabin and the walk
+       * area). The cabin (the design's wheelhouse, aft of amidships) with 0.3 m side decks;
+       * its roof walkable, by a ladder on its aft face. One bulwark height all round, 0.5 m
+       * (the design's runs 0.32 m aft to 0.62 m forward: the game takes one height for now).
+       */
+      layout: {
+        wheelhouse: {
+          halfWidth: 1.05,
+          front: 0.725,
+          aft: 3.375,
+          floorY: LC_FLOOR,
+          roofY: 2.97,
+          wall: 0.06,
+          doorWidth: 0.7,
+          /** Door and window heads raised with the floor lowered: the roof stays where it was. */
+          doorHeight: 1.95,
+          windowSill: 0.95,
+          windowHead: 1.95,
+          /** The front sill level with the dash top (console 0.9 + dash 0.41). */
+          frontSill: 1.31,
+          consoleDepth: 0.5,
+          consoleHeight: 0.9,
+        },
+        roof: { thickness: 0.1, overhang: 0.15, railHeight: 0.6, edgeMargin: 0.25 },
+        ladder: { x: 0.72, width: 0.4, depth: 0.45 },
+        doorButtons: { x: 0.45, height: 1.1 },
+        /** The engine under a hatch in the cabin floor, aft to starboard. */
+        engineHatch: { x0: 0.15, x1: 0.85, z0: 2.25, z1: 3.05, pitDepth: 0.75 },
+        /**
+         * The bow ramp (her hull's own, not a module: controls/BowRamp.ts). A plate `width` x
+         * `length` m hinged across the top of the bow plate. Raised, it leans forward at
+         * `raisedDeg` above the horizontal and closes the bow in place of a bulwark; lowered,
+         * it hangs `loweredDeg` below it, ready to put its lip on a beach. It takes
+         * `travelSec` either way. Two hydraulic rams work it, one each side: their cylinders
+         * pivot on posts `ram.aft` m aft of the hinge and `ram.height` m above the deck,
+         * `ram.x` m off the centreline; their rods on lugs `ram.along` m up the ramp. Kept
+         * short (top ~1 m above the deck raised) so the helm can still see the water ahead
+         * over it: a longer ramp reaches a beach better and blinds the helm more.
+         * Its push buttons are door-button modules bound to 'ramp.bow.down': one in the cabin
+         * (places.rampButton), one on the inboard face of the port bulwark by the bow, at
+         * `button.z`, `button.y` above the deck there.
+         */
+        bowRamp: {
+          width: 1.9,
+          length: 1.2,
+          raisedDeg: 60,
+          loweredDeg: -35,
+          travelSec: 6,
+          /**
+           * Toe flaps (owner: to reach further): a row of `count` hinged fingers along its lip,
+           * `length` m long, `gap` m apart. Folded back flat on the walking face while it's
+           * raised, they flop over as it comes down (from `flopAt` of the way down) and hang
+           * `hangDeg` below the horizontal, or lie on the slip when she's landed on one.
+           */
+          flap: { length: 0.7, count: 4, gap: 0.04, flopAt: 0.6, hangDeg: 75 },
+          ram: { x: 0.98, aft: 1.0, height: 0.9, along: 0.8 },
+          button: { z: -4.3, y: 0.42 },
+        },
+        bulwarkHeight: 0.5,
+        railHeight: 0.9,
+        fairleadGap: 0,
+        deckEdgeMargin: 0.25,
+        bodyRadius: BODY_RADIUS,
+      },
+      /** The open foredeck is her cargo deck: lashing points along both sides. */
+      cargo: {
+        maxPayloadKg: 2500,
+        slots: 0,
+        bowClear: 0.4,
+        aftClear: 0.25,
+        fixed: false,
+      },
+      /** At the helm, facing forward. */
+      boardingSpot: [0, LC_FLOOR, 1.85] as [number, number, number],
+      spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
+      /** Wet exhaust through the transom, starboard of the centreline, and which way it blows. */
+      exhaust: { position: [0.55, 0.2, 5.15] as [number, number, number], direction: [0, -0.12, 1] as [number, number, number] },
+      /**
+       * Her hand gear's places (vessel axes): the extinguisher and torch brackets on the
+       * cabin's aft wall, port of the door; the binoculars on the dash top, port end.
+       */
+      stowage: {
+        extinguisher: [-0.85, LC_FLOOR + 0.58, 3.225] as [number, number, number],
+        torch: [-0.6, LC_FLOOR + 0.68, 3.255] as [number, number, number],
+        binoculars: { at: [-0.7, LC_FLOOR + 1.35, 0.865] as [number, number, number], yawDeg: 20 },
+      },
+      /**
+       * Where her modules go (vessel axes, m): the helm console's top at its aft face; the
+       * breaker panel, battery master and selector, the VHF; the engine space under the
+       * hatch; the rudder stock; the cabin lamp; the roof (searchlight, nav lights); her
+       * cleats' stations, fore and aft.
+       */
+      places: {
+        console: [0, LC_FLOOR + 0.9, 1.285] as [number, number, number],
+        /** Its back against the starboard wall (the wall's inside face at x 0.99; the tilted panel reaches 0.12 m outboard of this point). */
+        breakerPanel: [0.865, LC_FLOOR + 0.6, 1.6] as [number, number, number],
+        /** The bow ramp's button in the cabin: the port wall by the helm (the breaker panel's mirror). */
+        rampButton: [-0.98, LC_FLOOR + 0.73, 1.5] as [number, number, number],
+        batteryMaster: [0.6, LC_FLOOR + 0.48, 3.31] as [number, number, number],
+        batterySelector: [0.85, LC_FLOOR + 0.48, 3.31] as [number, number, number],
+        vhf: [-0.75, 2.8, 1.25] as [number, number, number],
+        /** The FM set, under the roof to starboard, the VHF's mirror. */
+        fm: [0.5, 2.86, 1.25] as [number, number, number],
+        engineBed: [0.5, LC_FLOOR - 0.35, 2.65] as [number, number, number],
+        engineSpace: [-0.2, LC_FLOOR - 0.47, 2.65] as [number, number, number],
+        rudder: [0, -0.3, 4.85] as [number, number, number],
+        cabinLight: [0, 2.85, 2.2] as [number, number, number],
+        searchlight: [0, 3.2, 1.0] as [number, number, number],
+        navLights: [0, 3.07, 2.0] as [number, number, number],
+        cleats: { bow: -4.6, stern: 4.7 },
+      },
+    },
+
+    /**
+     * The Alaskan 38 (owner, Oct 2026): a one-off boat built from a video of a custom
+     * aluminium expedition / sport-fishing boat, designed afresh for the game in that spirit
+     * (src/boats/alaskan38/design.ts: her lines; boats/alaskan38/view.ts: her one-off parts).
+     * 11.6 m on the waterline; lofted, her deck runs 12.19 m from the transom (z = +6.09) to
+     * the stem (z = -6.09), with twin outboards on a bracket off the transom. Built in stages:
+     *   1  her hull, the bracket and outboards, spray rails and bow rail; a plain pilothouse
+     *      standing in for her superstructure; she floats and drives;
+     *   2  her superstructure (trunk cabin, raised pilothouse, saloon, cockpit overhead);
+     *   3  her interior.
+     * Here: her mass, handling, deck layout, and where her modules and her one-off parts go.
+     * Her machinery's settings are her recipe's (src/boats/alaskan38.json).
+     */
+    alaskan38: {
+      /**
+       * kg, as weighed (engines and batteries in): the displacement of her stations at the
+       * DWL, so she floats on her design waterline (tests/seaTrials.test.ts prints it:
+       * `VESSEL=alaskan38 npm run trials`). CG: z = her LCB (level trim); height 0.55 m above
+       * the DWL (a tall house, but the engines hang low aft and the tanks are in the bilge).
+       * Radii of gyration: roll ~0.4 B, pitch / yaw ~0.25 L.
+       */
+      mass: 9230,
+      /** Of which her two outboards (her recipe's outboard module declares the same, 2 x CONFIG.modules.outboard.massKg), on the bracket. */
+      engineKg: 760,
+      cg: [0, 0.55, 1.71] as [number, number, number],
+      gyradius: { roll: 1.5, pitch: 3.0, yaw: 3.1 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      /**
+       * As the landing craft's (per-area terms scale with her waterplane); the angular
+       * damping scaled to her size: roll ~30 % of critical for 10 t with GM ~1.3 m and her
+       * roll gyradius, pitch and yaw likewise.
+       */
+      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 30000, pitch: 25000, yaw: 10000 },
+      /**
+       * The landing craft's curve on her 11.6 m waterline, the wave term levelling off at
+       * R/Delta = 0.13 past the hump (a deep vee runs a little harder than her flatter
+       * bottom): with 2 x 300 kW on the bracket she makes about 30 kn. No planing lift is
+       * modelled yet: she doesn't rise or trim at speed.
+       */
+      resistance: { lwl: 11.6, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.13, asternFactor: 3.6, y: -0.3 },
+      /** She banks into a turn as the landing craft does (a deeper vee: a little more). */
+      planing: { bank: 0.07, fnStart: 0.3, fnFull: 0.7 },
+      /** Side-on: hull ~12 x 1.3 m plus the house ~5.5 x 2.4; end-on 3.8 x 1.3 plus 3 x 2.4 (m2). */
+      windage: { side: 30, front: 11, center: [0, 1.6, 0] as [number, number, number] },
+      /**
+       * Deck layout. The game's house box (`wheelhouse`) is her pilothouse and saloon
+       * together, from the foredeck to the cockpit: it is what you walk in, where the aft
+       * door hangs, where the rain lands on the glass and where her modules go. Its walls,
+       * windows and roof are **her own geometry** (`shell: 'oneOff'`: boats/alaskan38/view.ts
+       * draws them from this box and `house` below; the hull mesh draws only the floor and
+       * console). Stage 2: one floor at the pilothouse's height (1.25 m above the DWL, a step
+       * up from the cockpit deck); the sunk saloon floor and the raised helm come with the
+       * interior, stage 3. The front: three facets, reverse-raked 12° (a pilothouse front keeps
+       * sun and rain off the glass); the side glass from 0.9 m above the floor to 2.0 m, the
+       * roof at 2.2 m. No roof ladder: her roof carries the radar and the rod rack.
+       * The bulwarks 0.45 m round the cockpit (the game takes one height; the design's run
+       * lower forward, where the bow rail stands).
+       */
+      layout: {
+        wheelhouse: {
+          halfWidth: 1.5,
+          front: -2.8,
+          aft: 2.7,
+          /** The pilothouse floor (the helm's level); the saloon's is sunk (levels). */
+          floorY: A38_FLOOR,
+          /** The pilothouse roof; the saloon's is lower (house.saloon.roofY). */
+          roofY: A38_FLOOR + 2.3,
+          /** Pilothouse floor, a tread, the saloon floor (0.5 m down in two steps; the cockpit deck at the aft door is 1.02). */
+          levels: [
+            { z0: -2.8, z1: -0.5, y: A38_FLOOR },
+            { z0: -0.5, z1: -0.2, y: A38_FLOOR - 0.25 },
+            { z0: -0.2, z1: 2.7, y: A38_FLOOR - 0.5 },
+          ],
+          wall: 0.06,
+          doorWidth: 0.75,
+          doorHeight: 1.95,
+          /** The pilothouse's side glass, above its floor (the saloon's: house.saloon). */
+          windowSill: 0.85,
+          windowHead: 2.05,
+          /** The front sill level with the dash top (console 0.9 + dash 0.41). */
+          frontSill: 1.31,
+          /** Reverse-raked (leaning forward at the top), as a pilothouse front. */
+          frontRakeDeg: 12,
+          consoleDepth: 0.5,
+          consoleHeight: 0.9,
+          shape: { lowerRakeDeg: 0, lowerFromY: A38_FLOOR, roofEdgeDeg: 20, visor: 0.3, facet: { centre: 0.5, depth: 0.4 } },
+          shell: 'oneOff' as const,
+          /** The companionway opening, to port, forward (the treads: layout.extraFloors). */
+          floorHoles: [{ x0: -1.24, x1: -0.42, z0: -2.78, z1: -1.9 }],
+        },
+        roof: { thickness: 0.1, overhang: 0.12, railHeight: 0, edgeMargin: 0.25 },
+        /** The aft door's buttons: 1.1 m above the saloon floor at the door (0.5 m below the helm's floor, which this is measured from). */
+        doorButtons: { x: 0.5, height: 0.6 },
+        /** The engine space is a lazarette under the cockpit deck aft, to starboard (the outboards' fuel and batteries; a hatch in the deck). */
+        engineHatch: { x0: 0.2, x1: 1.0, z0: 4.6, z1: 5.4, pitDepth: 0.6 },
+        bulwarkHeight: 0.45,
+        railHeight: 0,
+        fairleadGap: 0,
+        deckEdgeMargin: 0.25,
+        bodyRadius: BODY_RADIUS,
+        /**
+         * Below the pilothouse: the companionway down to port of the helm (three treads,
+         * 0.31 m each, running forward under the dash) and the fore cabin's sole, 0.8 m wide
+         * between the berth fronts, with standing headroom under the trunk cabin. Walked
+         * (layout.ts); drawn by view.ts from `house.interior`.
+         */
+        extraFloors: [
+          { x0: -1.2, x1: -0.42, z0: -2.2, z1: -1.9, y: 0.94 },
+          { x0: -1.2, x1: -0.42, z0: -2.5, z1: -2.2, y: 0.63 },
+          { x0: -1.2, x1: -0.42, z0: -2.8, z1: -2.5, y: 0.31 },
+          { x0: -0.95, x1: 0.25, z0: -3.3, z1: -2.78, y: 0 },
+          { x0: -0.5, x1: 0.25, z0: -4.0, z1: -3.3, y: 0 },
+          /** The trunk cabin's top (nearly level: the deck rises as the trunk lowers), stepped onto from the side decks forward. */
+          { x0: -0.85, x1: 0.85, z0: -4.6, z1: -2.9, y: 1.82 },
+        ],
+        /** The companionway (up through the pilothouse floor) and the fore cabin (under the trunk and the pilothouse floor): open space. */
+        hollows: [
+          { x0: -1.24, x1: -0.42, y0: -0.1, y1: 2.4, z0: -2.78, z1: -1.9 },
+          { x0: -1.4, x1: 1.4, y0: -0.1, y1: 1.9, z0: -5.0, z1: -2.78 },
+        ],
+        /** No deck under the trunk cabin (the fore cabin is open up into it), the side decks 0.32 m wide beside it. */
+        deckOpening: { front: -4.85, inset: 0.32 },
+      },
+      /**
+       * Her superstructure's own parts (boats/alaskan38/view.ts; drawing only; m, vessel
+       * axes), round the house box above. Two roof levels, as the boat has: the pilothouse
+       * stands high forward; the saloon's lower roof runs aft from it and on over the
+       * cockpit as the overhead.
+       *   pilothouseAft  the pilothouse's aft wall (the step down into the saloon starts here);
+       *                  above the saloon roof it carries a band of aft-facing glass
+       *   sideDoor       the sliding door in the pilothouse's starboard side (drawn shut);
+       *   saloon         its roof's height; its side glass above its floor (sill, head);
+       *   trunk          the trunk cabin on the foredeck, from the house front forward to
+       *                  `fwd`: `inset` in from the deck edge, `height` above the deck at the
+       *                  house, `fwdHeight` at its forward end (it tapers), a glass hatch;
+       *   eyebrow        each roof slab (tan: the eyebrow) reaches `visor` ahead of the front
+       *                  glass and `sideOverhang` past the walls;
+       *   overhead       the saloon roof carried aft over the cockpit to `aft`, the hull's
+       *                  width (`halfWidth`), on a curved wing each side (the house's side
+       *                  carried aft, sweeping from the deck at `kneeFoot` up to the roof's
+       *                  aft edge), with a pair of grab handles on each wing;
+       *   radar, rodRack the radar dome on its pedestal behind the pilothouse, the rod rack
+       *                  along the overhead's aft edge;
+       *   roofRail       grab rails along the saloon roof's sides (for the tender).
+       */
+      house: {
+        pilothouseAft: -0.5,
+        sideDoor: { z0: -1.45, z1: -0.7 },
+        saloon: { roofY: A38_FLOOR - 0.5 + 2.2, sill: 1.0, head: 2.0 },
+        trunk: { fwd: -4.9, height: 0.4, fwdHeight: 0.2, inset: 0.3, hatch: { z: -4.05, size: 0.55 } },
+        eyebrow: { visor: 0.3, sideOverhang: 0.12 },
+        overhead: { aft: 4.6, halfWidth: 1.78, kneeFoot: 3.4 },
+        radar: { z: -0.15, radius: 0.3, height: 0.22, pedestal: 0.5 },
+        rodRack: { z: 4.45, halfWidth: 0.9, height: 0.55, rods: 6 },
+        roofRail: { height: 0.25, spacing: 1.2 },
+        /**
+         * Inside (stage 3; drawing only, the walking is layout.extraFloors / hollows):
+         *   console        the console body, to starboard of the companionway (the console
+         *                  module's dash sits on it: places.console, x 0.5); x0 is its port end
+         *   seats          the helm seat and a companion's, on pedestals behind the console
+         *   companionway   the opening's bounds, the handrail
+         *   foreCabin      the sole, the V-berth's platform and cushions, a hanging locker
+         *                  under the pilothouse floor to starboard, the lining's colours
+         *   galley         the counter along the saloon's starboard side: sink, stove, fridge
+         *   dinette        the settees round the table (the table is the chart-table module,
+         *                  places.chartTable) along the saloon's port side
+         *   ceiling        the lining under each roof, set in from the walls
+         */
+        interior: {
+          console: { x0: -0.4, colour: 0x3c4248 },
+          seats: [
+            { x: 0.5, z: -0.95 },
+            { x: -0.85, z: -0.95 },
+          ],
+          companionway: { x0: -1.24, x1: -0.42, z0: -2.78, z1: -1.9, rail: { x: -0.44, height: 0.9 } },
+          foreCabin: { sole: 0, berth: { aft: -3.75, top: 0.55, cushion: 0.12 }, locker: { x0: 0.35, x1: 1.05, z0: -3.6, z1: -2.82, top: 1.1 }, lining: 0xd8d2c4, trim: 0x8a5d3c, cushion: 0x2b3a55 },
+          galley: { x0: 0.85, z0: 0.0, z1: 2.5, top: 0.9, sink: [1.15, 0.5] as [number, number], stove: [1.15, 1.3] as [number, number], fridge: [1.9, 2.4] as [number, number] },
+          dinette: { x1: -0.95, seat: 0.45, back: 0.9, fwd: [-0.15, 0.55] as [number, number], aft: [1.6, 2.4] as [number, number] },
+          ceiling: { inset: 0.12, thickness: 0.02, colour: 0xeeece6 },
+        },
+      },
+      /** The cockpit is her working deck: lashing points along both sides. */
+      cargo: {
+        maxPayloadKg: 1200,
+        slots: 0,
+        bowClear: 0.4,
+        aftClear: 0.4,
+        fixed: false,
+      },
+      /** At the helm, facing forward. */
+      boardingSpot: [0.5, A38_FLOOR, -1.3] as [number, number, number],
+      spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
+      /** The outboards' exhaust: out through their lower units, under water at the bracket (seen as a little spray astern). */
+      exhaust: { position: [0.5, 0.0, 7.6] as [number, number, number], direction: [0, -0.1, 1] as [number, number, number] },
+      /** Her hand gear: the extinguisher and torch brackets on the house's aft wall, port of the door; the binoculars on the dash top, port end. */
+      stowage: {
+        extinguisher: [-0.95, A38_FLOOR + 0.08, 2.55] as [number, number, number],
+        torch: [-0.7, A38_FLOOR + 0.18, 2.575] as [number, number, number],
+        binoculars: { at: [-0.25, A38_FLOOR + 1.35, -2.26] as [number, number, number], yawDeg: 20 },
+      },
+      /**
+       * Where her modules go (vessel axes, m): the console behind the faceted front; the
+       * breaker panel, battery master and selector, the radios; the lazarette; the cabin
+       * lamp; the roof; her cleats' stations. (Her outboards: the outboard module on the
+       * bracket, `bracket.mountY` and its aft face.)
+       */
+      places: {
+        /** The console's dash (the module), to starboard of the companionway: x 0.5, 0.9 m each way (its body: house.interior.console). */
+        console: [0.5, A38_FLOOR + 0.9, -1.84] as [number, number, number],
+        /** On the starboard wall by the helm, set back with the facet there. */
+        breakerPanel: [1.315, A38_FLOOR + 0.6, -1.5] as [number, number, number],
+        /** On the aft wall, above the saloon floor (0.5 m below the helm's). */
+        batteryMaster: [1.05, A38_FLOOR - 0.02, 2.635] as [number, number, number],
+        batterySelector: [1.3, A38_FLOOR - 0.02, 2.635] as [number, number, number],
+        vhf: [-1.2, A38_FLOOR + 2.13, -1.9] as [number, number, number],
+        fm: [1.15, A38_FLOOR + 2.19, -1.4] as [number, number, number],
+        /** The lazarette: her fuel, batteries and pump. */
+        engineSpace: [-0.2, 0.5, 5.0] as [number, number, number],
+        /** The saloon ceiling (its roof is the lower one). */
+        cabinLight: [0, A38_FLOOR + 1.6, 1.2] as [number, number, number],
+        searchlight: [0, A38_FLOOR + 2.4, -2.4] as [number, number, number],
+        navLights: [0, A38_FLOOR + 2.37, -1.0] as [number, number, number],
+        cleats: { bow: -5.3, stern: 5.6 },
+        /** The dinette table is the chart-table module (its drop leaf against the port wall): its forward inboard corner on the saloon floor. */
+        chartTable: [-1.37, A38_FLOOR - 0.5, 0.6] as [number, number, number],
+        /** The crew whiteboard on the saloon's aft wall, port of the door; the duty board on its starboard wall over the galley. */
+        whiteboard: [-1.0, A38_FLOOR + 1.15, 2.635] as [number, number, number],
+        dutyBoard: [1.435, A38_FLOOR + 1.1, 1.3] as [number, number, number],
+      },
+      /**
+       * Her one-off parts (boats/alaskan38/view.ts; drawing only). The outboard bracket: a
+       * welded box off the transom, `bottom` to `top` m above the DWL, `length` m long, its
+       * top the swim platform with a rail `railHeight` high; a gate in the transom at `gateX`
+       * with steps down. Her two outboards (the outboard module, propulsion.outboard: its
+       * figures CONFIG.modules.outboard) clamp to its aft face at +-`outboardX`, the mount's
+       * top (their cowls' undersides) `mountY` above the DWL.
+       */
+      bracket: { halfWidth: 1.55, bottom: 0.0, top: 0.45, length: 0.95, gateX: 0, railHeight: 0.9, outboardX: 0.5, mountY: 0.7 },
+      /** Two spray rails along the topsides, at these shares of the way from the chine up to the deck edge, standing `proud` m. */
+      sprayRails: { shares: [0.3, 0.6], proud: 0.06, radius: 0.035, colour: 0x8a9096 },
+      /** The bow rail: posts on the deck edge from `from` (z) to the stem every `spacing` m, `height` m above the bulwark. */
+      bowRail: { from: -3.1, spacing: 0.7, height: 0.75 },
+      /** Her tinted glass (a second, see-through mesh): its colour and how dark (0 clear, 1 opaque). Dark from outside over her unlit interior; a light tint looking out. */
+      glass: { colour: 0x0e1a22, opacity: 0.3 },
+    },
+
+    /**
+     * The ship's tender (owner, Oct 2026: "make the boat slightly smaller so it fits more
+     * easily on the smaller work boats ... turn it into a rubber dinghy"): a 3.25 m inflatable,
+     * the old 3.6 m aluminium skiff's lines scaled 0.9 (so her crane and cradle are 10 %
+     * smaller too: the fishing boat and the small tug can now carry her). A flat floor and a
+     * shallow V under it (the hard-chine hull below, as before), her grey tubes round it
+     * (modules/tubes: drawn, merged with her fixed parts), a small electric outboard and a
+     * tiller. Same axes and physics as the workboat; no wheelhouse, engine room, anchor or
+     * mooring. Her id stays 'skiff' (saves and multiplayer), and the game still calls her the
+     * skiff. Mass chosen to float at the DWL (tests/seaTrials.test.ts).
+     *
+     * The tubes are modelled as looks only: at rest an inflatable this size floats on her
+     * floor and keel with her tubes just clear of the water, so the hull below is what floats
+     * her. Her deck's edge is the tubes' centre; their top (`layout.bulwarkHeight` above it)
+     * is her gunwale: what you step over, what her tarpaulin lies on. Inside the tubes her
+     * walkable floor and her cargo stop `deckEdgeMargin` / `cargo.edge` in from her deck edge.
+     */
+    skiff: {
+      hull: {
+        length: 3.25,
+        beamDeck: 1.45,
+        beamChine: 1.26,
+        keelY: -0.13,
+        chineYAft: -0.09,
+        chineYBow: 0.09,
+        deckYAft: 0.27,
+        deckYBow: 0.38,
+        stations: 9,
+        deckParallel: 0.45,
+      },
+      /** Hull, floor, tubes, outboard and battery (kg): the skiff's 330 kg times 0.9³ (her displacement at the same lines, scaled). */
+      mass: 240,
+      /** z = LCB so she floats level. */
+      cg: [0, 0.045, 0.68] as [number, number, number],
+      gyradius: { roll: 0.5, pitch: 0.86, yaw: 0.9 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      /**
+       * Same per-area coefficients as the workboat; the angular ones the skiff's scaled to
+       * her mass x size² (0.9³ x 0.9² = 0.59 of them: the same fraction of critical damping).
+       */
+      damping: {
+        vertical: 800,
+        verticalCd: 1.5,
+        lateralLinear: 400,
+        lateralLift: 1.2,
+        lateralCd: 1.0,
+        surgeLinear: 20,
+        roll: 89,
+        pitch: 71,
+        yaw: 71,
+      },
+      resistance: {
+        lwl: 2.97,
+        formFactor: 0.2,
+        waveA: 1.0,
+        waveB: 0.94,
+        waveKnee: 0.3,
+        waveCap: 0.115,
+        asternFactor: 2.0,
+        y: -0.045,
+      },
+      /**
+       * Electric outboard on the transom: thrust at the propeller (vessel axes), falling
+       * linearly from `staticThrustN` at rest to zero at `zeroThrustSpeed` (m/s, ~the
+       * propeller's pitch speed); astern a fraction of that. Steered by swinging the whole
+       * motor on its tiller (thrust direction), up to `maxSteerDeg`. Draws up to `powerKw`
+       * from a `batteryKWh` battery, ~ |throttle|^1.5 (most of it near full). The skiff's
+       * motor: lighter, she's a little quicker on it.
+       */
+      outboard: {
+        position: [0, -0.29, 1.76] as [number, number, number],
+        staticThrustN: 750,
+        zeroThrustSpeed: 5.5,
+        asternFactor: 0.55,
+        powerKw: 3,
+        batteryKWh: 2,
+        maxSteerDeg: 30,
+        /** Tiller: pivot on top of the motor, handle length forward over the transom (m). */
+        tiller: { pivot: [0, 0.5, 1.67] as [number, number, number], length: 0.5 },
+      },
+      layout: {
+        /** Her tubes' top above her deck edge (their radius: modules.tubes.dinghy). */
+        bulwarkHeight: 0.2,
+        railHeight: 0,
+        /** The tubes' inner face is this far in from her deck edge. */
+        deckEdgeMargin: 0.32,
+        bodyRadius: BODY_RADIUS,
+      },
+      /**
+       * Cargo on her floor between the bow (`bowClear`) and the helmsman's place by the
+       * tiller (`aftClear`), kept `edge` m inside her deck edge (in under the tubes' curve).
+       * Her floor there is about 2.2 m long and 0.9-1.1 m wide: three crates one behind
+       * another (by hand; cargo/deck.ts deckCapacity's even rows count two), or two oil
+       * drums: no slot limit, just room and mass. `maxPayloadKg` 250: three crates
+       * (120 kg), or two drums, with her helmsman sink her
+       * about 10 cm (her waterplane ~3.1 m², ~32 kg/cm). Sitting low, wedged in against the
+       * tubes, it doesn't slide about (`fixed`), and she has no D-rings.
+       */
+      cargo: {
+        maxPayloadKg: 250,
+        slots: 0,
+        bowClear: 0.4,
+        aftClear: 0.55,
+        edge: 0.18,
+        fixed: true,
+      },
+      /**
+       * Her cleats (modules/boatCleat; owner: tie her up front and back, to the ship or the
+       * quay): the bow cleat on her bow, on top of the tubes' nose, the stern cleat on the
+       * port quarter's tube (clear of the outboard), each socket the cleat's base (x, y, z);
+       * the line pulls from `lineY` above it. Moored at a quay berth she lies `inshore` m
+       * closer to the quay than the berth's mark, which is set for the workboat's beam (her
+       * half beam with her tubes 0.8 m and a little air, against the workboat's 2.1 m and
+       * fenders).
+       */
+      cleats: {
+        bow: [0, 0.58, -1.42] as [number, number, number],
+        stern: [-0.62, 0.47, 1.44] as [number, number, number],
+        lineY: 0.06,
+        inshore: 1.4,
+      },
+      /** Windage (see the workboat's): low tubes plus whoever is aboard. */
+      windage: { side: 2.2, front: 1.1, center: [0, 0.55, 0] as [number, number, number] },
+      /** Where a player stands after boarding: right aft by the tiller's handle, facing forward. */
+      boardingSpot: [0, 0.27, 1.15] as [number, number, number],
+      /** Starts floating off the workboat's starboard side (she starts heading east at z -22). */
+      spawn: { x: 0, z: -15, dropHeight: 0.3, headingDeg: 90 },
+      /** Her colours: a grey floor and hull under grey tubes. */
+      livery: { topsides: 0x4b5157, bottom: 0x33373b, deck: 0x6a6f73 },
+    },
+
+    /**
+     * The fast rescue boat (owner, Oct 2026: "a slightly bigger one, which should be rigid
+     * inflatable boat type. So fast lifeboat type of boat ... a central seating position with
+     * a wheel and an outboard motor ... 28 knots ... similar sea keeping to one of the smaller
+     * planing boats"; 6 m and a 150 hp outboard agreed; in the Shipyard only, not sold in the
+     * career). A ship's tender like the skiff, carried in a cradle and put over the side by a
+     * bigger crane (`crane`), for the bigger boats.
+     *
+     * A 6 m deep-V RIB: a hard-chine planing hull (the generator's, as the workboat's), about
+     * 20 deg of deadrise aft, under orange tubes (modules/tubes, `CONFIG.modules.tubes.rib`).
+     * A centre console amidships with the wheel, the throttle and the key; a leaning post aft of
+     * it to stand against at the helm; one 150 hp petrol outboard on her transom (the main
+     * boats' outboard module, one smaller unit: `outboard`). As her deck and walk areas see
+     * her: the deck to the tubes' centre, the tubes' top her gunwale (`layout.bulwarkHeight`).
+     *
+     * Her handling is set up as the Shipyard's planing hulls are (shipyard/parts/trim.ts, for
+     * her size and deadrise): the landing craft's per-area damping, her roll at 28 % of
+     * critical, pitch and yaw scaled from the landing craft's by mass x length², a deep vee's
+     * gentle slamming (`verticalCd`), and leaning into her turns (`planing.lean`, the formula's
+     * 0.7 + sin 20 deg). Mass chosen to float at the DWL (tests/rescueBoat.test.ts).
+     */
+    rib: {
+      hull: {
+        length: 6.0,
+        beamDeck: 2.0,
+        beamChine: 1.75,
+        keelY: -0.38,
+        chineYAft: -0.06,
+        chineYBow: 0.25,
+        deckYAft: 0.42,
+        deckYBow: 0.78,
+        stations: 13,
+        deckParallel: 0.4,
+      },
+      /** Hull, tubes, console, fuel and outboard (kg): what her lines displace at the DWL. */
+      mass: 1360,
+      /** z = LCB so she floats level; the outboard aft and the console high. */
+      cg: [0, 0.3, 1.18] as [number, number, number],
+      gyradius: { roll: 0.78, pitch: 1.67, yaw: 1.74 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 1300, verticalCd: 0.73, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 1850, pitch: 730, yaw: 310, rollLift: 0.3 },
+      /**
+       * As the Shipyard's planing hulls' (the landing craft's curve on her own waterline), but
+       * past the hump her wave term levels off at R/Delta = 0.10, not 0.115: a light deep-V RIB
+       * planes cleaner than the landing craft's flatter, heavier box (planing craft run about
+       * 0.08-0.12 at speed). With it she makes 28 kn on her 150 hp.
+       */
+      resistance: { lwl: 5.6, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.1, asternFactor: 3.6, y: -0.15 },
+      planing: { lean: 1.04, fnStart: 0.3, fnFull: 0.7 },
+      layout: {
+        /** Her tubes' top above her deck edge (their radius: modules.tubes.rib). */
+        bulwarkHeight: 0.26,
+        railHeight: 0,
+        /** The tubes' inner face is this far in from her deck edge. */
+        deckEdgeMargin: 0.42,
+        bodyRadius: BODY_RADIUS,
+      },
+      /**
+       * Cargo on her deck forward of the console (a survivor, a stretcher, gear): kept
+       * `bowClear` from the stem and `aftClear` from the transom (the console, the leaning post
+       * and the motor's well take her after half), `edge` m in under the tubes.
+       */
+      cargo: { maxPayloadKg: 600, slots: 0, bowClear: 0.9, aftClear: 3.15, edge: 0.32, fixed: true },
+      /** Her cleats (modules/boatCleat): on her bow over the tubes' nose, and on the port quarter's tube. */
+      cleats: {
+        bow: [0, 1.04, -2.55] as [number, number, number],
+        stern: [-0.8, 0.68, 2.6] as [number, number, number],
+        lineY: 0.06,
+        /** At a quay berth: her half beam with the tubes ~1.1 m, against the workboat's 2.3 (CONFIG.docking.fenderClear). */
+        inshore: 1.2,
+      },
+      /** Side-on her tubes ~6 x 0.7 m and the console ~0.6 x 1.0; end-on 2.3 x 0.7 and 0.7 x 1.0 (m²). */
+      windage: { side: 4.8, front: 2.3, center: [0, 0.75, 0.2] as [number, number, number] },
+      /** Where a player stands after boarding: at the helm, between the console and the leaning post. */
+      boardingSpot: [0, 0.47, 0.85] as [number, number, number],
+      spawn: { x: 0, z: -15, dropHeight: 0.3, headingDeg: 90 },
+      /** Her colours: a dark grey hull and deck under orange tubes. */
+      livery: { topsides: 0x3c4146, bottom: 0x2c3034, deck: 0x6a6f73 },
+      /**
+       * The centre console and the leaning post (modules/ribConsole), boat axes: the
+       * console's body across `halfWidth` from `front` to `aft` and up to `top` (its top,
+       * where the dash and the controls are: the helm console's socket, on its aft face);
+       * a small windscreen on it; the leaning post's padded bolster across `post.halfWidth`
+       * from `post.front` to `post.aft`, up to `post.top`, with a grab rail round its back.
+       */
+      console: {
+        halfWidth: 0.36,
+        front: -0.25,
+        aft: 0.4,
+        top: 1.5,
+        screen: { height: 0.32, rake: 0.3 },
+        post: { halfWidth: 0.32, front: 1.2, aft: 1.6, top: 1.32 },
+      },
+      /**
+       * The crane that carries her (the tender crane, modules/tenderCrane: the same crane and
+       * controls as the dinghy's, sized for her), in the starting workboat's axes as the
+       * dinghy's is (CONFIG.vessels.workboat.tenderCrane: see there for each figure; the
+       * Shipyard stands it where it fits). She weighs about 1.4 t to the dinghy's 0.24: a taller
+       * column and longer arms to lift her clear and swing her out past the ship's side, a 6.4 m
+       * cradle, slower moves. Her bridle's apex is high over her CG, its legs clear of the
+       * console; the remote to call a recovery is on a post beside her console.
+       */
+      crane: {
+        column: [1.55, -2.25] as [number, number],
+        columnRadius: 0.17,
+        shoulderY: 3.9,
+        boom: 1.9,
+        jib: 1.8,
+        deckAtColumn: 1.2099609375,
+        stow: [0, 1.99, -5.45] as [number, number, number],
+        cradle: { halfWidth: 1.2, z0: -8.5, z1: -2.05 },
+        lift: [0, 2.3, 1.16] as [number, number, number],
+        clear: 1.0,
+        outboard: [3.9, -2.55] as [number, number],
+        waterY: 0.0,
+        rigTime: 3,
+        hoistTime: 4,
+        slewTime: 8,
+        lowerTime: 7,
+        alignTime: 3,
+        recoverRange: 3.5,
+        recoverSpeed: 1.2,
+        chargeMinutes: 5,
+        fold: { slewDeg: -90, boomDeg: -8, jibDeg: 165 },
+        tenderDefId: 'rib' as string,
+        /** No tarpaulin: a rescue boat sits in her cradle uncovered, ready to go, console and all. */
+        cover: false,
+        tender: {
+          height: 1.85,
+          keelY: -0.38,
+          saddles: [-1.5, 1.6],
+          saddleWidth: 1.3,
+          legs: [
+            [-0.71, 0.89, -1.6],
+            [0.71, 0.89, -1.6],
+            [-0.83, 0.69, 2.3],
+            [0.83, 0.69, 2.3],
+          ] as [number, number, number][],
+        },
+        button: [1.8, 2.3, -2.25] as [number, number, number],
+        remote: { x: 0.45, z: 0.15, height: 1.35 },
+        stepOff: [
+          [-1.6, -3.0],
+          [2.1, -2.9],
+          [-1.6, -4.2],
+          [2.1, -4.0],
+        ] as [number, number][],
+      },
+      /**
+       * Her outboard (`motor`): the main boats' petrol outboard (CONFIG.modules.outboard, the V8's
+       * module and look) as one smaller unit (owner: 150 hp). 112 kW at 5800 rpm: the V8's
+       * torque curve times 0.373 (its peak ~210 Nm, as a 150 hp four-stroke's), a lighter
+       * flywheel, a cooler sized to it, a 14 in propeller, a 25 in shaft; 210 kg dry. Her
+       * tank in the console: 150 L.
+       */
+      motor: {
+        powerKw: 112,
+        torqueScale: 0.373,
+        inertia: 0.15,
+        exchangerKwPerK: 1.3,
+        propellerM: 0.34,
+        /**
+         * Its pitch, as the propeller model's zero-thrust advance ratio (`j0`, and `jq0` for its
+         * torque): a fast boat's high-pitch prop (14 x 19 in, P/D ~1.35), more than the V8's 1.25.
+         */
+        j0: 1.5,
+        jq0: 1.6,
+        /** Her lower unit's gears (engine to propeller), matched by sea trial so she reaches her rated revs flat out. */
+        gearRatio: 2.0,
+        massKg: 210,
+        alternatorAmps: 35,
+        starterAmps: 80,
+        tankL: 150,
+        look: { cowlWidth: 0.42, cowlHeight: 0.6, cowlLength: 0.65, legWidth: 0.2, shaftLength: 0.64, gearDrop: 0.2, pivotAft: 0.12, propAft: 0.6 },
+      },
+    },
+
+    /**
+     * Things to tow (towing missions, tow/tow.ts): no engine, no controls, the same boat
+     * physics as everything else, floated on fewer stations than they're drawn with
+     * (`hull.physicsStations`, owner: nobody watches a tow that closely; each station samples
+     * the sea three times a tick, so 15-18 samples instead of 33). Masses are what their hulls displace at the DWL and the
+     * CG is over the LCB, so they float level (tests/tow.test.ts checks). Angular damping
+     * is scaled from the workboat's and the skiff's by mass x size^2.
+     * `tow.look` picks the model drawn over the hull (tow/towLook.ts).
+     */
+    derelict: {
+      tow: { look: 'derelict' as const, name: 'a motor cruiser with engine failure', size: 'small' as const },
+      hull: { length: 7, beamDeck: 2.5, beamChine: 2.1, keelY: -0.45, chineYAft: -0.15, chineYBow: 0.15, deckYAft: 0.7, deckYBow: 1.0, stations: 11, physicsStations: 6, deckParallel: 0.5 },
+      mass: DERELICT_MASS,
+      cg: [0, 0.25, DERELICT_LCB] as [number, number, number],
+      gyradius: { roll: 0.9, pitch: 1.8, yaw: 1.9 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 2000, pitch: 2500, yaw: 2500 },
+      resistance: { lwl: 6.5, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.2 },
+      layout: { bulwarkHeight: 0.25, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 9, front: 4, center: [0, 1.1, 0] as [number, number, number] },
+      boardingSpot: [0, 0.75, 2] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    logRaft: {
+      tow: { look: 'logs' as const, name: 'a raft of logs broken loose from a timber tow', size: 'medium' as const },
+      hull: { length: 8, beamDeck: 3.0, beamChine: 2.9, keelY: -0.45, chineYAft: -0.3, chineYBow: -0.15, deckYAft: 0.2, deckYBow: 0.3, stations: 11, physicsStations: 5, deckParallel: 0.85 },
+      mass: LOGRAFT_MASS,
+      cg: [0, -0.1, LOGRAFT_LCB] as [number, number, number],
+      gyradius: { roll: 1.0, pitch: 2.2, yaw: 2.3 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 7000, pitch: 7000, yaw: 7000 },
+      resistance: { lwl: 7.8, formFactor: 0.8, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
+      layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 2, front: 1.2, center: [0, 0.3, 0] as [number, number, number] },
+      boardingSpot: [0, 0.3, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    /**
+     * A fish-farm cage section torn from its moorings (the regions' jobs): a ring of floats
+     * with its net hanging under it. Floats as the log raft does (the same hull numbers, so
+     * the same mass and trim); drawn as the ring (tow/towLook.ts 'cage').
+     */
+    cage: {
+      tow: { look: 'cage' as const, name: 'a fish-farm cage section torn from its moorings', size: 'medium' as const },
+      hull: { length: 8, beamDeck: 3.0, beamChine: 2.9, keelY: -0.45, chineYAft: -0.3, chineYBow: -0.15, deckYAft: 0.2, deckYBow: 0.3, stations: 11, physicsStations: 5, deckParallel: 0.85 },
+      mass: LOGRAFT_MASS,
+      cg: [0, -0.1, LOGRAFT_LCB] as [number, number, number],
+      gyradius: { roll: 1.0, pitch: 2.2, yaw: 2.3 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 7000, pitch: 7000, yaw: 7000 },
+      // The net under it drags: a form factor well above the raft's.
+      resistance: { lwl: 7.8, formFactor: 1.6, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
+      layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 1.5, front: 1.5, center: [0, 0.4, 0] as [number, number, number] },
+      boardingSpot: [0, 0.3, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    barge: {
+      tow: { look: 'barge' as const, name: 'a work barge adrift from her moorings', size: 'medium' as const },
+      hull: { length: 9, beamDeck: 3.6, beamChine: 3.4, keelY: -0.55, chineYAft: -0.45, chineYBow: -0.15, deckYAft: 0.5, deckYBow: 0.6, stations: 11, physicsStations: 5, deckParallel: 0.85 },
+      mass: BARGE_MASS,
+      cg: [0, 0.1, BARGE_LCB] as [number, number, number],
+      gyradius: { roll: 1.2, pitch: 2.5, yaw: 2.6 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 10000, pitch: 10000, yaw: 10000 },
+      resistance: { lwl: 8.7, formFactor: 0.6, waveA: 3, waveB: 2.5, waveKnee: 0.22, waveCap: 0.25, asternFactor: 1.5, y: -0.25 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 5, front: 3, center: [0, 0.8, 0] as [number, number, number] },
+      boardingSpot: [0, 0.55, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    /**
+     * More things to tow, small to large (owner: to test the Shipyard's more powerful boats).
+     * As the three above: masses are what the physics stations displace at the DWL, the CG
+     * over the LCB; angular damping scaled from the workboat's by mass x size^2 (roll by
+     * the beam, pitch and yaw by the length). The large ones pass you their own heavy hawser
+     * (`tow.lineFactor`: the line parts at that many times CONFIG.tow.breakForce).
+     */
+    dory: {
+      tow: { look: 'dory' as const, name: 'an open fishing boat with a fouled propeller', size: 'small' as const },
+      hull: { length: 5.5, beamDeck: 2.0, beamChine: 1.7, keelY: -0.35, chineYAft: -0.1, chineYBow: 0.15, deckYAft: 0.5, deckYBow: 0.75, stations: 9, physicsStations: 4, deckParallel: 0.45 },
+      mass: DORY_MASS,
+      cg: [0, 0.1, DORY_LCB] as [number, number, number],
+      gyradius: { roll: 0.7, pitch: 1.4, yaw: 1.45 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 950, pitch: 600, yaw: 300 },
+      resistance: { lwl: 5.2, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.15 },
+      layout: { bulwarkHeight: 0.15, railHeight: 0, deckEdgeMargin: 0.12, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 3, front: 1.5, center: [0, 0.5, 0] as [number, number, number] },
+      boardingSpot: [0, 0.45, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    yacht: {
+      tow: { look: 'yacht' as const, name: 'a sailing yacht, dismasted', size: 'medium' as const },
+      hull: { length: 11, beamDeck: 3.5, beamChine: 2.6, keelY: -1.1, chineYAft: -0.1, chineYBow: 0.25, deckYAft: 0.8, deckYBow: 1.2, stations: 11, physicsStations: 5, deckParallel: 0.4 },
+      mass: YACHT_MASS,
+      // Low: her ballast keel.
+      cg: [0, -0.3, YACHT_LCB] as [number, number, number],
+      gyradius: { roll: 1.25, pitch: 2.75, yaw: 2.85 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 24000, pitch: 20000, yaw: 10000 },
+      resistance: { lwl: 10.2, formFactor: 0.15, waveA: 1.0, waveB: 0.9, waveKnee: 0.3, waveCap: 0.12, asternFactor: 2.5, y: -0.4 },
+      layout: { bulwarkHeight: 0.06, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 12, front: 5, center: [0, 1.2, 0] as [number, number, number] },
+      boardingSpot: [0, 0.9, 2.5] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    trawler: {
+      tow: { look: 'trawler' as const, name: 'a fishing trawler with her nets round her propeller', size: 'large' as const, lineFactor: 2 },
+      hull: { length: 18, beamDeck: 6.0, beamChine: 5.0, keelY: -1.8, chineYAft: -0.6, chineYBow: 0.4, deckYAft: 1.3, deckYBow: 2.2, stations: 13, physicsStations: 6, deckParallel: 0.55 },
+      mass: TRAWLER_MASS,
+      cg: [0, 0.3, TRAWLER_LCB] as [number, number, number],
+      gyradius: { roll: 2.2, pitch: 4.5, yaw: 4.7 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 460000, pitch: 345000, yaw: 172000 },
+      // Her nets round the propeller and the locked shaft drag (the form factor, ~3x a clean hull's).
+      resistance: { lwl: 17, formFactor: 1.0, waveA: 1.2, waveB: 1.0, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.8 },
+      layout: { bulwarkHeight: 0.8, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 55, front: 25, center: [0, 3, 0] as [number, number, number] },
+      boardingSpot: [0, 1.4, 6] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    pontoon: {
+      tow: { look: 'pontoon' as const, name: 'a crane pontoon broken from her tug', size: 'large' as const, lineFactor: 2 },
+      hull: { length: 20, beamDeck: 8.0, beamChine: 7.9, keelY: -1.2, chineYAft: -1.1, chineYBow: -0.6, deckYAft: 0.9, deckYBow: 1.0, stations: 9, physicsStations: 5, deckParallel: 0.85 },
+      mass: PONTOON_MASS,
+      cg: [0, -0.2, PONTOON_LCB] as [number, number, number],
+      gyradius: { roll: 2.8, pitch: 5.0, yaw: 5.4 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 1430000, pitch: 750000, yaw: 375000 },
+      // Bluff, square-ended: a big form factor and an early wave rise.
+      resistance: { lwl: 19.5, formFactor: 2.5, waveA: 4, waveB: 3.5, waveKnee: 0.15, waveCap: 0.3, asternFactor: 1.5, y: -0.5 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 45, front: 20, center: [0, 2.5, 0] as [number, number, number] },
+      boardingSpot: [0, 1.0, 4] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    /**
+     * A tug's tow (owner, Oct 2026): a loaded coaster, 58 m and 1,400 t, her engine dead. Only
+     * offered to a tug (tow/tow.ts isTugClass); she passes her own heavy hawser (lineFactor
+     * 3). Her mass is what the workboat can't shift in any useful time: a tug's pull is.
+     */
+    coaster: {
+      tow: { look: 'coaster' as const, name: 'a loaded coaster with her engine dead', size: 'ship' as const, lineFactor: 3, needs: 'tug' as const },
+      hull: { length: 58, beamDeck: 10.5, beamChine: 9.8, keelY: -3.4, chineYAft: -2.2, chineYBow: -0.4, deckYAft: 3.2, deckYBow: 4.6, stations: 15, physicsStations: 7, deckParallel: 0.6 },
+      mass: COASTER_MASS,
+      cg: [0, 0.4, COASTER_LCB] as [number, number, number],
+      gyradius: { roll: 3.8, pitch: 14.5, yaw: 15 },
+      addedMass: { surge: 0.05, sway: 0.5, heave: 0.8, roll: 0.3, pitch: 0.7, yaw: 0.4 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 30000000, pitch: 60000000, yaw: 30000000 },
+      // A full, slow hull with a locked propeller: a big form factor, waves from low speed.
+      resistance: { lwl: 56, formFactor: 0.6, waveA: 1.2, waveB: 1.0, waveKnee: 0.22, waveCap: 0.15, asternFactor: 2.0, y: -1.6 },
+      layout: { bulwarkHeight: 1.0, railHeight: 0, deckEdgeMargin: 0.3, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 220, front: 60, center: [0, 5, 0] as [number, number, number] },
+      boardingSpot: [0, 3.4, 15] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+  },
+
+  /**
+   * A catamaran's handling (owner, Oct 2026: the fast work cat; vessel/catamaran.ts), what two
+   * slim hulls do that one beamy one doesn't. Read by `catamaranHandling`, which a boat built
+   * on a catamaran hull takes her handling numbers from.
+   *   resistance  calm-water resistance (vessel/physics/propulsion.ts: ITTC-57 friction with a
+   *               form factor, plus a wave-making term in Fn that levels off at `waveCap` of her
+   *               weight). Slim demihulls (waterline length/beam about 8) make a smaller hump
+   *               than a beamy planing monohull, and it comes a little later (`waveKnee`); the
+   *               form factor carries the two hulls' interference on top of each one's own.
+   *               Tuned so a light 12.5 m work cat (9 t) needs about 40 kW a tonne at the
+   *               propeller shaft for 25-28 kn, as real ones on twin 250-300 kW do (the
+   *               landing craft's trial gives the game's propulsive efficiency, about 0.55).
+   *   heaveAddedMass  each demihull's added mass in heave, as a fraction of its share of her
+   *               displacement (slim hulls at roll frequencies: about 0.8). Rolling, the hulls
+   *               heave in opposite directions, so it adds roll inertia of this x her mass x
+   *               (spacing/2)^2: her roll slows from a stiff, snappy rigid-body period toward
+   *               a real cat's (about 2 s at 12 m).
+   *   rollGyradius  her rigid-body roll radius of gyration, as a fraction of her overall beam.
+   */
+  /**
+   * A displacement hull's calm-water resistance (owner, Oct 2026: "respect the displacement
+   * speed where possible"; vessel/physics/propulsion.ts, the same terms as above). A heavy,
+   * full hull (a tug, a trawler) can't climb onto the plane: past her hull speed (Fn about 0.4)
+   * the wave she makes holds her back ever harder, a wall more power barely moves her through.
+   * So no cap that levels it off (`waveCap` far above anything reached, unlike a planing hull's
+   * 0.115 of her weight) and a steep rise past `waveKnee`: about 0.1 of her weight at Fn 0.45,
+   * 0.2 at 0.5, 0.5 at 0.6. A small tug's top speed stays near 10 kn whatever she's given.
+   */
+  displacementHull: {
+    resistance: { formFactor: 0.25, waveA: 1.0, waveB: 6, waveKnee: 0.35, waveCap: 2.0, asternFactor: 3.6 },
+  },
+
+  catamaran: {
+    resistance: { formFactor: 0.25, waveA: 0.65, waveB: 0.55, waveKnee: 0.35, waveCap: 0.09, asternFactor: 3.0 },
+    heaveAddedMass: 0.8,
+    rollGyradius: 0.37,
+  },
+};

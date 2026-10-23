@@ -69,9 +69,11 @@ function samples(def: VesselDef): Vec3[] {
   if (!s) {
     s = [];
     for (const st of def.hull.stations) {
-      const [xd, yd] = st.polygon[4];
-      const [xc, yc] = st.polygon[3];
-      s.push([xd, yd, st.z], [-xd, yd, st.z], [xc, yc, st.z], [-xc, yc, st.z]);
+      // Her outer deck edges and chines (the first two and last two points: a catamaran's
+      // polygon has her tunnel between them).
+      const p = st.polygon;
+      const n = p.length;
+      s.push([p[n - 1][0], p[n - 1][1], st.z], [p[0][0], p[0][1], st.z], [p[n - 2][0], p[n - 2][1], st.z], [p[1][0], p[1][1], st.z]);
     }
     samplesCache.set(def, s);
   }

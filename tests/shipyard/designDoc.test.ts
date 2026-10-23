@@ -4,7 +4,7 @@
  * and says so; a field a document lacks is the starting design's.
  */
 import { describe, expect, it } from 'vitest';
-import { ALL_FIELDS, DEFAULT_DESIGN, decodeDesign, encodeDesign, type ShipDesign, fromSteps, toSteps } from '../../src/shipyard/design';
+import { ALL_FIELDS, CONSOLE_FIELDS, DEFAULT_DESIGN, FURNITURE_FIELDS, CODE_ENGINES, CODE_HULLS, decodeDesign, encodeDesign, type ShipDesign, fromSteps, toSteps } from '../../src/shipyard/design';
 import {
   DOC_FIELDS,
   designDoc,
@@ -35,17 +35,19 @@ function designs(): ShipDesign[] {
   });
 }
 /** The choices her short code holds: all but the helm assist panel, the cockpit overhead, the walked deckhouse top, the cabin below, extra sheer and a raised foredeck (a design with one travels as a document). */
-const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', 'foreCabin', 'sheer', 'fcLength', 'fcHeight', 'berthAt', 'setteeAt', 'galleyAt', 'seatAt', 'lockerAt', 'headAt'];
+const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', 'foreCabin', 'fishHold', 'rescueBoat', 'netDrum', 'trawlWinches', 'sheer', 'fcLength', 'fcHeight', 'oldSchool', 'touch', 'consoleLen', 'houseX', ...FURNITURE_FIELDS.map((f) => f.key), ...CONSOLE_FIELDS.map((f) => f.key)];
 const CODE_FIELDS = ALL_FIELDS.filter((f) => !NOT_IN_CODE.includes(f.key));
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];
-  for (const f of CODE_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: f.steps - 1 }) });
+  // (The hull and engine fields' steps include the types beyond the code: the stern trawler and the 750 kW diesel travel as a document.)
+  const top = (f: (typeof CODE_FIELDS)[number]) => (f.key === 'hull' ? CODE_HULLS : f.key === 'engine' ? CODE_ENGINES : f.steps);
+  for (const f of CODE_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: top(f) - 1 }) });
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 40; i++) {
     // (In the code's steps, then the wheelhouse's measurements as values.)
     const d = { ...toSteps(DEFAULT_DESIGN)! };
-    for (const f of CODE_FIELDS) if (rnd() < 0.4) d[f.key] = Math.floor(rnd() * Math.min(f.steps, 40));
+    for (const f of CODE_FIELDS) if (rnd() < 0.4) d[f.key] = Math.floor(rnd() * Math.min(top(f), 40));
     out.push(fromSteps(d));
   }
   return out;

@@ -15,20 +15,19 @@
  *   the anchor      at the bow roller (a kedge at the stern on a ramp-bow boat), wherever
  *                   the pin is (every boat should have one: it's fitted unless taken off);
  *   the skiff       on the foredeck or the aft deck, whichever the pin's on, the crane's
- *                   column on the side the pin's on; the builder finds where it fits;
- *   inside          furniture (P5): on the floor the pin's over (the wheelhouse's, the
- *                   saloon's, the cabin below's), against its nearest wall; the builder
- *                   finds where it fits (shipyard/parts/furniture.ts).
+ *                   column on the side the pin's on; the builder finds where it fits.
+ *
+ * Furniture has a step of its own, several of a piece (furnishing.ts).
  *
  * Pure: the page gives the pin's point, her wheelhouse and her transom.
  */
-import { furnitureCell, placeValue, type PlaceKey, type ShipDesign } from './design';
+import { placeValue, type PlaceKey, type ShipDesign } from './design';
 
 export interface Equipment {
   id: string;
   name: string;
   /** How a pin places it (see above). */
-  how: 'grid' | 'transom' | 'side' | 'wall' | 'anchor' | 'skiff' | 'rack' | 'inside';
+  how: 'grid' | 'transom' | 'side' | 'wall' | 'anchor' | 'skiff' | 'rack';
   /** The design choice that fits it, and (on the grid) where it's placed by hand. */
   field: keyof ShipDesign;
   key?: PlaceKey;
@@ -46,18 +45,13 @@ export const EQUIPMENT: Equipment[] = [
   { id: 'towWinch', name: 'Tow winch', how: 'grid', field: 'towWinch', key: 'winchAt', turns: true },
   { id: 'sternRoller', name: 'Stern roller (tow point)', how: 'transom', field: 'sternRoller' },
   { id: 'aFrame', name: 'Trawl A-frame and net', how: 'transom', field: 'aFrame' },
+  { id: 'netDrum', name: 'Net drum (with the A-frame)', how: 'transom', field: 'netDrum' },
+  { id: 'trawlWinches', name: 'Trawl winches (with the A-frame)', how: 'transom', field: 'trawlWinches' },
   { id: 'rodRack', name: 'Fishing rods and bucket', how: 'rack', field: 'rodRack' },
   { id: 'lifeRing', name: 'Life ring and boat hook', how: 'side', field: 'lifeRing' },
   { id: 'sideDoor', name: 'Side door (port wall)', how: 'wall', field: 'sideDoor' },
   { id: 'anchor', name: 'Anchor and windlass', how: 'anchor', field: 'noAnchor', off: 1 },
   { id: 'skiff', name: 'Skiff and crane', how: 'skiff', field: 'skiff' },
-  // Furniture (P5): its pin's field is its place (0: none).
-  { id: 'berth', name: 'Berth', how: 'inside', field: 'berthAt' },
-  { id: 'settee', name: 'Settee', how: 'inside', field: 'setteeAt' },
-  { id: 'galley', name: 'Galley', how: 'inside', field: 'galleyAt' },
-  { id: 'seat', name: 'Seat', how: 'inside', field: 'seatAt' },
-  { id: 'locker', name: 'Locker', how: 'inside', field: 'lockerAt' },
-  { id: 'head', name: 'Head (toilet) with a door', how: 'inside', field: 'headAt' },
 ];
 
 /** Does she carry it? */
@@ -79,6 +73,8 @@ export interface HouseBox {
   front: number;
   aft: number;
   halfWidth: number;
+  /** Its middle across her (m, + starboard: an offset wheelhouse's; unset, her centreline). */
+  x?: number;
 }
 
 /**
@@ -91,14 +87,13 @@ export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox |
   const [x, , z] = p;
   const mid = house ? (house.front + house.aft) / 2 : 0;
   const fore = z < mid;
-  const roof = !!house && Math.abs(x) < house.halfWidth && z > house.front && z < house.aft;
+  const roof = !!house && Math.abs(x - (house.x ?? 0)) < house.halfWidth && z > house.front && z < house.aft;
   if (eq.how === 'grid' && eq.key) {
     const base = eq.field === 'deckCrane' ? (fore ? 1 : 2) : eq.field === 'towWinch' ? 1 : roof ? 1 : fore ? 2 : 3;
     const face = eq.field === 'deckCrane' && !fore ? 2 : 0;
     const words = roof ? 'on the wheelhouse roof' : house && z < house.front ? 'on the foredeck' : house && z > house.aft ? 'on the aft deck' : 'beside the wheelhouse';
     return { patch: { [eq.field]: base, [eq.key]: placeValue(eq.key, x, transom - z, face) } as Partial<ShipDesign>, words };
   }
-  if (eq.how === 'inside') return { patch: { [eq.field]: furnitureCell(x, transom - z) } as Partial<ShipDesign>, words: roofOrInside(house, x, z) };
   if (eq.how === 'side') return { patch: { [eq.field]: x < 0 ? 1 : 2 } as Partial<ShipDesign>, words: `on the ${x < 0 ? 'port' : 'starboard'} side of the wheelhouse's aft wall, its line on that quarter's cleat` };
   if (eq.how === 'anchor') return { patch: { noAnchor: 0 }, words: 'at her bow roller (a kedge at the stern on a ramp-bow boat)' };
   if (eq.how === 'skiff') {
@@ -120,10 +115,4 @@ export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox |
 /** The design change that takes a piece of equipment off again. */
 export function removeGear(eq: Equipment): Partial<ShipDesign> {
   return { [eq.field]: eq.off ?? 0, ...(eq.key ? { [eq.key]: 0 } : {}) } as Partial<ShipDesign>;
-}
-
-/** Where a furniture pin is, in words: in the wheelhouse, or forward of it (over the cabin below). */
-function roofOrInside(house: HouseBox | undefined, x: number, z: number): string {
-  if (house && Math.abs(x) < house.halfWidth && z > house.front && z < house.aft) return 'in the wheelhouse, against its nearest wall';
-  return 'below, against the nearest wall of the cabin';
 }

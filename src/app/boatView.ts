@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { panelLit } from '../controls/panelLighting';
 import { Cleat } from '../controls/deckGear';
-import { hasWheelhouse, houseFloorAt, type VesselDef } from '../vessel/vesselDef';
+import { hasWheelhouse, houseFloorAt, houseX, type VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import type { EnvironmentState } from '../environment/environmentState';
 import type { Control } from '../controls/Control';
@@ -72,7 +72,7 @@ export class BoatView {
     readonly vesselId: string,
     private readonly def: VesselDef,
     private readonly modules: AssembledView,
-    private readonly home: boolean,
+    private home: boolean,
   ) {
     this.root.name = home ? 'bridge' : `boat:${vesselId}`;
     for (const m of modules.modules) this.root.add(m.root);
@@ -91,14 +91,14 @@ export class BoatView {
     const wh = layout.wheelhouse;
     if (wh) {
       this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight, 'door', !!wh.doorHinged);
-      this.door.root.position.set(0, houseFloorAt(wh, wh.aft), wh.aft + 0.03);
+      this.door.root.position.set(houseX(wh), houseFloorAt(wh, wh.aft), wh.aft + 0.03);
       this.root.add(this.door.root);
       // The port side door, between the console and the chart table: slides aft outside the
       // wall.
       const sd = wh.sideDoor;
       if (sd) {
         const door = new WheelhouseDoor(sd.z1 - sd.z0, sd.height, 'sideDoor');
-        door.root.position.set(-wh.halfWidth - 0.025, wh.floorY, (sd.z0 + sd.z1) / 2);
+        door.root.position.set(houseX(wh) - wh.halfWidth - 0.025, wh.floorY, (sd.z0 + sd.z1) / 2);
         door.root.rotation.y = Math.PI / 2; // its slide (local -x) runs aft
         this.root.add(door.root);
         this.sideDoor = door;
@@ -128,15 +128,45 @@ export class BoatView {
     }
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
     if (!home) for (const c of this.controls) c.route = vesselId;
-
     // Her modules' fixed parts in one mesh, their labels in another, the screens, the
     // shared bats and caps.
     this.dashAnchor = this.root.getObjectByName('dashAnchor') ?? null;
     const fixed = bakeFixedParts(this.root, modules.staticParts);
     if (fixed) this.root.add(fixed);
-    if (modules.labels.length) this.root.add(buildLabels(modules.labels));
-    if (modules.screens) this.root.add(modules.screens);
+    if (modules.labels.length) this.root.add((this.labels = buildLabels(modules.labels)));
+    if (modules.screens) this.root.add((this.screens = modules.screens));
     for (const m of modules.shared) this.root.add(m);
+    this.shared = modules.shared;
+  }
+
+  private labels: THREE.Object3D | null = null;
+  private screens: THREE.Object3D | null = null;
+  private shared: readonly THREE.Object3D[] = [];
+  private far = false;
+
+  /**
+   * Far from the viewer (multi-boat M4, beyond CONFIG.lod.far): her controls, labels, screens
+   * and the shared bats and caps aren't drawn (each is a draw call, none of them visible at
+   * that range); her hull, house, baked fixed parts and lights still are.
+   */
+  setFar(far: boolean): void {
+    if (far === this.far) return;
+    this.far = far;
+    for (const c of this.controls) c.root.visible = !far;
+    if (this.labels) this.labels.visible = !far;
+    if (this.screens) this.screens.visible = !far;
+    for (const m of this.shared) m.visible = !far;
+  }
+
+  /**
+   * Make her the home boat, or not (multi-boat M2: your boat is the one you're aboard): her
+   * controls send plain channels as the home boat's, routed to her as any other boat's.
+   */
+  setHome(home: boolean): void {
+    if (home === this.home) return;
+    this.home = home;
+    this.root.name = home ? 'bridge' : `boat:${this.vesselId}`;
+    for (const c of this.controls) c.route = home ? null : this.vesselId;
   }
 
   /** A control the app makes for her: it rides and routes with her. */
@@ -247,8 +277,9 @@ function buildLabels(labels: Label[]): THREE.Mesh {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  const planes = labels.map(({ at: pos, yaw, size = LABEL_SIZE, offset = LABEL_OFFSET, underside }, i) => {
-    const [w, h] = size;
+  const planes = labels.map(({ at: pos, yaw, size = LABEL_SIZE, offset = LABEL_OFFSET, underside, face, title }, i) => {
+    // (A switch's name on the dash face: smaller, to fit under it in its strip.)
+    const [w, h] = face !== undefined && !title ? [Math.min(size[0], 0.1), Math.min(size[1], 0.014)] : size;
     const plane = new THREE.PlaneGeometry(w, h);
     // The middle `across` of its slot: as wide (in pixels) as the label is for its height.
     const across = Math.min(1, ((w / h) * SLOT_H) / SLOT_W);
@@ -257,7 +288,14 @@ function buildLabels(labels: Label[]): THREE.Mesh {
       const v0 = 1 - (i + 1) / labels.length;
       uv.setXY(k, 0.5 - across / 2 + uv.getX(k) * across, v0 + uv.getY(k) / labels.length);
     }
-    if (underside) {
+    if (face !== undefined) {
+      // Standing on a leaning face (switches on the dash face, CS6): in the face, below what
+      // it names (no further than its strip allows), just proud of it.
+      const down = Math.min(offset, 0.038);
+      plane.rotateX(-face).rotateY(yaw);
+      const off = new THREE.Vector3(0, -Math.cos(face) * down + Math.sin(face) * 0.002, Math.sin(face) * down + Math.cos(face) * 0.002).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      plane.translate(pos[0] + off.x, pos[1] + off.y, pos[2] + off.z);
+    } else if (underside) {
       // Under a panel (the overhead's), read from below.
       plane.rotateX(Math.PI / 2).rotateY(yaw);
       plane.translate(pos[0] + Math.sin(yaw) * offset, pos[1] - 0.002, pos[2] + Math.cos(yaw) * offset);

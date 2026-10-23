@@ -9,6 +9,7 @@ import { deckhouseHalfWidth } from '../../vessel/deckhouse';
 import { PLACE_GRID, placeOf, type PlaceKey } from '../design';
 import type { Socket } from '../../modular/socket';
 import type { BuildArgs, V3 } from './common';
+import { TUG_HULL } from './catalog';
 import type { DesignedBoat } from '../build';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
@@ -19,7 +20,7 @@ import type { PlacesPart } from './places';
 /** Her deck gear, each piece where it stands, clear of what's already placed: the winch, the A-frame, the deck crane, the skiff and its crane, the searchlight and fire monitor, the fender basket, the anchor. */
 export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart) {
   const { d } = a;
-  const { aft, at, bowCleat, bowRamp, cg, cleat, deckMid, deckhouse, foreEndAt, front, gyradius, hw, mass, midCleat, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, sternCleat, transom, warnings, wl } = p;
+  const { aft, at, bowCleat, bowRamp, cg, cleat, deckMid, deckhouse, foreEndAt, foredeck, front, gyradius, hw, hx, layout, mass, midCleat, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, sternCleat, transom, warnings, wl } = p;
   // ── Hull definition ──
   const weighed = { massKg: mass, cg, inertia: inertiaFromGyradius(mass, gyradius) };
   const freeboard = deckMid;
@@ -44,18 +45,34 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1;
   const r2 = (v: number) => Math.round(v * 100) / 100;
   const bowClear = stem + (bowRamp ? 1.8 : 1.0);
+  // A raised foredeck (house.ts raisedForedeck): each piece stands wholly on one deck or the
+  // other (its plan shape's margin reaching at most `gearReach` past the break), and off the
+  // ladders up to it (taken below). `raisedAhead`: its break lies forward of the house, a lower
+  // deck between them.
+  const fdc = CONFIG.shipyard.foredeck;
+  const breakZ = foredeck?.z ?? null;
+  const onRaised = (r: { z1: number }) => breakZ !== null && r.z1 <= breakZ + fdc.gearReach;
+  const oneLevel = (r: { z0: number; z1: number }) => breakZ === null || onRaised(r) || r.z0 >= breakZ - fdc.gearReach;
+  const raisedAhead = breakZ !== null && breakZ < foreEndAt;
 
   // 1. The stern gear.
   const sternRoller = !!d.sternRoller;
   if (sternRoller) taken.push({ x0: -0.3, x1: 0.3, z0: transom - 0.3, z1: transom }); // the roller in the transom bulwark
-  const wantWinch = !!(d.towWinch || d.aFrame);
+  for (const t of layout.deckSteps ?? []) taken.push({ x0: t.x0 - 0.1, x1: t.x1 + 0.1, z0: t.z0 - 0.1, z1: t.z1 + 0.1 }); // the ladders up to a raised foredeck
+  // (The A-frame's warps lead off the tow winch, unless she has trawl winches of her own.)
+  const wantWinch = !!(d.towWinch || (d.aFrame && !d.trawlWinches));
   const aFrameFeet: Rect[] = [];
   if (d.aFrame) {
     const fz = transom - afc.footFromTransom;
     const fx = q.halfBeam(fz) - afc.footInset;
     for (const sd of [-1, 1]) aFrameFeet.push({ x0: sd * fx - 0.2, x1: sd * fx + 0.2, z0: fz - 0.25, z1: fz + 0.25 });
+    // Its rams' feet forward of them, and its control box's post inboard of the starboard foot.
+    const rz = fz - afc.braceForward;
+    for (const sd of [-1, 1]) aFrameFeet.push({ x0: sd * fx - 0.15, x1: sd * fx + 0.15, z0: rz - 0.15, z1: rz + 0.15 });
+    aFrameFeet.push({ x0: fx - afc.box.inboard - 0.25, x1: fx - afc.box.inboard + 0.25, z0: fz - afc.box.forward - 0.4, z1: fz - afc.box.forward + 0.2 });
     taken.push(...aFrameFeet);
   }
+  if ((d.netDrum || d.trawlWinches) && !d.aFrame) warnings.push(`The ${d.netDrum && d.trawlWinches ? 'net drum and trawl winches need' : d.netDrum ? 'net drum needs' : 'trawl winches need'} the trawl A-frame: left off.`);
 
   // Plan shapes, in a piece's own axes (x to its starboard, z aft), turned by its facing
   // (quarter turns, as the socket's yaw: -90 deg each) and set at (x, z).
@@ -79,36 +96,93 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const poleShape: Rect[] = [{ x0: -dp.box.width / 2 - 0.05, x1: dp.box.width / 2 + 0.05, z0: -0.12, z1: dp.box.depth + 0.45 }];
   // The house in plan with a margin, and its door's steps aft.
   const dhW = deckhouse ? Math.max(...deckhouse.plan.map(([, w]) => w)) : 0;
-  const houseRect: Rect = { x0: -Math.max(hw, dhW) - 0.3, x1: Math.max(hw, dhW) + 0.3, z0: foreEndAt - 0.3, z1: aft + 0.7 };
+  // (Across from its middle: a wheelhouse offset across her stands at `hx`; a deckhouse keeps it on her centreline.)
+  const houseRect: Rect = { x0: hx - Math.max(hw, dhW) - 0.3, x1: hx + Math.max(hw, dhW) + 0.3, z0: foreEndAt - 0.3, z1: aft + 0.7 };
   /** The forward end of what stands on her deck amidships: the deckhouse's front, or the wheelhouse's. */
   const foreEnd = foreEndAt;
-  const onDeck = (r: Rect) => r.z0 > bowClear && r.z1 < transom - 0.15 && [r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15);
-  const standsOnDeck = (rects: Rect[]) => rects.every((r) => onDeck(r) && !overlaps(r, houseRect) && !taken.some((o) => overlaps(o, r)));
+  /**
+   * Why a piece's plan won't stand on her deck there, in a few words (the Shipyard says it as you
+   * move the piece over her: owner, Oct 2026, placing made easy); null if it stands.
+   */
+  const whyNotOnDeck = (rects: Rect[]): string | null => {
+    for (const r of rects) {
+      if (!oneLevel(r)) return 'across the break of her raised foredeck';
+      if (r.z0 <= bowClear) return 'too near her bow';
+      if (r.z1 >= transom - 0.15) return 'too near her transom';
+      if (![r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15)) return 'over her side';
+      if (overlaps(r, houseRect)) return 'against the wheelhouse';
+      if (taken.some((o) => overlaps(o, r))) return 'on her other gear or a ladder';
+    }
+    return null;
+  };
+  const standsOnDeck = (rects: Rect[]) => whyNotOnDeck(rects) === null;
+
+  // 1b. The trawl deck gear (owner, Oct 2026: step 2 toward a trawler), with the A-frame: the
+  // trawl winches at the deck edges forward of its rams' feet, then the net drum on the
+  // centreline forward of them; each moved forward in 10 cm steps until it stands clear.
+  const tdg = dg.trawlWinches;
+  const twm = CONFIG.modules.trawlWinches;
+  const ndm = CONFIG.modules.netDrum;
+  const ramZ = transom - afc.footFromTransom - afc.braceForward;
+  let trawlWinchesAt: { x: number; z: number; deck: number } | null = null;
+  if (d.aFrame && d.trawlWinches) {
+    // (Its motor stands outboard of its base: the drum's half width, the cheek and the motor.)
+    const outboard = twm.drumWidth / 2 + 0.21;
+    for (let z = ramZ - 0.15 - tdg.gap - twm.base.length / 2; z > ramZ - tdg.search; z -= 0.1) {
+      const x = q.halfBeam(z) - tdg.edge - outboard - 0.15;
+      const rects = [-1, 1].map((sd): Rect => ({ x0: sd * x - Math.max(twm.base.width / 2, sd < 0 ? outboard : 0), x1: sd * x + Math.max(twm.base.width / 2, sd > 0 ? outboard : 0), z0: z - twm.base.length / 2 - 0.05, z1: z + twm.base.length / 2 + 0.05 }));
+      if (x > 0.5 && standsOnDeck(rects)) {
+        trawlWinchesAt = { x: r2(x), z: r2(z), deck: q.deckY(z) };
+        taken.push(...rects);
+        break;
+      }
+    }
+    if (!trawlWinchesAt) warnings.push('There\'s no room at her deck edges forward of the A-frame for the trawl winches: left off (the warps lead off the tow winch).');
+  }
+  let netDrumAt: V3 | null = null;
+  if (d.aFrame && d.netDrum) {
+    const half = ndm.length / 2 + ndm.stand + 0.3;
+    for (let z = ramZ - 0.15 - dg.netDrum.gap - ndm.flange; z > ramZ - dg.netDrum.search; z -= 0.1) {
+      const rect: Rect = { x0: -half, x1: half, z0: z - ndm.flange - 0.05, z1: z + ndm.flange + 0.05 };
+      if (standsOnDeck([rect])) {
+        netDrumAt = [0, q.deckY(z), r2(z)];
+        taken.push(rect);
+        break;
+      }
+    }
+    if (!netDrumAt) warnings.push('There\'s no room on her aft deck forward of the A-frame for the net drum: left off.');
+  }
   // The roof: its edges, the masthead light's pole and the horn, and what's already on it.
   const roofTaken: [number, number, number][] = [
-    [0, roofFront + 0.475, 0.45],
-    [0, roofFront + 0.775, 0.3],
+    [hx, roofFront + 0.475, 0.45],
+    [hx, roofFront + 0.775, 0.3],
     // The deck floods (advanced controls).
     ...(d.controls ? ([at.floodFore, at.floodAft].map(([x, , z]) => [x, z, wl.flood.keepClear]) as [number, number, number][]) : []),
   ];
-  const onRoof = (x: number, z: number) => Math.abs(x) < hw && z > front && z < aft;
+  const onRoof = (x: number, z: number) => Math.abs(x - hx) < hw && z > front && z < aft;
   // (Not on the step down to a lower saloon roof.)
-  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 + sb(Math.abs(x) + 0.2) && z <= aft - 0.2 && (!saloonRoof || Math.abs(z - saloonRoof.z) >= 0.3) && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
-  /** The pinned cell, or the nearest within a metre where `stands` (x, z: boat axes); null if none. */
-  const seat = (key: PlaceKey, stands: (x: number, z: number, face: number) => boolean): { x: number; z: number; face: number; moved: boolean } | null => {
+  const standsOnRoof = (x: number, z: number) => Math.abs(x - hx) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 + sb(Math.abs(x - hx) + 0.2) && z <= aft - 0.2 && (!saloonRoof || Math.abs(z - saloonRoof.z) >= 0.3) && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
+  /** The pinned cell, or the nearest within a metre where `stands` (x, z: boat axes); null if none, and why not the pinned cell (`placeWhy`). */
+  const seat = (key: PlaceKey, stands: (x: number, z: number, face: number) => boolean, why?: (x: number, z: number, face: number) => string | null): { x: number; z: number; face: number; moved: boolean } | null => {
     const p = placeOf(key, d[key]);
     if (!p) return null;
+    placeWhy[key] = why?.(p.x, transom - p.fromTransom, p.face) ?? 'no room there';
     const ring: [number, number][] = [];
     for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) ring.push([i, j]);
     ring.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
     for (const [i, j] of ring) {
       const x = p.x + i * PLACE_GRID.step;
       const z = transom - (p.fromTransom + j * PLACE_GRID.step);
-      if (stands(x, z, p.face)) return { x: r2(x), z: r2(z), face: p.face, moved: i !== 0 || j !== 0 };
+      if (stands(x, z, p.face)) {
+        if (i === 0 && j === 0) delete placeWhy[key];
+        return { x: r2(x), z: r2(z), face: p.face, moved: i !== 0 || j !== 0 };
+      }
     }
     return null;
   };
   const placed: DesignedBoat['placed'] = {};
+  /** Why a piece placed by hand won't stand where it was put (the pinned cell), if it won't. */
+  const placeWhy: DesignedBoat['placeWhy'] = {};
   const usual = (key: PlaceKey, what: string) => {
     placed[key] = null;
     warnings.push(`The ${what} won't stand where it's pinned (nor within a metre of it): it's in its usual place.`);
@@ -118,22 +192,49 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   let winchAt: V3 | null = null;
   let winchFace = 0;
   if (wantWinch && d.winchAt) {
-    const s = seat('winchAt', (x, z, f) => standsOnDeck(winchShape.map((r) => placeRect(r, x, z, f))));
+    const s = seat('winchAt', (x, z, f) => standsOnDeck(winchShape.map((r) => placeRect(r, x, z, f))), (x, z, f) => whyNotOnDeck(winchShape.map((r) => placeRect(r, x, z, f))));
     if (s) {
       winchAt = [s.x, q.deckY(s.z), s.z];
       winchFace = s.face;
       placed.winchAt = { x: s.x, z: s.z, moved: s.moved };
     } else usual('winchAt', 'tow winch');
   }
+  // A tug's towing hook (CONFIG.shipyard.deckGear.tug): her tow point near amidships, on a
+  // pedestal on the centreline, clear aft of her wheelhouse; her winch's usual place just
+  // forward of it, the line off the drum aft through the hook. Moved aft (both) until they
+  // stand clear of the house's door and what's placed; no room on her deck, she tows from
+  // the stern roller as other boats do.
+  let towHook: { z: number; height: number } | null = null;
+  let tugWinchZ: number | null = null;
+  if (sternRoller && d.hull === TUG_HULL) {
+    const tg = dg.tug.hook;
+    const hookRect = (z: number): Rect => ({ x0: -0.3, x1: 0.3, z0: z - 0.3, z1: z + 0.3 });
+    const winchHere = (z: number) => standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 0)));
+    const usualWinch = wantWinch && !winchAt;
+    // With her winch just forward of it if both fit; else (a small tug's short deck, owner,
+    // Oct 2026) the hook alone, her winch finding its own place below.
+    for (const withWinch of usualWinch ? [true, false] : [false]) {
+      for (let z = Math.max((stem + transom) / 2 + tg.aftOfMidships * (transom - stem), aft + tg.clearOfHouse); z < transom - 1.5; z += 0.1) {
+        if (!standsOnDeck([hookRect(z)]) || (withWinch && !winchHere(z - tg.winchGap))) continue;
+        towHook = { z: r2(z), height: tg.height };
+        if (withWinch) tugWinchZ = r2(z - tg.winchGap);
+        taken.push(hookRect(z));
+        break;
+      }
+      if (towHook) break;
+    }
+    if (!towHook) warnings.push('There\'s no room on her deck for a towing hook aft of the wheelhouse: she tows from the stern roller.');
+  }
+  if (wantWinch && !winchAt && tugWinchZ !== null) winchAt = [0, q.deckY(tugWinchZ), tugWinchZ];
   if (wantWinch && !winchAt) {
     // Its usual place: on the centreline just forward of the transom, room forward of it to
     // stand at its buttons, clear of the house's door.
     const z = transom - dg.winchFromTransom;
     if (standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 0)))) winchAt = [0, q.deckY(z), r2(z)];
-    else warnings.push(`Her aft deck is too short for the tow winch${d.aFrame ? ' (the A-frame’s warps lead off it, so the A-frame is left off too)' : ''}: left off.`);
+    else warnings.push(`Her aft deck is too short for the tow winch${d.aFrame && !trawlWinchesAt ? ' (the A-frame’s warps lead off it, so the A-frame is left off too)' : ''}: left off.`);
   }
   if (winchAt) taken.push(...winchShape.map((r) => placeRect(r, winchAt![0], winchAt![2], winchFace)));
-  const aFrame = !!d.aFrame && !!winchAt;
+  const aFrame = !!d.aFrame && (!!winchAt || !!trawlWinchesAt);
 
   // The deck crane: its socket where its column stands, so the crane module keeps it there
   // (placed by hand: 'socket'; at the deck edge: its 'auto' keeps an off-centre socket), and
@@ -143,7 +244,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   let craneYaw = 0;
   let cranePlaced = false;
   if (d.deckCrane && d.craneAt) {
-    const s = seat('craneAt', (x, z, f) => standsOnDeck(craneShape(cr.post.x, cr.post.z).map((r) => placeRect(r, x, z, f))));
+    const s = seat('craneAt', (x, z, f) => standsOnDeck(craneShape(cr.post.x, cr.post.z).map((r) => placeRect(r, x, z, f))), (x, z, f) => whyNotOnDeck(craneShape(cr.post.x, cr.post.z).map((r) => placeRect(r, x, z, f))));
     if (s) {
       craneAt = [s.x, q.deckY(s.z), s.z];
       craneYaw = -90 * s.face;
@@ -154,12 +255,32 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   }
   if (d.deckCrane && !craneAt) {
     const fore = d.deckCrane === 1;
-    const z = fore ? foreEnd - 0.9 : aft + 0.9;
-    const x = (fore ? 1 : -1) * (q.halfBeam(z) - cr.edgeInset);
-    // At the edge its post stands inboard; the aft one faces aft (its boom resting over the aft deck, not the house).
-    const shape = craneShape(-Math.sign(x) * Math.abs(cr.post.x), (fore ? 1 : -1) * cr.post.z).map((r) => placeRect(r, x, z, 0));
+    const edgeShape = (z: number) => {
+      const x = (fore ? 1 : -1) * (q.halfBeam(z) - cr.edgeInset);
+      // At the edge its post stands inboard; the aft one faces aft (its boom resting over the aft deck, not the house).
+      return { x, shape: craneShape(-Math.sign(x) * Math.abs(cr.post.x), (fore ? 1 : -1) * cr.post.z).map((r) => placeRect(r, x, z, 0)) };
+    };
+    // On the foredeck, just forward of the house; with a raised foredeck forward of the house,
+    // up on it as near its break as it stands clear (else on the deck below it, as near the
+    // house as it stands clear of the break and the ladders).
+    let z = fore ? foreEnd - 0.9 : aft + 0.9;
+    let nowhere = false;
+    if (fore && raisedAhead) {
+      const clear = (zz: number, level: (r: Rect) => boolean) => zz - cr.plinthRadius - 0.3 > bowClear && edgeShape(zz).shape.every((r) => level(r) && !taken.some((o) => overlaps(o, r)));
+      let found: number | null = null;
+      for (let zz = breakZ!; zz - cr.plinthRadius - 0.3 > bowClear && found === null; zz -= 0.05) if (clear(zz, onRaised)) found = zz;
+      if (found === null) {
+        for (let zz = foreEnd - 0.9; zz > breakZ! && found === null; zz -= 0.05) if (clear(zz, (r) => r.z0 >= breakZ! - fdc.gearReach)) found = zz;
+        if (found !== null) warnings.push('There\'s no room up on her raised foredeck for the deck crane: it stands on the deck below it, forward of the wheelhouse.');
+      }
+      if (found !== null) z = r2(found);
+      else nowhere = true;
+    }
+    const { x, shape } = edgeShape(z);
     const room = fore ? z - cr.plinthRadius - 0.3 > bowClear : z + 0.4 < transom - 0.3;
-    if (!room) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the deck crane: left off.`);
+    if (nowhere) warnings.push('There\'s no room on her foredeck for the deck crane, up on the raised foredeck or on the deck below it clear of its ladders: left off (a longer raised foredeck, or the wheelhouse further aft, makes room).');
+    else if (!room) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the deck crane: left off.`);
+    else if (!shape.every(oneLevel)) warnings.push('The deck crane would stand across the break of her raised foredeck: left off.');
     else if (shape.some((r) => taken.some((o) => overlaps(o, r)))) warnings.push(`The deck crane would stand on her ${fore ? 'foredeck' : 'aft deck'} gear: left off.`);
     else {
       craneAt = [x, q.deckY(z), z];
@@ -175,7 +296,9 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   // is off the centreline toward the crane's side, as the deck crane is (owner: not central;
   // the skiff and crane together over to the side picked), as far over as fits; only if
   // there's no room off the centreline does it sit nearer the middle.
-  const tc = CONFIG.vessels.workboat.tenderCrane;
+  // (The dinghy's crane, or the rescue boat's bigger one: design.rescueBoat.)
+  const tc = d.rescueBoat ? CONFIG.vessels.rib.crane : CONFIG.vessels.workboat.tenderCrane;
+  const boatName = d.rescueBoat ? "the rescue boat's" : "the skiff's";
   let skiffAt: V3 | null = null;
   if (d.skiff) {
     const fore = d.skiff <= 2;
@@ -189,13 +312,17 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     // Its own check (the cradle is long): inside her beam at each end and the middle, 0.5 m
     // clear of the stem and 0.15 of the transom, clear of the house itself and of its aft
     // doorway (and the steps there, if any), and of her other gear.
-    const body: Rect = { x0: -Math.max(hw, dhW) - 0.2, x1: Math.max(hw, dhW) + 0.2, z0: foreEnd - 0.2, z1: aft + 0.15 };
-    const doorway: Rect = { x0: -0.6, x1: 0.6, z0: aft, z1: aft + 0.3 + Math.max(0, ...steps.map((st) => st.z1 - aft)) };
+    const body: Rect = { x0: hx - Math.max(hw, dhW) - 0.2, x1: hx + Math.max(hw, dhW) + 0.2, z0: foreEnd - 0.2, z1: aft + 0.15 };
+    const doorway: Rect = { x0: hx - 0.6, x1: hx + 0.6, z0: aft, z1: aft + 0.3 + Math.max(0, ...steps.map((st) => st.z1 - aft)) };
     const fits = (r: Rect) =>
-      r.z0 > stem + 0.5 && r.z1 < transom - 0.15 && [r.z0, (r.z0 + r.z1) / 2, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15) && !overlaps(r, body) && !overlaps(r, doorway) && !taken.some((o) => overlaps(o, r));
-    const zs: number[] = [];
+      oneLevel(r) && r.z0 > stem + 0.5 && r.z1 < transom - 0.15 && [r.z0, (r.z0 + r.z1) / 2, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15) && !overlaps(r, body) && !overlaps(r, doorway) && !taken.some((o) => overlaps(o, r));
+    let zs: number[] = [];
     if (fore) for (let z = foreEnd - 0.55; z - ahead > stem + 0.5; z -= 0.25) zs.push(z);
     else for (let z = transom - 0.5; z - ahead > aft; z -= 0.25) zs.push(z);
+    // With a raised foredeck forward of the house: up on it first, as near its break as fits;
+    // on the deck below it only if there's no room up there.
+    const up = (z: number) => shape(0, z).every(onRaised);
+    if (fore && raisedAhead) zs = [...zs.filter(up), ...zs.filter((z) => !up(z))];
     // The cradle's middle shifted toward the column's side: as far over as fits (to 1.5 m),
     // at least `skiffOffset` off the centreline; nearer the middle only as a last resort.
     const least = CONFIG.shipyard.skiffOffset;
@@ -212,14 +339,19 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
             break search;
           }
         }
-    if (!skiffAt) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the skiff's cradle (${(ahead + 0.3).toFixed(1)} m long, ${(2 * tc.cradle.halfWidth + outset).toFixed(1)} m across with the crane) clear of her other gear: move the wheelhouse ${fore ? 'aft' : 'forward'}, or make her longer. Left off.`);
+    if (skiffAt && fore && raisedAhead && !up(skiffAt[2])) warnings.push(`There's no room up on her raised foredeck for ${boatName} cradle: it's on the deck below it, forward of the wheelhouse.`);
+    if (!skiffAt) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for ${boatName} cradle (${(ahead + 0.3).toFixed(1)} m long, ${(2 * tc.cradle.halfWidth + outset).toFixed(1)} m across with the crane) clear of her other gear: move the wheelhouse ${fore ? 'aft' : 'forward'}, or make her longer. Left off.`);
   }
 
   // The searchlight and the fire monitor: placed by hand, on the roof if the pin's on it
   // (clear of the masthead light, the horn and each other), else on a pole on deck; at their
   // usual places, on the roof (choice 1) or a pole a little off the house (2 fore, 3 aft).
   const roofOrPole = (key: 'lampAt' | 'monitorAt', what: string): { pole: V3 | null; roof: [number, number] | null } => {
-    const s = seat(key, (x, z) => (onRoof(x, z) ? standsOnRoof(x, z) : standsOnDeck(poleShape.map((r) => placeRect(r, x, z, 0)))));
+    const s = seat(
+      key,
+      (x, z) => (onRoof(x, z) ? standsOnRoof(x, z) : standsOnDeck(poleShape.map((r) => placeRect(r, x, z, 0)))),
+      (x, z) => (onRoof(x, z) ? (standsOnRoof(x, z) ? null : 'too near the roof’s edge, the masthead light or other gear on the roof') : whyNotOnDeck(poleShape.map((r) => placeRect(r, x, z, 0)))),
+    );
     if (!s) {
       usual(key, what);
       return { pole: null, roof: null };
@@ -237,17 +369,24 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const lampByHand = !!(lampHand.pole || lampHand.roof);
   const monitorByHand = !!(monitorHand.pole || monitorHand.roof);
   /** A pole's foot on deck 1 (fore) or 2 (aft), starting on `side`; null (and a warning) if there's no room. */
+  /** The inboard edge of a raised foredeck's ladders, from her centreline (m); null without them. */
+  const ladderIn = layout.deckSteps?.length ? Math.min(...layout.deckSteps.map((t) => Math.min(Math.abs(t.x0), Math.abs(t.x1)))) : null;
   const poleFoot = (deck: number, side: number, what: string): V3 | null => {
-    for (const step of [0, 1])
+    // (Further forward, past a raised foredeck's ladders and up on it, if need be.)
+    for (const step of breakZ === null ? [0, 1] : [0, 1, 2, 3])
       for (const sd of [side, -side]) {
         const z = deck === 1 ? foreEnd - dp.fromHouse - 0.85 * step : aft + dp.fromHouse + 0.85 * step;
         const room = deck === 1 ? z - 0.2 > bowClear : z + dp.box.depth + 0.5 < transom - 0.2;
-        const x = sd * (q.halfBeam(z) - dp.inset);
-        if (!room || Math.abs(x) < 0.5) continue;
-        const rect = placeRect(poleShape[0], x, z, 0);
-        if (taken.some((o) => overlaps(o, rect))) continue;
-        taken.push(rect);
-        return [r2(x), q.deckY(z), r2(z)];
+        if (!room) continue;
+        // At the deck edge; else just inboard of a raised foredeck's ladders.
+        const xs = [sd * (q.halfBeam(z) - dp.inset), ...(ladderIn === null ? [] : [sd * (ladderIn - 0.15 - dp.box.width / 2 - 0.05)])];
+        for (const x of xs) {
+          if (Math.abs(x) < 0.5) continue;
+          const rect = placeRect(poleShape[0], x, z, 0);
+          if (!oneLevel(rect) || taken.some((o) => overlaps(o, rect))) continue;
+          taken.push(rect);
+          return [r2(x), q.deckY(z), r2(z)];
+        }
       }
     warnings.push(`There's no room on her ${deck === 1 ? 'foredeck' : 'aft deck'} for the ${what}'s pole: left off.`);
     return null;
@@ -262,7 +401,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   // On the roof: the searchlight forward on the centreline, the monitor centred aft of the
   // masthead light's pole, clear of its barrel's swing; or where they're placed.
   const lampRoof: V3 = lampHand.roof ? [lampHand.roof[0], r2(roofTopAt(lampHand.roof[1]) + 0.13), lampHand.roof[1]] : at.searchlight;
-  const monitorRoof: V3 = monitorHand.roof ? [monitorHand.roof[0], r2(roofTopAt(monitorHand.roof[1]) + 0.38), monitorHand.roof[1]] : [0, roofTopAt(0) + 0.38, r2(Math.min(roofFront + 1.25, aft - 0.3))];
+  const monitorRoof: V3 = monitorHand.roof ? [monitorHand.roof[0], r2(roofTopAt(monitorHand.roof[1]) + 0.38), monitorHand.roof[1]] : [hx, roofTopAt(0) + 0.38, r2(Math.min(roofFront + 1.25, aft - 0.3))];
   /** Where a deck piece is, in words: "Foredeck, port", "Aft deck, centreline". */
   const deckWords = (p: V3) => `${p[2] < front ? 'Foredeck' : p[2] > aft ? 'Aft deck' : 'Side deck'}, ${Math.abs(p[0]) < 0.2 ? 'centreline' : p[0] < 0 ? 'port' : 'starboard'}`;
 
@@ -286,7 +425,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     for (const [sd, z] of [[1, transom - 0.6], [-1, transom - 0.6], [1, aft + 1.0], [-1, aft + 1.0], [1, foreEnd - 0.6], [-1, foreEnd - 0.6]]) {
       const x = sd * (q.halfBeam(z) - 0.45);
       const rect = { x0: x - 0.25, x1: x + 0.25, z0: z - 0.25, z1: z + 0.25 };
-      if (!onDeck(rect) || overlaps(rect, houseRect) || taken.some((o) => overlaps(o, rect))) continue;
+      if (!standsOnDeck([rect])) continue;
       basketAt = [r2(x), r2(z)];
       taken.push(rect);
       break;
@@ -314,7 +453,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
       const rect: Rect = bowRamp ? { x0: x - 0.25, x1: x + 0.25, z0: z - ac.kedgeAft - 0.15, z1: z } : { x0: -0.25, x1: 0.25, z0: z, z1: z + awc.aft + 0.15 };
       // Clear of the house and of its aft door's steps (only the doorway: the margin the
       // other gear keeps round the house is more than a windlass needs).
-      const clearOfHouse = !overlaps(rect, { ...houseRect, z1: aft + 0.15 }) && !overlaps(rect, { x0: -0.6, x1: 0.6, z0: aft, z1: aft + 0.8 });
+      const clearOfHouse = !overlaps(rect, { ...houseRect, z1: aft + 0.15 }) && !overlaps(rect, { x0: hx - 0.6, x1: hx + 0.6, z0: aft, z1: aft + 0.8 });
       if (!clearOfHouse || taken.some((o) => overlaps(o, rect))) continue;
       anchorAt = { at: [r2(x), r2(q.bulwarkTop(z)), r2(z)], yaw: bowRamp ? 180 : 0 };
       taken.push(rect);
@@ -352,7 +491,9 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(aFrame
       ? [
           { id: 'aFrame', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, across the quarters: the A-frame' },
-          { id: 'trawl', type: 'deck.equipment' as const, transform: { position: winchAt! }, label: 'Aft deck: the net (nominal)' },
+          { id: 'trawl', type: 'deck.equipment' as const, transform: { position: netDrumAt ?? winchAt ?? [0, q.deckY(transom - 1), transom - 1] }, label: 'Aft deck: the net (nominal)' },
+          ...(netDrumAt ? [{ id: 'netDrum', type: 'deck.equipment' as const, transform: { position: netDrumAt }, label: 'Aft deck, centreline, forward of the A-frame: the net drum' }] : []),
+          ...(trawlWinchesAt ? [{ id: 'trawlWinches', type: 'deck.equipment' as const, transform: { position: [trawlWinchesAt.x, trawlWinchesAt.deck, trawlWinchesAt.z] as V3 }, label: 'Aft deck, at her edges forward of the A-frame: the trawl winches (starboard; port its mirror)' }] : []),
         ]
       : []),
     ...(craneAt
@@ -367,21 +508,22 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
     ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
   ];
-  return { deckSockets, aFrame, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
+  return { towHook, deckSockets, aFrame, netDrumAt: aFrame ? netDrumAt : null, trawlWinchesAt: aFrame ? trawlWinchesAt : null, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, placeWhy, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
 }
 export type DeckGearPart = ReturnType<typeof deckGearPart>;
 
 /** What hangs on the wheelhouse outside: the life ring and the boat-hook clips, the fishing rods' rack. */
 export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart) {
   const { d } = a;
-  const { F, FA, aft, bulwarkHeight, cleat, deckhouse, dg, front, hw, q, r2, sideDoor, sill, sternCleat, warnings } = p;
+  const { F, FA, aft, bulwarkHeight, cleat, deckhouse, dg, front, hw, hx, q, r2, sideDoor, sill, sternCleat, warnings } = p;
   // The life ring on the house's aft wall at the chosen side, its line made fast to that
   // quarter's cleat; the boat-hook clips along that bulwark, aft.
   const ringSide = d.lifeRing === 1 ? -1 : d.lifeRing === 2 ? 1 : 0;
   const ring = ringSide
     ? {
         // At hand height off the deck (on the deckhouse's aft face if she has one, the house's floor being up on it).
-        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(Math.min((deckhouse ? q.deckY(aft) : FA) + 1.15, F + sill - 0.3)), r2(aft + 0.06)] as V3,
+        // (Across from the house's middle: an offset house's, `hx`.)
+        stow: [r2(hx + ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(Math.min((deckhouse ? q.deckY(aft) : FA) + 1.15, F + sill - 0.3)), r2(aft + 0.06)] as V3,
         cleat: cleat(ringSide, sternCleat),
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
@@ -400,17 +542,18 @@ export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     // The side wall: the row's middle, aft of the door if the port door is there.
     let zc = aft - 0.9 - rackRow / 2;
     if (onSide && rodSide < 0 && sideDoor && zc - rackRow / 2 - 0.3 < sideDoor.z1 && zc + rackRow / 2 + 0.3 > sideDoor.z0) zc = sideDoor.z0 - 0.4 - rackRow / 2;
-    if (onSide && (q.halfBeam(zc) - hw < 0.25 || zc - rackRow / 2 < front + 0.2)) {
+    // (Its side deck: from that wall, `hx` across from her centreline, out to her deck edge.)
+    if (onSide && (q.halfBeam(zc) - hw - rodSide * hx < 0.25 || zc - rackRow / 2 < front + 0.2)) {
       warnings.push(`No room on the ${rodSide < 0 ? 'port' : 'starboard'} side deck for the rod rack: it's on the aft wall.`);
       onSide = false;
     }
     const rods: V3[] = [];
     if (onSide) {
-      const x = rodSide * (hw + 0.09);
+      const x = hx + rodSide * (hw + 0.09);
       for (let i = 0; i < rc.perRack; i++) rods.push([r2(x), r2(q.deckY(zc) + 0.02), r2(zc - rackRow / 2 + i * rc.spacing)]);
-      rodRack = { rods, yawDeg: rodSide * 90, bucket: [r2(rodSide * (hw + 0.25)), r2(q.deckY(zc + rackRow / 2 + 0.45)), r2(zc + rackRow / 2 + 0.45)], side: rodSide };
+      rodRack = { rods, yawDeg: rodSide * 90, bucket: [r2(hx + rodSide * (hw + 0.25)), r2(q.deckY(zc + rackRow / 2 + 0.45)), r2(zc + rackRow / 2 + 0.45)], side: rodSide };
     } else {
-      const xc = rodSide * Math.max(0.55 + rackRow / 2, hw - 0.3 - rackRow / 2);
+      const xc = hx + rodSide * Math.max(0.55 + rackRow / 2, hw - 0.3 - rackRow / 2);
       const y = r2((deckhouse ? q.deckY(aft + 0.1) : q.deckY(aft + 0.1)) + 0.02);
       for (let i = 0; i < rc.perRack; i++) rods.push([r2(xc - rodSide * rackRow / 2 + rodSide * i * rc.spacing), y, r2(aft + 0.09)]);
       rodRack = { rods, yawDeg: 0, bucket: [r2(xc + rodSide * (rackRow / 2 + 0.4)), r2(q.deckY(aft + 0.3)), r2(aft + 0.3)], side: rodSide };

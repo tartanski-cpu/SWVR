@@ -22,8 +22,8 @@ import { flatVertexColorMaterial, part } from '../../render/geometryUtils';
 import { Control, type Wiring } from '../../controls/Control';
 import type { VesselState } from '../../vessel/vesselState';
 
-export type FurnitureKind = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head';
-export const FURNITURE_KINDS: readonly FurnitureKind[] = ['berth', 'settee', 'galley', 'seat', 'locker', 'head'];
+export type FurnitureKind = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head' | 'bunk' | 'mess' | 'shower';
+export const FURNITURE_KINDS: readonly FurnitureKind[] = ['berth', 'settee', 'galley', 'seat', 'locker', 'head', 'bunk', 'mess', 'shower'];
 
 export interface FurnitureConfig {
   kind: FurnitureKind;
@@ -49,6 +49,11 @@ function doorway(c: FurnitureConfig): [number, number] {
 /** The plan boxes it stands solid in, in its own axes ([x0, x1, z0, z1]). */
 function solidPlan(c: FurnitureConfig): [number, number, number, number][] {
   const [L, D] = [c.length / 2, c.depth / 2];
+  if (c.kind === 'shower') {
+    // Its walls and the drawn half of its curtain: you step in past the open half.
+    const w = F.shower.wall;
+    return [[-L, L, D - w, D], [-L, -L + w, -D, D], [L - w, L, -D, D], [-L, -L + c.length * 0.45, -D, -D + 0.04]];
+  }
   if (c.kind !== 'head') return [[-L, L, -D, D]];
   const w = F.head.wall;
   const [d0, d1] = doorway(c);
@@ -118,6 +123,48 @@ class HeadDoor extends Control {
   }
 }
 
+/**
+ * A berth to lie in (owner, Oct 2026: a berth "should have the function of healing the
+ * player"): a press on its mattress lies you down to rest (player/health.ts; the app handles
+ * the 'berthRest' channel: it's yours, not the boat's), a press again or a step gets you up.
+ * Its hit area is an unseen box over the mattress, `length` along x by `width` across z,
+ * standing `top` up from its root.
+ */
+export class BerthRest extends Control {
+  readonly kind = 'press' as const;
+  readonly label = 'Berth: lie down and rest';
+  private pressed = false;
+  private readonly box: THREE.Mesh;
+
+  constructor(length: number, width: number, top: number) {
+    super('berthRest', 'berthRest');
+    this.box = new THREE.Mesh(new THREE.BoxGeometry(length, 0.3, width).translate(0, top + 0.15, 0), new THREE.MeshBasicMaterial());
+    // Unseen (the raycaster still finds it: Control.enabled's note).
+    this.box.visible = false;
+    this.root.add(this.box);
+    this.hitObjects.push(this.box);
+  }
+
+  distanceTo(world: THREE.Vector3): number {
+    const p = this.box.worldToLocal(world.clone());
+    this.box.geometry.computeBoundingBox();
+    return this.box.geometry.boundingBox!.distanceToPoint(p);
+  }
+
+  pressStart(): void {
+    if (this.pressed) return;
+    this.pressed = true;
+    this.ctx?.haptic(0.3, 30);
+    this.ctx?.emit(this.channel, 1);
+  }
+
+  pressEnd(): void {
+    this.pressed = false;
+  }
+
+  sync(): void {}
+}
+
 /** Its fixed parts, in its own axes. */
 function pieceParts(c: FurnitureConfig): THREE.BufferGeometry[] {
   const [L, D, H] = [c.length / 2, c.depth / 2, c.height];
@@ -170,6 +217,42 @@ function pieceParts(c: FurnitureConfig): THREE.BufferGeometry[] {
       parts.push(box(-0.2, 0.2, 0.38, 0.75, D - w - 0.12, D - w, C.porcelain));
       break;
     }
+    case 'bunk': {
+      // Two berths one over the other between end boards, a lee rail along the upper's open
+      // side and two rungs up to it at the end.
+      const b = F.bunk;
+      parts.push(box(-L, L, 0, b.lower, -D, D, C.joinery), box(-L + 0.03, L - 0.03, b.lower, b.lower + b.cushion, -D + 0.03, D - 0.03, C.cushion));
+      parts.push(box(-L + 0.04, L - 0.04, b.upper - 0.05, b.upper, -D, D, C.joinery), box(-L + 0.05, L - 0.05, b.upper, b.upper + b.cushion, -D + 0.03, D - 0.03, C.cushion));
+      const endTop = b.upper + b.cushion + b.rail;
+      for (const s of [-1, 1]) parts.push(box(s * L - (s > 0 ? 0.04 : 0), s * L + (s < 0 ? 0.04 : 0), 0, endTop, -D, D, C.joinery));
+      parts.push(box(-L + 0.5, L - 0.04, b.upper + b.cushion, endTop, -D, -D + 0.03, C.joinery)); // the lee rail, open at the ladder end
+      for (const y of [b.lower + b.cushion + 0.25, (b.lower + b.cushion + b.upper) / 2 + 0.2]) parts.push(box(-L + 0.06, -L + 0.4, y, y + 0.03, -D - 0.03, -D, C.steel));
+      break;
+    }
+    case 'mess': {
+      // A table against the wall on a pedestal, a bench with a back at each end (facing in).
+      const m = F.mess;
+      const t0 = -L + m.bench;
+      const t1 = L - m.bench;
+      parts.push(box(t0, t1, m.table - 0.04, m.table, -D, D, C.top), box(-0.06, 0.06, 0, m.table - 0.04, -0.06 + D / 2, 0.06 + D / 2, C.steel));
+      for (const s of [-1, 1]) {
+        const [x0, x1] = s < 0 ? [-L, t0] : [t1, L];
+        parts.push(box(x0, x1, 0, m.seat - 0.08, -D + 0.05, D, C.joinery), box(x0 + 0.02, x1 - 0.02, m.seat - 0.08, m.seat, -D + 0.07, D - 0.02, C.cushion));
+        const bx = s < 0 ? x0 : x1 - 0.12;
+        parts.push(box(bx, bx + 0.12, m.seat, m.back, -D + 0.07, D - 0.02, C.cushion));
+      }
+      break;
+    }
+    case 'shower': {
+      // A tray, three walls to the ceiling, a rose on the back wall, a rail and curtain across the front (half drawn).
+      const w = F.shower.wall;
+      parts.push(box(-L, L, 0, 0.06, -D, D, C.porcelain));
+      parts.push(box(-L, L, 0, H, D - w, D, C.top), box(-L, -L + w, 0, H, -D, D, C.top), box(L - w, L, 0, H, -D, D, C.top));
+      parts.push(box(-0.06, 0.06, 1.85, 1.9, D - w - 0.18, D - w, C.steel), box(-0.08, 0.08, 1.82, 1.85, D - w - 0.24, D - w - 0.1, C.steel));
+      parts.push(box(-L, L, 1.98, 2.0, -D, -D + 0.02, C.steel));
+      parts.push(box(-L + w, -L + c.length * 0.45, 0.12, 1.97, -D + 0.005, -D + 0.035, C.curtain));
+      break;
+    }
   }
   return parts;
 }
@@ -187,7 +270,7 @@ export const FURNITURE: ModuleDefinition<FurnitureConfig> = {
   // Where you can't walk: the whole piece, or the head's walls and toilet (in at its door).
   // In its own axes, from its foot (base 0): the assembly puts them on the boat by its socket.
   footprints: (c): GearFootprint[] => {
-    const top = c.kind === 'berth' ? F.berth.top + F.berth.cushion : c.kind === 'settee' ? F.settee.back : c.kind === 'galley' ? F.galley.top : c.kind === 'seat' ? F.seat.back : c.height;
+    const top = c.kind === 'berth' ? F.berth.top + F.berth.cushion : c.kind === 'settee' ? F.settee.back : c.kind === 'galley' ? F.galley.top : c.kind === 'seat' ? F.seat.back : c.kind === 'bunk' ? F.bunk.upper + F.bunk.cushion + F.bunk.rail : c.kind === 'mess' ? F.mess.back : c.height;
     return solidPlan(c).map(([x0, x1, z0, z1]) => ({ x0, x1, z0, z1, base: 0, top }));
   },
   ports: { door: { dir: 'write', key: 'furniture.headDoor' } },
@@ -195,6 +278,12 @@ export const FURNITURE: ModuleDefinition<FurnitureConfig> = {
     build({ config: c, keys }) {
       const controls: Control[] = [];
       const movingParts: THREE.Object3D[] = [];
+      if (c.kind === 'berth') {
+        // Along the wall (x), out from it (z): the mattress.
+        controls.push(new BerthRest(c.length, c.depth, F.berth.top + F.berth.cushion));
+      }
+      // Two-high bunks: either one to lie down in.
+      if (c.kind === 'bunk') controls.push(new BerthRest(c.length, c.depth, F.bunk.lower + F.bunk.cushion), new BerthRest(c.length, c.depth, F.bunk.upper + F.bunk.cushion));
       if (c.kind === 'head') {
         const [d0, d1] = doorway(c);
         const door = new HeadDoor(d1 - d0, 1.93, { channel: keys.door, read: (s) => busOf(s).num(keys.door) });
@@ -204,6 +293,29 @@ export const FURNITURE: ModuleDefinition<FurnitureConfig> = {
         movingParts.push(door.root);
       }
       return { staticParts: pieceParts(c), movingParts, controls, update: () => {} };
+    },
+  },
+};
+
+/** A berth drawn as part of her (the V-berth in a Shipyard boat's cabin below): no parts of its own, only the press to lie down in it (BerthRest). */
+export interface RestSpotConfig {
+  /** Along her, across her (m), and the mattress's top over the socket (m). */
+  length: number;
+  width: number;
+  top: number;
+}
+export const REST_SPOT: ModuleDefinition<RestSpotConfig> = {
+  id: 'furniture.restSpot',
+  version: 1,
+  fits: ['cabin.furniture'],
+  defaults: { length: 1.8, width: 1.2, top: 0 },
+  validateConfig: (c) => (c.length > 0.3 && c.width > 0.3 ? [] : ['a berth at least 0.3 m each way']),
+  physical: () => ({ size: [0.1, 0.1, 0.1], massKg: 0 }),
+  ports: {},
+  view: {
+    build({ config: c }) {
+      // Its own x along the berth: turned by its socket to lie fore and aft.
+      return { staticParts: [], movingParts: [], controls: [new BerthRest(c.length, c.width, c.top)], update: () => {} };
     },
   },
 };

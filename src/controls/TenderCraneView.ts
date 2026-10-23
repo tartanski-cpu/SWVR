@@ -17,13 +17,6 @@ const ROPE = 0xe8dcc0;
 const AMBER = 0xe0a020;
 const CANVAS = 0x26476a;
 
-/** Lifting points on the skiff (her axes): her four gunwale corners. */
-const LEGS: [number, number, number][] = [
-  [-0.6, 0.48, -1.0],
-  [0.6, 0.48, -1.0],
-  [-0.62, 0.42, 1.55],
-  [0.62, 0.42, 1.55],
-];
 /** How fast the boom moves on its own (m/s at the hook): when it parks, or reaches for her. */
 const REACH_SPEED = 1.5;
 
@@ -108,12 +101,14 @@ export class TenderCraneView {
       part(new THREE.CylinderGeometry(c.columnRadius * 1.6, c.columnRadius * 1.6, 0.04, 14).translate(cx, base + 0.02, cz), DARK),
     ];
     const [sx, sy, sz] = c.stow;
-    const keel = sy - 0.14; // her bottom (skiff keelY) in the cradle
-    for (const dz of [-1.1, 1.0]) {
+    // The saddles under her (the boat it carries: `tender`), a rubber pad on each.
+    const t = c.tender;
+    const keel = sy + t.keelY; // her bottom in the cradle
+    for (const dz of t.saddles) {
       const z = sz + dz;
       const y0 = deckY(z);
-      parts.push(part(new THREE.BoxGeometry(1.1, keel - y0, 0.12).translate(sx, (keel + y0) / 2, z), 0x4a5258));
-      parts.push(part(new THREE.BoxGeometry(1.0, 0.03, 0.14).translate(sx, keel - 0.012, z), DARK)); // rubber pad
+      parts.push(part(new THREE.BoxGeometry(t.saddleWidth + 0.1, keel - y0, 0.12).translate(sx, (keel + y0) / 2, z), 0x4a5258));
+      parts.push(part(new THREE.BoxGeometry(t.saddleWidth, 0.03, 0.14).translate(sx, keel - 0.012, z), DARK)); // rubber pad
     }
     // The control box on the column's outboard side, its face outboard (to starboard, or
     // to port on a crane mirrored there).
@@ -158,9 +153,13 @@ export class TenderCraneView {
     this.remote.add(post, remote.root);
     this.buttons = helm ? [column, helm, remote] : [column, remote];
     this.remoteButton = remote;
-    this.cover = new THREE.Mesh(tarpaulin(tenderDef, c), flatVertexColorMaterial());
-    this.cover.name = 'skiffCover';
-    this.root.add(column.root, this.cover);
+    // Her tarpaulin, if she has one in her cradle (the dinghy; the rescue boat sits uncovered).
+    if (c.cover) {
+      this.cover = new THREE.Mesh(tarpaulin(tenderDef, c), flatVertexColorMaterial());
+      this.cover.name = 'skiffCover';
+      this.root.add(this.cover);
+    }
+    this.root.add(column.root);
     if (helm) this.root.add(helm.root);
   }
 
@@ -265,7 +264,7 @@ export class TenderCraneView {
     // The bridle: hook to her four lifting points while she's on it; else hidden.
     for (let i = 0; i < 4; i++) {
       if (tenderRoot && !stowed) {
-        tenderRoot.localToWorld(this.b.fromArray(LEGS[i]));
+        tenderRoot.localToWorld(this.b.fromArray(this.crane.tender.legs[i]));
         this.root.worldToLocal(this.b);
         this.segment(this.rods, 5 + i, H, this.b, 0.012, 0.012);
       } else this.rods.setMatrixAt(5 + i, this.m.makeScale(0, 0, 0));
@@ -301,7 +300,7 @@ function tarpaulin(def: VesselDef, c: TenderCrane): THREE.BufferGeometry {
   const across = [-1, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1, 1];
   // A cross-section at her z: the drape, the gunwale edge, the ridge, the other edge, the drape.
   const section = (z: number) => {
-    const w = plan.halfBeam(z) + 0.03;
+    const w = plan.halfBeam(z) + 0.1; // over her tubes, which stand a little proud of her sides
     const top = plan.deckY(z) + bulwark + 0.02;
     return across.map((a, k) => {
       const drape = k === 0 || k === across.length - 1;

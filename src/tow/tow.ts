@@ -18,11 +18,14 @@
  *              with her middle within her half beam + berthReach of a quay or pier face
  *              (shipBerthed): tow her to the approach, cast off, push her in with your
  *              bow. She lies there shipRemoveAfter s with her lines ashore.
- *   towline    one straight spring-damper between our stern roller and what it's made fast
- *              to (see CONFIG.tow and towlineForces below). It parts if snatched too hard.
+ *   towline    one straight spring-damper between a boat's stern roller and what it's made
+ *              fast to (see CONFIG.tow and towlineForces below). It parts if snatched too hard.
+ *              Every boat with a stern roller has her own (TowState.lines, by her id; multi-
+ *              boat towing, owner Oct 2026): several boats can be on one tow, their pulls
+ *              adding up, as two tugs on a ship.
  *              It isn't only for the job (owner request: "tow anything in the water"): it
  *              goes on any vessel afloat - a tow, our own skiff - at her bow eye, or on a
- *              piece of drifting debris, or a salvage log (TowState.line, keyed 'v:<vessel
+ *              piece of drifting debris, or a salvage log (TowLine.target, keyed 'v:<vessel
  *              id>' / 'd:<debris id>' / 'l:<log id>'). Debris has no physics of its own: on
  *              the line it's a point mass with water drag (CONFIG.tow.debris); towed slow
  *              into a harbour, it's cleared away. Logs are stepped by salvage/salvage.ts
@@ -30,6 +33,7 @@
  *
  * Random choices use a deterministic hash of a counter in the state, like the rescues.
  */
+import { placePhrase } from '../world/places';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
@@ -76,8 +80,11 @@ export interface TowState {
   delivered: number;
   /** Calls come by themselves (the game); off, only the debug intents raise jobs (tests). */
   calls: boolean;
-  /** Our towline, when it's made fast to something (one at a time). */
-  line?: TowLine | null;
+  /**
+   * The towlines made fast, by the boat towing (her vessel id): one each, as many boats as
+   * have a stern roller, and several may be on the same tow (multi-boat towing).
+   */
+  lines: Record<EntityId, TowLine>;
   /** Pieces of debris towed into harbour. */
   cleared?: number;
 }
@@ -88,6 +95,11 @@ export interface TowLine {
   target: string;
   /** Tension on the last tick (N). */
   tension: number;
+  /**
+   * On a vessel, which fitting it's on (vessel axes x: + starboard): 0 or unset, her centre
+   * bow eye; -1 / +1, her port / starboard bow fairlead (a second boat's line: towFitting).
+   */
+  at?: -1 | 0 | 1;
   /** Line paid out from the tow winch (m); unset: as made fast (lineFor(target).length). */
   length?: number;
   /** Debris: its velocity on the line (world x, z; m/s), and seconds lain slow in a port. */
@@ -96,7 +108,7 @@ export interface TowLine {
 }
 
 export function createTowState(calls = false): TowState {
-  return { seq: 0, nextAt: null, job: null, delivered: 0, calls, line: null, cleared: 0 };
+  return { seq: 0, nextAt: null, job: null, delivered: 0, calls, lines: {}, cleared: 0 };
 }
 
 /** Deterministic pseudo-random number in [0, 1) from the state's counter. */
@@ -109,11 +121,66 @@ function rand(t: TowState): number {
 const between = (t: TowState, [a, b]: [number, number]) => a + (b - a) * rand(t);
 
 /**
- * The towing boat: the first with a tow point (a stern roller; modular boats M5). A boat
- * without one can't take a tow.
+ * The boat the tow calls come to: the home boat if she has a tow point (a stern roller;
+ * modular boats M5), else the first that has one. A boat without one can't take a tow.
  */
 function tug(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => gearOf(v, 'towPoint'));
+  const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
+  return home && gearOf(home, 'towPoint') ? home : Object.values(world.vessels).find((v) => gearOf(v, 'towPoint'));
+}
+
+/**
+ * The towing boat a request is for (multi-boat towing): the boat it names (the one the player
+ * is aboard) if she has a tow point, else the calls' boat (tug above).
+ */
+function towerFor(world: WorldState, boatId?: EntityId): VesselState | undefined {
+  const b = boatId ? world.vessels[boatId] : undefined;
+  return b && gearOf(b, 'towPoint') ? b : tug(world);
+}
+
+/** The towlines (made sure of: a state from before multi-boat towing had one `line`). */
+function linesOf(world: WorldState): Record<EntityId, TowLine> {
+  const t = (world.tow ??= createTowState());
+  return (t.lines ??= {});
+}
+
+/** A boat's towline (by default the calls' boat's), or null. */
+export function lineOf(world: WorldState, boatId?: EntityId): TowLine | null {
+  const b = towerFor(world, boatId);
+  return (b && world.tow?.lines?.[b.id]) || null;
+}
+
+/** Every towline made fast, with the boat towing on it. */
+export function towLines(world: WorldState): { boat: VesselState; line: TowLine }[] {
+  const out: { boat: VesselState; line: TowLine }[] = [];
+  for (const [id, line] of Object.entries(world.tow?.lines ?? {})) {
+    const boat = world.vessels[id];
+    if (boat) out.push({ boat, line });
+  }
+  return out;
+}
+
+/** The towlines on one target (a tow, debris, a log): several boats may be on it. */
+export function linesOn(world: WorldState, key: string): { boat: VesselState; line: TowLine }[] {
+  return towLines(world).filter((o) => o.line.target === key);
+}
+
+/** Is anything (any boat's line) made fast to this target? */
+export function onAnyLine(world: WorldState, key: string): boolean {
+  return Object.values(world.tow?.lines ?? {}).some((l) => l.target === key);
+}
+
+/** Cast off every line on this target (it's delivered, sold, cleared or gone). */
+export function castOffKey(world: WorldState, key: string): void {
+  const lines = world.tow?.lines;
+  if (!lines) return;
+  for (const [id, l] of Object.entries(lines)) if (l.target === key) delete lines[id];
+}
+
+/** A boat taken away or moved (the SOS tug): her own line and every line on her let go. */
+export function castOffBoat(world: WorldState, id: EntityId): void {
+  if (world.tow?.lines) delete world.tow.lines[id];
+  castOffKey(world, vesselKey(id));
 }
 
 /**
@@ -144,6 +211,15 @@ export function towPostLocal(v: { defId: string }): [number, number, number] {
   return [0, plan.deckY(plan.transom), plan.transom];
 }
 
+/**
+ * Where a line is passed aboard her (vessel axes): her stern roller. The same as her tow
+ * point but on a tug, whose tow point is her towing hook amidships (modules/sternRoller):
+ * how near a tow must be to make fast is measured from here.
+ */
+export function sternLocal(v: { defId: string }): [number, number, number] {
+  return gearOf(v, 'towPoint')?.stern ?? towPostLocal(v);
+}
+
 /** Where the towline comes off her tow winch's drum (vessel axes), or null: no winch. */
 export function winchLeadLocal(v: { defId: string }): [number, number, number] | null {
   return gearOf(v, 'towWinch')?.lead ?? null;
@@ -167,6 +243,37 @@ export function bowEyeLocal(def: VesselDef): [number, number, number] {
   const plan = hullPlan(def);
   const z = plan.stem + 0.25;
   return [0, plan.deckY(z) + 0.1, z];
+}
+
+/**
+ * Where a line goes on a vessel (vessel axes): `at` 0 her bow eye; -1 / +1 her port /
+ * starboard bow fairlead, CONFIG.tow.fairleadAft of her length aft of the stem, just inside
+ * the deck edge (multi-boat towing).
+ */
+export function towFittingLocal(def: VesselDef, at: -1 | 0 | 1 = 0): [number, number, number] {
+  if (!at) return bowEyeLocal(def);
+  const plan = hullPlan(def);
+  const z = plan.stem + CONFIG.tow.fairleadAft * (plan.transom - plan.stem);
+  return [at * Math.max(0, plan.halfBeam(z) - 0.15), plan.deckY(z) + 0.1, z];
+}
+
+/**
+ * The fitting a boat's line takes on a vessel: her own line's, if it's on; else the bow eye
+ * when no other line is on her; else the free fitting (eye, port or starboard fairlead)
+ * nearest the boat's stern roller (all taken: the nearest).
+ */
+function fittingFor(world: WorldState, key: string, boat: VesselState | undefined): -1 | 0 | 1 {
+  const own = boat ? world.tow?.lines?.[boat.id] : undefined;
+  if (own?.target === key) return own.at ?? 0;
+  const o = vesselOf(world, key);
+  const taken = Object.entries(world.tow?.lines ?? {}).filter(([id, l]) => l.target === key && id !== boat?.id).map(([, l]) => l.at ?? 0);
+  if (!o || !boat || !taken.length) return 0;
+  const post = toWorld(boat, towPostLocal(boat), new THREE.Vector3());
+  const def = VESSEL_DEFS[o.defId];
+  const near = (at: -1 | 0 | 1) => toWorld(o, towFittingLocal(def, at), new THREE.Vector3()).distanceTo(post);
+  const all: (-1 | 0 | 1)[] = [0, -1, 1];
+  const free = all.filter((a) => !taken.includes(a));
+  return (free.length ? free : all).reduce((a, b) => (near(b) < near(a) ? b : a));
 }
 
 const q = new THREE.Quaternion();
@@ -200,8 +307,8 @@ export const vesselKey = (id: EntityId) => `v:${id}`;
  * Everything the towline can go on now: vessels afloat other than ours (a tender hanging
  * in her cradle or on the crane isn't afloat) and drifting debris.
  */
-export function towTargets(world: WorldState): string[] {
-  const v = tug(world);
+export function towTargets(world: WorldState, boatId?: EntityId): string[] {
+  const v = towerFor(world, boatId);
   const keys: string[] = [];
   for (const o of Object.values(world.vessels)) {
     if (o === v || (o.tender && o.tender.phase !== 'free')) continue;
@@ -223,11 +330,28 @@ export function lineFor(key: string): { length: number; attach: number } {
  * the full default length, a tow 15-20 m off had metres of slack, and the winch spent its
  * first many seconds just taking it up: owner feedback, "the winch doesn't pull".)
  */
-function newLine(world: WorldState, key: string): TowLine {
+function newLine(world: WorldState, key: string, boatId: EntityId): TowLine {
   const w = CONFIG.tow.winch;
-  const reach = towReach(world, key);
-  const length = Number.isFinite(reach) ? Math.min(w.maxLength, Math.max(w.minLength, reach + w.makeFastSlack)) : undefined;
-  return { target: key, tension: 0, length };
+  const at = key.startsWith('v:') ? fittingFor(world, key, world.vessels[boatId]) : 0;
+  const line: TowLine = { target: key, tension: 0, ...(at ? { at } : {}) };
+  // Paid out to that fitting (a fairlead, for a second boat's line).
+  const reach = towReach(world, key, boatId, at);
+  if (Number.isFinite(reach)) line.length = Math.min(w.maxLength, Math.max(w.minLength, reach + w.makeFastSlack));
+  return line;
+}
+
+/**
+ * Make this boat's towline fast to a vessel at once, from wherever it lies within the tow
+ * winch's longest line: the barge the timber camp hands over (voyage/timber.ts), already on
+ * the line as you come back aboard. False if she has a line out already, or it's too far.
+ */
+export function makeFastNow(world: WorldState, boatId: EntityId, targetId: EntityId): boolean {
+  const lines = linesOf(world);
+  const key = vesselKey(targetId);
+  if (!world.vessels[boatId] || !world.vessels[targetId] || lines[boatId]) return false;
+  if (towReach(world, key, boatId) > CONFIG.tow.winch.maxLength - CONFIG.tow.winch.makeFastSlack) return false;
+  lines[boatId] = newLine(world, key, boatId);
+  return true;
 }
 
 /** How much line is out now (m): as made fast, or as the tow winch has left it. */
@@ -253,10 +377,10 @@ function stepTowWinch(line: TowLine, v: VesselState, dt: number): void {
   else if (line.tension <= w.pullN) line.length = Math.max(w.minLength, L - w.heaveSpeed * dt);
 }
 
-/** The tow winch is stalled: heaving in against more pull than it has. */
-export function winchStalled(world: WorldState): boolean {
-  const line = world.tow?.line;
-  const v = tug(world);
+/** A boat's tow winch is stalled: heaving in against more pull than it has. */
+export function winchStalled(world: WorldState, boatId?: EntityId): boolean {
+  const line = lineOf(world, boatId);
+  const v = towerFor(world, boatId);
   return !!line && !!v && (v.controls.winchHeave ?? 0) > 0.5 && line.tension > CONFIG.tow.winch.pullN;
 }
 
@@ -268,16 +392,19 @@ function vesselOf(world: WorldState, key: string): VesselState | undefined {
   return key.startsWith('v:') ? world.vessels[key.slice(2)] : undefined;
 }
 
-/** Where the line goes on a target (world): a vessel's bow eye, debris at the waterline. Null if it's gone. */
-export function towPoint(world: WorldState, key: string, out: THREE.Vector3): THREE.Vector3 | null {
+/**
+ * Where a boat's line goes on a target (world): a vessel's bow eye (or, a second boat's, a
+ * bow fairlead: fittingFor; `at` to name one), debris at the waterline. Null if it's gone.
+ */
+export function towPoint(world: WorldState, key: string, out: THREE.Vector3, boatId?: EntityId, at?: -1 | 0 | 1): THREE.Vector3 | null {
   const o = vesselOf(world, key);
-  if (o) return toWorld(o, bowEyeLocal(VESSEL_DEFS[o.defId]), out);
+  if (o) return toWorld(o, towFittingLocal(VESSEL_DEFS[o.defId], at ?? fittingFor(world, key, towerFor(world, boatId))), out);
   const d = debrisOf(world, key);
   if (d) return out.set(d.x, 0.2, d.z);
   const l = logOf(world, key);
   if (!l) return null;
-  // The end of the log nearer our boat (a line goes round one end).
-  const tug0 = tug(world);
+  // The end of the log nearer the boat (a line goes round one end).
+  const tug0 = towerFor(world, boatId);
   const ex = (Math.sin(l.yaw) * l.len) / 2;
   const ez = (Math.cos(l.yaw) * l.len) / 2;
   const s = tug0 && Math.hypot(l.x + ex - tug0.position[0], l.z + ez - tug0.position[2]) > Math.hypot(l.x - ex - tug0.position[0], l.z - ez - tug0.position[2]) ? -1 : 1;
@@ -287,37 +414,42 @@ export function towPoint(world: WorldState, key: string, out: THREE.Vector3): TH
 /** What it is, for messages: the tow's name, "the skiff", "the debris". */
 export function towName(world: WorldState, key: string): string {
   const o = vesselOf(world, key);
-  if (o) return o.id === world.tow?.job?.vesselId ? 'her' : (VESSEL_DEFS[o.defId].tow?.name ?? `the ${o.defId}`);
+  if (o) return o.id === world.tow?.job?.vesselId ? 'her' : (VESSEL_DEFS[o.defId].tow?.name ?? (o.owner || o.id === world.homeVesselId ? 'her' : `the ${o.defId}`));
   return key.startsWith('l:') ? 'the log' : 'the debris';
 }
 
-/** The line is fast to the tow job's vessel. */
-export function towFast(world: WorldState): boolean {
+/**
+ * A line is fast to the tow job's vessel: any boat's, or with `boatId`, that boat's.
+ */
+export function towFast(world: WorldState, boatId?: EntityId): boolean {
   const job = world.tow?.job;
-  return !!job && world.tow?.line?.target === vesselKey(job.vesselId);
+  if (!job) return false;
+  return boatId ? lineOf(world, boatId)?.target === vesselKey(job.vesselId) : onAnyLine(world, vesselKey(job.vesselId));
 }
 
 /**
- * Distance from our towing post to a target's tow point (m), or Infinity: by default what
- * the line is on, else the tow job's vessel.
+ * Distance from a boat's towing post (by default the calls' boat's) to a target's tow point
+ * (m), or Infinity: by default what her line is on, else the tow job's vessel.
  */
-export function towReach(world: WorldState, key?: string): number {
-  const v = tug(world);
-  const k = key ?? world.tow?.line?.target ?? (world.tow?.job ? vesselKey(world.tow.job.vesselId) : undefined);
+export function towReach(world: WorldState, key?: string, boatId?: EntityId, at?: -1 | 0 | 1, fromStern = false): number {
+  const v = towerFor(world, boatId);
+  const k = key ?? (v && world.tow?.lines?.[v.id]?.target) ?? (world.tow?.job ? vesselKey(world.tow.job.vesselId) : undefined);
   if (!v || !k) return Infinity;
-  const a = toWorld(v, towPostLocal(v), new THREE.Vector3());
-  const b = towPoint(world, k, new THREE.Vector3());
+  const a = toWorld(v, fromStern ? sternLocal(v) : towPostLocal(v), new THREE.Vector3());
+  const b = towPoint(world, k, new THREE.Vector3(), v.id, at);
   return b ? a.distanceTo(b) : Infinity;
 }
 
-/** The nearest thing within reach of our towing post to make fast to (the job first), or null. */
-export function nearestTowTarget(world: WorldState): string | null {
+/** The nearest thing within reach of a boat's towing post to make fast to (the job first), or null. */
+export function nearestTowTarget(world: WorldState, boatId?: EntityId): string | null {
   const job = world.tow?.job;
-  if (job?.phase === 'accepted' && towReach(world, vesselKey(job.vesselId)) <= CONFIG.tow.attachRange) return vesselKey(job.vesselId);
+  const v = towerFor(world, boatId);
+  if (!v) return null;
+  if (job?.phase === 'accepted' && job.vesselId !== v.id && towReach(world, vesselKey(job.vesselId), v.id, undefined, true) <= CONFIG.tow.attachRange) return vesselKey(job.vesselId);
   let best: string | null = null;
   let bd = Infinity;
-  for (const k of towTargets(world)) {
-    const d = towReach(world, k);
+  for (const k of towTargets(world, v.id)) {
+    const d = towReach(world, k, v.id, undefined, true);
     if (d <= lineFor(k).attach && d < bd) [best, bd] = [k, d];
   }
   return best;
@@ -330,43 +462,60 @@ const vB = new THREE.Vector3();
 const dir = new THREE.Vector3();
 
 /**
- * The towline's pull this tick, as external forces on the two boats (evaluated from the
- * start-of-tick states, before the vessels are stepped, like boat-to-boat contact).
- *
- *   stretch e = |B - A| - L          (A: our towing post, B: the tow's bow eye, L: the line out)
- *   T = k e + c de/dt  for e > 0, never below zero (a slack rope doesn't push)
- *   c = 2 * zeta * sqrt(k * m),  m = m_tug m_tow / (m_tug + m_tow)  (the two-body "reduced" mass)
- *
- * T acts on the tow at B toward A, and on us at A toward B. Above breakForce, or stretched
- * past maxStretch (aground, snagged), the line parts.
+ * The towlines' pull this tick, as external forces on the boats (evaluated from the
+ * start-of-tick states, before the vessels are stepped, like boat-to-boat contact). Each
+ * boat's line on its own (lineForce); two boats on one tow each pull it, and the forces on
+ * her simply add up.
  */
 export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]> {
   const out = new Map<EntityId, ExternalForce[]>();
-  const line = world.tow?.line;
-  const v = tug(world);
-  // No line fast: her gauge reads nothing (PARTED a while after it went).
-  if (v?.towLine?.fast && !line) Object.assign(v.towLine, { fast: false, tension: 0, load: 0 });
-  if (v?.towLine?.parted && world.time - (v.towLine.partedAt ?? 0) > CONFIG.tow.gauge.partedShowS) v.towLine.parted = false;
-  if (!line || !v) return out;
+  const lines = world.tow?.lines ?? {};
+  // A boat with no line fast: her gauge reads nothing (PARTED a while after it went).
+  for (const v of Object.values(world.vessels)) {
+    if (!v.towLine) continue;
+    if (v.towLine.fast && !lines[v.id]) Object.assign(v.towLine, { fast: false, tension: 0, load: 0 });
+    if (v.towLine.parted && world.time - (v.towLine.partedAt ?? 0) > CONFIG.tow.gauge.partedShowS) v.towLine.parted = false;
+  }
+  for (const { boat, line } of towLines(world)) lineForce(world, boat, line, out);
+  return out;
+}
+
+function addForce(out: Map<EntityId, ExternalForce[]>, id: EntityId, f: ExternalForce): void {
+  const list = out.get(id);
+  if (list) list.push(f);
+  else out.set(id, [f]);
+}
+
+/**
+ * One towline's pull:
+ *
+ *   stretch e = |B - A| - L          (A: the boat's towing post, B: the tow's bow eye, L: the line out)
+ *   T = k e + c de/dt  for e > 0, never below zero (a slack rope doesn't push)
+ *   c = 2 * zeta * sqrt(k * m),  m = m_tug m_tow / (m_tug + m_tow)  (the two-body "reduced" mass)
+ *
+ * T acts on the tow at B toward A, and on the boat at A toward B. Above breakForce, or
+ * stretched past maxStretch (aground, snagged), the line parts.
+ */
+function lineForce(world: WorldState, v: VesselState, line: TowLine, out: Map<EntityId, ExternalForce[]>): void {
   const t = vesselOf(world, line.target);
   const d = debrisOf(world, line.target);
   const log = logOf(world, line.target);
-  if (!t && !d && !log) return out;
+  if (!t && !d && !log) return;
   const cfg = CONFIG.tow;
   const defV = VESSEL_DEFS[v.defId];
   toWorld(v, towPostLocal(v), pA);
-  if (t) toWorld(t, bowEyeLocal(VESSEL_DEFS[t.defId]), pB);
+  if (t) toWorld(t, towFittingLocal(VESSEL_DEFS[t.defId], line.at), pB);
   else if (d) pB.set(d.x, pA.y, d.z); // debris: the pull is horizontal (it floats at the surface)
-  else towPoint(world, line.target, pB)?.setY(pA.y); // a log, by its near end
+  else towPoint(world, line.target, pB, v.id)?.setY(pA.y); // a log, by its near end
   dir.copy(pB).sub(pA);
   const len = dir.length();
-  if (len < 1e-6) return out;
+  if (len < 1e-6) return;
   dir.divideScalar(len);
   const stretch = len - lineLength(line);
   if (stretch <= 0) {
     line.tension = 0;
     gauge(world, v, 0, 0);
-    return out;
+    return;
   }
   // Rate of stretch: the two points' relative velocity along the line. For debris, its
   // velocity on the line (from stepTow).
@@ -386,14 +535,15 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   // How near it is to parting, for her TOW LINE gauge: the nearer of the two.
   gauge(world, v, T, Math.max(T / breakAt, stretch / cfg.maxStretch));
   if (T > breakAt || stretch > cfg.maxStretch) {
-    world.tow!.line = null;
+    delete linesOf(world)[v.id];
     Object.assign(v.towLine!, { fast: false, tension: 0, load: 0, partedAt: world.time, parted: true });
-    sayRadio(world, 'info', 'The towline has parted! Come back round and make fast again.');
-    return out;
+    // With other boats towing too, say which line went.
+    const others = Object.keys(linesOf(world)).length > 0;
+    sayRadio(world, 'info', others ? 'One of the towlines has parted! Come back round and make fast again.' : 'The towline has parted! Come back round and make fast again.');
+    return;
   }
-  if (t) out.set(t.id, [{ force: dir.clone().multiplyScalar(-T), point: pB.clone() }]);
-  out.set(v.id, [{ force: dir.clone().multiplyScalar(T), point: pA.clone() }]);
-  return out;
+  if (t) addForce(out, t.id, { force: dir.clone().multiplyScalar(-T), point: pB.clone() });
+  addForce(out, v.id, { force: dir.clone().multiplyScalar(T), point: pA.clone() });
 }
 
 /**
@@ -414,34 +564,52 @@ function gauge(world: WorldState, v: VesselState, tension: number, load: number)
 }
 
 /**
- * Debris on the line, one tick: a point mass m pulled toward our post by the tension T
- * and held back by the water, F = T u - (cL + cQ |v|) v (u: unit vector to the post,
- * horizontal). Its usual drift still moves it too (a current under it). Towed slow into a
- * harbour (as for tows), it's taken away and counted as cleared.
+ * The pull of every line on one target (debris, a log), summed: tension T along the unit
+ * vector u from it toward each boat's post (horizontal). Returns [Fx, Fz] (N).
  */
-function stepTowedDebris(world: WorldState, line: TowLine, dt: number): void {
-  const d = debrisOf(world, line.target);
-  const v = tug(world);
-  if (!d || !v) return;
+function pullOn(world: WorldState, key: string, x: number, z: number): [number, number] {
+  let fx = 0;
+  let fz = 0;
+  for (const { boat, line } of linesOn(world, key)) {
+    toWorld(boat, towPostLocal(boat), pA);
+    const ux = pA.x - x;
+    const uz = pA.z - z;
+    const ul = Math.hypot(ux, uz) || 1;
+    fx += (line.tension * ux) / ul;
+    fz += (line.tension * uz) / ul;
+  }
+  return [fx, fz];
+}
+
+/**
+ * Debris on the line(s), one tick: a point mass m pulled by every line on it (pullOn) and
+ * held back by the water, F = sum(T u) - (cL + cQ |v|) v. Its usual drift still moves it too
+ * (a current under it). Its velocity is kept on each line on it (TowLine.vel, the same on
+ * all). Towed slow into a harbour (as for tows), it's taken away and counted as cleared.
+ */
+function stepTowedDebris(world: WorldState, key: string, dt: number): void {
+  const d = debrisOf(world, key);
+  const on = linesOn(world, key).map((o) => o.line);
+  if (!d || !on.length) return;
   const cfg = CONFIG.tow;
-  toWorld(v, towPostLocal(v), pA);
-  const ux = pA.x - d.x;
-  const uz = pA.z - d.z;
-  const ul = Math.hypot(ux, uz) || 1;
-  const vel = (line.vel ??= [0, 0]);
+  const [fx, fz] = pullOn(world, key, d.x, d.z);
+  const was = on.find((l) => l.vel)?.vel ?? [0, 0];
+  const vel: [number, number] = [was[0], was[1]];
   const sp = Math.hypot(vel[0], vel[1]);
   const drag = cfg.debris.dragLinear + cfg.debris.dragQuad * sp;
-  for (const i of [0, 1]) {
-    const u = i === 0 ? ux / ul : uz / ul;
-    vel[i] += ((line.tension * u - drag * vel[i]) / cfg.debris.mass) * dt;
-  }
+  vel[0] += ((fx - drag * vel[0]) / cfg.debris.mass) * dt;
+  vel[1] += ((fz - drag * vel[1]) / cfg.debris.mass) * dt;
   d.x += vel[0] * dt;
   d.z += vel[1] * dt;
   const port = PORTS.find((p) => Math.hypot(p.x - d.x, p.z - d.z) < cfg.deliverRadius);
-  line.inPort = port && Math.hypot(vel[0], vel[1]) < cfg.deliverSpeed ? (line.inPort ?? 0) + dt : 0;
-  if (port && line.inPort >= cfg.deliverTime) {
+  const inPort = port && Math.hypot(vel[0], vel[1]) < cfg.deliverSpeed ? Math.max(...on.map((l) => l.inPort ?? 0)) + dt : 0;
+  for (const l of on) {
+    l.vel = [vel[0], vel[1]];
+    l.inPort = inPort;
+  }
+  if (port && inPort >= cfg.deliverTime) {
     const t = world.tow!;
-    t.line = null;
+    castOffKey(world, key);
     t.cleared = (t.cleared ?? 0) + 1;
     earn(world, 'debris', { port: port.id, text: `Debris cleared into ${port.name.replace(' (anchorage)', '')}` });
     world.traffic!.debris = world.traffic!.debris.filter((o) => o !== d);
@@ -520,9 +688,10 @@ export function startTowCall(world: WorldState, v: VesselState, defId?: string, 
   }
   const job = spawnTow(world, kind, x, z, 'calling');
   const name = opts.name ?? VESSEL_DEFS[kind].tow?.name ?? 'a vessel';
-  const where = CONFIG.rescue.plotYourself
+  const phrase = placePhrase(x, z); // where, in words, on a coast map (world/places.ts)
+  const where = (phrase ? `${phrase}, ` : '') + (CONFIG.rescue.plotYourself
     ? `in position ${formatPosition(x, z)}`
-    : `bearing ${bearing(bx, bz, x, z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(x - bx, z - bz) / 1852).toFixed(1)} miles from you`;
+    : `bearing ${bearing(bx, bz, x, z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(x - bx, z - bz) / 1852).toFixed(1)} miles from you`);
   const heavy = (VESSEL_DEFS[kind].tow?.lineFactor ?? 1) > 1 ? ' She is a big one: she will pass you her own heavy hawser. Take up the strain gently.' : '';
   const ship = VESSEL_DEFS[kind].tow?.needs === 'tug';
   sayRadio(world, 'distress', ship ? `PAN PAN. Tug wanted: ${name}, drifting ${where}. She needs a tug to bring her into harbour and lay her alongside a quay: tow her in, then push her onto the berth with your bow. Nothing smaller will shift her.${heavy}` : `SÉCURITÉ. Tow wanted: ${name}, adrift ${where}. Can you take her in tow to any harbour?${heavy}`);
@@ -533,21 +702,18 @@ function bearing(fromX: number, fromZ: number, toX: number, toZ: number): number
   return ((Math.atan2(toX - fromX, -(toZ - fromZ)) * 180) / Math.PI + 360) % 360;
 }
 
-/** A log on the line: pulled toward our post with the line's tension (salvage.ts does the rest). */
-function stepTowedLog(world: WorldState, line: TowLine, dt: number): void {
-  const log = logOf(world, line.target);
-  const v = tug(world);
-  if (!log || !v) return;
-  toWorld(v, towPostLocal(v), pA);
-  const ux = pA.x - log.x;
-  const uz = pA.z - log.z;
-  const ul = Math.hypot(ux, uz) || 1;
-  stepLog(world, log, line.tension, ux / ul, uz / ul, dt);
+/** A log on the line(s): pulled by every line on it, summed (salvage.ts does the rest). */
+function stepTowedLog(world: WorldState, key: string, dt: number): void {
+  const log = logOf(world, key);
+  if (!log) return;
+  const [fx, fz] = pullOn(world, key, log.x, log.z);
+  const F = Math.hypot(fx, fz);
+  stepLog(world, log, F, F > 0 ? fx / F : 0, F > 0 ? fz / F : 0, dt);
 }
 
-/** Cast the line off if it's on this vessel. */
+/** Cast off every line on this vessel. */
 function castOffFrom(world: WorldState, id: EntityId): void {
-  if (world.tow?.line?.target === vesselKey(id)) world.tow.line = null;
+  castOffKey(world, vesselKey(id));
 }
 
 /** Take the tow away (job over); nobody may be standing on it. Returns false if someone is. */
@@ -593,15 +759,26 @@ export function towAlertT(world: WorldState): number {
 export function stepTow(world: WorldState, dt: number): void {
   const cfg = CONFIG.tow;
   const t = (world.tow ??= createTowState());
+  // The lines: gone with what they were on, or with the boat towing (handed back, her
+  // player left); debris and logs on them are towed along, by every line on each.
+  const lines = linesOf(world);
+  const pulled = new Set<string>();
+  for (const [id, line] of Object.entries(lines)) {
+    const boat = world.vessels[id];
+    if (!boat || (!vesselOf(world, line.target) && !debrisOf(world, line.target) && !logOf(world, line.target))) {
+      delete lines[id];
+      continue;
+    }
+    if (!line.target.startsWith('v:')) pulled.add(line.target);
+  }
+  for (const key of pulled) {
+    if (key.startsWith('d:')) stepTowedDebris(world, key, dt);
+    else stepTowedLog(world, key, dt);
+  }
+  for (const [id, line] of Object.entries(lines)) stepTowWinch(line, world.vessels[id], dt);
   const v = tug(world);
   if (!v) return;
   if (t.nextAt === null) t.nextAt = world.time + between(t, cfg.every);
-  // The line: gone with what it was on; debris on it is towed along.
-  const line = t.line;
-  if (line && !vesselOf(world, line.target) && !debrisOf(world, line.target) && !logOf(world, line.target)) t.line = null;
-  else if (line?.target.startsWith('d:')) stepTowedDebris(world, line, dt);
-  else if (line?.target.startsWith('l:')) stepTowedLog(world, line, dt);
-  if (t.line) stepTowWinch(t.line, v, dt);
   const job = t.job;
   const tow = job ? world.vessels[job.vesselId] : undefined;
   // The tow vanished (a snapshot from an older host, a debug reset): no job.
@@ -684,31 +861,34 @@ export function stepTow(world: WorldState, dt: number): void {
  */
 export function applyTowIntent(world: WorldState, intent: Intent): void {
   const t = (world.tow ??= createTowState());
+  const lines = linesOf(world);
   const job = t.job;
-  const v = tug(world);
+  // The boat it's for: the one it's sent to (the player's boat), each with her own line.
+  const v = towerFor(world, intent.targetId);
   switch (intent.control) {
     case 'towMake': {
       // ref: what to make fast to (a key from towTargets); none: the tow job's vessel.
       const key = intent.ref ?? (job?.phase === 'accepted' ? vesselKey(job.vesselId) : null);
-      if (!key || t.line || !towTargets(world).includes(key)) break;
+      if (!key || !v || lines[v.id] || !towTargets(world, v.id).includes(key)) break;
       // A tow that's been handed over is the harbour's now.
       if (job && key === vesselKey(job.vesselId) && job.phase !== 'accepted') break;
       // By the line gun (tow/lineGun.ts; args [1]): made fast at the gun's range, not the hook's.
       const byGun = (intent.args?.[0] ?? 0) > 0.5;
-      if (towReach(world, key) <= (byGun ? CONFIG.lineGun.range : lineFor(key).attach)) t.line = newLine(world, key);
+      if (towReach(world, key, v.id, undefined, true) <= (byGun ? CONFIG.lineGun.range : lineFor(key).attach)) lines[v.id] = newLine(world, key, v.id);
       break;
     }
     case 'towToggle': {
       // The menu: cast off, or make fast to the nearest thing in reach.
-      if (t.line) t.line = null;
+      if (!v) break;
+      if (lines[v.id]) delete lines[v.id];
       else {
-        const key = nearestTowTarget(world);
-        if (key) t.line = newLine(world, key);
+        const key = nearestTowTarget(world, v.id);
+        if (key) lines[v.id] = newLine(world, key, v.id);
       }
       break;
     }
     case 'towCast':
-      t.line = null;
+      if (v) delete lines[v.id];
       break;
     case 'towDebugNear': {
       if (!v || job) break;
@@ -739,19 +919,24 @@ export function isTowIntent(control: string): boolean {
   return control.startsWith('tow');
 }
 
-/** One line for displays while a tow job is on or something's on the line, else null. */
-export function towStatus(world: WorldState): string | null {
+/**
+ * One line for displays while a tow job is on or something's on a boat's line (by default
+ * the calls' boat's), else null. With other boats on the same tow, it says how many.
+ */
+export function towStatus(world: WorldState, boatId?: EntityId): string | null {
   const job = world.tow?.job;
-  const line = world.tow?.line;
-  const kN = `${line ? Math.round(lineLength(line)) : 0} m out, ${((line?.tension ?? 0) / 1000).toFixed(1)} kN${winchStalled(world) ? ', winch stalled: ease off' : ''}`;
-  if (line?.target.startsWith('l:')) return salvageStatus(world);
-  if (line && !towFast(world)) {
+  const line = lineOf(world, boatId);
+  const others = line ? linesOn(world, line.target).length - 1 : 0;
+  const kN = `${line ? Math.round(lineLength(line)) : 0} m out, ${((line?.tension ?? 0) / 1000).toFixed(1)} kN${winchStalled(world, boatId) ? ', winch stalled: ease off' : ''}${others ? `; ${others === 1 ? 'one other boat' : `${others} other boats`} on her too` : ''}`;
+  if (line?.target.startsWith('l:')) return salvageStatus(world, boatId);
+  if (line && !towFast(world, boatId)) {
     return line.target.startsWith('d:') ? `Towing debris: bring it into a harbour to clear it (${kN})` : `Towing ${towName(world, line.target)} (${kN})`;
   }
   if (!job) return null;
   if (job.phase === 'calling') return 'Tow wanted: pick up the handset';
   if (job.phase === 'delivered') return `Tow delivered to ${job.port ?? 'harbour'}`;
-  if (towFast(world)) return isShipJob(job) ? `Towing the ship: into harbour, then cast off and push her onto a quay (${kN})` : `Towing: bring her into any harbour (${kN})`;
-  const d = towReach(world);
+  if (towFast(world, boatId)) return isShipJob(job) ? `Towing the ship: into harbour, then cast off and push her onto a quay (${kN})` : `Towing: bring her into any harbour (${kN})`;
+  if (job.phase === 'accepted' && towFast(world)) return 'Under tow by another boat: make fast to her bow eye too, to add your pull';
+  const d = towReach(world, undefined, boatId, undefined, true);
   return d <= CONFIG.tow.attachRange ? 'Tow alongside: hook her bow eye to make fast' : `Tow adrift ${Math.round(d)} m off: go and get her`;
 }

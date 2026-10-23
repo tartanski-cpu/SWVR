@@ -108,3 +108,34 @@ describe('the Clyde: streaming its ground', () => {
     expect(r.coast!.pkg.terrain.chunked).toBe(true);
   });
 });
+
+describe('the Clyde: piers drawn as outlines (owner: Wemyss Bay pier "absolutely massive")', () => {
+  it('no pier or pontoon a slab over the water: an L, a T or a jetty outline is built along its shape', () => {
+    // (A slab: wide both ways. A long straight jetty, Hunterston's 442 x 33 m, is what it is.)
+    const slabs = (pkg.blocks ?? []).filter((b) => b.kind === 'pier' && b.halfWidth > 25);
+    expect(slabs.map((b) => `${Math.round(b.x)},${Math.round(b.z)} ${Math.round(2 * b.halfLength)}x${Math.round(2 * b.halfWidth)}`)).toEqual([]);
+  });
+
+  it('the jetty south of Inverkip is named for where it is, not after Wemyss Bay; Kip Marina is its own', () => {
+    const names = pkg.ports.map((p) => p.name);
+    expect(pkg.ports.find((p) => p.id === 'wemyss-bay-pier-2')?.name).toBe('Inverkip jetty');
+    expect(names.filter((n) => n === 'Wemyss Bay pier').length).toBe(1);
+    expect(names).toContain('Kip Marina');
+  });
+});
+
+describe('the Clyde: harbour names from the map (owner: "Largs Marina is named as Fairlie")', () => {
+  it('marinas and harbours mapped as a point or a relation name theirs; the ferry slips are named for their side', () => {
+    const byId = new Map(pkg.ports.map((p) => [p.id, p.name]));
+    expect(byId.get('largs-yacht-haven')).toBe('Largs Yacht Haven');
+    expect(byId.get('fairlie-quay')).toBe('Fairlie Quay');
+    expect(byId.get('largs-pier')).toBe('Largs pier');
+    expect(byId.get('holy-loch-marina')).toBe('Holy Loch Marina');
+    expect(byId.get('rhubodach-pier')).toBe('Rhubodach pier');
+    expect(byId.get('colintraive-pier')).toBe('Colintraive pier');
+    // The start (Voyage puts you at rothesay-harbour-cargo) keeps its name and id.
+    expect(byId.get('rothesay-harbour')).toBe('Rothesay Harbour');
+    // No more borrowing the "Fairlie Pier" locality's name.
+    expect(pkg.ports.filter((p) => p.name === 'Fairlie Pier pier')).toEqual([]);
+  });
+});

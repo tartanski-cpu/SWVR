@@ -17,10 +17,12 @@ function buildStamp(): string {
 
 /**
  * Which address this build is for: '' for the game, 'next' for the work-in-progress copy at
- * /SWVR/next/ (the Pages workflow sets VITE_CHANNEL). Shown in the menu and the tab title.
+ * /SWVR/next/, or a preview's name ('shipyard' for /SWVR/preview/shipyard/, from the branch
+ * preview/shipyard). The Pages workflow sets VITE_CHANNEL. Shown, in capitals, in the menu and
+ * the tab title.
  */
-const CHANNEL = process.env.VITE_CHANNEL === 'next' ? 'next' : '';
-const BUILD = (CHANNEL ? 'NEXT ' : '') + buildStamp();
+const CHANNEL = (process.env.VITE_CHANNEL ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24);
+const BUILD = (CHANNEL ? `${CHANNEL.toUpperCase()} ` : '') + buildStamp();
 
 /**
  * `build.json` beside the pages: which build the site is serving now. A line of script at
@@ -62,7 +64,8 @@ export default defineConfig({
       // pipeline, judged before they go into the game).
       // The landing page (index.html: career / voyage / training), the two game pages
       // (career.html, voyage.html: the same game, src/mode.ts tells them apart by their path).
-      input: { main: 'index.html', career: 'career.html', voyage: 'voyage.html', hulls: 'hulls.html', shipyard: 'shipyard.html', coast: 'coast.html' },
+      // tools/mv-encode.html: the handoff's test links (docs/metaverse-contract.md).
+      input: { main: 'index.html', career: 'career.html', voyage: 'voyage.html', hulls: 'hulls.html', shipyard: 'shipyard.html', coast: 'coast.html', mvEncode: 'tools/mv-encode.html' },
       output: {
         // three.js in its own chunk: it only changes when we upgrade it, so the headset
         // browser keeps it cached across our (frequent) game-code deploys.

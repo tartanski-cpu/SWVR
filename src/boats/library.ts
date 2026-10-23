@@ -7,9 +7,10 @@ import { CONFIG } from '../config';
 import { createHullLibrary, type HullLibrary } from '../modular/hull';
 import { buildDesign, type DesignedBoat } from '../shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../shipyard/design';
-import { shortCode } from '../shipyard/designDoc';
+import { designToken, readDesign, shortCode } from '../shipyard/designDoc';
 import { vesselDefFrom } from '../modular/vesselAssembly';
-import { registerVesselDefs } from '../vessel/vesselDef';
+import { putVesselDef, registerVesselDefs, vesselBuildToken } from '../vessel/vesselDef';
+import { setBoatResolver } from '../core/launch';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Mount, type Recipe } from '../modular/recipe';
 import { A_FRAME } from '../modules/aFrame';
 import { ANCHOR_WINDLASS } from '../modules/anchorWindlass';
@@ -25,6 +26,7 @@ import { CHART_TABLE } from '../modules/chartTable';
 import { CHARTPLOTTER } from '../modules/chartplotter';
 import { CLEAT } from '../modules/cleat';
 import { BOAT_CLEAT } from '../modules/boatCleat';
+import { TUBES } from '../modules/tubes';
 import { CONSOLE } from '../modules/console';
 import { CONSUMER } from '../modules/consumer';
 import { DIESEL_INBOARD } from '../modules/dieselInboard';
@@ -74,6 +76,9 @@ import landingCraft from './landingCraft.json';
 import { LANDING_CRAFT_HULL } from './landingCraftHull';
 import skiff from './skiff.json';
 import { SKIFF_HULL } from './skiffHull';
+import { RIB_HULL } from './ribHull';
+import { RIB_RECIPE } from './rib';
+import { RIB_CONSOLE } from '../modules/ribConsole';
 import starterWorkboat from './starterWorkboat.json';
 import towBarge from './tow-barge.json';
 import towDerelict from './tow-derelict.json';
@@ -90,10 +95,13 @@ import { HELM_ASSIST } from '../modules/helmAssist';
 import { HELM_JOYSTICK } from '../modules/helmJoystick';
 import { PODS } from '../modules/pods';
 import { EXHAUST_STACK } from '../modules/exhaustStack';
-import { FURNITURE } from '../modules/furniture';
+import { FURNITURE, REST_SPOT } from '../modules/furniture';
+import { FISH_HOLD } from '../modules/fishHold';
+import { NET_DRUM } from '../modules/netDrum';
+import { TRAWL_WINCHES } from '../modules/trawlWinches';
 import { FLEET } from './fleet';
 
-const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, CAGE_HULL, COASTER_HULL, LANDING_CRAFT_HULL, ALASKAN_38_HULL]);
+const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, RIB_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, CAGE_HULL, COASTER_HULL, LANDING_CRAFT_HULL, ALASKAN_38_HULL]);
 
 /**
  * The Shipyard's designed boat (shipyard/build.ts): one at a time, the vessel type 'design',
@@ -106,7 +114,83 @@ let designed: DesignedBoat = buildDesign(DEFAULT_DESIGN, shortCode(DEFAULT_DESIG
 const FLEET_BOATS: Record<string, DesignedBoat> = Object.fromEntries(FLEET.map((f) => [f.id, buildDesign(f.design, shortCode(f.design) ?? 'custom', f.id)]));
 const FLEET_HULLS = new Map(Object.values(FLEET_BOATS).map((b) => [b.hull.id, b.hull]));
 
-export const HULLS: HullLibrary = { get: (id) => (id === designed.hull.id ? designed.hull : (FLEET_HULLS.get(id) ?? FIXED_HULLS.get(id))) };
+/**
+ * Boats built from a design token at run time (multi-boat M1): any number of them, each a
+ * vessel type of her own, `boat:<hash of her token>`, the same id on every page, so a boat
+ * in a snapshot can be built by whoever receives it (`boatType`, `ensureBoatTypes`). The
+ * Shipyard page's own one-at-a-time 'design' type stays as it was.
+ */
+const BOAT_TYPES = new Map<string, { token: string; boat: DesignedBoat }>();
+const BOAT_HULLS = new Map<string, DesignedBoat['hull']>();
+
+export const HULLS: HullLibrary = { get: (id) => (id === designed.hull.id ? designed.hull : (FLEET_HULLS.get(id) ?? BOAT_HULLS.get(id) ?? FIXED_HULLS.get(id))) };
+
+/** A short, stable id for a token (two FNV-1a passes over it, base 36). */
+function hashToken(token: string): string {
+  let a = 0x811c9dc5;
+  let b = 0x050c5d1f;
+  for (let i = 0; i < token.length; i++) {
+    const c = token.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193) >>> 0;
+    b = Math.imul(b ^ c, 0x01000193) >>> 0;
+  }
+  return a.toString(36) + b.toString(36);
+}
+
+/** The vessel type id a design token gets (without building her). */
+export const boatTypeId = (token: string): string => `boat:${hashToken(token.trim())}`;
+
+/** Is this id a boat built from a design token? */
+export const isBoatType = (defId: string): boolean => defId.startsWith('boat:');
+
+/**
+ * The vessel type for a design token (her short code, or her document token: shipyard/designDoc.ts),
+ * built on first use: her hull, recipe, vessel def and (boats/sims.ts) machinery. Null when
+ * the token doesn't read as a design.
+ */
+export function boatType(token: string): string | null {
+  const id = boatTypeId(token);
+  if (BOAT_TYPES.has(id)) return id;
+  const read = readDesign(token);
+  if (!('design' in read)) return null;
+  const boat = buildDesign(read.design, shortCode(read.design) ?? 'custom', id);
+  BOAT_TYPES.set(id, { token: token.trim(), boat });
+  BOAT_HULLS.set(boat.hull.id, boat.hull);
+  RECIPES[id] = loadRecipe(boat.recipe);
+  putVesselDef(id, vesselDefFrom(id, RECIPES[id], LIBRARY), token.trim());
+  return id;
+}
+
+// A launch by token (core/launch.ts) builds her type here.
+setBoatResolver(boatType);
+
+/** The design token a run-time boat type was built from (null for any other type). */
+/**
+ * Any boat type's design code, to save her as a favourite (Boat > Save her): a fleet boat's
+ * from her design file, a Shipyard boat's her token. Null for the old hand-built types
+ * (the workboat, the landing craft, the tows), which have no design.
+ */
+export function designCodeOf(defId: string): string | null {
+  const fleet = FLEET.find((f) => f.id === defId);
+  return fleet ? designToken(fleet.design) : boatTokenOf(defId);
+}
+
+export function boatTokenOf(defId: string): string | null {
+  return vesselBuildToken(defId);
+}
+
+/** The built boat of a run-time type (her figures, warnings), or null. */
+export function boatTypeOf(defId: string): DesignedBoat | null {
+  return BOAT_TYPES.get(defId)?.boat ?? null;
+}
+
+/**
+ * A world from elsewhere (a host's welcome or snapshot, a saved game): build every boat in it
+ * that this page hasn't got yet, from the token she carries (VesselState.build).
+ */
+export function ensureBoatTypes(world: { vessels: Record<string, { defId: string; build?: string }> }): void {
+  for (const v of Object.values(world.vessels)) if (v.build && !RECIPES[v.defId]) boatType(v.build);
+}
 
 export const MODULES = createModuleLibrary([
   CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
@@ -114,8 +198,8 @@ export const MODULES = createModuleLibrary([
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
   DIESEL_INBOARD, OUTBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
   TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
-  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, FENDERS, HULL_GUARD, PUSH_FENDER, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
-  ELECTRIC_OUTBOARD, ROD_RACK, HELM_ASSIST, PODS, HELM_JOYSTICK, EXHAUST_STACK, FURNITURE,
+  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, TUBES, RIB_CONSOLE, FENDERS, HULL_GUARD, PUSH_FENDER, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
+  ELECTRIC_OUTBOARD, ROD_RACK, HELM_ASSIST, PODS, HELM_JOYSTICK, EXHAUST_STACK, FURNITURE, REST_SPOT, FISH_HOLD, NET_DRUM, TRAWL_WINCHES,
   NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);
 
@@ -134,6 +218,7 @@ export function loadRecipe(json: unknown): Recipe {
 export const RECIPES: Record<string, Recipe> = {
   workboat: loadRecipe(starterWorkboat),
   skiff: loadRecipe(skiff),
+  rib: loadRecipe(RIB_RECIPE),
   derelict: loadRecipe(towDerelict),
   logRaft: loadRecipe(towLogRaft),
   barge: loadRecipe(towBarge),

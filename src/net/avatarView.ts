@@ -79,7 +79,9 @@ export class AvatarsView {
   private readonly avatars = new Map<EntityId, Avatar>();
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
-  private readonly up = new THREE.Vector3(0, 1, 0);
+  /** The hand's side-to-side axis (the held camera's forward tilt is about it), and a half turn about up (the camera flipped to face its holder). */
+  private readonly side = new THREE.Vector3(1, 0, 0);
+  private readonly turned = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
   private readonly yawQ = new THREE.Quaternion();
   private readonly bodyQ = new THREE.Quaternion();
   private readonly neck = new THREE.Vector3();
@@ -145,10 +147,11 @@ export class AvatarsView {
         if (a.camBody.parent !== holder) holder.add(a.camBody);
         if (grip) {
           a.camBody.position.fromArray(CONFIG.camera.lens);
-          // Rigid in our hand, looking out along it (owner: it moves exactly as the hand);
+          // Rigid in our hand, looking out where the hand points: tilted forward from the
+          // grip's axis (CONFIG.camera.holdPitchDeg, as the camera's own view in App.ts);
           // flipped (player/cameraHold.ts `back`), turned round to face us.
-          if (world.cameraHolds?.[p.id]?.back) a.camBody.quaternion.setFromAxisAngle(this.up, Math.PI);
-          else a.camBody.quaternion.identity();
+          a.camBody.quaternion.setFromAxisAngle(this.side, (CONFIG.camera.holdPitchDeg * Math.PI) / 180);
+          if (world.cameraHolds?.[p.id]?.back) a.camBody.quaternion.multiply(this.turned);
         } else {
           a.camBody.position.set(0, 0, 0);
           a.camBody.quaternion.identity();

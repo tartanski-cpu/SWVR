@@ -1,9 +1,10 @@
 /**
- * A raised foredeck on the fishing boat (owner, Oct 2026, from a photo of a trawler; build.ts
+ * A raised foredeck on the fishing boat and the tug (owner, Oct 2026, from a photo of a trawler; build.ts
  * raisedForedeck, CONFIG.shipyard.foredeck): her deck stepped up forward of a break, steps up to it.
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/config';
+import { FLEET } from '../src/boats/fleet';
 import { LIBRARY, RECIPES } from '../src/boats/library';
 import { useDesign } from '../src/boats/sims';
 import { validateRecipe } from '../src/modular/recipe';
@@ -94,10 +95,58 @@ describe('a raised foredeck', () => {
     expect(off.warnings.join(' ')).toMatch(/cabin below/);
   });
 
-  it('only the fishing boat offers it; not in the code', () => {
-    const tug: ShipDesign = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[4].defaults, hull: 4 };
-    useDesign({ ...tug, fcLength: 5 });
+  it('the tug offers it too (owner, Oct 2026): her push fender up to the raised bow, her towing hook on the low deck aft of the break', () => {
+    const tug = FLEET.find((f) => f.id === 'smallTug')!.design; // (with her towing hook)
+    expect(DESIGN_HULLS[4].raisedForedeck).toBe(true);
+    useDesign(tug);
+    const flatPlan = hullPlan(VESSEL_DEFS.design);
+    const flatFender = RECIPES.design.modules.find((m) => m.module === 'hull.push-fender')!.config as { top: number };
+    useDesign({ ...tug, fcLength: 12, fcHeight: 2 });
+    const steps = VESSEL_DEFS.design.layout.deckSteps!;
+    expect(steps.length).toBeGreaterThan(0);
+    const zb = Math.min(...steps.map((s) => s.z0)); // the break (aft of her wheelhouse: it stands on it)
+    expect(hullPlan(VESSEL_DEFS.design).deckY(zb - 0.2) - flatPlan.deckY(zb - 0.2)).toBeCloseTo(SCALES.fcHeight(2), 1);
+    const fender = RECIPES.design.modules.find((m) => m.module === 'hull.push-fender')!.config as { top: number };
+    expect(fender.top - flatFender.top).toBeCloseTo(SCALES.fcHeight(2), 1);
+    const hook = (RECIPES.design.modules.find((m) => m.module === 'deck.stern-roller')!.config as { hook: { z: number } }).hook;
+    expect(hook.z).toBeGreaterThan(zb);
+    expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+  });
+
+  it('only the fishing boat and the tug offer it; not in the code', () => {
+    const pilot: ShipDesign = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[3].defaults, hull: 3 };
+    useDesign({ ...pilot, fcLength: 5 });
     expect(VESSEL_DEFS.design.layout.deckSteps).toBeUndefined();
     expect(() => encodeDesign({ ...netter, fcLength: 5 })).toThrow(/foredeck/);
+  });
+
+  it('her foredeck gear goes up on the raised foredeck, clear of its break and ladders (owner, Oct 2026: they were on the deck below it)', () => {
+    const at = (b: ReturnType<typeof useDesign>, id: string) => b.hull.sockets.find((s) => s.id === id)?.transform?.position;
+    // The fishing boat, her wheelhouse aft and the break forward of it: the deck crane up on it, at its height.
+    let b = useDesign({ ...netter, fcLength: 6, fcHeight: 2, deckCrane: 1, housePos: 0 });
+    let def = VESSEL_DEFS.design;
+    let plan = hullPlan(def);
+    let zb = Math.min(...def.layout.deckSteps!.map((s) => s.z0));
+    expect(zb).toBeLessThan(def.layout.wheelhouse!.front);
+    const crane = at(b, 'deckCrane')!;
+    expect(crane[2] + CONFIG.modules.deckCrane.plinthRadius).toBeLessThan(zb);
+    expect(crane[1]).toBeCloseTo(plan.deckY(crane[2]), 2);
+    expect(crane[1]).toBeGreaterThan(plan.deckY(zb + 0.3) + 0.5);
+    // The stern trawler, a long raised foredeck: the skiff in her cradle and its crane up there too.
+    b = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[5].defaults, hull: 5, fcLength: 12, fcHeight: 2, length: 15, housePos: 0, skiff: 1, deckCrane: 1 });
+    def = VESSEL_DEFS.design;
+    plan = hullPlan(def);
+    zb = Math.min(...def.layout.deckSteps!.map((s) => s.z0));
+    const skiff = at(b, 'tenderCrane')!;
+    const tc = CONFIG.vessels.workboat.tenderCrane;
+    expect(skiff[2] + (tc.cradle.z1 - tc.column[1])).toBeLessThan(zb);
+    expect(skiff[1]).toBeCloseTo(plan.deckY(skiff[2]), 2);
+    expect(b.warnings.join(' ')).not.toMatch(/raised foredeck for the/);
+    expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+    // A small tug's short raised foredeck: no room up there, and the deck below it is the
+    // ladders' — the crane left off, saying so, not stood on a ladder.
+    b = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[4].defaults, hull: 4, fcLength: 3, fcHeight: 2, housePos: 0, deckCrane: 1 });
+    expect(at(b, 'deckCrane')).toBeUndefined();
+    expect(b.warnings.join(' ')).toMatch(/no room on her foredeck for the deck crane, up on the raised foredeck or on the deck below it/);
   });
 });

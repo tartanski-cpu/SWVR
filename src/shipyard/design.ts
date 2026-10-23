@@ -93,22 +93,40 @@ export const DESIGN_VERSION = 32;
  * How many hull types there are (build.ts DESIGN_HULLS). The code's first 16 characters
  * hold the first four; the rest ride in its extension (MORE_HULLS, version 16).
  */
-export const HULL_TYPES = 5;
+export const HULL_TYPES = 6;
 /** Hull types the first 16 characters hold. */
 const BASE_HULLS = 4;
+/**
+ * Hull types the code holds at all: the first five. Later ones (the stern trawler, Oct 2026)
+ * aren't in it, as more of them would change the extension's number base and how every
+ * earlier code reads: such a boat travels as a link or file.
+ */
+export const CODE_HULLS = 5;
 /** The extension's hull number: 0 for one of the first four, n for type BASE_HULLS - 1 + n. */
-const MORE_HULLS = HULL_TYPES - BASE_HULLS + 1;
+const MORE_HULLS = CODE_HULLS - BASE_HULLS + 1;
 
 /** How many engines there are (build.ts ENGINES); the first 16 characters hold the first three, the rest ride in the extension (version 18). */
-export const ENGINE_TYPES = 4;
+export const ENGINE_TYPES = 5;
 const BASE_ENGINES = 3;
+/**
+ * Engines the code holds at all: the first four. Later ones (the 750 kW diesel, Oct 2026) aren't
+ * in it, as more of them would change the extension's number base and how every earlier code
+ * reads (as CODE_HULLS): a boat with one travels as a link or file.
+ */
+export const CODE_ENGINES = 4;
 /** The extension's engine number: 0 for one of the first three, n for engine BASE_ENGINES - 1 + n. */
-const MORE_ENGINES = ENGINE_TYPES - BASE_ENGINES + 1;
-/** Engines that only go in singly (owner: the slow-revving tug diesel is a single installation): a twin choice is built with one. */
-export const SINGLE_ONLY_ENGINES: readonly number[] = [3];
+const MORE_ENGINES = CODE_ENGINES - BASE_ENGINES + 1;
+/**
+ * Engines that only go in singly: a twin choice is built with one. None now: the slow-revving
+ * tug diesel was (owner), until the owner asked for more power for the tugs (Oct 2026): two of
+ * them on two screws, as a twin-screw harbour tug.
+ */
+export const SINGLE_ONLY_ENGINES: readonly number[] = [];
+/** Engines that go on a shaft only (no stern drive or pod drives): the tug diesel and the 750 kW diesel, for their big slow propellers. */
+export const SHAFT_ONLY_ENGINES: readonly number[] = [3, 4];
 
 /** One choice: its index on its scale, 0 .. steps-1. */
-export interface ShipDesign {
+export interface ShipDesign extends Record<FurnitureKey, number>, Record<ConsoleKey, number> {
   /** The base hull (DESIGN_HULLS). */
   hull: number;
   /** Hull length, beam and depth, each scaled (SCALES). */
@@ -278,18 +296,33 @@ export interface ShipDesign {
    */
   foreCabin: number;
   /**
-   * Furniture (parametric boats P5; owner): each piece where it's pinned, a cell of the deck's
-   * 25 cm grid (furnitureCell: 0 none, else 1 + its cell), on the floor it lands on (the
-   * wheelhouse's, the saloon's, the cabin below's sole); the builder puts it against the
-   * nearest wall there, clear of what's in the way (shipyard/parts/furniture.ts). Not in the
-   * short code: she travels as a link or file.
+   * A fish hold (owner, Oct 2026: "to have a fish hold", step 1 toward a trawler): 1, an
+   * insulated hold in her hull under the working deck, its hatch in the deck, the catch going
+   * down into it in boxes (shipyard/parts/hold.ts, modules/fishHold); 0, none. Not in the short
+   * code: she travels as a link or file.
    */
-  berthAt: number;
-  setteeAt: number;
-  galleyAt: number;
-  seatAt: number;
-  lockerAt: number;
-  headAt: number;
+  fishHold: number;
+  /**
+   * The ship's boat on her skiff crane (design.skiff), owner, Oct 2026: 0, the dinghy (the
+   * skiff); 1, the 6 m fast rescue boat (a RIB, CONFIG.vessels.rib) on her bigger crane. Not in
+   * the short code: a design with the rescue boat travels as a link or file.
+   */
+  rescueBoat: number;
+  /**
+   * Trawl deck gear (owner, Oct 2026: step 2 toward a trawler), each with the A-frame only:
+   * `netDrum` 1, the net wound on a hydraulic drum forward of the A-frame; `trawlWinches` 1, a
+   * split pair of trawl winches at the deck edges for the warps (then she needs no tow winch
+   * to trawl). Not in the short code: she travels as a link or file.
+   */
+  netDrum: number;
+  trawlWinches: number;
+  /*
+   * Furniture (parametric boats P5; owner): FurnitureKey's fields (berthAt, berthAt2 ... headAt,
+   * below), each piece where it's placed, a cell of the deck's 25 cm grid (furnitureCell: 0
+   * none, else 1 + its cell), on the floor it lands on (the wheelhouse's, the saloon's, the
+   * cabin below's sole); the builder puts it against the nearest wall there, clear of what's in
+   * the way (shipyard/parts/furniture.ts). Not in the short code: she travels as a link or file.
+   */
   /**
    * The saloon's roof (SCALES.saloonRoof; parametric boats P2b): as high as the wheelhouse's
    * (one roof), or 1 to 3 steps of 0.2 m lower, its own roof aft of a step in the roofline (the
@@ -325,6 +358,36 @@ export interface ShipDesign {
   gear: number;
   /** Controls package: 0 basic, 1 advanced. */
   controls: number;
+  /**
+   * Old school (owner, Oct 2026: "three tiers of instruments, old school (analogue), basic
+   * electronic, and then advanced"): with the basic controls (`controls` 0), 1 puts round
+   * analogue gauges in place of the screens (a compass, the log, depth, the chain counter,
+   * revs, temperature and fuel); 0 the basic electronic screens. Ignored with the advanced
+   * controls. Not in the short code: a design with it travels as a link or file.
+   */
+  oldSchool: number;
+  /**
+   * Touchscreens (owner, Oct 2026: "with the advanced package ... just one screen that you have
+   * tabs that you have to flip between"): with the advanced controls, 0 her separate screens;
+   * 1 one touchscreen with tabs in their place, 2 two side by side. Ignored with the basic
+   * controls. Not in the short code: a link or file.
+   */
+  touch: number;
+  /**
+   * The console's length (CS6; owner, Oct 2026: "an option that allows you to make a more narrow
+   * console, so we can have more narrow wheelhouses"): 0 as long as the wheelhouse allows (up to
+   * CONFIG.shipyard.helm.maxConsole), as before; k a console of `consoleLengthM` metres, no longer
+   * than the wheelhouse is wide. Not in the short code: a link or file.
+   */
+  consoleLen: number;
+  /**
+   * The wheelhouse offset across her (owner, Oct 2026: on the landing craft, "the ability to
+   * offset the wheelhouse when it's narrow enough ... to the port or starboard"): step k puts
+   * its middle `houseOffsetM(k)` m to starboard (negative: to port); 20 on her centreline. Only
+   * on a hull type that allows it (catalog.ts `offsetHouse`), as far as her deck allows. Not
+   * in the short code: a link or file.
+   */
+  houseX: number;
   /** Paint (LIVERIES). */
   paint: number;
 }
@@ -471,6 +534,18 @@ export const HOUSE_COLOUR_FIELD: { key: 'houseColour'; steps: number } = { key: 
 export const FRAMES_FIELD: { key: 'frames'; steps: number } = { key: 'frames', steps: 2 };
 /** The helm assist panel (design.helmAssist): none, or fitted. Not in the code. */
 const HELM_ASSIST_FIELD: { key: 'helmAssist'; steps: number } = { key: 'helmAssist', steps: 2 };
+/** Old school instruments (design.oldSchool): 0 the screens, 1 analogue gauges. Not in the code. */
+const OLD_SCHOOL_FIELD: { key: 'oldSchool'; steps: number } = { key: 'oldSchool', steps: 2 };
+/** The console's length (design.consoleLen): 0 full, else k: CONSOLE_LEN_M(k) metres. Not in the code. */
+const CONSOLE_LEN_FIELD: { key: 'consoleLen'; steps: number } = { key: 'consoleLen', steps: 28 };
+/** The wheelhouse's offset across her (design.houseX): 20 the centreline, each step 5 cm. Not in the code. */
+const HOUSE_X_FIELD: { key: 'houseX'; steps: number } = { key: 'houseX', steps: 41 };
+/** Where the wheelhouse's middle stands across her for step k (m, + starboard). */
+export const houseOffsetM = (k: number): number => Math.round((k - 20) * 0.05 * 100) / 100;
+/** A console length step in metres (k >= 1): 0.8 m to 2.15 m by 5 cm; null for 0 (as long as she allows). */
+export const consoleLengthM = (k: number): number | null => (k > 0 ? Math.round((0.75 + 0.05 * k) * 100) / 100 : null);
+/** Touchscreens (design.touch): 0 separate screens, 1 or 2 touchscreens. Not in the code. */
+const TOUCH_FIELD: { key: 'touch'; steps: number } = { key: 'touch', steps: 3 };
 /** The cockpit overhead (design.overhead, SCALES.overhead): none, or 0.25 .. 4 m. Not in the code. */
 const OVERHEAD_FIELD: { key: 'overhead'; steps: number } = { key: 'overhead', steps: 17 };
 /** More sheer (design.sheer, SCALES.sheer: 0.15 m steps, to 1.2 m at the stem). Not in the code. */
@@ -480,9 +555,34 @@ const FC_LENGTH_FIELD: { key: 'fcLength'; steps: number } = { key: 'fcLength', s
 const FC_HEIGHT_FIELD: { key: 'fcHeight'; steps: number } = { key: 'fcHeight', steps: 4 };
 /** The deckhouse's top walked (design.dhWalk): 0 solid, 1 walked. Not in the code. */
 const DH_WALK_FIELD: { key: 'dhWalk'; steps: number } = { key: 'dhWalk', steps: 2 };
-/** Furniture's pins (design.berthAt and the rest): 0 none, else 1 + a cell of the grid. Not in the code. */
-export type FurnitureKey = 'berthAt' | 'setteeAt' | 'galleyAt' | 'seatAt' | 'lockerAt' | 'headAt';
-export const FURNITURE_FIELDS: { key: FurnitureKey; steps: number }[] = (['berthAt', 'setteeAt', 'galleyAt', 'seatAt', 'lockerAt', 'headAt'] as const).map((key) => ({ key, steps: 1 + CELLS }));
+/**
+ * Furniture's places (design.berthAt and the rest): 0 none, else 1 + a cell of the grid. Not in
+ * the code. Several of a piece (owner, Oct 2026: "the furniture should be allowed to place
+ * multiple"): a field each, the first as it always was (berthAt), the rest numbered (berthAt2,
+ * berthAt3, berthAt4). Up to four of each; one head (its door is the boat's one head door).
+ */
+export type FurniturePiece = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head' | 'bunk' | 'mess' | 'shower';
+export type FurnitureKey = `${FurniturePiece}At${'' | '2' | '3' | '4'}`;
+/** Each piece's fields, the first first. */
+export const FURNITURE_SLOTS: Record<FurniturePiece, FurnitureKey[]> = {
+  berth: ['berthAt', 'berthAt2', 'berthAt3', 'berthAt4'],
+  settee: ['setteeAt', 'setteeAt2', 'setteeAt3', 'setteeAt4'],
+  galley: ['galleyAt', 'galleyAt2', 'galleyAt3', 'galleyAt4'],
+  seat: ['seatAt', 'seatAt2', 'seatAt3', 'seatAt4'],
+  locker: ['lockerAt', 'lockerAt2', 'lockerAt3', 'lockerAt4'],
+  head: ['headAt'],
+  // Crew accommodation (owner, Oct 2026): two-high bunks, a mess table, a shower (one).
+  bunk: ['bunkAt', 'bunkAt2', 'bunkAt3', 'bunkAt4'],
+  mess: ['messAt', 'messAt2'],
+  shower: ['showerAt'],
+};
+/** Every furniture field (a design's other head fields, headAt2 and on, are always 0). */
+export const FURNITURE_KEYS = Object.values(FURNITURE_SLOTS).flat();
+/** The spare fields of a piece with fewer than four (one head, one shower, two messes): never set, but the type has them. */
+const SPARE_SLOTS: FurnitureKey[] = (Object.keys(FURNITURE_SLOTS) as FurniturePiece[]).flatMap((p) => (['', '2', '3', '4'] as const).map((n) => `${p}At${n}` as FurnitureKey)).filter((k) => !FURNITURE_KEYS.includes(k));
+export const FURNITURE_FIELDS: { key: FurnitureKey; steps: number }[] = [...FURNITURE_KEYS.map((key) => ({ key, steps: 1 + CELLS })), ...SPARE_SLOTS.map((key) => ({ key, steps: 1 }))];
+/** No furniture: every field 0. */
+export const NO_FURNITURE = Object.fromEntries(FURNITURE_FIELDS.map((f) => [f.key, 0])) as Record<FurnitureKey, number>;
 /** A cell of the grid as a furniture pin's value (`x` m from the centreline, `fromTransom` m forward of the transom). */
 export function furnitureCell(x: number, fromTransom: number): number {
   const xi = Math.max(-PLACE_GRID.halfX, Math.min(PLACE_GRID.halfX, Math.round(x / PLACE_GRID.step)));
@@ -495,8 +595,37 @@ export function furnitureAt(v: number): { x: number; fromTransom: number } | nul
   const nx = 2 * PLACE_GRID.halfX + 1;
   return { x: (((v - 1) % nx) - PLACE_GRID.halfX) * PLACE_GRID.step, fromTransom: Math.floor((v - 1) / nx) * PLACE_GRID.step };
 }
+/**
+ * The console placed by hand (dynamic console sockets CS3; owner, Oct 2026: "so we can
+ * eventually place the instruments where we want"; shipyard/parts/consoleGrid.ts). Each
+ * screen's cell on the dash (0 automatic, else 1 + column x 2 + row, row 0 the top) and each
+ * switch group's first cell along the panel (0 automatic, else 1 + cell), in the console's
+ * grids from its port end. Not in the code: a boat placed by hand travels as a link or file.
+ */
+export const DASH_SLOTS = { speed: 'dashSpeed', anchorScreen: 'dashAnchor', heading: 'dashHeading', rpm: 'dashRpm', engineMonitor: 'dashMonitor', towline: 'dashTow', dialCompass: 'dashCompass', dialSpeed: 'dashLog', dialDepth: 'dashDepth', dialChain: 'dashChain', dialRpm: 'dashTacho', dialTemp: 'dashTemp', dialFuel: 'dashFuel', clock: 'dashClock', dialClock: 'dashClockDial', touch1: 'dashTouch1', touch2: 'dashTouch2' } as const;
+export const PANEL_SLOTS = { LIGHTS: 'panelLights', SEARCH: 'panelSearch', horn: 'panelHorn', ENGINE: 'panelEngine', DECK: 'panelDeck' } as const;
+export type ConsoleKey = (typeof DASH_SLOTS)[keyof typeof DASH_SLOTS] | (typeof PANEL_SLOTS)[keyof typeof PANEL_SLOTS];
+/** The most columns a dash's grid has, and cells a panel's (a console's longest, 2.2 m, has fewer). */
+export const DASH_COLS_MAX = 24;
+export const PANEL_CELLS_MAX = 40;
+export const CONSOLE_FIELDS: { key: ConsoleKey; steps: number }[] = [
+  ...Object.values(DASH_SLOTS).map((key) => ({ key, steps: 1 + 2 * DASH_COLS_MAX })),
+  ...Object.values(PANEL_SLOTS).map((key) => ({ key, steps: 1 + PANEL_CELLS_MAX })),
+];
+/** Everything automatic. */
+export const CONSOLE_AUTO = Object.fromEntries(CONSOLE_FIELDS.map((f) => [f.key, 0])) as Record<ConsoleKey, number>;
+/** A screen's cell as its field's value, and back (null: automatic). */
+export const dashValue = (col: number, row: number) => 1 + col * 2 + row;
+export const dashCell = (v: number) => (v ? { col: Math.floor((v - 1) / 2), row: (v - 1) % 2 } : null);
 /** A cabin below the deckhouse (design.foreCabin): 0 none, 1 fitted. Not in the code. */
 const FORE_CABIN_FIELD: { key: 'foreCabin'; steps: number } = { key: 'foreCabin', steps: 2 };
+/** A fish hold (design.fishHold): 0 none, 1 fitted. Not in the code. */
+const FISH_HOLD_FIELD: { key: 'fishHold'; steps: number } = { key: 'fishHold', steps: 2 };
+/** The ship's boat on the skiff crane (design.rescueBoat): 0 the dinghy, 1 the rescue boat. Not in the code. */
+const RESCUE_BOAT_FIELD: { key: 'rescueBoat'; steps: number } = { key: 'rescueBoat', steps: 2 };
+/** The trawl deck gear (design.netDrum, trawlWinches): 0 none, 1 fitted. Not in the code. */
+const NET_DRUM_FIELD: { key: 'netDrum'; steps: number } = { key: 'netDrum', steps: 2 };
+const TRAWL_WINCHES_FIELD: { key: 'trawlWinches'; steps: number } = { key: 'trawlWinches', steps: 2 };
 /** How many outboards a design has (0: an inboard). */
 export const outboardCount = (d: Pick<ShipDesign, 'outboards'>): number => (d.outboards ? d.outboards + 1 : 0);
 /** What a guard choice fits: the crew's fenders, and a fixed strake or tyres. */
@@ -505,7 +634,7 @@ export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, FORE_CABIN_FIELD, ...FURNITURE_FIELDS];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -579,7 +708,8 @@ export type MeasureKey = 'housePos' | 'houseLength' | 'houseWidth' | 'headroom' 
 export const MEASURES: Record<MeasureKey, { min: number; max: number; by: number; code: (i: number) => number; steps: number }> = {
   housePos: { min: 0, max: 1, by: 0.01, code: SCALES.housePos, steps: 16 },
   houseLength: { min: 2.4, max: 5.4, by: 0.05, code: SCALES.houseLength, steps: 16 },
-  houseWidth: { min: 0.65, max: 1, by: 0.01, code: SCALES.houseWidth, steps: 8 },
+  // (Down to 0.4 for a narrow wheelhouse with a short console, CS6; never under CONFIG.shipyard.helm.minInside inside. Under 0.65: a link or file.)
+  houseWidth: { min: 0.4, max: 1, by: 0.01, code: SCALES.houseWidth, steps: 8 },
   headroom: { min: 1.9, max: 2.6, by: 0.05, code: SCALES.headroom, steps: 8 },
   floor: { min: -0.6, max: 0.8, by: 0.05, code: SCALES.floor, steps: 8 },
   saloon: { min: 0, max: 4.4, by: 0.1, code: SCALES.saloon, steps: 9 },
@@ -655,12 +785,12 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   fcHeight: 2,
   dhWalk: 0,
   foreCabin: 0,
-  berthAt: 0,
-  setteeAt: 0,
-  galleyAt: 0,
-  seatAt: 0,
-  lockerAt: 0,
-  headAt: 0,
+  fishHold: 0,
+  rescueBoat: 0,
+  netDrum: 0,
+  trawlWinches: 0,
+  ...NO_FURNITURE,
+  ...CONSOLE_AUTO,
   ...NO_V10_GEAR,
   // The crew's fenders: what every boat has, at the least.
   guard: 1,
@@ -670,6 +800,10 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   engine: 1,
   gear: 2,
   controls: 1,
+  oldSchool: 0,
+  touch: 0,
+  consoleLen: 0,
+  houseX: 20,
   paint: 0,
 });
 
@@ -709,12 +843,22 @@ export function encodeDesign(design: ShipDesign): string {
   if (d.fcLength) throw new Error('a raised foredeck isn’t in the code: she travels as a link or file');
   if (d.dhWalk) throw new Error('the deckhouse’s walked top isn’t in the code: she travels as a link or file');
   if (d.foreCabin) throw new Error('the cabin below isn’t in the code: she travels as a link or file');
+  if (d.fishHold) throw new Error('a fish hold isn’t in the code: she travels as a link or file');
+  if (d.rescueBoat) throw new Error('the rescue boat isn’t in the code: she travels as a link or file');
+  if (d.netDrum || d.trawlWinches) throw new Error('the trawl deck gear isn’t in the code: she travels as a link or file');
   if (FURNITURE_FIELDS.some((f) => d[f.key])) throw new Error('furniture isn’t in the code: she travels as a link or file');
+  if (CONSOLE_FIELDS.some((f) => d[f.key])) throw new Error('a console placed by hand isn’t in the code: she travels as a link or file');
+  if (d.oldSchool) throw new Error('old school instruments aren’t in the code: she travels as a link or file');
+  if (d.touch) throw new Error('touchscreens aren’t in the code: she travels as a link or file');
+  if (d.consoleLen) throw new Error('a console of a set length isn’t in the code: she travels as a link or file');
+  if ((d.houseX ?? 20) !== 20) throw new Error('a wheelhouse offset across her isn’t in the code: she travels as a link or file');
   if (!Number.isInteger(d.hull) || d.hull < 0 || d.hull >= HULL_TYPES) throw new Error(`design hull ${d.hull} is off its scale (0..${HULL_TYPES - 1})`);
+  if (d.hull >= CODE_HULLS) throw new Error('this hull type isn’t in the code: she travels as a link or file');
   // A hull type after the first four: 0 in the first 16 characters, its number in the extension.
   const more = d.hull >= BASE_HULLS ? d.hull - BASE_HULLS + 1 : 0;
   // An engine after the first three: the same way.
   if (!Number.isInteger(d.engine) || d.engine < 0 || d.engine >= ENGINE_TYPES) throw new Error(`design engine ${d.engine} is off its scale (0..${ENGINE_TYPES - 1})`);
+  if (d.engine >= CODE_ENGINES) throw new Error('this engine isn’t in the code: she travels as a link or file');
   const moreEngine = d.engine >= BASE_ENGINES ? d.engine - BASE_ENGINES + 1 : 0;
   const base = pack({ ...d, ...(more ? { hull: 0 } : {}), ...(moreEngine ? { engine: 0 } : {}) }, FIELDS);
   // No handrails first (most significant: 0 with them), hull protection (0 without any), the deckhouse (0 without one),
@@ -915,7 +1059,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, foreCabin: 0, berthAt: 0, setteeAt: 0, galleyAt: 0, seatAt: 0, lockerAt: 0, headAt: 0, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, foreCabin: 0, fishHold: 0, rescueBoat: 0, netDrum: 0, trawlWinches: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, consoleLen: 0, houseX: 20, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

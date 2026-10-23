@@ -58,11 +58,13 @@ function v10OnDeckGear(x: number, z: number, pad: number): boolean {
   const footZ = plan.transom - af.footFromTransom;
   const x0 = plan.halfBeam(footZ) - af.footInset;
   for (const fz of [footZ, footZ - af.braceForward]) if (Math.hypot(Math.abs(x) - x0, z - fz) < 0.12 + pad) return true;
+  // (Since Oct 2026: the A-frame's control box on its post, inboard of the starboard foot.)
+  if (Math.hypot(x - (x0 - af.box.inboard), z - (footZ - af.box.forward)) < 0.2 + pad) return true;
   return false;
 }
 
 describe('footprints: what you walk round comes from the modules', () => {
-  it('on deck, the crane and cradle, the winch and the A-frame\'s feet are exactly where v1.0 kept you out', () => {
+  it('on deck, the crane and cradle, the winch and the A-frame\'s feet are exactly where v1.0 kept you out (and the A-frame\'s control box post since)', () => {
     const gear = footprintsOf(boat);
     let checked = 0;
     for (let z = plan.stem; z <= plan.transom; z += 0.05) {

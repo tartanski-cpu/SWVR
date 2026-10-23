@@ -49,7 +49,7 @@ import type { GearFacts } from '../modular/module';
 import type { CargoHands } from '../cargo/cargoHands';
 import { userSettings } from '../player/userSettings';
 import { distanceToHull } from './recovery';
-import { lineFor, towName, towPoint, towReach, towTargets } from '../tow/tow';
+import { lineFor, lineOf, towName, towPoint, towReach, towTargets } from '../tow/tow';
 import { ropePoints, ROPE_POINTS } from './rescueGearView';
 import { blockTop } from '../world/geography';
 import { groundHeight } from '../world/terrain';
@@ -183,12 +183,13 @@ export class RescueHands {
    */
   private towEyes(ctx: RescueHandsContext): { key: string; p: THREE.Vector3 }[] {
     const v = ctx.world.vessels[ctx.vesselId];
-    const line = ctx.world.tow?.line;
-    const keys = line ? [line.target] : v ? towTargets(ctx.world) : [];
+    // Our boat's line (each boat has her own: multi-boat towing).
+    const line = lineOf(ctx.world, ctx.vesselId);
+    const keys = line ? [line.target] : v ? towTargets(ctx.world, ctx.vesselId) : [];
     let n = 0;
     for (const key of keys) {
       const e = (this.eyes[n] ??= { key, p: new THREE.Vector3() });
-      if (!towPoint(ctx.world, key, e.p) || !v || Math.hypot(e.p.x - v.position[0], e.p.z - v.position[2]) > 40) continue;
+      if (!towPoint(ctx.world, key, e.p, ctx.vesselId) || !v || Math.hypot(e.p.x - v.position[0], e.p.z - v.position[2]) > 40) continue;
       e.key = key;
       // Debris floats at the drawn surface.
       if (key.startsWith('d:')) e.p.setY(surfaceHeight(ctx.waves, e.p.x, e.p.z) + 0.15);
@@ -202,14 +203,14 @@ export class RescueHands {
   private makeFast(ctx: RescueHandsContext, hand: Holder, key: string): void {
     if (this.clock - this.towAsk < 1) return;
     this.towAsk = this.clock;
-    if (ctx.world.tow?.line) {
+    if (lineOf(ctx.world, ctx.vesselId)) {
       ctx.push('towCast', undefined, 1);
       if (hand !== 'desk') ctx.pulse(hand, 0.6, 60);
       ctx.notify('Towline cast off.');
       return;
     }
     // The line runs over our stern roller: what we tow must be near enough our stern.
-    if (towReach(ctx.world, key) > lineFor(key).attach) {
+    if (towReach(ctx.world, key, ctx.vesselId, undefined, true) > lineFor(key).attach) {
       ctx.notify(`Too far from our stern: bring the stern roller within ${lineFor(key).attach} m of it.`);
       return;
     }
@@ -570,7 +571,7 @@ export class RescueHands {
       const eyeOn = this.towEyeOnRay(ctx, ray);
       if (eyeOn) {
         const what = eyeOn.key.startsWith('d:') ? 'debris' : eyeOn.key.startsWith('l:') ? 'log' : 'bow eye';
-        return ctx.world.tow?.line ? `${what}\nclick to cast off the towline` : `${what}\nclick to make the towline fast`;
+        return lineOf(ctx.world, ctx.vesselId) ? `${what}\nclick to cast off the towline` : `${what}\nclick to make the towline fast`;
       }
       if (this.tipOnSolid()) return 'boat hook on the quay\nclick to push off (again to push more)';
       return this.crateOnRay(ctx, ray) ? 'crate\nclick to hook it' : 'boat hook\nclick a crate to hook it · click open water to put it back';

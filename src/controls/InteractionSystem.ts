@@ -58,12 +58,42 @@ export interface HoldRules {
 const NO_RULES: HoldRules = { lockedByOther: () => false, holdChanged: () => {} };
 
 export class InteractionSystem {
+  /**
+   * Controls that come later (a boat put in the world after the start, multi-boat M2): wired
+   * in as the first ones were. `list` false: they're in `controls` already (the constructor).
+   */
+  addControls(cs: readonly Control[], list = true): void {
+    for (const c of cs) {
+      if (list) {
+        if (this.controls.includes(c)) continue;
+        this.controls.push(c);
+      }
+      for (const o of c.hitObjects) {
+        this.owner.set(o, c);
+        this.hitObjects.push(o);
+        if (c.kind === 'press') this.pressHitObjects.push(o);
+      }
+    }
+  }
+
+  /** Controls of a boat that's gone: out of reach of every hand. */
+  removeControls(cs: readonly Control[]): void {
+    const gone = new Set(cs);
+    for (let i = this.controls.length - 1; i >= 0; i--) if (gone.has(this.controls[i])) this.controls.splice(i, 1);
+    for (const c of cs) for (const o of c.hitObjects) this.owner.delete(o);
+    const keep = (o: THREE.Object3D) => !gone.has(this.owner.get(o) as Control) && this.owner.has(o);
+    this.hitObjects.splice(0, this.hitObjects.length, ...this.hitObjects.filter(keep));
+    this.pressHitObjects.splice(0, this.pressHitObjects.length, ...this.pressHitObjects.filter(keep));
+  }
+
   /** Grab controls a local hand or the mouse holds, as last reported to `rules`. */
   private readonly localHolds = new Set<Control>();
   private readonly owner = new Map<THREE.Object3D, Control>();
   private readonly hitObjects: THREE.Object3D[] = [];
   /** VR pointer-ray targets: buttons and switches only. Levers and the wheel are hand-only. */
   private readonly pressHitObjects: THREE.Object3D[] = [];
+  /** The desktop reticle's hit point on the control under it this frame (none: aim help, or nothing). */
+  private deskHitPoint: THREE.Vector3 | null = null;
   private readonly raycaster = new THREE.Raycaster();
   private readonly hands: Record<Handedness, HandState>;
   private readonly pointers: Record<Handedness, Pointer>;
@@ -83,13 +113,7 @@ export class InteractionSystem {
     private readonly pulse: (hand: Handedness, intensity: number, ms: number) => void,
     private readonly rules: HoldRules = NO_RULES,
   ) {
-    for (const c of controls) {
-      for (const o of c.hitObjects) {
-        this.owner.set(o, c);
-        this.hitObjects.push(o);
-        if (c.kind === 'press') this.pressHitObjects.push(o);
-      }
-    }
+    this.addControls(controls, false);
     const line = () => {
       const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]);
       const l = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.8 }));
@@ -213,6 +237,7 @@ export class InteractionSystem {
         }
       } else if (best?.kind === 'press' && f.triggerPressed && !h.pressing) {
         best.bind(this.context(hand, best));
+        best.pressPoint = byRay && rayHit ? rayHit.clone() : f.ray.origin.clone();
         best.pressStart();
         h.pressing = best;
       }
@@ -274,6 +299,8 @@ export class InteractionSystem {
       this.raycaster.far = CONFIG.interaction.desktopReach;
       const hit = this.raycaster.intersectObjects(this.hitObjects, false).find((x) => this.owner.get(x.object)?.enabled);
       hover = hit ? (this.owner.get(hit.object) ?? null) : null;
+      // Where the click lands on it (a direct hit only; the aim help below has none).
+      this.deskHitPoint = hit ? hit.point.clone() : null;
       // Aim help, only when the ray hits nothing (a direct hit always wins): keep what we
       // were on while the reticle is still near it, else take the nearest control just
       // missed (see CONFIG.interaction.desktopStickyDeg / desktopAssistDeg).
@@ -312,6 +339,7 @@ export class InteractionSystem {
         this.dragging = hover;
         hover.nudge(dx, dy);
       } else {
+        hover.pressPoint = this.deskHitPoint;
         hover.pressStart();
         this.deskPressing = hover;
       }

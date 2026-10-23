@@ -5,6 +5,7 @@
  */
 import type { HullDefinition } from '../../modular/hull';
 import { hullFormOf } from '../../modular/hull';
+import { CONFIG } from '../../config';
 import { SCALES } from '../design';
 import type { BuildArgs } from './common';
 import { DESIGN_HULLS, sizeScale } from './catalog';
@@ -23,8 +24,11 @@ export function hullPart(a: BuildArgs) {
   const L = sizeScale(base, d.length);
   const grown = Math.max(1, L);
   const grownPlate = Math.sqrt(grown);
-  const B = SCALES.scale(d.beam) * grown;
-  const D = SCALES.scale(d.depth) * grownPlate;
+  // A hull that `shrinksTo` a smaller size (the tug) shrinks in beam and depth too, less than
+  // in length (CONFIG.shipyard.shrink): a small tug is relatively beamy and deep.
+  const small = base.shrinksTo ? Math.min(1, L) : 1;
+  const B = SCALES.scale(d.beam) * grown * small ** CONFIG.shipyard.shrink.beam;
+  const D = SCALES.scale(d.depth) * grownPlate * small ** CONFIG.shipyard.shrink.depth;
   /** Her form lofted (with her extra sheer), and with a raised foredeck once the house part knows where its break goes (`forecastle`). */
   const loft = (forecastle?: { from: number; raise: number }) => raised(base.form(L, B, D, d.bow, SCALES.sheer(d.sheer ?? 0), forecastle), raise);
   const form = loft();
@@ -34,7 +38,7 @@ export function hullPart(a: BuildArgs) {
   const stem = st[st.length - 1].z;
   const bulwarkHeight = Math.round(SCALES.bulwark(d.bulwark) * 100) / 100;
 
-  return { base, bulwarkHeight, form, grownPlate, loft, shape, st, stem, transom, warnings };
+  return { base, bulwarkHeight, form, grownPlate, loft, shape, size: { L, B, D }, st, stem, transom, warnings };
 }
 export type HullPart = ReturnType<typeof hullPart>;
 

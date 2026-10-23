@@ -4,19 +4,21 @@ import { gearOf, useDesign } from '../../src/boats/sims';
 import { LIBRARY, RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
 import { DESIGN_HULLS, ENGINES } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, ENGINE_TYPES, type ShipDesign } from '../../src/shipyard/design';
+import { CODE_ENGINES, decodeDesign, DEFAULT_DESIGN, encodeDesign, ENGINE_TYPES, type ShipDesign } from '../../src/shipyard/design';
 import { fakeCanvas } from '../modular/fakes';
 
 beforeAll(fakeCanvas);
 
 const BASE: ShipDesign = { ...DEFAULT_DESIGN, guard: 0 };
-const TUG = DESIGN_HULLS.length - 1;
+const TUG = DESIGN_HULLS.findIndex((h) => h.pushBow);
 const tug = (engine: number, twin = 0): ShipDesign => ({ ...BASE, hull: TUG, ...DESIGN_HULLS[TUG].defaults, engine, twin });
 
 describe('the tug engine: codes', () => {
   it('every engine reads back; the first three keep their 17-character codes as before', () => {
     expect(ENGINE_TYPES).toBe(ENGINES.length);
-    for (let engine = 0; engine < ENGINE_TYPES; engine++)
+    // (The 750 kW diesel, after the code's four, travels as a link or file.)
+    expect(() => encodeDesign({ ...BASE, engine: CODE_ENGINES })).toThrow(/engine isn’t in the code/);
+    for (let engine = 0; engine < CODE_ENGINES; engine++)
       for (const hull of [0, TUG]) {
         const d = { ...BASE, hull, engine };
         expect(decodeDesign(encodeDesign(d)), `${engine} ${hull}`).toEqual({ design: d });
@@ -43,10 +45,13 @@ describe('the tug engine: built', () => {
     expect(slow.warnings).toEqual([]);
   });
 
-  it('goes in singly only: a twin choice is built with one engine, and says so', () => {
+  it('goes in as a twin too (owner, Oct 2026: more power for the tugs), but on shafts only: no stern drive or pods', () => {
     const b = useDesign(tug(3, 1));
-    expect(gearOf({ defId: 'design' }, 'diesel')!.twin).toBeFalsy();
-    expect(b.figures.engine).not.toMatch(/^Twin/);
-    expect(b.warnings.join(' ')).toMatch(/goes in singly/);
+    expect(gearOf({ defId: 'design' }, 'diesel')!.twin).toBeTruthy();
+    expect(b.figures.engine).toMatch(/^Twin/);
+    expect(b.warnings.join(' ')).not.toMatch(/goes in singly/);
+    const sd = useDesign({ ...tug(3, 1), sternDrive: 1 });
+    expect(sd.warnings.join(' ')).toMatch(/goes on a shaft/);
+    expect(RECIPES.design.modules.some((m) => m.socket === 'sternDrive')).toBe(false);
   });
 });

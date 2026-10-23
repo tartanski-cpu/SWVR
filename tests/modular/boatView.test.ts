@@ -82,7 +82,7 @@ describe('the skiff as drawn from her recipe', () => {
   it('her tiller is a module on her outboard; no doors, no glass', () => {
     expect(RECIPES.skiff.modules[0].modules?.map((m) => m.module)).toEqual(['control.tiller']);
     const { view } = boatOf('skiff', false);
-    expect(view.moduleList).toEqual(['outboard/tiller: control.tiller', 'bowCleat: deck.boat-cleat', 'sternCleat: deck.boat-cleat']);
+    expect(view.moduleList).toEqual(['outboard/tiller: control.tiller', 'bowCleat: deck.boat-cleat', 'sternCleat: deck.boat-cleat', 'tubes: hull.tubes']);
     expect(view.controls.map((c) => c.id)).toEqual(['tiller', 'outboardGear', 'outboardPower', 'painter', 'sternPainter']);
     expect(view.door).toBeNull();
     expect(view.rainGlass).toBeNull();

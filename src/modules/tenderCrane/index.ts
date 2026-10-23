@@ -43,7 +43,7 @@ export const TENDER_CRANE: ModuleDefinition<TenderCraneConfig> = {
   footprints: (config, _hull, at) => {
     const c = placeTenderCrane(config, at([0, 0, 0]));
     return [
-      { x0: c.stow[0] - c.cradle.halfWidth, x1: c.stow[0] + c.cradle.halfWidth, z0: c.cradle.z0, z1: c.cradle.z1, top: c.stow[1] + 0.6 },
+      { x0: c.stow[0] - c.cradle.halfWidth, x1: c.stow[0] + c.cradle.halfWidth, z0: c.cradle.z0, z1: c.cradle.z1, top: c.stow[1] + c.tender.height },
       { x: c.column[0], z: c.column[1], r: c.columnRadius, top: c.shoulderY },
     ];
   },

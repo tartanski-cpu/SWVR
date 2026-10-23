@@ -146,9 +146,9 @@ export function washUp(world: WorldState, nearX?: number, nearZ?: number): Salva
   return null;
 }
 
-/** Is a log on our towline? */
+/** Is a log on a towline (any boat's)? */
 function onLine(world: WorldState, log: SalvageLog): boolean {
-  return world.tow?.line?.target === `l:${log.id}`;
+  return Object.values(world.tow?.lines ?? {}).some((l) => l.target === `l:${log.id}`);
 }
 
 /** The log a towline key names. */
@@ -232,7 +232,7 @@ export function stepSalvage(world: WorldState, dt: number): void {
     const port = PORTS.find((p) => Math.hypot(p.x - log.x, p.z - log.z) < CONFIG.tow.deliverRadius);
     log.inPort = port && log.afloat && Math.hypot(log.vel[0], log.vel[1]) < CONFIG.tow.deliverSpeed ? log.inPort + dt : 0;
     if (port && log.inPort >= CONFIG.tow.deliverTime) {
-      if (onLine(world, log)) world.tow!.line = null;
+      if (world.tow?.lines) for (const [id, l] of Object.entries(world.tow.lines)) if (l.target === `l:${log.id}`) delete world.tow.lines[id];
       s.logs = s.logs.filter((l) => l !== log);
       s.sold += 1;
       earn(world, 'log', { port: port.id, text: `Salvage log sold at ${portName(port.id)}` });
@@ -262,11 +262,12 @@ export function isSalvageIntent(control: string): boolean {
   return control.startsWith('salvage');
 }
 
-/** One line for displays while a log is on the line, else null. */
-export function salvageStatus(world: WorldState): string | null {
-  const key = world.tow?.line?.target;
-  const log = key ? logOf(world, key) : undefined;
+/** One line for displays while a log is on a boat's line (by default the home boat's, else the first), else null. */
+export function salvageStatus(world: WorldState, boatId?: string): string | null {
+  const lines = world.tow?.lines ?? {};
+  const line = lines[boatId ?? world.homeVesselId ?? ''] ?? (boatId ? undefined : Object.values(lines)[0]);
+  const log = line ? logOf(world, line.target) : undefined;
   if (!log) return null;
-  const kN = ((world.tow?.line?.tension ?? 0) / 1000).toFixed(1);
+  const kN = ((line?.tension ?? 0) / 1000).toFixed(1);
   return log.afloat ? `Log afloat: tow it into any harbour (line ${kN} kN)` : `Log on the beach: pull it off - ease ahead, more power (line ${kN} kN)`;
 }
