@@ -28,6 +28,8 @@ import { addCoastChunk, coastHeight, coastTerrain, registerChunkedCoast, registe
 
 const T = {
   berthsPerPort: 10,
+  /** A bridge's deck stands at least this high over the sea (m), whatever the ground at its ends. */
+  bridgeMinDeck: 6,
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
    * (the game puts you 2 m in): a pontoon (2.5 m) has; a narrower walkway's berths aren't chosen. */
   namedDeck: 2.4,
@@ -365,6 +367,20 @@ const skyline = ((F?.landmarks ?? []) as { kind: string; name: string; x: number
   .filter((l) => l.kind !== 'lighthouse' && !(l.kind === 'church' && kitChurch(l.x, l.z)))
   .map((l) => ({ kind: l.kind, name: l.name, x: l.x, z: l.z, ...(l.height ? { height: l.height } : {}), ...(l.size ? { size: l.size } : {}) }));
 const skylineStyle = req.theme;
+// Bridges over the sea and follies (the landmarks and bridges pass; features.ts). A bridge's
+// deck stands level with the higher of the ground at its two ends (its abutments), at least
+// `bridgeMinDeck` m over the sea. A folly stands on the lowest ground round its footprint
+// (its walls reach down to it).
+const bridges = ((F?.bridges ?? []) as { name: string; structure: string; carries: string; width: number; path: [number, number][] }[]).map((b) => {
+  const [a, e] = [b.path[0], b.path[b.path.length - 1]];
+  return { ...b, deck: r1(Math.max(T.bridgeMinDeck, hAt(a[0], a[1]), hAt(e[0], e[1]))) };
+});
+const follies = ((F?.follies ?? []) as { name: string; outline: [number, number][]; height: number | null }[]).map((f) => ({
+  name: f.name,
+  outline: f.outline,
+  base: r1(Math.min(...f.outline.map(([x, z]) => hAt(x, z)))),
+  ...(f.height ? { height: f.height } : {}),
+}));
 // Ferries (the coast extras plan, C7): each mapped ferry route, cut to the map (its longest
 // stretch `ferryMargin` m inside the box's edge), each end a terminal where she berths (an
 // end of the route inside the map, named from the nearest ferry terminal or port) or the
@@ -523,6 +539,8 @@ const pkg = {
   farms,
   skyline,
   skylineStyle,
+  bridges,
+  follies,
   places,
   ferries: ferryRoutes,
   shelters,

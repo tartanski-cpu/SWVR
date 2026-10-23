@@ -6,6 +6,9 @@
  *
  *   farms       marine farms (nav.ts reads their outlines): their kind (fish cages,
  *               mussel lines, other) from seamark:marine_farm:category      (C2)
+ *   bridges     roads and railways bridging the sea (at least `bridgeWater` m of it): deck
+ *               line, width, name, structure (cantilever, arch, beam ...)
+ *   follies     follies mapped as buildings (McCaig's Tower), with their footprint
  *   landmarks   castles, towers, masts, chimneys, water towers, monuments, lighthouses,
  *               wind turbines, churches: where, and their height where tagged (C2)
  *   shore       beaches by surface (sand, shingle, pebbles...), shingle, bare rock, and
@@ -36,6 +39,15 @@ const T = {
   simplify: 5,
   /** A span of a power line counts as over the water when at least this much of it is (m). */
   overWater: 30,
+  /** A road or railway bridge is kept when at least this much of its length (m) is over the sea: a crossing (Connel Bridge, about 150 m), not
+   * a burn's bridge, the road onto a pier (the pier is drawn already) or a dock gate's swing bridge (it opens; the game can't, yet). */
+  bridgeWater: 60,
+  /** An untagged bridge deck's width (m): a railway's, a main road's, any other road's. */
+  bridgeWidth: { rail: 5, main: 9, road: 7 },
+  /** No road deck narrower than this (m): a width tag under it is a lane's (Connel Bridge's says 2). */
+  bridgeMinWidth: 4,
+  /** A folly is built as a ring of arches only when it spans at least this (m): McCaig's Tower (58 m); a garden grotto (5 m) isn't one. */
+  follyMinSpan: 25,
   /** An island or archipelago whose outline spans more than this (m) isn't named: bigger than any map. */
   biggestIsland: 60000,
 };
@@ -171,7 +183,8 @@ const landmarkKind = (t: Tags): string | null =>
       ? 'castle'
       : t.man_made === 'lighthouse'
         ? 'lighthouse'
-        : t.man_made === 'mast' || t.man_made === 'communications_tower' || (t.man_made === 'tower' && /communication|telecom/.test(t['tower:type'] ?? ''))
+        : // (A floodlight's pole, tagged a mast of the lighting kind, isn't one: McCaig's Tower has four.)
+          (t.man_made === 'mast' && !/lighting|flagpole/.test(t['tower:type'] ?? '')) || t.man_made === 'communications_tower' || (t.man_made === 'tower' && /communication|telecom/.test(t['tower:type'] ?? ''))
           ? 'mast'
           : t.man_made === 'tower'
             ? 'tower'
@@ -332,7 +345,62 @@ const counts = {
   ferryRoutes: ferryRoutes.length,
   ferryTerminals: terminals.length,
 };
-const out = { farms, landmarks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
+// ── Bridges over the sea, and follies (landmarks and bridges pass) ──
+// A road or railway marked as a bridge whose line runs at least `bridgeWater` m over the sea:
+// its deck line, width, name and structure (from its own tags, or the bridge's outline mapped
+// round it: Connel Bridge's says cantilever). The same crossing mapped twice (a road and an old
+// railway on one deck, the approaches) is kept once, the longest over the water.
+const wetLength = (l: XZ[]) => {
+  let wet = 0;
+  for (let i = 1; i < l.length; i++) {
+    const [a, b] = [l[i - 1], l[i]];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    for (let s = 1; s < len; s += 2) if (isWet([a[0] + ((b[0] - a[0]) * s) / len, a[1] + ((b[1] - a[1]) * s) / len])) wet += 2;
+  }
+  return wet;
+};
+const inRing = (ring: XZ[], [x, z]: XZ) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, zi] = ring[i];
+    const [xj, zj] = ring[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+};
+const bridgeOutlines = things.filter((t) => t.tags.man_made === 'bridge' && t.kind !== 'node').flatMap((t) => t.lines.filter((l) => l.length > 3).map((l) => ({ tags: t.tags, ring: l })));
+const bridgeCandidates: { name: string; structure: string; carries: string; width: number; path: XZ[]; wet: number }[] = [];
+for (const t of things) {
+  const g = t.tags;
+  if (t.kind !== 'way' || !g.bridge || g.bridge === 'no' || !(g.highway || g.railway)) continue;
+  const l = t.lines[0];
+  if (l.length < 2 || !l.some(inBox)) continue;
+  const wet = wetLength(l);
+  if (wet < T.bridgeWater) continue;
+  const mid = middle(l);
+  const outline = bridgeOutlines.find((o) => inRing(o.ring, mid));
+  const rail = !g.highway && !!g.railway;
+  const main = /^(motorway|trunk|primary)/.test(g.highway ?? '');
+  const width = Math.max(T.bridgeMinWidth, parseFloat(g.width ?? outline?.tags.width ?? '') || (rail ? T.bridgeWidth.rail : main ? T.bridgeWidth.main : T.bridgeWidth.road));
+  bridgeCandidates.push({ name: nameOf(g) || (outline ? nameOf(outline.tags) : ''), structure: g['bridge:structure'] ?? outline?.tags['bridge:structure'] ?? (g.bridge === 'viaduct' ? 'arch' : 'beam'), carries: rail ? 'rail' : 'road', width, path: simplify(l, 1), wet });
+}
+bridgeCandidates.sort((a, b) => b.wet - a.wet);
+const bridges: typeof bridgeCandidates = [];
+for (const c of bridgeCandidates) {
+  const m = middle(c.path);
+  if (bridges.some((b) => Math.hypot(middle(b.path)[0] - m[0], middle(b.path)[1] - m[1]) < 40)) continue;
+  bridges.push(c);
+}
+// Follies drawn as buildings (McCaig's Tower above Oban): their footprint, for a model made to it.
+const follies: { name: string; outline: XZ[]; height: number | null }[] = [];
+for (const t of things) {
+  if (t.tags.historic !== 'folly' || !t.tags.building || t.kind === 'node') continue;
+  const ring = t.lines.filter((l) => l.length > 3).sort((a, b) => area(b) - area(a))[0];
+  if (!ring || !inBox(middle(ring)) || span(ring) < T.follyMinSpan) continue;
+  follies.push({ name: nameOf(t.tags), outline: simplify(ring, 0.5), height: heightOf(t.tags) });
+}
+
+const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
 writeFileSync(join(D.out, 'features.json'), JSON.stringify(out));
 
 // Thin data, said plainly in the report (the milestones that use it have little to work with).
