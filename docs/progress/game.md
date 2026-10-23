@@ -10,6 +10,117 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Short, steep seas in enclosed water, long ones in the open (owner: always, textbook strength, both maps, 23 Oct 2026)
+
+`docs/FETCH_SEAS.md`, built.
+
+- **The fetch map** (`src/world/fetch.ts`): land and water on a grid over the regions in play (`cellM` 150 m, at most `maxCells` 25 000), and each water cell's fetch to land in 16 bearings. A ray off the map runs on as open sea, to `fetchMaxM` (60 km).
+  - The effective fetch for a wind is the rays within 45° of it, weighted by cos².
+  - Worked out once at load from the ground: 33 ms for Oban, 80 ms for the archipelago (desktop, in the tests).
+- **The wind sea** (`src/ocean/windSea.ts`): JONSWAP fetch-limited growth at each cell for the wind now, capped at the fully developed sea. A gale over 3 km gives 0.56 m at 2.5 s; over 100 km, 3.2 m at 7.9 s.
+  - It's carried by three short trains (`trains`: 4.4, 3.1, 2.2 s, down the wind), shared by a narrow spread in log-period about its peak period.
+  - Less the part the open sea carries there: × √(1 − e²) for the wind's own exposure.
+  - The long waves are scaled by each spot's exposure toward where they come from, e = F / `openFetchM` (40 km), at most 1.
+  - The field is worked out again when the wind changes by `refreshWindPct` (4 %) or `refreshDirDeg` (4°). The physics reads it bilinearly (`windSeaAt`) and the shader as a texture of the same numbers, so they agree.
+- **The waves** (`ocean/waves.ts`, `gerstner.glsl`, `environmentState.seaStateWaves`): the short trains replace the race chop's two waves.
+  - Each is as tall as it is anywhere; at each spot it's scaled to the wind sea there plus, against a running race, the chop, at most its height.
+  - The crest-loop cap counts them. A storm's Σ Q·k·A stays under the cap at every water cell on Oban (tested).
+  - `rebuildWaves` keeps the phase at the players as a train swings with the wind.
+  - `MAX_WAVES` goes 8 → 11. The race chop (the 9th and 10th wave) had never been drawn: the shader stopped at 8.
+  - `significantWaveHeight` is the open sea's (the short trains left out).
+- **Whitecaps** by the sea at each spot (`ocean.frag`): the open sea's crests × the exposure, and the short sea's own, which whitens sooner for its height.
+- **The forecast** (`environment/forecast.ts seaWords`): from force 5, "A short, steep sea in the sounds and lochs; moderate in open water"; from force 7, breaking, and rough outside.
+- **Debug → World → Sea:** Short seas: By fetch / Off (as before) (env intent `shortSeas`, `EnvironmentState.shortSeasOff`), and "Here: short sea 0.25 m at 2.5 s · long waves × 0.02 · fetch upwind 0.6 km".
+- **Crew pages** work out the field from the host's wind each frame (the waves come from the host).
+- Config: `CONFIG.ocean.fetchSeas` (all above). `CONFIG.currents.overfalls.chop` keeps only its `amplitude`; its periods are the trains'.
+- Tests:
+  - `tests/fetchSeas.test.ts`: the JONSWAP figures; Oban in a SW gale: Ardantrive Bay's sea short, its long waves small, the open water's long; no looping crests in a storm; Debug off and on; the archipelago's open ocean exposed and a harbour not.
+  - `tests/overfalls.test.ts`: the short trains.
+- Checked in headless Chromium, Oban in a SW gale (20 m/s):
+  - In Ardantrive Bay with short seas on, a small short chop, no swell (0.25 m at 2.5 s). Off, the open sea's long swell rolls into the bay, as before.
+  - Out in the open water, the long heavy sea with whitecaps.
+  - No shader errors.
+
+  Not checked: VR, and the Quest's frame rate with 11 waves (3 more per ocean vertex, and one texture read).
+
+**Shared changes:**
+- `src/world/fetch.ts` (new).
+- `src/config/map.ts`: `overfalls.chop` keeps only `amplitude`.
+
+### No whirlpools at the Falls of Lora; a plan for short steep seas in enclosed water (owner, 23 Oct 2026)
+
+- **The Falls of Lora** (Oban): no whirlpools (owner: "there's not a whirlpool at the Falls of Lora ... we just need the other effects and the fast tides"). Its race keeps its 6 kn tide, standing waves and overfalls, with no whirl points (no swirls drawn, no knocks on the helm).
+  - The coast pipeline now gives a race whirls only where the region request says so: `currentZones[].whirls`, default 0. Before, every real-coast race got 3.
+  - The built Oban package is changed to match (`knocks: 0`). Sruth Tarsk, hand-built, keeps its four.
+  - Test: `tests/fallsOfLora.test.ts`.
+- **Short steep seas everywhere enclosed water makes them:** `docs/FETCH_SEAS.md`, a plan.
+  - The wind sea grows with each spot's fetch by the JONSWAP relations: short and steep in a sound or loch, long in open water.
+  - It's carried by a few short wave trains everywhere (the race chop made general); the long waves become the swell, scaled by each spot's exposure.
+  - A fetch map per map, from the coast pipeline.
+  - Not started: the owner's questions at its end.
+
+**Shared changes:**
+- `tools/coast/src/common.ts`, `nav.ts`, `package.ts`: a race's `whirls`.
+- `tools/coast/requests/oban.yaml`: `whirls: 0`.
+- `src/world/regions/oban.coast.json`: `knocks: 0`.
+
+### Debug: the tidal races pinned at the ebb, to see the overfalls (owner question, 23 Oct 2026)
+
+The owner: "I remember working on a steeper wave model ... I don't remember seeing that. Is there a debug option?"
+
+- The steeper waves are the overfalls (Oct 2026): the sea stands up where it runs against a race. In Sruth Tarsk (the Sounds) and at the Falls of Lora (Oban) that's on the **ebb**.
+- The Debug menu's only pin was "Peak", which is the flood. The flood runs with the sea's waves there, so it eased the sea: the overfalls could never be seen from the menu.
+- Debug → World → Tidal races is now **By the clock / Flood / Ebb / Slack** (`RaceOverride` 'ebb', raceFactor -1; intent `raceOverride` value 3).
+- Test: `tests/overfalls.test.ts`: the Ebb pin gives the ebb's full strength; the intent sets and clears it.
+- Checked in headless Chromium: Sruth Tarsk in a Rough sea, pinned Flood and then Ebb. The two still pictures look alike at that size, as when the overfalls were built: the difference (1.6× steeper, crests 1.4× higher in the race against the ebb) is in the numbers. Not checked by eye from the wheelhouse or in VR. If it still reads too subtle there, `CONFIG.currents.overfalls` `heighten` / `steepen` / `chop` are the knobs.
+
+### The front page: four equal tiles, each with a picture (owner request, 23 Oct 2026)
+
+Owner: "The main page ... should have an equally sized tile for the shipyard and a suitable graphic for each of them."
+
+- `index.html`: Career, Voyage, Shipyard and Training as four equal tiles, two by two (one column on a phone, each tile full width), every tile the height of the tallest.
+- Each tile has its own drawing, original and in the game's chunky style, drawn as SVG in the page (no image files, nothing more to load):
+  - Career: a workboat alongside a quay with crates and a crane;
+  - Voyage: a chart of a coast with a route, its stops and a compass;
+  - Shipyard: a boat's lines plan on a drawing board, with stations, waterlines and her length;
+  - Training: a small harbour with a buoy slalom and a REC light.
+- The Voyage maps are four compact buttons, two by two, with the full description on hover. Career and the Shipyard have a button at the foot of their tile.
+- The Shipyard moved from the footer into its tile; the footer keeps the hull study's link.
+- Checked: headless screenshots, wide and phone width: the four tiles equal on a wide screen (481 × 462 px each), no sideways scroll on a phone.
+
+### Everything on next goes to the live game (owner: "approved", 23 Oct 2026)
+
+- The test build as of the afternoon of 23 October, every chat's approved work on `next`, merged into the dev branch: https://tartanski-cpu.github.io/SWVR/.
+- The release note by theme is `docs/RELEASE_NOTES_2026-10-23.md`, and the README's status line points to it.
+
+### Live weather on the Voyage maps, applied (owner request via the map chat, 23 Oct 2026)
+
+The owner asked the map chat for "real-time weather in those locations ... every time you start a game session". The map side, the fetch (`src/world/coastWeather.ts`, Open-Meteo: free, no key) and each map's `weatherAt`, came over from `preview/map` onto `next` at the owner's go-ahead. This is the game side.
+
+- **At the start of a Voyage** (alone or hosting, once a page; crew get the host's through the snapshots): `fetchLiveWeather(voyageMap(id).weatherAt)` (`App.startLiveWeather`).
+- **Applied:** `setLiveWeather` (`environment/weather.ts`) puts the wind, its direction, visibility, rain and cloud in at once, with the nearest preset, held for the session (`fixed`: no director).
+  - The sea is at the marine model's height where it gave one (`WeatherState.seaHeld`, the sea scale), and stays there instead of following the wind, which would drag it back to the wind's sea in minutes. With no marine sea, it's the sea the wind raises.
+  - A debug preset gives the game's own weather back.
+- **Told:** a notice as it comes in, "Live weather, Oban and Lorn 15:45 GMT+1: wind north-west 10 kn, gusts 18, overcast, sea 0.5 m" (`voyage/liveWeather.ts`), kept as `WeatherState.live` so crew see it too.
+  - The Voyage tab has it under the weather lines, with Open-Meteo's credit. The weather line says "live, held" in place of the next change.
+  - The credit is also with the map credits at the menu's foot, as Open-Meteo's terms ask.
+- **Nothing back within 8 s** (offline, the service down): no change, the game's own weather as before.
+- **The game's first call to an outside service** (free, no key), made by the players' browsers as a Voyage starts.
+- Tests: `tests/liveWeatherApplied.test.ts`: held for ten minutes of sim with the sea at the marine height, not the wind's; no marine sea gives the wind's; a debug preset releases it; the words.
+- Checked in headless Chromium: the page asked Open-Meteo for Oban. The answers were Open-Meteo's real ones, fetched from the command line, since this sandbox's headless browser can't reach the service itself; Open-Meteo allows any site to call it. The game came up overcast, wind 5.3 m/s from 328°, sea 0.5 m held, with the notice (screenshot). Not checked: VR; a real browser's own fetch.
+
+**Shared changes:**
+- `src/environment/weather.ts`: `setLiveWeather`, `seaHeld`, `live`.
+- `src/ui/mainMenu.ts`: the two Voyage rows and the credit.
+
+### The timber run: back into VR on the way back (owner request, 23 Oct 2026)
+
+- `src/app/xrSession.ts`: on `sessiongranted` (the browser handing a VR session across from the page before: WebXR navigation), the Enter VR button presses itself after `CONFIG.xr.grantedEnterDelayMs` (600 ms), if not already in VR. three's `VRButton` did that only when the event came before the button was made. The wait keeps the two from both pressing it, as a second press would end the session.
+- Where the browser has no WebXR navigation, it's unchanged. three's button uses `offerSession` where the browser has it, so the Quest browser offers "Enter VR" in its own interface, one tap.
+- The contract (`docs/metaverse-contract.md`) now asks the same of both games: don't end VR before navigating.
+- The Timber chat has its brief: sections 2 and 4 of the spec, the owner's no-prompt change, the VR notes and the test links page.
+- Checked: typecheck, tests. Not checked: VR. Headless Chromium has no headset, and WebXR navigation needs one.
+
 ### The timber run: ashore without a prompt (owner request, 23 Oct 2026)
 
 Owner: "I want the transition to be seamless. So if you anchor there in VR or in desktop, it should load into the Timber game. Whether you want it to or not." The rest of the message was cut off; taken as "no prompt".

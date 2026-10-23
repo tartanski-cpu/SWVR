@@ -211,13 +211,20 @@ export interface MenuHost {
   goPlanTable(): void;
   /** Voyage mode: the timber run (voyage/timber.ts): its line, and its buttons (0: sell at the merchant; '' hides one). */
   timberLine(): string;
+  /** Voyage mode: the map's live weather (world/coastWeather.ts), and its source's credit; '' when it's the game's own. */
+  liveWeatherLine(): string;
+  liveWeatherCredit(): string;
   timberButton(i: number): string;
   timberPress(i: number): void;
   /** Regions (debug): put the boat in a region, by id; the region map on the perf panel. */
   teleportToRegion(id: string): void;
   regionMap(): boolean;
   toggleRegionMap(): void;
-  /** Debug: the tidal races pinned (0 the clock, 1 peak, 2 slack). */
+  /** Debug: the short seas by fetch (ocean/windSea.ts) on or off, and the sea where you are. */
+  shortSeas(): boolean;
+  setShortSeas(on: boolean): void;
+  seaHereText(): string;
+  /** Debug: the tidal races pinned (0 the clock, 1 the flood's peak, 2 slack, 3 the ebb's peak). */
   raceOverride(): number;
   setRaceOverride(v: number): void;
   /** Debug: a katabatic gust now, on the zone nearest the boat; and what the gusts are doing. */
@@ -358,6 +365,8 @@ export function mainMenu(h: MenuHost): MainMenu {
     { heading: 'Weather' },
     { label: '', buttons: [{ text: weatherPart(0) }] },
     { label: '', buttons: [{ text: weatherPart(1) }] },
+    // Voyage: the real weather at the map, as fetched at the start, with its source's credit.
+    ...(MODE === 'voyage' ? ([{ label: '', buttons: [{ text: () => h.liveWeatherLine() || "The game's own weather (no live weather fetched)" }] }, { label: '', buttons: [{ text: () => h.liveWeatherCredit() }] }] as MenuRow[]) : []),
     {
       label: 'Time of day',
       buttons: [
@@ -680,6 +689,8 @@ export function mainMenu(h: MenuHost): MainMenu {
         { label: 'Debug tab', buttons: [choice('Hidden', false, () => h.debugMenu(), (v) => h.setDebugMenu(v)), choice('Shown', true, () => h.debugMenu(), (v) => h.setDebugMenu(v))] },
         // Credits: the open data a region made from real maps is built from (its licence asks for them).
         ...REGIONS.filter((r) => r.coast).flatMap((r) => [{ heading: `Credits: ${r.name}` }, ...creditLines(r.coast!.pkg.credits).map((t) => ({ heading: t }))]),
+        // Voyage's live weather (world/coastWeather.ts): its source asks to be credited.
+        ...(MODE === 'voyage' ? [{ heading: CONFIG.liveWeather.credit }] : []),
       ],
     },
   ];
@@ -743,8 +754,14 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: '+', press: () => h.setSeaScale(h.seaScale() + CONFIG.ocean.seaScaleStep) },
           ],
         },
+        // Short, steep seas in enclosed water, long ones in the open (docs/FETCH_SEAS.md): off
+        // to compare with the sea as it was, the long waves everywhere.
+        { label: 'Short seas', buttons: [choice('By fetch', true, () => h.shortSeas(), (v) => h.setShortSeas(v)), choice('Off (as before)', false, () => h.shortSeas(), (v) => h.setShortSeas(v))] },
+        { label: '', buttons: [{ text: () => h.seaHereText(), weight: 3 }] },
         { heading: 'Tidal races' },
-        { label: 'Running', buttons: [choice('By the clock', 0, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Peak', 1, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Slack', 2, () => h.raceOverride(), (v) => h.setRaceOverride(v))] },
+        // The flood runs with a race's set, the ebb against it. Overfalls (steep seas) come where
+        // the sea runs against the flow: in Sruth Tarsk and the Falls of Lora, on the ebb.
+        { label: 'Running', buttons: [choice('By the clock', 0, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Flood', 1, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Ebb', 3, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Slack', 2, () => h.raceOverride(), (v) => h.setRaceOverride(v))] },
         { heading: 'Katabatic gusts' },
         { label: '', buttons: [{ text: 'Gust now (nearest zone)', press: () => h.gustNow() }, { text: () => h.gustStatus(), weight: 1.6 }] },
         { heading: 'Move: to port' },

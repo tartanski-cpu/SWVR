@@ -75,16 +75,17 @@ export const MAP_CONFIG = {
      *             zone's own waveFactor);
      *   steepen   its crest sharpness (the Gerstner orbit) × (1 + steepen × opp) more still;
      *   flatten   with the flow (opp < 0): height × (1 - flatten × |opp|), the sea eases;
-     *   chop      two short wind-wave components in the sea, `amplitude` m (× the sea scale)
-     *             at `periods` s, travelling `spreadDeg` either side of the main wave: nowhere
-     *             but where they oppose a running race (× max(opp, 0)).
+     *   chop      `amplitude` m (× the sea scale) of chop on the sea's short trains
+     *             (CONFIG.ocean.fetchSeas.trains, down the wind; they carry the wind sea in
+     *             enclosed water too): where they oppose a running race (× max(opp, 0)).
      * The crest-loop limit (Σ Q·k·A < 1) is kept at the worst case (tests/overfalls.test.ts).
      */
     overfalls: {
       heighten: 0.35,
       steepen: 0.45,
       flatten: 0.3,
-      chop: { amplitude: 0.12, periods: [2.6, 2.1] as readonly number[], spreadDeg: 15 },
+      // The chop's height (× the sea scale) on the short trains (CONFIG.ocean.fetchSeas.trains, which carry the wind sea too).
+      chop: { amplitude: 0.12 },
     },
     slackBelowKn: 1.5,
     knock: { radius: 28, yaw: 0.07, roll: 0.08 },
@@ -133,11 +134,13 @@ export const MAP_CONFIG = {
      * every `canopyRebuild` s). It isn't drawn within `canopyFrom` (m) of the viewer, where
      * the trees themselves stand, fading in over `canopyFade` m (dithered).
      */
-    // (Out to 1.5 km only: beyond, the woods are the ground's own colour, painted in when the
+    // (None: 0. Beyond the trees the woods are the ground's own colour, painted in when the
     // map is made (tools/coast mesh.ts, from the forest map). Owner, testing on the Quest: far
     // off a 3D canopy can't be told from flat colour, and a thin surface a few metres over the
-    // ground is what shimmered in the distance.)
-    canopyDistance: 1500,
+    // ground is what shimmered; at 1.5 km it still did at Oban, so: "get rid of that level of
+    // detail and just have a flat patch on the ground". The canopy's code and settings stay,
+    // should it be wanted again.)
+    canopyDistance: 0,
     canopyCell: 40,
     canopySquare: 2000,
     canopyRebuild: 0.5,
@@ -164,12 +167,12 @@ export const MAP_CONFIG = {
      * A desktop's graphics card (owner: "on my desktop it should be able to render the trees
      * from far away"; render/device.ts, Settings > Trees): the bands reach much farther, the
      * full trees to 900 m (up to 12,000 of them), the middle band to 3 km (up to 20,000: woods
-     * a mile or two off are trees, not only canopy), the canopy out to 3.5 km (beyond, the
-     * woods are the ground's own colour, as on the Quest); placed again after a longer move, there being
+     * a mile or two off are trees); no canopy (beyond, the woods are the ground's own colour,
+     * as on the Quest); placed again after a longer move, there being
      * more of them, with 4 ms a frame to place them in (a desktop processor has it to spare).
      * The values above are the Quest's.
      */
-    desktop: { nearDistance: 900, maxNear: 12000, midDistance: 3000, maxMid: 20000, canopyFrom: 870, canopyDistance: 3500, moveAgain: 30, midMoveAgain: 120, placeBudgetMs: 4 },
+    desktop: { nearDistance: 900, maxNear: 12000, midDistance: 3000, maxMid: 20000, canopyFrom: 870, canopyDistance: 0, moveAgain: 30, midMoveAgain: 120, placeBudgetMs: 4 },
     species: {
       conifer: { height: [9, 17] as [number, number], width: [0.36, 0.48] as [number, number], lean: 2 },
       broadleaf: { height: [6, 13] as [number, number], width: [0.75, 1.0] as [number, number], lean: 5 },
@@ -255,5 +258,55 @@ export const MAP_CONFIG = {
     every: 0.5,
     gain: 0.55,
     engineFade: 1.5,
+  },
+  /**
+   * Live weather on the Voyage maps (owner: "real-time weather in those locations ... every
+   * time you start a game session ... a forecast"; world/coastWeather.ts). At the start of a
+   * session the current conditions at the map's point (VoyageMap.weatherAt) are fetched
+   * from Open-Meteo (free, no key; its terms ask for the credit line `credit`), the weather
+   * model's for the wind, cloud, rain and visibility and the marine model's for the sea:
+   *   timeoutMs   given up after this (ms): the game's own weather, as before
+   *   rainMmH     precipitation (mm an hour) for the game's rain at full (light rain 0.5
+   *               mm/h is about a third)
+   *   maxVisibility  the game draws no farther than its clearest preset (m)
+   *   fog, squallWind  under `fog` m visibility it's the Fog preset; a wind of `squallWind`
+   *               m/s or more, or thunder, the Squall; rain over `rainy`, Rain; cloud over
+   *               `overcast`, Overcast; else Clear (the nearest of the game's presets, for
+   *               what the presets carry besides: the sky, the forecast's wording)
+   */
+  liveWeather: {
+    forecastUrl: 'https://api.open-meteo.com/v1/forecast',
+    marineUrl: 'https://marine-api.open-meteo.com/v1/marine',
+    timeoutMs: 8000,
+    rainMmH: 4,
+    maxVisibility: 20000,
+    fog: 1000,
+    squallWind: 15,
+    rainy: 0.15,
+    overcast: 0.6,
+    credit: 'Weather data by Open-Meteo.com (CC BY 4.0)',
+  },
+  /**
+   * Bridges over the sea and follies on the coast maps (the landmarks and bridges pass;
+   * world/coastStructures.ts, drawn by world/view/coastView.ts as one mesh).
+   *   deckDepth   a deck's thickness (m)
+   *   cantilever  `panel` m between a truss's verticals; the suspended span is `suspended`
+   *               of the gap between the banks' piers, its truss `suspendedDepth` m deep under
+   *               the deck; the anchor arm `anchorDepth` m deep at the abutment
+   *   beamSpan    a beam bridge's piers this far apart over the water (m)
+   *   folly       a ring of arches: `tiers` tiers in `height` m (when the map gives none), a
+   *               pier `pier` m wide every `bay` m round it, walls `thick` m thick, a sill
+   *               `sill` m high under the lower openings, a `band` m band over each tier's,
+   *               a `cornice` m cornice on top
+   */
+  structures: {
+    deckDepth: 0.8,
+    panel: 10,
+    suspended: 0.3,
+    suspendedDepth: 2.5,
+    anchorDepth: 2,
+    beamSpan: 30,
+    colours: { steel: 0x4c5a55, deck: 0x55585a, stone: 0x8a8478 },
+    folly: { height: 11, tiers: 2, bay: 3.8, pier: 1.3, thick: 1.2, sill: 0.8, band: 1.2, cornice: 0.8, colours: { wall: 0xb9b2a4, cornice: 0xa39c8e } },
   },
 };

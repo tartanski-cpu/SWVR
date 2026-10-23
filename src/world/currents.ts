@@ -28,11 +28,13 @@ import type { VesselState } from '../vessel/vesselState';
 
 const KN = 0.514444;
 
-export type RaceOverride = 'peak' | 'slack' | undefined;
+/** Debug: every race pinned at the peak of the flood (with its set), of the ebb (against it), or slack. */
+export type RaceOverride = 'peak' | 'ebb' | 'slack' | undefined;
 
 /** The race's strength now, -1..1 (negative: the ebb, running against the set). */
 export function raceFactor(zone: CurrentZoneDef, timeOfDay: number, override?: RaceOverride): number {
   if (override === 'peak') return 1;
+  if (override === 'ebb') return -1;
   if (override === 'slack') return 0;
   return Math.sin((2 * Math.PI * (timeOfDay - zone.phaseH)) / zone.periodH);
 }

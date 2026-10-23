@@ -540,6 +540,29 @@ export interface FerryRouteDef {
 }
 
 /**
+ * A bridge over the sea from the map (the landmarks and bridges pass; a coast map's): its deck
+ * line (the road's or railway's, end to end), deck width and height over the sea (m), its
+ * structure (cantilever, beam, arch ...), what it carries and its name. Drawn by
+ * world/coastStructures.ts.
+ */
+export interface BridgeDef {
+  name: string;
+  structure: string;
+  carries: string;
+  width: number;
+  path: [number, number][];
+  deck: number;
+}
+
+/** A folly from the map (McCaig's Tower): its footprint, the ground it stands on (m) and its height if mapped. */
+export interface FollyDef {
+  name: string;
+  outline: [number, number][];
+  base: number;
+  height?: number;
+}
+
+/**
  * A place name from the map (the coast extras plan, C4; a coast map's): a town, village,
  * island or islet, or the sea's own (a bay, a headland, a strait). On the charts by `rank`
  * (1 shown farthest out, 4 only close in), and in the radio's calls (world/places.ts).
@@ -664,6 +687,9 @@ export interface RegionDef {
   places?: PlaceDef[];
   /** Its ferry routes (a coast map's, from the map data: traffic/ferries.ts). */
   ferries?: FerryRouteDef[];
+  /** Its bridges over the sea and follies (a coast map's; world/coastStructures.ts). */
+  bridges?: BridgeDef[];
+  follies?: FollyDef[];
   /** Boats lying in its harbours, on moorings and at anchor (a coast map's; world/harbourBoats.ts). */
   harbourBoats?: HarbourBoatsDef;
   gusts?: GustZoneDef[];

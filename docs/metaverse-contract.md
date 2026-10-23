@@ -9,7 +9,10 @@ Version 1 is single-player. In a multiplayer Voyage, the handoff happens only wh
 
 **Changed by the owner (23 Oct 2026): no prompt.** Anchoring in the hotspot (anchor set, under 0.5 kn, inside the radius, 3 s) goes straight to Timber, on desktop and in VR. Coming back anchored in the bay doesn't send the player straight back: the anchor has to be weighed and let go again.
 
-**For Timber, in VR:** Workboat no longer ends the VR session before navigating. Where the browser supports WebXR navigation, Timber's page receives a `sessiongranted` event on `navigator.xr` and can start its immersive session at once without a button press. Elsewhere, including the Quest browser by default as far as we know, the player presses Enter VR again. Workboat World doesn't listen for `sessiongranted` on the way back yet.
+**In VR, both ways:** neither game should end its VR session before navigating; just fade and navigate. Where the browser supports WebXR navigation, the next page gets a `sessiongranted` event on `navigator.xr` and can start its immersive session with no button press.
+- three.js's `VRButton` already does this if the event comes before the button is made. Workboat World also catches one that comes after (`src/app/xrSession.ts`: on `sessiongranted`, wait 0.6 s, then press the button if not already in VR).
+- The button also uses `navigator.xr.offerSession` where the browser has it: the Quest browser then offers "Enter VR" in its own interface, one tap.
+- Where neither is available, the player presses Enter VR on the new page.
 
 ## The envelope
 
@@ -65,7 +68,7 @@ Adding a second site later means adding one row here and one scene in Timber. In
 
 ## Testing either side alone
 
-Workboat World publishes a page for making and reading envelopes: `tools/mv-encode.html`, at https://tartanski-cpu.github.io/SWVR/tools/mv-encode.html (and under /next/).
+Workboat World publishes a page for making and reading envelopes, `tools/mv-encode.html`: at https://tartanski-cpu.github.io/SWVR/next/tools/mv-encode.html now, and at /SWVR/tools/mv-encode.html once `next` goes to the live game.
 - **Make the outbound link:** a Timber address with a `from: workboat` envelope, to test Timber's linked mode.
 - **Make the return link:** a Workboat World address with a `from: timber` envelope (status, logs). Its tick-box first issues the id in that browser, so Workboat World accepts the return once. Opening it a second time spawns nothing.
 - **Read an envelope:** paste an `mv` value or a whole address.

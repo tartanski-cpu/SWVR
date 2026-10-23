@@ -27,6 +27,7 @@ import { wavenumberFromPeriod, type WaveComponent } from '../ocean/waves';
 import type { EnvironmentState } from './environmentState';
 import { seaStateWaves } from './environmentState';
 import { addGust, type GustState } from './gusts';
+import { setShortSeasOff, updateWindSea, windSeaField } from '../ocean/windSea';
 
 export interface WeatherValues {
   /** Wind speed (m/s) and the bearing it blows FROM (deg, 0 = north). */
@@ -58,6 +59,13 @@ export interface WeatherState {
   forecastAt: number;
   /** Katabatic gusts (gusts.ts): the one blowing, and when the next falls. Absent until the host first steps them. */
   gust?: GustState;
+  /**
+   * Live weather (a Voyage map's real conditions, world/coastWeather.ts; setLiveWeather): the
+   * sea held at the marine model's (its sea scale) instead of following the wind, and the
+   * line telling the players what it is, with the service's credit. Absent: the game's own.
+   */
+  seaHeld?: number;
+  live?: { text: string; credit: string };
 }
 
 const TWO_PI = Math.PI * 2;
@@ -117,6 +125,9 @@ export function seaForWind(wind: number): number {
 
 /** Change to a preset now (the director, or a debug force); `instant` jumps the values too. */
 export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, time: number, instant = false, env?: EnvironmentState, profile?: WeatherProfile): void {
+  // The game's own weather again (a debug force on a live-weather Voyage): the sea follows the wind.
+  delete w.seaHeld;
+  delete w.live;
   w.seq += 3;
   w.preset = preset;
   w.target = targetFor(preset, w.seq);
@@ -139,6 +150,29 @@ export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, tim
   }
 }
 
+/**
+ * Live weather (a Voyage map's real conditions, fetched as the session starts; app/App.ts):
+ * the values and the nearest preset straight in, held for the session (`fixed`: no director),
+ * and the sea at the marine model's height where it gave one (`seaHeld`), else as the wind
+ * raises it. The waves rebuilt for it at once.
+ */
+export function setLiveWeather(env: EnvironmentState, values: WeatherValues, preset: WeatherPresetName, time: number, live: { text: string; credit: string }, seaScale?: number): void {
+  const w = env.weather;
+  if (!w) return;
+  w.seq += 3;
+  w.preset = preset;
+  w.now = { ...values };
+  w.target = { ...values };
+  w.fixed = true;
+  w.live = live;
+  if (seaScale !== undefined) w.seaHeld = clamp(seaScale, 0, CONFIG.ocean.maxSeaScale);
+  else delete w.seaHeld;
+  // A fresh shipping forecast shortly, for the real conditions.
+  w.forecastAt = Math.min(w.forecastAt, time + CONFIG.weather.forecast.afterChange / w.speed);
+  env.seaScale = w.seaHeld ?? seaForWind(values.wind);
+  rebuildWaves(env, time);
+}
+
 /** Advance the weather by dt (host). */
 /** @param profile the weather profile of the region the home boat is in (RegionDef.weather), if any */
 export function stepWeather(env: EnvironmentState, time: number, dt: number, profile?: WeatherProfile): void {
@@ -158,14 +192,17 @@ export function stepWeather(env: EnvironmentState, time: number, dt: number, pro
   n.visibility = Math.exp(Math.log(n.visibility) + (Math.log(t.visibility) - Math.log(n.visibility)) * k);
   const dDir = ((t.windFrom - n.windFrom + 540) % 360) - 180;
   n.windFrom = wrap(n.windFrom + dDir * k, 360);
-  // The sea follows the wind, building faster than it settles.
-  const seaTarget = seaForWind(n.wind);
+  // The sea follows the wind, building faster than it settles; held where live weather gave it.
+  const seaTarget = w.seaHeld ?? seaForWind(n.wind);
   const tau = seaTarget > env.seaScale ? c.seaBuild : c.seaDecay;
   env.seaScale += (seaTarget - env.seaScale) * (1 - Math.exp((-dt * w.speed) / tau));
   // Rebuild the wave components as soon as the sea has changed by a hair (1 part in 10^4:
   // most ticks while it builds or settles), so it changes smoothly. (Once a second, the
-  // waves stepped visibly each second.)
-  if (Math.abs(env.seaScale - (w.wavesScale ?? -1)) > 1e-4 * Math.max(1, env.seaScale)) rebuildWaves(env, time);
+  // waves stepped visibly each second.) And when the wind has changed enough for the wind
+  // sea's field to be worked out again (ocean/windSea.ts): its trains' sizes and direction.
+  setShortSeasOff(!!env.shortSeasOff);
+  const windChanged = updateWindSea(n.wind, n.windFrom);
+  if (windChanged || Math.abs(env.seaScale - (w.wavesScale ?? -1)) > 1e-4 * Math.max(1, env.seaScale)) rebuildWaves(env, time);
   // Lightning, in squalls once the rain has set in.
   const L = w.lightning;
   if (w.preset === 'Squall' && n.rain > 0.7) {
@@ -198,18 +235,29 @@ export function rebuildWaves(env: EnvironmentState, time: number): void {
     env.weather.wavesAt = time;
     env.weather.wavesScale = env.seaScale;
   }
+  // The wind sea's field for the wind now (worked out again only if it's changed enough).
+  setShortSeasOff(!!env.shortSeasOff);
+  if (env.weather) updateWindSea(env.weather.now.wind, env.weather.now.windFrom);
   const old = env.waves;
-  const fresh = seaStateWaves(env.seaScale);
+  // The short trains down the wind, as tall as the wind sea's field has them anywhere (ocean/windSea.ts).
+  const field = windSeaField();
+  const windTo = env.weather ? (env.weather.now.windFrom + 180) % 360 : undefined;
+  const fresh = seaStateWaves(env.seaScale, windTo, field?.max ?? []);
   const a = env.seaAnchor ?? { x: 0, z: 0 };
   if (fresh.length && old.length === fresh.length) {
     fresh.forEach((f: WaveComponent, i) => {
       const o = old[i];
       const dw = TWO_PI / f.period - TWO_PI / o.period;
-      const dk = wavenumberFromPeriod(f.period) - wavenumberFromPeriod(o.period);
+      // theta = k (D . a) - w t + phi kept the same at the anchor a: for a change of period
+      // (w, k) and of direction (D: a short train swinging with the wind).
+      const kNew = wavenumberFromPeriod(f.period);
+      const kOld = wavenumberFromPeriod(o.period);
       const b = (f.directionDeg * Math.PI) / 180;
+      const bo = (o.directionDeg * Math.PI) / 180;
       // D . a, with D = (sin b, -cos b): x east, north -z (as prepareWaves).
       const along = Math.sin(b) * a.x - Math.cos(b) * a.z;
-      f.phase = wrap(o.phase + dw * time - dk * along, TWO_PI);
+      const alongOld = Math.sin(bo) * a.x - Math.cos(bo) * a.z;
+      f.phase = wrap(o.phase + dw * time - (kNew * along - kOld * alongOld), TWO_PI);
     });
   }
   env.waves = fresh;

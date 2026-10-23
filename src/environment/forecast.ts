@@ -88,6 +88,16 @@ export function gustsText(w: WeatherState): string {
     .join(' ');
 }
 
+/**
+ * The sea in a fresh wind or more (ocean/windSea.ts): short and steep in the sounds and lochs
+ * where the fetch is short, rough outside where it's long (the short seas switched on).
+ */
+export function seaWords(wind: number, env?: EnvironmentState): string {
+  const c = CONFIG.ocean.fetchSeas;
+  if (!c.enabled || env?.shortSeasOff || beaufort(wind) < 5) return '';
+  return beaufort(wind) >= 7 ? 'A short, steep, breaking sea in the sounds and lochs; rough in open water.' : 'A short, steep sea in the sounds and lochs; moderate in open water.';
+}
+
 /** The forecast as read out: now, then the next change and roughly when, then the races. */
 export function forecastText(w: WeatherState, time: number, env?: EnvironmentState): string {
   const now = w.now;
@@ -99,6 +109,7 @@ export function forecastText(w: WeatherState, time: number, env?: EnvironmentSta
   const parts = [
     gale ? 'Gale warning.' : '',
     `Wind ${dir} ${beaufort(now.wind)}. ${cap(SKY[w.preset])}. Visibility ${visibilityWord(now.visibility)}.`,
+    seaWords(now.wind, env),
     w.next.preset === w.preset
       ? 'No change expected.'
       : `Becoming ${SKY[w.next.preset]} ${when}: wind ${dir} ${beaufort(nextP.wind)}, visibility ${visibilityWord(nextP.visibility)}.`,
