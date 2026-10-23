@@ -10,6 +10,11 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Everything on next goes to the live game (owner: "approved", 23 Oct 2026)
+
+- The test build as of the afternoon of 23 October, every chat's approved work on `next`, merged into the dev branch: https://tartanski-cpu.github.io/SWVR/.
+- The release note by theme is `docs/RELEASE_NOTES_2026-10-23.md`, and the README's status line points to it.
+
 ### Live weather on the Voyage maps, applied (owner request via the map chat, 23 Oct 2026)
 
 The owner asked the map chat for "real-time weather in those locations ... every time you start a game session". The map side, the fetch (`src/world/coastWeather.ts`, Open-Meteo: free, no key) and each map's `weatherAt`, came over from `preview/map` onto `next` at the owner's go-ahead. This is the game side.
