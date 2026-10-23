@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The preview addresses switched on (owner's go-ahead)
+
+- **The owner** said go ahead with the publishing workflow, so the preview addresses work.
+- **Shared change:** the three workflow files from `next` (`pages.yml`, `next.yml`, `check.yml`) copied onto the game's branch (`claude/admiring-dirac-v9wwih`, commit fc6d867). Nothing else moved: the game's own code is unchanged, rebuilt and republished as it was.
+- **Checked:** the publishing run succeeded, and these addresses answer:
+  - the game, and `/next/`;
+  - `/preview/hulls/` (its `build.json` reads HULLS d1bdf30), `/preview/shipyard/`, `/preview/modules/`.
+
+  `/preview/map/` waits for the map chat's first push to `preview/map`.
+
 ### A fast catamaran workboat: the lines, and what's needed to sail her (owner; started)
 
 - **The owner asked** for a catamaran workboat as the next hull type:
