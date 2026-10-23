@@ -91,6 +91,8 @@ const pt = new THREE.Vector3();
 const portW = new THREE.Vector3();
 const stbdW = new THREE.Vector3();
 const centreW = new THREE.Vector3();
+/** A catamaran's demihull centreline at a station (world). */
+const hullW = new THREE.Vector3();
 const sub: SubmergedSection = { area: 0, cx: 0, cy: 0, maxDepth: 0 };
 const depths: number[] = [];
 const dq = new THREE.Quaternion();
@@ -107,6 +109,14 @@ const fStern = { x: 0, y: 0, z: 0 };
 const cgL = new THREE.Vector3();
 /** A station's chine height (vessel axes): its widest point in the lower half of its section. */
 const chines = new WeakMap<object, number>();
+/**
+ * Half the width of a station's waterplane strip, her bottom's chine to chine: her chines'
+ * half-beam; a catamaran's two demihulls together (her tunnel isn't in the water).
+ */
+function wetHalf(st: { halfBeamChine: number; demihull?: { halfBeamChine: number } }): number {
+  return st.demihull ? 2 * st.demihull.halfBeamChine : st.halfBeamChine;
+}
+
 function chineY(st: { polygon: readonly (readonly number[])[] }): number {
   let y = chines.get(st);
   if (y === undefined) {
@@ -293,10 +303,26 @@ export function stepVessel(
     // slamming / water-entry losses: negligible at seakeeping velocities (~0.3 m/s), but
     // it dominates on violent entry and stops the hull rebounding out of the water.
     const wet = Math.min(1, sub.maxDepth / 0.3);
-    const strip = 2 * b * st.weight * wet;
-    const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
-    const fv = -(d.vertical * strip * relV + 0.5 * rho * d.verticalCd * strip * Math.abs(relV) * relV);
-    addForceAt(tmp.set(0, fv, 0), centreW);
+    if (st.demihull) {
+      // A catamaran: each hull's heave damped at its own centreline, against the water's
+      // motion there (the surface's between her centre and that side's chine). Rolling, one
+      // hull goes down as the other comes up, so this damps her roll too, as her hulls' real
+      // damping does; heave and pitch are damped as before.
+      const o = st.demihull.offset;
+      const half = 2 * st.demihull.halfBeamChine * st.weight * wet;
+      for (const [side, sSide] of [[-1, sP], [1, sS]] as const) {
+        toWorld(side * o, 0, st.z, hullW);
+        const water = sC.velocity[1] + (sSide.velocity[1] - sC.velocity[1]) * (o / b);
+        const relV = pointVelocity(hullW, tmp).y - water;
+        const fv = -(d.vertical * half * relV + 0.5 * rho * d.verticalCd * half * Math.abs(relV) * relV);
+        addForceAt(tmp.set(0, fv, 0), hullW);
+      }
+    } else {
+      const strip = 2 * wetHalf(st) * st.weight * wet;
+      const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
+      const fv = -(d.vertical * strip * relV + 0.5 * rho * d.verticalCd * strip * Math.abs(relV) * relV);
+      addForceAt(tmp.set(0, fv, 0), centreW);
+    }
 
     // ── Horizontal drag at the immersed centroid, in vessel axes ──
     pointVelocity(pt, tmp);
@@ -310,7 +336,8 @@ export function stepVessel(
     //     sway and yaw damping (Y_v, N_r) and a sensible turning circle.
     //   - crossflow drag, quadratic in v (dominant at low speed and large drift),
     //   - a small linear term for settling at rest.
-    const aLat = sub.maxDepth * st.weight;
+    // (A catamaran has two keels, a demihull each: twice the lifting surface.)
+    const aLat = sub.maxDepth * st.weight * (st.demihull ? 2 : 1);
     rollLiftArea += aLat * b * b;
     const uFwd = Math.abs(tmp.z);
     const fx = -(
@@ -395,7 +422,8 @@ export function stepVessel(
   //     thrown past it.
   //   With how much of her is in the water.
   const pl = def.planing;
-  if (pl && immersion > 0) {
+  // (Not a catamaran: two slim hulls don't bank into a turn on a vee bottom's lift; she stays near level.)
+  if (pl && immersion > 0 && !def.hull.catamaran) {
     const fn = Math.abs(U) / Math.sqrt(g * def.resistance.lwl);
     const t = Math.min(1, Math.max(0, (fn - pl.fnStart) / (pl.fnFull - pl.fnStart)));
     const fade = t * t * (3 - 2 * t);
@@ -404,7 +432,7 @@ export function stepVessel(
       let awp = 0;
       for (const st of def.hull.stations) {
         b = Math.max(b, st.halfBeamChine);
-        awp += 2 * st.halfBeamChine * st.weight;
+        awp += 2 * wetHalf(st) * st.weight;
       }
       const f = fade * immersion * pl.bank * 0.5 * rho * awp * Math.abs(U) * vSway;
       // Up at the starboard chine when sliding to starboard (vSway > 0), down at port.

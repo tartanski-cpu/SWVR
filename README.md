@@ -771,7 +771,7 @@ Open the perf panel in VR with B (or from the menu). At 90 Hz the frame budget i
 
 ## Hull study (work in progress)
 
-`hulls.html` (live at [tartanski-cpu.github.io/SWVR/hulls.html](https://tartanski-cpu.github.io/SWVR/hulls.html)) shows twelve workboat hull types, from a 10 m gillnetter to a 26 m multicat (and the small push tug and the stern trawler), generated from design curves, with their hydrostatics. It is groundwork for modular boats and not part of the game yet.
+`hulls.html` (live at [tartanski-cpu.github.io/SWVR/hulls.html](https://tartanski-cpu.github.io/SWVR/hulls.html)) shows thirteen workboat hull types, from a 10 m gillnetter to a 26 m multicat (and the small push tug, the stern trawler and a fast catamaran workboat), generated from design curves, with their hydrostatics. **As the game draws her** shows a hull as the game itself builds and draws it (hard-chine hulls, and now catamarans too; a round-bilge one says it can't be taken yet). It is groundwork for modular boats and not part of the game yet.
 
 ## Multiplayer
 

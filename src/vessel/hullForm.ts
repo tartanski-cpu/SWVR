@@ -52,7 +52,12 @@ export interface HullParams {
   forefoot?: { from: number; rise: number; stemDeg?: number };
 }
 
-/** One transverse station. Polygon vertex order: port deck, port chine, keel, stbd chine, stbd deck. */
+/**
+ * One transverse station. Polygon vertex order: port deck, port chine, keel, stbd chine, stbd
+ * deck. A catamaran's (`demihull`) has ten: both demihulls and the bridge deck between them,
+ * the tunnel under her wet deck a notch in it, still from her port deck edge round under her
+ * to her starboard one (see `Station.demihull`).
+ */
 export interface Station {
   z: number;
   /** Integration weight (m): station spacing, halved at the ends (trapezoidal rule). */
@@ -66,11 +71,26 @@ export interface Station {
    * buoyancy, stability and seakeeping use the five-point section, from the main chine.
    */
   spray?: [number, number];
+  /**
+   * A catamaran's station (a hull-study design with `catamaran`; owner, Oct 2026: the fast
+   * work cat). Her polygon is the whole section across both demihulls, ten points: port outer
+   * deck edge, port outer chine, port keel, port inner chine, the wet deck's port corner (where
+   * the port hull's inner side meets it), its starboard corner, starboard inner chine,
+   * starboard keel, starboard outer chine, starboard outer deck edge. So the buoyancy and the
+   * hydrostatics (which clip any polygon at the water) float both hulls, and a wet deck driven
+   * under adds its buoyancy as the real one's does. `halfBeamChine` and `halfBeamDeck` are her
+   * outer ones (what her deck and her extremes need). Here: one demihull's own half-breadths
+   * at its chine and deck, and how far its centreline is off hers (half the spacing), for
+   * what goes by each hull's own width (the waterline strip's heave damping, the two keels).
+   */
+  demihull?: { offset: number; halfBeamChine: number; halfBeamDeck: number };
 }
 
 export interface HullForm {
   params: HullParams;
   stations: Station[];
+  /** A catamaran (her stations have `demihull`): her demihulls' spacing, centre to centre, and the wet deck's height over her DWL. */
+  catamaran?: { spacing: number; tunnel: number };
   /** The stations the physics floats her on, when fewer than `stations` (HullParams.physicsStations). */
   physics?: Station[];
 }
@@ -133,6 +153,81 @@ export function buildHullForm(p: HullParams): HullForm {
   return { params: p, stations };
 }
 
+/** Each lofted section's station z: where its deck edge is, moved so the deck runs from +length/2 (transom) to -length/2 (bow). */
+function stationZs(sections: { pts: { z: number }[] }[]): number[] {
+  const raw = sections.map((s) => s.pts[s.pts.length - 1].z);
+  const mid = (raw[0] + raw[raw.length - 1]) / 2;
+  return raw.map((z) => z - mid);
+}
+
+/**
+ * A catamaran from a hull-study design (owner, Oct 2026: the fast work cat): the study's
+ * sections describe one demihull about its own centreline (loft.ts), and each station here is
+ * both of them `spacing` apart with the bridge deck across, its wet deck `tunnel` over the
+ * DWL: one ten-point section with the tunnel a notch in it (Station.demihull). Hard chine,
+ * no spray chine. Where a demihull's inner side doesn't reach down to the wet deck (her keel
+ * rising above it at the bow) the notch closes up to her keel's height, the two corners
+ * meeting the keels: the bridge deck's underside comes down to it there.
+ */
+function catamaranForm(d: HullDesign, cat: { spacing: number; tunnel: number }): HullForm {
+  const sections = loft(d).sections;
+  const zs = stationZs(sections);
+  const o = cat.spacing / 2;
+  const stations: Station[] = sections.map((s, i) => {
+    const keel = s.pts[0];
+    const chine = s.pts[1];
+    const deck = s.pts[s.pts.length - 1];
+    const bC = Math.abs(chine.x);
+    const bD = Math.max(0.03, Math.abs(deck.x));
+    // The wet deck's corner on this demihull's inner side: up her bottom from the keel, then
+    // her topsides from the chine, to the wet deck's height (a little under her deck at most).
+    const top = Math.min(cat.tunnel, deck.y - 0.05);
+    let inChine: [number, number] = [o - bC, chine.y];
+    let corner: [number, number];
+    if (top <= keel.y) {
+      corner = [o, keel.y];
+      inChine = corner;
+    } else if (top <= chine.y) {
+      corner = [o - (bC * (top - keel.y)) / Math.max(chine.y - keel.y, 1e-6), top];
+      inChine = corner;
+    } else corner = [o - (bC + ((bD - bC) * (top - chine.y)) / Math.max(deck.y - chine.y, 1e-6)), top];
+    const dz = i === 0 ? zs[0] - zs[1] : i === sections.length - 1 ? zs[i - 1] - zs[i] : (zs[i - 1] - zs[i + 1]) / 2;
+    return {
+      z: zs[i],
+      weight: i === 0 || i === sections.length - 1 ? dz / 2 : dz,
+      polygon: [
+        [-(o + bD), deck.y],
+        [-(o + bC), chine.y],
+        [-o, keel.y],
+        [-inChine[0], inChine[1]],
+        [-corner[0], corner[1]],
+        [corner[0], corner[1]],
+        [inChine[0], inChine[1]],
+        [o, keel.y],
+        [o + bC, chine.y],
+        [o + bD, deck.y],
+      ],
+      halfBeamChine: o + bC,
+      halfBeamDeck: o + bD,
+      demihull: { offset: o, halfBeamChine: bC, halfBeamDeck: bD },
+    };
+  });
+  const first = stations[0].polygon;
+  const last = stations[stations.length - 1].polygon;
+  const params: HullParams = {
+    length: zs[0] - zs[zs.length - 1],
+    beamDeck: 2 * Math.max(...stations.map((s) => s.halfBeamDeck)),
+    beamChine: 2 * Math.max(...stations.map((s) => s.halfBeamChine)),
+    keelY: Math.min(...stations.map((s) => s.polygon[2][1])),
+    chineYAft: first[1][1],
+    chineYBow: last[1][1],
+    deckYAft: first[0][1],
+    deckYBow: last[0][1],
+    stations: stations.length,
+  };
+  return { params, stations, catamaran: { ...cat } };
+}
+
 /**
  * A hull form from a hull-study design (modular boats M7, src/hulls/): its lofted sections
  * as the game's stations, so the study's lines float and are drawn like any other hull.
@@ -150,13 +245,12 @@ export function buildHullForm(p: HullParams): HullForm {
  */
 export function hullFormFromDesign(d: HullDesign): HullForm {
   // (A forecastle is a doubled station at its break, the deck stepped up forward of it: loft.)
-  if (d.section.round || d.catamaran) throw new Error(`hull design '${d.id}': the game's stations take hard chines (no rounding or second hull)`);
+  if (d.section.round) throw new Error(`hull design '${d.id}': the game's stations take hard chines (no rounding)`);
+  if (d.catamaran) return catamaranForm(d, d.catamaran);
   const sections = loft(d).sections;
   // Each section's z where its deck edge is (the last point: keel, chine, deck edge), moved
   // so the deck's ends are at +-length/2, as the game has it (origin amidships).
-  const raw = sections.map((s) => s.pts[s.pts.length - 1].z);
-  const mid = (raw[0] + raw[raw.length - 1]) / 2;
-  const zs = raw.map((z) => z - mid);
+  const zs = stationZs(sections);
   const stations: Station[] = sections.map((s, i) => {
     // Keel, chine(s) bottom-up, deck edge: with two chines the upper one is the spray chine.
     const [keel, chine] = s.pts;
