@@ -91,6 +91,8 @@ const pt = new THREE.Vector3();
 const portW = new THREE.Vector3();
 const stbdW = new THREE.Vector3();
 const centreW = new THREE.Vector3();
+/** A catamaran's demihull centreline at a station (world). */
+const hullW = new THREE.Vector3();
 const sub: SubmergedSection = { area: 0, cx: 0, cy: 0, maxDepth: 0 };
 const depths: number[] = [];
 const dq = new THREE.Quaternion();
@@ -301,10 +303,26 @@ export function stepVessel(
     // slamming / water-entry losses: negligible at seakeeping velocities (~0.3 m/s), but
     // it dominates on violent entry and stops the hull rebounding out of the water.
     const wet = Math.min(1, sub.maxDepth / 0.3);
-    const strip = 2 * wetHalf(st) * st.weight * wet;
-    const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
-    const fv = -(d.vertical * strip * relV + 0.5 * rho * d.verticalCd * strip * Math.abs(relV) * relV);
-    addForceAt(tmp.set(0, fv, 0), centreW);
+    if (st.demihull) {
+      // A catamaran: each hull's heave damped at its own centreline, against the water's
+      // motion there (the surface's between her centre and that side's chine). Rolling, one
+      // hull goes down as the other comes up, so this damps her roll too, as her hulls' real
+      // damping does; heave and pitch are damped as before.
+      const o = st.demihull.offset;
+      const half = 2 * st.demihull.halfBeamChine * st.weight * wet;
+      for (const [side, sSide] of [[-1, sP], [1, sS]] as const) {
+        toWorld(side * o, 0, st.z, hullW);
+        const water = sC.velocity[1] + (sSide.velocity[1] - sC.velocity[1]) * (o / b);
+        const relV = pointVelocity(hullW, tmp).y - water;
+        const fv = -(d.vertical * half * relV + 0.5 * rho * d.verticalCd * half * Math.abs(relV) * relV);
+        addForceAt(tmp.set(0, fv, 0), hullW);
+      }
+    } else {
+      const strip = 2 * wetHalf(st) * st.weight * wet;
+      const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
+      const fv = -(d.vertical * strip * relV + 0.5 * rho * d.verticalCd * strip * Math.abs(relV) * relV);
+      addForceAt(tmp.set(0, fv, 0), centreW);
+    }
 
     // ── Horizontal drag at the immersed centroid, in vessel axes ──
     pointVelocity(pt, tmp);
@@ -404,7 +422,8 @@ export function stepVessel(
   //     thrown past it.
   //   With how much of her is in the water.
   const pl = def.planing;
-  if (pl && immersion > 0) {
+  // (Not a catamaran: two slim hulls don't bank into a turn on a vee bottom's lift; she stays near level.)
+  if (pl && immersion > 0 && !def.hull.catamaran) {
     const fn = Math.abs(U) / Math.sqrt(g * def.resistance.lwl);
     const t = Math.min(1, Math.max(0, (fn - pl.fnStart) / (pl.fnFull - pl.fnStart)));
     const fade = t * t * (3 - 2 * t);

@@ -10,6 +10,52 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### A catamaran's handling: resistance, roll inertia and damping, no banking (owner; step 2 of 3)
+
+- **The owner** said go ahead with step 2, the fast cat's handling in the shared vessel physics.
+- **Correction to the first entry's speed estimate:** I took resistance as 0.11 of her weight, which was optimistic. Real 12 m aluminium work cats need about 40-50 kW per tonne at the shaft for 25-28 kn. The game's own curve was already close to that, R/W 0.21 at 25 kn. Its overall propulsive efficiency, from the landing craft's trial (26.9 kn on 400 kW), is about 0.55 of shaft power.
+- **Her handling** (new `vessel/catamaran.ts`, `catamaranHandling(form, lwl, y)`; settings `CONFIG.catamaran` in `src/config/vessels.ts`): what a boat built on a catamaran hull takes, rather than a monohull's numbers.
+  - **Resistance** (`CONFIG.catamaran.resistance`: formFactor 0.25, waveA 0.65, waveB 0.55, waveKnee 0.35, waveCap 0.09, asternFactor 3.0). Slim demihulls (LWL/b about 8) make a smaller wave hump than a beamy planing monohull, a little later. The form factor carries the two hulls' interference. At Fn 0.5 her resistance is under 0.8 of the landing craft's curve on the same hull.
+  - **Roll added inertia** (`heaveAddedMass` 0.8; `rollGyradius` 0.37 of her beam). As she rolls, her hulls heave in opposite directions, so each one's added mass in heave acts half the spacing out. That adds 0.8 x mass x (spacing/2)^2: 0.73 of her rigid-body roll inertia at standard size.
+- **The physics** (`physics/vesselPhysics.ts`; catamarans only):
+  - **Heave damping at each hull:** each hull's heave is damped at its own centreline, against the water's vertical motion there. Rolling, one hull goes down as the other comes up, so her hulls' damping damps her roll, as a real cat's does. Her heave and pitch damping are as before.
+  - **No banking:** the planing turn models (the vee bottom's banking and leaning into a turn) are off for a catamaran. Two slim hulls don't bank on a vee; she stays near level.
+- **What she does now** (standard size, the game's physics):
+
+  | | Before step 2 | After |
+  |---|---|---|
+  | Roll period | 1.4 s | **1.8 s** |
+  | Heel left 3 s after letting go of 5° | (not measured) | **under 2 %** |
+
+  The landing craft monohull: a 2.5 s roll period, and about 7 % of the heel left after 3 s.
+- **Top speed, light,** where her resistance's power meets 0.55 of the engines':
+
+  | Size | Weight | Twin 150 kW | Twin 280 kW | Twin 400 kW | Shaft power for 25 kn |
+  |---|---|---|---|---|---|
+  | smallest (10 m) | 4.8 t | **28.4 kn** | 37 kn | 43 kn | 48 kW/t |
+  | standard (12.5 m) | 9.3 t | 22 kn | **29.9 kn** | 35 kn | 42 kW/t |
+  | largest (14.7 m) | 15.1 t | 17 kn | 24.6 kn | **29.6 kn** | 38 kW/t |
+
+  - **Every size makes 25-28 kn and a bit over, light, on its right twin.** Deck cargo takes some off: 2 t on the standard boat brings twin 280 kW down to about 27 kn.
+  - **The Shipyard's own trials will have the last word:** her propellers and gearbox are matched there (step 3).
+- **Monohulls are untouched:** every change is for a catamaran, and the golden runs hold to a millionth.
+- **Tests** (`tests/hulls/catPhysics.test.ts`, now 6 tests in the file):
+  - afloat with her handling, her roll period is 1.6 s to 0.85 of a monohull's, and under 5 % of her heel is left 3 s on (less than the monohull's);
+  - she's fast: over 25 and under 32 kn light at every size on its twin, 35-50 kW/t for 25 kn at standard size, and a smaller hump than the monohull curve.
+
+  Typecheck, all of `npm test` (1404) and the build pass.
+- **Not checked:** the Quest; her in the game itself (the Shipyard type, step 3); a wet-deck slam (still only its buoyancy and the heave damping).
+- **For step 3, the Shipyard chat:**
+  - build a catamaran design's handling with `catamaranHandling(form, lwl, y)`: its `resistance`, `rollGyradius` for her roll inertia, and `addedRoll` for her added roll inertia;
+  - give her no planing turn model (the physics leaves it off for a catamaran anyway);
+  - always twin engines, one in each hull;
+  - its own waterplane measure is a monohull's;
+  - scale the hull spacing and the wet deck with her beam and depth.
+- **Shared changes:**
+  - `src/vessel/catamaran.ts` (new);
+  - `src/config/vessels.ts` (`CONFIG.catamaran`);
+  - `src/vessel/physics/vesselPhysics.ts` (a catamaran's heave damping at each hull; no planing turn models for a catamaran).
+
 ### Two hulls in the game's physics: catamarans float, roll and are drawn (owner; step 1 of 3)
 
 - **The owner** said go ahead with the two-hull physics, the first of the three steps to sail the fast catamaran (entry below). The main game chat was told first: the vessel physics is shared code.
