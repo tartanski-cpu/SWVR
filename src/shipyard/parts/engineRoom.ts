@@ -38,7 +38,9 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   if (d.pods && !outboardCount(d) && base.regime !== 'planing') warnings.push('Pod drives are for a planing hull (the landing craft, the gillnetter or the pilot boat): she has a shaft.');
   else if (d.pods && !outboardCount(d) && shaftOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no pod drives.`);
   const pods = !!d.pods && !outboardCount(d) && base.regime === 'planing' && !shaftOnly;
-  const twin = (!!d.twin || pods) && !singleOnly;
+  // A catamaran always has twin engines, one in each hull (her hulls are too slim for one on
+  // her centreline, and her tunnel is there).
+  const twin = (!!d.twin || pods || !!base.catamaran) && !singleOnly;
   // Stern drives (owner, Oct 2026; design.sternDrive): the engine against the transom, a
   // leg through it that swings to steer (CONFIG.modules.sternDrive). Not the slow tug
   // diesel (its big slow propeller wants a shaft); outboards, if chosen, instead.
@@ -56,7 +58,8 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
   // slower engine turns a bigger one for its power (a propeller's best diameter grows as its
   // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
-  const twinX = Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
+  // (A catamaran's: each under its own hull's keel, half her hull spacing out.)
+  const twinX = shape.catamaran ? Math.round((shape.catamaran.spacing / 2) * 100) / 100 : Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
   const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
   // Her shaft and the engine on it (machinery.ts): the shaft rises forward from the
   // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
@@ -108,8 +111,8 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const ceilingAt = (z: number) => (z >= front && z <= aft ? floorY : q.deckY(z));
   // (Pods: the engine level as a stern drive's, its gearbox end over the pod's axis.)
   const shaft = sd || pods
-    ? sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
-    : layShaft(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
+    ? sternDriveLine(shape, eng.size, twin ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
+    : layShaft(shape, eng.size, twin ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
   // A stern drive's legs: one behind each engine, through the transom; the top of each (its
   // gimbal housing) over the engine's output, its anti-ventilation plate level with her
   // bottom at the transom; its propeller a high-revving one, no bigger than `propMaxM`.
@@ -261,9 +264,26 @@ export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPa
   // the hatch's own width; no wider than her hull inside at the floor plates (less a frame).
   // (In the cabin floor, inside the house's walls too: its walls stand on the floor's edge.)
   const roomHalf = Math.min(insideHalf(hs.z0, soleY), insideHalf(hs.z1, soleY)) - 0.05;
-  const span = twin && !outboards ? engX + engHalf + ehc.sideRoom : 0;
+  /**
+   * A catamaran's starboard hull inside at height y, at z: its inner and outer sides (her
+   * half-section there runs wet-deck corner, inner chine, keel, chine, deck edge).
+   */
+  const catInside = (z: number, y: number): [number, number] => {
+    const [corner, inChine, keel, chine, deck] = halfSection(shape, z);
+    const across = (a: [number, number], b: [number, number]) => (b[1] - a[1] > 1e-6 ? a[0] + ((b[0] - a[0]) * Math.max(0, Math.min(1, (y - a[1]) / (b[1] - a[1])))) : b[0]);
+    const xin = y <= inChine[1] ? across(keel, inChine) : across(inChine, corner);
+    const xout = y <= chine[1] ? across(keel, chine) : across(chine, deck);
+    return [xin, xout];
+  };
+  // (A catamaran: the space is in her starboard hull, over its engine, not across her tunnel.)
+  const span = twin && !outboards && !shape.catamaran ? engX + engHalf + ehc.sideRoom : 0;
   // (In the cabin floor, inside the house's walls too: across from its middle, `hx`.)
-  const [lo, hi] = hs.zone.floor ? [Math.max(-roomHalf, hx - (hw - wall) + 0.05), Math.min(roomHalf, hx + hw - wall - 0.05)] : [-roomHalf, roomHalf];
+  const catRoom = shape.catamaran ? [catInside(hs.z0, soleY), catInside(hs.z1, soleY)] : null;
+  const [lo, hi] = catRoom
+    ? [Math.max(catRoom[0][0], catRoom[1][0]) + 0.05, Math.min(catRoom[0][1], catRoom[1][1]) - 0.05]
+    : hs.zone.floor
+      ? [Math.max(-roomHalf, hx - (hw - wall) + 0.05), Math.min(roomHalf, hx + hw - wall - 0.05)]
+      : [-roomHalf, roomHalf];
   const sx0 = Math.max(lo, Math.min(hs.x0, -span));
   const sx1 = Math.min(hi, Math.max(hs.x1, span));
   const eh = {

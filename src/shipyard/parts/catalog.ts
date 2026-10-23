@@ -87,6 +87,12 @@ export interface DesignHull {
   name: string;
   /** Her form, scaled (length, beam and depth factors), with her bow (its step: SCALES.bow, the stem's rake). */
   form(L: number, B: number, D: number, bow: number, sheer: number, forecastle?: { from: number; raise: number }): HullDefinition['form'];
+  /**
+   * A catamaran (owner, Oct 2026: the fast work cat; her form carries `catamaran`): two
+   * demihulls under a bridge deck. Always twin engines, one in each hull, each with its
+   * propeller and rudder under its own keel; no bow ramp or push fender.
+   */
+  catamaran?: boolean;
   /** Her wheelhouse can be offset across her (design.houseX; owner, Oct 2026: the landing craft's, a narrow one to port or starboard). */
   offsetHouse?: boolean;
   /** A raised foredeck can be chosen (design.fcLength; owner, Oct 2026: the fishing boat, then the tug). */
@@ -367,6 +373,31 @@ export const DESIGN_HULLS: DesignHull[] = [
     // turning a big propeller in a Kort nozzle; the trawl gear,
     // its net drum and winches, and a fish hold; fishing green.
     defaults: { ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 7, bow: 2, housePos: 12, houseLength: 12, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 4, twin: 0, paint: 3 }), nozzle: 1, fcLength: 2, fcHeight: 2, aFrame: 1, netDrum: 1, trawlWinches: 1, fishHold: 1, sternRoller: 0 },
+  },
+  {
+    // The fast catamaran workboat (owner, Oct 2026: "a catamaran workboat, a wider working
+    // platform for cranes etc., the wheelhouse forward or aft, stiffer in roll, fast: 25-28 kn
+    // on all sizes with the engines we have"): the hull study's `workCat` (the hull
+    // modifications chat drew her lines and her two-hull physics). 10 to 14.7 m (the usual 0.8
+    // to 1.175 of 12.5 m). Her demihulls' spacing scales with her beam, her wet deck's height
+    // over the DWL with her depth. Her bows are her own (fine, raked: no bow choice). Not in the
+    // design code: she travels as a link or file.
+    name: 'Fast catamaran: 12.5 m aluminium, two slim hulls under a wide bridge deck',
+    material: 'aluminium',
+    catamaran: true,
+    form: (L, B, D, _bow, sheer) => {
+      const d = scaledStudy(study('workCat'), L, B, D, null, false, sheer);
+      const cat = study('workCat').catamaran!;
+      return { kind: 'lofted', design: { ...d, catamaran: { spacing: cat.spacing * B, tunnel: cat.tunnel * D } } };
+    },
+    // Semi-planing slim hulls (her resistance is a catamaran's: vessel/catamaran.ts).
+    regime: 'semi',
+    ramp: false,
+    cockpit: 2.0,
+    foredeck: 1.5,
+    // The wheelhouse forward over a wide working deck aft (it can go aft: Position), twin
+    // 280 kW, one in each hull (her hulls are too slim for one engine on her centreline).
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 1, bow: 0, housePos: 12, houseLength: 5, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 1, twin: 1, paint: 0 }),
   },
 ];
 

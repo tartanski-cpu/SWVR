@@ -10,6 +10,29 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The fast catamaran workboat: a Shipyard hull type (step 3 of the hull chat's three; done, on the preview)
+
+Owner, 23 Oct 2026, through the hull modifications chat (steps 1 and 2, her lines and her two-hull physics, are theirs, on `next`): "a catamaran workboat, a wider working platform for cranes etc., the wheelhouse forward OR aft, stiffer in roll, fast: 25-28 kn on all sizes with the engines we have". Her card (owner): made for Cargo, Fire and Exploring (a tag).
+
+- **The hull type** (parts/catalog.ts, the seventh: `catamaran: true`): the hull study's `workCat` scaled, her demihulls' spacing with her beam and her wet deck's height over her DWL with her depth; her own fine bows (no bow choice, no ramp or push fender); aluminium; the house forward (Position moves it aft); twin 280 kW by default. design.ts `HULL_TYPES` 7; not in the short code (a link or file).
+- **Her lines floated at her weight:** the wet deck rises with her lines (parts/hull.ts `raised`).
+- **Her stability:** the build's own waterplane measure (parts/common.ts `atDWL`) takes a catamaran's two strips, each hull's second moment about her centreline (`catStripsInertia`, as vessel/hydrostatics.ts does), not one strip across her tunnel: GM about 7 m at standard size.
+- **Her handling** (parts/trim.ts, hullDef.ts; vessel/catamaran.ts `catamaranHandling`, the hull chat's): her resistance a catamaran's, her roll radius of gyration and her added roll inertia; no planing turn model.
+- **Twin engines always, one in each hull** (parts/engineRoom.ts): engines, shafts, propellers and rudders at half her hull spacing out, under each hull's keel. Her engine space and hatch over the starboard hull's engine, sized to the inside of that hull (`catInside`), not across her tunnel. The 750 kW is too tall for her hulls (said so).
+- **Sections read by their outer side:** `halfBreadthAt` reads a section's last three points (a catamaran's starboard hull's keel, chine, deck edge; the same points as before on a monohull).
+- **Her trials** (gearbox matched; typeFit.ts TYPE_FACTS, her card):
+
+  | Size | Twin 150 kW | Twin 280 kW | Twin 400 kW | Twin 450 kW |
+  |---|---|---|---|---|
+  | 10 m (11.2 t) | 18.2 kn | | 31.3 kn | |
+  | 12.5 m (13.7 t) | 17.4 kn | **25.5 kn** | 30.6 kn | 29.3 kn |
+  | 14.7 m (17.3 t) | 13.5 kn | | 28.0 kn | |
+
+  Every size makes 25-28 kn and more on a twin she can take. The Shipyard weighs her heavier than the hull chat's estimate (13.7 t at standard against 9.3 t: her plating, both hulls and the bridge deck, and her outfit over her full deck), so the small engines make less than their table; 13.7 t is within what real 12 m aluminium work cats with twin V8s weigh. Deck: 82 crates (159 at her largest).
+- **Icons:** the stern trawler and the fast catamaran have their own Hull-step drawings (tiles.ts `trawler`, `catamaran`; the trawler had the workboat's).
+- **Checked:** `npm run test:shipyard` (the build, bow and engine-balance tests take her in: no bow choice; her CG 1.23 m from her LCB, her shafts already at their steepest with her house forward); the full suite; headless Chromium: her card with her picture, the Hull step (from ahead, both hulls and the tunnel), the Engine step (an engine, shaft, propeller and rudder in each hull), and the game (afloat at the quay, her house forward, both hulls from ahead). **Not checked:** the Quest; her sailing in the game by hand (her sea trials ran the game's physics); designing together.
+- **Shared changes:** tests/fleet.test.ts: the fast catamaran isn't in the game's fleet yet (as the stern trawler), so the one-boat-a-type check leaves her out; adding her to the fleet is the main game chat's call. (The catamaran physics itself is the hull chat's.)
+
 ### Handles on the 3D view, stop 1: the framework, proved on her length (done, on the preview)
 
 Owner, 23 Oct 2026: "the next big step for the shipyard is to move away from sliders and to have interactive handles that you can drag on the 3D window wherever appropriate". Plan agreed (owner's choices: the view stays as it is when a handle is grabbed; the sliders fold into "Exact values" once the handles are in; start with stop 1):

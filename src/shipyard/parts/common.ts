@@ -34,8 +34,14 @@ export function atDWL(form: HullForm): { volume: number; lcb: number; kbY: numbe
     v += area * st.weight;
     mz += area * st.weight * st.z;
     my += area * cy * st.weight;
-    const b = waterlineHalf(st.polygon);
-    iT += ((2 * b) ** 3 / 12) * st.weight;
+    // A catamaran's waterplane is two strips, one a hull, each far out from her centreline
+    // (the parallel-axis term that makes her so stiff), not one strip across her tunnel
+    // (vessel/hydrostatics.ts uprightHydrostatics does the same).
+    if (st.demihull) iT += catStripsInertia(st.polygon) * st.weight;
+    else {
+      const b = waterlineHalf(st.polygon);
+      iT += ((2 * b) ** 3 / 12) * st.weight;
+    }
     if (area > 1e-4) {
       zMin = Math.min(zMin, st.z);
       zMax = Math.max(zMax, st.z);
@@ -66,13 +72,32 @@ export function clippedBelow(poly: readonly (readonly [number, number])[]): { ar
   return Math.abs(a) < 1e-9 ? { area: 0, cy: 0 } : { area: Math.abs(a), cy: cy / (6 * a) };
 }
 
-/** A station's half-breadth at height y (0 below her keel; her deck half-breadth above her deck). */
+/**
+ * A station's half-breadth at height y (0 below her keel; her deck half-breadth above her
+ * deck): her starboard side, its last three points (keel, chine, deck edge; a catamaran's
+ * outer side, from her starboard hull's keel).
+ */
 export function halfBreadthAt(poly: readonly (readonly [number, number])[], y: number): number {
-  const [[xd, yd], [xc, yc], [, yk]] = [poly[4], poly[3], poly[2]];
+  const n = poly.length;
+  const [[xd, yd], [xc, yc], [xk, yk]] = [poly[n - 1], poly[n - 2], poly[n - 3]];
   if (y <= yk) return 0;
   if (y >= yd) return xd;
-  if (y <= yc) return (xc * (y - yk)) / Math.max(yc - yk, 1e-6);
+  if (y <= yc) return xk + ((xc - xk) * (y - yk)) / Math.max(yc - yk, 1e-6);
   return xc + ((xd - xc) * (y - yc)) / Math.max(yd - yc, 1e-6);
+}
+
+/** A catamaran section's waterplane second moment about her centreline (m^3 a metre): each strip between the waterline's crossings. */
+export function catStripsInertia(poly: readonly (readonly [number, number])[]): number {
+  const xs: number[] = [];
+  for (let i = 0; i < poly.length; i++) {
+    const [x0, y0] = poly[i];
+    const [x1, y1] = poly[(i + 1) % poly.length];
+    if (y0 * y1 < 0) xs.push(x0 + ((x1 - x0) * -y0) / (y1 - y0));
+  }
+  xs.sort((a, b) => a - b);
+  let it = 0;
+  for (let j = 0; j + 1 < xs.length; j += 2) it += (xs[j + 1] ** 3 - xs[j] ** 3) / 3;
+  return it;
 }
 
 /** Half-breadth where a section crosses the waterline (0 if it doesn't). */

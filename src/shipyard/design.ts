@@ -93,7 +93,7 @@ export const DESIGN_VERSION = 32;
  * How many hull types there are (build.ts DESIGN_HULLS). The code's first 16 characters
  * hold the first four; the rest ride in its extension (MORE_HULLS, version 16).
  */
-export const HULL_TYPES = 6;
+export const HULL_TYPES = 7;
 /** Hull types the first 16 characters hold. */
 const BASE_HULLS = 4;
 /**

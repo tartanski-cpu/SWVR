@@ -131,8 +131,8 @@ describe('Shipyard: the boats it builds', () => {
         mass.push(VESSEL_DEFS.design.mass);
         lwl.push(VESSEL_DEFS.design.resistance.lwl);
       }
-      // A tug's push bow and a landing craft's landing bow are their own: the bow choice leaves them as they are.
-      if (DESIGN_HULLS[hull].pushBow || DESIGN_HULLS[hull].landingBow) {
+      // A tug's push bow, a landing craft's landing bow and a catamaran's fine bows are their own: the bow choice leaves them as they are.
+      if (DESIGN_HULLS[hull].pushBow || DESIGN_HULLS[hull].landingBow || DESIGN_HULLS[hull].catamaran) {
         expect(new Set(mass).size, `hull ${hull}`).toBe(1);
         continue;
       }

@@ -104,6 +104,18 @@ export const TYPE_FACTS: TypeFacts[] = [
     maxPots: 198,
     fits: [fit(0, 0, 5.6, 36, 1.91, 476_000), fit(0, 1, 7.9, 40, 3.83, 512_000), fit(1, 0, 7.8, 35, 3.50, 495_000), fit(1, 1, 9.4, 45, 7.01, 543_000), fit(2, 0, 8.7, 43, 5.09, 507_000), fit(2, 1, 10.2, 53, 10.17, 569_000), fit(3, 0, 9.2, 44, 6.65, 527_000), fit(3, 1, 10.6, 54, 13.30, 623_000), fit(4, 0, 10.5, 48, 11.23, 597_000)],
   },
+  {
+    // The fast catamaran (measured 23 Oct 2026, as the others; always twin, one engine a hull:
+    // her single fits are built twin, so only the twins are listed): fast for her size, a
+    // wide deck.
+    what: 'A fast catamaran: two slim hulls under a wide bridge deck, a wide, steady working platform; 25 to 30 knots.',
+    goodFor: ['cargo', 'fire'],
+    crates: 82,
+    pots: 52,
+    maxCrates: 159,
+    maxPots: 103,
+    fits: [fit(0, 1, 17.4, 83, 2.82, 259_000), fit(1, 1, 25.5, 120, 4.51, 290_000), fit(2, 1, 30.6, 147, 5.38, 319_000), fit(3, 1, 29.3, 149, 6.74, 376_000)],
+  },
 ];
 
 export interface TypeLine {

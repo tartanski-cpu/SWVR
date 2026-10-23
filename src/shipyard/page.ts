@@ -800,7 +800,7 @@ section('1. Hull');
 // Picking a hull starts her in her type's usual layout (the sliders then move it all).
 // Her type, as pictures (each from the side; tiles.ts): its name, and its size on the line under.
 {
-  const looks = [HULL_ICONS.lander, HULL_ICONS.gillnetter, HULL_ICONS.workboat, HULL_ICONS.pilot, HULL_ICONS.tug];
+  const looks = [HULL_ICONS.lander, HULL_ICONS.gillnetter, HULL_ICONS.workboat, HULL_ICONS.pilot, HULL_ICONS.tug, HULL_ICONS.trawler, HULL_ICONS.catamaran];
   const box = pickTiles(
     controls,
     'hull',

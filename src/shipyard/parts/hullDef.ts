@@ -119,10 +119,14 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
       // and trimmed against it: a crane at the starboard edge, her ballast a little to port).
       ...(craneAt ? [{ massKg: cr.massKg, at: [craneAt[0], craneAt[1] + cr.columnHeight / 2, craneAt[2]] as V3 }] : []),
     ]),
-    addedMass: lc.addedMass,
+    // (A catamaran: her roll added inertia and her resistance are two slim hulls': trim.ts `cat`.)
+    addedMass: p.cat ? { ...lc.addedMass, roll: Math.round(p.cat.addedRoll * 1000) / 1000 } : lc.addedMass,
     damping,
     // Tyres hanging low catch spray and the odd wave: a little more drag.
-    resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100, ...(tyres.length ? { formFactor: lc.resistance.formFactor + hg.tyres.formFactorAdd } : {}) },
+    resistance: (() => {
+      const r = p.cat ? p.cat.resistance : { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100 };
+      return tyres.length ? { ...r, formFactor: r.formFactor + hg.tyres.formFactorAdd } : r;
+    })(),
     ...(planing ? { planing } : {}),
     windage: {
       side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) - saloonL * roofDrop + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * d.dhHeight : 0)),
