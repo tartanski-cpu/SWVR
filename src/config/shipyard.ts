@@ -61,6 +61,14 @@ export const SHIPYARD_CONFIG = {
      */
     shaftAngleMaxDeg: 15,
     /**
+     * The most power a displacement hull (the tug, the trawler) takes, kW per tonne of her
+     * lines' displacement (owner, Oct 2026: two 750 kW engines don't fit a small tug). Her
+     * speed is held by her length, not her power, so past this the power is spent making
+     * waves and turning a propeller too small for it; working tugs and trawlers carry about
+     * 8 to 18 kW a tonne. Twin engines past it go in singly (if one is within it).
+     */
+    maxKwPerTonne: 20,
+    /**
      * The engine hatch and the engine space under it (build.ts; owner, Oct 2026: the engine
      * goes where her shaft line puts it, not in a box under the wheelhouse). Metres:
      *   endRoom, sideRoom    the hatch past the engine's ends and its sides (room for the

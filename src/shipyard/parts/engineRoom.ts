@@ -40,7 +40,12 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const pods = !!d.pods && !outboardCount(d) && base.regime === 'planing' && !shaftOnly;
   // A catamaran always has twin engines, one in each hull (her hulls are too slim for one on
   // her centreline, and her tunnel is there).
-  const twin = (!!d.twin || pods || !!base.catamaran) && !singleOnly;
+  // Too much power for a displacement hull (CONFIG.shipyard.maxKwPerTonne, on her lines'
+  // displacement): twin engines past it go in singly, if one is within it.
+  const maxKw = base.regime === 'displacement' ? CONFIG.shipyard.maxKwPerTonne * h.volume * 1.025 : Infinity;
+  const tooMuchForTwin = !!d.twin && !singleOnly && !outboardCount(d) && 2 * kw > maxKw && kw <= maxKw;
+  if (tooMuchForTwin) warnings.push(`Two ${eng.name.split(' (')[0]}s are too much for her: ${2 * kw} kW in a hull of ${Math.round(h.volume * 1.025)} t (she takes about ${Math.round(maxKw / 10) * 10} kW). She has one.`);
+  const twin = (!!d.twin || pods || !!base.catamaran) && !singleOnly && !tooMuchForTwin;
   // Stern drives (owner, Oct 2026; design.sternDrive): the engine against the transom, a
   // leg through it that swings to steer (CONFIG.modules.sternDrive). Not the slow tug
   // diesel (its big slow propeller wants a shaft); outboards, if chosen, instead.

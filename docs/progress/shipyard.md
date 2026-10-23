@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The small tug turns down twin 750 kW engines (done, on the preview)
+
+Owner, 23 Oct 2026, through the hull chat: two 750 kW engines don't fit a small tug; judge a single one.
+
+- **Measured first:** two 750s do fit *across* her (13 × 5.4 m as she comes): each 1.15 m wide engine's outer side is 1.8 m off her centreline, inside her 2.4 m half-breadth at the engine bed, and 1.3 m between them. What doesn't fit her is the **power**: 1,500 kW in a hull of about 56 t is about 27 kW a tonne. Working tugs and trawlers carry about 8 to 18 kW a tonne. A displacement hull's speed is held by her length, so the extra power only makes waves and overloads a propeller her draught keeps small (1.18 m for the twin; a 750 wants 1.9 m).
+- **The rule** (parts/engineRoom.ts; `CONFIG.shipyard.maxKwPerTonne` 20): a displacement hull (the tug, the trawler) takes at most 20 kW a tonne of her lines' displacement. Twin engines past that go in singly (when one is within it), with a warning saying so and what she takes. The tug as she comes takes about 1,120 kW: twin 450 kW tug diesels (900 kW) still go in; twin 750s are refused; a **single 750** (750 kW, about 13 kW a tonne) is accepted. A tug stretched to her longest takes more. The smallest tug (7 m, 23 t) refuses twin 450s too. The trawler is not affected: twin 750s are within her power limit, but they are too tall for her deck, as before.
+- **Her card:** the twin-750 trial is gone from TYPE_FACTS (typeFit.ts), so her figures read up to 11 kn (the twin 450s) and up to 9.0 t pull (was 18 kn and 13.0 t, which came from the power she can't take).
+- Test: tests/shipyard/bigEngine.test.ts.
+
 ### The fast catamaran workboat: a Shipyard hull type (step 3 of the hull chat's three; done, on the preview)
 
 Owner, 23 Oct 2026, through the hull modifications chat (steps 1 and 2, her lines and her two-hull physics, are theirs, on `next`): "a catamaran workboat, a wider working platform for cranes etc., the wheelhouse forward OR aft, stiffer in roll, fast: 25-28 kn on all sizes with the engines we have". Her card (owner): made for Cargo, Fire and Exploring (a tag).
