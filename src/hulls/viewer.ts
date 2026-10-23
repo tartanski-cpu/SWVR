@@ -6,7 +6,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DESIGNS } from './designs';
-import { buildHullMesh, hydrostatics, loft, type LoftedHull } from './loft';
+import { buildHullMesh, curveAt, hydrostatics, loft, type HullDesign, type LoftedHull } from './loft';
+import { hullFormFromDesign } from '../vessel/hullForm';
+import { buildVesselMesh } from '../vessel/view/hullMesh';
+import type { LayoutConfig } from '../vessel/vesselDef';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
@@ -41,13 +44,38 @@ scene.add(group);
 let current: LoftedHull | null = null;
 let showLines = true;
 let showSea = true;
+/** Show her as the game builds and draws her (its stations: upright hard-chine sections, a catamaran's across both hulls), not the study's own lofting. */
+let asGame = false;
+
+/**
+ * Her hull as the game draws it, from the game's stations (vessel/hullForm.ts
+ * hullFormFromDesign): bare, her bulwark the study's height amidships, no house. Moved so its
+ * deck ends sit where the study's do (the game puts them at +-length/2). Null, with the reason,
+ * where the game can't take her (a round bilge).
+ */
+function gameHull(d: HullDesign, h: LoftedHull): THREE.Object3D | string {
+  try {
+    const form = hullFormFromDesign(d);
+    const layout = { bulwarkHeight: curveAt(d.bulwark, 0.5), railHeight: 0, deckEdgeMargin: 0.25, bodyRadius: 0.22 } as LayoutConfig;
+    const mesh = buildVesselMesh(form, layout);
+    const ends = h.sections.map((s) => s.pts[s.pts.length - 1].z);
+    mesh.position.z = (ends[0] + ends[ends.length - 1]) / 2;
+    return mesh;
+  } catch (e) {
+    return (e as Error).message;
+  }
+}
 
 function show(id: string): void {
   const d = DESIGNS.find((x) => x.id === id) ?? DESIGNS[0];
   group.clear();
+  const same = current?.design.id === d.id;
   current = loft(d);
-  group.add(buildHullMesh(current));
+  const game = asGame ? gameHull(d, current) : null;
+  group.add(game && typeof game !== 'string' ? game : buildHullMesh(current));
   group.add(linesOverlay(current));
+  const note = document.getElementById('gameNote')!;
+  note.textContent = !asGame ? '' : typeof game === 'string' ? `The game can't take this hull yet: ${game.replace(/^hull design '[^']*': /, '')}. Shown as the study draws her.` : "As the game builds and draws her: its stations, bare (no house).";
   const hs = hydrostatics(current);
   const f = (v: number, n = 2) => v.toFixed(n);
   document.getElementById('name')!.textContent = d.name;
@@ -66,7 +94,7 @@ function show(id: string): void {
     .join('');
   for (const b of document.querySelectorAll<HTMLButtonElement>('#tabs button')) b.classList.toggle('on', b.dataset.id === d.id);
   location.hash = d.id;
-  view('bow');
+  if (!same) view('bow');
 }
 
 /** Stations as thin lines (both sides), the deck edge and the keel, in dark ink. */
@@ -101,6 +129,11 @@ document.getElementById('lines')!.onclick = () => {
   showLines = !showLines;
   const l = group.getObjectByName('lines');
   if (l) l.visible = showLines;
+};
+document.getElementById('game')!.onclick = () => {
+  asGame = !asGame;
+  document.getElementById('game')!.classList.toggle('on', asGame);
+  if (current) show(current.design.id);
 };
 document.getElementById('sea')!.onclick = () => {
   showSea = !showSea;
