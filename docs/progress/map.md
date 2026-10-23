@@ -26,7 +26,8 @@ Owner: "when I go to Oban ... I still see the 3D patches for the low level of de
   - the marine model's wave height, period and direction, as the game's sea scale (about 1.3 m of significant height a unit);
   - turned into the game's weather values: rain at full from `rainMmH` 4 mm/h; visibility no farther than the game draws (`maxVisibility` 20 km); the nearest preset for the sky and the forecast's words (Fog under `fog` 1,000 m, Squall at `squallWind` 15 m/s or thunder, Rain over `rainy` 0.15, Overcast over `overcast` 0.6 cloud, else Clear);
   - given up after `timeoutMs` 8 s, or on any failure, so the game keeps its own weather.
-- **Not yet in the game:** applying it (the host fetching it as a Voyage starts and setting the weather, holding it for the session) is in the main game's files (`src/environment/`, the Voyage start-up), so it's handed to the main game chat with a brief. Until then nothing changes in play.
+- **In the game** (the main game chat, at the owner's go-ahead, `f77085b` on `next`; its log, docs/progress/game.md): the host fetches it as a Voyage starts and holds it for the session, the marine sea too; a notice, the Voyage tab and the credit line say so.
+- **The marine point:** at Oban the marine model answered from 56.29 N, about 14 km out in the Firth of Lorn (it has no sea inside the Sound of Kerrera). That's the right input: the game's sea is the open sea's, and each bay's shelter cuts it down where you are (the map's shelters, ocean/waves.ts), as for the game's own weather. So no separate sea point.
 - **Checked live** (23 Oct, mid-afternoon): Oban a 4.9 m/s north-westerly, overcast, dry, waves 0.5 m; the Clyde 5.5 m/s from the north-west; Tayvallich 7.8 m/s, a trace of rain; Syros a 3 m/s north-easterly.
 - **Settings:** `CONFIG.liveWeather` in `src/config/map.ts`.
 
