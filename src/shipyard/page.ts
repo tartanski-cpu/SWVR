@@ -2448,7 +2448,7 @@ function showHandles(): void {
   shownHandles = [];
   if (placing || tool || live) return;
   for (const def of HANDLES) {
-    if (def.step !== shownStep) continue;
+    if (def.step !== shownStep || (def.applies && !def.applies(design))) continue;
     const mesh = new THREE.Mesh(handleGeo, new THREE.MeshBasicMaterial({ color: HANDLE_COLOUR, depthTest: false, transparent: true, opacity: 0.95 }));
     mesh.renderOrder = 12;
     const at = def.anchor(boat);

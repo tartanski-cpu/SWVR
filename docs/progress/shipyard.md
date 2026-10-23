@@ -10,6 +10,29 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Handles on the 3D view, stop 2: the rest of the Hull step (done, on the preview)
+
+Owner, 23 Oct 2026: "yes, go ahead with the hull handles" (stop 2 of the handles plan below).
+
+- **Seven more handles** (handles.ts `HANDLES`), each where its slider shows on her and dragged along one line, through stop 1's framework (nothing new in how they're dragged, snapped, undone or shared):
+  - **Bow rake** where her stem crosses her DWL, dragged aft. Raking her keeps her stem head and cuts her forefoot back (catalog.ts `bowKeel`), so a stem-head handle wouldn't move; the waterline crossing is read off her stations (`stemAt`). Not on a landing bow, a push bow or the catamaran (`applies`).
+  - **Beam** at her starboard deck edge amidships, dragged out; its dimension is from her port deck edge.
+  - **Depth** on her deck amidships on the centreline, dragged up; its dimension is from her keel.
+  - **Bulwarks** on their top on her port quarter (70 % aft), dragged up; its dimension is from her deck.
+  - **Sheer** at her starboard deck edge a fifth of her length aft of the stem, dragged up.
+  - **Raised foredeck** at the break, on the centreline at the raised deck, dragged aft. With none, it sits half a metre aft of her stem head: drag it aft to make one. Its dimension is from her stem.
+  - **Its height** on the raised deck halfway from her stem to the break, dragged up. Shown only with a raised foredeck.
+- **Spread so they don't cover each other** in the usual views: the sheer to starboard and the bulwarks aft (from ahead and from the side they would sit on each other otherwise), and the foredeck's height forward of its break.
+- **Her length handle** stays at her stem head. It now sits on the raised foredeck when she has one (it was inside it).
+- **The builder says what the handles need** (build.ts `DesignedBoat.deck`): her bulwarks' height and her raised foredeck's break and rise, as built (the break can be moved clear of the wheelhouse or the transom), so the handles sit on what was built, not on a second guess.
+- **HandleDef `applies(d)`:** a handle is shown only for a design that has the choice (page.ts `showHandles`).
+- **Checked:**
+  - tests/shipyard/handles.test.ts: every Hull step handle moves its own way along its line from its lowest step to its highest, on every hull type it shows for; the bow rake handle goes aft while her stem head stays put; which types show the bow and foredeck-height handles.
+  - Headless Chromium on the stern trawler and the gillnetter, Starboard and Bow views: each handle hovered (its own name and value: none covered by another) and dragged (beam and depth to their limits, bulwarks 0.6 to 1.0 m, sheer, a raised foredeck made from none, its height, bow rake 25° to 37.5°), with screenshots. The catamaran, pilot boat and tug show the right handles.
+  - `npm run test:shipyard` (331) and the typecheck pass.
+  - **Not checked:** the Quest's browser (the laser as the pointer); a shared session.
+- **Shared changes:** none.
+
 ### The small tug turns down twin 750 kW engines (done, on the preview)
 
 Owner, 23 Oct 2026, through the hull chat: two 750 kW engines don't fit a small tug; judge a single one.
