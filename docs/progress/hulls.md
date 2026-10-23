@@ -10,6 +10,61 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Two hulls in the game's physics: catamarans float, roll and are drawn (owner; step 1 of 3)
+
+- **The owner** said go ahead with the two-hull physics, the first of the three steps to sail the fast catamaran (entry below). The main game chat was told first: the vessel physics is shared code.
+- **How a catamaran is held** (`vessel/hullForm.ts`, `Station.demihull`, `HullForm.catamaran`). `hullFormFromDesign` now takes a hull-study catamaran (it refused one before). Each station is one ten-point section across both demihulls and the bridge deck, the tunnel under the wet deck a notch in it, in this order:
+  - port outer deck edge;
+  - port outer chine;
+  - port keel;
+  - port inner chine;
+  - the wet deck's two corners;
+  - starboard inner chine;
+  - starboard keel;
+  - starboard outer chine;
+  - starboard outer deck edge.
+
+  Where a demihull's keel rises above the wet deck at the bow, the notch closes up to it.
+  - **Why this works without special cases:** the buoyancy, the hydrostatics, the contacts and the wetted surface already clip any section at the water. So both hulls float, and a wet deck driven under adds its buoyancy (and its push up), as a real one does.
+  - **What `Station.demihull` records:** each demihull's own half-breadths and its offset, for what goes by one hull's width.
+- **The physics** (`physics/vesselPhysics.ts`; each change touches only a catamaran):
+  - the heave damping's waterplane strip, and the planing lift's waterplane, use her two hulls' width, not the full width across her tunnel (`wetHalf`);
+  - the side force (sway, yaw and turning) counts two keels.
+- **Stability** (`vessel/hydrostatics.ts`, `uprightHydrostatics`): a catamaran's waterplane is two strips, each with its second moment about her centreline (the parallel-axis term that makes her stiff), not one strip across the tunnel.
+- **Boat against boat** (`physics/vesselContact.ts`): samples her outer deck edges and chines by the first two and last two points of her section, which a catamaran's polygon still has.
+- **Drawing** (`view/hullMesh.ts`):
+  - each demihull's panels face away from its own centreline, and the wet deck's underside faces down;
+  - her inner topsides and wet deck take the topsides colour;
+  - her transom is cut into triangles that leave the tunnel open, and the bridge deck's front across her bow is closed the same way;
+  - the bulwarks stand on her outer deck edges.
+- **Monohulls are untouched:** every change applies only to a catamaran, and all twelve golden runs hold to a millionth.
+- **Measured, the standard work cat in the game's physics** (her CG at 60 % of her depth, the landing craft's handling numbers):
+  - she settles on her lines within 0.02 mm;
+  - the game's KM is 12.28 m against the hull study's 12.20 m;
+  - her displacement is 9.07 against 8.82 m³ (the game's stations are upright sections);
+  - her roll period is **1.4 s**, against 2.5 s for the 9 m landing-craft monohull: very stiff, as asked.
+- **The hull study viewer** (`hulls.html`, `src/hulls/viewer.ts`) has **As the game draws her**: any design as the game builds and draws it, from the game's own stations (bare: bulwark, no house). A round-bilge design says the game can't take it yet. The view stays put when it's switched.
+- **Still to come:**
+  - **Step 2:** a fast cat's resistance and planing lift (the game's curve is a monohull's), and her roll damping and comfort. Her snappy 1.4 s roll wants some tuning: a real one's added inertia makes it nearer 2 to 3 s.
+  - **Step 3:** the Shipyard hull type (the Shipyard chat), which should know:
+    - its own waterplane measure (`waterlineHalf` in the build's hydrostatics) is a monohull's;
+    - a design's scaling should scale the spacing and the wet deck too;
+    - she wants twin engines, one in each hull.
+  - **Not done:** walking on her bridge deck (it's the deck, so it should just work) and a wet-deck slam (it pushes up through its buoyancy and the heave damping only).
+- **Tests:** `tests/hulls/catPhysics.test.ts` (5 new):
+  - ten-point, symmetric stations with the deck the full width;
+  - her volume and KM as the hull study's;
+  - the wet deck adds only the hulls' width below it and the full width above;
+  - afloat she settles on her lines and rolls back in under 2.5 s, under three quarters of a monohull's period;
+  - her drawing leaves the tunnel open at the transom.
+
+  Typecheck, all of `npm test` (1394) and the build pass.
+- **Checked:** the viewer in headless Chromium, her as the game draws her: Bow ¾, Stern ¾ (the tunnel open), from underneath (the wet deck and inner sides); the pilot boat (a monohull) as the game draws her; the round-bilge tug's note; no page errors. **Not checked:** the Quest; her in the game itself (that needs the Shipyard type, step 3).
+- **Shared changes:**
+  - `src/vessel/hullForm.ts` (catamaran stations), `src/vessel/physics/vesselPhysics.ts` (the strip and the keels), `src/vessel/hydrostatics.ts` (the catamaran waterplane), `src/vessel/physics/vesselContact.ts` (sample points by position in the section), `src/vessel/view/hullMesh.ts` (a catamaran's panels, ends and bulwarks): each change applies only to a catamaran;
+  - `tests/hulls/catPhysics.test.ts` (new);
+  - `README.md` (the viewer's new button).
+
 ### The preview addresses switched on (owner's go-ahead)
 
 - **The owner** said go ahead with the publishing workflow, so the preview addresses work.

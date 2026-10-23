@@ -107,6 +107,14 @@ const fStern = { x: 0, y: 0, z: 0 };
 const cgL = new THREE.Vector3();
 /** A station's chine height (vessel axes): its widest point in the lower half of its section. */
 const chines = new WeakMap<object, number>();
+/**
+ * Half the width of a station's waterplane strip, her bottom's chine to chine: her chines'
+ * half-beam; a catamaran's two demihulls together (her tunnel isn't in the water).
+ */
+function wetHalf(st: { halfBeamChine: number; demihull?: { halfBeamChine: number } }): number {
+  return st.demihull ? 2 * st.demihull.halfBeamChine : st.halfBeamChine;
+}
+
 function chineY(st: { polygon: readonly (readonly number[])[] }): number {
   let y = chines.get(st);
   if (y === undefined) {
@@ -293,7 +301,7 @@ export function stepVessel(
     // slamming / water-entry losses: negligible at seakeeping velocities (~0.3 m/s), but
     // it dominates on violent entry and stops the hull rebounding out of the water.
     const wet = Math.min(1, sub.maxDepth / 0.3);
-    const strip = 2 * b * st.weight * wet;
+    const strip = 2 * wetHalf(st) * st.weight * wet;
     const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
     const fv = -(d.vertical * strip * relV + 0.5 * rho * d.verticalCd * strip * Math.abs(relV) * relV);
     addForceAt(tmp.set(0, fv, 0), centreW);
@@ -310,7 +318,8 @@ export function stepVessel(
     //     sway and yaw damping (Y_v, N_r) and a sensible turning circle.
     //   - crossflow drag, quadratic in v (dominant at low speed and large drift),
     //   - a small linear term for settling at rest.
-    const aLat = sub.maxDepth * st.weight;
+    // (A catamaran has two keels, a demihull each: twice the lifting surface.)
+    const aLat = sub.maxDepth * st.weight * (st.demihull ? 2 : 1);
     rollLiftArea += aLat * b * b;
     const uFwd = Math.abs(tmp.z);
     const fx = -(
@@ -404,7 +413,7 @@ export function stepVessel(
       let awp = 0;
       for (const st of def.hull.stations) {
         b = Math.max(b, st.halfBeamChine);
-        awp += 2 * st.halfBeamChine * st.weight;
+        awp += 2 * wetHalf(st) * st.weight;
       }
       const f = fade * immersion * pl.bank * 0.5 * rho * awp * Math.abs(U) * vSway;
       // Up at the starboard chine when sliding to starboard (vSway > 0), down at port.
