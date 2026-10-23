@@ -11,7 +11,7 @@ import { lightshipOf } from '../../modular/massProperties';
 import type { Socket } from '../../modular/socket';
 import { BREAKERS } from '../../vessel/vesselState';
 import { atDWL, type BuildArgs, type V3 } from './common';
-import { liveryOf, TUG_HULL } from './catalog';
+import { DESIGN_HULLS, liveryOf, TUG_HULL } from './catalog';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
 import type { TrimPart } from './trim';
@@ -23,7 +23,8 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart) {
   const { code, d, id } = a;
   const { F, aft, at, batteriesKg, hx, beamDeck, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, shaftOnly, sideDoor, st, stem, transom, twin, tyres, wall, weighed, wheelhouseSockets } = p;
-  // A tug's dry exhaust stacks (owner, Oct 2026; CONFIG.shipyard.exhaustStack): one per
+  // A tug's dry exhaust stacks (owner, Oct 2026; CONFIG.shipyard.exhaustStack; the stern
+  // trawler's too: a hull type with `exhaustStacks`): one per
   // engine, each in an aft corner of the wheelhouse (starboard; a twin's second to port), from
   // under the floor (down to her engine space) up through the roof and well over it, raked aft
   // or straight (design.stackStyle), the smoke out of their tops; her cooling water out of a
@@ -31,7 +32,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   // (theirs goes out through their legs). Only through a wheelhouse a pipe can stand in: one
   // at least a metre long and high.
   const esc = CONFIG.shipyard.exhaustStack;
-  const stack = d.hull === TUG_HULL && !nOb && aft - front >= 1 && roofTopAt(aft - 0.3) - F >= 1
+  const stack = DESIGN_HULLS[d.hull]?.exhaustStacks && !nOb && aft - front >= 1 && roofTopAt(aft - 0.3) - F >= 1
     ? (() => {
         const r = esc.radius;
         const z = rnd(aft - wall - esc.inset - r);
