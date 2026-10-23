@@ -2395,7 +2395,7 @@ export class App {
       },
       weatherPreset: () => env().weather?.preset ?? '',
       setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
-      raceOverride: () => (env().raceOverride === 'peak' ? 1 : env().raceOverride === 'slack' ? 2 : 0),
+      raceOverride: () => (env().raceOverride === 'peak' ? 1 : env().raceOverride === 'slack' ? 2 : env().raceOverride === 'ebb' ? 3 : 0),
       setRaceOverride: (v) => this.pushEnvIntent('raceOverride', v),
       gustNow: () => {
         const v = this.world.vessels[this.testVesselId];

@@ -10,6 +10,35 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Debug: the tidal races pinned at the ebb, to see the overfalls (owner question, 23 Oct 2026)
+
+The owner: "I remember working on a steeper wave model ... I don't remember seeing that. Is there a debug option?"
+
+- The steeper waves are the overfalls (Oct 2026): the sea stands up where it runs against a race. In Sruth Tarsk (the Sounds) and at the Falls of Lora (Oban) that's on the **ebb**.
+- The Debug menu's only pin was "Peak", which is the flood. The flood runs with the sea's waves there, so it eased the sea: the overfalls could never be seen from the menu.
+- Debug → World → Tidal races is now **By the clock / Flood / Ebb / Slack** (`RaceOverride` 'ebb', raceFactor -1; intent `raceOverride` value 3).
+- Test: `tests/overfalls.test.ts`: the Ebb pin gives the ebb's full strength; the intent sets and clears it.
+- Checked in headless Chromium: Sruth Tarsk in a Rough sea, pinned Flood and then Ebb. The two still pictures look alike at that size, as when the overfalls were built: the difference (1.6× steeper, crests 1.4× higher in the race against the ebb) is in the numbers. Not checked by eye from the wheelhouse or in VR. If it still reads too subtle there, `CONFIG.currents.overfalls` `heighten` / `steepen` / `chop` are the knobs.
+
+### The front page: four equal tiles, each with a picture (owner request, 23 Oct 2026)
+
+Owner: "The main page ... should have an equally sized tile for the shipyard and a suitable graphic for each of them."
+
+- `index.html`: Career, Voyage, Shipyard and Training as four equal tiles, two by two (one column on a phone, each tile full width), every tile the height of the tallest.
+- Each tile has its own drawing, original and in the game's chunky style, drawn as SVG in the page (no image files, nothing more to load):
+  - Career: a workboat alongside a quay with crates and a crane;
+  - Voyage: a chart of a coast with a route, its stops and a compass;
+  - Shipyard: a boat's lines plan on a drawing board, with stations, waterlines and her length;
+  - Training: a small harbour with a buoy slalom and a REC light.
+- The Voyage maps are four compact buttons, two by two, with the full description on hover. Career and the Shipyard have a button at the foot of their tile.
+- The Shipyard moved from the footer into its tile; the footer keeps the hull study's link.
+- Checked: headless screenshots, wide and phone width: the four tiles equal on a wide screen (481 × 462 px each), no sideways scroll on a phone.
+
+### Everything on next goes to the live game (owner: "approved", 23 Oct 2026)
+
+- The test build as of the afternoon of 23 October, every chat's approved work on `next`, merged into the dev branch: https://tartanski-cpu.github.io/SWVR/.
+- The release note by theme is `docs/RELEASE_NOTES_2026-10-23.md`, and the README's status line points to it.
+
 ### Live weather on the Voyage maps, applied (owner request via the map chat, 23 Oct 2026)
 
 The owner asked the map chat for "real-time weather in those locations ... every time you start a game session". The map side, the fetch (`src/world/coastWeather.ts`, Open-Meteo: free, no key) and each map's `weatherAt`, came over from `preview/map` onto `next` at the owner's go-ahead. This is the game side.

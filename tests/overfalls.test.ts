@@ -6,7 +6,8 @@
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/config';
-import { IdFactory } from '../src/core/ids';
+import { ENVIRONMENT_ID, IdFactory } from '../src/core/ids';
+import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { seaStateWaves } from '../src/environment/environmentState';
@@ -91,6 +92,18 @@ describe('overfalls', () => {
       }
     expect(peak).toBeGreaterThan(1.5);
     expect(wavenumberFromPeriod(2)).toBeGreaterThan(0);
+  });
+
+  it('Debug, the race pinned at the ebb: the same overfalls as the ebb by the clock (the Flood pin eases the sea, as it runs with the waves)', async () => {
+    const { raceFactor } = await import('../src/world/currents');
+    expect(raceFactor(RACE, FLOOD, 'ebb')).toBe(-1);
+    expect(raceFactor(RACE, EBB)).toBeCloseTo(-1, 6);
+    expect(raceFactor(RACE, EBB, 'peak')).toBe(1);
+    const { world } = createWorld(new IdFactory(), 'workboat');
+    stepWorld(world, [{ playerId: 'p', targetId: ENVIRONMENT_ID, control: 'raceOverride', value: 3 } as Intent], 0.05);
+    expect(world.environment.raceOverride).toBe('ebb');
+    stepWorld(world, [{ playerId: 'p', targetId: ENVIRONMENT_ID, control: 'raceOverride', value: 0 } as Intent], 0.05);
+    expect(world.environment.raceOverride).toBeUndefined();
   });
 
   it('the forecast warns of overfalls when the wind sea runs against the race', () => {

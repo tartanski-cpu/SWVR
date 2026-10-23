@@ -17,21 +17,28 @@
       :root { color-scheme: dark; }
       html, body { margin: 0; min-height: 100%; background: #0b1419; color: #e8eef2; font: 16px/1.45 system-ui, sans-serif; }
       body { background: radial-gradient(120% 80% at 50% 0%, #163040 0%, #0b1419 60%); }
-      main { max-width: 980px; margin: 0 auto; padding: 48px 20px 40px; }
+      main { max-width: 980px; margin: 0 auto; padding: 48px 16px 40px; }
       h1 { font-size: 40px; margin: 0 0 4px; letter-spacing: 0.5px; }
       h1 small { display: block; font-size: 15px; font-weight: 400; color: #9fb3bf; margin-top: 6px; }
-      .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 30px; }
-      .card { display: block; background: rgba(20, 36, 46, 0.85); border: 1px solid #2f4a58; border-radius: 14px; padding: 20px 20px 18px; color: inherit; text-decoration: none; }
+      /* Four modes, equal tiles: two by two, one column on a phone; every row the tallest's height. */
+      .modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 18px; margin-top: 30px; }
+      @media (max-width: 680px) { .modes { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; } }
+      .card { display: flex; flex-direction: column; background: rgba(20, 36, 46, 0.85); border: 1px solid #2f4a58; border-radius: 14px; overflow: hidden; color: inherit; text-decoration: none; }
       a.card:hover { border-color: #ffb347; background: rgba(28, 50, 64, 0.95); }
+      .card svg { display: block; width: 100%; height: auto; aspect-ratio: 320 / 130; border-bottom: 1px solid #2f4a58; }
+      .card .body { padding: 16px 20px 18px; flex: 1; display: flex; flex-direction: column; }
+      .card .body .go { margin-top: auto; align-self: flex-start; }
       .card h2 { margin: 0 0 6px; font-size: 22px; color: #ffd27a; }
       .card p { margin: 0 0 10px; color: #c9d6dd; }
-      .card.soon { opacity: 0.55; }
+      .card.soon svg { opacity: 0.55; }
+      .card.soon .body { opacity: 0.6; }
       .card.soon h2 { color: #9fb3bf; }
-      .maps { list-style: none; padding: 0; margin: 10px 0 0; }
-      .maps li { margin: 6px 0; }
-      .maps a { display: block; padding: 10px 12px; border-radius: 8px; background: #1d3340; color: #fff; text-decoration: none; border: 1px solid #35505e; }
+      .maps { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .maps li { margin: 0; }
+      .maps a { display: block; padding: 8px 12px; border-radius: 8px; background: #1d3340; color: #fff; text-decoration: none; border: 1px solid #35505e; }
       .maps a:hover { border-color: #ffb347; }
       .maps a span { display: block; font-size: 13px; color: #b9c7d2; }
+      .go { display: inline-block; margin-top: 4px; padding: 7px 14px; border-radius: 8px; background: #ffb347; color: #14222b; font-weight: 600; }
       .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #2b3a48; color: #cfd9e0; margin-left: 6px; vertical-align: middle; }
       footer { margin-top: 36px; color: #8fa3af; font-size: 14px; }
       footer a { color: #cfd9e0; }
@@ -42,27 +49,103 @@
       <h1>Workboat World<small>Chunky workboats, operated from the inside. VR on the Quest, or desktop. Pick how you want to play.</small></h1>
       <div class="modes">
         <a class="card" href="career.html">
-          <h2>Career</h2>
-          <p>Start in a basic boat, take jobs, earn and buy her equipment. One boat; your crew join aboard her, playing your career.</p>
-          <p>Cargo runs, rescues, tows, fires, potting and fishing across the archipelago.</p>
+          <svg viewBox="0 0 320 130" role="img" aria-label="A workboat alongside a quay, crates and a crane on the quay">
+            <defs><linearGradient id="skyC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fb3cf"/><stop offset="1" stop-color="#cfe3ea"/></linearGradient></defs>
+            <rect width="320" height="130" fill="url(#skyC)"/>
+            <polygon points="0,70 40,52 85,62 130,46 175,60 175,78 0,78" fill="#5f8a63"/>
+            <rect y="78" width="320" height="52" fill="#2a6a86"/>
+            <path d="M0 92 q12 -3 24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0" stroke="#5fa3bf" stroke-width="2" fill="none" opacity="0.7"/>
+            <rect x="214" y="70" width="106" height="60" fill="#8f9596"/>
+            <rect x="214" y="70" width="106" height="5" fill="#b8bdbd"/>
+            <rect x="226" y="58" width="16" height="12" fill="#b5652f"/><rect x="244" y="58" width="16" height="12" fill="#3f6f9f"/><rect x="235" y="46" width="16" height="12" fill="#c9a23a"/>
+            <polyline points="290,70 290,24 262,24" stroke="#e2b13a" stroke-width="4" fill="none"/>
+            <line x1="270" y1="24" x2="270" y2="44" stroke="#333" stroke-width="1.5"/><rect x="264" y="44" width="12" height="9" fill="#9a4a2a"/>
+            <rect x="218" y="64" width="5" height="6" fill="#222"/>
+            <line x1="200" y1="82" x2="220" y2="72" stroke="#e0d2a0" stroke-width="1.5"/>
+            <polygon points="58,82 206,82 196,104 70,104" fill="#1e3a5f"/>
+            <polygon points="66,96 200,96 196,104 70,104" fill="#a33a2a"/>
+            <rect x="60" y="78" width="146" height="5" fill="#e9ecec"/>
+            <rect x="118" y="54" width="50" height="24" fill="#f1f1ec"/>
+            <rect x="114" y="50" width="58" height="6" fill="#2b3338"/>
+            <rect x="123" y="60" width="11" height="9" fill="#2d4a5c"/><rect x="138" y="60" width="11" height="9" fill="#2d4a5c"/><rect x="153" y="60" width="11" height="9" fill="#2d4a5c"/>
+            <rect x="160" y="38" width="4" height="12" fill="#2b3338"/>
+            <rect x="80" y="70" width="18" height="8" fill="#d36a1e"/>
+          </svg>
+          <div class="body">
+            <h2>Career</h2>
+            <p>Start in a basic boat, take jobs, earn and buy her equipment. One boat; your crew join aboard her, playing your career.</p>
+            <p>Cargo runs, rescues, tows, fires, potting and fishing across the archipelago.</p>
+            <span class="go">Start a career</span>
+          </div>
         </a>
         <div class="card">
-          <h2>Voyage</h2>
-          <p>Real coastline from map data, sailed for its own sake. No career, nothing saved. Pick a map:</p>
-          <ul class="maps">
-            <li><a href="voyage.html?map=oban">Oban and Lorn<span>Oban Bay, Kerrera and its sound, Dunstaffnage and the Falls of Lora: 12 km of Argyll at full scale.</span></a></li>
-            <li><a href="voyage.html?map=clyde">The Firth of Clyde<span>Bute and Rothesay, the Kyles and Loch Striven, Dunoon and the Holy Loch, Gourock, Greenock, Helensburgh, Largs and the Cumbraes: 35 by 37 km, every harbour in the map data.</span></a></li>
-            <li><a href="voyage.html?map=syros">Syros<span>The whole island in the Cyclades: Ermoupoli's harbour under Ano Syros, Foinikas, Kini and the islets off the east coast: 15 by 19 km.</span></a></li>
-            <li><a href="voyage.html?map=tayvallich">Tayvallich and Loch Sween<span>Tayvallich and its bay, Caol Scotnish and the Fairy Isles, Loch Sween to Achnamara, the Sound of Jura shore: 11 by 16 km.</span></a></li>
-          </ul>
+          <svg viewBox="0 0 320 130" role="img" aria-label="A chart of a real coastline with a route marked across it">
+            <rect width="320" height="130" fill="#123b52"/>
+            <g stroke="#1d5370" stroke-width="1"><line x1="0" y1="32" x2="320" y2="32"/><line x1="0" y1="65" x2="320" y2="65"/><line x1="0" y1="98" x2="320" y2="98"/><line x1="80" y1="0" x2="80" y2="130"/><line x1="160" y1="0" x2="160" y2="130"/><line x1="240" y1="0" x2="240" y2="130"/></g>
+            <path d="M0 0 H120 C112 18 96 22 92 38 C88 56 60 58 52 76 C44 94 20 98 0 104 Z" fill="#c8b98a"/>
+            <path d="M0 0 H104 C96 14 84 20 78 34 C70 50 48 54 40 70 C32 84 14 90 0 94 Z" fill="#7d9a62"/>
+            <path d="M210 130 C214 112 236 104 244 88 C252 72 276 70 286 56 C296 42 310 40 320 34 V130 Z" fill="#c8b98a"/>
+            <path d="M226 130 C230 116 248 110 256 96 C264 82 284 80 294 68 C302 58 312 54 320 50 V130 Z" fill="#7d9a62"/>
+            <path d="M150 52 C158 46 172 48 176 56 C180 66 166 72 156 68 C146 64 144 58 150 52 Z" fill="#c8b98a"/><path d="M154 55 C160 51 169 53 171 58 C173 64 164 67 158 64 C152 62 150 58 154 55 Z" fill="#7d9a62"/>
+            <polyline points="70,100 120,86 140,40 196,30 230,52 262,40" stroke="#ffd27a" stroke-width="2.5" stroke-dasharray="7 5" fill="none"/>
+            <g fill="#ffd27a"><circle cx="120" cy="86" r="4"/><rect x="136" y="36" width="8" height="8"/><circle cx="196" cy="30" r="4"/><rect x="226" y="48" width="8" height="8"/><circle cx="262" cy="40" r="4.5" fill="none" stroke="#ffd27a" stroke-width="2"/></g>
+            <polygon points="70,92 78,106 62,106" fill="#5fc4ff" stroke="#0b1d27" stroke-width="1" transform="rotate(70 70 100)"/>
+            <g transform="translate(286 102)" stroke="#e8eef2" fill="none" stroke-width="1.2"><circle r="14"/><path d="M0 -18 L4 0 L0 18 L-4 0 Z" fill="#e8eef2" fill-opacity="0.25"/><text y="-21" text-anchor="middle" fill="#e8eef2" stroke="none" font-size="9" font-family="system-ui">N</text></g>
+          </svg>
+          <div class="body">
+            <h2>Voyage</h2>
+            <p>Real coastline from map data, sailed for its own sake, in the place's live weather. Pick a map:</p>
+            <ul class="maps">
+              <li><a href="voyage.html?map=oban" title="Oban Bay, Kerrera and the timber camp, Dunstaffnage and the Falls of Lora">Oban and Lorn<span>Argyll, 12 km</span></a></li>
+              <li><a href="voyage.html?map=clyde" title="Bute, the Kyles, Dunoon, Gourock, Largs and the Cumbraes: every harbour">Firth of Clyde<span>35 by 37 km</span></a></li>
+              <li><a href="voyage.html?map=syros" title="The whole island in the Cyclades, Ermoupoli to the islets off the east coast">Syros<span>The Cyclades, 15 by 19 km</span></a></li>
+              <li><a href="voyage.html?map=tayvallich" title="The bay, the Fairy Isles, Loch Sween and the Sound of Jura shore">Tayvallich<span>Loch Sween, 11 by 16 km</span></a></li>
+            </ul>
+          </div>
         </div>
+        <a class="card" href="shipyard.html">
+          <svg viewBox="0 0 320 130" role="img" aria-label="A boat's lines plan on a drawing board: her profile, stations and waterlines">
+            <rect width="320" height="130" fill="#173a63"/>
+            <g stroke="#24507f" stroke-width="1"><path d="M0 16 H320 M0 32 H320 M0 48 H320 M0 64 H320 M0 80 H320 M0 96 H320 M0 112 H320"/><path d="M20 0 V130 M40 0 V130 M60 0 V130 M80 0 V130 M100 0 V130 M120 0 V130 M140 0 V130 M160 0 V130 M180 0 V130 M200 0 V130 M220 0 V130 M240 0 V130 M260 0 V130 M280 0 V130 M300 0 V130"/></g>
+            <g stroke="#9fd3f2" fill="none" stroke-width="1"><line x1="60" y1="36" x2="60" y2="96"/><line x1="100" y1="34" x2="100" y2="100"/><line x1="140" y1="34" x2="140" y2="101"/><line x1="180" y1="34" x2="180" y2="100"/><line x1="220" y1="36" x2="220" y2="94"/></g>
+            <g stroke="#9fd3f2" fill="none" stroke-width="1" stroke-dasharray="3 3"><line x1="30" y1="80" x2="280" y2="80"/><line x1="30" y1="90" x2="275" y2="90"/></g>
+            <path d="M30 40 C90 46 180 46 262 30 L276 30 C272 60 262 82 244 92 C200 104 120 104 62 100 L30 98 Z" fill="#e9f3fa" fill-opacity="0.08" stroke="#e9f3fa" stroke-width="2"/>
+            <path d="M30 40 C90 46 180 46 262 30" stroke="#ffd27a" stroke-width="2" fill="none"/>
+            <rect x="96" y="20" width="66" height="22" fill="none" stroke="#e9f3fa" stroke-width="1.6"/>
+            <line x1="104" y1="27" x2="154" y2="27" stroke="#e9f3fa" stroke-width="1.2"/>
+            <g stroke="#ffd27a" stroke-width="1" fill="#ffd27a"><line x1="30" y1="118" x2="276" y2="118"/><polygon points="30,118 36,115 36,121"/><polygon points="276,118 270,115 270,121"/></g>
+            <rect x="136" y="111" width="36" height="12" fill="#173a63"/><text x="154" y="121" text-anchor="middle" font-size="10" font-family="system-ui" fill="#ffd27a">12.0 m</text>
+            <g transform="translate(292 18)" stroke="#9fd3f2" fill="none" stroke-width="1.2"><path d="M-10 0 C-8 10 -3 16 0 16 C3 16 8 10 10 0"/><path d="M-6 0 C-5 8 -2 12 0 12 C2 12 5 8 6 0"/></g>
+          </svg>
+          <div class="body">
+            <h2>Shipyard</h2>
+            <p>Design your own boat: hull, wheelhouse, engine, deck gear and paint, from a brief to her sea trials.</p>
+            <p>Take her to sea by code, link or file, alone or with your crew.</p>
+            <span class="go">Open the Shipyard</span>
+          </div>
+        </a>
         <div class="card soon">
-          <h2>Training <span class="tag">later</span></h2>
-          <p>Small harbour maps for practising boat handling, with recording and review of your sessions. Not built yet.</p>
+          <svg viewBox="0 0 320 130" role="img" aria-label="A small harbour with a slalom of buoys and a boat's practice track">
+            <rect width="320" height="130" fill="#2a6a86"/>
+            <rect width="320" height="26" fill="#8f9596"/><rect y="26" width="320" height="4" fill="#b8bdbd"/>
+            <rect x="34" y="30" width="10" height="44" fill="#a8a49a"/><rect x="34" y="72" width="60" height="9" fill="#a8a49a"/>
+            <rect x="120" y="30" width="10" height="34" fill="#a8a49a"/><rect x="120" y="62" width="44" height="9" fill="#a8a49a"/>
+            <path d="M206 112 C226 96 228 78 248 70 C268 62 268 44 290 40" stroke="#e8eef2" stroke-width="2" stroke-dasharray="5 5" fill="none" opacity="0.8"/>
+            <path d="M60 116 C96 112 110 96 140 100 C170 104 178 118 206 112" stroke="#e8eef2" stroke-width="2" stroke-dasharray="5 5" fill="none" opacity="0.8"/>
+            <g fill="#ff8a2a" stroke="#7a3a0a" stroke-width="1"><circle cx="102" cy="112" r="5"/><circle cx="160" cy="114" r="5"/><circle cx="222" cy="96" r="5"/><circle cx="266" cy="58" r="5"/></g>
+            <g fill="#ffd23a" stroke="#6a5a0a" stroke-width="1"><circle cx="128" cy="92" r="5"/><circle cx="240" cy="82" r="5"/></g>
+            <g transform="translate(290 40) rotate(-60)"><polygon points="-6,-14 6,-14 7,6 0,14 -7,6" fill="#f1f1ec" stroke="#1e3a5f" stroke-width="1.5"/><rect x="-4" y="-6" width="8" height="7" fill="#2d4a5c"/></g>
+            <g transform="translate(286 104)" fill="#e8eef2" font-family="system-ui" font-size="10"><circle r="9" fill="#c0392b"/><circle r="3.2" fill="#e8eef2"/><text x="-26" y="3.5">REC</text></g>
+          </svg>
+          <div class="body">
+            <h2>Training <span class="tag">later</span></h2>
+            <p>Small harbour maps for practising boat handling: berthing, turning in tight water, a buoy slalom.</p>
+            <p>With recording and review of your sessions. Not built yet.</p>
+          </div>
         </div>
       </div>
       <footer>
-        Design a boat in the <a href="shipyard.html">Shipyard</a>; take her into the career game from there. The hull study is at <a href="hulls.html">hulls</a>.
+        The hull study is at <a href="hulls.html">hulls</a>.
       </footer>
     </main>
   </body>
