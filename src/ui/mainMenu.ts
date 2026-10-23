@@ -220,7 +220,7 @@ export interface MenuHost {
   teleportToRegion(id: string): void;
   regionMap(): boolean;
   toggleRegionMap(): void;
-  /** Debug: the tidal races pinned (0 the clock, 1 peak, 2 slack). */
+  /** Debug: the tidal races pinned (0 the clock, 1 the flood's peak, 2 slack, 3 the ebb's peak). */
   raceOverride(): number;
   setRaceOverride(v: number): void;
   /** Debug: a katabatic gust now, on the zone nearest the boat; and what the gusts are doing. */
@@ -751,7 +751,9 @@ export function mainMenu(h: MenuHost): MainMenu {
           ],
         },
         { heading: 'Tidal races' },
-        { label: 'Running', buttons: [choice('By the clock', 0, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Peak', 1, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Slack', 2, () => h.raceOverride(), (v) => h.setRaceOverride(v))] },
+        // The flood runs with a race's set, the ebb against it. Overfalls (steep seas) come where
+        // the sea runs against the flow: in Sruth Tarsk and the Falls of Lora, on the ebb.
+        { label: 'Running', buttons: [choice('By the clock', 0, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Flood', 1, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Ebb', 3, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Slack', 2, () => h.raceOverride(), (v) => h.setRaceOverride(v))] },
         { heading: 'Katabatic gusts' },
         { label: '', buttons: [{ text: 'Gust now (nearest zone)', press: () => h.gustNow() }, { text: () => h.gustStatus(), weight: 1.6 }] },
         { heading: 'Move: to port' },

@@ -49,8 +49,9 @@ export function applyEnvironmentIntent(env: EnvironmentState, intent: Intent, ti
       env.timeScale = intent.value;
       break;
     case 'raceOverride':
-      // Debug: 0 the clock, 1 every race at peak, 2 every race slack (world/currents.ts).
-      env.raceOverride = intent.value >= 1.5 ? 'slack' : intent.value >= 0.5 ? 'peak' : undefined;
+      // Debug: 0 the clock, 1 every race at the flood's peak, 2 every race slack, 3 at the ebb's
+      // peak (world/currents.ts): where the sea runs against the ebb, its overfalls.
+      env.raceOverride = intent.value >= 2.5 ? 'ebb' : intent.value >= 1.5 ? 'slack' : intent.value >= 0.5 ? 'peak' : undefined;
       break;
     case 'gustNow':
       // Debug: a katabatic gust on the zone nearest args (x, z), anywhere (environment/gusts.ts).

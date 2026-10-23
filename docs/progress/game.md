@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Debug: the tidal races pinned at the ebb, to see the overfalls (owner question, 23 Oct 2026)
+
+The owner: "I remember working on a steeper wave model ... I don't remember seeing that. Is there a debug option?"
+
+- The steeper waves are the overfalls (Oct 2026): the sea stands up where it runs against a race. In Sruth Tarsk (the Sounds) and at the Falls of Lora (Oban) that's on the **ebb**.
+- The Debug menu's only pin was "Peak", which is the flood. The flood runs with the sea's waves there, so it eased the sea: the overfalls could never be seen from the menu.
+- Debug → World → Tidal races is now **By the clock / Flood / Ebb / Slack** (`RaceOverride` 'ebb', raceFactor -1; intent `raceOverride` value 3).
+- Test: `tests/overfalls.test.ts`: the Ebb pin gives the ebb's full strength; the intent sets and clears it.
+- Checked in headless Chromium: Sruth Tarsk in a Rough sea, pinned Flood and then Ebb. The two still pictures look alike at that size, as when the overfalls were built: the difference (1.6× steeper, crests 1.4× higher in the race against the ebb) is in the numbers. Not checked by eye from the wheelhouse or in VR. If it still reads too subtle there, `CONFIG.currents.overfalls` `heighten` / `steepen` / `chop` are the knobs.
+
 ### The front page: four equal tiles, each with a picture (owner request, 23 Oct 2026)
 
 Owner: "The main page ... should have an equally sized tile for the shipyard and a suitable graphic for each of them."
