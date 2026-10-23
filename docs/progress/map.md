@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Landmarks and bridges: Connel Bridge and McCaig's Tower (23 Oct 2026)
 
+**Owner approved; merged into `next` (live there from build `ccf65c7`).**
+
 Owner: "I had the feeling that we missed a pass on the maps, specifically to add landmarks and bridges ... I would have expected a bridge at the Falls of Lora in the Oban map. And there's actually a very famous landmark in Oban, which is like a mini Colosseum."
 
 - **What was missing:** the pipeline read no bridges at all, and its landmarks (castles, towers, masts, chimneys, water towers, monuments, churches, turbines) had no follies. McCaig's Tower is mapped as a folly building with a courtyard (a multipolygon), which the house kit doesn't build either, so it wasn't there in any form.
