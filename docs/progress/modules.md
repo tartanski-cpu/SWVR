@@ -10,7 +10,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### The stern trawler's exhaust as the tug's (done, awaiting owner test)
+### The stern trawler's exhaust as the tug's (approved by the owner; on next)
 
 Owner, Oct 2026: "The big fishing trawler should have the same exhaust system as the tug, so coming out of the wheelhouse, and the side water pumping exhaust thing".
 
@@ -30,7 +30,7 @@ Owner, Oct 2026: "The big fishing trawler should have the same exhaust system as
   - **Desktop:** Shipyard → Stern trawler → Engine step: the Exhaust stacks choice. Then into the game: start her engine and look at the wheelhouse roof (the stack and its smoke) and her starboard side abreast of the engine room (the cooling water).
   - **VR:** the same, from her deck and from the quay or a boat alongside.
 
-### The deck crane drawn smoothly between ticks (done, awaiting owner test)
+### The deck crane drawn smoothly between ticks (approved by the owner; on next)
 
 Owner, Oct 2026, after testing the deck crane: "when you rotate it left and right ... it's kind of laggy ... I don't know if that's just the steps that you've created in the animation".
 
