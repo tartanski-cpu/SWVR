@@ -78,6 +78,11 @@ export abstract class Control {
   held = false;
   /** Whether two hands may hold it at once (the wheel). */
   readonly multiGrab: boolean = false;
+  /**
+   * Carried freely in the hand (the VHF handset on its cord): moving the body doesn't move
+   * anything, so holding it doesn't stop you walking (InteractionSystem.holdingAny).
+   */
+  readonly carried: boolean = false;
   /** Short label for hover feedback. */
   abstract readonly label: string;
   protected ctx: ControlContext | null = null;

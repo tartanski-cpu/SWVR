@@ -53,6 +53,23 @@ describe('outboard tiller (VR)', () => {
 });
 
 describe('outboard tiller (desktop)', () => {
+  it('holding S from ahead stops in neutral and stays there; let go and press again for astern (review, Oct 2026)', () => {
+    const { t, sent } = setup();
+    t.keySteer(0, 1);
+    for (let i = 0; i < 90; i++) t.tick(1 / 60); // ahead
+    expect(sent['throttle.demand']).toBeGreaterThan(0.3);
+    t.keySteer(0, -1);
+    for (let i = 0; i < 600; i++) t.tick(1 / 60); // held for 10 s
+    expect(sent['throttle.demand']).toBe(0);
+    expect(sent.obGear ?? 0).toBe(0); // in neutral, not astern
+    t.keySteer(0, 0);
+    t.tick(1 / 60);
+    t.keySteer(0, -1);
+    for (let i = 0; i < 60; i++) t.tick(1 / 60);
+    expect(sent['throttle.demand']).toBeGreaterThan(0.2);
+    expect(sent.obGear).toBe(-1); // astern now
+  });
+
   it("a click on the gear lever takes the whole outboard into keyboard steering (so WASD doesn't walk)", async () => {
     const { InteractionSystem } = await import('../src/controls/InteractionSystem');
     const t = new Tiller(CONFIG.vessels.skiff.outboard, WIRING);

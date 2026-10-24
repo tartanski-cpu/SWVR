@@ -72,7 +72,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Game controller** (Xbox and most others), at the helm | **Left stick** left / right: steer (the wheel follows the stick, back amidships when you let go). **RB / LB:** throttle up / down (it stops at neutral on the way through). **B:** neutral. **Right stick:** look round. **D-pad:** up heaves the anchor up, down lets it go; right the wipers on / off; left the horn (hold). **Left stick click:** searchlight on / off. **X:** fire pump on / off. **Right stick click:** laser pointer (hold). **A:** take the helm / leave it (as F) |
 | **Game controller**, off the helm | **Left stick:** walk (click it in and hold to run). **Right stick:** look round. **A:** jump (by the wheel: take the helm). **B:** crouch. **X:** lash / release cargo. **Y:** board / go ashore. **RT:** use (as the left mouse button: press, grab, pick up). **LT:** binoculars (hold). **Right stick click:** laser pointer (hold). **LB:** wave (hold). **RB:** hang the extinguisher or torch back. **Menu:** the menu. **View:** talk on your handheld VHF (hold; at the helm too). The browser only sees the controller once you've pressed one of its buttons |
 | **Game controller, at the helm: camera views** | **Y** cycles the view: **at the helm** (as usual), **orbit** (a camera a couple of boat lengths off, astern of her, turning with her; the **right stick** swings it round and up or down, **RT / LT** zoom in and out: for docking), **flyby** (a camera put down ahead of her and off to one side; she sails past it and it watches her go, then it's put down ahead again on her other side; RT / LT zoom the lens). Leaving the helm puts you back inside. Desktop only; nothing to do with the recording camera |
-| W / S (at the helm), or ↑ / ↓ | Throttle/gear lever ahead / astern (neutral to full in about a second); steer with the wheel (drag it), or ← / → |
+| W / S (at the helm), or ↑ / ↓ | Throttle/gear lever ahead / astern (neutral to full in about a second). Holding the key stops at neutral: let go and press again to go on through. Steer with the wheel (drag it), or ← / → |
 | ← / → | Debug: wheel to port / starboard |
 | X / G | Debug: lever to neutral / wheel amidships |
 | T | Hydrostatics + sea trials report |
@@ -107,6 +107,8 @@ Tap once for sound. Add `?touch=1` to the address to try these controls on a com
 | Input | Action |
 |---|---|
 | **Grip** with your hand on the throttle lever or wheel | Grab it; it follows your hand (not where the controller points). Two hands work on the wheel |
+| (While holding a control) | The sticks don't walk or turn you, and the other hand doesn't pull you along, so you can't drag the lever by moving. Take your hand away (more than 25 cm) and it lets go with a buzz |
+| Messages | Shown on a card low in your view for a few seconds, word-wrapped, with a short buzz in the left hand |
 | **Trigger** touching a button or switch | Press it (start/stop, horn, nav lights) |
 | Trigger pointing at a button or switch a little out of reach | Pointer-ray fallback for buttons and switches only (a blue line shows the target) |
 | **Grip** on empty air + pull | Move (grab the world) in any direction, up and down too, through the wheelhouse walls, but not out over the side: a fence at the boat's edge stops you (and the stick) at the bulwarks. To go over the side, jump (A). Wherever you pull yourself to, you stay at that height until you teleport, board or jump, so seated play works without crouching. Two grips + twist: turn. In the water these are your swimming strokes |
@@ -232,7 +234,7 @@ On the quay where a Voyage map starts, a few steps behind where you begin, stand
 ### Live weather (Voyage mode)
 
 When a Voyage starts, the game asks Open-Meteo, a free weather service, for the real weather at that place now. You sail in it:
-- **What comes in:** the wind and its direction, visibility, rain and cloud, and the sea as the marine forecast has it, all held for the session.
+- **What comes in:** the wind and its direction, visibility, rain and cloud, and the sea as the marine forecast has it. That's where the weather starts: it then changes as the game's own weather does (a front, a squall, fog), and the forecast on the radio says what's coming. The real sea holds until the first change; then it follows the wind.
 - **Where it's shown:** you're told as it comes in ("Live weather, Oban and Lorn 15:45: wind north-west 10 kn, gusts 18, overcast, sea 0.5 m"), and it's in the Voyage tab under Weather.
 - **Offline**, or if the service doesn't answer, the game's own weather runs as before.
 - **With crew:** they get the host's weather.
@@ -485,7 +487,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Heavy weather:**
   - **No trawling** in a sea over 2.2 m (Hs): the net jumps off the bottom.
   - **Danger money:** rescues, tows and fires in a squall, or in a sea over 1.8 m, pay 50 % more.
-- **SOS:** capsized or sunk, send an SOS: **Menu → Boat → SOS → Send SOS**, or press the **red button under the VHF set** (it lights, and the set's screen says CAPSIZED or SUNK, while she's over or under). The salvage tug rights her and brings her into the nearest boatyard's port (Calder Haven or Loch Tarsk), at the cargo berth, engine off and lines off; her damage stays for the yard to mend. Anyone in the water comes along. Upright and afloat, the coastguard turns the call down. No charge.
+- **SOS:** capsized or sunk, send an SOS: **Menu → Boat → SOS → Send SOS**, or press the **red button under the VHF set** (it lights, and the set's screen says CAPSIZED or SUNK, while she's over or under). The salvage tug rights her and brings her into the nearest boatyard's port (Calder Haven or Loch Tarsk), at the cargo berth, engine off and lines off; her damage stays for the yard to mend. On the Voyage maps, which have no boatyard, she's brought into the nearest harbour's cargo berth and made fast there. Anyone in the water comes along. Upright and afloat, the coastguard turns the call down. No charge.
 - **Debug:** Debug → Boat → Hull → **Damage** (30 % hull damage and 30 % engine wear).
 
 ### Log salvage (side job)

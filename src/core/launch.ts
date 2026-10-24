@@ -68,11 +68,13 @@ export function teleportToPortSlot(world: WorldState, v: VesselState, portId: st
   if (!port) return false;
   const berth = freeBerthFor(world.vessels, port.id, v.defId, v.id);
   const at = berth ? berthPose(v, berth) : null;
-  const spot = at ? { x: at.x, z: at.z, headingDeg: at.headingDeg } : (() => {
-    const a = port.cargo.anchorage ? { x: port.cargo.anchorage.x, z: port.cargo.anchorage.z } : null;
-    const clear = a && !Object.values(world.vessels).some((o) => o.id !== v.id && Math.hypot(o.position[0] - a.x, o.position[2] - a.z) < CONFIG.spawn.anchorClear) ? a : anchorSpotFor({ ...world.vessels, [v.id]: undefined as unknown as VesselState }, port, vesselLength(v.defId));
-    return clear ? { ...clear, headingDeg: 0 } : null;
-  })();
+  // No berth: a spot in the anchorage circle (or off the port) in water deep enough, clear of
+  // the other boats and the harbour boats' moorings (world/slots.ts). The other boats are
+  // listed without her (review, Oct 2026: an empty entry for her made the search throw, and Go
+  // silently did nothing at Tayvallich's Ashfield, Syros' Kini and Foinikas, and 7 Clyde harbours).
+  const others = Object.fromEntries(Object.entries(world.vessels).filter(([id]) => id !== v.id));
+  const free = at ? null : anchorSpotFor(others, port, vesselLength(v.defId));
+  const spot = at ? { x: at.x, z: at.z, headingDeg: at.headingDeg } : free ? { ...free, headingDeg: 0 } : null;
   if (!spot) return false;
   v.controls.lever = 0;
   v.refuelling = false;

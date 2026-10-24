@@ -66,7 +66,7 @@ import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS, SKYLINE, SKYLINE_STYLE } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { SurfListener } from '../world/surf';
-import { REGIONS, regionById } from '../world/regions';
+import { REGIONS, regionAt, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
 import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthId } from '../voyage/plan';
@@ -120,7 +120,7 @@ import { fireAlertT } from '../fire/fire';
 import { FireView, JetView } from '../fire/fireView';
 import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
-import { CareerSession, savedCareer } from './careerSession';
+import { CareerSession, forgetCareerDesign, savedCareer } from './careerSession';
 import { cranePosts, REMOTE_CODES, REMOTE_REACH, remoteInput, type CranePost } from './craneRemote';
 import { equipmentWithout, KIT_BOATS, money, socketsWithout, spend, yardAt } from '../career/career';
 import { backUrl, refitCost, refitReturn, shipyardUrl } from './shipyardTrip';
@@ -258,7 +258,8 @@ function startBoat(): string | undefined {
   // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts); else, in the
   // career, the design she was refitted to at a yard (CareerState.design, app/shipyardTrip.ts).
   const params = new URLSearchParams(location.search);
-  const code = params.get('design') ?? (MODE === 'career' && !params.has('boat') && !params.has('join') ? (savedCareer()?.design ?? null) : null);
+  const careerDesign = MODE === 'career' && !params.has('design') && !params.has('boat') && !params.has('join') ? (savedCareer()?.design ?? null) : null;
+  const code = params.get('design') ?? careerDesign;
   if (code) {
     // Her own vessel type, keyed by her token (multi-boat M1: boats/library.ts boatType).
     const id = boatType(code);
@@ -267,9 +268,14 @@ function startBoat(): string | undefined {
       return id;
     }
     const read = readDesign(code);
-    const error = 'error' in read ? read.error : 'cannot build her';
-    console.warn(`Shipyard code ${code}: ${error}`);
+    const error = 'error' in read ? read.error : "the Shipyard can't build her";
+    console.warn(`Shipyard code ${code.slice(0, 40)}: ${error}`);
     designCodeError = error;
+    // The career's own refit won't build: forget it, so the career loads (in the beginner boat).
+    if (careerDesign) {
+      forgetCareerDesign();
+      designCodeError = `your refitted boat's design won't build (${error})`;
+    }
   }
   const id = new URLSearchParams(location.search).get('boat');
   return id && RECIPES[id] && VESSEL_DEFS[id] && hasWheelhouse(VESSEL_DEFS[id]) ? id : undefined;
@@ -660,7 +666,7 @@ export class App {
   private readonly career = new CareerSession({
     world: () => this.world,
     vesselId: () => this.testVesselId,
-    isClient: () => !!this.client || this.borrowedCareer,
+    isClient: () => !this.savesHere(),
     notify: (t, sec) => this.overlay.notify(t, sec),
     pushEnv: (c, v, r) => this.pushEnvIntent(c, v, r),
   });
@@ -753,6 +759,16 @@ export class App {
     this.scene.add(this.rig.carrier);
     this.placePanelOnRig();
     this.camera.add(this.comfortOverlay.mesh);
+    // VR messages: a word-wrapped card low in the view, and a buzz on the left hand (debug/overlay.ts).
+    {
+      const t = CONFIG.debug.vrToast;
+      this.camera.add(this.overlay.vrToast);
+      this.overlay.vrToast.position.set(0, -t.down, -t.distance);
+      this.overlay.vrToast.rotation.x = Math.atan2(t.down, t.distance) * 0.8;
+      this.overlay.onNotify = () => {
+        if (this.renderer.xr.isPresenting) this.xrInput.pulse('left', t.pulse, t.pulseMs);
+      };
+    }
     this.controllers = new XRControllers(this.renderer, this.rig.root);
     this.decoupler.coupling = userSettings.motionCoupling;
     const host = this.menuHost();
@@ -796,7 +812,7 @@ export class App {
     setupXR(this.renderer, this.camera);
     window.addEventListener('resize', () => this.onResize());
     if (wantsTouchControls()) this.setupTouch();
-    if (designCodeError) this.overlay.notify(`Shipyard code not read: ${designCodeError}. Starting in the beginner boat.`, 8);
+    if (designCodeError) this.overlay.notify(`Shipyard boat not used: ${designCodeError}. Starting in ${MODE === 'voyage' ? 'the pilot boat' : 'the beginner boat'} instead.`, 8);
     // Audio may only start after a user gesture.
     const unlock = () => this.sound.unlock();
     window.addEventListener('pointerdown', unlock);
@@ -1282,7 +1298,7 @@ export class App {
       this.dutiesDone = done;
       // Host / solo: keep the notes in this browser, so they survive a reload.
       const b = this.world.board;
-      if (b && !this.client && b.seq !== this.boardSaved) {
+      if (b && this.savesHere() && b.seq !== this.boardSaved) {
         this.boardSaved = b.seq;
         try {
           localStorage.setItem(BOARD_KEY, JSON.stringify(b));
@@ -1297,7 +1313,7 @@ export class App {
     this.noteSlip();
     // Host / solo: keep the rescue count in this browser too.
     const done = this.world.rescue?.completed ?? 0;
-    if (!this.client && done !== this.rescuesSaved) {
+    if (this.savesHere() && done !== this.rescuesSaved) {
       this.rescuesSaved = done;
       try {
         localStorage.setItem(RESCUES_KEY, String(done));
@@ -1504,15 +1520,22 @@ export class App {
     const pad = this.atHelm && this.pad.state.connected ? this.pad.state : null;
     // At the helm, W and S work the throttle too (owner, Oct 2026: the arrow keys were awkward;
     // you steer with the wheel itself). Walking is off at the helm, so W/S are free there.
-    const ws = this.atHelm && !this.craneRemote ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
+    // (Not while they steer a clicked control, the searchlight or pod joystick: review, Oct 2026.)
+    const ws = this.atHelm && !this.craneRemote && !this.interaction?.steering ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
     const leverIn = clamp((k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + ws + (pad ? padLever(pad) : 0), -1, 1);
     const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
     let lever = this.signedLever(v);
-    if (leverIn !== 0) {
+    if (leverIn === 0) this.neutralLatched = false;
+    else if (!this.neutralLatched) {
       const next = clamp(lever + leverIn * cfg.leverRate * dt, -1, 1);
-      // Stop briefly at the neutral detent when passing through it.
-      lever = Math.sign(next) !== Math.sign(lever) && lever !== 0 ? 0 : next;
+      // Stop at the neutral detent on the way through, and stay there while the key is held:
+      // let go and press again to go on (review, Oct 2026: holding S to slow down ran straight
+      // on into astern).
+      if (Math.sign(next) !== Math.sign(lever) && lever !== 0) {
+        lever = 0;
+        this.neutralLatched = true;
+      } else lever = next;
     }
     if (k.actionPressed('leverNeutral') || pad?.pressed[PAD.b]) lever = 0;
     let helm = v.controls.helm;
@@ -1523,6 +1546,9 @@ export class App {
     if (k.actionPressed('helmMidships')) helm = 0;
     this.driveTo(id, lever, helm, leverIn !== 0);
   }
+
+  /** The keys' lever stopped at neutral on the way through: it stays there until the key is let go. */
+  private neutralLatched = false;
 
   /** Her throttle as one signed command, -1 astern .. 1 ahead (an outboard's: gear x twist grip). */
   private signedLever(v: VesselState): number {
@@ -1782,7 +1808,7 @@ export class App {
     this.pushVesselIntent('sos', 1);
     if (sosCondition(v) === 'upright') return;
     if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
-    this.overlay.notify('SOS sent: the salvage tug is bringing her into the yard', 4);
+    this.overlay.notify('SOS sent: the salvage tug is bringing her in', 4);
   }
 
   /** Play new radio traffic (and repeat the alert of an unanswered call); show it as a notice too. */
@@ -2150,7 +2176,8 @@ export class App {
     if (inXR) {
       for (const h of ['left', 'right'] as const) {
         // (Not a hand pointing or giving the finger: it stays where you hold it.)
-        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h] && !this.gestures.gesturing(h)) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
+        // (Nor while the other hand holds a control: pulling the body along drags it.)
+        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h] && !this.gestures.gesturing(h) && !this.interaction?.holdingAny()) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
       }
     }
     let desktopDelta: { x: number; y: number; z: number } | null = null;
@@ -2170,7 +2197,9 @@ export class App {
       desktopDelta = { x: (x * c + z * s) * speedScale, y, z: (-x * s + z * c) * speedScale };
     }
     // A stick making a hand gesture (its grip held on a free hand) doesn't walk or turn.
-    const [lx, ly] = this.gestures.ownsStick('left') ? [0, 0] : this.xrInput.hands.left.stick;
+    // Nor while a hand holds a control (CONFIG.interaction.breakaway): the body would drag it.
+    const holding = inXR && !!this.interaction?.holdingAny();
+    const [lx, ly] = this.gestures.ownsStick('left') || holding ? [0, 0] : this.xrInput.hands.left.stick;
     // Run (on foot): push the stick right to the edge - it ramps from walk to run over the
     // last fifth of its travel, so it doesn't lurch. (A stick click is already "board".)
     const push = Math.min(1, Math.max(0, (Math.hypot(lx, ly) - 0.8) / 0.2));
@@ -2183,7 +2212,7 @@ export class App {
       headForward: this.headFwd,
       grabbing,
       moveStick: inXR ? [lx * speedScale * run, -ly * speedScale * run] : [0, 0],
-      turnStick: inXR && !this.gestures.ownsStick('right') ? this.xrInput.hands.right.stick[0] : 0,
+      turnStick: inXR && !this.gestures.ownsStick('right') && !holding ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
       fly,
       // The desktop's fly camera (J): the body stays at its height, whatever is under the camera.
@@ -2815,10 +2844,19 @@ export class App {
       hostGame: () => this.hostGame(),
       leaveGame: () => {
         this.netMessage = '';
+        const borrowed = this.worldBorrowed;
         this.leaveGame();
         // The next game is typed afresh (owner: the old code was still in the box to delete).
         this.joinCode = '';
         this.mutedCrew.clear();
+        // Left a friend's game: back to our own (career, chart, Voyage place), as this browser
+        // has them; the world on the page is still the host's.
+        if (borrowed) {
+          this.overlay.notify('Left the game: back to your own (in VR: enter VR again once it has loaded)', 4);
+          const url = new URL(location.href);
+          for (const k of ['join', 'host', 'together', 'fresh', 't']) url.searchParams.delete(k);
+          setTimeout(() => location.replace(url.toString()), 1500);
+        }
       },
       shipyardCodes: () => this.shipyardCodes,
       takeDesign: (code) => {
@@ -3250,6 +3288,18 @@ export class App {
   private togetherTries = 0;
   /** Hosting a game taken over from a lost host (net/takeover.ts): their career, played on, never saved here. */
   private borrowedCareer = false;
+  /**
+   * The world on this page came from a host (joined a game, even if since left or the host was
+   * lost): nothing in it is ours, so nothing is saved into this browser from it (career,
+   * chart, notes board, rescues, the Voyage place, plan and barges). Review, Oct 2026: leaving
+   * a friend's game saved their career over your own. Cleared only by the page starting again.
+   */
+  private worldBorrowed = false;
+
+  /** May this page save its world into this browser's storage? Not as crew, nor with a world from a host. */
+  private savesHere(): boolean {
+    return !this.client && !this.borrowedCareer && !this.worldBorrowed;
+  }
 
   /**
    * The lost host hasn't come back: host their game on from the last snapshot under the same
@@ -3365,6 +3415,7 @@ export class App {
    * the host's boat: then it boards hers.
    */
   private adoptHostWorld(world: WorldState): void {
+    this.worldBorrowed = true;
     const me = this.world.players[this.localPlayerId];
     const myVessel = me?.aboardVesselId;
     let rewire = false;
@@ -4554,7 +4605,7 @@ export class App {
     }
     // Host / solo: keep the chart marks in this browser (at most once a second).
     this.marksSaveT += dt;
-    if (!this.client && this.marks.seq !== this.marksSaved && this.marksSaveT > 1) {
+    if (this.savesHere() && this.marks.seq !== this.marksSaved && this.marksSaveT > 1) {
       this.marksSaved = this.marks.seq;
       this.marksSaveT = 0;
       try {
@@ -4890,7 +4941,7 @@ export class App {
     }
     window.addEventListener('pagehide', () => {
       const e = this.world.vessels[this.testVesselId]?.electrics;
-      if (!e || this.client) return;
+      if (!e || !this.savesHere()) return;
       try {
         localStorage.setItem(BATTERY_KEY, JSON.stringify({ soc: e.soc, master: e.master, t: Date.now() }));
       } catch {
@@ -4963,7 +5014,7 @@ export class App {
       if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);
       this.planNoteT = plan.note.t;
     }
-    if (plan && !this.client && VOYAGE_MAP_ID && plan.seq !== this.planSaved) {
+    if (plan && this.savesHere() && VOYAGE_MAP_ID && plan.seq !== this.planSaved) {
       this.planSaved = plan.seq;
       try {
         localStorage.setItem(planKey(VOYAGE_MAP_ID), savePlanText(plan));
@@ -4975,7 +5026,7 @@ export class App {
 
   /** Voyage mode: remember where we are on this map, every few seconds and as the page closes (alone or hosting). */
   private rememberVoyagePlace(dt: number): void {
-    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || this.client) return;
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || !this.savesHere()) return;
     this.rememberT += dt;
     if (this.rememberT < CONFIG.voyage.rememberEveryS) return;
     this.rememberT = 0;
@@ -5047,8 +5098,9 @@ export class App {
 
   /**
    * Voyage: the map's real weather now (world/coastWeather.ts, Open-Meteo), asked once as the
-   * session starts, alone or hosting (crew get the host's through the snapshots). It comes in
-   * held for the session, the sea at the marine model's height where there is one. Nothing
+   * session starts, alone or hosting (crew get the host's through the snapshots). It's where
+   * the weather starts, the sea at the marine model's height where there is one; then the
+   * weather moves on from it as the game's own does. Nothing
    * back within the timeout (offline, the service down): the game's own weather, as ever.
    */
   private startLiveWeather(): void {
@@ -5057,7 +5109,9 @@ export class App {
     void fetchLiveWeather(map.weatherAt).then((live) => {
       if (!live || this.client || !this.world.environment.weather) return;
       const text = liveWeatherText(map.name, live);
-      setLiveWeather(this.world.environment, { wind: live.wind, windFrom: live.windFrom, visibility: live.visibility, rain: live.rain, cloud: live.cloud }, live.preset, this.world.time, { text, credit: CONFIG.liveWeather.credit }, live.sea?.scale);
+      const hv = this.world.vessels[this.testVesselId];
+      const profile = hv ? regionAt(hv.position[0], hv.position[2])?.weather : undefined;
+      setLiveWeather(this.world.environment, { wind: live.wind, windFrom: live.windFrom, visibility: live.visibility, rain: live.rain, cloud: live.cloud }, live.preset, this.world.time, { text, credit: CONFIG.liveWeather.credit }, live.sea?.scale, profile);
       this.overlay.notify(text, 8);
     });
   }

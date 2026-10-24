@@ -4,7 +4,8 @@ import type { WorldState } from '../core/world';
 import type { VesselState } from '../vessel/vesselState';
 import { berthPose } from '../vessel/physics/mooring';
 import { placeVessel } from '../vessel/vesselControl';
-import { BERTHS } from '../world/archipelago';
+import { BERTHS, PORTS } from '../world/archipelago';
+import { moorAtBerth } from '../core/world';
 import { createRescueState, sayRadio } from './rescue';
 import { castOffBoat } from '../tow/tow';
 
@@ -53,6 +54,26 @@ export function sosYard(s: VesselState): { yard: (typeof CONFIG.boatyards)[numbe
   return best && { yard: best.yard, berth: best.berth };
 }
 
+/**
+ * Where the salvage tug brings her: the nearest boatyard, else (the Voyage maps have none:
+ * review, Oct 2026, the SOS did nothing there) the nearest harbour's cargo berth. Its name
+ * for the coastguard.
+ */
+export function sosHaven(s: VesselState): { name: string; berth: (typeof BERTHS)[number]; yard: boolean } | null {
+  const y = sosYard(s);
+  if (y) return { name: y.yard.name, berth: y.berth, yard: true };
+  let best: (typeof BERTHS)[number] | null = null;
+  let bd = Infinity;
+  for (const b of BERTHS) {
+    if (!b.id.endsWith('cargo')) continue;
+    const d = Math.hypot(b.x - s.position[0], b.z - s.position[2]);
+    if (d < bd) [best, bd] = [b, d];
+  }
+  if (!best) return null;
+  const port = PORTS.find((p) => p.id === best!.portId);
+  return { name: port?.name.replace(' (anchorage)', '') ?? 'harbour', berth: best, yard: false };
+}
+
 /** The `sos` intent (value 1) on a vessel: recover her if she's over or under, else say no. */
 export function applySosIntent(world: WorldState, intent: Intent): void {
   const s = world.vessels[intent.targetId];
@@ -62,8 +83,11 @@ export function applySosIntent(world: WorldState, intent: Intent): void {
     sayRadio(world, 'reply', "Coastguard: we have you in sight, skipper. You're upright and afloat. No SOS needed.");
     return;
   }
-  const to = sosYard(s);
-  if (!to) return;
+  const to = sosHaven(s);
+  if (!to) {
+    sayRadio(world, 'reply', 'Coastguard: SOS received, skipper, but there is no harbour we can bring you to from here.');
+    return;
+  }
   const r = (world.rescue ??= createRescueState());
   r.sos = { sent: (r.sos?.sent ?? 0) + 1, t: world.time };
   // Upright, at the berth, stopped: engine off, lever to neutral, lines off, anchor stowed.
@@ -80,6 +104,12 @@ export function applySosIntent(world: WorldState, intent: Intent): void {
   s.refuelling = false;
   // Whatever was on her tow line is let go, and any line on her.
   castOffBoat(world, s.id);
+  // Voyage: made fast at the berth, as Go leaves her, and given her settling time (no damage
+  // counted from being set down there).
+  if (world.voyage) {
+    moorAtBerth(s, to.berth);
+    s.settleUntil = world.time + CONFIG.wear.spawnGraceS;
+  }
   const what = cond === 'sunk' ? 'raised her' : 'righted her';
-  sayRadio(world, 'reply', `Coastguard: SOS received. The salvage tug has ${what} and brought you into ${to.yard.name}. Have the yard look her over before you sail.`);
+  sayRadio(world, 'reply', `Coastguard: SOS received. The salvage tug has ${what} and brought you into ${to.name}.${to.yard ? ' Have the yard look her over before you sail.' : ''}`);
 }

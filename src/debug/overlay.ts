@@ -96,7 +96,60 @@ export class DebugOverlay {
     );
     this.vrPanel.name = 'debugPanel';
     this.vrPanel.renderOrder = 999;
+    // VR messages (review, Oct 2026: on the wrist they were cut off after ~30 characters and
+    // easily missed): a card of their own, word-wrapped, that the app keeps low in the view.
+    this.toastCanvas.width = 1024;
+    this.toastCanvas.height = 256;
+    this.toastTex = new THREE.CanvasTexture(this.toastCanvas);
+    this.toastTex.colorSpace = THREE.SRGBColorSpace;
+    const t = CONFIG.debug.vrToast;
+    this.vrToast = new THREE.Mesh(
+      new THREE.PlaneGeometry(t.width, t.width / 4),
+      new THREE.MeshBasicMaterial({ map: this.toastTex, transparent: true, fog: false, depthTest: false, depthWrite: false }),
+    );
+    this.vrToast.name = 'vrToast';
+    this.vrToast.renderOrder = 999;
+    this.vrToast.visible = false;
     this.applyVisibility(false);
+  }
+
+  /** VR: the message card (the app puts it in front of the camera: CONFIG.debug.vrToast). */
+  readonly vrToast: THREE.Mesh;
+  private readonly toastCanvas = document.createElement('canvas');
+  private readonly toastTex: THREE.CanvasTexture;
+  /** Called with each new message (the app gives a short buzz in VR). */
+  onNotify: ((text: string) => void) | null = null;
+
+  /** The message card: the text word-wrapped to the card's width, up to five lines, the last ending '…' if it runs on. */
+  private drawToast(): void {
+    const g = this.toastCanvas.getContext('2d')!;
+    const { width: W, height: H } = this.toastCanvas;
+    g.clearRect(0, 0, W, H);
+    const pad = 28;
+    let size = 46;
+    let lines: string[] = [];
+    // The largest type (down to 32 px) that fits the message in five lines.
+    for (; size >= 32; size -= 4) {
+      g.font = `600 ${size}px system-ui, sans-serif`;
+      lines = wrapText(g, this.toastText, W - 2 * pad);
+      if (lines.length * size * 1.18 <= H - 2 * pad + 4) break;
+    }
+    const max = Math.floor((H - 2 * pad + 4) / (size * 1.18));
+    if (lines.length > max) {
+      lines = lines.slice(0, max);
+      lines[max - 1] = lines[max - 1].replace(/\s*\S*$/, '') + '…';
+    }
+    const boxH = Math.min(H, lines.length * size * 1.18 + 2 * pad);
+    const top = (H - boxH) / 2;
+    g.fillStyle = 'rgba(20,24,28,0.86)';
+    g.beginPath();
+    g.roundRect(4, top, W - 8, boxH, 24);
+    g.fill();
+    g.fillStyle = '#ffe0c8';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    lines.forEach((l, i) => g.fillText(l, W / 2, top + pad + size * 0.6 + i * size * 1.18));
+    this.toastTex.needsUpdate = true;
   }
 
   toggle(): void {
@@ -136,6 +189,8 @@ export class DebugOverlay {
     this.toastUntil = performance.now() + seconds * 1000;
     this.toastEl.textContent = text;
     this.sinceRefresh = 1e9; // force a panel redraw
+    this.drawToast();
+    this.onNotify?.(text);
   }
 
   /** Call once per rendered frame with real frame time in ms. */
@@ -173,7 +228,7 @@ export class DebugOverlay {
     this.cpuMax = 0;
     this.sinceRefresh = 0;
 
-    if (!this.visible && !this.toastActive) return;
+    if (!this.visible) return;
     if (inXR) this.drawPanel();
     else {
       this.dom.textContent = this.lines.join('\n');
@@ -298,7 +353,8 @@ export class DebugOverlay {
 
   private applyVisibility(inXR: boolean): void {
     this.dom.style.display = this.visible && !inXR ? 'block' : 'none';
-    this.vrPanel.visible = (this.visible || this.toastActive) && inXR;
+    this.vrPanel.visible = this.visible && inXR;
+    this.vrToast.visible = this.toastActive && inXR;
     this.toastEl.style.display = this.toastActive && !inXR ? 'block' : 'none';
   }
 
@@ -309,11 +365,8 @@ export class DebugOverlay {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#bff7c8';
     ctx.font = '26px monospace';
-    const lines = this.toastActive ? [`>> ${this.toastText}`, ...(this.visible ? this.lines : [])] : this.lines;
-    lines.forEach((line, i) => {
-      ctx.fillStyle = i === 0 && this.toastActive ? '#ffb38a' : '#bff7c8';
-      ctx.fillText(line, 14, 38 + i * 34);
-    });
+    // (Messages have their own card in VR: vrToast.)
+    this.lines.forEach((line, i) => ctx.fillText(line, 14, 38 + i * 34));
     // The region map in the panel's lower right corner (over the readout's long lines).
     if (this.visible && this.regionMap) this.drawMap(ctx, canvas.width - 190, canvas.height - 190, 180);
     this.texture.needsUpdate = true;
@@ -324,4 +377,19 @@ function formatHours(h: number): string {
   const hh = Math.floor(h);
   const mm = Math.floor((h - hh) * 60);
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+/** Words into lines no wider than `width` (px) in the context's font; a word longer than a line is kept whole. */
+function wrapText(g: CanvasRenderingContext2D, text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const w of text.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${w}` : w;
+    if (line && g.measureText(next).width > width) {
+      lines.push(line);
+      line = w;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
 }

@@ -203,6 +203,26 @@ describe('InteractionSystem (VR hands)', () => {
     expect(lever.held).toBe(false);
   });
 
+  it('breakaway: a hand carried away from the held lever lets it go, and the lever stays where it was (review, Oct 2026)', () => {
+    const lever = new Lever('lever', { maxAngleDeg: 40, length: 0.2 }, 0.06);
+    lever.root.updateMatrixWorld(true);
+    const sent: [string, number][] = [];
+    const sys = new InteractionSystem([lever], (c, v) => sent.push([c, v]), () => {});
+    const grip = new THREE.Vector3(0, 0.24, 0);
+    const idle = frame(new THREE.Vector3(5, 5, 5));
+    sys.updateXR({ left: idle, right: frame(grip) });
+    sys.updateXR({ left: idle, right: frame(grip, { gripDown: true, gripPressed: true }) });
+    expect(lever.held).toBe(true);
+    expect(sys.holdingAny()).toBe(true);
+    // Jumped off still gripping: the hand is half a metre away in one frame.
+    const before = sent.length;
+    grip.set(0, 0.24, 0.6);
+    sys.updateXR({ left: idle, right: frame(grip, { gripDown: true }) });
+    expect(lever.held).toBe(false);
+    expect(sys.holdingAny()).toBe(false);
+    expect(sent.slice(before).every(([, v]) => Math.abs(v) < 0.01)).toBe(true); // not driven to full
+  });
+
   it('a hand away from every control is free for grab-the-world', () => {
     const lever = new Lever('lever', { maxAngleDeg: 40, length: 0.2 }, 0.06);
     lever.root.updateMatrixWorld(true);
