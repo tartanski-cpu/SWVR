@@ -208,6 +208,7 @@ export const HOUSE_ICONS = {
   // From the side: the window sill at the standard height, or low, below the console.
   sillStd: svg('<path d="M6 26V6h36v20zM6 15h36M10 15V9h28v6"/><path d="M12 26v-5h8v5"/>'),
   sillLow: svg('<path d="M6 26V6h36v20zM6 21h36M10 21V9h28v12"/><path d="M12 26v-8h8v8"/>'),
+  sillHigh: svg('<path d="M6 26V6h36v20zM6 12h36M10 12V9h28v3"/><path d="M12 26v-12h8v12"/>'),
   // Her helm from above: the console in the middle, to port or to starboard (bow up).
   consoleMid: svg('<path d="M10 4h28v24H10z"/><rect x="18" y="7" width="12" height="5" fill="currentColor"/>'),
   consolePort: svg('<path d="M10 4h28v24H10z"/><rect x="12" y="7" width="12" height="5" fill="currentColor"/>'),

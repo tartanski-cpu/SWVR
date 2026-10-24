@@ -7,7 +7,7 @@ import { BODY_RADIUS, CONFIG } from '../../config';
 import { hullQueries } from '../../modular/hull';
 import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, OverheadLayout } from '../../vessel/vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../../vessel/deckhouse';
-import { consoleLengthM, houseOffsetM, MEASURES, SCALES } from '../design';
+import { consoleLengthM, houseOffsetM, lowSills, MEASURES, SCALES } from '../design';
 import type { Socket } from '../../modular/socket';
 import { halfBreadthAt, type BuildArgs, type V3 } from './common';
 import { facetCentre, frontMullions, TUG_HULL, type DesignHull } from './catalog';
@@ -328,8 +328,9 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // Its front and sides chamfered (hullMesh.ts chamferedSlab): the top set in this much.
   const roofBack = roofThickness * Math.tan((d.roofEdge * Math.PI) / 180);
   // The window sills, one height all round (owner; they were 1.31 at the front, the dash top,
-  // and 1.0 at the sides): the standard height, or low, below the console.
-  const sill = d.sills ? CONFIG.shipyard.windowSills.low : CONFIG.shipyard.windowSills.standard;
+  // and 1.0 at the sides): the standard height, low (below the console) or high (level with the dash top).
+  const ws = CONFIG.shipyard.windowSills;
+  const sill = [ws.standard, ws.low, ws.high][d.sills ?? 0] ?? ws.standard;
   // The windows run up to the roof's underside, only their frame between (owner: the roof is
   // one piece, overhanging them, no band of wall above the glass).
   const windowHead = headroom - CONFIG.pixelPaint.frameWidth;
@@ -380,7 +381,7 @@ export function housePart(a: BuildArgs, p: HullPart) {
     // How far aft the glass reaches anywhere from the sill up to height y (it's tightest at the
     // sill for glass leaning forward, at y for glass raked aft).
     const glassAft = (y: number) => Math.max(0, -lean * (y - sill));
-    const parts: [number, number][] = d.sills
+    const parts: [number, number][] = lowSills(d)
       ? [[1.02, 0.06], [0.9 + 0.21 + CONFIG.modules.screen.dash.height / 2, 0.2], [headroom - 0.1, 0.32]]
       : [[0.9 + CONFIG.modules.helmConsole.dash.top, 0.06], [headroom - 0.1, 0.32]];
     const above = parts.filter(([y]) => y > sill);
@@ -443,7 +444,7 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, ...(p.hx ? { x: p.hx } : {}), front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
+    wheelhouse: { halfWidth: hw, ...(p.hx ? { x: p.hx } : {}), front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: lowSills(d) ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     // A cockpit overhead (design.overhead): fitted below, once the deck gear has its places.
     overhead: undefined as OverheadLayout | undefined,

@@ -10,6 +10,21 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### High window sills: a third choice (done, on the preview)
+
+Owner, 24 Oct 2026: "a third option for the windowsills on the wheelhouse to have them higher ... usually you're sort of standing up, so you should be able to see through the windows, but just come up with something which is higher".
+
+- **How high:** 1.3 m above the wheelhouse floor (`CONFIG.shipyard.windowSills.high`). That's level with the top of the dash (0.9 m desk plus 0.41 m dash), so the console tucks under the glass in one line. It's chest height, as on a heavy-weather trawler or tug. A standing helmsman's eyes are about 1.6 m up, so there is still about 0.3 m of glass below eye level, and the band from sill to roof is about 0.7 m deep. Standard is 1.0 m, low 0.75 m.
+- **The console stays as with standard sills** (its upright panel on). Low sills alone take it off and put the screens on stalks. Every place that read "any sills" as low now reads low only (design.ts `lowSills`; parts/house.ts, parts/recipe.ts).
+- **The page:** Wheelhouse step, Windows group, Sills: Standard, Low, **High** (level with the dash), with its own small drawing (tiles.ts `sillHigh`).
+- **Not in the short code:** the code holds the sills as one bit, so a third value would change how old codes read. `CODE_SILLS` stays 2, and a design with high sills travels as a link or file (encode says so). Codes with standard or low sills read as before.
+- **Checked:**
+  - tests/shipyard/highSills.test.ts (new): the height, the console's view over the dash, and the code (high sills refused, standard and low read back).
+  - flare.test.ts and designDoc.test.ts now know the third choice.
+  - Headless Chromium on the pilot boat: side view and the view from the helm, standard against high. The bow and foredeck gear stay in view over the high sills; only the strip of deck nearest the wheelhouse is hidden. No warnings.
+  - `npm run test:shipyard` and the typecheck pass. **Not checked:** standing at the helm in VR.
+- **Shared changes:** none.
+
 ### (From the modular-builder chat) The stern trawler: a deckhouse run on aft, up to 2.5 m high; a longer raised foredeck
 
 At the owner's word, in the modular builder's chat (its log, `docs/progress/modules.md`, has the details):

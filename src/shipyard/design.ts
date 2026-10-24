@@ -204,7 +204,7 @@ export interface ShipDesign extends Record<FurnitureKey, number>, Record<Console
   facets: number;
   /** The side and aft windows (owner): 0 upright, 1 raked out all round (leaning out to the roof, like a tug's or supply vessel's bridge; the doors stay upright). */
   flare: number;
-  /** The window sills, the same all round (owner): 0 at the standard height, 1 low (below the console, its upright panel off, the screens on stalks). */
+  /** The window sills, the same all round (owner): 0 at the standard height, 1 low (below the console, its upright panel off, the screens on stalks), 2 high (level with the dash top; not in the short code). */
   sills: number;
   /**
    * Outboards instead of the inboard (owner, Oct 2026; OUTBOARDS): 0 none (the engine
@@ -504,8 +504,12 @@ const SKIFF_FIELD: { key: 'skiff'; steps: number } = { key: 'skiff', steps: SKIF
 const FACETS_FIELD: { key: 'facets'; steps: number } = { key: 'facets', steps: 2 };
 const FLARE_FIELD: { key: 'flare'; steps: number } = { key: 'flare', steps: 2 };
 /** The window sills' choices (design.sills), as the page names them. */
-export const SILLS = ['Standard', 'Low (below the console)'] as const;
+export const SILLS = ['Standard', 'Low (below the console)', 'High (level with the dash)'] as const;
 const SILLS_FIELD: { key: 'sills'; steps: number } = { key: 'sills', steps: SILLS.length };
+/** The sills' choices the short code holds (standard and low; the high sills, owner Oct 2026, travel as a link or file). */
+const CODE_SILLS = 2;
+/** Low sills (design.sills 1): the console's upright panel off, its screens on stalks. */
+export const lowSills = (d: Pick<ShipDesign, 'sills'>): boolean => d.sills === 1;
 /** The outboards' choices (design.outboards), as the page names them: how many there are (0: the inboard). */
 export const OUTBOARDS = ['None (the inboard above)', 'Two outboards', 'Three outboards', 'Four outboards'] as const;
 const OUTBOARDS_FIELD: { key: 'outboards'; steps: number } = { key: 'outboards', steps: OUTBOARDS.length };
@@ -860,6 +864,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (d.foreCabin) throw new Error('the cabin below isn’t in the code: she travels as a link or file');
   if (d.fishHold) throw new Error('a fish hold isn’t in the code: she travels as a link or file');
   if (d.rescueBoat) throw new Error('the rescue boat isn’t in the code: she travels as a link or file');
+  if ((d.sills ?? 0) >= CODE_SILLS) throw new Error('the high window sills aren’t in the code: she travels as a link or file');
   if (d.netDrum || d.trawlWinches) throw new Error('the trawl deck gear isn’t in the code: she travels as a link or file');
   if (FURNITURE_FIELDS.some((f) => d[f.key])) throw new Error('furniture isn’t in the code: she travels as a link or file');
   if (CONSOLE_FIELDS.some((f) => d[f.key])) throw new Error('a console placed by hand isn’t in the code: she travels as a link or file');
@@ -928,7 +933,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (frames !== 0 && frames !== 1) throw new Error(`design frames ${frames} is off its scale (0..1)`);
   // From the top: the frames, the house's colour, the floor, the interior finish, the exhaust stacks' style, pod drives, the console's side, the rod rack, the roof's top colour and the saloon's roof, the nozzle, the saloon's floor and length, stern drives, the material, the outboards, the sills, the raked-out windows, a later engine, the facets, a later hull type, the skiff, no anchor, the narrow deckhouse,
   // no rails, protection (each 0: as before).
-  const top = (((((((((((((((((((((((BigInt(frames) * BigInt(HOUSE_COLOUR_FIELD.steps) + BigInt(houseColour)) * BigInt(CABIN_FLOOR_FIELD.steps) + BigInt(cabinFloor)) * BigInt(INTERIOR_FIELD.steps) + BigInt(interior)) * BigInt(STACK_STYLE_FIELD.steps) + BigInt(stackStyle)) * BigInt(PODS_FIELD.steps) + BigInt(pods)) * BigInt(CONSOLE_SIDE_FIELD.steps) + BigInt(consoleSide)) * BigInt(ROD_RACK_FIELD.steps) + BigInt(rodRack)) * BigInt(ROOF_TOP_FIELD.steps) + BigInt(roofTop)) * BigInt(SALOON_ROOF_FIELD.steps) + BigInt(saloonRoof)) * BigInt(NOZZLE_FIELD.steps) + BigInt(nozzle)) * BigInt(SALOON_FLOOR_FIELD.steps) + BigInt(saloonFloor)) * BigInt(SALOON_FIELD.steps) + BigInt(saloon)) * BigInt(STERN_DRIVE_FIELD.steps) + BigInt(sternDrive)) * BigInt(MATERIAL_FIELD.steps) + BigInt(material)) * BigInt(OUTBOARDS_FIELD.steps) + BigInt(outboards)) * BigInt(SILLS_FIELD.steps) + BigInt(sills)) * BigInt(FLARE_FIELD.steps) + BigInt(flare)) * BigInt(MORE_ENGINES) + BigInt(moreEngine)) * BigInt(FACETS_FIELD.steps) + BigInt(facets)) * BigInt(MORE_HULLS) + BigInt(more)) * BigInt(SKIFF_FIELD.steps) + BigInt(skiff)) * 2n + BigInt(noAnchor)) * 2n + BigInt(narrow)) * BigInt(RAIL_FIELD.steps) + BigInt(rails);
+  const top = (((((((((((((((((((((((BigInt(frames) * BigInt(HOUSE_COLOUR_FIELD.steps) + BigInt(houseColour)) * BigInt(CABIN_FLOOR_FIELD.steps) + BigInt(cabinFloor)) * BigInt(INTERIOR_FIELD.steps) + BigInt(interior)) * BigInt(STACK_STYLE_FIELD.steps) + BigInt(stackStyle)) * BigInt(PODS_FIELD.steps) + BigInt(pods)) * BigInt(CONSOLE_SIDE_FIELD.steps) + BigInt(consoleSide)) * BigInt(ROD_RACK_FIELD.steps) + BigInt(rodRack)) * BigInt(ROOF_TOP_FIELD.steps) + BigInt(roofTop)) * BigInt(SALOON_ROOF_FIELD.steps) + BigInt(saloonRoof)) * BigInt(NOZZLE_FIELD.steps) + BigInt(nozzle)) * BigInt(SALOON_FLOOR_FIELD.steps) + BigInt(saloonFloor)) * BigInt(SALOON_FIELD.steps) + BigInt(saloon)) * BigInt(STERN_DRIVE_FIELD.steps) + BigInt(sternDrive)) * BigInt(MATERIAL_FIELD.steps) + BigInt(material)) * BigInt(OUTBOARDS_FIELD.steps) + BigInt(outboards)) * BigInt(CODE_SILLS) + BigInt(sills)) * BigInt(FLARE_FIELD.steps) + BigInt(flare)) * BigInt(MORE_ENGINES) + BigInt(moreEngine)) * BigInt(FACETS_FIELD.steps) + BigInt(facets)) * BigInt(MORE_HULLS) + BigInt(more)) * BigInt(SKIFF_FIELD.steps) + BigInt(skiff)) * 2n + BigInt(noAnchor)) * 2n + BigInt(narrow)) * BigInt(RAIL_FIELD.steps) + BigInt(rails);
   let ext = (top * BigInt(GUARD_FIELD.steps) + BigInt(guard)) * (DECKHOUSE_COMBINATIONS + 1n);
   if (d.dhLength) ext += 1n + pack(d, DECKHOUSE_FIELDS);
   let which = 0;
@@ -980,8 +985,8 @@ function unpackPlaces(ext: bigint): (Pick<ShipDesign, PlaceKey | DeckhouseKey | 
   up /= BigInt(MORE_ENGINES);
   const flare = up % BigInt(FLARE_FIELD.steps);
   up /= BigInt(FLARE_FIELD.steps);
-  const sills = up % BigInt(SILLS_FIELD.steps);
-  up /= BigInt(SILLS_FIELD.steps);
+  const sills = up % BigInt(CODE_SILLS);
+  up /= BigInt(CODE_SILLS);
   const outboards = up % BigInt(OUTBOARDS_FIELD.steps);
   up /= BigInt(OUTBOARDS_FIELD.steps);
   const material = up % BigInt(MATERIAL_FIELD.steps);

@@ -906,6 +906,7 @@ section('2. Wheelhouse');
   optionTiles('sills', 'Sills', [
     { icon: HOUSE_ICONS.sillStd, name: SILLS[0], info: 'The window sills at the standard height, one height all round.' },
     { icon: HOUSE_ICONS.sillLow, name: 'Low', sub: 'below the console', info: 'Low sills, below the console: its upright panel comes off and its screens stand on stalks, so you can see down over the bow.' },
+    { icon: HOUSE_ICONS.sillHigh, name: 'High', sub: 'level with the dash', info: 'High sills, 1.3 m up, level with the top of the dash: chest height, as on a heavy-weather trawler or tug, more wall and less glass. Standing at the helm you still see out over them. Travels as a link or file, not a code.' },
   ]);
 
   // (Its colours are on the Paint step; no visor choice: the roof overhangs the windows by a set length, owner.)

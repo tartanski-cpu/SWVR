@@ -228,9 +228,12 @@ export const SHIPYARD_CONFIG = {
      * The window sills, one height all round (owner), above the wheelhouse floor (m):
      * `standard` (the dash top stands above it at the front), or `low`, below the console's
      * desk (0.9 m), with the console's upright panel taken off and its screens on stalks so
-     * you see down past them (owner).
+     * you see down past them (owner), or `high` (owner, Oct 2026: "a third option ... to have
+     * them higher ... standing up, you should be able to see through the windows"): level with
+     * the dash top (0.9 + 0.41 m), chest height, as a heavy-weather trawler's or tug's; a
+     * standing helmsman's eyes (about 1.6 m) are still well up in the glass.
      */
-    windowSills: { standard: 1.0, low: 0.75 },
+    windowSills: { standard: 1.0, low: 0.75, high: 1.3 },
     /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
