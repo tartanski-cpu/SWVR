@@ -82,6 +82,13 @@ export interface HullDesign {
    */
   chineKeel?: Curve;
   /**
+   * The keel line her paint line is measured from, where her chines are dragged up the stem
+   * with her forefoot (owner, Oct 2026: the line between topsides and bottom paint straight,
+   * as the pilot boat's): her bottom paint up to where her chine would run on that uncut keel,
+   * her topsides' colour above it, though the chine itself sweeps up. Drawn only.
+   */
+  paintKeel?: Curve;
+  /**
    * Rake: how far the section leans fore-aft per metre of height above the keel (dz/dy).
    * Negative at the stem leans it forward; positive at the transom leans the transom aft.
    */
@@ -91,6 +98,8 @@ export interface HullDesign {
   bulwark: Curve;
   /** Number of stations lofted. */
   stations?: number;
+  /** More stations, where her shape needs them (t, 0 transom .. 1 stem): round a forefoot radius (Shipyard, catalog.ts bowKeel). */
+  extraStations?: number[];
   wheelhouse?: WheelhouseDesign;
   /** More deckhouse blocks (a lower deckhouse under a wheelhouse, an engine casing, a tower). */
   houses?: WheelhouseDesign[];
@@ -128,6 +137,8 @@ export interface Section {
   /** Keel .. deck edge, port side. */
   pts: THREE.Vector3[];
   bulwark: number;
+  /** Her paint line's height here (design.paintKeel), where it's under her chine. */
+  paintY?: number;
 }
 
 export interface LoftedHull {
@@ -200,6 +211,8 @@ export function loft(d: HullDesign): LoftedHull {
   const ts: number[] = [];
   for (let i = 0; i < n; i++) ts.push(i / (n - 1));
   if (d.forecastle) ts.push(d.forecastle.from - 1e-4, d.forecastle.from);
+  // Extra stations (a forefoot radius), unless one already stands within 5 cm.
+  for (const t of d.extraStations ?? []) if (ts.every((u) => Math.abs(u - t) * L > 0.05)) ts.push(t);
   ts.sort((a, b) => a - b);
   for (const t of ts) {
     const z = L / 2 - t * L;
@@ -239,7 +252,15 @@ export function loft(d: HullDesign): LoftedHull {
     const shaped = s.round ? soften(prof, s.round) : prof;
     const rake = curveAt(d.rake, t);
     const pts = shaped.map(([x, y]) => new THREE.Vector3(-x, y, z + rake * (y - keelY)));
-    sections.push({ t, z, keelY, deckY, halfBeam: hb, pts, bulwark: Math.max(0, curveAt(d.bulwark, t)) });
+    // Her paint line: her lowest chine's height, measured from the uncut keel (paintKeel).
+    let paintY: number | undefined;
+    if (d.paintKeel) {
+      const pRef = curveAt(d.paintKeel, t);
+      const frac = Math.min(curveAt(s.chineHeight, t), s.chine2Height ? curveAt(s.chine2Height, t) : Infinity);
+      paintY = pRef + frac * Math.max(0.05, drawnDeckY - pRef);
+    }
+    const lowChine = prof[1][1];
+    sections.push({ t, z, keelY, deckY, halfBeam: hb, pts, bulwark: Math.max(0, curveAt(d.bulwark, t)), ...(paintY !== undefined && paintY < lowChine - 1e-4 ? { paintY } : {}) });
   }
   return { design: d, sections };
 }

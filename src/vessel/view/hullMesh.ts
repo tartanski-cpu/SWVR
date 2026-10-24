@@ -97,14 +97,22 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const e2 = new THREE.Vector3();
   const centroid = new THREE.Vector3();
 
-  /** Add triangle a-b-c, flipped if needed so its normal points away from `inside`. */
-  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName) => {
+  /**
+   * Add triangle a-b-c, flipped if needed so its normal points away from `inside`. `axisX`
+   * (a hull's side or bottom): away from her centreline (a demihull's, for a catamaran) at the
+   * triangle's own height instead, wherever the face leans out sideways. A point halfway down
+   * her side read a high panel in a fine, plumb bow as facing in, and it went missing.
+   */
+  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName, axisX?: number) => {
     e1.subVectors(b, a);
     e2.subVectors(d, a);
     n.crossVectors(e1, e2);
     if (n.lengthSq() < 1e-10) return; // degenerate (stem)
-    centroid.copy(a).add(b).add(d).divideScalar(3).sub(inside);
-    const verts = n.dot(centroid) >= 0 ? [a, b, d] : [a, d, b];
+    centroid.copy(a).add(b).add(d).divideScalar(3);
+    const out = axisX === undefined ? 0 : centroid.x - axisX;
+    const sideways = axisX !== undefined && Math.abs(n.x) > 0.05 * n.length() && Math.abs(out) > 1e-4;
+    const facesOut = sideways ? n.x * out > 0 : n.dot(centroid.sub(inside)) >= 0;
+    const verts = facesOut ? [a, b, d] : [a, d, b];
     c.set(color);
     for (const v of verts) {
       positions.push(v.x, v.y, v.z);
@@ -142,6 +150,8 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     if (k === 4) return new THREE.Vector3(0, poly[4][1] + 0.3, st[i].z);
     return new THREE.Vector3((k < 4 ? -1 : 1) * cat.spacing / 2, (poly[2][1] + poly[0][1]) / 2, st[i].z);
   };
+  // Her keel's points in the outline (each demihull's, on a catamaran).
+  const keelIdx = cat ? [2, 7] : [last / 2];
   const topsideEdge = (k: number) => (cat ? [0, 3, 4, 5, 8].includes(k) : k < chine || k >= last - chine);
 
   // A cabin sunk below the deck (its floor lower than the deck under it: you step down into
@@ -203,8 +213,49 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       // GRP, or aluminium in big sheets: no plate seams).
       const paint = color === col.deck && a === last ? 'nonSlip' : undefined;
       const ref = cat && a !== last ? insideEdge(i, a).add(insideEdge(i + 1, a)).multiplyScalar(0.5) : mid;
-      tri(a0, b0, b1, ref, color, paint);
-      tri(a0, b1, a1, ref, color, paint);
+      // Her sides and bottom face away from her centreline (a demihull's); the deck and a
+      // catamaran's wet deck by `ref`.
+      const axisX = a === last || (cat && a === 4) ? undefined : cat ? ((a < 4 ? -1 : 1) * cat.spacing) / 2 : 0;
+      const panel = (p0: THREE.Vector3, q0: THREE.Vector3, p1: THREE.Vector3, q1: THREE.Vector3, c: number) => {
+        tri(p0, q0, q1, ref, c, paint, axisX);
+        tri(p0, q1, p1, ref, c, paint, axisX);
+      };
+      // Her bottom up to her paint line where it's under her chine (Station.paintY: a chine
+      // dragged up her stem by her forefoot), her topsides' colour above it, so the line runs on
+      // straight to her stem. Each station's point on the panel's edge, chine to keel, at it.
+      const k = keelIdx.includes(a) ? a : keelIdx.includes(b) ? b : -1;
+      if (color === col.bottom && k >= 0 && (st[i].paintY !== undefined || st[i + 1].paintY !== undefined)) {
+        const up = k === a ? b : a;
+        const at = (j: number) => {
+          const U = P(j, up);
+          const K = P(j, k);
+          const y = st[j].paintY;
+          if (y === undefined || y >= U.y) return U;
+          return y <= K.y ? K : K.lerp(U, (y - K.y) / (U.y - K.y));
+        };
+        const m0 = at(i);
+        const m1 = at(i + 1);
+        // Where her keel rises through the paint line between the two (her forefoot), the
+        // bottom paint stops where it crosses, on her keel between them: X.
+        const over = (j: number) => st[j].paintY !== undefined && st[j].paintY! <= P(j, k).y;
+        if (over(i) !== over(i + 1)) {
+          const [o, j] = over(i) ? [i + 1, i] : [i, i + 1];
+          const Ko = P(o, k);
+          const Kj = P(j, k);
+          const po = (o === i ? m0 : m1).y - Ko.y;
+          const pj = (st[j].paintY ?? P(j, up).y) - Kj.y;
+          const X = Ko.clone().lerp(Kj, po / Math.max(po - pj, 1e-9));
+          const mo = o === i ? m0 : m1;
+          tri(mo, Ko, X, ref, color, paint, axisX);
+          tri(mo, X, Kj, ref, col.topsides, paint, axisX);
+          panel(P(o, up), mo, P(j, up), Kj, col.topsides);
+          continue;
+        }
+        panel(P(i, up), m0, P(i + 1, up), m1, col.topsides);
+        panel(m0, P(i, k), m1, P(i + 1, k), color);
+        continue;
+      }
+      panel(a0, b0, a1, b1, color);
     }
   }
   // Transom (station 0) as a fan around its centre.
