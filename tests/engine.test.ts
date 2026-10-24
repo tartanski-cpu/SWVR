@@ -75,7 +75,8 @@ describe('fuel', () => {
   });
 });
 
-describe('engine temperature', { timeout: 30000 }, () => {
+// (A long simulation: about 20 s here, and a GitHub runner can take twice that or more, so it's given room.)
+describe('engine temperature', { timeout: 120000 }, () => {
   it('starts cold, warms up under way within a few minutes, and the thermostat holds it', () => {
     const b = boat();
     const e = b.v.engine;

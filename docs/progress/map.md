@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fix: /next/ failed to build: two long tests out of time on GitHub's machine (24 Oct 2026)
+
+Owner: "The work-in-progress build (branch next) failed its tests or its build this time."
+
+- **What failed** (publishing run 577, the `next` step): two long simulations ran past their time limits on GitHub's runner, which is about twice as slow as this machine. `tests/engine.test.ts`, "engine temperature" (37.6 s against 30 s; 20 s here), and `tests/shipyard/outboards.test.ts`, "outboards: cooling" (past the 20 s default; 12 s here). Nothing in the game was wrong: the same commit passes all its tests and builds here.
+- **Fixed:** those two test groups get room, 120 s and 90 s. The project-wide default (`vitest.config.ts`, 20 s) is unchanged. Every other long test checked against GitHub's times: all well within their limits (the trawler's 61 s of 120, the coast traffic's 35 s of 60).
+- **Shared changes:** `tests/engine.test.ts` (the main game's) and `tests/shipyard/outboards.test.ts` (the Shipyard's): a time limit each, nothing else. Both chats told.
+
+
 ### Oban: the start (cargo) berth moved to the North Pier's south-west face (23 Oct 2026)
 
 **Owner approved; merged into `next`.**
