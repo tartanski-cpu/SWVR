@@ -38,6 +38,8 @@ import type { Intent } from '../core/intents';
 import { placeVessel } from '../vessel/vesselControl';
 import { WIND_FARMS } from '../world/archipelago';
 import { berthWithId } from '../world/berths';
+import { LIBRARY, RECIPES } from '../boats/library';
+import { flattenMounts } from '../modular/recipe';
 import { landingAxis, landingFace } from '../world/windFarm';
 
 export interface Technician {
@@ -46,8 +48,9 @@ export interface Technician {
   phase: 'quay' | 'aboard' | 'crossing' | 'climbing' | 'platform';
   /** Seconds in this phase. */
   t: number;
-  /** Aboard: where they sit (vessel axes). */
+  /** Aboard: where they sit (vessel axes: their seat's height, the figure's hips at a chair's), and which way they face (deg of yaw, as the seat's socket). */
   seat?: Vec3;
+  seatYaw?: number;
   /** Crossing and climbing: the height (world y) they stepped across at (her bow's deck). */
   from?: number;
 }
@@ -149,8 +152,25 @@ function rand(s: TransferState): number {
   return v - Math.floor(v);
 }
 
-/** Her free seat for the next technician aboard (her rescue seats, else where you board her). */
-function seatFor(v: VesselState, taken: number): Vec3 {
+/**
+ * Her seat for the next technician aboard: her furniture's seats first (a Shipyard design's,
+ * placed and turned on the Furniture step: owner, Oct 2026, rows of them "like a bus" in a
+ * crew boat), each as it faces; else her rescue seats on deck, else where you board her.
+ */
+function seatFor(v: VesselState, taken: number): { at: Vec3; yaw: number } {
+  const recipe = RECIPES[v.defId];
+  const seats = recipe ? flattenMounts(recipe, LIBRARY.hulls, LIBRARY.modules).mounted.filter((m) => m.def.id === 'furniture.piece' && (m.config as { kind?: string }).kind === 'seat') : [];
+  if (taken < seats.length) {
+    const s = seats[taken].socket.transform;
+    const p = s.position;
+    // (The figure sits with its hips 0.45 up: lifted to the seat's cushion.)
+    return { at: [p[0], p[1] + CONFIG.modules.furniture.seat.seat - 0.45, p[2]], yaw: s.rotationDeg?.[1] ?? 0 };
+  }
+  return { at: deckSeat(v, taken - seats.length), yaw: 0 };
+}
+
+/** Her rescue seats on deck (else where you board her), the `taken`-th. */
+function deckSeat(v: VesselState, taken: number): Vec3 {
   const def = VESSEL_DEFS[v.defId];
   const seats = def.rescueGear?.seats;
   const plan = hullPlan(def);
@@ -199,7 +219,9 @@ export function stepTransfer(world: WorldState, dt: number): void {
       const tech = onQuay[0];
       tech.phase = 'aboard';
       tech.t = 0;
-      tech.seat = seatFor(boat, aboard);
+      const seat = seatFor(boat, aboard);
+      tech.seat = seat.at;
+      tech.seatYaw = seat.yaw;
       job.vesselId = boat.id;
       // The next one waits their turn.
       for (const o of onQuay.slice(1)) o.t = 0;

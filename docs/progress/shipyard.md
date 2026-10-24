@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) Twelve seats, each turnable
+
+For the crew-transfer catamaran's rows of seats: `design.ts` has seat fields `seatAt5`..`seatAt12` and a facing per seat (`seatFace`..`seatFace12`, 0-7 in 45 degree steps; `SEAT_FACES`, `seatYawDeg`), none in the code; `furnishing.ts` adds `turnSeat` and moves facings up with the seats in `removeFurniture`; `parts/furniture.ts` turns a seat's footprint and socket by its facing; `page.ts` has a Turn button on seat rows. See `docs/progress/modules.md`.
+
 ### (From the modular-builder chat) The bow fender
 
 At the owner's word (24 Oct 2026, crew transfer to wind farms): new design field `bowFender` (not in the code; the catamaran's default 1), worked out in `parts/trim.ts` (`bowFenderAt`), its socket in `hullDef.ts`, module `hull.bow-fender` in `recipe.ts`, weight and price in `weights.ts` (`CONFIG.shipyard.bowFenderPrice`), the Hull step's **Bow fender** tiles in `page.ts` (icons in `tiles.ts`). Details in `docs/progress/modules.md`.

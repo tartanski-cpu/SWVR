@@ -113,10 +113,10 @@ export class TransferView {
       f.sitting.visible = t.phase === 'aboard';
       f.standing.visible = !f.sitting.visible;
       if (t.phase === 'aboard' && boat && t.seat) {
-        // On her seat, facing forward.
+        // On her seat, facing as it does.
         if (f.root.parent !== boat) boat.add(f.root);
         f.root.position.set(t.seat[0], t.seat[1], t.seat[2]);
-        f.root.rotation.set(0, 0, 0);
+        f.root.rotation.set(0, ((t.seatYaw ?? 0) * Math.PI) / 180, 0);
         return;
       }
       if (f.root.parent !== this.root) this.root.add(f.root);

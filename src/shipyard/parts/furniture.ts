@@ -10,7 +10,7 @@ import type { Mount } from '../../modular/recipe';
 import type { Socket } from '../../modular/socket';
 import type { FurnitureConfig, FurnitureKind } from '../../modules/furniture';
 import { planHalfWidth } from '../../vessel/vesselDef';
-import { FURNITURE_SLOTS, furnitureAt, type FurnitureKey } from '../design';
+import { FURNITURE_SLOTS, furnitureAt, SEAT_FACES, seatYawDeg, type FurnitureKey } from '../design';
 import type { BuildArgs, V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, InteriorPart } from './house';
@@ -27,6 +27,9 @@ interface Floor {
   ceiling: (z: number) => number;
   aftWall: boolean;
 }
+
+/** A seat's facing in words (design.seatFace: 45 degree steps clockwise from forward). */
+const FACINGS = ['forward', 'forward to starboard', 'to starboard', 'aft to starboard', 'aft', 'aft to port', 'to port', 'forward to port'];
 
 /** A rectangle in plan (the boat's x and z). */
 type Rect = [number, number, number, number];
@@ -117,6 +120,9 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     }
     const size = mf[piece.kind];
     const [L, D] = [size.length, size.depth];
+    // A seat turns (design.seatFace...: 45 degree steps): its plan the square round it, turned.
+    const face = piece.kind === 'seat' ? (d[SEAT_FACES[FURNITURE_SLOTS.seat.indexOf(piece.key)]] ?? 0) % 8 : 0;
+    const [pL, pD] = face % 2 ? [(L + D) / Math.SQRT2, (L + D) / Math.SQRT2] : face % 4 === 2 ? [D, L] : [L, D];
     if (piece.kind !== 'seat' && L > floor.z1 - floor.z0 && !floor.aftWall) {
       warnings.push(`The ${piece.name} is longer (${L.toFixed(2)} m) than ${floor.name}'s floor has room for (${(floor.z1 - floor.z0).toFixed(2)} m): left off.`);
       furniturePlaced[piece.key] = null;
@@ -137,13 +143,13 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
         if (x0 < -floor.half(floor.z1) || x0 + L > floor.half(floor.z1)) return null;
         return [x0, x0 + L, floor.z1 - D, floor.z1];
       }
-      const z0 = (w === 'free' ? pz : c) - (w === 'free' ? D : L) / 2;
-      const z1 = z0 + (w === 'free' ? D : L);
+      const z0 = (w === 'free' ? pz : c) - (w === 'free' ? pD : L) / 2;
+      const z1 = z0 + (w === 'free' ? pD : L);
       if (z0 < floor.z0 || z1 > floor.z1) return null;
       const half = Math.min(floor.half(z0), floor.half(z1), floor.half((z0 + z1) / 2));
       if (w === 'free') {
-        const x0 = Math.max(-half, Math.min(half - L, c - L / 2));
-        return x0 < -half ? null : [x0, x0 + L, z0, z1];
+        const x0 = Math.max(-half, Math.min(half - pL, c - pL / 2));
+        return x0 < -half ? null : [x0, x0 + pL, z0, z1];
       }
       return w === 'port' ? [-half, -half + D, z0, z1] : [half - D, half, z0, z1];
     };
@@ -190,10 +196,11 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     }
     const height = r2(piece.kind === 'head' || piece.kind === 'locker' || piece.kind === 'shower' ? ceiling - mf.ceilingGap : piece.kind === 'berth' ? mf.berth.top + mf.berth.cushion : piece.kind === 'settee' ? mf.settee.back : piece.kind === 'galley' ? mf.galley.top : piece.kind === 'bunk' ? mf.bunk.upper + mf.bunk.cushion + mf.bunk.rail : piece.kind === 'mess' ? mf.mess.back : mf.seat.back);
     // Its turn: its back (+z its axes) to the wall.
-    const yaw = found.wall === 'starboard' ? 90 : found.wall === 'port' ? -90 : 0;
+    // (A seat as it's turned: design.seatFace.)
+    const yaw = found.wall === 'starboard' ? 90 : found.wall === 'port' ? -90 : piece.kind === 'seat' ? seatYawDeg(face) : 0;
     blocked.push({ rect: [x0 - 0.02, x1 + 0.02, z0 - 0.02, z1 + 0.02], house: onHouse });
     const id = piece.id;
-    const where = `${floor.name[0].toUpperCase()}${floor.name.slice(1)}, ${found.wall === 'free' ? 'standing free' : `against the ${found.wall} wall`}`;
+    const where = `${floor.name[0].toUpperCase()}${floor.name.slice(1)}, ${found.wall === 'free' ? `standing free, facing ${FACINGS[face]}` : `against the ${found.wall} wall`}`;
     const put: V3 = [r2(mid[0] + hx), mid[1], mid[2]];
     furnitureSockets.push({ id, type: 'cabin.furniture', transform: { position: put, rotationDeg: [0, yaw, 0] }, label: `${where}: the ${piece.name}` });
     const config: FurnitureConfig = { kind: piece.kind, length: L, depth: D, height };

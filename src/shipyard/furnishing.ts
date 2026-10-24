@@ -2,13 +2,13 @@
  * The Furniture step (owner, Oct 2026: "split furniture into a different part of the workflow,
  * keep it separate from deck equipment, where there usually is just one, but the furniture
  * should be allowed to place multiple"). Each piece can be added more than once (up to four;
- * one head), each copy a field of its own (design.ts FURNITURE_SLOTS: berthAt, berthAt2...).
+ * one head; twelve seats, for rows of them: owner, Oct 2026, "like a bus"), each copy a field of its own (design.ts FURNITURE_SLOTS: berthAt, berthAt2...).
  * Adding one takes the piece's first empty field; taking one off moves those after it up, so
  * the copies are always numbered 1, 2, 3 with no gaps.
  *
  * Pure: the page gives the click's point (the boat's axes, m) and her transom.
  */
-import { FURNITURE_SLOTS, furnitureCell, type FurnitureKey, type FurniturePiece, type ShipDesign } from './design';
+import { FURNITURE_SLOTS, furnitureCell, SEAT_FACES, type FurnitureKey, type FurniturePiece, type ShipDesign } from './design';
 
 /** The Furniture step's pieces, in the menu's order, with their names. */
 export const FURNITURE_MENU: { kind: FurniturePiece; name: string }[] = [
@@ -51,6 +51,17 @@ export function placeFurniture(key: FurnitureKey, p: readonly number[], transom:
 export function removeFurniture(key: FurnitureKey, d: ShipDesign): Partial<ShipDesign> {
   const { kind, i } = slotOf(key);
   const keys = FURNITURE_SLOTS[kind];
-  const kept = keys.filter((k, j) => j !== i && d[k]).map((k) => d[k]);
-  return Object.fromEntries(keys.map((k, j) => [k, kept[j] ?? 0])) as Partial<ShipDesign>;
+  const keep = keys.map((_, j) => j).filter((j) => j !== i && d[keys[j]]);
+  const out = Object.fromEntries(keys.map((k, j) => [k, keep[j] !== undefined ? d[keys[keep[j]]] : 0])) as Partial<ShipDesign>;
+  // (A seat's facing moves up with it.)
+  if (kind === 'seat') for (const [j, f] of SEAT_FACES.entries()) out[f] = keep[j] !== undefined ? d[SEAT_FACES[keep[j]]] ?? 0 : 0;
+  return out;
+}
+
+/** The design change that turns a seat (its field `key`) 45 degrees clockwise, seen from above. */
+export function turnSeat(key: FurnitureKey, d: ShipDesign): Partial<ShipDesign> {
+  const { kind, i } = slotOf(key);
+  if (kind !== 'seat') return {};
+  const f = SEAT_FACES[i];
+  return { [f]: ((d[f] ?? 0) + 1) % 8 } as Partial<ShipDesign>;
 }

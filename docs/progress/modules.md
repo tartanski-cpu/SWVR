@@ -39,6 +39,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **Rows of seats, turnable; technicians sit in them.** Shipyard, Furniture: on the catamaran with a saloon, add six or more seats in rows across the cabin; **Turn** some to face aft. Game: take a crew-transfer job; the technicians sit in those seats, facing the way they face.
 - [ ] **Crew transfer, stop 2: the job** (this log). In the catamaran in the career: **Tests → Wind farm → Call job** (or wait for the VHF call). Make fast in Calder Haven: the three technicians come aboard into her cabin. Steam to their turbine (ringed T2 on the chartplotter, numbered on the paper chart), nose onto its landing and hold her with a little throttle: three seconds, then they step across one by one and climb to the platform; then it pays. Try the wrong turbine, and backing off half way. Step across yourself with the **Step across** mark, walk round the platform, and **Step aboard** back. Is three seconds' hold right? Are they paid enough?
 - [ ] **Crew transfer, stop 1: the bow fender and the Holm Rig wind farm** (this log). Shipyard: the catamaran shows her bow fender (Deck gear step, Bow view); any other type but the tug can add one (Hull step, Hull protection). In the game, in the catamaran: steam out of Calder Haven, round Calder Holm to the south-east, to the three turbines. Look at one close up (the landing's tubes and ladder). Nose her slowly onto the landing's two tubes, then hold her there with a little throttle ahead: she should stay put, not slide off sideways, with no damage. Try it in a small sea too. At night, the red lights on the nacelles flash together and a yellow one burns on each platform.
 - [ ] **The deckhouse's steep transverse stair** (this log). On the trawler with the deckhouse run aft (as in the next item): walk out of the aft door onto its top, to the landing at the middle of its aft edge, and walk down the stair to starboard and back up (it's walked as a smooth slope now, on desktop and in VR). Does it feel right, steep but easy to walk? Is the handrail where you'd reach for it?
@@ -55,6 +56,18 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### Rows of seats that turn, for the crew-transfer catamaran (done; on next, in your test round)
+
+You asked to seat the technicians in the Furniture step's seats, set out in rows across the wheelhouse "like a bus", and turnable. The seats could already stand free anywhere on the floor (in a narrow wheelhouse the helm and doorway clearances push them aside, as you said, which is right); what held a bus back was the limit of four.
+
+- **Twelve seats** (the other pieces stay at four; one head). Seats 5 to 12 are new design fields, like the first four not in the 10-character code (a boat with furniture travels as a link or file).
+- **Turn:** each seat has a facing, 0 to 7 in 45 degree steps clockwise seen from above (forward, forward-starboard, starboard, ... ). Its row in the Shipyard has a **Turn** button beside Move and Take off, and its label says which way it faces. A turned seat's footprint is turned too when it's fitted (a 45 degree seat takes a slightly bigger square), so seats in rows still don't overlap. Taking a seat off moves the ones after it up a number, each keeping its facing.
+- **The technicians sit in them:** boarding at Calder Haven, each takes the next free furniture seat (in the order you placed them), sitting on its cushion and facing as it does. With no furniture seats (or more technicians than seats) they take the deck seats as before.
+
+Files: `src/shipyard/design.ts` (seat fields to 12, `SEAT_FACES`, `seatYawDeg`), `src/shipyard/furnishing.ts` (`turnSeat`, facings follow the seats when one is taken off), `src/shipyard/parts/furniture.ts` (turned footprint, the yaw, the label), `src/shipyard/page.ts` (Turn button), `src/transfer/transfer.ts` and `transferView.ts` (the seats and their facing). Tests: `tests/shipyard/seatRows.test.ts`. No new config keys.
+
+**Shared changes:** the Shipyard's files above (noted in `docs/progress/shipyard.md`).
 
 ### Crew transfer to wind farms, stop 2: technicians, the job, stepping across, the chart (done; on next, in your test round)
 

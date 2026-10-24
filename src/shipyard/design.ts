@@ -126,7 +126,7 @@ export const SINGLE_ONLY_ENGINES: readonly number[] = [];
 export const SHAFT_ONLY_ENGINES: readonly number[] = [3, 4];
 
 /** One choice: its index on its scale, 0 .. steps-1. */
-export interface ShipDesign extends Record<FurnitureKey, number>, Record<ConsoleKey, number> {
+export interface ShipDesign extends Record<FurnitureField, number>, Record<ConsoleKey, number> {
   /** The base hull (DESIGN_HULLS). */
   hull: number;
   /** Hull length, beam and depth, each scaled (SCALES). */
@@ -588,13 +588,19 @@ const AFT_FACETS_FIELD: { key: 'aftFacets'; steps: number } = { key: 'aftFacets'
  * berthAt3, berthAt4). Up to four of each; one head (its door is the boat's one head door).
  */
 export type FurniturePiece = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head' | 'bunk' | 'mess' | 'shower';
-export type FurnitureKey = `${FurniturePiece}At${'' | '2' | '3' | '4'}`;
+/** Seats past the fourth (owner, Oct 2026: rows of seats, "like a bus", in a crew-transfer boat). */
+type SeatMore = '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12';
+export type FurnitureKey = `${FurniturePiece}At${'' | '2' | '3' | '4'}` | `seatAt${SeatMore}`;
+/** Which way each seat faces (owner, Oct 2026: "those seats to be rotatable"): 0 forward, then 45 degree steps clockwise seen from above (2 to starboard, 4 aft, 6 to port). seatFace for seatAt, seatFace2 for seatAt2... */
+export type SeatFaceKey = `seatFace${'' | '2' | '3' | '4' | SeatMore}`;
+/** A furniture field: a piece's place, or a seat's facing. */
+export type FurnitureField = FurnitureKey | SeatFaceKey;
 /** Each piece's fields, the first first. */
 export const FURNITURE_SLOTS: Record<FurniturePiece, FurnitureKey[]> = {
   berth: ['berthAt', 'berthAt2', 'berthAt3', 'berthAt4'],
   settee: ['setteeAt', 'setteeAt2', 'setteeAt3', 'setteeAt4'],
   galley: ['galleyAt', 'galleyAt2', 'galleyAt3', 'galleyAt4'],
-  seat: ['seatAt', 'seatAt2', 'seatAt3', 'seatAt4'],
+  seat: ['seatAt', 'seatAt2', 'seatAt3', 'seatAt4', 'seatAt5', 'seatAt6', 'seatAt7', 'seatAt8', 'seatAt9', 'seatAt10', 'seatAt11', 'seatAt12'],
   locker: ['lockerAt', 'lockerAt2', 'lockerAt3', 'lockerAt4'],
   head: ['headAt'],
   // Crew accommodation (owner, Oct 2026): two-high bunks, a mess table, a shower (one).
@@ -606,9 +612,13 @@ export const FURNITURE_SLOTS: Record<FurniturePiece, FurnitureKey[]> = {
 export const FURNITURE_KEYS = Object.values(FURNITURE_SLOTS).flat();
 /** The spare fields of a piece with fewer than four (one head, one shower, two messes): never set, but the type has them. */
 const SPARE_SLOTS: FurnitureKey[] = (Object.keys(FURNITURE_SLOTS) as FurniturePiece[]).flatMap((p) => (['', '2', '3', '4'] as const).map((n) => `${p}At${n}` as FurnitureKey)).filter((k) => !FURNITURE_KEYS.includes(k));
-export const FURNITURE_FIELDS: { key: FurnitureKey; steps: number }[] = [...FURNITURE_KEYS.map((key) => ({ key, steps: 1 + CELLS })), ...SPARE_SLOTS.map((key) => ({ key, steps: 1 }))];
+/** Each seat's facing field, in the seats' order. */
+export const SEAT_FACES: SeatFaceKey[] = FURNITURE_SLOTS.seat.map((k) => k.replace('seatAt', 'seatFace') as SeatFaceKey);
+/** A seat's facing in degrees of yaw (its socket's turn: + to port), from its field's value (0..7). */
+export const seatYawDeg = (face: number): number => -45 * (((face % 8) + 8) % 8);
+export const FURNITURE_FIELDS: { key: FurnitureField; steps: number }[] = [...FURNITURE_KEYS.map((key) => ({ key, steps: 1 + CELLS })), ...SPARE_SLOTS.map((key) => ({ key, steps: 1 })), ...SEAT_FACES.map((key) => ({ key, steps: 8 }))];
 /** No furniture: every field 0. */
-export const NO_FURNITURE = Object.fromEntries(FURNITURE_FIELDS.map((f) => [f.key, 0])) as Record<FurnitureKey, number>;
+export const NO_FURNITURE = Object.fromEntries(FURNITURE_FIELDS.map((f) => [f.key, 0])) as Record<FurnitureField, number>;
 /** A cell of the grid as a furniture pin's value (`x` m from the centreline, `fromTransom` m forward of the transom). */
 export function furnitureCell(x: number, fromTransom: number): number {
   const xi = Math.max(-PLACE_GRID.halfX, Math.min(PLACE_GRID.halfX, Math.round(x / PLACE_GRID.step)));
