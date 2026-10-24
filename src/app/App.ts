@@ -37,6 +37,7 @@ import { dipstickReading } from '../vessel/maintenance';
 import { TrafficView } from '../traffic/trafficView';
 import { HarbourBoatsView } from '../world/view/harbourBoatsView';
 import { SkylineView } from '../world/view/skylineView';
+import { WindFarmView } from '../world/view/windFarmView';
 import { FerryView } from '../traffic/ferryView';
 import { SHIP_NAMES } from '../traffic/traffic';
 import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
@@ -64,7 +65,7 @@ import { WristMenu } from '../ui/wristMenu';
 import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
-import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS, SKYLINE, SKYLINE_STYLE } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS, SKYLINE, SKYLINE_STYLE, WIND_FARMS } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { SurfListener } from '../world/surf';
 import { REGIONS, regionAt, regionById } from '../world/regions';
@@ -550,6 +551,8 @@ export class App {
   private readonly harbourBoatsView = new HarbourBoatsView();
   /** A coast map's castles, masts, turbines... (world/view/skylineView.ts). */
   private readonly skylineView = new SkylineView(SKYLINE, SKYLINE_STYLE === 'aegean');
+  /** Offshore wind farms (world/view/windFarmView.ts). */
+  private readonly windFarmView = new WindFarmView(WIND_FARMS);
   /** A coast map's ferries on their real routes (traffic/ferryView.ts); made with the ocean. */
   private ferryView: FerryView | null = null;
   private hornSeen = -1;
@@ -791,7 +794,7 @@ export class App {
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
-    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root, this.skylineView.root);
+    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root, this.skylineView.root, this.windFarmView.root);
     // A test (owner): an outside model, the dirt bike, on the Calder Haven quay by where you
     // start, only with `?bike` in the address (public/models/mx_gold_dirt.glb: the owner's
     // file slimmed with glTF Transform, weld + simplify + quantize, 120,568 -> 19,508
@@ -5380,6 +5383,7 @@ export class App {
     this.trafficView.update(this.world, this.renderWaves, darkness, dt);
     this.harbourBoatsView.update(this.world, this.renderWaves, darkness, this.focus);
     this.skylineView.update(this.world, darkness, dt);
+    this.windFarmView.update(this.world, darkness, dt);
     this.rememberVoyagePlace(dt);
     this.updatePlan();
     this.updateTimber(v, dt);

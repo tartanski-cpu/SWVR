@@ -10,6 +10,7 @@
  */
 import { REGIONS } from './regions';
 import { farmBlocks } from './farms';
+import { windFarmBlocks } from './windFarm';
 import type {
   BerthDef,
   BlockDef,
@@ -37,6 +38,7 @@ import type {
   SkylineDef,
   SlipwayDef,
   WreckDef,
+  WindFarmDef,
 } from './defs';
 
 export * from './defs';
@@ -46,7 +48,9 @@ export const CUTS: CutDef[] = REGIONS.flatMap((r) => r.cuts);
 export const FLATS: FlatDef[] = REGIONS.flatMap((r) => r.flats);
 export const RIDGES: RidgeDef[] = REGIONS.flatMap((r) => r.ridges);
 /** Quays, piers and barges, and the fish farms' cage rings (farms.ts: solid to a boat, drawn by the farm). */
-export const BLOCKS: BlockDef[] = REGIONS.flatMap((r) => [...r.blocks, ...(r.farms ?? []).flatMap(farmBlocks)]);
+export const BLOCKS: BlockDef[] = REGIONS.flatMap((r) => [...r.blocks, ...(r.farms ?? []).flatMap(farmBlocks), ...(r.windFarms ?? []).flatMap(windFarmBlocks)]);
+/** Offshore wind farms (world/windFarm.ts: solid to a boat, a boat landing on each turbine). */
+export const WIND_FARMS: WindFarmDef[] = REGIONS.flatMap((r) => r.windFarms ?? []);
 export const CHANNELS: ChannelDef[] = REGIONS.flatMap((r) => r.channels ?? []);
 export const SHOALS: ShoalDef[] = REGIONS.flatMap((r) => r.shoals ?? []);
 export const FARMS: FarmDef[] = REGIONS.flatMap((r) => r.farms ?? []);

@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The wind farm's view in App
+
+At the owner's word (24 Oct 2026, crew transfer to wind farms): `src/app/App.ts` makes a `WindFarmView` (world/view/windFarmView.ts) from `WIND_FARMS`, adds it to the scene and updates it each frame beside the skyline (three lines). `tests/regions.test.ts` counts two blocks per wind turbine. Stop 2 (the transfer job, technicians, the chart) will touch the career jobs; it'll be noted here. Details in `docs/progress/modules.md`.
+
 ### Debug weather by hand (24 Oct 2026)
 
 Owner: "an option in the debug menu to turn [live weather] off and to override it ... a wind slider, rain slider and wave height slider instead of the current settings ... and the ability to switch back to real-time weather."

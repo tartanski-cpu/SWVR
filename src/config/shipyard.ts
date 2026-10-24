@@ -191,6 +191,17 @@ export const SHIPYARD_CONFIG = {
      */
     sheer: { from: 0.4 },
     /**
+     * A straight stem (owner, Oct 2026: "a plumb bow should be straight down, then a nice
+     * radius at the bottom"; catalog.ts bowKeel): a stem raked up to `straightUpTo` deg (the
+     * plumb and the first step) is a straight line down from her stem head, rounded into her
+     * keel by a forefoot radius of `forefootRadius` x her stem's height (keel to stem head).
+     * A station at its foot and `radiusStations` between its ends, so it reads as a rounded
+     * forefoot, not a corner; few, as it's under water (owner: no need for a fine radius there).
+     * Each station is about 85 more triangles on her hull and a little more work for her
+     * physics. A more raked stem is curved all the way down (full forward, as before).
+     */
+    bow: { straightUpTo: 12.5, forefootRadius: 0.3, radiusStations: 1 },
+    /**
      * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's;
      * shipyard/parts/house.ts raisedForedeck): her deck stepped up forward of a break, a
      * vertical bulkhead across her, her sides and bulwarks stepping up with it. Reached as on a
@@ -525,6 +536,8 @@ export const SHIPYARD_CONFIG = {
      */
     /** The small tug's push fender (GBP), with its fixings. */
     pushFenderPrice: 4500,
+    /** A bow fender (design.bowFender, modules/bowFender): the moulded rubber block and its fitting (GBP). */
+    bowFenderPrice: 6000,
     protection: { fendersPrice: 450, strakePerM: 110, tyrePrice: 90, tyreFitting: 600, fenders: 3 },
   },
 };
