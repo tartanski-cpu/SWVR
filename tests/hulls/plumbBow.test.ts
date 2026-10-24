@@ -7,6 +7,8 @@
  *   from outside: a hole). The pilot boat's plumb bow and the gillnetter's first rake had one.
  * - A plumb stem straight down from her stem head, rounded into her keel by a forefoot radius
  *   (CONFIG.shipyard.bow), with stations round it so it reads as a curve.
+ * - The line between her bottom paint and her topsides straight on to her stem (owner: "like
+ *   the pilot boat"), though her chine sweeps up her stem with her forefoot (Station.paintY).
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -121,5 +123,33 @@ describe('the Shipyard\'s bows as the game draws them', () => {
     expect(bowKeel(keel, 1.15, 10, 12.5).stations.length).toBeGreaterThan(0);
     // 25 deg and more: the curved stem, no extra stations.
     expect(bowKeel(keel, 1.15, 10, 25).stations).toEqual([]);
+  });
+
+  it('her bottom paint stops at a line run on straight to her stem, not dragged up it by her chine', () => {
+    const colourAt = (g: THREE.BufferGeometry, k: number) => {
+      const c = g.getAttribute('color');
+      return [c.getX(k), c.getY(k), c.getZ(k)].map((v) => v.toFixed(3)).join();
+    };
+    for (const hull of [1, 5, 6])
+      for (const bow of [0, 1, 2]) {
+        const form = hullFormFromDesign(designOf(hull, bow));
+        const g = buildVesselMesh(form, { ...VESSEL_DEFS.landingCraft.layout, wheelhouse: undefined } as VesselDef['layout']).geometry as THREE.BufferGeometry;
+        const pos = g.getAttribute('position');
+        const st = [...form.stations].sort((p, q) => p.z - q.z); // stem first
+        const L = st[st.length - 1].z - st[0].z;
+        // Her bottom's colour: the lowest vertex amidships.
+        let low = -1;
+        for (let k = 0; k < pos.count; k++) if (Math.abs(pos.getZ(k) - (st[0].z + L / 2)) < L / 8 && (low < 0 || pos.getY(k) < pos.getY(low))) low = k;
+        const bottom = colourAt(g, low);
+        // Her chine (the paint line, where it isn't dragged up) a tenth of her length aft of her
+        // stem, aft of her forefoot.
+        const ref = st.reduce((a, b) => (Math.abs(b.z - st[0].z - 0.1 * L) < Math.abs(a.z - st[0].z - 0.1 * L) ? b : a));
+        const chineY = ref.polygon[1][1];
+        // Forward of it the paint line rises gently on, as her chine had (about 2 % of her length
+        // in that tenth): nothing of her bottom's colour much above her chine there.
+        let top = -Infinity;
+        for (let k = 0; k < pos.count; k++) if (pos.getZ(k) < ref.z && colourAt(g, k) === bottom) top = Math.max(top, pos.getY(k));
+        expect(top - chineY, `hull ${hull} bow ${bow}`).toBeLessThan(0.02 * L);
+      }
   });
 });

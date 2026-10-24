@@ -224,7 +224,10 @@ export function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow:
   if (bow === null) return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: by(d.keel, D), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc };
   const bowed = bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow));
   const extra = bowed.stations.length ? { extraStations: bowed.stations } : {};
-  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc, ...extra };
+  // Her chines from her keel as cut (they sweep up her stem with the forefoot), or run on from
+  // the uncut one; her paint line runs on from it either way (owner: straight to her stem).
+  const lines = chinesRunOn ? { chineKeel: bowed.base } : { paintKeel: bowed.base };
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...lines, rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc, ...extra };
 }
 
 /**
