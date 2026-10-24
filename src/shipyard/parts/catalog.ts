@@ -564,6 +564,8 @@ export function liveryOf(d: ShipDesign): Livery {
     ...(top != null ? { roofTop: top } : {}),
     ...(house != null ? { house } : {}),
     ...(d.frames ? { frame: FRAME_COLOURS[d.frames].colour } : {}),
+    // Her finish: how used her hull looks (CONFIG.shipyard.finish).
+    weathering: CONFIG.shipyard.finish[d.finish ?? 0] ?? CONFIG.shipyard.finish[0],
     ...(d.interior ? { interior: d.interior } : {}),
     ...(d.cabinFloor ? { cabinFloor: d.cabinFloor } : {}),
   };

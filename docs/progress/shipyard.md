@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Her finish: as new, worked or well used (preview/shipyard)
+
+Owner (to the main game chat, Oct 2026): "these weathering and rusted texture should be an option in the shipyard, so you can pre-configure a boat to look used or new"; to this chat, 24 Oct 2026: "yes, go ahead with the weathering option". The game side (the `topsides` weathering tile, `Livery.weathering`) is the main game chat's, merged from next.
+
+- **The choice:** Paint step, Hull group, **Finish**: As new, Worked, Well used (design field `finish`: 0 well used, 1 worked, 2 as new, so every design from before reads as well used, as every boat looked). `liveryOf` writes `livery.weathering` from `CONFIG.shipyard.finish` ([1, 0.5, 0]: how much of the tile shows); the page draws it as the game does.
+- **Codes:** well used keeps her short code; worked or as new travels as a link or file ("her finish ... isn't in the code"), as the bow fender.
+- No draw calls added (the hull's own material).
+- Tests: tests/shipyard/finish.test.ts (well used as before, the livery's weathering for each, her hull's material drawn with it, the code and link). designDoc.test.ts: `finish` not in the code. The full `npm test` and the typecheck pass.
+- README: the Finish choice.
+- **Shared changes:** none (the merge brought the game side).
+
 ### A plumb stem raked from starboard, and a slit up the stem head (preview/shipyard)
 
 Owner, 24 Oct 2026: "when the pilot boat's got a plumb bow, it's straight from the port side, but not from the starboard ... I can see a missing face actually from the straight in front view."

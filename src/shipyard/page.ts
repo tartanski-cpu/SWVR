@@ -42,7 +42,7 @@ import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
 import { buildDesign, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -1165,8 +1165,13 @@ function paintRow(key: keyof ShipDesign, label: string, paints: { name: string; 
   });
   controls.appendChild(row);
 }
-group('Hull', 'Her topsides, above the waterline. Below it she has her antifouling, and her deck its own grey or green to go with her paint.');
+group('Hull', 'Her topsides, above the waterline. Below it she has her antifouling, and her deck its own grey or green to go with her paint. Her finish: as new (clean paint), worked, or well used (grime along her waterline, rust running down from her deck edge, faded paint).');
 paintRow('paint', 'Topsides', LIVERIES.map((l) => ({ name: l.name, colour: l.livery.topsides ?? 0xd9622b })));
+// Her finish (owner, Oct 2026: "pre-configure a boat to look used or new"): as new, worked or well used (shown in that order).
+{
+  const box = options('finish', 'Finish', [...FINISHES]).querySelector('div')!;
+  box.append(...[...box.children].reverse());
+}
 group('Wheelhouse', 'Its walls outside: her paint’s own wheelhouse colour (=), or one of their own.');
 paintRow('houseColour', 'Walls', HOUSE_PAINTS, 'house');
 // Its window frames, mullions and posts (owner, Oct 2026): black or white.
