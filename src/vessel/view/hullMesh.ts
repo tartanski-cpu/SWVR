@@ -1016,14 +1016,16 @@ function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => nu
     gap(-ha, -hw - 0.02, za, lad.face === 'aft' && lad.x < 0);
     gap(hw + 0.02, ha, za, lad.face === 'aft' && lad.x > 0);
   }
-  // A stair across its aft face (DeckhouseWalk.stair): each tread a block from her deck up, in
-  // the deck's colour, non-slip; railed along its open (aft) side from its foot up to the
+  // A stair across its aft face (DeckhouseWalk.stair): each tread a thin steel plate at its
+  // height, nothing under it (owner, Oct 2026: "just the steps themselves as if they were metal
+  // plates"), in the deck's colour, non-slip, against the face; railed along its open (aft) side from its foot up to the
   // landing, and round the landing's aft edge and port end. (The face is its other side.)
   if (w.stair) {
     const [landing, ...treads] = w.stair;
-    for (const t of treads) parts.push(box(t.x0, t.x1, deckY(t.z1) - 0.02, t.y, t.z0, t.z1, deckColor, 'nonSlip'));
-    // (The landing: a plate over the deck, from its edge out to the stair's width.)
-    parts.push(box(landing.x0, landing.x1, top - 0.06, top, dh.z1 + 0.02, landing.z1, deckColor, 'nonSlip'));
+    const plate = 0.03;
+    for (const t of treads) parts.push(box(t.x0, t.x1, t.y - plate, t.y, t.z0, t.z1, deckColor, 'nonSlip'));
+    // (The landing: a plate too, from its edge out to the stair's width.)
+    parts.push(box(landing.x0, landing.x1, top - plate, top, dh.z1 + 0.02, landing.z1, deckColor, 'nonSlip'));
     const zr = landing.z1 - 0.03;
     const low = treads.length ? treads[treads.length - 1] : landing;
     const xFoot = low.x1 - 0.03;

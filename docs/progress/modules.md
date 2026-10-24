@@ -34,6 +34,7 @@ Owner, 24 Oct 2026: "make the deckhouse ladder a steep transverse stair instead"
 - **On a deckhouse run on aft of the wheelhouse** (`dhAft`), the vertical ladder down its aft face is now a **steep ship's stair across that face**:
   - a landing at the top, just to port of the centreline, where you step on and off the deckhouse top (the deckhouse's rail is open over it);
   - its treads run down to starboard against the face, each at most 0.3 m up and 0.22 m across (about 54°), 0.65 m out from the face;
+  - each step (and the landing) is a thin steel plate, open underneath (owner, the same day: "just the steps themselves as if they were metal plates. And nothing underneath it"; it was first drawn as solid blocks down to the deck);
   - you **walk** up and down it like the raised foredeck's steps; nothing to climb with grip or Space;
   - a handrail along its open side from the foot up to the landing, and round the landing's aft edge and port end;
   - for 2.5 m of deckhouse: 8 treads and the landing, about 2.5 m across her.
