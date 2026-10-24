@@ -707,7 +707,7 @@ Then the choices, a step at a time:
 
 It lifts up to 800 kg out to the base boom's reach, and less the further out (its load-moment limit): it won't take a load it can't hold there, and stops the boom going further out with one on.
 
-The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 17 characters, like `XXXXX-XXXXX-XXXXX-XX`, a few more for each piece of gear placed by hand, a deckhouse, or hull protection (older 10- to 15-character codes still work, and read with no hull protection). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
+The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 17 characters, like `XXXXX-XXXXX-XXXXX-XX`, a few more for each piece of gear placed by hand, a deckhouse, or hull protection (older 10- to 15-character codes still work, and read with no hull protection). **Try her in the game** opens the game in her. Not while she'd capsize: a boat too slim and deep to float upright (GM under 0.15 m) is told so first among her warnings, and **Try her** stays greyed out until you give her more beam or less depth. A **tow winch** needs the **stern roller** to tow from: without it the Shipyard says so. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 
 **Bring her into the game (Menu → Office → Your boats):**
 

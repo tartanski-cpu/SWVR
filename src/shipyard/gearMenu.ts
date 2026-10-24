@@ -37,7 +37,7 @@ export const GEAR_ABOUT: Record<string, string> = {
   rodRack: 'Four handheld rods standing in a rack on a wall of the wheelhouse, a bucket beside them: cast over the side, play what bites, sell the bucket in port.',
   searchlight: 'A steerable lamp for searching at night.',
   fireMonitor: 'A water cannon for fighting fires on other boats and on the quay.',
-  towWinch: 'A powered drum for the tow line: tows things far heavier than she is.',
+  towWinch: 'A powered drum for the tow line, led aft over the stern roller (fit that too: it is her tow point): tows things far heavier than she is.',
   sternRoller: 'A roller in the transom for the tow line or a net to run over.',
   aFrame: 'An A-frame over the transom with a trawl net and its winch.',
   netDrum: 'The net wound on a big hydraulic drum forward of the A-frame: it comes off as you shoot and winds back on as you haul. Needs the A-frame.',

@@ -130,7 +130,9 @@ function roll(t: SeaTrialResults): string {
   const top = Math.ceil(Math.max(...peaks));
   const x = (s: number) => M.l + (s / tEnd) * pw;
   const y = (deg: number) => M.t + ph / 2 - (deg / top) * (ph / 2);
-  const zeta = Math.min(0.9, m.rollDampingRatio);
+  // (Too heavily damped to measure, NaN, a catamaran's dying in one swing: the dots only, and said so.)
+  const measured = Number.isFinite(m.rollDampingRatio);
+  const zeta = measured ? Math.min(0.9, m.rollDampingRatio) : 0;
   const wn = (2 * Math.PI) / T;
   let b = '';
   for (const v of [-top, 0, top]) {
@@ -144,13 +146,13 @@ function roll(t: SeaTrialResults): string {
     const s = (i / 80) * tEnd;
     pts.push(`${x(s)},${y(peaks[0] * Math.exp(-zeta * wn * s) * Math.cos(wn * Math.sqrt(1 - zeta * zeta) * s))}`);
   }
-  b += `<polyline points="${pts.join(' ')}" fill="none" stroke="${C.data}" stroke-width="2" stroke-linejoin="round"/>`;
+  if (measured) b += `<polyline points="${pts.join(' ')}" fill="none" stroke="${C.data}" stroke-width="2" stroke-linejoin="round"/>`;
   peaks.forEach((p, i) => {
     const s = i * (T / 2);
     const deg = i % 2 ? -p : p;
     b += `<circle cx="${x(s)}" cy="${y(deg)}" r="4" fill="${C.data}" stroke="${C.surface}" stroke-width="2"/><circle cx="${x(s)}" cy="${y(deg)}" r="10" fill="transparent" data-tip="Swing ${i + 1}: ${p.toFixed(1)}° at ${s.toFixed(1)} s"/>`;
   });
-  return svg(b, `Roll decay: period ${f1(T)} s, damping ${(zeta * 100).toFixed(0)} % of critical`);
+  return svg(b, `Roll decay: period ${f1(T)} s, ${measured ? `damping ${(zeta * 100).toFixed(0)} % of critical` : 'heavily damped (she settles in one swing)'}`);
 }
 
 /** Stopping: crash stop and coasting, as bars in metres, with boat lengths. */

@@ -239,6 +239,9 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     else warnings.push(`Her aft deck is too short for the tow winch${d.aFrame && !trawlWinchesAt ? ' (the A-frame’s warps lead off it, so the A-frame is left off too)' : ''}: left off.`);
   }
   if (winchAt) taken.push(...winchShape.map((r) => placeRect(r, winchAt![0], winchAt![2], winchFace)));
+  // A tow winch with nothing to tow from (review, 24 Oct 2026): the tow point is the stern
+  // roller's (modules/sternRoller: its towing hook too, on a tug). Without it she never takes a tow.
+  if (winchAt && d.towWinch && !sternRoller) warnings.push(`Her tow winch has no tow point to tow from: fit the stern roller (Deck gear) for her to take a tow${d.aFrame ? ' (the A-frame’s trawl works without it)' : ''}.`);
   const aFrame = !!d.aFrame && (!!winchAt || !!trawlWinchesAt);
 
   // The deck crane: its socket where its column stands, so the crane module keeps it there
