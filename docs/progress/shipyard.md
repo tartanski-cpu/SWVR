@@ -10,7 +10,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### Faceted aft windows with windows raked out all round (done, on the preview)
+### Faceted aft windows with windows raked out all round (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "When the raked out option for the sides and aft of the wheelhouse is activated, the three facets on the aft of the wheelhouse are not respected. Please fix that. I would like it so that you can have basically like a proper wheelhouse."
 
@@ -19,7 +19,7 @@ Owner, 24 Oct 2026: "When the raked out option for the sides and aft of the whee
 - **Checked:** tests/shipyard/aftFacets.test.ts (the pilot boat and the tug with both: faceted, raked, no warning). Headless Chromium: the tug with three facets front and aft, raked out all round, Stern ¾, Bow ¾, Stern and Plan. `npm run test:shipyard`, the full `npm test` and the typecheck pass.
 - **Shared changes:** none.
 
-### Faceted aft windows: a choice as the front's (done, on the preview)
+### Faceted aft windows: a choice as the front's (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "at the moment we have a three facets option for the wheelhouse and it makes the front faceted. I'd like an additional option that you can have rear windows faceted in the same way."
 
@@ -38,7 +38,7 @@ Owner, 24 Oct 2026: "at the moment we have a three facets option for the wheelho
   - hullMesh.ts: `aftFacetDz`, `setForward`, `aftFacetStrip`; the aft wall split; `chamferedSlab`'s aft facet. A house without aft facets is built as before.
   - layout.ts: the floor walked's aft edge. As before without aft facets.
 
-### Fix: the stern trawler carried the tug's line-throwing gun (done, on the preview)
+### Fix: the stern trawler carried the tug's line-throwing gun (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "the stern trawler ... seems to get the line throwing gun. Maybe it's copied over from the tugboat settings."
 
@@ -47,7 +47,7 @@ Owner, 24 Oct 2026: "the stern trawler ... seems to get the line throwing gun. M
 - Test: tests/shipyard/sternTrawler.test.ts (no gun as she comes; with the tug diesel, the gun). tests/lineGun.test.ts still passes.
 - **Shared changes:** none.
 
-### High window sills: a third choice (done, on the preview)
+### High window sills: a third choice (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "a third option for the windowsills on the wheelhouse to have them higher ... usually you're sort of standing up, so you should be able to see through the windows, but just come up with something which is higher".
 
