@@ -10,7 +10,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### Her finish: as new, worked or well used (preview/shipyard)
+### Her finish: as new, worked or well used (approved by the owner 24 Oct 2026; on next)
 
 Owner (to the main game chat, Oct 2026): "these weathering and rusted texture should be an option in the shipyard, so you can pre-configure a boat to look used or new"; to this chat, 24 Oct 2026: "yes, go ahead with the weathering option". The game side (the `topsides` weathering tile, `Livery.weathering`) is the main game chat's, merged from next.
 
@@ -21,7 +21,7 @@ Owner (to the main game chat, Oct 2026): "these weathering and rusted texture sh
 - README: the Finish choice.
 - **Shared changes:** none (the merge brought the game side).
 
-### A plumb stem raked from starboard, and a slit up the stem head (preview/shipyard)
+### A plumb stem raked from starboard, and a slit up the stem head (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "when the pilot boat's got a plumb bow, it's straight from the port side, but not from the starboard ... I can see a missing face actually from the straight in front view."
 
@@ -31,7 +31,7 @@ Owner, 24 Oct 2026: "when the pilot boat's got a plumb bow, it's straight from t
 - Tests: tests/shipyard/stemMirror.test.ts (the pilot boat, plumb, standard and most raked: starboard's panels mirror port's, and her stem head is closed; fails before the fix). The full `npm test` and the typecheck pass.
 - **Shared changes:** vessel/view/hullMesh.ts: the panels' diagonals mirrored side to side, and the stem head's plate. Every boat's starboard panels are now split as port's, so her starboard shading can look a touch different (the same shape).
 
-### The Paint step revamped, with more colours (preview/shipyard)
+### The Paint step revamped, with more colours (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "could do with a revamp of the painting page, make sure it's organized nicely, and maybe give us a few more options for paint colors."
 
