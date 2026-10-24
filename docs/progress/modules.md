@@ -8,6 +8,33 @@ The running record for this area's chat: new modules (fitted parts) for the Ship
 
 Newest entry first. Each change set: what changed and why, the config keys, the tests, and what was and wasn't checked.
 
+## Backlog: ideas to build later
+
+The owner, 24 Oct 2026, from this chat's research into what real workboats carry: "make a kind of backlog with those ideas, which I can execute later". Not started; nothing to design ahead until the owner picks one. Each says what it is, what you'd do in the game, what it reuses, and anything it would need the owner's OK for (CLAUDE.md: no new physics bodies, ropes or particle systems without it). Our own designs throughout, not copies of the real products named.
+
+1. **Crew transfer to wind farms (bow push-on).**
+   - *Real:* wind-farm crew boats press a rubber bow fender against the turbine's boat landing (a ladder between two vertical tubes) and hold her there with thrust while technicians step across.
+   - *In the game:* a small wind farm (or one turbine) off an island; a transfer job: bring her in, hold the bow against the landing with the throttle, and a crew-mate (or the passenger) steps across; too hard and the fender squeals, sliding off and the transfer waits. Later, the same skill at a passing ferry's pilot ladder.
+   - *Builds on:* the push fender and push knees, walking ashore and stepping aboard, the ferries, the duty board for the job.
+   - *New:* a bow fender module for the Shipyard (a cushion on the stem), the turbine and its landing (one model, a few draw calls), the transfer job. No new physics bodies.
+2. **Better casualty recovery.**
+   - *Real:* rescue craft lift a casualty out of the water lying flat (a hinged frame or net over the side, rolled up by a line), because lifting them upright can make them collapse; then a stretcher.
+   - *In the game:* a recovery frame on the side, lowered into the water; float the survivor into it and roll them aboard lying down. Then a stretcher, carried by two players (one at each end) or dragged by one, to a berth in the cabin.
+   - *Builds on:* the rescue system (survivors, the life ring, the boat hook, climbing over the stern), the berths and bunks, carrying cargo by hand.
+   - *New:* a recovery-frame module (deck fitting at the rail) and a stretcher (a carried item). No new physics bodies.
+3. **Navigation buoy maintenance.**
+   - *Real:* buoy tenders lift a buoy aboard with the crane or an A-frame; its mooring chain is held on a chain stopper on deck while the buoy is cleaned, its lamp serviced, or it's swapped.
+   - *In the game:* a job to service a buoy whose light is out: come alongside, hook it with the deck crane, land it on deck, drop the chain into the stopper, fix the lamp (a part from a locker), and put it back where it was.
+   - *Builds on:* the deck crane and its hook, the A-frame, the chart (the buoys' places), the duty board.
+   - *New:* the buoys in the world (some may already be drawn as marks), a chain-stopper deck module, the job. The chain could be drawn as a hanging curve, not a simulated chain.
+4. **Later: landing craft equipment and vehicle deck cargo.**
+   - *Real:* island landing craft carry vans, tractors, quads, livestock, water and fuel bowsers.
+   - *In the game:* vehicles as deck cargo, driven or winched up the ramp and lashed down; maybe drivable ashore at the far end. Perhaps a livestock pen.
+   - *Builds on:* the landing craft and her ramp, deck cargo and lashing, the islands' ports.
+   - *New:* vehicle models as cargo; a vehicle you drive would be a new physics body (the owner's OK needed).
+
+Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, liferaft and float-free beacon, line-throwing gun, salvage pump, fishing gear (jigging, longline, sorting table), diving gear, signals, oil-spill boom, science davit and ROV, galley and bunk extras.
+
 ## Waiting for your test round
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).

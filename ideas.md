@@ -70,6 +70,17 @@ The owner's feature ideas, in roughly the order they came up, with their status.
 |---|---|---|
 | Keep the sea-trials / inclining test as something to revisit for testing new boats | **Done** | `npm run trials`, the `sea-trials-lab` branch, and `docs/TESTING_NEW_BOATS.md`. |
 
+## Deck work (owner, 24 Oct 2026)
+
+A backlog from the modular builder's research into real workboats; the detail is in [`docs/progress/modules.md`](docs/progress/modules.md), "Backlog".
+
+| Idea | Status | Notes |
+|---|---|---|
+| Crew transfer to wind farms: hold the bow against a turbine's landing while crew step across | **Open** | A bow fender module, a turbine, a transfer job. Later the same at a ferry's pilot ladder. |
+| Better casualty recovery: a frame over the side to lift them lying flat, a stretcher to carry them | **Open** | Builds on the rescues; a two-person carry in multiplayer. |
+| Navigation buoy maintenance | **Open** | Lift the buoy with the crane, chain on a deck stopper, fix its light, put it back. |
+| Landing craft equipment, vehicles as deck cargo | **Open (later)** | A vehicle you drive needs the owner's OK (a new physics body). |
+
 ## Follow-ups noted along the way
 
 These came out of the work above rather than being separate requests:
