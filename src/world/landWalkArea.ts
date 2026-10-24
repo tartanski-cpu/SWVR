@@ -8,16 +8,22 @@
  *     shelve gently, so you wade in and out; a quay edge drops straight into deep water, so
  *     it stops you like a deck edge does (jump to go in).
  *   - Terrain steeper than `maxSlopeNormalY` can't be walked up.
+ *   - A wind turbine's platform (world/windFarm.ts) is ground too, out at sea.
  */
 import { CONFIG } from '../config';
 import { STEP_HEIGHT, type WalkArea } from '../vessel/layout';
 import { blockTop, standingHeight } from './geography';
 import { groundNormal } from './terrain';
+import { inTower, platformFloor } from './windFarm';
 
 const n = { x: 0, y: 1, z: 0 };
 
 /** Ground you could stand on at (x, z), or null (deep water or too steep). */
 export function landFloor(x: number, z: number): number | null {
+  // (A wind turbine's platform, out at sea: world/windFarm.ts.)
+  const pf = platformFloor(x, z);
+  if (pf !== null) return pf;
+  if (inTower(x, z)) return null;
   const g = standingHeight(x, z);
   if (g < -CONFIG.body.wadeDepth) return null;
   if (blockTop(x, z) === null) {

@@ -34,6 +34,28 @@ export const MODULES_CONFIG = {
    *   lights    red on the nacelle after dark, flashing every `flash` s (as the coast maps'
    *             turbines); a yellow light on each platform (the marking of an offshore structure)
    */
+  /**
+   * Crew transfer to the wind farm (transfer/transfer.ts; owner, Oct 2026). A job is called
+   * `firstAfter` s into the game, then every `every` s (a range) once the last is done: `techs`
+   * technicians (a range) for one turbine, waiting on the quay at `pickupPort`, at `pickup`
+   * (world x, z; the first, the others `spacing` m along the quay, facing `yawDeg`). A boat
+   * made fast in that port takes them aboard, one every `boardEvery` s. On a landing: her bow
+   * within `reach` m of its face (and `across` m beyond its tubes either side), moving under
+   * `maxSpeed` m/s, pushing at least `minPush` N; held `hold` s, the first steps across, then
+   * one every `perTech` s more. Each takes `cross` s to step over, and climbs at `climb` m/s.
+   */
+  transfer: {
+    firstAfter: 240,
+    every: [420, 780] as [number, number],
+    techs: [2, 3] as [number, number],
+    pickupPort: 'calder',
+    pickup: { x: 715.5, z: 640, spacing: 1.2, yawDeg: -90 },
+    boardEvery: 1.5,
+    landing: { reach: 0.9, across: 0.6, maxSpeed: 0.4, minPush: 2500, hold: 3, perTech: 2.5 },
+    cross: 1.5,
+    climb: 0.6,
+  },
+
   windFarm: {
     pile: { radius: 2.5, from: -6 },
     tp: { radius: 2.7, from: -1 },

@@ -127,6 +127,8 @@ function fakeHost() {
     towNear: (k) => calls.push(`towNear ${k}`),
     towCall: () => calls.push('towCall'),
     towEnd: () => calls.push('towEnd'),
+    transferCall: () => calls.push('transferCall'),
+    transferPlace: () => calls.push('transferPlace'),
     logNear: () => calls.push('logNear'),
     goFishing: () => calls.push('goFishing'),
     balance: () => '£500',

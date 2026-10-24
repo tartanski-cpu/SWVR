@@ -39,7 +39,7 @@ import { significantWaveHeight } from '../ocean/waves';
 import type { TutorialState } from './tutorial';
 import { gearOf, hasModule } from '../boats/sims';
 
-export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod';
+export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod' | 'transfer';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
 
 export interface LedgerEntry {
@@ -197,6 +197,9 @@ function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
       return p.rescue + p.rescuePerPerson * (o.people ?? 0);
     case 'fire':
       return p.fire;
+    case 'transfer':
+      // Technicians put across to a wind turbine (transfer/transfer.ts).
+      return p.transfer + p.transferPerPerson * (o.people ?? 0);
     case 'catch':
       // A pot's crab and lobster, by the animal (lobster fetches far more).
       return (o.lobster ?? 0) * CONFIG.potting.price.lobster + (o.crab ?? 0) * CONFIG.potting.price.crab;
@@ -233,6 +236,7 @@ const REP_GAIN: Record<JobKind, () => number> = {
   fire: () => CONFIG.career.rep.fire,
   catch: () => CONFIG.career.rep.fish,
   rod: () => 1,
+  transfer: () => CONFIG.career.rep.transfer,
 };
 
 /** A job done: pay it, raise the port's reputation, count it toward the contract. */

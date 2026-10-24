@@ -140,6 +140,9 @@ export interface MenuHost {
   towNear(kind: string): void;
   towCall(): void;
   towEnd(): void;
+  /** Crew transfer (debug): a job now; the boat 40 m off its turbine's landing. */
+  transferCall(): void;
+  transferPlace(): void;
   /**
    * The career (Office tab): balance, reputation by port, the ledger; the harbour office's
    * job board where she lies (offers by index), the contract on; upgrades (by index).
@@ -902,6 +905,14 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Ship', press: () => h.towNear('ship') },
             { text: 'Call', press: () => h.towCall() },
             { text: 'End', press: () => h.towEnd() },
+          ],
+        },
+        {
+          // Crew transfer to the wind farm (transfer/transfer.ts): a job now, the boat off its landing.
+          label: 'Wind farm',
+          buttons: [
+            { text: 'Call job', press: () => h.transferCall() },
+            { text: 'To its landing', press: () => h.transferPlace() },
           ],
         },
         {
