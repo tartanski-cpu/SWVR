@@ -414,6 +414,7 @@ export function buyBlocker(world: WorldState, id: string): string | null {
   // The yard fits her equipment to the boats a career kits out (KIT_BOATS): the old workboat
   // (in her sockets), the beginner boat (in her design: not what doesn't fit her).
   if (u.fit && v?.defId === 'starterBoat' && !u.design) return 'Not on this boat';
+  if (u.boats && !u.boats.includes(v?.defId ?? '')) return 'Not on this boat';
   if (u.fit && !KIT_BOATS.includes(v?.defId ?? '')) return 'Not for this boat';
   const y = yardAt(world);
   if (!y) return 'Bring her into a boatyard';
@@ -512,8 +513,9 @@ export function parseCareer(raw: string | null): CareerState | null {
     c.ledger = o.ledger.filter((e) => e && typeof e.text === 'string' && typeof e.amount === 'number').slice(0, CONFIG.career.ledgerKeep);
     c.rep = Object.fromEntries(Object.entries(o.rep ?? {}).filter(([k, v]) => PORTS.some((p) => p.id === k) && typeof v === 'number'));
     c.upgrades = o.upgrades.filter((u) => CONFIG.career.upgrades.some((x) => x.id === u));
-    // A career saved before the starter workboat (no `kit`) had her with all her equipment.
-    if (typeof (o as { kit?: unknown }).kit !== 'number') for (const u of CONFIG.career.upgrades) if (u.fit && !c.upgrades.includes(u.id)) c.upgrades.push(u.id);
+    // A career saved before the starter workboat (no `kit`) had her with all her equipment (hers:
+    // not what only other boats take, the bow fender).
+    if (typeof (o as { kit?: unknown }).kit !== 'number') for (const u of CONFIG.career.upgrades) if (u.fit && !u.boats && !c.upgrades.includes(u.id)) c.upgrades.push(u.id);
     c.contractsDone = typeof o.contractsDone === 'number' ? o.contractsDone : 0;
     if (typeof o.design === 'string' && o.design.length <= 4000) c.design = o.design;
     if (o.tutorial && typeof o.tutorial.step === 'number') c.tutorial = { step: Math.max(0, Math.floor(o.tutorial.step)), base: 0, said: false };

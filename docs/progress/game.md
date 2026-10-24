@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The bow fender at the yard (24 Oct 2026)
+
+Owner: "we've now got crew transfer in the missions in career mode, but I need to build a new boat for that. Maybe a quick way to test it is just to add it to the upgrades", then "Go ahead with the bow fender on the yard upgrades".
+
+- **A new yard add-on, Bow fender, £6000** (the Shipyard's price, `CONFIG.shipyard.bowFenderPrice`), no reputation needed, sold at Calder Boatyard. Like the searchlight and fire monitor it's a change to the beginner boat's design (`design: { bowFender: 1 }`, the Shipyard's own bow fender, modules/bowFender): bought, the game starts again with her refitted, the black rubber block on her stem, and her `pushFender` gear, so on a turbine's landing she pushes on its rubber and grips (transfer/transfer.ts `landedOn` reads it).
+- **Only the beginner boat takes it:** a new `CareerUpgrade.boats` (vessel ids); on the old workboat the yard says "Not on this boat". A refitted Shipyard boat gets hers in the Shipyard (Hull step, Bow fender) through the quay sign. A career saved before the starter boat (no `kit`) is given all the old workboat's equipment as before, not the bow fender.
+- Price note: the Debug cash button gives £5000, so it takes two presses to afford it in a test.
+- **Shared changes:** `src/world/regions/home.ts` (the map chat's file): `bowFender` added to Calder's `economy.sells` list, one word. `src/config.ts` (the upgrade, `CareerUpgrade.boats`), `src/career/career.ts` (the rule; the old-save grant).
+- Tests: `tests/starterBoat.test.ts` (not fitted to start; £6000 at Calder; bought, she has the module and its push-fender probes; not on the old workboat); `tests/starterWorkboat.test.ts` lists updated. Typecheck clean, all 1511 tests pass. Headless (career, Calder): bought from the yard board with debug cash, the money went from £10,500 to £4,500, the game restarted with her refitted and the block on her bow. Not checked: a crew transfer run with it, VR.
+
 ### (From the modular-builder chat) Crew transfer jobs: small changes in the main game's files
 
 At the owner's word (24 Oct 2026, crew transfer to wind farms, stop 2): a new gameplay system `src/transfer/` (`WorldState.transfer`, stepped in `core/simulation.ts` after the salvage; its debug intents `transferCall`, `transferPlace`). Small changes: `career/career.ts` (job kind `transfer`; `CONFIG.career.pay.transfer`, `transferPerPerson`, `rep.transfer` in `src/config.ts`), `player/gangway.ts` (Step across / Step aboard at a turbine), `player/playerControl.ts` (the `board` intent's `turbine:` ref), `world/landWalkArea.ts` (a turbine's platform is ground), `nav/chartPlotter.ts` and `nav/paperChart.ts` (the turbines), `ui/mainMenu.ts` (Tests → Wind farm), `app/App.ts` (the technicians' view), `tests/menu.test.ts`. Details in `docs/progress/modules.md`.
