@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hull weathering (24 Oct 2026)
+
+From the texture study (scratch, reported to the owner: the game's "pixel paint" tiles are the texture system; hull weathering was the first pick). Owner: "Go ahead with the hull weathering", then "these weathering and rusted texture should be an option in the shipyard, actually, so you can pre-configure a boat to look used or new."
+
+- **A new paint tile, `topsides`** (`render/pixelPaint.ts`), on every hull's sides, transom and bow plate: the paint faded in soft patches, a band of grime along the waterline, a dirt line under the deck edge with rust runs down from it, and a few fender scuffs low down. In colour (the rust is rusty): it multiplies to orange on a white hull and a dull dark streak on navy, so a light livery shows it far more. Still mid-grey on average (the tile test), so a hull's colour doesn't shift.
+- **It stands the freeboard high instead of repeating in metres.** `hullMesh.ts hullPaintUvs` gives the topsides vertices coordinates of metres along her (across her on the transom) and the height as a fraction of the freeboard there (0 at the design waterline, y = 0, 1 at the deck edge, `hullPlan.deckY`), so the grime sits on the waterline and the runs start at the deck edge on any hull, with or without sheer. Below the waterline (the transom, a chine under water) the shader fades it out. The deck keeps its non-slip, in metres.
+- **New or used is the boat's own:** `Livery.weathering`, 0 as new (plain paint, as before) .. 1 well used, set on her hull's material (`setHullWeathering`; the hull is its own mesh and material already, so no new draw call). A hull with none (the fleet's boats, the harbours' and the tows) takes `CONFIG.pixelPaint.weathering.strength`. The Shipyard's "new / used" choice is the Shipyard chat's to add (a message sent: write `livery.weathering` from the design); until then every boat is "used".
+- **Cost:** no new shapes, draw calls or dependencies; one texture read on the hull's pixels, as the other tiles; the tile adds 16 KB to the paint texture.
+- Config: `pixelPaint.weathering` { strength 1, fade 0.07, grime 0.11, runs 7 } and `tileMetres.topsides` 3.
+- **Shared changes:** `src/render/pixelPaint.ts` (the tile, `setHullWeathering`, the shader's topsides case), `src/vessel/view/hullMesh.ts` (topsides faces painted, `hullPaintUvs`, `hullMaterial`), `src/vessel/vesselDef.ts` (`Livery.weathering`), `src/config.ts`.
+- Tests: `tests/pixelPaint.test.ts` (the tile's average; a built hull's topsides carry the tile at the freeboard fraction; the livery's amount on the material). Typecheck clean. Headless (Oban, pinned weather): the navy pilot boat shows a faint mottle and runs; her topsides recoloured white in the browser show the grime band and fade clearly; zeroing the amount gives the plain hull back; draw calls unchanged (182). Not checked: in the headset, other liveries in the game.
+
 ### (From the modular-builder chat) The wind farm's view in App
 
 At the owner's word (24 Oct 2026, crew transfer to wind farms): `src/app/App.ts` makes a `WindFarmView` (world/view/windFarmView.ts) from `WIND_FARMS`, adds it to the scene and updates it each frame beside the skyline (three lines). `tests/regions.test.ts` counts two blocks per wind turbine. Stop 2 (the transfer job, technicians, the chart) will touch the career jobs; it'll be noted here. Details in `docs/progress/modules.md`.

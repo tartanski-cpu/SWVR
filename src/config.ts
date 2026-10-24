@@ -78,7 +78,7 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4, facade: 3, beamsLight: 1.68, beamsDark: 1.68 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4, facade: 3, beamsLight: 1.68, beamsDark: 1.68, topsides: 3 },
     /**
      * The house fronts' windows at night (the house kit): the share of windows lit, their
      * glow (colour, its brightness is the strength), and how dark it must be before they
@@ -89,6 +89,18 @@ export const CONFIG = {
     windowsFrom: 0.35,
     /** Width of the black window frames round the wheelhouse glass (m). */
     frameWidth: 0.06,
+    /**
+     * The hulls' weathering (owner, Oct 2026, from the texture study): the `topsides` tile on
+     * every hull's sides, from the waterline to the deck edge (render/pixelPaint.ts). No new
+     * shapes or draw calls; one texture read on the hull's pixels, as the other tiles.
+     *   strength  how much it shows on a hull with no choice of her own (the fleet's boats,
+     *             the harbours', tows): 0 as new (plain paint, as before) .. 1 the tile as
+     *             drawn. A Shipyard boat brings her own (Livery.weathering, new or used).
+     *   fade      the paint's mottle, the brightness swing of its soft patches (0.5 ± fade/2)
+     *   grime     how dark the band of grime on the waterline is (taken off the brightness)
+     *   runs      rust runs down from the deck edge, per 3 m of hull (tileMetres.topsides)
+     */
+    weathering: { strength: 1, fade: 0.07, grime: 0.11, runs: 7 },
   },
   /**
    * The wheelhouse's interior finishes (owner, Oct 2026: "options for the interior textures";
