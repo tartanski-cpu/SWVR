@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Tests: room for the long game simulations on GitHub's machine (24 Oct 2026)
+
+/next/ showed "failed its tests or its build" after the Shipyard door went up (publishing run 584). Nothing in the game was wrong. `tests/weather.test.ts` "the director moves on only to presets allowed to follow" ran out of time: about 19 s here against the 20 s default, and GitHub's runner is about twice as slow.
+
+- The same fix the map chat made for the engine and outboard tests (2bc11fb): describe-level timeouts, with a comment saying why.
+  - `tests/weather.test.ts`: 120 s (the director test 19 s here, fog 17 s).
+  - `tests/weatherCrew.test.ts`: 30 → 120 s (20 s here).
+  - `tests/painter.test.ts`: 60 s (15 s here).
+  - `tests/slipway.test.ts`: 60 s (14 s here).
+- `vitest.config.ts` is unchanged. The slowest of the rest already have room: the 750 kW test 51 s of 120, the coast traffic 25 s of 60, multi-tow 22 s of 120.
+
 ### Voyage: boats arrive made fast (owner, 24 Oct 2026)
 
 Owner: "in voyage mode ... the boats spawn in and they're not docked. So they quickly drift off if it's windy. It'd be good that they're docked when they spawn in."

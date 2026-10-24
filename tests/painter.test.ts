@@ -46,7 +46,8 @@ const world = (v: VesselState, local: readonly number[]) =>
 /** Her bow cleat to the ship's cleat `i` (m). */
 const span = (boat: VesselState, skiff: VesselState, i: number) => world(boat, cleatLocal(VESSEL_DEFS.workboat, i)!).distanceTo(world(skiff, skiffCleatLocal(VESSEL_DEFS.skiff)));
 
-describe("the skiff's painter", () => {
+// Room for the long runs: about twice as slow on GitHub's publishing machine, past the 20 s default.
+describe("the skiff's painter", { timeout: 60000 }, () => {
   it('launched, she is on the forward starboard cleat and lies to it in a blow', () => {
     const { boat, skiff, run, launch } = setup(14);
     launch();
@@ -112,7 +113,7 @@ describe("the skiff's painter", () => {
   });
 });
 
-describe("a Shipyard design's skiff's painter (owner: a midship cleat for it)", () => {
+describe("a Shipyard design's skiff's painter (owner: a midship cleat for it)", { timeout: 60000 }, () => {
   it('launched from her crane, then led to her midship cleat and held there', async () => {
     const { useDesign } = await import('../src/boats/sims');
     const { DEFAULT_DESIGN } = await import('../src/shipyard/design');
