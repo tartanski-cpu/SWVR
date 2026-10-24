@@ -25,6 +25,7 @@ import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { beaufort, compass8, setLiveWeather, visibilityAt, windVector } from '../environment/weather';
+import { seaStateWaves } from '../environment/environmentState';
 import { fetchLiveWeather } from '../world/coastWeather';
 import { liveWeatherText } from '../voyage/liveWeather';
 import { setShortSeasOff, updateWindSea, windSeaText } from '../ocean/windSea';
@@ -124,7 +125,7 @@ import { LogView } from '../salvage/logView';
 import { CareerSession, forgetCareerDesign, savedCareer } from './careerSession';
 import { cranePosts, REMOTE_CODES, REMOTE_REACH, remoteInput, type CranePost } from './craneRemote';
 import { equipmentWithout, KIT_BOATS, money, socketsWithout, spend, yardAt } from '../career/career';
-import { backUrl, refitCost, refitReturn, shipyardUrl } from './shipyardTrip';
+import { backUrl, isSeaTrial, refitCost, refitReturn, shipyardUrl } from './shipyardTrip';
 import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
@@ -255,12 +256,20 @@ const START_BOATS = [...FLEET_IDS, 'alaskan38'];
 /** The Shipyard code of the design the game started in, if it did. */
 let startDesignCode: string | null = null;
 
+/**
+ * A sea trial (CONFIG.career.seaTrialS; the free career boats, review Oct 2026): the career page
+ * started in a Shipyard design the career hasn't paid for (not her own CareerState.design, not
+ * a paid refit coming back). Nothing is saved; after the trial's time she's back in her own boat.
+ */
+let seaTrial = false;
+
 function startBoat(): string | undefined {
   // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts); else, in the
   // career, the design she was refitted to at a yard (CareerState.design, app/shipyardTrip.ts).
   const params = new URLSearchParams(location.search);
   const careerDesign = MODE === 'career' && !params.has('design') && !params.has('boat') && !params.has('join') ? (savedCareer()?.design ?? null) : null;
   const code = params.get('design') ?? careerDesign;
+  seaTrial = isSeaTrial(MODE, location.search, savedCareer()?.design);
   if (code) {
     // Her own vessel type, keyed by her token (multi-boat M1: boats/library.ts boatType).
     const id = boatType(code);
@@ -272,6 +281,7 @@ function startBoat(): string | undefined {
     const error = 'error' in read ? read.error : "the Shipyard can't build her";
     console.warn(`Shipyard code ${code.slice(0, 40)}: ${error}`);
     designCodeError = error;
+    seaTrial = false; // she isn't there: no trial
     // The career's own refit won't build: forget it, so the career loads (in the beginner boat).
     if (careerDesign) {
       forgetCareerDesign();
@@ -1313,6 +1323,7 @@ export class App {
     }
     this.updateChartTable(testVessel, dt);
     this.career.tick();
+    this.stepSeaTrial();
     this.checkRefit();
     this.noteSlip();
     // Host / solo: keep the rescue count in this browser too.
@@ -2440,19 +2451,16 @@ export class App {
       setQuietCalls: (on) => this.pushEnvIntent('quietCalls', on ? 1 : 0),
       timeScale: () => env().timeScale,
       setTimeScale: (v) => this.pushEnvIntent('timeScale', v),
-      seaScale: () => env().seaScale,
-      setSeaScale: (v) => this.pushEnvIntent('seaState', v),
       waveHeight: () => significantWaveHeight(env().waves),
+      maxWaveHeight: () => (this.maxHs ??= significantWaveHeight(seaStateWaves(CONFIG.ocean.maxSeaScale))),
       weatherStatus: () => {
         const w = env().weather;
         if (!w) return 'Fixed fair weather';
         const n = w.now;
         const vis = visibilityAt(env(), this.focus.x, this.focus.z);
         const visText = vis >= 10000 ? 'good' : vis >= 2000 ? 'moderate' : vis >= 1000 ? 'poor' : `fog ${Math.round(vis)} m`;
-        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · ${w.live ? 'live, held' : `next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`}`;
+        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · ${w.manual ? 'set by hand (Debug)' : w.live ? 'live, held' : `next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`}`;
       },
-      weatherPreset: () => env().weather?.preset ?? '',
-      setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
       raceOverride: () => (env().raceOverride === 'peak' ? 1 : env().raceOverride === 'slack' ? 2 : env().raceOverride === 'ebb' ? 3 : 0),
       setRaceOverride: (v) => this.pushEnvIntent('raceOverride', v),
       shortSeas: () => !env().shortSeasOff,
@@ -2469,10 +2477,23 @@ export class App {
         if (zone && g) return `Gust on ${zone.name}: ${Math.round(g.peak * g.s)} m/s`;
         return g ? `None; next in ${Math.max(0, Math.round((g.nextAt - this.world.time) / 60))} min (in a region with gusts)` : 'None here';
       },
-      weatherFixed: () => env().weather?.fixed ?? true,
-      setWeatherFixed: (on) => this.pushEnvIntent('weatherFixed', on ? 1 : 0),
       weatherFast: () => (env().weather?.speed ?? 1) > 1,
       setWeatherFast: (on) => this.pushEnvIntent('weatherSpeed', on ? 10 : 1),
+      weatherMode: () => {
+        const w = env().weather;
+        return w?.manual ? 'manual' : w?.live ? 'live' : 'own';
+      },
+      setWeatherManual: (which, value) =>
+        this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'weatherManual', value: which, args: [value] }),
+      setWeatherAuto: () => {
+        if (!env().weather?.manual) return;
+        this.pushEnvIntent('weatherOwn', 1);
+        // Live weather asked for afresh (the host; crew get it in the snapshots).
+        this.startLiveWeather();
+      },
+      windNow: () => env().weather?.now.wind ?? 0,
+      windFromNow: () => env().weather?.now.windFrom ?? 0,
+      rainNow: () => env().weather?.now.rain ?? 0,
       treeDetail: () => userSettings.treeDetail,
       treeLevel: () => treeLevel(),
       setTreeDetail: (d) => {
@@ -2864,8 +2885,23 @@ export class App {
       },
       shipyardCodes: () => this.shipyardCodes,
       takeDesign: (code) => {
-        this.overlay.notify('Restarting in her (in VR: enter VR again once she is loaded)', 4);
+        const offer = this.takeOffer(code);
+        if (offer?.buy) {
+          // Bought at the yard: back in her, the career paying the difference (settleRefit).
+          if (offer.blocked) return this.overlay.notify(`Can't buy her: ${offer.blocked}`, 4);
+          const url = restartInDesign(code);
+          url.searchParams.set('refitFrom', this.ownBoatCode() ?? '');
+          this.overlay.notify('Bought: restarting in her (in VR: enter VR again once she is loaded)', 4);
+          return this.restartPage(url);
+        }
+        this.overlay.notify(offer ? 'Sea trial: restarting in her (in VR: enter VR again once she is loaded)' : 'Restarting in her (in VR: enter VR again once she is loaded)', 4);
         this.restartPage(restartInDesign(code));
+      },
+      takeLabel: (code) => {
+        const offer = this.takeOffer(code);
+        if (!offer) return 'Take her';
+        if (!offer.buy) return `Sea trial (${Math.round(CONFIG.career.seaTrialS / 60)} min)`;
+        return offer.blocked ?? (offer.cost ? `Buy her (${money(offer.cost)})` : 'Buy her (no charge)');
       },
       workboatAgain: () => this.restartPage(restartIn(CONFIG.career.boat)),
       boatNow: () => {
@@ -3214,7 +3250,7 @@ export class App {
       },
       goPlanTable: () => this.pushEnvIntent('plan', 1, 'goto'),
       timberLine: () => this.timberLine(),
-      liveWeatherLine: () => this.world.environment.weather?.live?.text ?? '',
+      liveWeatherLine: () => (this.world.environment.weather?.manual ? 'Weather set by hand (Debug > World)' : (this.world.environment.weather?.live?.text ?? '')),
       liveWeatherCredit: () => this.world.environment.weather?.live?.credit ?? '',
       timberButton: (i: number) => this.timberButton(i),
       timberPress: (i: number) => this.timberPress(i),
@@ -3299,10 +3335,61 @@ export class App {
    * a friend's game saved their career over your own. Cleared only by the page starting again.
    */
   private worldBorrowed = false;
+  /** The biggest sea the game makes (Hs, m; worked out once, for the Debug weather menu). */
+  private maxHs: number | undefined;
 
   /** May this page save its world into this browser's storage? Not as crew, nor with a world from a host. */
   private savesHere(): boolean {
-    return !this.client && !this.borrowedCareer && !this.worldBorrowed;
+    return !this.client && !this.borrowedCareer && !this.worldBorrowed && !seaTrial;
+  }
+
+  /** A sea trial: when it started (world time), and the warnings given. */
+  private trialFrom: number | null = null;
+  private trialWarned = 0;
+
+  /**
+   * A sea trial's clock (CONFIG.career.seaTrialS): said at the start, warned at a minute and at
+   * ten seconds, then back to the career's own boat. Nothing from the trial is saved (savesHere).
+   */
+  private stepSeaTrial(): void {
+    if (!seaTrial || this.client || this.restarting) return;
+    if (this.trialFrom === null) {
+      this.trialFrom = this.world.time;
+      const mins = Math.round(CONFIG.career.seaTrialS / 60);
+      this.overlay.notify(`Sea trial: ${mins} minutes in her. Nothing is saved; your career goes on in your own boat after. To buy her: Office > Your boats at a boatyard.`, 10);
+      return;
+    }
+    const left = CONFIG.career.seaTrialS - (this.world.time - this.trialFrom);
+    if (left <= 60 && this.trialWarned < 1) {
+      this.trialWarned = 1;
+      this.overlay.notify('Sea trial: one minute left', 4);
+    } else if (left <= 10 && this.trialWarned < 2) {
+      this.trialWarned = 2;
+      this.overlay.notify('Sea trial: ten seconds left', 4);
+    } else if (left <= 0 && this.trialWarned < 3) {
+      this.trialWarned = 3;
+      this.overlay.notify('Sea trial over: back to your own boat (in VR: enter VR again once she is loaded)', 5);
+      this.restartPage(restartIn(CONFIG.career.boat));
+    }
+  }
+
+  /** The career's own boat's design code: her refit (CareerState.design), else the beginner boat's. */
+  private ownBoatCode(): string | null {
+    return this.world.career?.design ?? savedCareer()?.design ?? designCodeOf(CONFIG.career.boat);
+  }
+
+  /**
+   * Office > Your boats in the career (the free career boats, review Oct 2026): at a boatyard,
+   * buying her (the difference in price from your own boat, as a refit), else a sea trial.
+   * Null: as before (Voyage, crew).
+   */
+  private takeOffer(code: string): { buy: boolean; cost: number | null; blocked: string | null } | null {
+    if (MODE !== 'career' || this.client) return null;
+    if (!yardAt(this.world)) return { buy: false, cost: null, blocked: null };
+    const own = this.ownBoatCode();
+    const cost = own ? refitCost(own, code) : null;
+    const money = this.world.career?.money ?? 0;
+    return { buy: true, cost, blocked: cost === null ? "the yard can't price her" : cost > money ? 'Not enough money' : null };
   }
 
   /**
@@ -5111,7 +5198,8 @@ export class App {
     const map = MODE === 'voyage' && VOYAGE_MAP_ID ? voyageMap(VOYAGE_MAP_ID) : undefined;
     if (!map?.weatherAt || this.client) return;
     void fetchLiveWeather(map.weatherAt).then((live) => {
-      if (!live || this.client || !this.world.environment.weather) return;
+      // Not over weather set by hand in the meantime (Debug > World).
+      if (!live || this.client || !this.world.environment.weather || this.world.environment.weather.manual) return;
       const text = liveWeatherText(map.name, live);
       const hv = this.world.vessels[this.testVesselId];
       const profile = hv ? regionAt(hv.position[0], hv.position[2])?.weather : undefined;
@@ -5226,6 +5314,7 @@ export class App {
    */
   private shipyardBlocker(): string | null {
     if (this.client) return "Only the host can take the boat to the Shipyard";
+    if (seaTrial) return 'Not on a sea trial: in your own boat';
     if (!this.playingAlone()) return 'Only alone, or hosting with no crew aboard';
     const v = this.world.vessels[this.testVesselId];
     if (!v || !designCodeOf(v.defId)) return "She isn't a Shipyard design";
