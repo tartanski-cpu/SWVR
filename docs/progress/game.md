@@ -10,6 +10,26 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The Shipyard from the yard: refit her in the real Shipyard page (owner, 24 Oct 2026)
+
+Owner: "is it possible to render the whole shipyard web page in the 3D environment ... assess the feasibility ... and come up with a plan" (`docs/SHIPYARD_IN_GAME.md`). Then, on the plan: go with option A. "For Voyage mode ... no concept of money ... just configure a new ship. In career mode ... the money you have in your career save should be respected ... show you how much money you've got, and how much it costs ... back to the boat returns you to the game ... no multiplayer needed."
+
+The game's side (the Shipyard page's refit mode is the Shipyard chat's, asked for with the address contract below):
+- **The door:**
+  - Career: the boatyard boards (Calder Haven, Loch Tarsk) get a button, **Open the Shipyard: refit her** (`ui/yardBoard.ts`).
+  - Voyage: a **Shipyard** sign stands beside the planning table on the start quay (`ui/shipyardDoor.ts`, `CONFIG.voyage.shipyardSign`: width 0.9 m, 0.9 m past the table's end, 1.5 m up, seen within 25 m, reached within 4 m). It goes with the table when the host's Go moves it.
+  - It opens only alone or hosting with no crew aboard (no multiplayer for this: owner), in a boat with a Shipyard design; in the career, with her in the yard's port. Otherwise the button says why.
+- **The trip** (`app/shipyardTrip.ts`): the game saves (the career; Voyage its place), leaves VR, and goes to `shipyard.html?refit=career|voyage&back=<the game>&money=<career only>#<her code>`. Today the Shipyard opens on her design; its refit bar and "Back to the boat" come with the Shipyard chat's part.
+- **Back:** the Shipyard returns to `back` with `design=<new>&refitFrom=<old>`.
+  - Career: pays the difference in the Shipyard's price (new less old; nothing back for a cheaper boat; worked out again here, not taken from the address), as "Refit at the yard".
+  - The career keeps her design (`CareerState.design`, saved), and from then on Career starts in her. A refit the career can't afford goes back to the old design.
+  - Voyage: no money.
+- Tests: `tests/shipyardTrip.test.ts` (the address out and back, the price rule, the career's design saved); `tests/menu.test.ts` updated.
+- Checked headless:
+  - On Oban the sign opens beside the table, and through it the Shipyard opens on the pilot boat (£295,000).
+  - Career with £900,000, back from a refit of the beginner boat to the pilot boat: charged £209,000, "Refit at the yard" in the ledger, and the next Career start was in her.
+- **Save format:** the career save gains an optional `design`. The live game's parser ignores it, but if a career is played on the live game it saves without it, and she'd start in the beginner boat again on /next/. Nothing else changes.
+
 ### Voyage: no career, but damage and session money (owner, 23-24 Oct 2026)
 
 Owner, first: "most of the boats, when they spawn in, still have the career task list board ... and many spawn in with a damaged hull ... untangle anything to do with career mode and the voyage mode." Then, setting it straight: "you do still have the ability to damage your hull or your engine ... a need to go to the shipyard to repair it ... it should never spawn in with damage. It should only be if you really crash ... You should be able to earn money ... just in the local session ... see how much you've made ... buy upgrades with it ... But there shouldn't be a duty board ... career doesn't exist in the voyage mode."

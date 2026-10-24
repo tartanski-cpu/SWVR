@@ -84,6 +84,8 @@ export interface CareerState {
   contractsDone: number;
   /** The workboat's condition as last saved (phase 2: it carries over to the next session). */
   boat?: { damage: number; wear: number };
+  /** Her design, once refitted at a yard in the Shipyard (a Shipyard code, app/shipyardTrip.ts): the career starts in her. Absent: the beginner boat. */
+  design?: string;
   /** The guided first voyage (phase 3, career/tutorial.ts); absent: none. */
   tutorial?: TutorialState;
 }
@@ -509,6 +511,7 @@ export function parseCareer(raw: string | null): CareerState | null {
     // A career saved before the starter workboat (no `kit`) had her with all her equipment.
     if (typeof (o as { kit?: unknown }).kit !== 'number') for (const u of CONFIG.career.upgrades) if (u.fit && !c.upgrades.includes(u.id)) c.upgrades.push(u.id);
     c.contractsDone = typeof o.contractsDone === 'number' ? o.contractsDone : 0;
+    if (typeof o.design === 'string' && o.design.length <= 4000) c.design = o.design;
     if (o.tutorial && typeof o.tutorial.step === 'number') c.tutorial = { step: Math.max(0, Math.floor(o.tutorial.step)), base: 0, said: false };
     if (o.boat && typeof o.boat.damage === 'number' && typeof o.boat.wear === 'number') {
       c.boat = { damage: Math.max(0, Math.min(1, o.boat.damage)), wear: Math.max(0, Math.min(1, o.boat.wear)) };
@@ -520,9 +523,9 @@ export function parseCareer(raw: string | null): CareerState | null {
 }
 
 /**
- * What's kept between sessions: money, ledger, reputation, upgrades (not offers or the
+ * What's kept between sessions: money, ledger, reputation, upgrades, her design (not offers or the
  * contract). `kit: 1`: the workboat's equipment is in the upgrades (see parseCareer).
  */
 export function serializeCareer(c: CareerState): string {
-  return JSON.stringify({ kit: 1, money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined });
+  return JSON.stringify({ kit: 1, money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, design: c.design, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined });
 }

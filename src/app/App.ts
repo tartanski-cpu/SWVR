@@ -92,6 +92,7 @@ import { CameraMode } from '../player/cameraMode';
 import { GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padLever, type PadState } from '../player/gamepad';
 import { HelmPrompt } from '../ui/helmPrompt';
 import { YardBoard } from '../ui/yardBoard';
+import { ShipyardDoor } from '../ui/shipyardDoor';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { fallHarm, fireExposure, stepHealth, wakeNow } from '../player/health';
@@ -121,7 +122,8 @@ import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
 import { CareerSession, savedCareer } from './careerSession';
 import { cranePosts, REMOTE_CODES, REMOTE_REACH, remoteInput, type CranePost } from './craneRemote';
-import { equipmentWithout, KIT_BOATS, socketsWithout } from '../career/career';
+import { equipmentWithout, KIT_BOATS, money, socketsWithout, spend, yardAt } from '../career/career';
+import { backUrl, refitCost, refitReturn, shipyardUrl } from './shipyardTrip';
 import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
@@ -252,8 +254,10 @@ const START_BOATS = [...FLEET_IDS, 'alaskan38'];
 let startDesignCode: string | null = null;
 
 function startBoat(): string | undefined {
-  // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts).
-  const code = new URLSearchParams(location.search).get('design');
+  // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts); else, in the
+  // career, the design she was refitted to at a yard (CareerState.design, app/shipyardTrip.ts).
+  const params = new URLSearchParams(location.search);
+  const code = params.get('design') ?? (MODE === 'career' && !params.has('boat') && !params.has('join') ? (savedCareer()?.design ?? null) : null);
   if (code) {
     // Her own vessel type, keyed by her token (multi-boat M1: boats/library.ts boatType).
     const id = boatType(code);
@@ -396,6 +400,8 @@ export class App {
   private boardOnStart = false;
   /** Voyage mode: the planning table on the start quay (voyage/planTable.ts), the plan's changes saved, its last note shown. */
   private planTable: PlanTable | null = null;
+  /** Voyage mode: the sign into the Shipyard beside the planning table (ui/shipyardDoor.ts). */
+  private shipyardDoor: ShipyardDoor | null = null;
   private planSaved = -1;
   private planNoteT = -1;
   /** The berth the table was placed by (null: the map's start). */
@@ -408,6 +414,8 @@ export class App {
   private timberView: TimberView | null = null;
   private saleShown: string | null = null;
   private leavingForCamp = false;
+  /** On the way to the Shipyard (app/shipyardTrip.ts): the page is about to change. */
+  private leavingForShipyard = false;
   private readonly timberPrompt = new HelmPrompt(118);
   private readonly fade = document.createElement('div');
   private timberNote: string | null = null;
@@ -2383,6 +2391,8 @@ export class App {
     const boat = () => this.world.vessels[this.testVesselId];
     const saveSettings = () => saveUserSettings();
     return {
+      shipyardStatus: () => this.shipyardBlocker() ?? '',
+      openShipyard: () => this.openShipyard(),
       timeOfDay: () => env().timeOfDay,
       shiftTime: (h) => this.pushEnvIntent('timeOfDayDelta', h),
       quietCalls: () => !!this.world.quietCalls,
@@ -3706,6 +3716,7 @@ export class App {
       // The career (money, reputation, upgrades, her condition) carries on from the last
       // session here, in the slot last used. A first career starts with the first voyage.
       if (!this.client) this.career.restore();
+      if (!this.client) this.settleRefit();
       this.fitWanted = this.wantedFit();
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
@@ -4376,7 +4387,7 @@ export class App {
         this.hands.right.trigger = 0;
       }
       // The boatyard's board, the same way.
-      if (this.yardBoards.some((b) => b.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms)))) {
+      if (this.boardMenus().some((m) => m.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms)))) {
         this.hands.right.triggerDown = false;
         this.hands.right.triggerPressed = false;
         this.hands.right.trigger = 0;
@@ -4473,7 +4484,7 @@ export class App {
       carrying: () => this.cargoHands.carrying || this.rescueHands.deskBusy || !!this.board?.deskDragging,
       label: (ray: THREE.Ray | null) => {
         // The boatyard's board: its buttons light up under the reticle.
-        if (this.yardBoards.some((b) => b.menu.updateDesktop(ray, false))) return 'boatyard\nclick a button';
+        if (this.boardMenus().some((m) => m.updateDesktop(ray, false))) return 'boatyard\nclick a button';
         this.camera.getWorldPosition(this.headW);
         this.camera.getWorldDirection(this.headFwd);
         // The board first (the life ring hangs just behind it, outside the wall), unless
@@ -4489,7 +4500,7 @@ export class App {
         return board ?? fuel ?? pots ?? gear ?? fender ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
-        if (this.yardBoards.some((b) => b.menu.updateDesktop(ray, true))) return true;
+        if (this.boardMenus().some((m) => m.updateDesktop(ray, true))) return true;
         this.camera.getWorldDirection(this.headFwd);
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.fuelHands.click(this.fuelCtx(), ray)) return true;
@@ -4903,6 +4914,8 @@ export class App {
     });
     this.scene.add(this.planTable.root);
     this.interaction?.addControls(this.planTable.controls);
+    this.shipyardDoor = new ShipyardDoor(this.menuHost());
+    this.scene.add(this.shipyardDoor.menu.rayLine);
   }
 
   /**
@@ -4919,6 +4932,7 @@ export class App {
       if (at) this.planTable.moveTo(at);
     }
     if (this.planTable && this.focus.distanceTo(this.planTable.root.position) < 250) this.planTable.update(this.world);
+    if (this.planTable && this.shipyardDoor) this.shipyardDoor.update(this.planTable.root, this.focus);
     if (plan?.note && plan.note.t !== this.planNoteT) {
       if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);
       this.planNoteT = plan.note.t;
@@ -5110,6 +5124,81 @@ export class App {
     this.overlay.notify('Going ashore to the timber camp...', 3);
     this.fade.style.opacity = '1';
     setTimeout(() => window.location.assign(outboundUrl(site, envelope)), CONFIG.voyage.timber.fadeS * 1000);
+  }
+
+  /** The world's fixed boards worked like the menu: the boatyards' and Voyage's Shipyard sign. */
+  private boardMenus(): WristMenu[] {
+    return this.shipyardDoor ? [...this.yardBoards.map((b) => b.menu), this.shipyardDoor.menu] : this.yardBoards.map((b) => b.menu);
+  }
+
+  /**
+   * Why the yard's door into the Shipyard won't open now, or null (app/shipyardTrip.ts): on
+   * your own or hosting with nobody else (owner: no multiplayer for this), a boat with a
+   * Shipyard design, and in the career, her in the yard's port.
+   */
+  private shipyardBlocker(): string | null {
+    if (this.client) return "Only the host can take the boat to the Shipyard";
+    if (!this.playingAlone()) return 'Only alone, or hosting with no crew aboard';
+    const v = this.world.vessels[this.testVesselId];
+    if (!v || !designCodeOf(v.defId)) return "She isn't a Shipyard design";
+    if (MODE !== 'voyage' && !yardAt(this.world)) return 'Bring her into the boatyard first';
+    return null;
+  }
+
+  /**
+   * Through the yard's door to the Shipyard (owner, Oct 2026; docs/SHIPYARD_IN_GAME.md): the
+   * game saved, out of VR (the Shipyard is a flat page, which the Quest Browser draws sharp),
+   * and the page goes to the Shipyard in refit mode on her design. It comes back here.
+   */
+  private openShipyard(): void {
+    if (this.leavingForShipyard) return;
+    const why = this.shipyardBlocker();
+    if (why) {
+      this.overlay.notify(why, 4);
+      return;
+    }
+    const v = this.world.vessels[this.testVesselId]!;
+    const code = designCodeOf(v.defId)!;
+    this.leavingForShipyard = true;
+    if (MODE === 'voyage') {
+      this.rememberT = Infinity;
+      this.rememberVoyagePlace(0);
+    } else this.career.tick(); // the career saved as it is
+    const url = shipyardUrl(code, MODE === 'voyage' ? 'voyage' : 'career', backUrl(location.href), this.world.career?.money);
+    this.overlay.notify('To the Shipyard...', 3);
+    this.fade.style.opacity = '1';
+    void this.renderer.xr.getSession()?.end();
+    setTimeout(() => window.location.assign(url), CONFIG.voyage.timber.fadeS * 1000);
+  }
+
+  /**
+   * Back from the Shipyard with her refitted (`refitFrom` in the address, app/shipyardTrip.ts):
+   * the career pays the difference in price and keeps her new design (Voyage has no money:
+   * owner). The address loses `refitFrom`, so a reload doesn't charge again.
+   */
+  private settleRefit(): void {
+    const r = refitReturn(location.search);
+    if (!r) return;
+    const url = new URL(location.href);
+    url.searchParams.delete('refitFrom');
+    history.replaceState(history.state, '', url.toString());
+    const c = this.world.career;
+    if (MODE === 'voyage' || !c) {
+      this.overlay.notify('Back aboard her as refitted', 4);
+      return;
+    }
+    const cost = refitCost(r.from, r.to) ?? 0;
+    if (cost > c.money) {
+      // The Shipyard shows what she can afford; if it got past it, she goes back as she was.
+      url.searchParams.set('design', r.from);
+      this.overlay.notify(`Not enough money for that refit (${money(cost)}): back in her as she was`, 5);
+      setTimeout(() => location.replace(url.toString()), 2500);
+      return;
+    }
+    if (cost > 0) spend(this.world, cost, 'Refit at the yard');
+    c.design = r.to;
+    c.seq += 1;
+    if (!cost) this.overlay.notify('Back aboard her as refitted (no charge)', 4);
   }
 
   /** Ships, debris and buoys on the waves; ships' fog horns; the lookout calls new ships. */
