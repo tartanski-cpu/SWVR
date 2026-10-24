@@ -182,6 +182,15 @@ export const SHIPYARD_CONFIG = {
      */
     sheer: { from: 0.4 },
     /**
+     * A straight stem (owner, Oct 2026: "a plumb bow should be straight down, then a nice
+     * radius at the bottom"; catalog.ts bowKeel): a stem raked up to `straightUpTo` deg (the
+     * plumb and the first step) is a straight line down from her stem head, rounded into her
+     * keel by a forefoot radius of `forefootRadius` x her stem's height (keel to stem head).
+     * Her stations are closer together round it (`radiusStations` between its ends), so it
+     * reads as a curve. A more raked stem is curved all the way down (full forward, as before).
+     */
+    bow: { straightUpTo: 12.5, forefootRadius: 0.3, radiusStations: 3 },
+    /**
      * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's;
      * shipyard/parts/house.ts raisedForedeck): her deck stepped up forward of a break, a
      * vertical bulkhead across her, her sides and bulwarks stepping up with it. Reached as on a

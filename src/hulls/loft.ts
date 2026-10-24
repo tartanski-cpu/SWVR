@@ -91,6 +91,8 @@ export interface HullDesign {
   bulwark: Curve;
   /** Number of stations lofted. */
   stations?: number;
+  /** More stations, where her shape needs them (t, 0 transom .. 1 stem): round a forefoot radius (Shipyard, catalog.ts bowKeel). */
+  extraStations?: number[];
   wheelhouse?: WheelhouseDesign;
   /** More deckhouse blocks (a lower deckhouse under a wheelhouse, an engine casing, a tower). */
   houses?: WheelhouseDesign[];
@@ -200,6 +202,8 @@ export function loft(d: HullDesign): LoftedHull {
   const ts: number[] = [];
   for (let i = 0; i < n; i++) ts.push(i / (n - 1));
   if (d.forecastle) ts.push(d.forecastle.from - 1e-4, d.forecastle.from);
+  // Extra stations (a forefoot radius), unless one already stands within 5 cm.
+  for (const t of d.extraStations ?? []) if (ts.every((u) => Math.abs(u - t) * L > 0.05)) ts.push(t);
   ts.sort((a, b) => a - b);
   for (const t of ts) {
     const z = L / 2 - t * L;

@@ -97,14 +97,22 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const e2 = new THREE.Vector3();
   const centroid = new THREE.Vector3();
 
-  /** Add triangle a-b-c, flipped if needed so its normal points away from `inside`. */
-  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName) => {
+  /**
+   * Add triangle a-b-c, flipped if needed so its normal points away from `inside`. `axisX`
+   * (a hull's side or bottom): away from her centreline (a demihull's, for a catamaran) at the
+   * triangle's own height instead, wherever the face leans out sideways. A point halfway down
+   * her side read a high panel in a fine, plumb bow as facing in, and it went missing.
+   */
+  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName, axisX?: number) => {
     e1.subVectors(b, a);
     e2.subVectors(d, a);
     n.crossVectors(e1, e2);
     if (n.lengthSq() < 1e-10) return; // degenerate (stem)
-    centroid.copy(a).add(b).add(d).divideScalar(3).sub(inside);
-    const verts = n.dot(centroid) >= 0 ? [a, b, d] : [a, d, b];
+    centroid.copy(a).add(b).add(d).divideScalar(3);
+    const out = axisX === undefined ? 0 : centroid.x - axisX;
+    const sideways = axisX !== undefined && Math.abs(n.x) > 0.05 * n.length() && Math.abs(out) > 1e-4;
+    const facesOut = sideways ? n.x * out > 0 : n.dot(centroid.sub(inside)) >= 0;
+    const verts = facesOut ? [a, b, d] : [a, d, b];
     c.set(color);
     for (const v of verts) {
       positions.push(v.x, v.y, v.z);
@@ -203,8 +211,11 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       // GRP, or aluminium in big sheets: no plate seams).
       const paint = color === col.deck && a === last ? 'nonSlip' : undefined;
       const ref = cat && a !== last ? insideEdge(i, a).add(insideEdge(i + 1, a)).multiplyScalar(0.5) : mid;
-      tri(a0, b0, b1, ref, color, paint);
-      tri(a0, b1, a1, ref, color, paint);
+      // Her sides and bottom face away from her centreline (a demihull's); the deck and a
+      // catamaran's wet deck by `ref`.
+      const axisX = a === last || (cat && a === 4) ? undefined : cat ? ((a < 4 ? -1 : 1) * cat.spacing) / 2 : 0;
+      tri(a0, b0, b1, ref, color, paint, axisX);
+      tri(a0, b1, a1, ref, color, paint, axisX);
     }
   }
   // Transom (station 0) as a fan around its centre.

@@ -95,10 +95,11 @@ export const HANDLES: HandleDef[] = [
     label: 'Bow rake',
     step: 'hull',
     axis: [0, 0, 1],
-    // Not on a push bow, a landing bow or a catamaran's own bows (no rake to choose).
-    applies: (d) => !designHull(d).pushBow && !designHull(d).landingBow && !designHull(d).catamaran,
+    // Not on a push bow or a landing bow (no rake to choose).
+    applies: (d) => !designHull(d).pushBow && !designHull(d).landingBow,
     // Her stem at her waterline: raking it keeps her stem head and cuts her forefoot back (catalog.ts bowKeel).
-    anchor: (b) => [0, 0, stemAt(b, 0)],
+    // (A catamaran's: her starboard hull's.)
+    anchor: (b) => [(hullFormOf(b.hull.form).catamaran?.spacing ?? 0) / 2, 0, stemAt(b, 0)],
   },
   {
     key: 'beam',

@@ -223,7 +223,8 @@ export function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow:
   const fc = forecastle ? { forecastle } : {};
   if (bow === null) return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: by(d.keel, D), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc };
   const bowed = bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow));
-  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc };
+  const extra = bowed.stations.length ? { extraStations: bowed.stations } : {};
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc, ...extra };
 }
 
 /**
@@ -237,28 +238,55 @@ export function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow:
  *   vertical overall (stem head to forefoot), and curved (owner, after a straight stem read
  *   as too raked): full forward, like the hull study's pilot boat, steeper at the deck
  *   (atan(tan deg / 2): 31 deg at 50) and running into the keel along it, with no knuckle.
- *   In profile it's a parabola added to the keel line. 0 deg is a plumb stem. A 50 deg stem
- *   on a 2 m deep bow reaches back ~2.4 m (owner: the keel not cut away further back).
+ *   In profile it's a parabola added to the keel line. A 50 deg stem on a 2 m deep bow
+ *   reaches back ~2.4 m (owner: the keel not cut away further back).
+ * - A plumb stem, or one raked no more than CONFIG.shipyard.bow.straightUpTo (owner: "straight
+ *   down, then a nice radius at the bottom"), is straight from the stem head, raked `deg`, and
+ *   rounded into the keel by a forefoot radius (a circular arc, tangent to the stem and the
+ *   keel). Her stations are closer round it (`stations`: extra stations for the loft), so it
+ *   reads as a curve, not a corner.
  * Drawn through samples every 1.25 % of her length.
  */
-export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): { keel: [number, number][]; base: [number, number][] } {
+export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): { keel: [number, number][]; base: [number, number][]; stations: number[] } {
   const own = (t: number) => curveAt(keel, t);
   const from = 0.6;
   const slope = (own(from + 1e-4) - own(from - 1e-4)) / 2e-4;
   const line = (t: number) => (t < from ? own(t) : own(from) + slope * (t - from));
   const top = stemDeckY - 0.15;
   const rise = top - line(1);
-  // How far back from the stem head the stem meets the keel (m).
-  const reach = deg > 0.1 ? rise * Math.tan((deg * Math.PI) / 180) : 0;
-  const at = (t: number) => {
-    const d = (1 - t) * lengthM;
-    return reach > 0 && d < reach ? line(t) + rise * (1 - d / reach) ** 2 : line(t);
-  };
+  const c = CONFIG.shipyard.bow;
   const ts = Array.from({ length: 81 }, (_, i) => i / 80);
-  // The forefoot, where the stem runs into the keel: sampled too.
-  if (reach > 0 && reach < lengthM) ts.push(1 - reach / lengthM);
+  const stations: number[] = [];
+  // Her stem's height over her keel line, `d` m aft of her stem head.
+  let over: (d: number) => number;
+  if (deg <= c.straightUpTo + 1e-9) {
+    // A straight stem raked b, and an arc of radius R tangent to it and to the keel line: its
+    // centre (dc, R) aft of the stem, R off it; it meets the stem at dt, the keel at dc.
+    const b = (deg * Math.PI) / 180;
+    const R = c.forefootRadius * rise;
+    const dc = (R + (rise - R) * Math.sin(b)) / Math.cos(b);
+    const dt = dc - R * Math.cos(b);
+    // (A plumb stem has no straight part in profile: her last station is the stem itself,
+    // from the arc's top up to her deck.)
+    over = (d) => (d <= dt && b > 1e-9 ? rise - d / Math.tan(b) : d < dc ? R - Math.sqrt(Math.max(0, R * R - (d - dc) ** 2)) : 0);
+    // Stations round the arc, evenly by its angle (b at the stem's end .. 90 deg at the keel's).
+    const n = c.radiusStations + 1;
+    for (let k = 0; k <= n; k++) {
+      const a = b + ((Math.PI / 2 - b) * k) / n;
+      const d = dc - R * Math.cos(a);
+      if (d > 1e-6 && d < lengthM) stations.push(1 - d / lengthM);
+    }
+  } else {
+    // How far back from the stem head the stem meets the keel (m).
+    const reach = rise * Math.tan((deg * Math.PI) / 180);
+    over = (d) => (d < reach ? rise * (1 - d / reach) ** 2 : 0);
+    // The forefoot, where the stem runs into the keel: sampled too.
+    if (reach < lengthM) ts.push(1 - reach / lengthM);
+  }
+  const at = (t: number) => line(t) + over((1 - t) * lengthM);
+  ts.push(...stations);
   ts.sort((a, b) => a - b);
-  return { keel: ts.map((t) => [t, at(t)]), base: ts.map((t) => [t, line(t)]) };
+  return { keel: ts.map((t) => [t, at(t)]), base: ts.map((t) => [t, line(t)]), stations };
 }
 
 /** The small tug's hull (its index in DESIGN_HULLS): a tug's wheelhouse kept forward, her towing hook amidships. */
@@ -380,14 +408,14 @@ export const DESIGN_HULLS: DesignHull[] = [
     // on all sizes with the engines we have"): the hull study's `workCat` (the hull
     // modifications chat drew her lines and her two-hull physics). 10 to 14.7 m (the usual 0.8
     // to 1.175 of 12.5 m). Her demihulls' spacing scales with her beam, her wet deck's height
-    // over the DWL with her depth. Her bows are her own (fine, raked: no bow choice). Not in the
-    // design code: she travels as a link or file.
+    // over the DWL with her depth. Her bows take the bow choice (owner, Oct 2026; plumb by
+    // default, as most work cats). Not in the design code: she travels as a link or file.
     name: 'Fast catamaran: 12.5 m aluminium, two slim hulls under a wide bridge deck',
     scantlings: CONFIG.shipyard.catamaran.scantlings,
     material: 'aluminium',
     catamaran: true,
-    form: (L, B, D, _bow, sheer) => {
-      const d = scaledStudy(study('workCat'), L, B, D, null, false, sheer);
+    form: (L, B, D, bow, sheer) => {
+      const d = scaledStudy(study('workCat'), L, B, D, bow, false, sheer);
       const cat = study('workCat').catamaran!;
       return { kind: 'lofted', design: { ...d, catamaran: { spacing: cat.spacing * B, tunnel: cat.tunnel * D } } };
     },
