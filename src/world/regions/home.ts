@@ -213,7 +213,7 @@ export const HOME: RegionDef = {
       cargo: { berth: { x: 707, z: 660, radius: 16 }, stackX: 714.8, stackZ: 666, stackYawDeg: 0, color: 0x2f6fd0 },
       // Calder Boatyard: the equipment and the everyday upgrades at the standard rate. The
       // radar and the heavy towing post are fitted at Loch Tarsk's yard only (regions).
-      economy: { repairs: { hull: 1, engine: 1 }, sells: ['trawlGear', 'skiff', 'searchlight', 'fireMonitor', 'fenders', 'lifeRing', 'ais', 'bigTank', 'trawl', 'ice', 'craneComp'] },
+      economy: { repairs: { hull: 1, engine: 1 }, sells: ['trawlGear', 'skiff', 'searchlight', 'fireMonitor', 'fenders', 'lifeRing', 'bowFender', 'ais', 'bigTank', 'trawl', 'ice', 'craneComp'] },
     },
     { id: 'brannock', name: 'Brannock Pier', kind: 'pier', x: -553, z: 317, fuel: { x: -545, z: 305, radius: 14, pumpX: -556.6, pumpZ: 309.3 }, // the pump abeam the fuel berth, within the hose's reach
       clearRadius: 70,

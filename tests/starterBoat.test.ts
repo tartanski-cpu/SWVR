@@ -58,6 +58,26 @@ describe('a new career in the beginner boat', () => {
     for (const id of ['skiff', 'trawlGear']) expect(buyBlocker(world, id), id).toBe('Not on this boat');
   });
 
+  it('the bow fender (owner: crew transfer without a new boat): sold at Calder; bought, she has it and pushes on it; the old workboat can\'t take it', () => {
+    useStarterKit(equipmentWithout([]));
+    expect(modules()).not.toContain('hull.bow-fender');
+    expect(gearOf({ defId: 'starterBoat' }, 'pushFender')).toBeFalsy();
+    const { world, vesselId, localPlayerId } = createWorld(new IdFactory(), 'starterBoat');
+    const send = (control: string, ref?: string, targetId = 'env') => stepWorld(world, [{ playerId: localPlayerId, targetId, control, value: 1, ref } as Intent], DT);
+    send('teleportToPort', 'calder', vesselId);
+    for (let i = 0; i < 0.5 / DT; i++) stepWorld(world, [], DT);
+    send('careerDebugCash');
+    expect(buyBlocker(world, 'bowFender')).toBe('Not enough money'); // £6000, the Shipyard's price
+    send('careerDebugCash');
+    expect(buyBlocker(world, 'bowFender')).toBeNull();
+    useStarterKit(equipmentWithout(['bowFender']));
+    expect(modules()).toContain('hull.bow-fender');
+    expect(gearOf({ defId: 'starterBoat' }, 'pushFender')?.probes.length).toBeGreaterThan(0);
+    // On the old workboat: not hers to take.
+    world.vessels[vesselId]!.defId = 'workboat';
+    expect(buyBlocker(world, 'bowFender')).toBe('Not on this boat');
+  });
+
   it('goods and jobs for a port with only an anchorage say how they get ashore', () => {
     const bay = PORTS.find((p) => anchorageOnly(p.id))!;
     const quay = PORTS.find((p) => p.cargo.berth)!;

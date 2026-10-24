@@ -435,6 +435,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   | Fire monitor | £3,000 | 10 | The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it (the workboat) |
   | Fenders | £600 | — | Fenders along her sides and a basket of spares: knocks alongside land on them, not her hull, and you can hang one between her and the quay by hand (the beginner boat; the workboat has hers) |
   | Life ring | £400 | — | A life ring and a boat hook on the wheelhouse aft wall: the rescue calls come once she has it (the beginner boat; the workboat has hers) |
+  | Bow fender | £6,000 | — | A thick rubber block on her bow, for crew transfer to the wind farm: push her against a turbine's boat landing and hold her there with the throttle while the technicians step across; it grips, so she doesn't slide (the beginner boat, at Calder; a Shipyard boat gets one in the Shipyard) |
   | Radar | £2,400 | 20 | Debris and floating crates show on the chartplotter within 1.5 nm |
   | AIS receiver | £900 | — | Passing ships on the chartplotter, by name and course, in any visibility (without it, none) |
   | Bigger fuel tank | £1,400 | 5 | Her fuel tank 60 % bigger (the workboat: 900 L to 1,440 L): further between fills |

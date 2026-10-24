@@ -30,6 +30,8 @@ export interface CareerUpgrade {
    * it sets in her design (shipyard/design.ts ShipDesign). None: it doesn't fit her.
    */
   design?: Record<string, number>;
+  /** Only for these boats (vessel ids): equipment the others can't take (the old workboat has no bow fender). */
+  boats?: string[];
 }
 
 /** How wide a player's body is for walking into things (m: half their width): src/config/vessels.ts. */
@@ -743,6 +745,10 @@ export const CONFIG = {
       // the old workboat has hers already and keeps them.)
       { id: 'fenders', name: 'Fenders', price: 600, minRep: 0, fit: [], design: { guard: 1 }, desc: 'Fenders along her sides and a basket of spares: knocks alongside land on them, not her hull, and you can hang one between her and the quay by hand' },
       { id: 'lifeRing', name: 'Life ring', price: 400, minRep: 0, fit: [], design: { lifeRing: 1 }, desc: 'A life ring and a boat hook on the wheelhouse aft wall: the rescue calls come once she has it' },
+      // Owner, Oct 2026: crew transfer to the wind farm wants a bow fender, and a quick way to
+      // one without designing a new boat. The beginner boat's design with one (modules/bowFender;
+      // the Shipyard's price, CONFIG.shipyard.bowFenderPrice). The old workboat can't take it.
+      { id: 'bowFender', name: 'Bow fender', price: 6000, minRep: 0, fit: [], design: { bowFender: 1 }, boats: ['starterBoat'], desc: 'A thick rubber block on her bow, for crew transfer: push her against a wind turbine\'s boat landing and hold her there with the throttle while the technicians step across. It grips, so she doesn\'t slide' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
       { id: 'ais', name: 'AIS receiver', price: 900, minRep: 0, desc: 'Passing ships on the plotter, by name and course, in any visibility' },
       { id: 'bigTank', name: 'Bigger fuel tank', price: 1400, minRep: 5, desc: 'Her fuel tank enlarged by 60 %: further between fills' },
