@@ -967,7 +967,8 @@ export class App {
         xr: inXR ? xrSessionInfo(this.renderer) : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
         cpu: { sim: t1 - t0, views: t2 - t1, render: t3 - t2 },
         gpuMs: this.gpuTimer.lastMs,
-        extra: vesselReadout(this.world.vessels[this.testVesselId], this.simDebug) + this.boatPartsLine(dt) + '\nregions  ' + this.worldView.status(),
+        // (Built only while the overlay is shown: strings made every frame for nothing were garbage on the Quest.)
+        extra: this.overlay.visible ? vesselReadout(this.world.vessels[this.testVesselId], this.simDebug) + this.boatPartsLine(dt) + '\nregions  ' + this.worldView.status() : '',
       },
       inXR,
     );
@@ -1270,7 +1271,7 @@ export class App {
       }
     }
     this.worldView.lights.update(renderTime, darkness, this.focus, this.environment.visibility);
-    this.navMarks.update(this.renderWaves, renderTime, darkness);
+    this.navMarks.update(this.renderWaves, renderTime, darkness, this.focus);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
@@ -5208,8 +5209,12 @@ export class App {
 
   /** The world's fixed boards worked like the menu: the boatyards' and Voyage's Shipyard sign. */
   private boardMenus(): WristMenu[] {
-    return this.shipyardDoor ? [...this.yardBoards.map((b) => b.menu), this.shipyardDoor.menu] : this.yardBoards.map((b) => b.menu);
+    // One list, kept (asked for several times a frame), made again only if the boards change.
+    const n = this.yardBoards.length + (this.shipyardDoor ? 1 : 0);
+    if (this.boardMenuList.length !== n) this.boardMenuList = this.shipyardDoor ? [...this.yardBoards.map((b) => b.menu), this.shipyardDoor.menu] : this.yardBoards.map((b) => b.menu);
+    return this.boardMenuList;
   }
+  private boardMenuList: WristMenu[] = [];
 
   /**
    * Why the yard's door into the Shipyard won't open now, or null (app/shipyardTrip.ts): on

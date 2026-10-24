@@ -10,6 +10,57 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### No hitches from the short seas' field, and less garbage from the wave sums (owner, 24 Oct 2026)
+
+Owner: "the wave sampling garbage and wind-sea field hitches next" (review: the field was worked out again in one go, 10-20 ms on the main thread, every time the wind moved 4 % or 4°, and a rising wind did it dozens of times; the wave sums made thousands of throwaway objects a frame).
+
+- **The field a slice at a time** (`src/ocean/windSea.ts`):
+  - A refresh is worked out `CONFIG.ocean.fetchSeas.sliceCells` (4000) cells a tick, the old field in use meanwhile, and swapped in whole when done: the Clyde's 25,000 cells in about 7 ticks.
+  - The first field (the map's loading, or Debug turning short seas back on) is still made at once.
+  - The long waves' exposure is kept for the map (it never changes); nothing is allocated per cell.
+  - Every wind direction's fetch is worked out when the grid is made (`src/world/fetch.ts`), not first thing when a new wind comes.
+  - Measured (Node), a wind rising 5 → 17 m/s and veering, warm:
+
+    | | Before | After |
+    |---|---|---|
+    | Each refresh | 10-18 ms at once | 1.4 ms (Oban) / 2.0 ms (Clyde) for the longest single call, none over 2 ms |
+
+    The map's load does a little more (the grid with all its sectors: 35 ms Oban, 50-65 ms Clyde, was 7 / 25 ms; the first field 22-35 ms, was 37-57 ms).
+  - Checked in a browser on the Clyde: as the wind rose the field refreshed and the drawn sea took each new one, no errors.
+- **Less garbage from the wave sums** (`src/ocean/waves.ts`, `src/vessel/physics/vesselPhysics.ts`):
+  - `sampleSurface` fills a sample given to it (`newSurfaceSample`), and the physics keeps six of its own, instead of a new object and two arrays per sample, dozens a tick.
+  - The closures and arrays went in the previous change set (the wind-sea lookup, the rest position).
+  - The physics' recorded traces (`tests/golden.test.ts`) are unchanged.
+- **Two smaller ones** (`src/app/App.ts`):
+  - the debug readout's text is built only while the overlay is shown (it was built every frame regardless);
+  - the boards' menu list is kept, not made again three times a frame.
+- **Shared changes:** `src/vessel/physics/vesselPhysics.ts` (reused samples), `src/world/fetch.ts` (all sectors at the grid's making).
+
+### Harbour boats, buoys and marks cheaper on the waves (owner, 24 Oct 2026)
+
+Owner: "the harbour boats and buoys performance fix next" (review: in a busy marina, where every Voyage starts, the scenery's wave samples were about 10 ms a frame before anything was drawn).
+
+- **Every wave sample is cheaper** (`src/ocean/waves.ts`, `windSea.ts`), for the boats' physics as well as the scenery:
+  - the factors (shelter, tidal races, the wind sea) are taken once per sample, at the point, not again at each of the rest-position search's six steps (they change over hundreds of metres; the rest position is within a metre or two);
+  - the wind-sea lookup no longer makes two throwaway functions per call;
+  - the height and the full sample stop making new arrays.
+  The physics' traces (`tests/golden.test.ts`) and the wave tests are unchanged.
+- **The scenery asks less of the waves:**
+  - `CONFIG.ocean.sceneryIterations` (3): the scenery's samples search for the rest position in 3 steps, not 6. They're within 5 cm of the full sample in a moderate sea and 20 cm in a storm (`tests/sceneryWaves.test.ts`).
+  - Harbour boats (`src/world/view/harbourBoatsView.ts`): posed every frame within `everyFrame` (150 m); out to `bobDistance` every 2nd frame; beyond, every `farEvery`th (4), taking turns. The last pose is held between, and the swing to the wind is still worked out every frame. A moored boat's buoy takes her height instead of a sample of its own. The Quest's `bobDistance` goes 400 → 250 m. A per-frame Map is now kept.
+  - Marks (`src/world/view/navMarksView.ts`): every frame within 300 m, every 4th within 2 km, every 16th beyond (`CONFIG.navMarks.wavesEvery`). Their lights flash on time every frame. A per-mark array each frame is gone.
+- **Measured** (Node on this machine, the review's own benchmark):
+
+  | | Before | After |
+  |---|---|---|
+  | One wave sample | 13-14 µs | 4.5-7.6 µs |
+  | Harbour boats, Oban's busiest marina (94 boats) | 4.5 ms/frame | 1.0 ms/frame |
+  | Harbour boats, the Clyde's busiest (301 boats, desktop settings) | 11.9 ms/frame | 1.7 ms/frame |
+
+  The Quest is slower in absolute terms; the share saved is the same.
+- Checked headless on Oban: 130 harbour boats posed, every matrix sound, the boats on the water by the pontoon (screenshot). Not checked on the Quest itself (frame times there).
+- **Shared changes:** `src/world/view/harbourBoatsView.ts`, `src/world/view/navMarksView.ts` (as above), `src/config.ts` (`ocean.sceneryIterations`, `harbourBoats.everyFrame/farEvery/bobDistance`, `navMarks`).
+
 ### The review's quick fixes, and weather that changes (owner, 24 Oct 2026)
 
 Owner: "go ahead with the seven quick fixes and the weather" (from `docs/REVIEW_2026-10-24.md`; eight were listed, all done).
