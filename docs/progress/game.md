@@ -10,6 +10,24 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Voyage: boats arrive made fast (owner, 24 Oct 2026)
+
+Owner: "in voyage mode ... the boats spawn in and they're not docked. So they quickly drift off if it's windy. It'd be good that they're docked when they spawn in."
+
+- **What was loose:** a Voyage start, a reload and a crew-mate's launch already came in moored (checked headless on all four maps). Two ways in didn't:
+  - **Go** to a harbour put her alongside "ready to make fast" with no lines on;
+  - a boat added from the fleet list was put afloat beside yours.
+  Both drifted off in a wind.
+- **Now, in Voyage** (`src/core/launch.ts`, `src/core/spawnBoat.ts`, shared):
+  - **Go:** at a free berth she's moored with her lines fast; with the harbour full, she lies to her anchor in its bay, set and holding.
+  - **The fleet list:** the boat comes in at the harbour the same way, at a free berth her size or at anchor off it (`berthOrAnchor`, which a crew-mate's launch now uses too). Only with no room for either does she go beside yours as before.
+- **The career is unchanged:** its Go is the Debug menu's, and its tests and the first voyage's steps expect her to lie free and be made fast by hand.
+- Tests: `tests/voyageMadeFast.test.ts`:
+  - Go to four harbours in a squall: made fast, and still within 4 m of her berth (60 m at anchor) after a minute;
+  - a spawned boat made fast in Voyage, free beside you in the career.
+- Checked headless on Oban: Go to Brandy Rock Pier, Oban and Creag Moraig Pier, each moored and still. A spawned landing craft came in moored at Creag Moraig Pier.
+- **Shared changes:** `src/core/launch.ts` (`berthOrAnchor`, `anchorAt`; Go in Voyage made fast), `src/core/spawnBoat.ts` (in Voyage, made fast at the harbour).
+
 ### The Shipyard from the yard: refit her in the real Shipyard page (owner, 24 Oct 2026)
 
 Owner: "is it possible to render the whole shipyard web page in the 3D environment ... assess the feasibility ... and come up with a plan" (`docs/SHIPYARD_IN_GAME.md`). Then, on the plan: go with option A. "For Voyage mode ... no concept of money ... just configure a new ship. In career mode ... the money you have in your career save should be respected ... show you how much money you've got, and how much it costs ... back to the boat returns you to the game ... no multiplayer needed."
