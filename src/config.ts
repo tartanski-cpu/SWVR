@@ -2358,7 +2358,6 @@ export const CONFIG = {
      *                       reach: the tow winch's longest is 60 m)
      *   merchants           where logs are bought: a harbour berth on a map. Oban's North Pier
      *                       berth: Ardantrive Bay is 2 km across the sound, a 10-20 minute tow
-     *   pricePerLog         paid per log: Timber's full barge (20) £240, about a cargo run
      *   sellRangeM, sellMaxSpeedKn   the sale is offered with the barge within this of the
      *                       merchant's quay (plus her half-length, `bargeHalfLengthM`) and the
      *                       boat slower than this
@@ -2375,7 +2374,6 @@ export const CONFIG = {
       logDiameter: 0.3,
       bargeOffM: 45,
       merchants: [{ mapId: 'oban', berthId: 'oban-cargo', name: 'the Oban timber merchant' }],
-      pricePerLog: 12,
       sellRangeM: 15,
       sellMaxSpeedKn: 0.6,
       bargeHalfLengthM: 4.5,

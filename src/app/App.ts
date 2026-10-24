@@ -198,7 +198,6 @@ const CHART_KEY = 'swvr.chart';
 const BATTERY_KEY = 'swvr.battery';
 /** ...and the boat you launched last in a Voyage game (multi-boat M5). */
 /** Voyage's account (the timber merchant's money; all maps): kept in this browser. */
-const VOYAGE_MONEY_KEY = 'swvr.voyage.money';
 const LAST_BOAT_KEY = 'swvr.voyage.lastBoat';
 /** Voyage mode: the crew's plan for a map, saved by the host (voyage/plan.ts). */
 const planKey = (map: string) => `swvr.voyage.plan.${map}`;
@@ -4942,10 +4941,9 @@ export class App {
     this.rememberT = 0;
     const v = this.world.vessels[this.testVesselId];
     if (v) rememberPlace(VOYAGE_MAP_ID, placeOf(this.world, v, this.localPlayerId));
-    // The timber run's barges and the money from them (voyage/timber.ts).
+    // The timber run's barges (voyage/timber.ts).
     try {
       localStorage.setItem(bargesKey(VOYAGE_MAP_ID), JSON.stringify(bargesToSave(this.world, this.testVesselId, headingOf)));
-      if (this.world.career) localStorage.setItem(VOYAGE_MONEY_KEY, String(Math.round(this.world.career.money)));
     } catch {
       // Not saved.
     }
@@ -4963,7 +4961,7 @@ export class App {
   }
 
   /**
-   * Voyage: the timber run set up (voyage/timber.ts). The money and barges saved for this map
+   * Voyage: the timber run set up (voyage/timber.ts). The barges saved for this map
    * back, and if we're back from the camp with a barge, it at the site's spawn on our line;
    * the bay's buoy and the merchant on the chart; the screen faded in if we came back.
    */
@@ -4981,8 +4979,6 @@ export class App {
     if (back) setTimeout(() => (this.fade.style.opacity = '0'), 400);
     const v = this.world.vessels[this.testVesselId];
     try {
-      const money = Number(localStorage.getItem(VOYAGE_MONEY_KEY));
-      if (this.world.career && localStorage.getItem(VOYAGE_MONEY_KEY) !== null && Number.isFinite(money)) this.world.career.money = money;
       if (!START_PARAMS.has('start')) restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
     } catch {
       // Storage blocked: none.
@@ -4991,7 +4987,7 @@ export class App {
     if (back && site && v) {
       if (back.status === 'barge_ready' && back.cargo.logs > 0 && bargeFromCamp(this.world, site, v, back.cargo.logs)) {
         const m = merchantsOn(VOYAGE_MAP_ID)[0];
-        this.timberNote = `Back aboard from the timber camp: a barge of ${back.cargo.logs} logs on your towline.${m ? ` Tow her to ${m.name} to sell.` : ''}`;
+        this.timberNote = `Back aboard from the timber camp: a barge of ${back.cargo.logs} logs on your towline.${m ? ` Tow her to ${m.name} to unload.` : ''}`;
       } else this.timberNote = 'Back aboard from the timber camp.';
       this.rememberT = Infinity;
       this.rememberVoyagePlace(0);
@@ -5049,9 +5045,9 @@ export class App {
     if (site) this.goAshore(site);
     const sale = this.client ? null : saleOffer(this.world, boat, VOYAGE_MAP_ID);
     const saleKey = sale ? `${sale.bargeId}|${sale.logs}` : null;
-    if (sale && this.saleShown !== saleKey) this.overlay.notify(`Alongside ${sale.merchant.name}: ${saleText(sale.logs, sale.total)}. Sell? (Enter, or the menu: Voyage)`, 6);
+    if (sale && this.saleShown !== saleKey) this.overlay.notify(`Alongside ${sale.merchant.name}: ${saleText(sale.logs)}. Unload? (Enter, or the menu: Voyage)`, 6);
     this.saleShown = saleKey;
-    this.timberPrompt.show(this.leavingForCamp ? '' : sale ? `Sell ${saleText(sale.logs, sale.total)}?   Enter: sell` : '');
+    this.timberPrompt.show(this.leavingForCamp ? '' : sale ? `Unload ${saleText(sale.logs)}?   Enter: unload` : '');
     if (sale && this.keyboard.actionPressed('timber')) this.timberPress(0);
     void v;
   }
@@ -5060,7 +5056,7 @@ export class App {
   private timberLine(): string {
     if (this.leavingForCamp) return 'Going ashore to the timber camp...';
     const sale = saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID);
-    if (sale) return `At the merchant: ${saleText(sale.logs, sale.total)}`;
+    if (sale) return `At the merchant: ${saleText(sale.logs)}`;
     const towed = Object.entries(this.world.timber?.barges ?? {}).find(([id]) => this.world.tow?.lines?.[this.testVesselId]?.target === `v:${id}`);
     if (towed) return `Log barge on tow: ${towed[1].logs} logs`;
     const n = Object.keys(this.world.timber?.barges ?? {}).length;
@@ -5069,7 +5065,7 @@ export class App {
 
   /** Voyage tab: its buttons' words (0: go or sell, 1: not now). */
   private timberButton(i: number): string {
-    if (i === 0 && !this.client && saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID)) return 'Sell';
+    if (i === 0 && !this.client && saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID)) return 'Unload';
     return '';
   }
 

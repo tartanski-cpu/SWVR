@@ -246,7 +246,7 @@ A loop with the Timber game. Cut logs ashore, then tow them to market.
 3. **Ashore:** the screen fades to black and the Timber game opens, in the same browser tab. Your voyage is saved first, anchored where you left her. In VR, the browser may drop you out of the headset view as the page changes; press Enter VR on the Timber page.
 4. **Back aboard:** when you return from the camp you're on your boat, still at anchor. If you delivered logs, a barge with them stacked on her deck is lying off, already on your towline.
 5. **Tow her to Oban.** Weigh anchor and tow the barge to the timber merchant at Oban's North Pier (a square on the chartplotter, "Timber merchant"). A full barge sits deeper and tows heavier.
-6. **Sell.** With the barge alongside the merchant's quay and your boat stopped, you're offered the sale: logs × £12. Press Enter, or **Sell** in the Voyage tab. The money goes into your Voyage account, which this browser keeps.
+6. **Unload.** With the barge alongside the merchant's quay and your boat stopped, you're offered to unload her logs. Press Enter, or **Unload** in the Voyage tab. No money: Voyage has no career.
 
 You can cast the barge off and make fast again like any tow. A barge you leave lying stays where she is, saved with the voyage. Then go straight back for another load: weigh anchor and let it go again in the bay (coming back from the camp you're anchored there already, and that doesn't send you straight back). The timber camp takes one player at a time: anchoring there takes you ashore only when you're playing alone or hosting with no crew aboard.
 

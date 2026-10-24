@@ -13,13 +13,12 @@
  *                  barge sits deeper and tows heavier: more resistance, more to stop and turn.
  *                  She's towed, cast off and made fast like any tow (tow/tow.ts).
  *   The merchant   at a harbour's berth (`merchants`): the barge brought within `sellRangeM` of
- *                  its quay, the boat stopped, and the sale is offered: logs × `pricePerLog`.
- *                  Sold, the barge is gone and the money is paid in.
+ *                  its quay, the boat stopped, and unloading is offered (no money: Voyage has no career).
+ *                  Unloaded, the barge is gone.
  *
  * Plain JSON in the world, as everything the host decides; no page or scene here.
  */
 import { CONFIG } from '../config';
-import { post, createCareer, money } from '../career/career';
 import type { WorldState } from '../core/world';
 import type { EntityId } from '../core/ids';
 import { makeFastNow } from '../tow/tow';
@@ -150,7 +149,7 @@ export function merchantsOn(mapId: string | null): Merchant[] {
  * A sale on offer: a log barge within `sellRangeM` of a merchant's quay (its berth), and the
  * boat towing or tending her stopped. The barge, its merchant and the money.
  */
-export function saleOffer(world: WorldState, boat: VesselState | undefined, mapId: string | null): { bargeId: EntityId; merchant: Merchant; logs: number; total: number } | null {
+export function saleOffer(world: WorldState, boat: VesselState | undefined, mapId: string | null): { bargeId: EntityId; merchant: Merchant; logs: number } | null {
   const barges = world.timber?.barges;
   if (!boat || !barges || speedKn(boat) > CONFIG.voyage.timber.sellMaxSpeedKn) return null;
   const c = CONFIG.voyage.timber;
@@ -163,27 +162,28 @@ export function saleOffer(world: WorldState, boat: VesselState | undefined, mapI
     for (const [id, b] of Object.entries(barges)) {
       const v = world.vessels[id];
       if (!v || !b.logs) continue;
-      if (Math.hypot(v.position[0] - qx, v.position[2] - qz) <= c.sellRangeM + c.bargeHalfLengthM) return { bargeId: id, merchant: m, logs: b.logs, total: b.logs * c.pricePerLog };
+      if (Math.hypot(v.position[0] - qx, v.position[2] - qz) <= c.sellRangeM + c.bargeHalfLengthM) return { bargeId: id, merchant: m, logs: b.logs };
     }
   }
   return null;
 }
 
-/** Sold: the barge gone, its line with her, the money paid in (the career's account, which Voyage keeps). */
-export function sellBarge(world: WorldState, bargeId: EntityId, merchant: Merchant): number {
+/**
+ * Sold: the barge gone, its line with her. No money (owner, Oct 2026: "there's no concept of
+ * career in the voyage mode"). The logs handed over, or 0 if there was no such barge.
+ */
+export function sellBarge(world: WorldState, bargeId: EntityId, _merchant: Merchant): number {
   const b = world.timber?.barges[bargeId];
   if (!b) return 0;
-  const total = b.logs * CONFIG.voyage.timber.pricePerLog;
   delete world.timber!.barges[bargeId];
   delete world.vessels[bargeId];
   for (const [boat, line] of Object.entries(world.tow?.lines ?? {})) if (line.target === `v:${bargeId}`) delete world.tow!.lines[boat];
-  post(world, (world.career ??= createCareer()), `${b.logs} logs sold to ${merchant.name}`, total);
-  return total;
+  return b.logs;
 }
 
-/** "20 logs × £12 = £240". */
-export function saleText(logs: number, total: number): string {
-  return `${logs} logs × ${money(CONFIG.voyage.timber.pricePerLog)} = ${money(total)}`;
+/** "20 logs". */
+export function saleText(logs: number): string {
+  return `${logs} logs`;
 }
 
 // ── Kept with the Voyage save (app/voyagePlace.ts sits beside it) ──
