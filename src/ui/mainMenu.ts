@@ -16,18 +16,23 @@ export interface MenuHost {
   /** Game hours per real second. */
   timeScale(): number;
   setTimeScale(hoursPerSecond: number): void;
-  /** Sea state as a scale (0 calm, 1 moderate, ...) and its significant wave height (m). */
-  seaScale(): number;
-  setSeaScale(scale: number): void;
+  /** The sea's significant wave height (m), and the biggest the game makes. */
   waveHeight(): number;
-  /** Weather: one-line status, the preset now, force one, and the debug switches. */
+  maxWaveHeight(): number;
+  /** Weather: one-line status, and the debug switches. */
   weatherStatus(): string;
-  weatherPreset(): string;
-  setWeather(preset: string): void;
-  weatherFixed(): boolean;
-  setWeatherFixed(on: boolean): void;
   weatherFast(): boolean;
   setWeatherFast(on: boolean): void;
+  /** Debug weather by hand: 'manual', or the weather running itself ('live' on a Voyage map with live weather, else 'own'). */
+  weatherMode(): 'live' | 'own' | 'manual';
+  /** Set one of the hand-set weather's values (0 wind m/s, 1 from deg, 2 rain 0..1, 3 wave height m): the weather goes manual. */
+  setWeatherManual(which: number, value: number): void;
+  /** Back from manual: live weather (asked for afresh), or the game's own. */
+  setWeatherAuto(): void;
+  /** The wind now (m/s), where it's from (deg), the rain (0..1). */
+  windNow(): number;
+  windFromNow(): number;
+  rainNow(): number;
   /** Rain streak quality (a local setting) and the debug bilge flood. */
   rainQuality(): string;
   setRainQuality(q: string): void;
@@ -332,6 +337,20 @@ export interface MainMenu {
   header: MenuRow[];
   pages: MenuPage[];
 }
+
+/** The weather sliders' stops (Debug > World > Weather): wind in knots, rain, significant wave height (m). */
+const KN = 0.514444;
+const WIND_KN = [0, 5, 10, 15, 20, 25, 30, 40, 50];
+const RAIN = [
+  { name: 'none', v: 0 },
+  { name: 'drizzle', v: 0.15 },
+  { name: 'light', v: 0.3 },
+  { name: 'moderate', v: 0.5 },
+  { name: 'heavy', v: 0.75 },
+  { name: 'torrent', v: 1 },
+];
+const WAVES_M = [0, 0.25, 0.5, 1, 1.5, 2, 2.5, 3];
+const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 export function mainMenu(h: MenuHost): MainMenu {
   const choice = <T>(label: string, value: T, get: () => T, set: (v: T) => void) => ({
@@ -737,26 +756,46 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: '+10′', press: () => h.shiftTime(10 / 60) },
           ],
         },
+        // Weather by hand (owner, Oct 2026: off live weather, to test big waves and strong
+        // winds; "a wind slider, rain slider and wave height slider"). Each row of stops is a
+        // slider: press a stop (it and those below it light); the readout above says where it is.
+        // Pressing any of them makes the weather manual; Live / Game's own gives it back.
         { heading: 'Weather' },
         {
           label: '',
-          buttons: Object.keys(CONFIG.weather.presets).map((name) => ({ text: name, active: () => h.weatherPreset() === name, press: () => h.setWeather(name) })),
-        },
-        {
-          label: 'Director',
           buttons: [
-            { text: () => (h.weatherFixed() ? 'Fixed weather' : 'Changing'), active: () => h.weatherFixed(), press: () => h.setWeatherFixed(!h.weatherFixed()) },
+            { text: () => (MODE === 'voyage' ? 'Live weather' : "Game's own"), active: () => h.weatherMode() !== 'manual', press: () => h.setWeatherAuto(), weight: 1.4 },
+            { text: 'Manual', active: () => h.weatherMode() === 'manual', press: () => h.setWeatherManual(0, h.windNow()), weight: 1.1 },
             { text: 'Fast ×10', active: () => h.weatherFast(), press: () => h.setWeatherFast(!h.weatherFast()) },
           ],
         },
-        { heading: 'Sea (the wind takes it back)' },
-        { label: '', buttons: CONFIG.ocean.seaStates.map((st) => choice(st.name, st.scale, () => h.seaScale(), (v) => h.setSeaScale(v))) },
         {
-          label: 'Wave height',
+          label: '',
           buttons: [
-            { text: '−', press: () => h.setSeaScale(h.seaScale() - CONFIG.ocean.seaScaleStep) },
-            { text: () => `Hs ${h.waveHeight().toFixed(1)} m`, weight: 1.6 },
-            { text: '+', press: () => h.setSeaScale(h.seaScale() + CONFIG.ocean.seaScaleStep) },
+            {
+              text: () => `Now: wind ${Math.round(h.windNow() / KN)} kn from ${COMPASS[Math.round(h.windFromNow() / 45) % 8]} · rain ${RAIN.reduce((best, r) => (Math.abs(r.v - h.rainNow()) < Math.abs(best.v - h.rainNow()) ? r : best)).name} · waves Hs ${h.waveHeight().toFixed(1)} m`,
+              weight: 3,
+            },
+          ],
+        },
+        {
+          label: 'Wind (kn)',
+          buttons: WIND_KN.map((kn) => ({ text: String(kn), active: () => h.windNow() / KN >= kn - 0.5, press: () => h.setWeatherManual(0, kn * KN) })),
+        },
+        {
+          label: 'From',
+          buttons: COMPASS.map((d, i) => ({ text: d, active: () => Math.round(h.windFromNow() / 45) % 8 === i, press: () => h.setWeatherManual(1, i * 45) })),
+        },
+        {
+          label: 'Rain',
+          buttons: RAIN.map((r) => ({ text: r.name, active: () => h.rainNow() >= r.v - 0.02, press: () => h.setWeatherManual(2, r.v) })),
+        },
+        {
+          label: 'Waves Hs (m)',
+          buttons: [
+            ...WAVES_M.map((m) => ({ text: String(m), active: () => h.waveHeight() >= m - 0.05, press: () => h.setWeatherManual(3, m) })),
+            // The game's biggest sea (CONFIG.ocean.maxSeaScale, Hs about 3.6 m).
+            { text: 'max', active: () => h.waveHeight() >= h.maxWaveHeight() - 0.05, press: () => h.setWeatherManual(3, h.maxWaveHeight()) },
           ],
         },
         // Short, steep seas in enclosed water, long ones in the open (docs/FETCH_SEAS.md): off

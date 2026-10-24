@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Debug weather by hand (24 Oct 2026)
+
+Owner: "an option in the debug menu to turn [live weather] off and to override it ... a wind slider, rain slider and wave height slider instead of the current settings ... and the ability to switch back to real-time weather."
+
+- **Debug → World → Weather** now has the source row (**Live weather** in Voyage, **Game's own** in the career; **Manual**; **Fast ×10**), a readout of what it is now, and four rows of stops as sliders. The menu has no drag sliders, so a stop lights along with all below it. The rows are **Wind** 0–50 kn, **From** 8 points, **Rain** none to torrent, and **Waves** Hs 0–3 m plus **max**. Pressing any stop makes the weather manual: it's in at once and held (no director). Live weather / Game's own gives it back: the live weather as it came in, fetched afresh too, or else the game's own from where it stands. A live fetch arriving late doesn't overwrite weather set by hand. The old preset, Fixed and sea-state rows are gone.
+- **Rain** brings the cloud down and the visibility in with it. The preset (sky, lightning, forecast words) is picked from the values the way live weather picks it (`presetFor`).
+- **The sea's height is capped at the game's biggest sea**, `CONFIG.ocean.maxSeaScale` = 3, about Hs 3.6 m in open water; harbours and lochs are sheltered below that. It isn't raised here: above it the Gerstner waves risk looping over themselves, so that's for the owner to call.
+- Status lines: the weather line says "set by hand (Debug)"; Voyage's live-weather line says "Weather set by hand (Debug > World)".
+- Code: `environment/weather.ts` (`ManualWeather`, `setManualWeather`, `endManualWeather`, `presetFor`, `liveSaved`); intents `weatherManual` (value: 0 wind m/s, 1 from°, 2 rain, 3 Hs m; `args[0]` the value) and `weatherOwn` in `environment/timeOfDay.ts`; menu `ui/mainMenu.ts`; host `app/App.ts`. Multiplayer: host-authoritative like every env intent, so a crew-mate's press goes through the host.
+- Tests: `tests/manualWeather.test.ts` (set, held an hour, calmed, back to live; back to the game's own); `tests/menu.test.ts` updated. Typecheck clean; all 1494 tests pass. Headless (Voyage, Oban): wind 40 kn S, heavy rain and max waves gave a Squall with Hs 3.6 m and rain, and Live weather gave it back, no page errors. Not checked: in the headset.
+
 ### Career boats cost money: sea trials and buying at the yard (owner, 24 Oct 2026)
 
 Owner: "the free career boats fix next"; asked the rule: "A sea trial is time limited to 5 mins". The review's finding: any Shipyard design could be sailed in the real career for free (Office > Your boats > Take her, a pasted code, the Shipyard's "Try her in the game").

@@ -25,6 +25,7 @@ import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { beaufort, compass8, setLiveWeather, visibilityAt, windVector } from '../environment/weather';
+import { seaStateWaves } from '../environment/environmentState';
 import { fetchLiveWeather } from '../world/coastWeather';
 import { liveWeatherText } from '../voyage/liveWeather';
 import { setShortSeasOff, updateWindSea, windSeaText } from '../ocean/windSea';
@@ -2447,19 +2448,16 @@ export class App {
       setQuietCalls: (on) => this.pushEnvIntent('quietCalls', on ? 1 : 0),
       timeScale: () => env().timeScale,
       setTimeScale: (v) => this.pushEnvIntent('timeScale', v),
-      seaScale: () => env().seaScale,
-      setSeaScale: (v) => this.pushEnvIntent('seaState', v),
       waveHeight: () => significantWaveHeight(env().waves),
+      maxWaveHeight: () => (this.maxHs ??= significantWaveHeight(seaStateWaves(CONFIG.ocean.maxSeaScale))),
       weatherStatus: () => {
         const w = env().weather;
         if (!w) return 'Fixed fair weather';
         const n = w.now;
         const vis = visibilityAt(env(), this.focus.x, this.focus.z);
         const visText = vis >= 10000 ? 'good' : vis >= 2000 ? 'moderate' : vis >= 1000 ? 'poor' : `fog ${Math.round(vis)} m`;
-        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · ${w.live ? 'live, held' : `next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`}`;
+        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · ${w.manual ? 'set by hand (Debug)' : w.live ? 'live, held' : `next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`}`;
       },
-      weatherPreset: () => env().weather?.preset ?? '',
-      setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
       raceOverride: () => (env().raceOverride === 'peak' ? 1 : env().raceOverride === 'slack' ? 2 : env().raceOverride === 'ebb' ? 3 : 0),
       setRaceOverride: (v) => this.pushEnvIntent('raceOverride', v),
       shortSeas: () => !env().shortSeasOff,
@@ -2476,10 +2474,23 @@ export class App {
         if (zone && g) return `Gust on ${zone.name}: ${Math.round(g.peak * g.s)} m/s`;
         return g ? `None; next in ${Math.max(0, Math.round((g.nextAt - this.world.time) / 60))} min (in a region with gusts)` : 'None here';
       },
-      weatherFixed: () => env().weather?.fixed ?? true,
-      setWeatherFixed: (on) => this.pushEnvIntent('weatherFixed', on ? 1 : 0),
       weatherFast: () => (env().weather?.speed ?? 1) > 1,
       setWeatherFast: (on) => this.pushEnvIntent('weatherSpeed', on ? 10 : 1),
+      weatherMode: () => {
+        const w = env().weather;
+        return w?.manual ? 'manual' : w?.live ? 'live' : 'own';
+      },
+      setWeatherManual: (which, value) =>
+        this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'weatherManual', value: which, args: [value] }),
+      setWeatherAuto: () => {
+        if (!env().weather?.manual) return;
+        this.pushEnvIntent('weatherOwn', 1);
+        // Live weather asked for afresh (the host; crew get it in the snapshots).
+        this.startLiveWeather();
+      },
+      windNow: () => env().weather?.now.wind ?? 0,
+      windFromNow: () => env().weather?.now.windFrom ?? 0,
+      rainNow: () => env().weather?.now.rain ?? 0,
       treeDetail: () => userSettings.treeDetail,
       treeLevel: () => treeLevel(),
       setTreeDetail: (d) => {
@@ -3236,7 +3247,7 @@ export class App {
       },
       goPlanTable: () => this.pushEnvIntent('plan', 1, 'goto'),
       timberLine: () => this.timberLine(),
-      liveWeatherLine: () => this.world.environment.weather?.live?.text ?? '',
+      liveWeatherLine: () => (this.world.environment.weather?.manual ? 'Weather set by hand (Debug > World)' : (this.world.environment.weather?.live?.text ?? '')),
       liveWeatherCredit: () => this.world.environment.weather?.live?.credit ?? '',
       timberButton: (i: number) => this.timberButton(i),
       timberPress: (i: number) => this.timberPress(i),
@@ -3321,6 +3332,8 @@ export class App {
    * a friend's game saved their career over your own. Cleared only by the page starting again.
    */
   private worldBorrowed = false;
+  /** The biggest sea the game makes (Hs, m; worked out once, for the Debug weather menu). */
+  private maxHs: number | undefined;
 
   /** May this page save its world into this browser's storage? Not as crew, nor with a world from a host. */
   private savesHere(): boolean {
@@ -5182,7 +5195,8 @@ export class App {
     const map = MODE === 'voyage' && VOYAGE_MAP_ID ? voyageMap(VOYAGE_MAP_ID) : undefined;
     if (!map?.weatherAt || this.client) return;
     void fetchLiveWeather(map.weatherAt).then((live) => {
-      if (!live || this.client || !this.world.environment.weather) return;
+      // Not over weather set by hand in the meantime (Debug > World).
+      if (!live || this.client || !this.world.environment.weather || this.world.environment.weather.manual) return;
       const text = liveWeatherText(map.name, live);
       const hv = this.world.vessels[this.testVesselId];
       const profile = hv ? regionAt(hv.position[0], hv.position[2])?.weather : undefined;

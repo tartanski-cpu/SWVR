@@ -33,6 +33,12 @@ function fakeHost() {
   const host: MenuHost = {
     shipyardStatus: () => '',
     takeLabel: () => 'Take her',
+    weatherMode: () => 'own',
+    setWeatherManual: (which, v) => calls.push(`manual ${which} ${v}`),
+    setWeatherAuto: () => calls.push('auto'),
+    windNow: () => 5,
+    windFromNow: () => 225,
+    rainNow: () => 0,
     openShipyard: () => calls.push('shipyard'),
     timeOfDay: () => state.time,
     homeBoat: () => 'workboat',
@@ -46,14 +52,9 @@ function fakeHost() {
     shiftTime: (h) => calls.push(`shift ${h.toFixed(3)}`),
     timeScale: () => state.scale,
     setTimeScale: (v) => (state.scale = v),
-    seaScale: () => state.sea,
-    setSeaScale: (v) => (state.sea = v),
     waveHeight: () => 1.25 * state.sea,
+    maxWaveHeight: () => 3.6,
     weatherStatus: () => 'Clear · wind SW 4 (7 m/s) · vis good · Hs 1.2 m · next Fog in 12 min',
-    weatherPreset: () => state.weather,
-    setWeather: (n) => (state.weather = n),
-    weatherFixed: () => false,
-    setWeatherFixed: () => {},
     weatherFast: () => false,
     rainQuality: () => 'high',
     treeDetail: () => 'auto',
@@ -261,7 +262,7 @@ describe('main menu contents', () => {
   });
 
   it('choice rows highlight the current setting and switch it', () => {
-    const { host, state } = fakeHost();
+    const { host, state, calls } = fakeHost();
     const rows = mainMenu(host);
     const x60 = findButton(rows, '×60');
     const stopped = findButton(rows, 'Stopped');
@@ -270,14 +271,13 @@ describe('main menu contents', () => {
     expect(state.scale).toBeCloseTo(1 / 60);
     expect(x60.active!()).toBe(true);
     expect(stopped.active!()).toBe(false);
-    findButton(rows, 'Storm').press!();
-    expect(state.sea).toBe(2.6);
-    expect(findButton(rows, 'Storm').active!()).toBe(true);
-    findButton(rows, '−', 'Debug').press!();
-    expect(state.sea).toBeCloseTo(2.5);
-    findButton(rows, 'Fog').press!();
-    expect(state.weather).toBe('Fog');
-    expect(findButton(rows, 'Fog').active!()).toBe(true);
+    // Weather by hand: a stop on the wind row sets it (m/s), the Manual button the same.
+    findButton(rows, '30', 'Debug').press!();
+    findButton(rows, 'heavy', 'Debug').press!();
+    expect(calls).toContain(`manual 0 ${30 * 0.514444}`);
+    expect(calls).toContain('manual 2 0.75');
+    findButton(rows, "Game's own", 'Debug').press!();
+    expect(calls).toContain('auto');
     findButton(rows, '45°').press!();
     expect(state.snap).toBe(45);
     findButton(rows, 'Off', 'Settings').press!();
