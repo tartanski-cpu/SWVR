@@ -10,7 +10,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### Fixes from the review of 24 Oct 2026: the dash crash, capsizing boats, a winch with no tow point, the catamaran's roll chart (done, on the preview)
+### Fixes from the review of 24 Oct 2026: the dash crash, capsizing boats, a winch with no tow point, the catamaran's roll chart (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "fix 1, 2, 5 and 6" of the Shipyard's findings in docs/REVIEW_2026-10-24.md (3 and 4, the game buttons to Voyage and the same-tab project, are left for the refit work).
 
