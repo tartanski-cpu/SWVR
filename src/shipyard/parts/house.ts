@@ -185,6 +185,20 @@ export function housePart(a: BuildArgs, p: HullPart) {
     else if (aft - front - depth < 1.6) warnings.push('Her wheelhouse is too short for a faceted front (the console\'s wings would reach too far aft): left flat.');
     else facet = { centre, depth };
   }
+  // Faceted aft windows (owner, Oct 2026: "rear windows faceted in the same way"; design.aftFacets):
+  // as the front's, the middle pane (the aft door in it) square, the outer two angled forward to
+  // the side walls. Not with windows raked out all round (the aft wall leans out), nor a cockpit
+  // overhead (its wings meet the aft corners).
+  let aftFacet: { centre: number; depth: number } | null = null;
+  if (d.aftFacets) {
+    const centre = facetCentre(hw);
+    const depth = Math.round((hw - centre) * facetTan * 1000) / 1000;
+    if (hw - centre < 0.25) warnings.push('Her wheelhouse is too narrow for faceted aft windows (the middle pane would be all of it): left flat.');
+    else if (d.flare) warnings.push('Her aft windows are raked out all round: they can’t be faceted too: left flat.');
+    else if (d.overhead) warnings.push('The cockpit overhead’s wings meet the wheelhouse’s aft corners: no faceted aft windows with it: left flat.');
+    else if (aft - front - (facet?.depth ?? 0) - depth < 1.6) warnings.push('Her wheelhouse is too short for faceted aft windows (the helm would have no room): left flat.');
+    else aftFacet = { centre, depth };
+  }
   let deckhouse: DeckhouseLayout | null = null;
   let dhArea = 0;
   // Run on aft of the wheelhouse (owner, Oct 2026: the stern trawler's bridge deck over the
@@ -361,6 +375,7 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // between the mullions, the outer two angled back `facetDeg` to the side walls; the
   // console wraps round with it, its wings set back as much (sb).
   if (facet) house.facet = facet;
+  if (aftFacet) house.aftFacet = aftFacet;
   // Windows raked out all round (owner; houseFlare.ts): the sides and aft lean out above the sill.
   if (d.flare) house.flare = { tan: Math.round(Math.tan((CONFIG.shipyard.flareDeg * Math.PI) / 180) * 1e4) / 1e4 };
   /** How far a faceted front is set back at x (0 across the middle; the console's wings, and what's placed beside them, follow it). */
@@ -537,7 +552,8 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     const sdc = dg.sideDoor;
     const z0 = Math.max(cf + sb(hw) + wall + 0.5 + sdc.fromConsole, bowRamp ? at.rampButton[2] + 0.15 : -Infinity);
     // (Forward of the step down into a saloon: the doorway on one floor.)
-    const zEnd = Math.min(chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15, saloonDrop ? helmAft - 0.05 : Infinity);
+    // (Faceted aft windows: short of where the side wall turns in at the aft corner.)
+    const zEnd = Math.min(chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15 - (p.house.aftFacet?.depth ?? 0), saloonDrop ? helmAft - 0.05 : Infinity);
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
     // (Onto the deckhouse's walked top, when the house stands on one as wide as her: below.)

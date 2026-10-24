@@ -10,6 +10,25 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Faceted aft windows: a choice as the front's (done, on the preview)
+
+Owner, 24 Oct 2026: "at the moment we have a three facets option for the wheelhouse and it makes the front faceted. I'd like an additional option that you can have rear windows faceted in the same way."
+
+- **The choice** (design.ts `aftFacets`, 0 flat, 1 faceted; Wheelhouse step, Windows, **Aft**, with its own small drawings, tiles.ts `aftFlat`, `aftFacets`): the aft windows in three facets as the front's are. The middle pane is square across her with the aft door in it; the outer two are angled forward to the side walls, the same width (catalog.ts `facetCentre`) and angle (`CONFIG.shipyard.facetDeg`, 30°) as the front's. Travels as a link or file, not in the short code.
+- **Left flat, with a warning,** when the house is too narrow (the middle pane would be all of it), too short (no room for the helm with both ends angled), with windows raked out all round (the aft wall leans out), or with a cockpit overhead (its wings meet the aft corners).
+- **The house** (shared: vesselDef.ts `HouseShape.aftFacet`, hullMesh.ts): the aft wall in two pieces each side, split at the facet's corner with a post there, and everything at the aft wall brought forward by its setback (`aftFacetDz`, `setForward`). The floor and the ceiling at the aft wall are cut back to the angled walls (`aftFacetStrip`). The roof slab and its top panel follow, the saloon's if it has its own lower roof (`chamferedSlab` takes an aft facet now).
+- **The floor walked** (shared: layout.ts): its aft edge comes forward with the outer panes, so you can't walk out through the corner glass.
+- **What stands in the aft corners** (parts/hullDef.ts `intoFacets`): anything inside the house within 0.7 m of its aft wall, off the middle pane, comes forward by the setback at its place: the exhaust stacks (their pipes), the battery switches, the extinguisher, the torch, the line-throwing gun, furniture. The port side door stops short of where the side wall turns in (parts/house.ts).
+- **Checked:**
+  - tests/shipyard/aftFacets.test.ts: every hull type, also twin with a side door and with a saloon and advanced controls, with a locker and a berth put in the aft corners; every socket and stowed piece inside the house is forward of the angled walls. The corner is off the floor walked and the doorway on. Left flat with raked-out windows, an overhead or a narrow house. The code refuses it.
+  - Headless Chromium: the tug and the pilot boat, three facets front and aft, Stern ¾, Plan and Stern views, and the tug from above, cut over the floor (Furniture step). Screenshots.
+  - The typecheck and the full `npm test` pass.
+  - **Not checked:** walking into the corners in VR.
+- **Shared changes:**
+  - vesselDef.ts: `HouseShape.aftFacet`.
+  - hullMesh.ts: `aftFacetDz`, `setForward`, `aftFacetStrip`; the aft wall split; `chamferedSlab`'s aft facet. A house without aft facets is built as before.
+  - layout.ts: the floor walked's aft edge. As before without aft facets.
+
 ### Fix: the stern trawler carried the tug's line-throwing gun (done, on the preview)
 
 Owner, 24 Oct 2026: "the stern trawler ... seems to get the line throwing gun. Maybe it's copied over from the tugboat settings."

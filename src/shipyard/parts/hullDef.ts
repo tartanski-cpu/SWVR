@@ -33,12 +33,19 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   // (theirs goes out through their legs). Only through a wheelhouse a pipe can stand in: one
   // at least a metre long and high.
   const esc = CONFIG.shipyard.exhaustStack;
+  // Faceted aft windows (house.ts aftFacet): how far forward the aft wall comes at x (her axes,
+  // across from the house's middle), and anything inside the house by its aft wall (within
+  // 0.7 m, above her floor less half a metre, off the middle pane) brought forward as much, so
+  // it stays inside the angled corners: the exhaust stacks, the battery switches, the hand gear.
+  const af = p.house.aftFacet;
+  const aftIn = (x: number) => (af ? Math.max(0, Math.abs(x - hx) - af.centre) * (af.depth / (hw - af.centre)) : 0);
+  const intoFacets = (v: V3): V3 => (af && Math.abs(v[0] - hx) < hw && v[2] > aft - wall - 0.7 && v[2] <= aft - wall + 0.01 && v[1] > F - 0.5 ? [v[0], v[1], rnd(v[2] - aftIn(v[0]))] : v);
   const stack = DESIGN_HULLS[d.hull]?.exhaustStacks && !nOb && aft - front >= 1 && roofTopAt(aft - 0.3) - F >= 1
     ? (() => {
         const r = esc.radius;
         const z = rnd(aft - wall - esc.inset - r);
         const sides = twin ? [1, -1] : [1];
-        const pipes = sides.map((sd) => ({ x: rnd(sd * (hw - wall - esc.inset - r)), z }));
+        const pipes = sides.map((sd) => ({ x: rnd(sd * (hw - wall - esc.inset - r)), z: rnd(z - aftIn(hx + sd * (hw - wall - esc.inset))) }));
         const roof = rnd(roofTopAt(z));
         // The water's holes: where her side is `waterAbove` over the waterline, abreast of the engine.
         const zw = rnd(Math.min(transom - 0.8, Math.max(engZ0, engMid)));
@@ -106,6 +113,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   // aluminium carries more than in steel: she has more reserve of buoyancy.
   const sunkBy = CONFIG.shipyard.weights.payloadFreeboard * deckMid;
   const payloadKg = Math.max(0, Math.round((atDWL({ ...shape, stations: st.map((s) => ({ ...s, polygon: s.polygon.map(([x, y]) => [x, y - sunkBy] as [number, number]) })) }).volume * rho - mass) / 100) * 100);
+  if (af) for (const s of sockets) if (s.transform?.position) s.transform.position = intoFacets(s.transform.position as V3);
   const hull: HullDefinition = {
     id: `hull.${id}`,
     version: 1,
@@ -148,13 +156,13 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
       stowage: {
         // (Inboard of a twin's port exhaust stack, in that corner.)
         // (Across from the house's middle: an offset house's, `hx`.)
-        extinguisher: [hx - (hw - 0.2 - portStack), F + 0.58, aft - 0.15],
+        extinguisher: intoFacets([hx - (hw - 0.2 - portStack), F + 0.58, aft - 0.15]),
         // A tug's line-throwing gun (CONFIG.lineGun): on the starboard wall aft, inside. A tug
         // is the tug hull, or any hull with the tug diesel (not every shaft-only engine: the
         // stern trawler's 750 kW is one too, owner Oct 2026: she got the gun by mistake).
         // (Forward of the exhaust stack in that corner, if she has one.)
-        ...(d.hull === TUG_HULL || d.engine === TUG_DIESEL ? { lineGun: [hx + hw - 0.2, F + 1.0, aft - 0.35 - (stack ? 2 * esc.radius + 0.25 : 0)] as V3 } : {}),
-        torch: [hx - (hw - 0.45 - portStack), F + 0.68, aft - 0.12],
+        ...(d.hull === TUG_HULL || d.engine === TUG_DIESEL ? { lineGun: intoFacets([hx + hw - 0.2, F + 1.0, aft - 0.35 - (stack ? 2 * esc.radius + 0.25 : 0)]) } : {}),
+        torch: intoFacets([hx - (hw - 0.45 - portStack), F + 0.68, aft - 0.12]),
         binoculars: { at: [hx - (hw - 0.35), F + 1.35, cf + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
       },
       livery: liveryOf(d),

@@ -202,6 +202,9 @@ export const HOUSE_ICONS = {
   // Her front windows from above: flat across, or in three facets.
   flat: svg('<path d="M8 8h32v18H8zM8 8h32" stroke-width="2.4"/>'),
   facets: svg('<path d="M8 14l6-6h20l6 6v12H8z"/><path d="M8 14l6-6h20l6 6" stroke-width="2.4"/>'),
+  // Her aft windows from above (the front at the top): flat across, or in three facets.
+  aftFlat: svg('<path d="M8 8h32v18H8z"/><path d="M8 26h32" stroke-width="2.4"/>'),
+  aftFacets: svg('<path d="M8 8h32v12l-6 6H14l-6-6z"/><path d="M40 20l-6 6H14l-6-6" stroke-width="2.4"/>'),
   // From ahead: the sides upright, or raked out (wider at the top).
   upright: svg('<path d="M12 26V8h24v18M12 14h24M8 26h32"/>'),
   rakedOut: svg('<path d="M14 26L9 6h30l-5 20M11 13h26M8 26h32"/>'),

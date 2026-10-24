@@ -897,6 +897,10 @@ section('2. Wheelhouse');
     { icon: HOUSE_ICONS.flat, name: 'Flat across', info: 'Her front windows flat across her.' },
     { icon: HOUSE_ICONS.facets, name: 'Three facets', info: 'Three facets, as on a tug: the middle square across her, the outer two angled back to the sides, the dash wrapping round behind them.' },
   ]);
+  optionTiles('aftFacets', 'Aft', [
+    { icon: HOUSE_ICONS.aftFlat, name: 'Flat across', info: 'Her aft windows flat across her.' },
+    { icon: HOUSE_ICONS.aftFacets, name: 'Three facets', info: 'Her aft windows in three facets, as the front’s can be: the middle square across her with the door in it, the outer two angled forward to the sides. Not with windows raked out all round or a cockpit overhead. Travels as a link or file, not a code.' },
+  ]);
   measure('windowRake', 'Front rake', (a) => (Math.abs(a) < 0.5 ? 'upright' : a > 0 ? `${a.toFixed(0)}° reverse` : `${(-a).toFixed(0)}° back`)).dataset.unless = 'flare';
   // (Raked out all round, the front leans out with them: its own rake stands aside.)
   optionTiles('flare', 'Sides & aft', [
