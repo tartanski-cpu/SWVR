@@ -10,6 +10,24 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The gangway mark: step ashore and aboard by pointing (owner, 24 Oct 2026)
+
+Owner: "it's a bit clunky to get from the ship onto the quay side. So usually we're just jumping, and if the ship's low, you kind of fall underneath it. Would it be possible to have something where you look at the quay side from the boat, as long as it's docked, that you can click maybe by somewhere high on the dock side, and then it just puts you ashore?"
+
+- **The mark** (`src/player/gangway.ts`): an amber ring with a down arrow and its words, turned to face you.
+  - **Aboard a moored boat:** "Step ashore", low over the quay's edge abreast of her.
+  - **Ashore near a moored boat** (within 14 m): "Step aboard", over her deck by the rail on the quay side.
+  - It's drawn over everything (as the menu panels are), so you see it from inside the wheelhouse, where the quay's top is above your eyes and the roof would hide it.
+- **Using it:** point a free hand at it in VR and pull the trigger, or click it on desktop (the reticle says "Step ashore / click"). Ashore puts you on the quay a step back from the edge, by her berth. Aboard puts you where you'd board her. It reaches up to 25 m. It sends the same `board` intent as the B key and the left stick click, which still work.
+  - It's checked before the roving fender's quay-pointing, which it can't be confused with: it hangs in the air, the fender aims at the quay itself.
+- **Fix:** going ashore by any means now uses the berth of the boat you're on (`src/player/playerControl.ts`), not always your home boat's: stepping off a second boat moored elsewhere put you on your own boat's quay.
+- `CONFIG.gangway`: `up` 1.6 m (Step aboard, over the quay), `ashoreUp` 0.8 m (Step ashore, over the quay), `edgeIn` 0.6 m (in from the quay's edge), `radius` 0.35 m (the ring, and the pointer's target), `reach` 25 m, `aboardRange` 14 m.
+- Tests: `tests/gangway.test.ts` (aboard a second boat moored at another berth, ashore by hers).
+- Checked headless on Oban:
+  - "Step aboard" over the pilot boat seen from the quay, and "Step ashore" seen from inside her wheelhouse over the door header, both clear (screenshots);
+  - a click on "Step ashore" put the player on the quay, and the mark turned to "Step aboard".
+- Not checked: in VR.
+
 ### Tests: room for the long game simulations on GitHub's machine (24 Oct 2026)
 
 /next/ showed "failed its tests or its build" after the Shipyard door went up (publishing run 584). Nothing in the game was wrong. `tests/weather.test.ts` "the director moves on only to presets allowed to follow" ran out of time: about 19 s here against the 20 s default, and GitHub's runner is about twice as slow.

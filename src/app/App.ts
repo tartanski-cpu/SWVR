@@ -137,6 +137,7 @@ import { distanceToHull } from '../rescue/recovery';
 import { RodView } from '../fishing/rodView';
 import { LineGun } from '../tow/lineGun';
 import { FenderHands, type FenderHandsContext } from '../player/fenderHands';
+import { Gangway, type GangwayContext } from '../player/gangway';
 import type { FendersApi } from '../modules/fenders';
 import { LineGunView } from '../tow/lineGunView';
 import { lineLength, lineOf, nearestTowTarget, sternLocal, towAlertT, towName, towPoint, towStatus, towTargets, winchStalled } from '../tow/tow';
@@ -466,6 +467,9 @@ export class App {
   private readonly gear = [new HandGear('extinguisher'), new HandGear('torch'), new HandGear('lineGun'), ...Array.from({ length: CONFIG.rod.perRack }, (_, i) => new HandGear('rod', i))];
   /** The roving fender (player/fenderHands.ts): hung where you stand, looking at the quay. */
   private readonly fenderHands = new FenderHands();
+  /** The gangway mark (player/gangway.ts): "Step ashore" over the quay from a moored boat, "Step aboard" over her deck. */
+  private readonly gangway = new Gangway();
+  private readonly gangwayEye = new THREE.Vector3();
   /** The line-throwing gun's game (tow/lineGun.ts) and what it shows. */
   private readonly lineGun = new LineGun();
   private readonly lineGunView = new LineGunView();
@@ -756,7 +760,7 @@ export class App {
     // The boatyard's board on its shed at Calder Haven (the add-ons, upgrades and repairs).
     // Only the yards whose port is in this world (the coast region test leaves the Sounds out).
     this.yardBoards = CONFIG.boatyards.filter((y) => PORTS.some((p) => p.id === y.port)).map((y) => new YardBoard(host, y));
-    this.scene.add(this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine));
+    this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine));
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -1263,6 +1267,7 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     this.noteKeys.menu.refresh();
     for (const b of this.yardBoards) b.update(this.scene, this.focus);
+    this.gangway.update(this.gangwayCtx(), this.camera.getWorldPosition(this.gangwayEye));
     if (this.board) {
       this.board.update(this.world);
       // The boards: daylight and the cabin lamp on them; dim and red at night (nightPaper.ts).
@@ -4435,6 +4440,11 @@ export class App {
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
       for (const h of ['left', 'right'] as const) if (this.rescueHands.busy(h)) this.busyHands[h] = true;
+      // The gangway mark: a free hand's trigger on it steps ashore or aboard.
+      {
+        const onGangway = this.gangway.updateXR(this.gangwayCtx(), this.hands, this.busyHands);
+        for (const h of ['left', 'right'] as const) if (onGangway[h]) this.busyHands[h] = true;
+      }
       // The roving fender: a free hand's trigger, pointed at the quayside.
       {
         const onFender = this.fenderHands.updateXR(this.fenderCtx(), this.hands, this.busyHands);
@@ -4496,8 +4506,9 @@ export class App {
         const fuel = free && !board && !this.rescueHands.deskBusy ? this.fuelHands.label(this.fuelCtx(), ray, this.frameDt) : null;
         const pots = free && !board && !fuel && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null;
         const gear = free && !board && !fuel ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
-        const fender = free && !board && !fuel && !pots && !gear ? this.fenderHands.updateDesktop(this.fenderCtx(), ray) : null;
-        return board ?? fuel ?? pots ?? gear ?? fender ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
+        const step = free && !board && !fuel && !pots && !gear ? this.gangway.updateDesktop(ray) : null;
+        const fender = free && !board && !fuel && !pots && !gear && !step ? this.fenderHands.updateDesktop(this.fenderCtx(), ray) : null;
+        return board ?? fuel ?? pots ?? gear ?? step ?? fender ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
         if (this.boardMenus().some((m) => m.updateDesktop(ray, true))) return true;
@@ -4506,6 +4517,7 @@ export class App {
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.fuelHands.click(this.fuelCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.world.potting && this.potHands.desktopClick(this.potCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
+        if (!this.cargoHands.carrying && this.gangway.desktopClick(this.gangwayCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.fenderHands.desktopClick(this.fenderCtx(), ray)) return true;
         return this.cargoHands.desktopClick(this.cargoCtx(), ray);
       },
@@ -4627,6 +4639,17 @@ export class App {
   }
 
   /** The rescue hands' view of the app. */
+  private gangwayCtx(): GangwayContext {
+    return {
+      world: this.world,
+      playerId: this.localPlayerId,
+      boatRoot: (id) => this.vesselRoots.get(id),
+      board: (ref) => this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: ref ? 1 : 0, ref }),
+      notify: (text) => this.overlay.notify(text, 2.5),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+    };
+  }
+
   private fenderCtx(): FenderHandsContext {
     return {
       world: this.world,

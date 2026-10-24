@@ -64,6 +64,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **F** by the deck crane's post | **Take its radio remote** (and F again hangs it back): **W A S D** slew and raise / lower the boom, **← →** run the telescope in / out, **↑ ↓** hoist / lower the hook, **Space** hook. You stay where you stand while you hold it; the mouse still looks round. With a game controller: **A** takes it, left stick slew and boom, right stick telescope (sideways) and hoist (pull back) / lower (push), A hook, LB + right stick look, B hangs it back |
 | Click one of the deck crane's joysticks | **W A S D** move that stick, **Space** hook; click again to let go |
 | B | Board the boat (you appear at the helm) / go ashore onto the quay |
+| Click the amber mark | **Step ashore** / **Step aboard**: with a boat moored, an amber ring over the quay's edge beside her (aboard) or over her deck (on the quay) |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | Holding the wheel or a lever, hold the **right mouse button** | **Look round freely:** the mouse turns your view and the wheel (or lever) stays where you left it, still in your hand; no binoculars. Let go of the right button and the mouse steers again. Off the wheel, the right button is the binoculars again |
 | E | Debug: engine start / stop |
@@ -120,6 +121,7 @@ Tap once for sound. Add `?touch=1` to the address to try these controls on a com
 | Left stick | Walk (head-relative; can be switched off in the menu). Push it right to the edge to **run** |
 | Right stick ← / → | Snap turn (30° by default; 15/30/45/90° in the menu) |
 | Left stick click | Board the boat (at the helm) / go ashore onto the quay |
+| Trigger, pointing at the amber mark | **Step ashore** / **Step aboard** (a free hand): with a boat moored, the ring over the quay's edge beside her, or over her deck from the quay |
 | **Grip** the boat hook (port bulwark) | Take it; it points along your controller. Touch a floating crate or a tow's bow eye with the tip to hook it. With **auto-extend** (menu Comfort → Boat hook reach, on by default) it telescopes out to whatever you point it at, up to 8 m, then slides back in with the crate on it. Bring the crate alongside, then **grip the hook's pole with your other hand** (or reach over the side towards the crate and grip) to lift it aboard; set it down on deck. Lost crates carry no light: at night, look for them with the searchlight. Desktop: click the hook, then click the crate or bow eye; click again once it's alongside to lift it |
 | **X** | **Crouch** / stand up (drops your view and hands 0.6 m; desktop: C) |
 | **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
