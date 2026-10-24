@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fix: the stern trawler carried the tug's line-throwing gun (done, on the preview)
+
+Owner, 24 Oct 2026: "the stern trawler ... seems to get the line throwing gun. Maybe it's copied over from the tugboat settings."
+
+- **Why:** the gun went on the tug hull, or on any boat whose engine goes on a shaft only (meant as "a boat with the tug diesel is a tug"). When the 750 kW diesel came in, it was shaft-only too, and it is the trawler's as she comes, so she got the gun.
+- **Fix** (parts/hullDef.ts): the tug hull, or any hull with the tug diesel itself (catalog.ts `TUG_DIESEL`). The other shaft-only checks (no stern drive or pods with them) are about the drive, and stay.
+- Test: tests/shipyard/sternTrawler.test.ts (no gun as she comes; with the tug diesel, the gun). tests/lineGun.test.ts still passes.
+- **Shared changes:** none.
+
 ### High window sills: a third choice (done, on the preview)
 
 Owner, 24 Oct 2026: "a third option for the windowsills on the wheelhouse to have them higher ... usually you're sort of standing up, so you should be able to see through the windows, but just come up with something which is higher".

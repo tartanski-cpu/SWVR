@@ -62,4 +62,9 @@ describe('the stern trawler: a sixth hull type', () => {
       expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
     }
   });
+
+  it('carries no line-throwing gun (a tug’s tool; her 750 kW is shaft-only like the tug diesel, which gave her one by mistake, owner Oct 2026)', () => {
+    expect(useDesign(trawler()).hull.fittings?.stowage?.lineGun).toBeUndefined();
+    expect(useDesign(trawler({ engine: 3 })).hull.fittings?.stowage?.lineGun).toBeTruthy();
+  });
 });
