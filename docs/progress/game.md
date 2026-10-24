@@ -10,18 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### Voyage untangled from the career (owner, 23 Oct 2026)
+### Voyage: no career, but damage and session money (owner, 23-24 Oct 2026)
 
-Owner: "most of the boats, when they spawn in, still have the career task list board in the rear right of the cabin, and many spawn in with a damaged hull ... untangle anything to do with career mode and the voyage mode. You should still be able to spawn in missions ... random things ... cargo. It's just not tracked, and certainly not ... any of the boats spawn in with damage."
+Owner, first: "most of the boats, when they spawn in, still have the career task list board ... and many spawn in with a damaged hull ... untangle anything to do with career mode and the voyage mode." Then, setting it straight: "you do still have the ability to damage your hull or your engine ... a need to go to the shipyard to repair it ... it should never spawn in with damage. It should only be if you really crash ... You should be able to earn money ... just in the local session ... see how much you've made ... buy upgrades with it ... But there shouldn't be a duty board ... career doesn't exist in the voyage mode."
 
-- **`WorldState.voyage`** (`src/core/world.ts`, a shared file): set by `createWorld(…, { voyage: true })`, which the app passes on the Voyage page. It travels in the snapshots, so the crew have it too.
-- **No damage, no wear** (`src/core/simulation.ts`, shared): in Voyage the hull's knock-and-grind damage (`stepHullWear`) isn't run, and each tick every boat's `damage` and engine `wear` are put back to 0. So no boat carries damage, whatever she's launched from or bumped into.
-- **Nothing tracked** (`src/career/career.ts`): in Voyage `earn`, `spend` and `cargoLost` do nothing (no pay, bills, reputation or contracts); `hasUpgrade` is true for everything, so the boatyard's kit (the big tank and the rest) is all fitted; `stepCareer` only sizes the big tank, with no offers, fuel or oil bills, or wear bookkeeping. The jobs themselves (radio calls, tows, fires, cargo, the timber run) are untouched and go on as before.
-  - **The timber run has no money either** (owner: "there's no concept of career in the voyage mode. It's just a proof of concept"): at the merchant you're offered to **Unload** the barge, not sell it; `sellBarge` pays nothing; `CONFIG.voyage.timber.pricePerLog` and the Voyage account (`swvr.voyage.money`, no longer read or written) are gone. `tests/metaverse.test.ts` updated.
-- **No duty board** (`src/app/App.ts`): every boat's career duty board is hidden in Voyage.
-- Tests: `tests/voyageUntracked.test.ts` (the flag; no pay or charge; every upgrade; damage and wear held at 0).
-- Checked headless: on Oban (Voyage) the flag is set, the pilot boat's board hidden, damage 0, cargo stocked (132 items); the career page unchanged (no flag, cargo there).
-- **Shared changes:** `src/core/world.ts` (the `voyage` field and option), `src/core/simulation.ts` (wear skipped in Voyage).
+- **`WorldState.voyage`** (`src/core/world.ts`, shared): set by `createWorld(…, { voyage: true })`, which the app passes on the Voyage page. It goes to the crew in the snapshots.
+- **Damage as in the career, but never at the start** (`src/core/simulation.ts`, shared): in Voyage a boat takes no hull damage for `CONFIG.wear.spawnGraceS` (10 s) from her first tick, or from being sent to a port with Go (`VesselState.settleUntil`, `src/vessel/vesselState.ts`, shared). After that, a real crash does damage, and the engine wears, as ever. The career is unchanged: it keeps her condition from its save.
+- **This session's money** (`src/career/career.ts`): pay, bills and the timber sale go in and out as in the career, but nothing is saved (the Voyage account `swvr.voyage.money` is no longer read or written; the career's slots were never written in Voyage). No harbour office offers, so no contracts.
+- **No duty board** (`src/app/App.ts`): every boat's duty board is hidden in Voyage.
+- **Repairs and upgrades in Voyage: not yet.** A Boatyard tab in the menu was built and taken out again the same day (owner: yard work doesn't go in that menu). The owner's idea instead: the Shipyard itself, from a yard building in the world; see `docs/SHIPYARD_IN_GAME.md`. Until then, the money shows in its pop-ups as it comes and goes.
+- Tests: `tests/voyageMoney.test.ts` (the flag; money earned; the settle time). `tests/metaverse.test.ts` as before (the sale pays).
+- Checked headless on Oban: the flag set, the board hidden, damage 0 at the start with 10 s of settling, £500 to start.
+- **Shared changes:** `src/core/world.ts` (the `voyage` field and option), `src/core/simulation.ts` (the settling time in Voyage), `src/vessel/vesselState.ts` (`settleUntil`).
 
 ### More cargo, and crane cargo (owner request via the map chat, then in person, 23 Oct 2026)
 

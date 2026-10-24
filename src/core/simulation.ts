@@ -131,6 +131,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     } else if (intent.control === 'teleportToPort' && intent.ref && world.vessels[intent.targetId]) {
       // With several boats about (multi-boat M5): a free berth, else the bay.
       if (!teleportToPortSlot(world, world.vessels[intent.targetId], intent.ref)) applyVesselIntent(world.vessels[intent.targetId], intent);
+      // Settling into her new berth is no crash (CONFIG.wear.spawnGraceS).
+      world.vessels[intent.targetId].settleUntil = world.time + CONFIG.wear.spawnGraceS;
       // The host's boat sent somewhere: the planning table goes with her (voyage/plan.ts).
       if (intent.targetId === world.homeVesselId && PORTS.some((p) => p.id === intent.ref)) tableFollows(world, intent.ref);
     } else if (isCargoIntent(intent.control)) {
@@ -210,11 +212,11 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepEnergyNetwork(vessel, machinery, dt);
     stepHullLeak(vessel, dt);
     machinery.tick(dt, world.time);
-    // Voyage tracks nothing of the career: no hull damage, no engine wear (world.voyage).
-    if (world.voyage) {
-      if (vessel.damage) vessel.damage = 0;
-      if (vessel.engine.wear) vessel.engine.wear = 0;
-    } else stepHullWear(vessel, dt, world.environment.seaScale);
+    // Voyage: no knocks counted while she settles (owner, Oct 2026: a boat should never spawn
+    // in with damage, only take it from a real crash): `spawnGraceS` from when she comes into
+    // the world or is sent to a port. The career keeps her condition from its save, as before.
+    if (world.voyage) vessel.settleUntil ??= world.time + CONFIG.wear.spawnGraceS;
+    if (!world.voyage || world.time >= (vessel.settleUntil ?? 0)) stepHullWear(vessel, dt, world.environment.seaScale);
   }
   for (const vessel of Object.values(world.vessels)) if (onCrane(vessel)) stepTender(world, vessel, dt);
   // The deck cranes' HOOK presses (their machinery has just marked them).
