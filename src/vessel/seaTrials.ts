@@ -194,9 +194,11 @@ export function runMotionTrials(defId: string): MotionTrials {
   );
   // Roll peaks alternate sides every half cycle; damping ratio from the full-cycle decrement.
   const rollPeaks = peaksOf(roll).slice(0, 8);
+  // (A roll that dies in about one swing, a catamaran's: two peaks, so from the half-cycle
+  // decrement, twice its log per full cycle. Fewer: too heavily damped to measure, NaN.)
   let zeta = NaN;
-  if (rollPeaks.length >= 3) {
-    const delta = Math.log(rollPeaks[0] / rollPeaks[2]);
+  if (rollPeaks.length >= 2) {
+    const delta = rollPeaks.length >= 3 ? Math.log(rollPeaks[0] / rollPeaks[2]) : 2 * Math.log(rollPeaks[0] / rollPeaks[1]);
     zeta = delta / Math.sqrt(4 * Math.PI * Math.PI + delta * delta);
   }
 
@@ -399,7 +401,7 @@ export function formatSeaTrials(r: SeaTrialResults): string {
     `  coast to 1 kn: ${L(r.coastDistance)}`,
     'MOTIONS (free decay, calm water)',
     `  natural periods: heave ${m.heavePeriod.toFixed(2)} s, pitch ${m.pitchPeriod.toFixed(2)} s, roll ${m.rollPeriod.toFixed(2)} s`,
-    `  roll decay from 10°: ${m.rollPeaks.map((p) => p.toFixed(1)).join(', ')}  (damping ${(m.rollDampingRatio * 100).toFixed(0)} % of critical)`,
+    `  roll decay from 10°: ${m.rollPeaks.map((p) => p.toFixed(1)).join(', ')}  (${Number.isFinite(m.rollDampingRatio) ? `damping ${(m.rollDampingRatio * 100).toFixed(0)} % of critical` : 'heavily damped'})`,
     `  inclining: ${m.inclining.momentKNm.toFixed(1)} kN·m heeling moment -> ${m.inclining.heelDeg.toFixed(2)}° heel -> GM ${m.inclining.impliedGM.toFixed(2)} m`,
   ].join('\n');
 }

@@ -1607,6 +1607,12 @@ window.addEventListener('resize', placePanels);
   setViewSize(size === 'balanced' || size === 'big' ? size : 'design');
 }
 function showCode(): void {
+  // Not into the game while she'd capsize (CONFIG.shipyard.minGM; her warnings say so).
+  const capsizes = !floatsUpright();
+  const btn = $('play').querySelector('button')!;
+  btn.disabled = capsizes;
+  btn.title = capsizes ? `She would capsize (GM ${boat.figures.gmM.toFixed(2)} m): give her more beam or less depth first.` : '';
+  ($('playTogether') as HTMLButtonElement).disabled = capsizes;
   const matched = matchedFor === matchKey(design);
   const el = $('code');
   el.classList.toggle('pending', !matched);
@@ -1694,15 +1700,19 @@ function change(patch: Partial<ShipDesign>, by: 'me' | Person | null = 'me'): vo
 function gameUrl(code: string, extra = ''): string {
   return `./career.html?design=${code}${extra}&t=${Date.now()}`;
 }
+/** Does she float upright (GM over CONFIG.shipyard.minGM)? Only then is she let into the game. */
+function floatsUpright(): boolean {
+  return boat.figures.gmM >= CONFIG.shipyard.minGM;
+}
 $('play').onclick = (e) => {
   e.preventDefault();
-  if (matchedFor === matchKey(design)) location.assign(gameUrl(designToken(design)));
+  if (matchedFor === matchKey(design) && floatsUpright()) location.assign(gameUrl(designToken(design)));
 };
 // "Try her together" (owner, Oct 2026): in a session, one press takes everyone into the game in
 // her, in one multiplayer game. The presser hosts it in a new room; the others join it
 // (session.ts sends them the room; the game waits for the host, App.ts).
 $('playTogether').onclick = () => {
-  if (matchedFor !== matchKey(design) || !link?.side) return;
+  if (matchedFor !== matchKey(design) || !link?.side || !floatsUpright()) return;
   const code = designToken(design);
   const room = randomRoomCode();
   link.side.go({ design: code, room });

@@ -9,7 +9,9 @@ import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { DEG, clamp, hexToRGB, lerp, lerpRGB, wrap, type RGB, type Vec3 } from '../core/math';
 import type { EnvironmentState } from './environmentState';
-import { rebuildWaves, setWeatherPreset } from './weather';
+import { endManualWeather, rebuildWaves, setManualWeather, setWeatherPreset } from './weather';
+import { seaScaleFor } from '../world/coastWeather';
+import { significantWaveHeight } from '../ocean/waves';
 import { gustNow } from './gusts';
 import type { WeatherPresetName } from '../config';
 
@@ -60,6 +62,26 @@ export function applyEnvironmentIntent(env: EnvironmentState, intent: Intent, ti
     case 'gustNow':
       // Debug: a katabatic gust on the zone nearest args (x, z), anywhere (environment/gusts.ts).
       gustNow(env, time, intent.args?.[0] ?? 0, intent.args?.[1] ?? 0);
+      break;
+    case 'weatherManual': {
+      // Debug: weather by hand (weather.ts setManualWeather). value: which (0 wind m/s, 1 the
+      // bearing it's from, 2 rain 0..1, 3 significant wave height m), args[0] its new value;
+      // the others as they are now.
+      const w = env.weather;
+      if (!w) break;
+      const m = w.manual ?? { wind: w.now.wind, windFrom: w.now.windFrom, rain: w.now.rain, hs: significantWaveHeight(env.waves) };
+      const v = intent.args?.[0] ?? 0;
+      const next = { ...m };
+      if (intent.value === 0) next.wind = v;
+      else if (intent.value === 1) next.windFrom = v;
+      else if (intent.value === 2) next.rain = v;
+      else if (intent.value === 3) next.hs = v;
+      setManualWeather(env, next, time, seaScaleFor(next.hs));
+      break;
+    }
+    case 'weatherOwn':
+      // Debug: back from manual weather to live (or the game's own) weather.
+      endManualWeather(env, time);
       break;
     case 'seaState':
       // Sea scale: 0 = flat calm, 1 = the configured moderate sea, up to maxSeaScale (storm).

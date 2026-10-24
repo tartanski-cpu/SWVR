@@ -66,6 +66,22 @@ export interface WeatherState {
    */
   seaHeld?: number;
   live?: { text: string; credit: string };
+  /** The live weather as it came in, kept to go back to from manual weather (setLiveWeather). */
+  liveSaved?: { values: WeatherValues; preset: WeatherPresetName; seaScale?: number; live: { text: string; credit: string } };
+  /**
+   * Debug: the weather set by hand (setManualWeather; owner, Oct 2026: off live weather, to test
+   * big waves and strong winds): the wind (m/s) and where from, the rain (0..1), the sea's
+   * significant wave height (m). Held as set: no director.
+   */
+  manual?: ManualWeather;
+}
+
+/** Weather set by hand (Debug): wind (m/s), the bearing it blows from (deg), rain (0..1), significant wave height (m). */
+export interface ManualWeather {
+  wind: number;
+  windFrom: number;
+  rain: number;
+  hs: number;
 }
 
 const TWO_PI = Math.PI * 2;
@@ -128,6 +144,7 @@ export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, tim
   // The game's own weather again (a debug force on a live-weather Voyage): the sea follows the wind.
   delete w.seaHeld;
   delete w.live;
+  delete w.manual;
   w.seq += 3;
   w.preset = preset;
   w.target = targetFor(preset, w.seq);
@@ -170,12 +187,67 @@ export function setLiveWeather(env: EnvironmentState, values: WeatherValues, pre
   w.fixed = CONFIG.weather.fixed;
   w.next = { preset: pickNext(preset, w.seq + 1, profile), at: time + holdFor(preset, w.seq + 2, profile) / w.speed };
   w.live = live;
+  delete w.manual;
+  w.liveSaved = { values: { ...values }, preset, ...(seaScale !== undefined ? { seaScale } : {}), live };
   if (seaScale !== undefined) w.seaHeld = clamp(seaScale, 0, CONFIG.ocean.maxSeaScale);
   else delete w.seaHeld;
   // A fresh shipping forecast shortly, for the real conditions.
   w.forecastAt = Math.min(w.forecastAt, time + CONFIG.weather.forecast.afterChange / w.speed);
   env.seaScale = w.seaHeld ?? seaForWind(values.wind);
   rebuildWaves(env, time);
+}
+
+/** The game's preset nearest some values (the sky, the lightning, the forecast's words), as live weather picks it. */
+export function presetFor(v: WeatherValues): WeatherPresetName {
+  const c = CONFIG.liveWeather;
+  return v.visibility < c.fog ? 'Fog' : v.wind >= c.squallWind && v.rain > c.rainy ? 'Squall' : v.rain > c.rainy ? 'Rain' : v.cloud > c.overcast ? 'Overcast' : 'Clear';
+}
+
+/**
+ * Weather set by hand (Debug > World > Weather; owner, Oct 2026: "override it with predefined
+ * weather ... a wind slider, rain slider and wave height slider"): in at once, held (no
+ * director), the sea at the height asked for (`seaScale`, the game's scale for that Hs) rather
+ * than the wind's. The rain brings the cloud down and the visibility in with it.
+ */
+export function setManualWeather(env: EnvironmentState, m: ManualWeather, time: number, seaScale: number): void {
+  const w = env.weather;
+  if (!w) return;
+  const rain = clamp(m.rain, 0, 1);
+  const values: WeatherValues = {
+    wind: Math.max(0, m.wind),
+    windFrom: wrap(m.windFrom, 360),
+    rain,
+    cloud: rain > 0 ? 0.7 + 0.3 * rain : 0.2,
+    visibility: CONFIG.weather.presets.Clear.visibility * (1 - 0.88 * rain),
+  };
+  w.seq += 3;
+  w.manual = { ...m, rain };
+  w.preset = presetFor(values);
+  w.now = { ...values };
+  w.target = { ...values };
+  w.fixed = true;
+  delete w.live;
+  w.next = { preset: w.preset, at: time + 1e9 }; // never (and JSON-safe for the crew snapshots, unlike Infinity)
+  w.seaHeld = clamp(seaScale, 0, CONFIG.ocean.maxSeaScale);
+  env.seaScale = w.seaHeld;
+  rebuildWaves(env, time);
+}
+
+/**
+ * Back from manual weather: to the live weather as it came in (where there was some; the
+ * app asks for it afresh too), else the game's own, the director planning on from here.
+ */
+export function endManualWeather(env: EnvironmentState, time: number, profile?: WeatherProfile): void {
+  const w = env.weather;
+  if (!w) return;
+  delete w.manual;
+  const s = w.liveSaved;
+  if (s) {
+    setLiveWeather(env, s.values, s.preset, time, s.live, s.seaScale, profile);
+    return;
+  }
+  w.fixed = CONFIG.weather.fixed;
+  setWeatherPreset(w, w.preset, time, false, env, profile);
 }
 
 /** Advance the weather by dt (host). */

@@ -10,6 +10,32 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Debug weather by hand (24 Oct 2026)
+
+Owner: "an option in the debug menu to turn [live weather] off and to override it ... a wind slider, rain slider and wave height slider instead of the current settings ... and the ability to switch back to real-time weather."
+
+- **Debug → World → Weather** now has the source row (**Live weather** in Voyage, **Game's own** in the career; **Manual**; **Fast ×10**), a readout of what it is now, and four rows of stops as sliders. The menu has no drag sliders, so a stop lights along with all below it. The rows are **Wind** 0–50 kn, **From** 8 points, **Rain** none to torrent, and **Waves** Hs 0–3 m plus **max**. Pressing any stop makes the weather manual: it's in at once and held (no director). Live weather / Game's own gives it back: the live weather as it came in, fetched afresh too, or else the game's own from where it stands. A live fetch arriving late doesn't overwrite weather set by hand. The old preset, Fixed and sea-state rows are gone.
+- **Rain** brings the cloud down and the visibility in with it. The preset (sky, lightning, forecast words) is picked from the values the way live weather picks it (`presetFor`).
+- **The sea's height is capped at the game's biggest sea**, `CONFIG.ocean.maxSeaScale` = 3, about Hs 3.6 m in open water; harbours and lochs are sheltered below that. It isn't raised here: above it the Gerstner waves risk looping over themselves, so that's for the owner to call.
+- Status lines: the weather line says "set by hand (Debug)"; Voyage's live-weather line says "Weather set by hand (Debug > World)".
+- Code: `environment/weather.ts` (`ManualWeather`, `setManualWeather`, `endManualWeather`, `presetFor`, `liveSaved`); intents `weatherManual` (value: 0 wind m/s, 1 from°, 2 rain, 3 Hs m; `args[0]` the value) and `weatherOwn` in `environment/timeOfDay.ts`; menu `ui/mainMenu.ts`; host `app/App.ts`. Multiplayer: host-authoritative like every env intent, so a crew-mate's press goes through the host.
+- Tests: `tests/manualWeather.test.ts` (set, held an hour, calmed, back to live; back to the game's own); `tests/menu.test.ts` updated. Typecheck clean; all 1494 tests pass. Headless (Voyage, Oban): wind 40 kn S, heavy rain and max waves gave a Squall with Hs 3.6 m and rain, and Live weather gave it back, no page errors. Not checked: in the headset.
+
+### Career boats cost money: sea trials and buying at the yard (owner, 24 Oct 2026)
+
+Owner: "the free career boats fix next"; asked the rule: "A sea trial is time limited to 5 mins". The review's finding: any Shipyard design could be sailed in the real career for free (Office > Your boats > Take her, a pasted code, the Shipyard's "Try her in the game").
+
+- **Sea trial** (`src/app/shipyardTrip.ts` isSeaTrial, `src/app/App.ts`). A career page started in a Shipyard design the career hasn't paid for is a trial: not her own `CareerState.design`, not a purchase or refit coming back (`refitFrom`), not a crew-mate joining.
+  - It lasts `CONFIG.career.seaTrialS` (300 s of game time). It says so at the start, warns at a minute and at ten seconds, then restarts in the career's own boat.
+  - Nothing is saved during it (`savesHere()`).
+  - The Shipyard door is closed during it ("Not on a sea trial: in your own boat"), so a refit can't be priced from a boat not paid for.
+- **Buying at a boatyard** (Office > Your boats, `takeOffer`): at a yard, Take her reads **Buy her (£X)**, the difference in the Shipyard's price from the career's own boat (as a refit, nothing back for a cheaper one), or "Not enough money". Pressing it restarts in her with `refitFrom`, and the career pays and keeps her (settleRefit). Away from a yard: **Sea trial (5 min)**. Voyage is unchanged (free: the sandbox).
+- Tests: `tests/shipyardTrip.test.ts` (the trial rule: not for her own boat, a purchase coming back, crew, or Voyage).
+- Checked headless:
+  - a "Try her" address started a trial; £777 earned in it never reached the save; at a minute it warned, at the end back in the beginner boat with saving on;
+  - at Calder Haven with £400,000, "Buy her (£209,000)" for the pilot boat bought her (£191,000 left), and Career from the front page started in her.
+- Known, left: the beginner boat's yard add-ons aren't in her design's price (the review's refit finding), and "New career" or a slot switch keeps the boat in use until the page restarts.
+
 ### No hitches from the short seas' field, and less garbage from the wave sums (owner, 24 Oct 2026)
 
 Owner: "the wave sampling garbage and wind-sea field hitches next" (review: the field was worked out again in one go, 10-20 ms on the main thread, every time the wind moved 4 % or 4°, and a rising wind did it dozens of times; the wave sums made thousands of throwaway objects a frame).

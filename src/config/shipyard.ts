@@ -61,6 +61,15 @@ export const SHIPYARD_CONFIG = {
      */
     shaftAngleMaxDeg: 15,
     /**
+     * The least stability (GM, m) she's let into the game with (review, 24 Oct 2026: slim,
+     * deep designs with GM below 0 turned turtle at the berth seconds after Play). Below it
+     * the Shipyard says she'd capsize and holds back Try her (page.ts); 0.15 m leaves a
+     * margin over upright for the game's sea and her crew moving about. Low stability (under
+     * `lowGM`) is still only a warning.
+     */
+    minGM: 0.15,
+    lowGM: 0.5,
+    /**
      * The most power a displacement hull (the tug, the trawler) takes, kW per tonne of her
      * lines' displacement (owner, Oct 2026: two 750 kW engines don't fit a small tug). Her
      * speed is held by her length, not her power, so past this the power is spent making
