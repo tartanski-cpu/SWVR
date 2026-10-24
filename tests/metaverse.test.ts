@@ -176,9 +176,10 @@ describe('the timber run on the Oban map', () => {
     v.linearVelocity = [0, 0, 0];
     const offer = t.saleOffer(w, v, 'oban')!;
     expect(offer.logs).toBe(20);
-    const before = w.career?.money;
-    expect(t.sellBarge(w, offer.bargeId, offer.merchant)).toBe(20);
-    expect(w.career?.money).toBe(before); // no money in Voyage
+    expect(offer.total).toBe(20 * CONFIG.voyage.timber.pricePerLog);
+    const before = w.career!.money;
+    expect(t.sellBarge(w, offer.bargeId, offer.merchant)).toBe(offer.total);
+    expect(w.career!.money).toBe(before + offer.total);
     expect(w.vessels[id]).toBeUndefined();
     expect(w.tow!.lines[v.id]).toBeUndefined();
     expect(t.saleOffer(w, v, 'oban')).toBeNull();
