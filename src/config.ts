@@ -1423,6 +1423,22 @@ export const CONFIG = {
     endClear: 0.4,
   },
 
+  /**
+   * The gangway mark (player/gangway.ts; owner, Oct 2026: "a bit clunky to get from the ship
+   * onto the quay side ... you kind of fall underneath it"): with her moored, a mark stands
+   * in the air over the quay beside her, "Step ashore"; ashore near a moored boat, one over
+   * her deck, "Step aboard". Point at it and press (a free hand's trigger in VR, a click on
+   * desktop), and you're put there.
+   *   up          "Step aboard": its height over the quay (m), over her deck by her rail
+   *   ashoreUp    "Step ashore": its height over the quay (m), low enough to be seen from
+   *               her wheelhouse's side windows, under the roof
+   *   edgeIn      "Step ashore" stands this far in from the quay's edge, abreast of her (m)
+   *   radius      how big a target it is (m): the ring's radius, and the pointer's hit
+   *   reach       how far away it can be pointed at (m)
+   *   aboardRange shown over a moored boat when you're ashore within this of her (m)
+   */
+  gangway: { up: 1.6, ashoreUp: 0.8, edgeIn: 0.6, radius: 0.35, reach: 25, aboardRange: 14 },
+
   contacts: {
     /** The values below are for a boat of this mass (the workboat); lighter ones scale them down. */
     referenceMass: 18300,
