@@ -321,7 +321,11 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const r3 = (v: number) => Math.round(v * 1000) / 1000;
   const sc = CONFIG.modules.screen.dash;
   const gap = CONFIG.shipyard.helm.screenGap;
-  const cellsFor = (id: string) => cellsOf(SCREENS[(consoleMount.modules!.find((x) => x.socket === id)!.config as { screen: ScreenName }).screen]) as [number, number];
+  // (Each screen's cells read once, here, while every one is still on the console: one with no
+  // room on a dash laid out by hand comes off it below, but still counts in the shortest console
+  // that holds them all. Read after, a missing one crashed the builder: review 24 Oct 2026.)
+  const screenCells = new Map(screens.map((id) => [id, cellsOf(SCREENS[(consoleMount.modules!.find((x) => x.socket === id)!.config as { screen: ScreenName }).screen]) as [number, number]]));
+  const cellsFor = (id: string) => screenCells.get(id)!;
   const ROWS = 2;
   const items = [...screens.map((id) => ({ id, cells: cellsFor(id) })), ...faceItems];
   const grid = packDash(items, ROWS);

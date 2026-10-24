@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fixes from the review of 24 Oct 2026: the dash crash, capsizing boats, a winch with no tow point, the catamaran's roll chart (approved by the owner 24 Oct 2026; on next)
+
+Owner, 24 Oct 2026: "fix 1, 2, 5 and 6" of the Shipyard's findings in docs/REVIEW_2026-10-24.md (3 and 4, the game buttons to Voyage and the same-tab project, are left for the refit work).
+
+1. **A dash laid out by hand crashed the builder** (high): with screens placed by hand, one with no room came off the console, but the shortest-console search (`fullSize`) still looked it up there and threw. The page died, and the broken design was already in the tab's saved copy. Now each screen's cells are read once, before any comes off (parts/recipe.ts `screenCells`). Test: tests/shipyard/dashPinned.test.ts (every dash screen pinned at four columns, every controls level, two hull types). It failed before the fix (landing craft, controls 1, the speed screen at column 2) and passes now.
+2. **Boats that would capsize** (medium): under `CONFIG.shipyard.minGM` (0.15 m) the warning, first among her warnings, says "She would capsize: she can't float upright (GM …)", not "low stability" (parts/trim.ts; `lowGM` 0.5 for the old warning). The page greys out **Try her in the game** (its tooltip says why) and **Try her together** until she's fixed (page.ts `floatsUpright`). Saving and sharing her still work, so work in progress isn't lost. The pilot boat at her slimmest and deepest (GM -0.43 m) is told and held back; checked in headless Chromium.
+3. **A tow winch with no tow point** (low): the tow point is the stern roller's (its towing hook too, on a tug), so a winch without one never takes a tow. Now the Shipyard says "Her tow winch has no tow point to tow from: fit the stern roller" (parts/deckGear.ts), and the gear menu's line says the winch leads over the roller (gearMenu.ts).
+4. **The catamaran's roll chart read "NaN %"** (low): her roll dies in about one swing, two peaks, and the damping was only worked out from three. Now two peaks give it from the half-cycle decrement (shared: vessel/seaTrials.ts); with fewer, the chart draws the measured dots and says "heavily damped" (trialCharts.ts).
+
+- Tests: tests/shipyard/reviewFixes.test.ts (the capsize warning, the tow point warning, the cat's damping and a chart with no NaN; the last failed before the fix), dashPinned.test.ts. `npm run test:shipyard`, the full `npm test` and the typecheck pass.
+- README: Try her held back for a boat that would capsize; the tow winch needs the stern roller.
+- **Shared changes:** vessel/seaTrials.ts, the roll damping from two peaks and its text line when it can't be measured (one swing's worth: before, NaN).
+
 ### Faceted aft windows with windows raked out all round (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "When the raked out option for the sides and aft of the wheelhouse is activated, the three facets on the aft of the wheelhouse are not respected. Please fix that. I would like it so that you can have basically like a proper wheelhouse."

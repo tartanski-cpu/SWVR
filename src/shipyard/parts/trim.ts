@@ -67,7 +67,9 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   // trim: as her designer would trim her, with her tanks and ballast).
   if (given) cg[1] = Math.round((given.cgY + raise) * 1000) / 1000;
   const gm = h.kbY + h.iT / h.volume - cg[1];
-  if (gm < 0.5) warnings.push(`Her stability is low (GM ${gm.toFixed(2)} m): give her more beam or less depth.`);
+  // Under CONFIG.shipyard.minGM she'd capsize (she can't float upright): the page holds back Try her.
+  if (gm < CONFIG.shipyard.minGM) warnings.unshift(`She would capsize: she can't float upright (GM ${gm.toFixed(2)} m). Give her more beam or less depth before she goes in the water.`);
+  else if (gm < CONFIG.shipyard.lowGM) warnings.push(`Her stability is low (GM ${gm.toFixed(2)} m): give her more beam or less depth.`);
   const iRoll = mass * gyradius.roll ** 2 * (1 + (cat ? cat.addedRoll : 0.25)); // with its added mass
   const rollCritical = 2 * Math.sqrt(iRoll * mass * g * Math.max(0.2, gm));
   const lc = CONFIG.vessels.landingCraft;
