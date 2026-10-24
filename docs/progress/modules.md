@@ -12,7 +12,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
-- [ ] **The deckhouse's steep transverse stair** (this log). On the trawler with the deckhouse run aft (as in the next item): walk out of the aft door onto its top, to the landing at the middle of its aft edge, and walk down the stair to starboard and back up. Does it feel right, steep but walkable? Is the handrail where you'd reach for it?
+- [ ] **The deckhouse's steep transverse stair** (this log). On the trawler with the deckhouse run aft (as in the next item): walk out of the aft door onto its top, to the landing at the middle of its aft edge, and walk down the stair to starboard and back up (it's walked as a smooth slope now, on desktop and in VR). Does it feel right, steep but easy to walk? Is the handrail where you'd reach for it?
 - [ ] **Stern trawler: deckhouse run on aft, up to 2.5 m; less sheer; raised foredeck to 15 m** (this log). Shipyard → Stern trawler → Wheelhouse step, Deckhouse: Forward 1 m, Height 2.5 m, **Aft** 2 m. Check the rail and the stair on its aft face, and that the gear sits aft of it (Deck gear step). Hull step: Raised foredeck back to 10–15 m. In the game: out of the aft door onto the deckhouse top (the stair down is the item above). Is 2.5 m high enough to see over the gear?
 - [ ] **The smoother on the A-frame and the other moving gear** (this log). On the stern trawler: shoot and haul the trawl and watch the A-frame swing, the net drum and the trawl winches turn; swing the searchlight. On the pilot boat: the pod drives' swing as you steer, the fire monitor. All should glide, no stepping, especially in VR.
 - [ ] **A 750 kW diesel, the stern trawler's** (PROGRESS.md). Start her, run her up; the engine's sound and the speed (about 10 knots).
@@ -26,6 +26,18 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### The deckhouse stair walked as a slope (done; on next, in your test round)
+
+Owner, 24 Oct 2026: the transverse stair is "hard to walk up on desktop ... instead of doing steps on the collision physics, I would do a ramp".
+
+- **Walked as one smooth slope** from the deck at its foot up to the landing, under the drawn plates (`vessel/layout.ts` `stairRamp`). It's still drawn as open steel steps. Walking it doesn't add any polygons; the slope is only in the walking maths.
+- **Why it was hard:** the deck under the stair was still walkable. On a stair this steep your height follows the floor with a little smoothing, so it fell more than a step behind and you carried on along the deck *under* the stair. The deck under it is no longer walked, so the slope is the only floor there.
+- **Checked:**
+  - in the headless game with the desktop keys (W held): from the deck up to the deckhouse top in about 5 s, and back down in about 5 s, never under it;
+  - `deckhouseAft.test.ts`: the slope rises steadily under every step, small moves up it are each well under a step, and the deck under it isn't walked;
+  - typecheck, all of `npm test`, the build.
+- **Shared changes:** `src/vessel/layout.ts` (the slope; the open deck kept off the stair's footprint).
 
 ### The deckhouse's ladder aft becomes a steep transverse stair (done; on next, in your test round)
 

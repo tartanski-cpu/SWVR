@@ -94,9 +94,27 @@ describe('a deckhouse run on aft of the wheelhouse', () => {
     const mid = (t: { x0: number; x1: number }) => (t.x0 + t.x1) / 2;
     expect(walk.walkable(mid(landing), dh.z1 - 0.3, dh.top)).toBe(true);
     expect(walk.walkable(mid(landing), zs, dh.top)).toBe(true);
-    for (const t of treads) expect(walk.walkable(mid(t), zs, t.y), `tread at ${t.y}`).toBe(true);
+    // Its treads walked as one slope (owner: "it can just be a ramp"): at each tread's middle,
+    // within half a step of the tread drawn there, and rising steadily from the deck to the landing.
+    let last = -Infinity;
+    for (const t of [...treads].reverse()) {
+      const y = walk.floorsAt(mid(t), zs).find((f) => Math.abs(f - t.y) < 0.2);
+      expect(y, `tread at ${t.y}`).toBeDefined();
+      expect(walk.walkable(mid(t), zs, y!)).toBe(true);
+      expect(y!).toBeGreaterThan(last);
+      last = y!;
+    }
+    // Not under it at deck height (you'd walk on under it rather than up: owner, desktop).
+    const deck = def.hull.stations[0].polygon[0][1];
+    expect(walk.walkable(mid(treads[1]), zs, walk.floorsAt(mid(treads[1]), zs).find((f) => f < treads[1].y - 0.2) ?? deck)).toBe(false);
+    expect(walk.floorsAt(mid(treads[1]), zs).every((f) => f > treads[treads.length - 1].y - 0.4)).toBe(true);
+    // Small moves up it are each well within a step (a smooth slope, nothing to catch on).
     const lowest = treads[treads.length - 1];
-    expect(lowest.y - def.hull.stations[0].polygon[0][1]).toBeLessThan(0.45);
+    for (let x = lowest.x1; x > landing.x1; x -= 0.05) {
+      const here = Math.max(...walk.floorsAt(x, zs).filter((f) => f < dh.top + 0.01));
+      const next = Math.max(...walk.floorsAt(x - 0.05, zs).filter((f) => f < dh.top + 0.01));
+      expect(next - here).toBeLessThan(0.1);
+    }
     expect(walk.ladderAt(mid(landing), zs)).toBeNull();
   });
 

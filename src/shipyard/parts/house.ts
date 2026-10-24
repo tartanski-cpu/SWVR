@@ -509,8 +509,8 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
     deckEdgeMargin: 0.25,
     bodyRadius: BODY_RADIUS,
   } as LayoutConfig;
-  // A deckhouse's stair (walked as floors; drawn by the hull mesh with its rail).
-  if (deckhouse?.walk?.stair) layout.extraFloors = [...(layout.extraFloors ?? []), ...deckhouse.walk.stair];
+  // A deckhouse's stair: its landing walked as a floor (its treads as one slope: vessel/layout.ts; drawn by the hull mesh with its rail).
+  if (deckhouse?.walk?.stair) layout.extraFloors = [...(layout.extraFloors ?? []), deckhouse.walk.stair[0]];
   // A raised foredeck's steps (walked as floors; drawn by the hull mesh).
   if (foredeck) {
     const treads = foredeckSteps(foredeck, q);
