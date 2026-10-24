@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### A full-game review (owner, 24 Oct 2026)
+
+Owner: "Can you run a review of the full game?", with Voyage's basics (exploring, random things, dynamic weather, playing with friends) and the Shipyard-to-game link weighted most, and career kept light.
+
+- The findings and the suggested priorities are in `docs/REVIEW_2026-10-24.md`: 115 confirmed of 119 (11 high, 48 medium, 47 low, 9 polish; nothing critical). Nothing has been changed yet: the owner chooses what to fix.
+- How it was done:
+  - nine area reviewers, then an adversarial verifier per area;
+  - a reproduce check on every serious finding (all 11 reproduced);
+  - three more reviewers on the gaps a completeness pass named.
+  The reviewers read code and ran scratch simulations only (no browser).
+- Findings for other areas are marked by owner: the Shipyard builder crash, the stability warning and the Voyage link are the Shipyard chat's; the far-hills re-merge and the coast meshes never released are the Map chat's. Both chats have been pointed to the document.
+
 ### W and S for the throttle at the helm (owner, 24 Oct 2026)
 
 Owner: "when you're using mouse and keyboard, currently the cursor keys control your throttle and steering ... could you move the throttle ... maybe it's just W and S, because ... the steering, the idea is you use it with your steering wheel."
