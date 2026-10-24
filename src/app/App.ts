@@ -38,6 +38,7 @@ import { TrafficView } from '../traffic/trafficView';
 import { HarbourBoatsView } from '../world/view/harbourBoatsView';
 import { SkylineView } from '../world/view/skylineView';
 import { WindFarmView } from '../world/view/windFarmView';
+import { TransferView } from '../transfer/transferView';
 import { FerryView } from '../traffic/ferryView';
 import { SHIP_NAMES } from '../traffic/traffic';
 import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
@@ -94,7 +95,7 @@ import { CameraMode } from '../player/cameraMode';
 import { GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padLever, type PadState } from '../player/gamepad';
 import { HelmPrompt } from '../ui/helmPrompt';
 import { YardBoard } from '../ui/yardBoard';
-import { ShipyardDoor } from '../ui/shipyardDoor';
+import { careerShipyardSpots, ShipyardDoor } from '../ui/shipyardDoor';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { fallHarm, fireExposure, stepHealth, wakeNow } from '../player/health';
@@ -420,6 +421,8 @@ export class App {
   private planTable: PlanTable | null = null;
   /** Voyage mode: the sign into the Shipyard beside the planning table (ui/shipyardDoor.ts). */
   private shipyardDoor: ShipyardDoor | null = null;
+  /** The career: a sign into the Shipyard on the quay at every harbour (ui/shipyardDoor.ts careerShipyardSpots). */
+  private shipyardSigns: ShipyardDoor[] = [];
   private planSaved = -1;
   private planNoteT = -1;
   /** The berth the table was placed by (null: the map's start). */
@@ -553,6 +556,8 @@ export class App {
   private readonly skylineView = new SkylineView(SKYLINE, SKYLINE_STYLE === 'aegean');
   /** Offshore wind farms (world/view/windFarmView.ts). */
   private readonly windFarmView = new WindFarmView(WIND_FARMS);
+  /** The crew transfer's technicians (transfer/transferView.ts). */
+  private readonly transferView = new TransferView();
   /** A coast map's ferries on their real routes (traffic/ferryView.ts); made with the ocean. */
   private ferryView: FerryView | null = null;
   private hornSeen = -1;
@@ -789,12 +794,14 @@ export class App {
     // The boatyard's board on its shed at Calder Haven (the add-ons, upgrades and repairs).
     // Only the yards whose port is in this world (the coast region test leaves the Sounds out).
     this.yardBoards = CONFIG.boatyards.filter((y) => PORTS.some((p) => p.id === y.port)).map((y) => new YardBoard(host, y));
-    this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine));
+    // The career's Shipyard signs, one on the quay at every harbour (Voyage's stands by the planning table: setupPlan).
+    if (MODE === 'career') this.shipyardSigns = careerShipyardSpots().map((at) => new ShipyardDoor(host, at));
+    this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine));
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
-    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root, this.skylineView.root, this.windFarmView.root);
+    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root, this.skylineView.root, this.windFarmView.root, this.transferView.root);
     // A test (owner): an outside model, the dirt bike, on the Calder Haven quay by where you
     // start, only with `?bike` in the address (public/models/mx_gold_dirt.glb: the owner's
     // file slimmed with glTF Transform, weld + simplify + quantize, 120,568 -> 19,508
@@ -1297,6 +1304,7 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     this.noteKeys.menu.refresh();
     for (const b of this.yardBoards) b.update(this.scene, this.focus);
+    for (const s of this.shipyardSigns) s.updateAt(this.scene, this.focus);
     this.gangway.update(this.gangwayCtx(), this.camera.getWorldPosition(this.gangwayEye));
     if (this.board) {
       this.board.update(this.world);
@@ -2711,6 +2719,8 @@ export class App {
         this.overlay.notify(`${fg.name}: TRAWL switch on, then 2-4 kn`, 3);
       },
       towEnd: () => this.pushVesselIntent('towDebugEnd', 1),
+      transferCall: () => this.pushVesselIntent('transferCall', 0),
+      transferPlace: () => this.pushVesselIntent('transferPlace', 1),
       fireNear: (kind) => this.pushVesselIntent('fireDebugNear', 1, kind),
       fireCall: () => this.pushVesselIntent('fireDebugCall', 1),
       fireEnd: () => this.pushVesselIntent('fireDebugEnd', 1),
@@ -5298,11 +5308,11 @@ export class App {
     setTimeout(() => window.location.assign(outboundUrl(site, envelope)), CONFIG.voyage.timber.fadeS * 1000);
   }
 
-  /** The world's fixed boards worked like the menu: the boatyards' and Voyage's Shipyard sign. */
+  /** The world's fixed boards worked like the menu: the boatyards' and the Shipyard signs (Voyage's one, the career's at every harbour). */
   private boardMenus(): WristMenu[] {
     // One list, kept (asked for several times a frame), made again only if the boards change.
-    const n = this.yardBoards.length + (this.shipyardDoor ? 1 : 0);
-    if (this.boardMenuList.length !== n) this.boardMenuList = this.shipyardDoor ? [...this.yardBoards.map((b) => b.menu), this.shipyardDoor.menu] : this.yardBoards.map((b) => b.menu);
+    const n = this.yardBoards.length + this.shipyardSigns.length + (this.shipyardDoor ? 1 : 0);
+    if (this.boardMenuList.length !== n) this.boardMenuList = [...this.yardBoards.map((b) => b.menu), ...this.shipyardSigns.map((s) => s.menu), ...(this.shipyardDoor ? [this.shipyardDoor.menu] : [])];
     return this.boardMenuList;
   }
   private boardMenuList: WristMenu[] = [];
@@ -5318,7 +5328,6 @@ export class App {
     if (!this.playingAlone()) return 'Only alone, or hosting with no crew aboard';
     const v = this.world.vessels[this.testVesselId];
     if (!v || !designCodeOf(v.defId)) return "She isn't a Shipyard design";
-    if (MODE !== 'voyage' && !yardAt(this.world)) return 'Bring her into the boatyard first';
     return null;
   }
 
@@ -5384,6 +5393,7 @@ export class App {
     this.harbourBoatsView.update(this.world, this.renderWaves, darkness, this.focus);
     this.skylineView.update(this.world, darkness, dt);
     this.windFarmView.update(this.world, darkness, dt);
+    this.transferView.update(this.world, (id) => this.vesselRoots.get(id));
     this.rememberVoyagePlace(dt);
     this.updatePlan();
     this.updateTimber(v, dt);

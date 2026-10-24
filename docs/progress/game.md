@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) Crew transfer jobs: small changes in the main game's files
+
+At the owner's word (24 Oct 2026, crew transfer to wind farms, stop 2): a new gameplay system `src/transfer/` (`WorldState.transfer`, stepped in `core/simulation.ts` after the salvage; its debug intents `transferCall`, `transferPlace`). Small changes: `career/career.ts` (job kind `transfer`; `CONFIG.career.pay.transfer`, `transferPerPerson`, `rep.transfer` in `src/config.ts`), `player/gangway.ts` (Step across / Step aboard at a turbine), `player/playerControl.ts` (the `board` intent's `turbine:` ref), `world/landWalkArea.ts` (a turbine's platform is ground), `nav/chartPlotter.ts` and `nav/paperChart.ts` (the turbines), `ui/mainMenu.ts` (Tests → Wind farm), `app/App.ts` (the technicians' view), `tests/menu.test.ts`. Details in `docs/progress/modules.md`.
+
+### A Shipyard sign at every career harbour (24 Oct 2026)
+
+Owner: "I thought I had added the shipyard as a button which took you to the shipyard with your current boat in voyages. I guess that should be in career mode too", then "any harbour".
+
+- **The career now has the same quay sign as Voyage, at every harbour** (`ui/shipyardDoor.ts`: `careerShipyardSpots`, `updateAt`): one stands behind each harbour's cargo berth (or its first berth), on the spot Voyage's planning table would take there (`planTableSpot`: level ground, clear of the buildings, a little back from the water), shown when you're within 25 m. One button: open the Shipyard on her design, in refit mode, as the yard's door does. The boatyards' own boards keep their button too.
+- **Any harbour:** the "Bring her into the boatyard first" rule is gone; the other rules stand (the host only, alone or with no crew aboard, a Shipyard design, not on a sea trial). The refit still costs the price difference, paid on the way back (`settleRefit`).
+- The sign reads the Voyage sign's settings, `CONFIG.voyage.shipyardSign` (size, height, range, reach).
+- Tests: `tests/shipyardSign.test.ts` (a sign at every career harbour with a berth, on the quay). Headless (career, Calder Haven): the sign stands at the start quay, opens when you step ashore within range (screenshot: on the quay beside the yard shed). Not checked: the other eight harbours by eye, VR.
+
 ### Hull weathering (24 Oct 2026)
 
 From the texture study (scratch, reported to the owner: the game's "pixel paint" tiles are the texture system; hull weathering was the first pick). Owner: "Go ahead with the hull weathering", then "these weathering and rusted texture should be an option in the shipyard, actually, so you can pre-configure a boat to look used or new."

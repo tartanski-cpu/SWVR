@@ -39,6 +39,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **Crew transfer, stop 2: the job** (this log). In the catamaran in the career: **Tests → Wind farm → Call job** (or wait for the VHF call). Make fast in Calder Haven: the three technicians come aboard into her cabin. Steam to their turbine (ringed T2 on the chartplotter, numbered on the paper chart), nose onto its landing and hold her with a little throttle: three seconds, then they step across one by one and climb to the platform; then it pays. Try the wrong turbine, and backing off half way. Step across yourself with the **Step across** mark, walk round the platform, and **Step aboard** back. Is three seconds' hold right? Are they paid enough?
 - [ ] **Crew transfer, stop 1: the bow fender and the Holm Rig wind farm** (this log). Shipyard: the catamaran shows her bow fender (Deck gear step, Bow view); any other type but the tug can add one (Hull step, Hull protection). In the game, in the catamaran: steam out of Calder Haven, round Calder Holm to the south-east, to the three turbines. Look at one close up (the landing's tubes and ladder). Nose her slowly onto the landing's two tubes, then hold her there with a little throttle ahead: she should stay put, not slide off sideways, with no damage. Try it in a small sea too. At night, the red lights on the nacelles flash together and a yellow one burns on each platform.
 - [ ] **The deckhouse's steep transverse stair** (this log). On the trawler with the deckhouse run aft (as in the next item): walk out of the aft door onto its top, to the landing at the middle of its aft edge, and walk down the stair to starboard and back up (it's walked as a smooth slope now, on desktop and in VR). Does it feel right, steep but easy to walk? Is the handrail where you'd reach for it?
 - [ ] **Stern trawler: deckhouse run on aft, up to 2.5 m; less sheer; raised foredeck to 15 m** (this log). Shipyard → Stern trawler → Wheelhouse step, Deckhouse: Forward 1 m, Height 2.5 m, **Aft** 2 m. Check the rail and the stair on its aft face, and that the gear sits aft of it (Deck gear step). Hull step: Raised foredeck back to 10–15 m. In the game: out of the aft door onto the deckhouse top (the stair down is the item above). Is 2.5 m high enough to see over the gear?
@@ -54,6 +55,48 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### Crew transfer to wind farms, stop 2: technicians, the job, stepping across, the chart (done; on next, in your test round)
+
+Owner, 24 Oct 2026: "go ahead with stop 2".
+
+- **The job** (new `src/transfer/transfer.ts`, state `WorldState.transfer`, stepped by the host with the others):
+  - now and then (first after 4 minutes, then every 7 to 13 minutes once the last is done) the farm radios for a crew boat: 2 or 3 technicians for one of the turbines, waiting on the quay at Calder Haven;
+  - a boat made fast in Calder Haven takes them aboard, one every 1.5 s, each to a seat (her rescue seats: on the catamaran, in her cabin);
+  - **on the landing:** her bow (her fender's face, else her stem) within 0.9 m of a landing's face, moving under 0.4 m/s, pushing at least 2.5 kN (`landedOn`). Held there 3 s on their turbine, the first steps across; each of the others 2.5 s later. Come off it and the count starts again. On the wrong turbine they say so on the radio;
+  - each takes 1.5 s to step over and climbs at 0.6 m/s to the platform, where they stand, working, until the next job;
+  - all up: paid (£500 and £120 a technician, credited to Calder Haven, reputation +4; career `pay.transfer`, `pay.transferPerPerson`, `rep.transfer`) and a thank-you on the radio;
+  - settings `CONFIG.transfer`; jobs come by themselves in the career game, not on the Voyage maps or in tests.
+- **The technicians drawn** (`src/transfer/transferView.ts`): hi-vis orange overalls with reflective bands, navy trousers, a white hard hat, each their own face (as the avatars); standing on the quay, sitting aboard (in the boat's frame), stepping across, on the ladder, on the platform. One mesh each, only while there's a job.
+- **Players step across** (owner: "and players too"):
+  - while a boat is held on a landing, the gangway mark shows **Step across** over the tubes (`player/gangway.ts`); it puts you on the turbine's platform at the ladder's head (`board` intent with a `turbine:` ref, `player/playerControl.ts`);
+  - the platform is walked as ground, round the tower, not off its edge or into the tower (`world/windFarm.ts` `platformFloor`, `inTower`; `world/landWalkArea.ts`);
+  - on the platform, while she's still held there, **Step aboard** over her bow takes you back.
+- **On the chart:** the paper chart prints each turbine's sign and number and the farm's name; the chartplotter shows each turbine as a white three-bladed sign, the job's ringed in amber with its number (T1 to T3).
+- **Debug** (Tests tab, **Wind farm**): **Call job** calls one now (for turbine 2); **To its landing** puts your boat 40 m off its turbine's landing, stopped, heading onto it.
+- **Shared changes** (all small; noted in game.md):
+  - `src/core/world.ts`, `src/core/simulation.ts` (the state, its step and its intents);
+  - `src/career/career.ts` (job kind `transfer`), `src/config.ts` (its pay and reputation);
+  - `src/player/gangway.ts`, `src/player/playerControl.ts` (stepping across), `src/world/landWalkArea.ts` (the platform);
+  - `src/nav/chartPlotter.ts`, `src/nav/paperChart.ts` (the turbines);
+  - `src/ui/mainMenu.ts`, `src/app/App.ts` (the view, the debug buttons), `tests/menu.test.ts`.
+- **Checked:**
+  - typecheck, all of `npm test`, the build;
+  - `tests/transfer.test.ts`:
+    - a job: on the quay, boarding one at a time to their own seats, only when made fast at Calder Haven;
+    - the wrong turbine called out;
+    - on the right landing: the first across after 3 s, the next 2.5 s later, all up the ladder, paid, the ledger line;
+    - backing off before the count: nobody across;
+    - a player across onto the platform (walkable, not off its edge, not inside the tower) and back aboard;
+  - in the game (headless, the catamaran): the job called on the VHF, the three on the quay, aboard, held on turbine 2's landing (the Step across mark showing over the tubes), across, two on the platform and one on the ladder.
+- **Not checked:**
+  - VR, and driving it in by hand (the headless game was stepped by script);
+  - the paper chart and the chartplotter's turbines were not looked at;
+  - with a crew in multiplayer.
+- **Not done** (for later, if wanted):
+  - fetching the technicians back at the end of their shift;
+  - a lit-up "held" light at the helm;
+  - climbing the turbine's ladder yourself (you step straight onto the platform).
 
 ### Crew transfer to wind farms, stop 1: the bow fender and the Holm Rig wind farm (done; on next, in your test round)
 

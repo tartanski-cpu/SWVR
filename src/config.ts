@@ -701,6 +701,9 @@ export const CONFIG = {
       rescue: 400,
       rescuePerPerson: 150,
       fire: 650,
+      /** Crew transfer to the wind farm (transfer/transfer.ts): the trip, and each technician put across. */
+      transfer: 500,
+      transferPerPerson: 120,
     },
     costs: { fuelPerL: 1.6, oil: 35, lostCargo: 100 },
     /** Repairs in port (phase 2): per % of hull damage, per % of engine wear (an overhaul). */
@@ -708,7 +711,7 @@ export const CONFIG = {
     /** Danger money: rescues, tows and fires in a squall or a sea over `stormHs` m pay this much more. */
     stormBonus: 0.5,
     stormHs: 1.8,
-    rep: { cargo: 2, fish: 1, log: 3, debris: 1, tow: 6, rescue: 10, fire: 8, contract: 8, contractFail: -6, lostCargo: -3, max: 100 },
+    rep: { transfer: 4, cargo: 2, fish: 1, log: 3, debris: 1, tow: 6, rescue: 10, fire: 8, contract: 8, contractFail: -6, lostCargo: -3, max: 100 },
     contracts: {
       perPort: 2,
       refresh: 600,

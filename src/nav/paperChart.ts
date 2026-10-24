@@ -13,7 +13,7 @@
  * table): sized to be read from standing height on desktop without leaning in.
  */
 import { CONFIG } from '../config';
-import { CURRENTS, FARMS, LIGHTS, MARKS, MAX_DEPTH, PLACES, PORTS, SKYLINE, WRECKS, type MarkKind } from '../world/archipelago';
+import { CURRENTS, FARMS, LIGHTS, MARKS, MAX_DEPTH, PLACES, PORTS, SKYLINE, WIND_FARMS, WRECKS, type MarkKind } from '../world/archipelago';
 import { slackTimes } from '../world/currents';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
@@ -275,6 +275,27 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
     // Churches and the smaller towers on the detail sheets only (they'd crowd the overview).
     if (sheet.textScale < 1 && (s.kind === 'church' || s.kind === 'monument')) continue;
     label(s.name && s.kind === 'castle' ? s.name.replace(/ Castle$/, ' Cas') : ABBR[s.kind] ?? '', x + 10 * u, y - 8 * u, `italic ${12 * u}px Georgia, serif`, INK);
+  }
+  // Offshore wind farms (world/windFarm.ts): each turbine its three-bladed sign and its number,
+  // the farm named once, its platforms' light (Fl Y 5s, as an offshore structure's marking).
+  for (const f of WIND_FARMS) {
+    f.turbines.forEach((t, i) => {
+      const x = px(t.x);
+      const y = pz(t.z);
+      g.strokeStyle = INK;
+      g.lineWidth = 1.6 * u;
+      g.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = -Math.PI / 2 + (k * 2 * Math.PI) / 3;
+        g.moveTo(x, y);
+        g.lineTo(x + Math.cos(a) * 7 * u, y + Math.sin(a) * 7 * u);
+      }
+      g.stroke();
+      label(`${i + 1}`, x + 11 * u, y - 7 * u, `italic ${12 * u}px Georgia, serif`, INK);
+    });
+    const mx = f.turbines.reduce((a, t) => a + t.x, 0) / f.turbines.length;
+    const mz = f.turbines.reduce((a, t) => a + t.z, 0) / f.turbines.length;
+    label(f.name, px(mx), pz(mz) + 26 * u, `italic ${13 * u}px Georgia, serif`, INK);
   }
   // Buoys: a small pillar (can, cone) in the mark's colours with its topmark, the light's
   // magenta flare and its character (as charted).

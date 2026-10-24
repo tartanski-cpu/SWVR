@@ -39,6 +39,7 @@ import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/pot
 import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
+import { applyTransferIntent, isTransferIntent, stepTransfer } from '../transfer/transfer';
 import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
 import { holdPayload, stepHold } from '../fishing/fishHold';
 import { stepRodSale } from '../fishing/rod';
@@ -104,6 +105,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyFireIntent(world, intent);
     } else if (isTowIntent(intent.control)) {
       applyTowIntent(world, intent);
+    } else if (isTransferIntent(intent.control)) {
+      applyTransferIntent(world, intent);
     } else if (isPlanIntent(intent.control)) {
       applyPlanIntent(world, intent);
     } else if (isTutorialIntent(intent.control)) {
@@ -243,6 +246,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepFuelHoses(world);
   stepFire(world, dt);
   stepSalvage(world, dt);
+  stepTransfer(world, dt);
   stepFishing(world, dt);
   stepHold(world);
   stepCareer(world);
