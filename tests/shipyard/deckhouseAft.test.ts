@@ -12,7 +12,8 @@ import { validateRecipe } from '../../src/modular/recipe';
 import { buildDesign, DESIGN_HULLS } from '../../src/shipyard/build';
 import { DEFAULT_DESIGN, SCALES, type ShipDesign } from '../../src/shipyard/design';
 import { designToken, readDesign, shortCode } from '../../src/shipyard/designDoc';
-import { deckhouseLadderZone } from '../../src/vessel/deckhouse';
+import { CONFIG } from '../../src/config';
+import { deckhouseHalfWidth, deckhouseLadderZone } from '../../src/vessel/deckhouse';
 import { vesselWalkArea } from '../../src/vessel/layout';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 
@@ -37,20 +38,45 @@ describe('a deckhouse run on aft of the wheelhouse', () => {
     const { deckhouse: dh, wheelhouse: wh } = b.hull.layout;
     expect(dh!.houseAft).toBeCloseTo(wh!.aft, 3);
     expect(dh!.z1).toBeCloseTo(wh!.aft + SCALES.dhAft(4) - 0.02, 3);
-    expect(dh!.walk!.ladder).toMatchObject({ face: 'aft', x: 0 });
+    // A steep stair across its aft face (owner: "a steep transverse stair instead"), not a ladder.
+    const st = dh!.walk!.stair!;
+    expect(dh!.walk!.ladder.face).toBe('stair');
+    expect(deckhouseLadderZone(dh!)).toBeNull();
+    const [landing, ...treads] = st;
+    expect(landing.y).toBe(dh!.top);
+    const half = deckhouseHalfWidth(dh!, dh!.z1);
+    for (const [i, t] of treads.entries()) {
+      const above = i ? treads[i - 1].y : landing.y;
+      expect(above - t.y).toBeLessThanOrEqual(0.3 + 1e-6); // each a walk step (0.4 at most)
+      expect(t.x0).toBeGreaterThanOrEqual(-half);
+      expect(t.x1).toBeLessThanOrEqual(half);
+      expect(t.z0).toBeGreaterThan(dh!.z1);
+    }
+    expect(treads.length).toBeGreaterThanOrEqual(7);
+    // Steep: about 54 degrees.
+    const pitch = (Math.atan2(0.3, CONFIG.shipyard.deckhouse.walk.stair.tread) * 180) / Math.PI;
+    expect(pitch).toBeGreaterThan(50);
     // The door's steps (if any) stand on its top, not the deck.
     for (const s of wh!.steps ?? []) expect(s.y).toBeGreaterThan(dh!.top);
     expect(wh!.floorY).toBeGreaterThanOrEqual(dh!.top);
-    // The trawl gear aft of it and its ladder.
-    const lad = deckhouseLadderZone(dh!)!;
+    // The trawl gear aft of it and its stair.
+    const stairAft = Math.max(...st.map((t) => t.z1));
     for (const id of ['aFrame', 'netDrum', 'trawlWinches']) {
       const s = b.hull.sockets.find((k) => k.id === id);
       expect(s, id).toBeDefined();
-      expect(s!.transform.position[2], id).toBeGreaterThan(lad.z1);
+      expect(s!.transform.position[2], id).toBeGreaterThan(stairAft);
+    }
+    // The life ring and a rod rack on its aft face, clear of the stair.
+    const fitted = buildDesign(trawler({ lifeRing: 2, rodRack: 2 }));
+    const fst = fitted.hull.layout.deckhouse!.walk!.stair!;
+    const [s0, s1] = [Math.min(...fst.map((t) => t.x0)), Math.max(...fst.map((t) => t.x1))];
+    for (const id of ['lifeRing', 'rodRack']) {
+      const x = fitted.hull.sockets.find((k) => k.id === id)!.transform.position[0];
+      expect(x < s0 || x > s1, id).toBe(true);
     }
   });
 
-  it('is walked: out of the aft door onto its top, down its ladder to the working deck', () => {
+  it('is walked: out of the aft door onto its top, down its stair to the working deck, step by step', () => {
     useDesign(trawler());
     expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
     const def = VESSEL_DEFS.design;
@@ -62,11 +88,16 @@ describe('a deckhouse run on aft of the wheelhouse', () => {
     expect(walk.walkable(0, zTop, dh.top)).toBe(true);
     // Not on the deck under it.
     expect(walk.walkable(0, zTop, dh.top - 2.5)).toBe(false);
-    // Its ladder: from the deck at its foot to its top.
-    const lad = deckhouseLadderZone(dh)!;
-    const l = walk.ladderAt(0, (lad.z0 + lad.z1) / 2)!;
-    expect(l.top).toBe(dh.top);
-    expect(l.top - l.bottom).toBeGreaterThan(2.4);
+    // Down its stair: the landing from its top, then each tread from the one above, then the deck.
+    const [landing, ...treads] = dh.walk!.stair!;
+    const zs = (landing.z1 + dh.z1) / 2 + 0.1;
+    const mid = (t: { x0: number; x1: number }) => (t.x0 + t.x1) / 2;
+    expect(walk.walkable(mid(landing), dh.z1 - 0.3, dh.top)).toBe(true);
+    expect(walk.walkable(mid(landing), zs, dh.top)).toBe(true);
+    for (const t of treads) expect(walk.walkable(mid(t), zs, t.y), `tread at ${t.y}`).toBe(true);
+    const lowest = treads[treads.length - 1];
+    expect(lowest.y - def.hull.stations[0].polygon[0][1]).toBeLessThan(0.45);
+    expect(walk.ladderAt(mid(landing), zs)).toBeNull();
   });
 
   it('stops short of leaving her no working deck; needs a deckhouse; not with one only as wide as the house', () => {

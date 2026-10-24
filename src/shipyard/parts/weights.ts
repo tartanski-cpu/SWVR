@@ -52,7 +52,7 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
     { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
     { name: 'Deckhouse: the cabin below (sole, lining, berth)', kg: cabinM2 * CONFIG.shipyard.deckhouse.cabin.kgPerM2, y: layout.cabin ? layout.cabin.sole + 0.6 : deckMid, z: layout.cabin ? (layout.cabin.z0 + layout.cabin.z1) / 2 : 0 },
-    { name: 'Deckhouse rail and ladder', kg: deckhouse?.walk ? dhRailM * CONFIG.shipyard.deckhouse.walk.railKgPerM + CONFIG.shipyard.deckhouse.walk.ladder.kg : 0, y: deckhouse ? deckhouse.top + 0.4 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
+    { name: 'Deckhouse rail and ladder', kg: deckhouse?.walk ? dhRailM * CONFIG.shipyard.deckhouse.walk.railKgPerM + (deckhouse.walk.stair ? CONFIG.shipyard.deckhouse.walk.stair.kg : CONFIG.shipyard.deckhouse.walk.ladder.kg) : 0, y: deckhouse ? deckhouse.top + 0.4 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: 'Cockpit overhead', kg: overheadM2(layout.overhead) * mat.houseKgPerM2, y: layout.overhead ? layout.overhead.y - 0.3 : deckMid, z: layout.overhead ? (layout.overhead.z0 + layout.overhead.z1) / 2 : 0 },
     { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: outboards ? 'Outboards' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY, z: machineZ },
