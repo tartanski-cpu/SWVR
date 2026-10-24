@@ -49,7 +49,7 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
-import { sampleSurface, type PreparedWave, type SurfaceSample } from '../../ocean/waves';
+import { newSurfaceSample, sampleSurface, type PreparedWave, type SurfaceSample } from '../../ocean/waves';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
@@ -174,10 +174,17 @@ const portP = new THREE.Vector3();
 const portS = new THREE.Vector3();
 const portV = new THREE.Vector3();
 const portF = new THREE.Vector3();
+// The physics' wave samples, filled again each time (no new objects per sample).
+const SW_FLOW = newSurfaceSample();
+const SW_DEPTH = newSurfaceSample();
+const SW_P = newSurfaceSample();
+const SW_C = newSurfaceSample();
+const SW_S = newSurfaceSample();
+const SW_O = newSurfaceSample();
 const port: PhysicsPort = {
   flowAt(local, level = false) {
     const p = toWorld(local[0], local[1], local[2], portP);
-    const sw = sampleSurface(portWaves, p.x, p.z);
+    const sw = sampleSurface(portWaves, p.x, p.z, SW_FLOW);
     pointVelocity(p, portV);
     portV.x -= sw.velocity[0];
     portV.y -= sw.velocity[1];
@@ -188,7 +195,7 @@ const port: PhysicsPort = {
   },
   depthAt(local, surfaceAt = local) {
     const at = toWorld(surfaceAt[0], surfaceAt[1], surfaceAt[2], portS);
-    const height = sampleSurface(portWaves, at.x, at.z).height;
+    const height = sampleSurface(portWaves, at.x, at.z, SW_DEPTH).height;
     return height - toWorld(local[0], local[1], local[2], portP).y;
   },
   addForce(local, fx, fy, fz) {
@@ -271,9 +278,9 @@ export function stepVessel(
     toWorld(-b, 0, st.z, portW);
     toWorld(0, 0, st.z, centreW);
     toWorld(b, 0, st.z, stbdW);
-    const sP: SurfaceSample = sampleSurface(waves, portW.x, portW.z);
-    const sC: SurfaceSample = sampleSurface(waves, centreW.x, centreW.z);
-    const sS: SurfaceSample = sampleSurface(waves, stbdW.x, stbdW.z);
+    const sP: SurfaceSample = sampleSurface(waves, portW.x, portW.z, SW_P);
+    const sC: SurfaceSample = sampleSurface(waves, centreW.x, centreW.z, SW_C);
+    const sS: SurfaceSample = sampleSurface(waves, stbdW.x, stbdW.z, SW_S);
 
     // Depth of each section vertex below the (piecewise-linear) water surface.
     depths.length = st.polygon.length;
@@ -364,7 +371,7 @@ export function stepVessel(
 
   // Calm-water resistance at mid-draft at the LCG, against speed through the water.
   const resW = toWorld(0, def.resistance.y, cgL.z, centreW);
-  const sO = sampleSurface(waves, resW.x, resW.z);
+  const sO = sampleSurface(waves, resW.x, resW.z, SW_O);
   pointVelocity(resW, tmp);
   tmp.x -= sO.velocity[0];
   tmp.z -= sO.velocity[2];

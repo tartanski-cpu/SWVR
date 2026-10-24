@@ -10,6 +10,32 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### No hitches from the short seas' field, and less garbage from the wave sums (owner, 24 Oct 2026)
+
+Owner: "the wave sampling garbage and wind-sea field hitches next" (review: the field was worked out again in one go, 10-20 ms on the main thread, every time the wind moved 4 % or 4°, and a rising wind did it dozens of times; the wave sums made thousands of throwaway objects a frame).
+
+- **The field a slice at a time** (`src/ocean/windSea.ts`):
+  - A refresh is worked out `CONFIG.ocean.fetchSeas.sliceCells` (4000) cells a tick, the old field in use meanwhile, and swapped in whole when done: the Clyde's 25,000 cells in about 7 ticks.
+  - The first field (the map's loading, or Debug turning short seas back on) is still made at once.
+  - The long waves' exposure is kept for the map (it never changes); nothing is allocated per cell.
+  - Every wind direction's fetch is worked out when the grid is made (`src/world/fetch.ts`), not first thing when a new wind comes.
+  - Measured (Node), a wind rising 5 → 17 m/s and veering, warm:
+
+    | | Before | After |
+    |---|---|---|
+    | Each refresh | 10-18 ms at once | 1.4 ms (Oban) / 2.0 ms (Clyde) for the longest single call, none over 2 ms |
+
+    The map's load does a little more (the grid with all its sectors: 35 ms Oban, 50-65 ms Clyde, was 7 / 25 ms; the first field 22-35 ms, was 37-57 ms).
+  - Checked in a browser on the Clyde: as the wind rose the field refreshed and the drawn sea took each new one, no errors.
+- **Less garbage from the wave sums** (`src/ocean/waves.ts`, `src/vessel/physics/vesselPhysics.ts`):
+  - `sampleSurface` fills a sample given to it (`newSurfaceSample`), and the physics keeps six of its own, instead of a new object and two arrays per sample, dozens a tick.
+  - The closures and arrays went in the previous change set (the wind-sea lookup, the rest position).
+  - The physics' recorded traces (`tests/golden.test.ts`) are unchanged.
+- **Two smaller ones** (`src/app/App.ts`):
+  - the debug readout's text is built only while the overlay is shown (it was built every frame regardless);
+  - the boards' menu list is kept, not made again three times a frame.
+- **Shared changes:** `src/vessel/physics/vesselPhysics.ts` (reused samples), `src/world/fetch.ts` (all sectors at the grid's making).
+
 ### Harbour boats, buoys and marks cheaper on the waves (owner, 24 Oct 2026)
 
 Owner: "the harbour boats and buoys performance fix next" (review: in a busy marina, where every Voyage starts, the scenery's wave samples were about 10 ms a frame before anything was drawn).

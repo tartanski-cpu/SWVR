@@ -289,6 +289,11 @@ export function surfaceHeight(waves: readonly PreparedWave[], x: number, z: numb
   return y;
 }
 
+/** A sample to fill again and again (sampleSurface's `out`). */
+export function newSurfaceSample(): SurfaceSample {
+  return { height: 0, normal: [0, 1, 0], velocity: [0, 0, 0] };
+}
+
 export interface SurfaceSample {
   height: number;
   /** Unit surface normal. */
@@ -303,7 +308,7 @@ export interface SurfaceSample {
  * Normal: cross product of the surface tangents ∂P/∂z0 × ∂P/∂x0, with ∂θ/∂x0 = k·Dx etc.
  * Velocity: ∂P/∂t at fixed p0, using ∂θ/∂t = −ω.
  */
-export function sampleSurface(waves: readonly PreparedWave[], x: number, z: number): SurfaceSample {
+export function sampleSurface(waves: readonly PreparedWave[], x: number, z: number, out?: SurfaceSample): SurfaceSample {
   const { x: x0, z: z0 } = restInto(waves, x, z, 6, REST);
   const common = waves.length > 0 ? commonFactors(waves, x0, z0) : 1;
   let y = 0;
@@ -343,7 +348,17 @@ export function sampleSurface(waves: readonly PreparedWave[], x: number, z: numb
   cur.x = 0;
   cur.z = 0;
   addCurrent(x, z, cur);
-  return { height: y, normal: [nx, ny, nz], velocity: [vx + cur.x, vy, vz + cur.z] };
+  // Into `out` when given (the physics' own, reused: review, Oct 2026, a new object and two
+  // arrays per sample, dozens a tick, were steady garbage on the Quest).
+  if (!out) return { height: y, normal: [nx, ny, nz], velocity: [vx + cur.x, vy, vz + cur.z] };
+  out.height = y;
+  out.normal[0] = nx;
+  out.normal[1] = ny;
+  out.normal[2] = nz;
+  out.velocity[0] = vx + cur.x;
+  out.velocity[1] = vy;
+  out.velocity[2] = vz + cur.z;
+  return out;
 }
 
 /**

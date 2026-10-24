@@ -275,6 +275,8 @@ export const CONFIG = {
       steepness: 0.7,
       refreshWindPct: 4,
       refreshDirDeg: 4,
+      /** A refresh is worked out this many cells a tick (ocean/windSea.ts), the old field in use meanwhile: no hitch. */
+      sliceCells: 4000,
     },
     seaStates: [
       { name: 'Calm', scale: 0 },

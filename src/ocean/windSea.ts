@@ -24,7 +24,7 @@
  * here (windSeaAt), the ocean shader as a texture of the same numbers (oceanView.ts).
  */
 import { CONFIG } from '../config';
-import { effectiveFetch, fetchGrid, type FetchGrid } from '../world/fetch';
+import { effectiveFetch, fetchGrid, sectorFetch, type FetchGrid } from '../world/fetch';
 
 const G = 9.81;
 
@@ -86,6 +86,7 @@ export function setShortSeasOff(v: boolean): void {
   if (off === v) return;
   off = v;
   field = null;
+  job = null;
   version++;
 }
 export const shortSeasOff = (): boolean => off;
@@ -95,75 +96,191 @@ export function windSeaField(): WindSeaField | null {
   return field;
 }
 
+/** The long waves' exposure per cell (F/openFetchM toward where they come from, at most 1): fixed for a map, kept with its grid. */
+const EXPOSURE = new WeakMap<FetchGrid, { from: number; expo: Float32Array }>();
+function swellExposure(g: FetchGrid): Float32Array {
+  const from = swellFromDeg();
+  const have = EXPOSURE.get(g);
+  if (have && have.from === from) return have.expo;
+  const c = CONFIG.ocean.fetchSeas;
+  const f = effectiveFetch(g, from);
+  const expo = new Float32Array(f.length);
+  for (let i = 0; i < f.length; i++) expo[i] = g.land[i] ? 0 : Math.min(1, f[i] / c.openFetchM);
+  EXPOSURE.set(g, { from, expo });
+  return expo;
+}
+
+/** A field being worked out a slice at a time (review, Oct 2026: a whole refresh on the main thread was a hitch). */
+interface FieldJob {
+  wind: number;
+  windFrom: number;
+  g: FetchGrid;
+  /** The sector fetches round the wind's bearing and each one's weight (fetch.ts effectiveFetch, written out per cell). */
+  rays: { f: Float32Array; w: number }[];
+  windFetch: Float32Array;
+  amps: Float32Array;
+  max: number[];
+  /** The next cell to do. */
+  next: number;
+}
+let job: FieldJob | null = null;
+
+/** Start a field for this wind: the rays round its bearing and their weights, as effectiveFetch takes them. */
+function startJob(wind: number, windFrom: number): FieldJob {
+  const c = CONFIG.ocean.fetchSeas;
+  const g = fetchGrid();
+  const cells = g.nx * g.nz;
+  const n = g.sectors.length;
+  const step = 360 / n;
+  const at = (((windFrom % 360) + 360) % 360) / step;
+  const k0 = Math.floor(at);
+  const t = at - k0;
+  const rays: { f: Float32Array; w: number }[] = [];
+  let wsum = 0;
+  for (let d = -c.spreadSectors; d <= c.spreadSectors; d++) wsum += Math.cos((d * step * Math.PI) / 180) ** 2;
+  for (const [k, part] of [
+    [k0, 1 - t],
+    [k0 + 1, t],
+  ] as const) {
+    if (part <= 0) continue;
+    for (let d = -c.spreadSectors; d <= c.spreadSectors; d++) rays.push({ f: sectorFetch(g, k + d), w: (part * Math.cos((d * step * Math.PI) / 180) ** 2) / wsum });
+  }
+  return { wind, windFrom, g, rays, windFetch: new Float32Array(cells), amps: new Float32Array(cells * c.trains.length), max: new Array<number>(c.trains.length).fill(0), next: 0 };
+}
+
+/** Work out up to `count` more cells of the job: each one's fetch upwind, its JONSWAP sea, the trains' amplitudes. Whether it's done. */
+function advanceJob(j: FieldJob, count: number): boolean {
+  const c = CONFIG.ocean.fetchSeas;
+  const g = j.g;
+  const cells = g.nx * g.nz;
+  const n = c.trains.length;
+  const wind = j.wind;
+  const u2 = wind * wind;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const t of c.trains) {
+    lo = Math.min(lo, t.period);
+    hi = Math.max(hi, t.period);
+  }
+  const share = SHARE.length >= n ? SHARE : (SHARE = new Float64Array(n));
+  const end = Math.min(cells, j.next + count);
+  for (let i = j.next; i < end; i++) {
+    if (g.land[i]) continue;
+    let F = 0;
+    for (const r of j.rays) F += r.f[i] * r.w;
+    j.windFetch[i] = F;
+    if (wind < 0.3 || F <= 0) continue;
+    // JONSWAP (jonswap() above, written out).
+    const chi = (G * F) / u2;
+    const hs = Math.min(0.0016 * Math.sqrt(chi), 0.2433) * (u2 / G);
+    const tp = Math.min(0.286 * Math.cbrt(chi), 8.134) * (wind / G);
+    // What the open sea doesn't carry here, by the wind's own exposure.
+    const ew = Math.min(1, F / c.openFetchM);
+    const hShort = hs * Math.sqrt(Math.max(0, 1 - ew * ew));
+    // The trains' shares (trainShares() above, written out).
+    const lp = Math.log(Math.min(hi, Math.max(lo, tp)));
+    let sum = 0;
+    for (let k = 0; k < n; k++) {
+      const d = (Math.log(c.trains[k].period) - lp) / c.spreadLn;
+      share[k] = Math.exp(-d * d);
+      sum += share[k];
+    }
+    // Hs = 4√(Σ A²/2): each train's A = Hs/(2√2) × √share.
+    for (let k = 0; k < n; k++) {
+      const a = (hShort / (2 * Math.SQRT2)) * Math.sqrt(share[k] / sum);
+      j.amps[i * n + k] = a;
+      if (a > j.max[k]) j.max[k] = a;
+    }
+  }
+  j.next = end;
+  return end >= cells;
+}
+let SHARE = new Float64Array(4);
+
+/** A finished job as the field: the trains' amplitudes as shares of their largest, the exposure; land cells their water neighbours' mean. */
+function finishJob(j: FieldJob): WindSeaField {
+  const g = j.g;
+  const cells = g.nx * g.nz;
+  const n = CONFIG.ocean.fetchSeas.trains.length;
+  const expo = swellExposure(g);
+  const max = j.max;
+  const data = new Uint8Array(cells * 4);
+  for (let i = 0; i < cells; i++) {
+    for (let k = 0; k < Math.min(3, n); k++) data[i * 4 + k] = max[k] > 0 ? Math.round((255 * j.amps[i * n + k]) / max[k]) : 0;
+    data[i * 4 + 3] = Math.round(255 * expo[i]);
+  }
+  // A land cell takes its water neighbours' mean, so the sea between a shore cell's middle and
+  // the land's isn't blended toward nothing (the grid is coarser than a beach).
+  for (let jj0 = 0; jj0 < g.nz; jj0++) {
+    for (let i = 0; i < g.nx; i++) {
+      const at = jj0 * g.nx + i;
+      if (!g.land[at]) continue;
+      let s0 = 0;
+      let s1 = 0;
+      let s2 = 0;
+      let s3 = 0;
+      let m = 0;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const ii = i + di;
+          const jj = jj0 + dj;
+          if (ii < 0 || jj < 0 || ii >= g.nx || jj >= g.nz || g.land[jj * g.nx + ii]) continue;
+          const q = (jj * g.nx + ii) * 4;
+          s0 += data[q];
+          s1 += data[q + 1];
+          s2 += data[q + 2];
+          s3 += data[q + 3];
+          m++;
+        }
+      }
+      if (m) {
+        data[at * 4] = Math.round(s0 / m);
+        data[at * 4 + 1] = Math.round(s1 / m);
+        data[at * 4 + 2] = Math.round(s2 / m);
+        data[at * 4 + 3] = Math.round(s3 / m);
+      }
+    }
+  }
+  return { wind: j.wind, windFrom: j.windFrom, grid: g, data, max, version: ++version, fetch: j.windFetch };
+}
+
 /**
  * The field for this wind, worked out again if the wind has changed enough since; whether it
  * changed (the waves are rebuilt for it then: their trains' directions and sizes).
+ *
+ * The first field (and after Debug turns the short seas back on) is worked out at once. A
+ * refresh as the wind moves on is worked out `sliceCells` cells a call (each tick and frame),
+ * the old field in use meanwhile, and swapped in whole when it's done: the Clyde's 25,000
+ * cells in a tenth of a second or so, with no hitch (review, Oct 2026: 10-20 ms at once, and a
+ * rising wind made dozens). The swell's exposure is kept for the map, and the sectors' fetch
+ * is ready from the grid's making (world/fetch.ts).
  */
 export function updateWindSea(wind: number, windFrom: number): boolean {
   const c = CONFIG.ocean.fetchSeas;
   if (off || !c.enabled) {
+    job = null;
     if (!field) return false;
     field = null;
     version++;
     return true;
   }
-  if (field) {
+  if (!field) {
+    // The first: all at once (the map's loading).
+    const j = startJob(wind, windFrom);
+    advanceJob(j, Infinity);
+    job = null;
+    field = finishJob(j);
+    return true;
+  }
+  if (!job) {
     const dw = Math.abs(wind - field.wind) / Math.max(1, field.wind);
     const dd = Math.abs(((windFrom - field.windFrom + 540) % 360) - 180);
     if (dw * 100 < c.refreshWindPct && dd < c.refreshDirDeg) return false;
+    job = startJob(wind, windFrom);
   }
-  const g = fetchGrid();
-  const cells = g.nx * g.nz;
-  const windFetch = effectiveFetch(g, windFrom);
-  const swellFetch = effectiveFetch(g, swellFromDeg());
-  const n = c.trains.length;
-  const amps = new Float32Array(cells * n);
-  const expo = new Float32Array(cells);
-  const max = new Array<number>(n).fill(0);
-  const share: number[] = [];
-  for (let i = 0; i < cells; i++) {
-    if (g.land[i]) continue;
-    expo[i] = Math.min(1, swellFetch[i] / c.openFetchM);
-    const { hs, tp } = jonswap(wind, windFetch[i]);
-    if (hs <= 0) continue;
-    // What the open sea doesn't carry here, by the wind's own exposure.
-    const ew = Math.min(1, windFetch[i] / c.openFetchM);
-    const hShort = hs * Math.sqrt(Math.max(0, 1 - ew * ew));
-    trainShares(tp, share);
-    // Hs = 4√(Σ A²/2): each train's A = Hs/(2√2) × √share.
-    for (let k = 0; k < n; k++) {
-      const a = (hShort / (2 * Math.SQRT2)) * Math.sqrt(share[k]);
-      amps[i * n + k] = a;
-      if (a > max[k]) max[k] = a;
-    }
-  }
-  const data = new Uint8Array(cells * 4);
-  for (let i = 0; i < cells; i++) {
-    for (let k = 0; k < Math.min(3, n); k++) data[i * 4 + k] = max[k] > 0 ? Math.round((255 * amps[i * n + k]) / max[k]) : 0;
-    data[i * 4 + 3] = Math.round(255 * expo[i]);
-  }
-  // A land cell takes its water neighbours' mean, so the sea between a shore cell's middle and
-  // the land's isn't blended toward nothing (the grid is coarser than a beach).
-  for (let j = 0; j < g.nz; j++) {
-    for (let i = 0; i < g.nx; i++) {
-      const at = j * g.nx + i;
-      if (!g.land[at]) continue;
-      const sum = [0, 0, 0, 0];
-      let m = 0;
-      for (let dj = -1; dj <= 1; dj++) {
-        for (let di = -1; di <= 1; di++) {
-          const ii = i + di;
-          const jj = j + dj;
-          if (ii < 0 || jj < 0 || ii >= g.nx || jj >= g.nz || g.land[jj * g.nx + ii]) continue;
-          const q = (jj * g.nx + ii) * 4;
-          for (let ch = 0; ch < 4; ch++) sum[ch] += data[q + ch];
-          m++;
-        }
-      }
-      if (m) for (let ch = 0; ch < 4; ch++) data[at * 4 + ch] = Math.round(sum[ch] / m);
-    }
-  }
-  field = { wind, windFrom, grid: g, data, max, version: ++version, fetch: windFetch };
+  if (!advanceJob(job, c.sliceCells)) return false;
+  field = finishJob(job);
+  job = null;
   return true;
 }
 
