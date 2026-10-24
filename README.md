@@ -215,6 +215,7 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 
 - **Reading it on desktop:** aim the crosshair at the chart from the table and the view eases in, as if you leaned over it; look away and it eases back.
 - It's printed like a real chart: depth tints and contours, soundings in metres, a latitude and longitude scale in tenths of a minute around the edge, and a compass rose.
+- **Real positions on the Voyage maps:** there, the latitude and longitude are the real ones (the NAV display, the paper chart's scale, the radio's rescue positions), so you can check them against a real chart of the place. The career archipelago is made up, and so are its positions.
 - **At night** you need the chart table lamp (or the cabin light) to read the chart. The chart, the whiteboard and the task board go dim and red after dark, like the panels, so they don't dazzle you. The chart lamp, a black gooseneck reading lamp standing on the table (a round base with a rocker switch, a long arching neck, a spot head aimed down at the chart), is turned down to a dim red at night. With the white cabin light on they stay whitish, but dimmed.
 
 ### Voyage planning table (Voyage mode)

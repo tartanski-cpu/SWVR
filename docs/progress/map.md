@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Review fixes: real latitude and longitude, far hills merged less, passed chunks freed (24 Oct 2026)
+
+Owner, after the main game chat's review (`docs/REVIEW_2026-10-24.md`): "Do the two map items and the lat/long".
+
+- **Real latitude and longitude on the Voyage maps.** The GPS (NAV display), the paper chart's scale and the radio's positions used the career archipelago's made-up origin on every map, so Syros read as Scotland. Each package now carries its box in degrees (`bbox`, from the request; the four maps re-packaged, nothing else in them changed), and `src/world/coastGeo.ts` inverts the pipeline's projection about the box's middle, both ways (the same sums as the Timber handoff's `metaverse.ts`, which the test checks against). `toLatLon` uses it whenever a coast map is loaded; a new `fromLatLon` does the reverse, and the paper chart draws its scale with it. The career islands keep their made-up origin (`CONFIG.nav`). In the game: Syros's quay reads 37.437° N 24.940° E (Ermoupoli), Rothesay 55.839° N 5.055° W, Oban bay 56.414° N 5.475° W.
+- **Far hills merged less** (`coastView.ts`). A big map merged its far chunks into one mesh again, and sent it to the graphics chip, each time a chunk crossed a line or the visibility drifted, up to twice a second. Now: the fog's reach is rounded up to 500 m steps (`coastFogStep`); a chunk keeps its coarse copy 300 m past its line (`coastHysteresis`); the chunks are re-sorted by distance only after 50 m of movement (`coastResort`); a merge only happens when a chunk must join (a hole otherwise), and then it takes in the chunks within 2 km of needing it too (`coastFarAhead`: the next row about to leave the coarse ring, the hills just beyond the fog), so one merge serves a whole row; chunks no longer needed stay in the mesh, under the nearer ground or in the fog, until they're over a quarter of it (`coastFarSlack`, at most every `coastFarTidy` 5 s). On a 30 km run down the Clyde in wandering visibility: 14 merges, down from 166 for the same run merging chunk by chunk.
+- **Passed chunks freed.** A chunk's coarse copy and its town's buildings stayed in memory once made, so a long Clyde voyage kept every one it had passed. Now they're freed beyond 1.5 times the distance they're drawn within (`coastDropFactor`; 9 km and 3 km) and made again on coming back. On the same run, at most 56 coarse copies at once.
+- **Config keys** (`src/config/map.ts`, `regions`): `coastFogStep` 500, `coastHysteresis` 300, `coastResort` 50, `coastFarAhead` 2000, `coastFarSlack` 0.25, `coastFarTidy` 5, `coastDropFactor` 1.5.
+- **Tests:** `tests/coastGeo.test.ts` (every map's weather point both ways; Syros in the Aegean; Oban as the handoff places it; north up, east right), `tests/coastViewBudget.test.ts` (the 30 km Clyde run: merges and meshes kept). `npm run test:map`, the typecheck and all of `npm test` (1484) pass. Headless: Syros, Clyde and Oban start without errors, their positions as above, the Clyde's far hills drawn.
+- **Not checked:** frame times on the Quest (the merges were a stutter there, not measurable here); the paper chart's scale by eye.
+- **Shared changes:** `src/nav/geo.ts` (`toLatLon` uses the coast map's grid when one is loaded; new `fromLatLon`) and `src/nav/paperChart.ts` (its scale through `fromLatLon`), the main game's. `src/world/coastRegion.ts`'s `CoastPackage` gains `bbox`. README: a line on real positions.
+
 ### Fix: /next/ failed to build: two long tests out of time on GitHub's machine (24 Oct 2026)
 
 Owner: "The work-in-progress build (branch next) failed its tests or its build this time."

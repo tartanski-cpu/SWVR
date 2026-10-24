@@ -12,12 +12,11 @@
  * Text sizes are in "chart points" `u` (1 = 1/1280 of the chart's width, ~0.5 mm on the
  * table): sized to be read from standing height on desktop without leaning in.
  */
-import { CONFIG } from '../config';
 import { CURRENTS, FARMS, LIGHTS, MARKS, MAX_DEPTH, PLACES, PORTS, SKYLINE, WRECKS, type MarkKind } from '../world/archipelago';
 import { slackTimes } from '../world/currents';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
-import { toLatLon } from './geo';
+import { fromLatLon, toLatLon } from './geo';
 import { sheetById, type ChartSheet } from './chartSheets';
 
 export interface PaperChart {
@@ -121,9 +120,10 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
   const border = 12 * u;
   const tl = toLatLon(b.x0, b.z0);
   const br = toLatLon(b.x1, b.z1);
-  const midLat = ((tl.lat + br.lat) / 2) * (Math.PI / 180);
-  const latZ = (lat: number) => pz((CONFIG.nav.originLat - lat) * 1852 * 60);
-  const lonX = (lon: number) => px((lon - CONFIG.nav.originLon) * 1852 * 60 * Math.cos(midLat));
+  const midLat = (tl.lat + br.lat) / 2;
+  const midLon = (tl.lon + br.lon) / 2;
+  const latZ = (lat: number) => pz(fromLatLon(lat, midLon).z);
+  const lonX = (lon: number) => px(fromLatLon(midLat, lon).x);
   const half = sheet.gridMinutes / 60;
   g.strokeStyle = 'rgba(40, 60, 80, 0.45)';
   g.lineWidth = 1.2 * u;

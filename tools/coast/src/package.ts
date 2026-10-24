@@ -540,6 +540,8 @@ const pkg = {
   /** Where the terrain is, relative to the game's public folder, and how terrain.bin is laid out. */
   terrain: req.chunked ? { dir: `regions/${req.id}/`, ...region.terrain } : { dir: `regions/${req.id}/`, ...region.terrain, chunks: region.chunks },
   box,
+  /** Its box in degrees (lon/lat min, max): the game's latitude and longitude on this map (world/coastGeo.ts) invert the pipeline's projection about its middle. */
+  bbox: req.bbox,
   /** The forest map (trees.ts), for the game's trees; absent if the trees stage hasn't run. */
   ...(existsSync(join(D.out, 'trees.json')) ? { trees: JSON.parse(readFileSync(join(D.out, 'trees.json'), 'utf8')) } : {}),
   /** The harbour boats' moorings and anchor spots and the theme's boat mix (boats.ts); absent if that stage hasn't run. */

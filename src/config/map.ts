@@ -33,6 +33,29 @@ export const MAP_CONFIG = {
     coastFarCell: 270,
     /** The far chunks are one merged mesh, merged again at most this often (s) as the set of them changes. */
     coastFarRebuild: 0.5,
+    /**
+     * Keeping that merge rare (the review, 24 Oct 2026: a big map re-merged and re-sent its far
+     * hills to the graphics chip as the boat moved or the visibility changed):
+     *   coastFogStep    the fog's reach is rounded up to this step (m), so drifting visibility
+     *                   doesn't change the far set every frame
+     *   coastHysteresis a chunk keeps its coarse copy, or its place in the far set, this far (m)
+     *                   past its line, so a boat on a line doesn't swap it back and forth
+     *   coastResort     the chunks are re-sorted by distance only when the viewer has moved this far (m)
+     *   coastFarAhead   a merge takes in the chunks within this far (m) of needing it too
+     *                   (the next row about to leave the coarse ring, the hills just beyond
+     *                   the fog), so one merge serves a whole row; drawn under the nearer ground, unseen
+     *   coastFarSlack, coastFarTidy  a chunk no longer needed far (now drawn nearer, which hides
+     *                   it, or now in the fog) stays in the merged mesh; when that's more than
+     *                   coastFarSlack of it, it's tidied, at most every coastFarTidy s
+     */
+    coastFogStep: 500,
+    coastHysteresis: 300,
+    coastResort: 50,
+    coastFarAhead: 2000,
+    coastFarSlack: 0.25,
+    coastFarTidy: 5,
+    /** A chunk's coarse copy and its town are freed (memory back) beyond this many times the distance they're drawn within, and made again on coming back (the review: a long Clyde voyage kept every one it had passed). */
+    coastDropFactor: 1.5,
     coastCoarseCell: 90,
     coastCoarseOverlap: 90,
     coastCoarseDrop: 1,

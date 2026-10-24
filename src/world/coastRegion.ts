@@ -21,6 +21,8 @@ export interface CoastPackage {
   format: string;
   id: string;
   name: string;
+  /** Its box in degrees (lon/lat min, max), for latitude and longitude (coastGeo.ts); absent in an older package. */
+  bbox?: [number, number, number, number];
   /** A whole region's terrain.bin layout, or a chunked region's coarse grid and chunk files. */
   terrain: WholeCoastTerrain | ChunkedCoastTerrain;
   /** Its forest map (tools/coast trees.ts), for the trees; absent in an older package. */
