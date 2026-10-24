@@ -2339,6 +2339,13 @@ export const CONFIG = {
       table: { width: 2.4, depth: 1.6, height: 0.9, back: 3.2, keyDepth: 0.12 },
     },
     /**
+     * The sign into the Shipyard beside the planning table (ui/shipyardDoor.ts; owner, Oct 2026:
+     * refit or design her anew in the real Shipyard page): its width (m), how far past the
+     * table's end it stands (m), its middle's height above the quay (m), how near you must be
+     * to see it and to reach it (m).
+     */
+    shipyardSign: { width: 0.9, besideM: 0.9, up: 1.5, range: 25, reach: 4 },
+    /**
      * The timber run (owner's spec, 23 Oct 2026: Workboat World x Timber; voyage/timber.ts,
      * voyage/metaverse.ts, docs/metaverse-contract.md). Anchor in a marked bay, go ashore to
      * the Timber game, come back to a barge of logs on your line, sell them at the merchant.
