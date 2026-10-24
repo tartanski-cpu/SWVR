@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### W and S for the throttle at the helm (owner, 24 Oct 2026)
+
+Owner: "when you're using mouse and keyboard, currently the cursor keys control your throttle and steering ... could you move the throttle ... maybe it's just W and S, because ... the steering, the idea is you use it with your steering wheel."
+
+- At the helm (F by the wheel), **W / S** move the throttle/gear lever ahead / astern, at the same rate as the arrow keys (`src/app/App.ts` handleDebugDriving). Walking is already off at the helm, so W/S had nothing to do there; away from the helm they walk as before. Not while working the deck crane's remote, which uses W/S itself.
+- The arrow keys still work too: ↑ / ↓ the lever, ← / → the wheel. A and D do nothing at the helm: you steer with the wheel itself (drag it).
+- The help panel (H) and the README's controls table say so (`src/core/keybindings.ts`).
+- Not run in a browser: a small change to which keys feed the lever; typecheck and the menu/controls tests.
+
 ### The gangway mark: step ashore and aboard by pointing (owner, 24 Oct 2026)
 
 Owner: "it's a bit clunky to get from the ship onto the quay side. So usually we're just jumping, and if the ship's low, you kind of fall underneath it. Would it be possible to have something where you look at the quay side from the boat, as long as it's docked, that you can click maybe by somewhere high on the dock side, and then it just puts you ashore?"

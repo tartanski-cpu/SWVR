@@ -1502,7 +1502,10 @@ export class App {
     const cfg = CONFIG.debugDriving;
     // A game controller at the helm: the bumpers work the throttle, the left stick the wheel.
     const pad = this.atHelm && this.pad.state.connected ? this.pad.state : null;
-    const leverIn = clamp((k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + (pad ? padLever(pad) : 0), -1, 1);
+    // At the helm, W and S work the throttle too (owner, Oct 2026: the arrow keys were awkward;
+    // you steer with the wheel itself). Walking is off at the helm, so W/S are free there.
+    const ws = this.atHelm && !this.craneRemote ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
+    const leverIn = clamp((k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + ws + (pad ? padLever(pad) : 0), -1, 1);
     const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
     let lever = this.signedLever(v);
