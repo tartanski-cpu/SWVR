@@ -189,11 +189,19 @@ export function windSeaAt(x: number, z: number, out: { a: number[]; e: number })
   const j1 = Math.min(g.nz - 1, j0 + 1);
   const tu = u - i0;
   const tv = v - j0;
+  // Bilinear between the four cells, written out (no closures: this runs thousands of times a
+  // frame, and throwaway functions were a steady stream of garbage on the Quest).
   const d = f.data;
-  const at = (i: number, j: number, ch: number) => d[(j * g.nx + i) * 4 + ch] / 255;
-  const lerp = (ch: number) => (at(i0, j0, ch) * (1 - tu) + at(i1, j0, ch) * tu) * (1 - tv) + (at(i0, j1, ch) * (1 - tu) + at(i1, j1, ch) * tu) * tv;
-  for (let k = 0; k < n; k++) out.a[k] = k < 3 ? lerp(k) * f.max[k] : 0;
-  out.e = lerp(3);
+  const c00 = (j0 * g.nx + i0) * 4;
+  const c10 = (j0 * g.nx + i1) * 4;
+  const c01 = (j1 * g.nx + i0) * 4;
+  const c11 = (j1 * g.nx + i1) * 4;
+  const w00 = ((1 - tu) * (1 - tv)) / 255;
+  const w10 = (tu * (1 - tv)) / 255;
+  const w01 = ((1 - tu) * tv) / 255;
+  const w11 = (tu * tv) / 255;
+  for (let k = 0; k < n; k++) out.a[k] = k < 3 ? (d[c00 + k] * w00 + d[c10 + k] * w10 + d[c01 + k] * w01 + d[c11 + k] * w11) * f.max[k] : 0;
+  out.e = d[c00 + 3] * w00 + d[c10 + 3] * w10 + d[c01 + 3] * w01 + d[c11 + 3] * w11;
   return out;
 }
 

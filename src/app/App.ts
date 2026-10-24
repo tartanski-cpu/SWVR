@@ -1270,7 +1270,7 @@ export class App {
       }
     }
     this.worldView.lights.update(renderTime, darkness, this.focus, this.environment.visibility);
-    this.navMarks.update(this.renderWaves, renderTime, darkness);
+    this.navMarks.update(this.renderWaves, renderTime, darkness, this.focus);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));

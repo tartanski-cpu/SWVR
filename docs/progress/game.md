@@ -10,6 +10,31 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Harbour boats, buoys and marks cheaper on the waves (owner, 24 Oct 2026)
+
+Owner: "the harbour boats and buoys performance fix next" (review: in a busy marina, where every Voyage starts, the scenery's wave samples were about 10 ms a frame before anything was drawn).
+
+- **Every wave sample is cheaper** (`src/ocean/waves.ts`, `windSea.ts`), for the boats' physics as well as the scenery:
+  - the factors (shelter, tidal races, the wind sea) are taken once per sample, at the point, not again at each of the rest-position search's six steps (they change over hundreds of metres; the rest position is within a metre or two);
+  - the wind-sea lookup no longer makes two throwaway functions per call;
+  - the height and the full sample stop making new arrays.
+  The physics' traces (`tests/golden.test.ts`) and the wave tests are unchanged.
+- **The scenery asks less of the waves:**
+  - `CONFIG.ocean.sceneryIterations` (3): the scenery's samples search for the rest position in 3 steps, not 6. They're within 5 cm of the full sample in a moderate sea and 20 cm in a storm (`tests/sceneryWaves.test.ts`).
+  - Harbour boats (`src/world/view/harbourBoatsView.ts`): posed every frame within `everyFrame` (150 m); out to `bobDistance` every 2nd frame; beyond, every `farEvery`th (4), taking turns. The last pose is held between, and the swing to the wind is still worked out every frame. A moored boat's buoy takes her height instead of a sample of its own. The Quest's `bobDistance` goes 400 → 250 m. A per-frame Map is now kept.
+  - Marks (`src/world/view/navMarksView.ts`): every frame within 300 m, every 4th within 2 km, every 16th beyond (`CONFIG.navMarks.wavesEvery`). Their lights flash on time every frame. A per-mark array each frame is gone.
+- **Measured** (Node on this machine, the review's own benchmark):
+
+  | | Before | After |
+  |---|---|---|
+  | One wave sample | 13-14 µs | 4.5-7.6 µs |
+  | Harbour boats, Oban's busiest marina (94 boats) | 4.5 ms/frame | 1.0 ms/frame |
+  | Harbour boats, the Clyde's busiest (301 boats, desktop settings) | 11.9 ms/frame | 1.7 ms/frame |
+
+  The Quest is slower in absolute terms; the share saved is the same.
+- Checked headless on Oban: 130 harbour boats posed, every matrix sound, the boats on the water by the pontoon (screenshot). Not checked on the Quest itself (frame times there).
+- **Shared changes:** `src/world/view/harbourBoatsView.ts`, `src/world/view/navMarksView.ts` (as above), `src/config.ts` (`ocean.sceneryIterations`, `harbourBoats.everyFrame/farEvery/bobDistance`, `navMarks`).
+
 ### The review's quick fixes, and weather that changes (owner, 24 Oct 2026)
 
 Owner: "go ahead with the seven quick fixes and the weather" (from `docs/REVIEW_2026-10-24.md`; eight were listed, all done).

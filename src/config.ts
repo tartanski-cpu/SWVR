@@ -286,6 +286,14 @@ export const CONFIG = {
     /** Largest sea scale the fine control allows, and its step. */
     maxSeaScale: 3,
     /**
+     * Scenery on the waves (harbour boats, buoys and marks; ocean/waves.ts surfaceHeight): the
+     * rest-position search's steps. The boats' physics takes 6 (under a centimetre even in a
+     * storm); scenery that only bobs takes this many, within a few centimetres in a moderate
+     * sea, for under half the cost (review, Oct 2026: the harbour boats' wave samples were a
+     * big share of the Quest's frame).
+     */
+    sceneryIterations: 3,
+    /**
      * Added resistance in waves (vessel/physics/vesselPhysics.ts): the drag a sea puts on a
      * hull beyond calm water, ∝ ρ g ζ² B²/L (ζ the local wave amplitude, B her beam, L her
      * length: the classic scaling), × `gain`; full in a head sea, `following` of it with the
@@ -2802,7 +2810,19 @@ export const CONFIG = {
    *                    three wave samples), the farther just rise and fall; re-picked every
    *                    `refresh` s. `desktop`: farther on a desktop (Settings > Trees: the same
    *                    device level as the trees, render/device.ts).
+   *   everyFrame       posed every frame within this of the viewer (m); out to `bobDistance`
+   *                    every 2nd frame, beyond it every `farEvery`th, taking turns (review, Oct
+   *                    2026: the busiest marina cost ~10 ms a frame on wave samples). A
+   *                    moored boat's buoy takes her height (no sample of its own).
    */
+  /**
+   * The navigation marks (world/view/navMarksView.ts): set on the waves every frame within
+   * `nearM` of the viewer (m), every `mid`th frame out to `midM`, every `far`th beyond, taking
+   * turns (a far mark's rise and fall can't be seen; its light still flashes on time). Review,
+   * Oct 2026: every mark on the map was sampled every frame.
+   */
+  navMarks: { wavesEvery: { nearM: 300, midM: 2000, mid: 4, far: 16 } },
+
   harbourBoats: {
     pontoonShare: 0.55,
     quayShare: 0.2,
@@ -2821,7 +2841,9 @@ export const CONFIG = {
     stepReach: 250,
     drawDistance: 1500,
     maxShown: 120,
-    bobDistance: 400,
+    bobDistance: 250,
+    everyFrame: 150,
+    farEvery: 4,
     refresh: 1,
     desktop: { drawDistance: 3500, maxShown: 400, bobDistance: 900 },
   },

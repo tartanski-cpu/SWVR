@@ -201,14 +201,19 @@ export function loopSums(waves: readonly PreparedWave[]): { sea: number; chop: n
   return LOOPS.get(waves) ?? { sea: 0, chop: 0 };
 }
 
-/** Horizontal displacement H(p0) of the particle with rest position (x0, z0). */
+/** Each wave's orbit factor (`hor`) for the rest-position search: taken once per search (restInto). */
+let HOR = new Float64Array(16);
+
+/**
+ * Horizontal displacement H(p0) of the particle with rest position (x0, z0), with the waves'
+ * orbit factors as given (HOR).
+ */
 function horizontalDisplacement(waves: readonly PreparedWave[], x0: number, z0: number, out: { x: number; z: number }) {
   let hx = 0;
   let hz = 0;
-  const common = waves.length > 0 ? commonFactors(waves, x0, z0) : 1;
-  for (const w of waves) {
-    const s = waveFactors(x0, z0, w, common).hor;
-    const c = Math.cos(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase) * s;
+  for (let i = 0; i < waves.length; i++) {
+    const w = waves[i];
+    const c = Math.cos(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase) * HOR[i];
     hx += w.horizontal * w.dirX * c;
     hz += w.horizontal * w.dirZ * c;
   }
@@ -218,20 +223,38 @@ function horizontalDisplacement(waves: readonly PreparedWave[], x0: number, z0: 
 
 const scratchH = { x: 0, z: 0 };
 const cur = { x: 0, z: 0 };
+const REST = { x: 0, z: 0 };
+
+/**
+ * Rest position of the particle now at world point (x, z), into `out`. See the header comment
+ * for why the iteration converges. The waves' factors (shelter, races, the wind sea) are
+ * taken once, at (x, z): they change over hundreds of metres and the rest position is within
+ * a metre or two of it, so taking them again each step (as it did: review, Oct 2026) only
+ * cost time, over half of each physics tick. Callers take them again at the rest position
+ * for the height itself.
+ */
+function restInto(waves: readonly PreparedWave[], x: number, z: number, iterations: number, out: { x: number; z: number }): { x: number; z: number } {
+  out.x = x;
+  out.z = z;
+  if (waves.length === 0) return out;
+  if (HOR.length < waves.length) HOR = new Float64Array(waves.length * 2);
+  const common = commonFactors(waves, x, z);
+  for (let i = 0; i < waves.length; i++) HOR[i] = waveFactors(x, z, waves[i], common).hor;
+  for (let i = 0; i < iterations; i++) {
+    horizontalDisplacement(waves, out.x, out.z, scratchH);
+    out.x = x - scratchH.x;
+    out.z = z - scratchH.z;
+  }
+  return out;
+}
 
 /**
  * Rest position (x0, z0) of the particle currently at world point (x, z).
  * See the header comment for why this iteration converges.
  */
 export function restPosition(waves: readonly PreparedWave[], x: number, z: number, iterations = 6): [number, number] {
-  let x0 = x;
-  let z0 = z;
-  for (let i = 0; i < iterations; i++) {
-    horizontalDisplacement(waves, x0, z0, scratchH);
-    x0 = x - scratchH.x;
-    z0 = z - scratchH.z;
-  }
-  return [x0, z0];
+  const r = restInto(waves, x, z, iterations, REST);
+  return [r.x, r.z];
 }
 
 /** Full displaced position of the particle with rest position (x0, z0). */
@@ -252,10 +275,14 @@ export function displacedPosition(waves: readonly PreparedWave[], x0: number, z0
   return [x, y, z];
 }
 
-/** Water surface elevation (m above mean level) at world point (x, z). */
-export function surfaceHeight(waves: readonly PreparedWave[], x: number, z: number): number {
+/**
+ * Water surface elevation (m above mean level) at world point (x, z). `iterations`: the rest
+ * position's search (6: under a centimetre even in a storm; views that only bob scenery can
+ * take fewer, CONFIG.ocean.sceneryIterations).
+ */
+export function surfaceHeight(waves: readonly PreparedWave[], x: number, z: number, iterations = 6): number {
   if (waves.length === 0) return 0;
-  const [x0, z0] = restPosition(waves, x, z);
+  const { x: x0, z: z0 } = restInto(waves, x, z, iterations, REST);
   const common = commonFactors(waves, x0, z0);
   let y = 0;
   for (const w of waves) y += w.amplitude * waveFactors(x0, z0, w, common).amp * Math.sin(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase);
@@ -277,7 +304,7 @@ export interface SurfaceSample {
  * Velocity: ∂P/∂t at fixed p0, using ∂θ/∂t = −ω.
  */
 export function sampleSurface(waves: readonly PreparedWave[], x: number, z: number): SurfaceSample {
-  const [x0, z0] = restPosition(waves, x, z);
+  const { x: x0, z: z0 } = restInto(waves, x, z, 6, REST);
   const common = waves.length > 0 ? commonFactors(waves, x0, z0) : 1;
   let y = 0;
   // Tangent along x0: (1 + txx, txy, txz); along z0: (tzx, tzy, 1 + tzz)
