@@ -263,6 +263,8 @@ export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: nu
 
 /** The small tug's hull (its index in DESIGN_HULLS): a tug's wheelhouse kept forward, her towing hook amidships. */
 export const TUG_HULL = 4;
+/** The slow-revving tug diesel (its index in ENGINES): a boat with it is a tug, whatever her hull (the line-throwing gun). */
+export const TUG_DIESEL = 3;
 
 export const DESIGN_HULLS: DesignHull[] = [
   {

@@ -7,7 +7,7 @@ import { BODY_RADIUS, CONFIG } from '../../config';
 import { hullQueries } from '../../modular/hull';
 import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, OverheadLayout } from '../../vessel/vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../../vessel/deckhouse';
-import { consoleLengthM, houseOffsetM, MEASURES, SCALES } from '../design';
+import { consoleLengthM, houseOffsetM, lowSills, MEASURES, SCALES } from '../design';
 import type { Socket } from '../../modular/socket';
 import { halfBreadthAt, type BuildArgs, type V3 } from './common';
 import { facetCentre, frontMullions, TUG_HULL, type DesignHull } from './catalog';
@@ -218,6 +218,20 @@ export function housePart(a: BuildArgs, p: HullPart) {
     else if (aft - front - depth < 1.6) warnings.push('Her wheelhouse is too short for a faceted front (the console\'s wings would reach too far aft): left flat.');
     else facet = { centre, depth };
   }
+  // Faceted aft windows (owner, Oct 2026: "rear windows faceted in the same way"; design.aftFacets):
+  // as the front's, the middle pane (the aft door in it) square, the outer two angled forward to
+  // the side walls. With windows raked out all round they lean out with the rest (houseFlare.ts
+  // stretches the house as a whole, so the angled corners go with the sides and aft; owner: "a
+  // proper wheelhouse"). Not with a cockpit overhead (its wings meet the aft corners).
+  let aftFacet: { centre: number; depth: number } | null = null;
+  if (d.aftFacets) {
+    const centre = facetCentre(hw);
+    const depth = Math.round((hw - centre) * facetTan * 1000) / 1000;
+    if (hw - centre < 0.25) warnings.push('Her wheelhouse is too narrow for faceted aft windows (the middle pane would be all of it): left flat.');
+    else if (d.overhead) warnings.push('The cockpit overhead’s wings meet the wheelhouse’s aft corners: no faceted aft windows with it: left flat.');
+    else if (aft - front - (facet?.depth ?? 0) - depth < 1.6) warnings.push('Her wheelhouse is too short for faceted aft windows (the helm would have no room): left flat.');
+    else aftFacet = { centre, depth };
+  }
   let deckhouse: DeckhouseLayout | null = null;
   let dhArea = 0;
   // Run on aft of the wheelhouse (owner, Oct 2026: the stern trawler's bridge deck over the
@@ -362,8 +376,9 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // Its front and sides chamfered (hullMesh.ts chamferedSlab): the top set in this much.
   const roofBack = roofThickness * Math.tan((d.roofEdge * Math.PI) / 180);
   // The window sills, one height all round (owner; they were 1.31 at the front, the dash top,
-  // and 1.0 at the sides): the standard height, or low, below the console.
-  const sill = d.sills ? CONFIG.shipyard.windowSills.low : CONFIG.shipyard.windowSills.standard;
+  // and 1.0 at the sides): the standard height, low (below the console) or high (level with the dash top).
+  const ws = CONFIG.shipyard.windowSills;
+  const sill = [ws.standard, ws.low, ws.high][d.sills ?? 0] ?? ws.standard;
   // The windows run up to the roof's underside, only their frame between (owner: the roof is
   // one piece, overhanging them, no band of wall above the glass).
   const windowHead = headroom - CONFIG.pixelPaint.frameWidth;
@@ -394,6 +409,7 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // between the mullions, the outer two angled back `facetDeg` to the side walls; the
   // console wraps round with it, its wings set back as much (sb).
   if (facet) house.facet = facet;
+  if (aftFacet) house.aftFacet = aftFacet;
   // Windows raked out all round (owner; houseFlare.ts): the sides and aft lean out above the sill.
   if (d.flare) house.flare = { tan: Math.round(Math.tan((CONFIG.shipyard.flareDeg * Math.PI) / 180) * 1e4) / 1e4 };
   /** How far a faceted front is set back at x (0 across the middle; the console's wings, and what's placed beside them, follow it). */
@@ -414,7 +430,7 @@ export function housePart(a: BuildArgs, p: HullPart) {
     // How far aft the glass reaches anywhere from the sill up to height y (it's tightest at the
     // sill for glass leaning forward, at y for glass raked aft).
     const glassAft = (y: number) => Math.max(0, -lean * (y - sill));
-    const parts: [number, number][] = d.sills
+    const parts: [number, number][] = lowSills(d)
       ? [[1.02, 0.06], [0.9 + 0.21 + CONFIG.modules.screen.dash.height / 2, 0.2], [headroom - 0.1, 0.32]]
       : [[0.9 + CONFIG.modules.helmConsole.dash.top, 0.06], [headroom - 0.1, 0.32]];
     const above = parts.filter(([y]) => y > sill);
@@ -477,7 +493,7 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, ...(p.hx ? { x: p.hx } : {}), front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
+    wheelhouse: { halfWidth: hw, ...(p.hx ? { x: p.hx } : {}), front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: lowSills(d) ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     // A cockpit overhead (design.overhead): fitted below, once the deck gear has its places.
     overhead: undefined as OverheadLayout | undefined,
@@ -572,7 +588,8 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     const sdc = dg.sideDoor;
     const z0 = Math.max(cf + sb(hw) + wall + 0.5 + sdc.fromConsole, bowRamp ? at.rampButton[2] + 0.15 : -Infinity);
     // (Forward of the step down into a saloon: the doorway on one floor.)
-    const zEnd = Math.min(chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15, saloonDrop ? helmAft - 0.05 : Infinity);
+    // (Faceted aft windows: short of where the side wall turns in at the aft corner.)
+    const zEnd = Math.min(chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15 - (p.house.aftFacet?.depth ?? 0), saloonDrop ? helmAft - 0.05 : Infinity);
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
     // (Onto the deckhouse's walked top, when the house stands on one as wide as her: below.)

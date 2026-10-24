@@ -22,7 +22,8 @@ describe('codes', () => {
     expect(BASE.sills).toBe(0);
     expect(encodeDesign(BASE).replace(/-/g, '')).toHaveLength(17);
     for (const flare of [0, 1])
-      for (let sills = 0; sills < SILLS.length; sills++) {
+      // (Standard and low: the high sills travel as a link or file, highSills.test.ts.)
+      for (let sills = 0; sills < 2; sills++) {
         const d = { ...BASE, flare, sills, facets: 1, engine: 3, hull: 4, skiff: 1 };
         expect(decodeDesign(encodeDesign(d))).toEqual({ design: d });
       }
@@ -61,17 +62,17 @@ describe('raked out all round', () => {
 });
 
 describe('window sills', () => {
-  it('one height all round: standard, or low with the console bare and its screens on stalks; what hangs on the walls below the glass', () => {
+  it('one height all round: standard, low with the console bare and its screens on stalks, or high; what hangs on the walls below the glass', () => {
     for (let sills = 0; sills < SILLS.length; sills++) {
       const b = useDesign(typeOf(2, { sills, controls: 1 }));
       expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
       const wh = VESSEL_DEFS.design.layout.wheelhouse!;
-      const h = sills ? CONFIG.shipyard.windowSills.low : CONFIG.shipyard.windowSills.standard;
+      const h = [CONFIG.shipyard.windowSills.standard, CONFIG.shipyard.windowSills.low, CONFIG.shipyard.windowSills.high][sills];
       expect(wh.windowSill).toBe(h);
       expect(wh.frontSill).toBe(h);
       const helm = RECIPES.design.modules.find((m) => m.socket === 'helm')!;
       const bare = (helm.config as { bare?: { screens: string[] } }).bare;
-      if (sills) {
+      if (sills === 1) {
         expect(h).toBeLessThan(wh.consoleHeight);
         expect(bare!.screens.length).toBeGreaterThan(2);
         expect(wh.viewSill).toBe(wh.consoleHeight);

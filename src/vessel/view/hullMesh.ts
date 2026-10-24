@@ -573,6 +573,43 @@ export function facetDz(wh: { halfWidth: number; shape?: HouseShape }): (x: numb
 }
 export const facetDepth = (wh: { shape?: HouseShape }): number => wh.shape?.facet?.depth ?? 0;
 
+/**
+ * Faceted aft windows' setback at `x` (m forward of the house's aft wall): 0 across the middle
+ * pane, growing to the facet's depth at the side walls (HouseShape.aftFacet); 0 everywhere for
+ * a flat aft wall.
+ */
+export function aftFacetDz(wh: { halfWidth: number; shape?: HouseShape }): (x: number) => number {
+  const f = wh.shape?.aftFacet;
+  if (!f) return () => 0;
+  const k = f.depth / (wh.halfWidth - f.centre);
+  return (x) => Math.max(0, Math.abs(x) - f.centre) * k;
+}
+
+/** Bring each vertex aft of `zone` forward by `dz` at its x: faceted aft windows' walls. */
+export function setForward(geoms: THREE.BufferGeometry[], dz: (x: number) => number, zone: number): void {
+  for (const g of geoms) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) if (p.getZ(i) > zone) p.setZ(i, p.getZ(i) - dz(p.getX(i)));
+  }
+}
+
+/**
+ * Faceted aft windows' floor or ceiling: its pieces ending at the aft wall's inside (`zEdge`)
+ * brought forward by the facets' setback at the side walls (x = +-`x1`), and the strip between
+ * filled out to the angled walls at `y0`..`y1` (pushed onto `out`).
+ */
+function aftFacetStrip(wh: { halfWidth: number; shape?: HouseShape }, geoms: THREE.BufferGeometry[], zEdge: number, x1: number, y0: number, y1: number, color: number, out: THREE.BufferGeometry[]): void {
+  const f = wh.shape?.aftFacet;
+  if (!f) return;
+  const d = aftFacetDz(wh)(x1);
+  for (const g of geoms) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) if (p.getZ(i) > zEdge - 0.005) p.setZ(i, p.getZ(i) - d);
+  }
+  const c = Math.min(f.centre, x1);
+  out.push(planSlab([[-x1, zEdge - d], [x1, zEdge - d], [c, zEdge], [-c, zEdge]], y0, y1, color));
+}
+
 /** Set each vertex (forward of `zone`, if given) back by `dz` at its x: a faceted front's walls, its console's wings. */
 export function setBack(geoms: THREE.BufferGeometry[], dz: (x: number) => number, zone = Infinity): void {
   for (const g of geoms) {
@@ -743,13 +780,19 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   }
 
   // Aft wall: panels either side of the doorway, the band open, and a lintel up to the roof.
+  // Faceted aft windows (aftFacet): each side in two, split at the facet's corner, a post there.
   const door = wh.doorWidth / 2;
   const roofAft = roofS + 0.02;
+  const ac = sh.aftFacet ? Math.max(sh.aftFacet.centre, door + JAMB) : 0;
   for (const s of [-1, 1]) {
-    const [p0, p1] = s > 0 ? [door, hw] : [-hw, -door];
-    parts.push(box(p0, p1, base, sideS - FW, zA - w, zA, H), fbox(p0, p1, sideS - FW, sideS, zA - w, zA));
-    parts.push(fbox(p0, p1, headS, headS + FW, zA - w, zA));
-    if (roofAft - (headS + FW) > 0.01) parts.push(box(p0, p1, headS + FW, roofAft, zA - w, zA, H));
+    const pieces: [number, number][] = ac ? [[door, ac], [ac, hw]] : [[door, hw]];
+    for (const [a, b] of pieces) {
+      const [p0, p1] = s > 0 ? [a, b] : [-b, -a];
+      parts.push(box(p0, p1, base, sideS - FW, zA - w, zA, H), fbox(p0, p1, sideS - FW, sideS, zA - w, zA));
+      parts.push(fbox(p0, p1, headS, headS + FW, zA - w, zA));
+      if (roofAft - (headS + FW) > 0.01) parts.push(box(p0, p1, headS + FW, roofAft, zA - w, zA, H));
+    }
+    if (ac) parts.push(fbox(s * ac - 0.04, s * ac + 0.04, sideS, headS, zA - w, zA));
     const jx = s > 0 ? door : -door - JAMB;
     parts.push(fbox(jx, jx + JAMB, sideS, headS, zA - w, zA));
   }
@@ -764,6 +807,9 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // the wall (zH): the zone reaches past that too, or the tops of its posts were left behind
   // and crossed the bottoms (owner).
   if (sh.facet) setBack(parts.slice(wallsFrom), facetDz(wh), Math.max(zF, zH) + w + 0.13);
+  // Faceted aft windows: everything at the aft wall (the side walls' aft ends, their posts)
+  // brought forward by aftFacetDz at its x, so the outer panes and the side walls meet on the angle.
+  if (sh.aftFacet) setForward(parts.slice(wallsFrom), aftFacetDz(wh), zA - w - 0.13);
   // The walls' inside faces: the lining (pixel painting, owner; the interior finish's).
   const centre = new THREE.Vector3(0, 0, mid);
   for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, col.liningTile, centre);
@@ -796,8 +842,11 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // With a lower saloon roof the wheelhouse's ends `ov` aft of the step, over the saloon's
   // (which starts inside the step's wall, its front hidden); each has its ceiling.
   const zRoofEnd = sr ? zStep + ov : zA + ov;
-  parts.push(chamferedSlab(hw + ov, zV, zRoofEnd, roofY, t, back, col.roof, sh.facet?.centre ?? 0, facetDz(wh)));
-  if (sr) parts.push(chamferedSlab(hw + ov, zStep - w, zA + ov, roofS, t, back, col.roof));
+  // (Faceted aft windows: the roof over them follows them too, the saloon's if it has its own.)
+  const aftC = sh.aftFacet?.centre ?? 0;
+  const aftDz = aftFacetDz(wh);
+  parts.push(chamferedSlab(hw + ov, zV, zRoofEnd, roofY, t, back, col.roof, sh.facet?.centre ?? 0, facetDz(wh), sr ? 0 : aftC, sr ? undefined : aftDz));
+  if (sr) parts.push(chamferedSlab(hw + ov, zStep - w, zA + ov, roofS, t, back, col.roof, 0, undefined, aftC, aftDz));
   // The eyebrow (owner): a panel on each roof's top set in from its edges in a second colour.
   if (col.roofTop !== undefined) {
     const k = CONFIG.shipyard.saloon.roofInset;
@@ -806,14 +855,19 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     const c = Math.min(sh.facet?.centre ?? 0, wi);
     const front = (x: number): [number, number] => [x, zV + back + k + dz(x)];
     const across = c > 0 ? [front(-wi), front(-c), front(c), front(wi)] : [front(-wi), front(wi)];
-    parts.push(planSlab([...across, [wi, zRoofEnd - k], [-wi, zRoofEnd - k]], roofY + t, roofY + t + 0.02, col.roofTop));
-    if (sr) parts.push(planSlab([[-wi, zRoofEnd + k], [wi, zRoofEnd + k], [wi, zA + ov - k], [-wi, zA + ov - k]], roofS + t, roofS + t + 0.02, col.roofTop));
+    // Its aft edge: square, or following faceted aft windows.
+    const ca = Math.min(aftC, wi);
+    const aftEdge = (zEnd: number): [number, number][] => (ca > 0 ? [[wi, zEnd - k - aftDz(wi)], [ca, zEnd - k], [-ca, zEnd - k], [-wi, zEnd - k - aftDz(wi)]] : [[wi, zEnd - k], [-wi, zEnd - k]]);
+    parts.push(planSlab([...across, ...(sr ? ([[wi, zRoofEnd - k], [-wi, zRoofEnd - k]] as [number, number][]) : aftEdge(zRoofEnd))], roofY + t, roofY + t + 0.02, col.roofTop));
+    if (sr) parts.push(planSlab([[-wi, zRoofEnd + k], [wi, zRoofEnd + k], ...aftEdge(zA + ov)], roofS + t, roofS + t + 0.02, col.roofTop));
   }
   const ceilFrom = parts.length;
   for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.ceiling, col.ceilingTile));
   // (Only its front: its aft end, at the step to a lower saloon roof or the aft wall, stays put.)
   if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zStep - w - 0.01);
   if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.ceiling, col.ceilingTile));
+  // Faceted aft windows: the ceiling at the aft wall (the saloon's, if it has its own roof) cut back to them.
+  if (sh.aftFacet) aftFacetStrip(wh, parts.slice(sr ? parts.length - 1 : ceilFrom), zA - w, hw - w, roofS - 0.012, roofS, col.ceiling, parts);
   // Raked out all round: the roof and the ceiling go out with the walls' tops.
   if (fl) applyFlare(parts.slice(roofFrom), fl);
   // A cockpit overhead (P2b): the aft roof carried on aft over the working deck (its edges
@@ -865,26 +919,30 @@ function planSlab(pts: [number, number][], y0: number, y1: number, color: number
  * Faceted (`dz`, hullMesh facetDz; owner: the roof follows the three-facet windows): its
  * front in three across, square between -`centre` and `centre`, set back by `dz` outside.
  */
-function chamferedSlab(halfW: number, z0: number, z1: number, y0: number, t: number, back: number, color: number, centre = 0, dz: (x: number) => number = () => 0): THREE.BufferGeometry {
+function chamferedSlab(halfW: number, z0: number, z1: number, y0: number, t: number, back: number, color: number, centre = 0, dz: (x: number) => number = () => 0, aftCentre = 0, aftDz: (x: number) => number = () => 0): THREE.BufferGeometry {
   const y1 = y0 + t;
   const wt = halfW - back;
   const c = Math.min(centre, wt);
-  // The front edge, port to starboard, underneath and on top; then the aft corners.
+  // The front edge, port to starboard, underneath and on top; then the aft corners (faceted
+  // aft windows: the aft edge in three too, starboard to port, brought forward by `aftDz`).
   const B = [-halfW, -c, c, halfW].map((x) => [x, y0, z0 + dz(x)]);
   const T = [-wt, -c, c, wt].map((x) => [x, y1, z0 + back + dz(x)]);
-  const [Bsa, Bpa, Tsa, Tpa] = [[halfW, y0, z1], [-halfW, y0, z1], [wt, y1, z1], [-wt, y1, z1]];
+  const ca = Math.min(aftCentre, wt);
+  const Ba = (ca > 0 ? [halfW, ca, -ca, -halfW] : [halfW, -halfW]).map((x) => [x, y0, z1 - aftDz(x)]);
+  const Ta = (ca > 0 ? [halfW, ca, -ca, -halfW] : [halfW, -halfW]).map((x) => [Math.sign(x) * Math.min(Math.abs(x), wt), y1, z1 - aftDz(x)]);
+  const [Bsa, Bpa, Tsa, Tpa] = [Ba[0], Ba[Ba.length - 1], Ta[0], Ta[Ta.length - 1]];
   const v: number[] = [];
   // Each face's corners clockwise as seen from outside it (as buildDeckhouse's).
   const quad = (a: number[], b: number[], c: number[], d: number[]) => v.push(...a, ...c, ...b, ...a, ...d, ...c);
   const fan = (pts: number[][]) => {
     for (let i = 1; i + 1 < pts.length; i++) v.push(...pts[0], ...pts[i + 1], ...pts[i]);
   };
-  fan([...T, Tsa, Tpa]); // top
-  fan([B[0], Bpa, Bsa, B[3], B[2], B[1]]); // underside
+  fan([...T, ...Ta]); // top
+  fan([B[0], ...[...Ba].reverse(), B[3], B[2], B[1]]); // underside
   for (let i = 0; i < 3; i++) quad(B[i], B[i + 1], T[i + 1], T[i]); // the front chamfer, in three
   quad(Bsa, Tsa, T[3], B[3]); // starboard
   quad(B[0], T[0], Tpa, Bpa); // port
-  quad(Bsa, Bpa, Tpa, Tsa); // aft
+  for (let i = 0; i + 1 < Ba.length; i++) quad(Ba[i], Ba[i + 1], Ta[i + 1], Ta[i]); // aft (in three, faceted)
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
   g.computeVertexNormals();
@@ -1109,6 +1167,7 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
   const levels = wh.levels ?? [];
   const lowest = houseFloorLow(wh) - 0.1;
   const fz1 = levels.length ? Math.min(...levels.map((lv) => lv.z0)) : wh.aft - w;
+  const floorFrom = parts.length;
   for (const lv of levels) parts.push(box(fx0, fx1, lowest, lv.y, Math.max(lv.z0, fz0), Math.min(lv.z1, wh.aft - w), col.floor, col.floorTile));
   if (levels.length && wh.floorY - 0.1 > lowest + 0.005) parts.push(box(fx0, fx1, lowest, wh.floorY - 0.1, fz1 - 0.05, fz1, col.floor));
   const fy0 = wh.floorY - 0.1;
@@ -1125,6 +1184,11 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
     parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor, col.floorTile));
     parts.push(...engineSpaceParts(eh, wh.floorY, fy0));
   } else parts.push(...boxWithHoles(fx0, fx1, fy0, wh.floorY, fz0, fz1, wh.floorHoles ?? [], col.floor, col.floorTile));
+  // Faceted aft windows: the floor at the aft wall cut back to them.
+  if (wh.shape?.aftFacet) {
+    const yA = houseFloorAt(wh, wh.aft - w - 0.01);
+    aftFacetStrip(wh, parts.slice(floorFrom), wh.aft - w, fx1, yA - 0.1, yA, col.floor, parts);
+  }
 }
 
 /**

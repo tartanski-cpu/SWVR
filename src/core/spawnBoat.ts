@@ -1,8 +1,10 @@
 /**
  * A second boat in the world (multi-boat M2, for testing walking between boats before the
  * launch menu of M3): the environment intent `spawnBoat` (ref: her vessel type id) puts one
- * of the fleet afloat beside the players' home boat, `CONFIG.spawn.abeam` m off on her water
- * side (away from her berth when moored), lying the same way, stopped, anchor stowed. The
+ * of the fleet: in Voyage, in the game's harbour, made fast (owner, Oct 2026: boats spawned
+ * loose blew away): moored at a free berth her size, else at anchor off it (core/launch.ts
+ * berthOrAnchor). Otherwise, or with no room for either, afloat beside the players' home boat, `CONFIG.spawn.abeam` m off
+ * on her water side (away from her berth when moored), lying the same way, stopped. The
  * host alone makes her (intents are the host's); crew get her in the next snapshot and
  * build her view. Only a boat with a wheelhouse (one you can take the helm of).
  */
@@ -14,6 +16,7 @@ import { createVesselState } from '../vessel/vesselState';
 import { hullPlan } from '../vessel/layout';
 import type { Intent } from './intents';
 import { homeVessel, type WorldState } from './world';
+import { berthOrAnchor, gameHarbour } from './launch';
 
 /** Her heading (rad) from her orientation, 0 north, clockwise. */
 function headingOf(q: readonly number[]): number {
@@ -29,6 +32,11 @@ export function applySpawnBoatIntent(world: WorldState, intent: Intent): void {
   const n = (world.spawned = (world.spawned ?? 0) + 1);
   const id = `boat-${n}-${Math.floor(world.time)}`;
   const s = createVesselState(id, defId);
+  const port = world.voyage ? gameHarbour(world) : null;
+  if (port && berthOrAnchor(world, s, port)) {
+    world.vessels[id] = s;
+    return;
+  }
   // Her water side: away from the berth she's moored at, else to port.
   const h = headingOf(home.orientation);
   const berth = home.mooring.phase === 'moored' && home.mooring.berthId ? berthWithId(home.mooring.berthId) : undefined;
