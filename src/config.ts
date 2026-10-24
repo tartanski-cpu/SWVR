@@ -2140,6 +2140,14 @@ export const CONFIG = {
   interaction: {
     /** Direct grab: hand within this distance of a lever knob / the wheel rim (m). */
     grabRadius: 0.12,
+    /**
+     * Breakaway (review, Oct 2026): a held control (lever, wheel, joystick, gear selector) is let
+     * go, with a firm buzz, once the hand is this far from it (m), e.g. as you jump off or are
+     * thrown from her, so she isn't left at full throttle. While a hand holds one, the sticks
+     * don't walk or turn you, and the free hand doesn't pull you along: moving the body moves
+     * the held hand, which would drag the control with it.
+     */
+    breakaway: 0.25,
     /** Direct press: controller tip within this distance of a button / switch (m). */
     touchRadius: 0.06,
     /**
@@ -2825,6 +2833,13 @@ export const CONFIG = {
     hydroDebugVisibleAtStart: false,
     /** How often the overlay text is refreshed (Hz). */
     overlayUpdateHz: 4,
+    /**
+     * VR messages (debug/overlay.ts vrToast; review, Oct 2026): a card held in the view, this
+     * wide (m), this far in front of your eyes (m) and this far below your line of sight (m),
+     * so it's read with a glance down and doesn't hide the horizon. A buzz of `pulse` strength
+     * for `pulseMs` on the left controller says one has come.
+     */
+    vrToast: { width: 0.62, distance: 1.25, down: 0.34, pulse: 0.3, pulseMs: 30 },
   },
 
   // Each area's own file (src/config/), so the chats working on each don't edit one file:

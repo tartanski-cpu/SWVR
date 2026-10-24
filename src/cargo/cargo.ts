@@ -179,6 +179,28 @@ function potQuayAt(x: number, z: number): PortDef | null {
   return PORTS.reduce((a, b) => (Math.hypot(a.x - px, a.z - pz) <= Math.hypot(b.x - px, b.z - pz) ? a : b));
 }
 
+/**
+ * How many items wait at each port (port id -> count), hand or crane cargo, in one pass over
+ * the cargo (review, Oct 2026: counting port by port for every new item made filling the
+ * Clyde's 56 ports freeze the start for ~25 s).
+ */
+function waitingCounts(world: WorldState, crane: boolean): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const c of Object.values(world.cargo)) {
+    if (c.from === 'pots' || craneOnly(c) !== crane || !('ground' in c.at)) continue;
+    const p = portAtPoint(c.at.ground[0], c.at.ground[2]);
+    if (p) m.set(p.id, (m.get(p.id) ?? 0) + 1);
+  }
+  return m;
+}
+
+/** Items set down within `r` m of a point (to find a free place among them). */
+function groundNear(world: WorldState, x: number, z: number, r: number): Vec3[] {
+  const out: Vec3[] = [];
+  for (const c of Object.values(world.cargo)) if ('ground' in c.at && Math.abs(c.at.ground[0] - x) < r && Math.abs(c.at.ground[2] - z) < r) out.push(c.at.ground);
+  return out;
+}
+
 function waitingAt(world: WorldState, port: PortDef, crane = false): CargoItem[] {
   return Object.values(world.cargo).filter((c) => c.from !== 'pots' && craneOnly(c) === crane && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
 }
@@ -194,10 +216,14 @@ export function carriedBy(world: WorldState, playerId: EntityId): CargoItem[] {
   return Object.values(world.cargo).filter((c) => 'carriedBy' in c.at && c.at.carriedBy === playerId);
 }
 
-/** Add one new item at the port with the fewest waiting (if any port has room). */
-export function spawnCargo(world: WorldState): CargoItem | null {
+/**
+ * Add one new item at the port with the fewest waiting (if any port has room). `tally`: the
+ * waiting counts, kept up to date by the caller while filling many (stockPorts).
+ */
+export function spawnCargo(world: WorldState, tally?: Map<string, number>): CargoItem | null {
   const cfg = CONFIG.cargo;
-  const counts = PORTS.map((p) => waitingAt(world, p).length);
+  const waiting = tally ?? waitingCounts(world, false);
+  const counts = PORTS.map((p) => waiting.get(p.id) ?? 0);
   const min = Math.min(...counts);
   if (min >= cfg.perPort) return null;
   const n = ++world.cargoSeq;
@@ -214,17 +240,23 @@ export function spawnCargo(world: WorldState): CargoItem | null {
   const takers = needing.length ? needing : others.filter((p) => !p.economy?.needs?.length);
   const pool = takers.length ? takers : others;
   const to = pool[Math.floor(hash01(n + 0.5) * pool.length)];
-  // First free place in the row (nothing within half a spacing of it).
-  const items = Object.values(world.cargo).filter((c) => 'ground' in c.at);
-  let pos = stackPoint(from, 0);
+  // First free place in the row (nothing within half a spacing of it), among the items set
+  // down near this port's stack.
+  const first = stackPoint(from, 0);
+  const near = groundNear(world, first[0], first[2], 250);
+  let pos = first;
   for (let i = 0; i < Math.max(40, cfg.perPort * 3); i++) {
     pos = stackPoint(from, i);
     const p = pos;
-    if (!items.some((c) => 'ground' in c.at && Math.hypot(c.at.ground[0] - p[0], c.at.ground[2] - p[2]) < cfg.stackSpacing * 0.6)) break;
+    if (!near.some((g) => Math.hypot(g[0] - p[0], g[2] - p[2]) < cfg.stackSpacing * 0.6)) break;
   }
   const yaw = (from.cargo.stackYawDeg * Math.PI) / 180 + (hash01(n + 0.75) - 0.5) * 0.3;
   const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw } };
   world.cargo[item.id] = item;
+  if (tally) {
+    const at = portAtPoint(pos[0], pos[2]);
+    if (at) tally.set(at.id, (tally.get(at.id) ?? 0) + 1);
+  }
   return item;
 }
 
@@ -232,22 +264,24 @@ export function spawnCargo(world: WorldState): CargoItem | null {
  * Add one crane cargo item (CONFIG.cargo.crane) at the cargo-berth port with the fewest
  * waiting, bound for another, in the first free place along its berth's quay edge.
  */
-export function spawnCraneCargo(world: WorldState): CargoItem | null {
+export function spawnCraneCargo(world: WorldState, tally?: Map<string, number>): CargoItem | null {
   const cfg = CONFIG.cargo;
   const c = cfg.crane;
   const quays = PORTS.filter((p) => cargoBerth(p));
   if (quays.length < 2 || !c.kinds.length) return null;
-  const items = Object.values(world.cargo).filter((x) => 'ground' in x.at);
+  const waiting = tally ?? waitingCounts(world, true);
   // A free place along a port's cargo quay (clear of anything set down there), or null.
   const freeAt = (port: PortDef): Vec3 | null => {
+    const b = cargoBerth(port)!;
+    const near = groundNear(world, b.x, b.z, 150);
     for (let i = 0; i < c.perPort * 3; i++) {
       const p = craneStackPoint(port, i);
-      if (p && p[1] > 0 && !items.some((x) => 'ground' in x.at && Math.hypot(x.at.ground[0] - p[0], x.at.ground[2] - p[2]) < c.spacing * 0.6)) return p;
+      if (p && p[1] > 0 && !near.some((g) => Math.hypot(g[0] - p[0], g[2] - p[2]) < c.spacing * 0.6)) return p;
     }
     return null;
   };
   // The ports short of their crane cargo with room on the quay, the emptiest first.
-  const open = quays.map((p) => ({ p, n: waitingAt(world, p, true).length })).filter((o) => o.n < c.perPort && freeAt(o.p));
+  const open = quays.map((p) => ({ p, n: waiting.get(p.id) ?? 0 })).filter((o) => o.n < c.perPort && freeAt(o.p));
   if (!open.length) return null;
   const min = Math.min(...open.map((o) => o.n));
   const n = ++world.cargoSeq;
@@ -261,15 +295,24 @@ export function spawnCraneCargo(world: WorldState): CargoItem | null {
   const b = cargoBerth(from)!;
   const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw: (b.headingDeg * Math.PI) / 180 } };
   world.cargo[item.id] = item;
+  if (tally) {
+    const at = portAtPoint(pos[0], pos[2]);
+    if (at) tally.set(at.id, (tally.get(at.id) ?? 0) + 1);
+  }
   return item;
 }
 
 /** Fill every port up to its quota: hand cargo at the goods stacks, crane cargo on the cargo quays. */
 export function stockPorts(world: WorldState): void {
-  while (spawnCargo(world)) {
+  // The counts taken once and kept up as items go down (not recounted per item).
+  // (Capped, in case an item set down isn't counted as at its port: never a hung start.)
+  const cap = PORTS.length * (CONFIG.cargo.perPort + CONFIG.cargo.crane.perPort) * 2 + 10;
+  const hand = waitingCounts(world, false);
+  for (let i = 0; i < cap && spawnCargo(world, hand); i++) {
     /* keep going */
   }
-  while (spawnCraneCargo(world)) {
+  const crane = waitingCounts(world, true);
+  for (let i = 0; i < cap && spawnCraneCargo(world, crane); i++) {
     /* keep going */
   }
 }

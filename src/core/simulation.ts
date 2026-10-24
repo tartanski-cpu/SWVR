@@ -130,7 +130,15 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyLaunchIntent(world, intent);
     } else if (intent.control === 'teleportToPort' && intent.ref && world.vessels[intent.targetId]) {
       // With several boats about (multi-boat M5): a free berth, else the bay.
-      if (!teleportToPortSlot(world, world.vessels[intent.targetId], intent.ref)) applyVesselIntent(world.vessels[intent.targetId], intent);
+      // One harbour that can't be placed mustn't stop the whole tick: then she lies as the
+      // plain Go would put her.
+      let placed = false;
+      try {
+        placed = teleportToPortSlot(world, world.vessels[intent.targetId], intent.ref);
+      } catch (e) {
+        console.warn(`Go to ${intent.ref}: ${(e as Error).message}`);
+      }
+      if (!placed) applyVesselIntent(world.vessels[intent.targetId], intent);
       // Settling into her new berth is no crash (CONFIG.wear.spawnGraceS).
       world.vessels[intent.targetId].settleUntil = world.time + CONFIG.wear.spawnGraceS;
       // The host's boat sent somewhere: the planning table goes with her (voyage/plan.ts).

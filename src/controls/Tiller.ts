@@ -56,6 +56,8 @@ export class Tiller extends Control {
   private vrHeld = false;
   private readonly keys = { x: 0, y: 0 };
   private keySteering = false;
+  /** The keys stopped her in neutral on the way through: held there until the key is let go. */
+  private neutralLatched = false;
   private readonly maxSteer: number;
   private gear = 0;
 
@@ -182,10 +184,18 @@ export class Tiller extends Control {
     if (!this.keySteering) return;
     // W / S: one signed command through neutral (forward -> neutral -> reverse), sent as the
     // gear lever and the trigger would send it.
-    if (this.keys.y !== 0) {
+    if (this.keys.y === 0) this.neutralLatched = false;
+    else if (!this.neutralLatched) {
       const before = this.gear * this.throttle;
       let c = clamp(before + this.keys.y * KEY_THROTTLE_RATE * dt, -1, 1);
-      if (Math.sign(c) !== Math.sign(before) && before !== 0) c = 0; // stop in neutral on the way through
+      // Stop in neutral on the way through, and stay there until the key is let go and pressed again.
+      // (Also when the gear would go straight from ahead to astern: closing the throttle snaps it
+      // shut just short of neutral, so it never 'passes through' it.)
+      const flips = this.gear !== 0 && (c > 0 ? 1 : c < 0 ? -1 : 0) === -this.gear;
+      if ((Math.sign(c) !== Math.sign(before) && before !== 0) || flips) {
+        c = 0;
+        this.neutralLatched = true;
+      }
       const g = c > 0 ? 1 : c < 0 ? -1 : 0;
       if (g !== this.gear) {
         this.gear = g;

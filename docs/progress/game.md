@@ -10,6 +10,29 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The review's quick fixes, and weather that changes (owner, 24 Oct 2026)
+
+Owner: "go ahead with the seven quick fixes and the weather" (from `docs/REVIEW_2026-10-24.md`; eight were listed, all done).
+
+- **Go to some harbours did nothing** (`src/core/launch.ts`, shared): the anchor-spot search was given a list of boats with an empty entry for her own and threw. It now gets the other boats and `anchorSpotFor` (the anchorage circle, depth, the harbour boats' moorings). A failing Go can no longer stop the tick either (`src/core/simulation.ts`, shared: caught, she lies as the plain Go puts her). Test `tests/voyageGo.test.ts`: every Tayvallich harbour, Ashfield included, made fast. It fails on the old code.
+- **Leaving a friend's game saved their career over yours** (`src/app/App.ts`): a world adopted from a host is marked `worldBorrowed`. Nothing in it is saved here: career, chart marks, notes board, rescues, batteries, Voyage place, plan and barges (`savesHere()`). Leave game then reloads your own game. Checked with two headless browsers on career.html: the crew-mate's slot (£111) held through joining a host (£999) and leaving, and the page came back in their own career.
+- **VR messages cut off at ~30 characters on the wrist** (`src/debug/overlay.ts`): their own card, word-wrapped (largest type that fits, up to five lines), low in the view, with a buzz on the left hand. `CONFIG.debug.vrToast`: width 0.62 m, 1.25 m out, 0.34 m down, pulse 0.3 for 30 ms. The wrist panel keeps the debug readout. Rendered headless: the long start-up message wraps to four lines, about 2.4 cm tall in the headset.
+- **A held control followed the body** (`src/controls/InteractionSystem.ts`, `Control.ts`, `src/app/App.ts`):
+  - breakaway: a hand more than `CONFIG.interaction.breakaway` (0.25 m) from the control it holds lets go, with a firm buzz;
+  - while a hand holds a control, the sticks don't walk or snap-turn you and the free hand doesn't pull you along;
+  - the VHF handset (carried freely, `carried`) is exempt.
+  Test in `tests/controls.test.ts`: a hand jerked 0.6 m away lets go, the lever left where it was.
+- **W/S and the neutral stop** (`src/app/App.ts`, `src/controls/Tiller.ts`):
+  - W/S no longer move the throttle while they steer a clicked joystick (searchlight, pod helm);
+  - holding the key stops at neutral and stays there until it's let go and pressed again (helm keys, gamepad bumpers, the skiff tiller's W/S; the tiller also stops when the gear would flip).
+  Test in `tests/tiller.test.ts`. Headless at the helm: W to 0.9, S held 6 s stays at 0, S again goes astern.
+- **A design that won't build killed the game page** (`src/boats/library.ts`, shared): `boatType` catches a build failure and returns null, as for an unreadable code, so the default boat is used with a notice. A career whose saved refit won't build forgets it (`forgetCareerDesign`, `src/app/careerSession.ts`) and loads. The notice names the right fallback boat (pilot boat in Voyage). Test `tests/designWontBuild.test.ts`. The builder's own fault (`src/shipyard/parts/recipe.ts:409`) is the Shipyard chat's to mend; it has been told the owner approved it.
+- **SOS did nothing on the Voyage maps** (`src/rescue/sos.ts`): with no boatyard, the salvage tug brings her into the nearest harbour's cargo berth (`sosHaven`), named by the coastguard. In Voyage she's made fast there, with the settle time. Test in `tests/voyageGo.test.ts`.
+- **The Clyde froze ~25 s at the start laying out its 837 cargo items** (`src/cargo/cargo.ts`): the waiting counts are taken once and kept up while filling (`waitingCounts`), and the free-place search looks only at items near the port (`groundNear`). Measured in Node: the Clyde 22.0 s → 1.3 s, Tayvallich 38 → 32 ms, the layout identical item for item. A retry cap guards against a hung start.
+- **Live weather froze the weather** (`src/environment/weather.ts` setLiveWeather, App): it's now the starting point. The director plans the next change from it by the map's odds (`profile`), the real sea holds until that first change, then follows the wind; the forecast's "becoming…" comes true. `tests/liveWeatherApplied.test.ts` updated.
+- **Shared changes:** `src/core/launch.ts`, `src/core/simulation.ts`, `src/boats/library.ts` (as above); `tests/shipyard/build.test.ts`: a 120 s limit on the searchlight/fire-monitor placement test (14 s here, past the 20 s default on GitHub's machine), as the map chat did for the outboards.
+- Checked: typecheck; all tests (1,485; the one failure in the full run was that Shipyard test timing out while two browsers ran, and it passes alone, now with room); the headless checks above. Not checked in a headset: the message card, the breakaway, the stick lock.
+
 ### A full-game review (owner, 24 Oct 2026)
 
 Owner: "Can you run a review of the full game?", with Voyage's basics (exploring, random things, dynamic weather, playing with friends) and the Shipyard-to-game link weighted most, and career kept light.
