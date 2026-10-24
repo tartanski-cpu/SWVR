@@ -271,7 +271,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const plan = hullPlan({ hull: form });
     // (A cabin below's companionway comes down through its top as well as the wheelhouse floor.)
     parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house, layout.cabin ? [layout.cabin.stair] : []));
-    if (layout.deckhouse.walk) parts.push(...deckhouseRail(layout.deckhouse, layout.wheelhouse?.halfWidth ?? 0, plan.deckY, col.rail));
+    if (layout.deckhouse.walk) parts.push(...deckhouseRail(layout.deckhouse, layout.wheelhouse?.halfWidth ?? 0, plan.deckY, col.rail, col.deck));
   }
   // A cabin below (P2c): under the deckhouse, or under a raised foredeck the wheelhouse stands on.
   if (layout.cabin) parts.push(...cabinParts(layout.cabin));
@@ -1021,7 +1021,7 @@ function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, colo
  * handles, rungs 0.3 m apart; up the aft face beside the house, or up the front (leaning with
  * a raked front). All bars, merged with the hull.
  */
-function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => number, color: number): THREE.BufferGeometry[] {
+function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => number, color: number, deckColor: number): THREE.BufferGeometry[] {
   const w = dh.walk!;
   const parts: THREE.BufferGeometry[] = [];
   const top = dh.top;
@@ -1069,10 +1069,32 @@ function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => nu
   // Across the aft ends of the strips beside the house (or, run on aft of it, right across).
   const za = dh.z1 - inset;
   const ha = half(dh.z1);
-  if (dh.houseAft !== undefined) gap(-ha, ha, za, lad.face === 'aft');
+  if (dh.houseAft !== undefined) gap(-ha, ha, za, lad.face !== 'front');
   else if (ha - hw > 0.2) {
     gap(-ha, -hw - 0.02, za, lad.face === 'aft' && lad.x < 0);
     gap(hw + 0.02, ha, za, lad.face === 'aft' && lad.x > 0);
+  }
+  // A stair across its aft face (DeckhouseWalk.stair): each tread a block from her deck up, in
+  // the deck's colour, non-slip; railed along its open (aft) side from its foot up to the
+  // landing, and round the landing's aft edge and port end. (The face is its other side.)
+  if (w.stair) {
+    const [landing, ...treads] = w.stair;
+    for (const t of treads) parts.push(box(t.x0, t.x1, deckY(t.z1) - 0.02, t.y, t.z0, t.z1, deckColor, 'nonSlip'));
+    // (The landing: a plate over the deck, from its edge out to the stair's width.)
+    parts.push(box(landing.x0, landing.x1, top - 0.06, top, dh.z1 + 0.02, landing.z1, deckColor, 'nonSlip'));
+    const zr = landing.z1 - 0.03;
+    const low = treads.length ? treads[treads.length - 1] : landing;
+    const xFoot = low.x1 - 0.03;
+    const yFoot = deckY(zr);
+    for (const k of [1, 0.5]) {
+      const th = k === 1 ? 0.045 : 0.035;
+      // Down the stair, parallel to its pitch line; then the landing's aft edge and port end.
+      parts.push(bar(V(landing.x1, top + h * k, zr), V(xFoot, yFoot + h * k, zr), th, th, color));
+      parts.push(bar(V(landing.x0 + 0.03, top + h * k, zr), V(landing.x1, top + h * k, zr), th, th, color));
+      parts.push(bar(V(landing.x0 + 0.03, top + h * k, dh.z1 + 0.02), V(landing.x0 + 0.03, top + h * k, zr), th, th, color));
+    }
+    for (const [x, y] of [[xFoot, yFoot], [landing.x1, top], [landing.x0 + 0.03, top]]) parts.push(bar(V(x, y, zr), V(x, y + h, zr), 0.04, 0.04, color));
+    return parts;
   }
   // The ladder.
   const sx = lad.width / 2 - 0.04;

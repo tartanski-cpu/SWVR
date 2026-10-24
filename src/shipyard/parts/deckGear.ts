@@ -101,7 +101,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
    * The aft end of what stands on her deck amidships: the wheelhouse's aft wall, or a deckhouse
    * run on aft of it (design.dhAft) and the ladder down its aft face. Gear on the aft deck keeps aft of it.
    */
-  const aftEnd = deckhouse?.houseAft !== undefined ? deckhouse.z1 + (deckhouse.walk?.ladder.depth ?? 0) : aft;
+  const aftEnd = deckhouse?.houseAft !== undefined ? deckhouse.z1 + (deckhouse.walk?.ladder.depth ?? 0) + 0.1 : aft;
   const houseRect: Rect = { x0: hx - Math.max(hw, dhW) - 0.3, x1: hx + Math.max(hw, dhW) + 0.3, z0: foreEndAt - 0.3, z1: Math.max(aft + 0.7, aftEnd + 0.3) };
   /** The forward end of what stands on her deck amidships: the deckhouse's front, or the wheelhouse's. */
   const foreEnd = foreEndAt;
@@ -526,11 +526,21 @@ export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const ringSide = d.lifeRing === 1 ? -1 : d.lifeRing === 2 ? 1 : 0;
   // The aft wall the ring and the rod rack go on: the house's, or a deckhouse's run on aft of it (design.dhAft).
   const aftWall = deckhouse?.houseAft !== undefined ? deckhouse.z1 + 0.02 : aft;
+  // Clear of a stair across that face (house.ts transverseStair): `half` either side of x, moved
+  // beyond its foot, or past its landing to port if there's no room there.
+  const stair = deckhouse?.walk?.stair;
+  const offStair = (x: number, half: number) => {
+    if (!stair) return x;
+    const [s0, s1] = [Math.min(...stair.map((t) => t.x0)), Math.max(...stair.map((t) => t.x1))];
+    if (x + half < s0 - 0.1 || x - half > s1 + 0.1) return x;
+    const room = deckhouseHalfWidth(deckhouse!, deckhouse!.z1) - 0.1;
+    return s1 + 0.1 + half <= room ? s1 + 0.1 + half : s0 - 0.1 - half;
+  };
   const ring = ringSide
     ? {
         // At hand height off the deck (on the deckhouse's aft face if she has one, the house's floor being up on it).
         // (Across from the house's middle: an offset house's, `hx`.)
-        stow: [r2(hx + ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(deckhouse?.houseAft !== undefined ? q.deckY(aftWall) + 1.15 : Math.min((deckhouse ? q.deckY(aft) : FA) + 1.15, F + sill - 0.3)), r2(aftWall + 0.06)] as V3,
+        stow: [r2(offStair(hx + ringSide * Math.max(0.75, hw - dg.ringFromCorner), 0.4)), r2(deckhouse?.houseAft !== undefined ? q.deckY(aftWall) + 1.15 : Math.min((deckhouse ? q.deckY(aft) : FA) + 1.15, F + sill - 0.3)), r2(aftWall + 0.06)] as V3,
         cleat: cleat(ringSide, sternCleat),
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
@@ -560,7 +570,7 @@ export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
       for (let i = 0; i < rc.perRack; i++) rods.push([r2(x), r2(q.deckY(zc) + 0.02), r2(zc - rackRow / 2 + i * rc.spacing)]);
       rodRack = { rods, yawDeg: rodSide * 90, bucket: [r2(hx + rodSide * (hw + 0.25)), r2(q.deckY(zc + rackRow / 2 + 0.45)), r2(zc + rackRow / 2 + 0.45)], side: rodSide };
     } else {
-      const xc = hx + rodSide * Math.max(0.55 + rackRow / 2, hw - 0.3 - rackRow / 2);
+      const xc = offStair(hx + rodSide * Math.max(0.55 + rackRow / 2, hw - 0.3 - rackRow / 2), rackRow / 2 + 0.5);
       const y = r2(q.deckY(aftWall + 0.1) + 0.02);
       for (let i = 0; i < rc.perRack; i++) rods.push([r2(xc - rodSide * rackRow / 2 + rodSide * i * rc.spacing), y, r2(aftWall + 0.09)]);
       rodRack = { rods, yawDeg: 0, bucket: [r2(xc + rodSide * (rackRow / 2 + 0.4)), r2(q.deckY(aftWall + 0.3)), r2(aftWall + 0.3)], side: rodSide };

@@ -76,6 +76,39 @@ function foredeckSteps(f: { z: number; raise: number; steps: number }, q: { deck
   );
 }
 
+/**
+ * The stair down a deckhouse run on aft of the wheelhouse (owner, Oct 2026: "a steep
+ * transverse stair instead" of a ladder), as on a trawler's casing: against its aft face,
+ * running across her, from a landing at its top near her centreline (where you step on and off
+ * its top; railed aft and at its port end, the deckhouse's rail open over it) down to starboard,
+ * a tread `tread` wide for each rise of at most `rise` (about 54 degrees, steep but walked, not
+ * climbed: a walk step is 0.4, vessel/layout.ts STEP_HEIGHT), `width` out from the face. It
+ * keeps inside the deckhouse's width (moved to port if it must; said if even that's short).
+ * CONFIG.shipyard.deckhouse.walk.stair. Its treads, the landing first, and its place as the
+ * walk's `ladder` (face 'stair': the landing's middle and width, the stair's depth).
+ */
+function transverseStair(dh: DeckhouseLayout, q: { deckY(z: number): number }, warnings: string[]): { treads: FloorPatch[]; ladder: { face: 'stair'; x: number; width: number; depth: number } } {
+  const s = CONFIG.shipyard.deckhouse.walk.stair;
+  const r = (v: number) => Math.round(v * 1000) / 1000;
+  const [za, zb] = [dh.z1 + 0.02, dh.z1 + s.width];
+  const foot = q.deckY(zb);
+  const rises = Math.max(1, Math.ceil((dh.top - foot) / s.rise - 1e-9));
+  const n = rises - 1; // treads between her deck and the landing
+  const rise = (dh.top - foot) / rises;
+  const run = s.landing + n * s.tread;
+  // The landing just to port of her centreline, the treads down to starboard; inside its width.
+  const room = deckhouseHalfWidth(dh, dh.z1) - 0.05;
+  let x0 = Math.min(-s.landing / 2, room - run);
+  if (x0 < -room) {
+    x0 = -room;
+    warnings.push('The deckhouse is too narrow aft for its stair across its aft face: it runs past its side.');
+  }
+  // The landing reaches forward over its top to where the walked top starts (in from its rail).
+  const landing: FloorPatch = { x0: r(x0), x1: r(x0 + s.landing), z0: r(dh.z1 - CONFIG.shipyard.deckhouse.walk.margin - 0.35), z1: r(zb), y: r(dh.top) };
+  const treads = Array.from({ length: n }, (_, i): FloorPatch => ({ x0: r(x0 + s.landing + i * s.tread), x1: r(x0 + s.landing + (i + 1) * s.tread), z0: r(za), z1: r(zb), y: r(dh.top - (i + 1) * rise) }));
+  return { treads: [landing, ...treads], ladder: { face: 'stair', x: r(x0 + s.landing / 2), width: s.landing, depth: s.width } };
+}
+
 /** The front windows' mullions: more panes on a wide house (the usual two, at +-0.5 m, left unset). */
 function mullionsOf(hw: number, wall: number, house: HouseShape): { frontMullions?: number[] } {
   const m = frontMullions(hw, wall, house.facet?.centre);
@@ -295,13 +328,14 @@ export function housePart(a: BuildArgs, p: HullPart) {
       if (d.dhWalk) warnings.push('The deckhouse’s top has no room to walk round the wheelhouse (make it reach further forward, or wider than the house): not walked.');
     }
     else {
-      // (Run on aft: down its aft face on the centreline, over the working deck.)
-      const ladder = runsAft
-        ? { face: 'aft' as const, x: 0, width: wk.ladder.width, depth: wk.ladder.depth }
+      // (Run on aft: a steep stair across its aft face, down to the working deck: transverseStair.)
+      const stair = runsAft ? transverseStair(deckhouse, q, warnings) : null;
+      const ladder = stair
+        ? stair.ladder
         : roomAft
         ? { face: 'aft' as const, x: rnd(hw + (stripAft - wk.margin) / 2 + 0.05), width: wk.ladder.width, depth: wk.ladder.depth }
         : { face: 'front' as const, x: 0, width: wk.ladder.width, depth: wk.ladder.depth };
-      deckhouse.walk = { z0: flat, margin: wk.margin, railHeight: wk.railHeight, postSpacing: wk.postSpacing, ladder };
+      deckhouse.walk = { z0: flat, margin: wk.margin, railHeight: wk.railHeight, postSpacing: wk.postSpacing, ladder, ...(stair ? { stair: stair.treads } : {}) };
       // The rail's run: both sides from the flat top's front aft (beside the house too), and across the front.
       const w0 = deckhouseHalfWidth(deckhouse, flat);
       if (ladder.face === 'front') foreEndAt = deckhouse.z0 - ladder.depth;
@@ -475,6 +509,8 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
     deckEdgeMargin: 0.25,
     bodyRadius: BODY_RADIUS,
   } as LayoutConfig;
+  // A deckhouse's stair (walked as floors; drawn by the hull mesh with its rail).
+  if (deckhouse?.walk?.stair) layout.extraFloors = [...(layout.extraFloors ?? []), ...deckhouse.walk.stair];
   // A raised foredeck's steps (walked as floors; drawn by the hull mesh).
   if (foredeck) {
     const treads = foredeckSteps(foredeck, q);

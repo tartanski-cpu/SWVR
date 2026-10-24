@@ -12,7 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
-- [ ] **Stern trawler: deckhouse run on aft, up to 2.5 m; less sheer; raised foredeck to 15 m** (this log). Shipyard → Stern trawler → Wheelhouse step, Deckhouse: Forward 1 m, Height 2.5 m, **Aft** 2 m. Check the rail and the ladder on its aft face, and that the gear sits aft of it (Deck gear step). Hull step: Raised foredeck back to 10–15 m. In the game: out of the aft door onto the deckhouse top, climb down the ladder and back up (grip and pull in VR; Space or C on desktop). Is 2.5 m high enough to see over the gear?
+- [ ] **The deckhouse's steep transverse stair** (this log). On the trawler with the deckhouse run aft (as in the next item): walk out of the aft door onto its top, to the landing at the middle of its aft edge, and walk down the stair to starboard and back up. Does it feel right, steep but walkable? Is the handrail where you'd reach for it?
+- [ ] **Stern trawler: deckhouse run on aft, up to 2.5 m; less sheer; raised foredeck to 15 m** (this log). Shipyard → Stern trawler → Wheelhouse step, Deckhouse: Forward 1 m, Height 2.5 m, **Aft** 2 m. Check the rail and the stair on its aft face, and that the gear sits aft of it (Deck gear step). Hull step: Raised foredeck back to 10–15 m. In the game: out of the aft door onto the deckhouse top (the stair down is the item above). Is 2.5 m high enough to see over the gear?
 - [ ] **The smoother on the A-frame and the other moving gear** (this log). On the stern trawler: shoot and haul the trawl and watch the A-frame swing, the net drum and the trawl winches turn; swing the searchlight. On the pilot boat: the pod drives' swing as you steer, the fire monitor. All should glide, no stepping, especially in VR.
 - [ ] **A 750 kW diesel, the stern trawler's** (PROGRESS.md). Start her, run her up; the engine's sound and the speed (about 10 knots).
 - [ ] **The fast rescue boat, a 6 m RIB** (PROGRESS.md; Shipyard only). Shipyard: a big boat, Deck gear → Skiff → the rescue boat. In the game: launch her on the crane, drive her from the centre console (about 28 knots), recover her.
@@ -25,6 +26,29 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### The deckhouse's ladder aft becomes a steep transverse stair (done; on next, in your test round)
+
+Owner, 24 Oct 2026: "make the deckhouse ladder a steep transverse stair instead".
+
+- **On a deckhouse run on aft of the wheelhouse** (`dhAft`), the vertical ladder down its aft face is now a **steep ship's stair across that face**:
+  - a landing at the top, just to port of the centreline, where you step on and off the deckhouse top (the deckhouse's rail is open over it);
+  - its treads run down to starboard against the face, each at most 0.3 m up and 0.22 m across (about 54°), 0.65 m out from the face;
+  - you **walk** up and down it like the raised foredeck's steps; nothing to climb with grip or Space;
+  - a handrail along its open side from the foot up to the landing, and round the landing's aft edge and port end;
+  - for 2.5 m of deckhouse: 8 treads and the landing, about 2.5 m across her.
+- **Settings:** `CONFIG.shipyard.deckhouse.walk.stair` (`rise`, `tread`, `width`, `landing`, `kg` 90 for the stair and its rails).
+- **Kept clear of it:** the life ring and a rod rack on the deckhouse's aft face move past its foot, or past its landing to port if there's no room. The aft-deck gear keeps aft of it.
+- **Only this one.** The ladders up other walked deckhouse tops (beside the wheelhouse, or up the front) are as they were. Say if you want stairs there too.
+- **Shared changes:**
+  - `src/vessel/deckhouse.ts`: `DeckhouseWalk.stair` (its treads), and the ladder's face can be `'stair'`, which isn't climbed;
+  - `src/vessel/view/hullMesh.ts`: draws the stair and its rail.
+  - Shipyard: `parts/house.ts` (`transverseStair`), `parts/deckGear.ts`, `parts/weights.ts`, `src/config/shipyard.ts`.
+- **Checked:**
+  - typecheck, all of `npm test`, the build;
+  - `deckhouseAft.test.ts` now checks the stair: each rise at most 0.3 m, it stays inside the deckhouse's width, the gear and fittings clear of it, and walking from the top down the landing and every tread to the deck;
+  - headless Shipyard screenshot of the trawler (stair, landing, rails).
+- **Not checked:** walking it in the game, in VR or on desktop.
 
 ### The stern trawler: a deckhouse run on aft of the wheelhouse, up to 2.5 m high; less sheer; a longer raised foredeck (done; on next, in your test round)
 

@@ -62,6 +62,10 @@ Owner, 24 Oct 2026: "a third option for the windowsills on the wheelhouse to hav
   - `npm run test:shipyard` and the typecheck pass. **Not checked:** standing at the helm in VR.
 - **Shared changes:** none.
 
+### (From the modular-builder chat) The deckhouse run aft: a steep transverse stair instead of its ladder
+
+At the owner's word (24 Oct 2026). `parts/house.ts` `transverseStair` (its treads walked through `layout.extraFloors`), `parts/deckGear.ts` (the life ring and rod rack clear of it), `parts/weights.ts`, `src/config/shipyard.ts` (`deckhouse.walk.stair`). Details in `docs/progress/modules.md`.
+
 ### (From the modular-builder chat) The stern trawler: a deckhouse run on aft, up to 2.5 m high; a longer raised foredeck
 
 At the owner's word, in the modular builder's chat (its log, `docs/progress/modules.md`, has the details):
