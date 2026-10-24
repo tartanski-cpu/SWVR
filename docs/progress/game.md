@@ -10,6 +10,21 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Career boats cost money: sea trials and buying at the yard (owner, 24 Oct 2026)
+
+Owner: "the free career boats fix next"; asked the rule: "A sea trial is time limited to 5 mins". The review's finding: any Shipyard design could be sailed in the real career for free (Office > Your boats > Take her, a pasted code, the Shipyard's "Try her in the game").
+
+- **Sea trial** (`src/app/shipyardTrip.ts` isSeaTrial, `src/app/App.ts`). A career page started in a Shipyard design the career hasn't paid for is a trial: not her own `CareerState.design`, not a purchase or refit coming back (`refitFrom`), not a crew-mate joining.
+  - It lasts `CONFIG.career.seaTrialS` (300 s of game time). It says so at the start, warns at a minute and at ten seconds, then restarts in the career's own boat.
+  - Nothing is saved during it (`savesHere()`).
+  - The Shipyard door is closed during it ("Not on a sea trial: in your own boat"), so a refit can't be priced from a boat not paid for.
+- **Buying at a boatyard** (Office > Your boats, `takeOffer`): at a yard, Take her reads **Buy her (£X)**, the difference in the Shipyard's price from the career's own boat (as a refit, nothing back for a cheaper one), or "Not enough money". Pressing it restarts in her with `refitFrom`, and the career pays and keeps her (settleRefit). Away from a yard: **Sea trial (5 min)**. Voyage is unchanged (free: the sandbox).
+- Tests: `tests/shipyardTrip.test.ts` (the trial rule: not for her own boat, a purchase coming back, crew, or Voyage).
+- Checked headless:
+  - a "Try her" address started a trial; £777 earned in it never reached the save; at a minute it warned, at the end back in the beginner boat with saving on;
+  - at Calder Haven with £400,000, "Buy her (£209,000)" for the pilot boat bought her (£191,000 left), and Career from the front page started in her.
+- Known, left: the beginner boat's yard add-ons aren't in her design's price (the review's refit finding), and "New career" or a slot switch keeps the boat in use until the page restarts.
+
 ### No hitches from the short seas' field, and less garbage from the wave sums (owner, 24 Oct 2026)
 
 Owner: "the wave sampling garbage and wind-sea field hitches next" (review: the field was worked out again in one go, 10-20 ms on the main thread, every time the wind moved 4 % or 4°, and a rising wind did it dozens of times; the wave sums made thousands of throwaway objects a frame).

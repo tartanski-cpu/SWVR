@@ -713,6 +713,8 @@ The page shows her in 3D (around her and at the helm), her figures and her sea t
 
 **Bring her into the game (Menu → Office → Your boats):**
 
+- **In the career, a boat costs money.** At a boatyard (Calder Haven, Loch Tarsk) the button reads **Buy her (£…)**: you pay the difference in price from your own boat (nothing back for a cheaper one), and she's your career's boat from then on. Away from a yard it reads **Sea trial (5 min)**: you sail her for five minutes and nothing from that time is saved, then you're back in your own boat. The Shipyard's **Try her in the game** is a sea trial too. In Voyage, Take her and Launch are free (it's a sandbox).
+
 - **Your favourites:** every boat you've saved as a favourite in the Shipyard, in this browser, is listed there. **Take her** restarts the game in her. Nothing to type or paste, so it works in VR: design her in the Quest's browser, save her as a favourite, then pick her from the menu in VR (enter VR again once she's loaded).
 - **Her code:** for a boat designed on another device (the favourites stay in the browser they were saved in), type her code on the page's keypad, a laser press a character (dashes don't matter, and I, L and O read as 1, 1 and 0). **Take her** lights once the code reads as a boat; the line above the keypad says what she is.
 - **On desktop, paste:** copy her code or her **Try her in the game** link, then press Ctrl+V anywhere in the game (or the page's **Paste** button): it lands in the code line, ready to take.

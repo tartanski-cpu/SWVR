@@ -18,7 +18,21 @@
  * back for a cheaper one.
  */
 import { buildDesign } from '../shipyard/build';
-import { readDesign } from '../shipyard/designDoc';
+import { readDesign, sameDesign } from '../shipyard/designDoc';
+
+/**
+ * Is this career page a sea trial (CONFIG.career.seaTrialS; the free career boats, review Oct
+ * 2026)? A Shipyard design on the address that isn't the career's own boat (`own`:
+ * CareerState.design), not a paid refit or purchase coming back (`refitFrom`), and not a
+ * crew-mate joining (the host's boat). Voyage has no trials: it's a sandbox.
+ */
+export function isSeaTrial(mode: string, search: string, own: string | undefined): boolean {
+  if (mode !== 'career') return false;
+  const p = new URLSearchParams(search);
+  const code = p.get('design');
+  if (!code || p.has('refitFrom') || p.has('join')) return false;
+  return !own || !sameDesign(own, code);
+}
 
 /** The address of the Shipyard in refit mode, for her design `code`. */
 export function shipyardUrl(code: string, mode: 'career' | 'voyage', back: string, money?: number): string {

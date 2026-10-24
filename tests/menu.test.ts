@@ -32,6 +32,7 @@ function fakeHost() {
   const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
   const host: MenuHost = {
     shipyardStatus: () => '',
+    takeLabel: () => 'Take her',
     openShipyard: () => calls.push('shipyard'),
     timeOfDay: () => state.time,
     homeBoat: () => 'workboat',

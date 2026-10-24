@@ -290,6 +290,8 @@ export interface MenuHost {
   shipyardCodes(): ShipyardCodes;
   /** Restart the game in a Shipyard boat by her code; or back in the game's start boat (the beginner boat). */
   takeDesign(code: string): void;
+  /** What Take her does for this code: in the career, buy her at a boatyard or a sea trial away from one. */
+  takeLabel(code: string): string;
   workboatAgain(): void;
   /** What she is now: "the workboat", or a Shipyard boat's name or code. */
   boatNow(): string;
@@ -976,7 +978,7 @@ function yourBoats(h: MenuHost): MenuRow[] {
     label: '',
     buttons: [
       { text: () => c().favouriteAt(i)?.name ?? (i === 0 ? 'None saved: in the Shipyard, or Boat > Save her' : ''), weight: 3.2 },
-      { text: () => (c().favouriteAt(i) ? 'Take her' : ''), press: () => c().favouriteAt(i) && h.takeDesign(c().favouriteAt(i)!.code) },
+      { text: () => (c().favouriteAt(i) ? h.takeLabel(c().favouriteAt(i)!.code) : ''), press: () => c().favouriteAt(i) && h.takeDesign(c().favouriteAt(i)!.code) },
     ],
   });
   const key = (ch: string) => ({ text: ch, press: () => c().type(ch) });
@@ -1003,7 +1005,7 @@ function yourBoats(h: MenuHost): MenuRow[] {
       label: 'Code',
       buttons: [
         { text: () => groupCode(c().code) || '_', weight: 3.2 },
-        { text: () => (c().check().ok ? 'Take her' : ''), active: () => c().check().ok, press: () => c().check().ok && h.takeDesign(c().code) },
+        { text: () => (c().check().ok ? h.takeLabel(c().code) : ''), active: () => c().check().ok, press: () => c().check().ok && h.takeDesign(c().code) },
       ],
     },
     { label: '', buttons: [{ text: () => c().check().text }] },
