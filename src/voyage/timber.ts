@@ -169,7 +169,7 @@ export function saleOffer(world: WorldState, boat: VesselState | undefined, mapI
   return null;
 }
 
-/** Sold: the barge gone, its line with her, the money paid in (the career's account, which Voyage keeps). */
+/** Sold: the barge gone, its line with her, the money paid in (this session's money: Voyage doesn't save it). */
 export function sellBarge(world: WorldState, bargeId: EntityId, merchant: Merchant): number {
   const b = world.timber?.barges[bargeId];
   if (!b) return 0;

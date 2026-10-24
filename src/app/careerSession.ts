@@ -47,6 +47,24 @@ export function savedCareer(): CareerState | null {
   }
 }
 
+/**
+ * The career in the slot last used loses its refitted design (CareerState.design): it won't
+ * build any more (review, Oct 2026), so the career goes on in the beginner boat rather than
+ * never loading.
+ */
+export function forgetCareerDesign(): void {
+  try {
+    const n = Number(localStorage.getItem(SLOT_KEY));
+    const slot = n >= 1 && n <= CAREER_SLOTS ? n : 1;
+    const c = parseCareer(localStorage.getItem(slotKey(slot)));
+    if (!c?.design) return;
+    delete c.design;
+    localStorage.setItem(slotKey(slot), serializeCareer(c));
+  } catch {
+    // Storage blocked: nothing kept to forget.
+  }
+}
+
 /** What the career session needs from the app. */
 export interface CareerHost {
   world(): WorldState;

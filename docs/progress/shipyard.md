@@ -10,6 +10,69 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Faceted aft windows with windows raked out all round (approved by the owner 24 Oct 2026; on next)
+
+Owner, 24 Oct 2026: "When the raked out option for the sides and aft of the wheelhouse is activated, the three facets on the aft of the wheelhouse are not respected. Please fix that. I would like it so that you can have basically like a proper wheelhouse."
+
+- **Why it was left out:** faceted aft windows were left flat with raked-out windows, on the reckoning that the aft wall leaning aft and the corners angling forward wouldn't meet. They do. The rake (houseFlare.ts) stretches the house as a whole, linear in x and z at each height, so flat walls stay flat and walls that meet keep meeting. The angled aft corners lean out with the sides and aft, as the front's angled corners already did.
+- **Fix** (parts/house.ts): the refusal is gone; the page's and README's words say so. A cockpit overhead still leaves them flat.
+- **Checked:** tests/shipyard/aftFacets.test.ts (the pilot boat and the tug with both: faceted, raked, no warning). Headless Chromium: the tug with three facets front and aft, raked out all round, Stern ¾, Bow ¾, Stern and Plan. `npm run test:shipyard`, the full `npm test` and the typecheck pass.
+- **Shared changes:** none.
+
+### Faceted aft windows: a choice as the front's (approved by the owner 24 Oct 2026; on next)
+
+Owner, 24 Oct 2026: "at the moment we have a three facets option for the wheelhouse and it makes the front faceted. I'd like an additional option that you can have rear windows faceted in the same way."
+
+- **The choice** (design.ts `aftFacets`, 0 flat, 1 faceted; Wheelhouse step, Windows, **Aft**, with its own small drawings, tiles.ts `aftFlat`, `aftFacets`): the aft windows in three facets as the front's are. The middle pane is square across her with the aft door in it; the outer two are angled forward to the side walls, the same width (catalog.ts `facetCentre`) and angle (`CONFIG.shipyard.facetDeg`, 30°) as the front's. Travels as a link or file, not in the short code.
+- **Left flat, with a warning,** when the house is too narrow (the middle pane would be all of it), too short (no room for the helm with both ends angled), with windows raked out all round (the aft wall leans out), or with a cockpit overhead (its wings meet the aft corners).
+- **The house** (shared: vesselDef.ts `HouseShape.aftFacet`, hullMesh.ts): the aft wall in two pieces each side, split at the facet's corner with a post there, and everything at the aft wall brought forward by its setback (`aftFacetDz`, `setForward`). The floor and the ceiling at the aft wall are cut back to the angled walls (`aftFacetStrip`). The roof slab and its top panel follow, the saloon's if it has its own lower roof (`chamferedSlab` takes an aft facet now).
+- **The floor walked** (shared: layout.ts): its aft edge comes forward with the outer panes, so you can't walk out through the corner glass.
+- **What stands in the aft corners** (parts/hullDef.ts `intoFacets`): anything inside the house within 0.7 m of its aft wall, off the middle pane, comes forward by the setback at its place: the exhaust stacks (their pipes), the battery switches, the extinguisher, the torch, the line-throwing gun, furniture. The port side door stops short of where the side wall turns in (parts/house.ts).
+- **Checked:**
+  - tests/shipyard/aftFacets.test.ts: every hull type, also twin with a side door and with a saloon and advanced controls, with a locker and a berth put in the aft corners; every socket and stowed piece inside the house is forward of the angled walls. The corner is off the floor walked and the doorway on. Left flat with raked-out windows, an overhead or a narrow house. The code refuses it.
+  - Headless Chromium: the tug and the pilot boat, three facets front and aft, Stern ¾, Plan and Stern views, and the tug from above, cut over the floor (Furniture step). Screenshots.
+  - The typecheck and the full `npm test` pass.
+  - **Not checked:** walking into the corners in VR.
+- **Shared changes:**
+  - vesselDef.ts: `HouseShape.aftFacet`.
+  - hullMesh.ts: `aftFacetDz`, `setForward`, `aftFacetStrip`; the aft wall split; `chamferedSlab`'s aft facet. A house without aft facets is built as before.
+  - layout.ts: the floor walked's aft edge. As before without aft facets.
+
+### Fix: the stern trawler carried the tug's line-throwing gun (approved by the owner 24 Oct 2026; on next)
+
+Owner, 24 Oct 2026: "the stern trawler ... seems to get the line throwing gun. Maybe it's copied over from the tugboat settings."
+
+- **Why:** the gun went on the tug hull, or on any boat whose engine goes on a shaft only (meant as "a boat with the tug diesel is a tug"). When the 750 kW diesel came in, it was shaft-only too, and it is the trawler's as she comes, so she got the gun.
+- **Fix** (parts/hullDef.ts): the tug hull, or any hull with the tug diesel itself (catalog.ts `TUG_DIESEL`). The other shaft-only checks (no stern drive or pods with them) are about the drive, and stay.
+- Test: tests/shipyard/sternTrawler.test.ts (no gun as she comes; with the tug diesel, the gun). tests/lineGun.test.ts still passes.
+- **Shared changes:** none.
+
+### High window sills: a third choice (approved by the owner 24 Oct 2026; on next)
+
+Owner, 24 Oct 2026: "a third option for the windowsills on the wheelhouse to have them higher ... usually you're sort of standing up, so you should be able to see through the windows, but just come up with something which is higher".
+
+- **How high:** 1.3 m above the wheelhouse floor (`CONFIG.shipyard.windowSills.high`). That's level with the top of the dash (0.9 m desk plus 0.41 m dash), so the console tucks under the glass in one line. It's chest height, as on a heavy-weather trawler or tug. A standing helmsman's eyes are about 1.6 m up, so there is still about 0.3 m of glass below eye level, and the band from sill to roof is about 0.7 m deep. Standard is 1.0 m, low 0.75 m.
+- **The console stays as with standard sills** (its upright panel on). Low sills alone take it off and put the screens on stalks. Every place that read "any sills" as low now reads low only (design.ts `lowSills`; parts/house.ts, parts/recipe.ts).
+- **The page:** Wheelhouse step, Windows group, Sills: Standard, Low, **High** (level with the dash), with its own small drawing (tiles.ts `sillHigh`).
+- **Not in the short code:** the code holds the sills as one bit, so a third value would change how old codes read. `CODE_SILLS` stays 2, and a design with high sills travels as a link or file (encode says so). Codes with standard or low sills read as before.
+- **Checked:**
+  - tests/shipyard/highSills.test.ts (new): the height, the console's view over the dash, and the code (high sills refused, standard and low read back).
+  - flare.test.ts and designDoc.test.ts now know the third choice.
+  - Headless Chromium on the pilot boat: side view and the view from the helm, standard against high. The bow and foredeck gear stay in view over the high sills; only the strip of deck nearest the wheelhouse is hidden. No warnings.
+  - `npm run test:shipyard` and the typecheck pass. **Not checked:** standing at the helm in VR.
+- **Shared changes:** none.
+
+### (From the modular-builder chat) The deckhouse run aft: a steep transverse stair instead of its ladder
+
+At the owner's word (24 Oct 2026). `parts/house.ts` `transverseStair` (its treads walked through `layout.extraFloors`), `parts/deckGear.ts` (the life ring and rod rack clear of it), `parts/weights.ts`, `src/config/shipyard.ts` (`deckhouse.walk.stair`). Details in `docs/progress/modules.md`.
+
+### (From the modular-builder chat) The stern trawler: a deckhouse run on aft, up to 2.5 m high; a longer raised foredeck
+
+At the owner's word, in the modular builder's chat (its log, `docs/progress/modules.md`, has the details):
+- new design field `dhAft` (the deckhouse run on aft of the wheelhouse, 0.5 m steps to 6 m; not in the code): `design.ts`, `parts/house.ts` (its build, the door steps on its top, its ladder on the aft face), `parts/deckGear.ts` (aft-deck gear keeps aft of it), `page.ts` (the **Aft** slider), `src/config/shipyard.ts` (`deckhouse.aftDeck`, 4 m);
+- `MEASURES.dhHeight` to 2.5 m; `SCALES.fcLength` to 15 m (30 steps);
+- `tests/shipyard/deckhouseAft.test.ts`; `designDoc.test.ts` lists `dhAft` as not in the code.
+
 ### Handles in their own colours (approved by the owner 23 Oct 2026; on next)
 
 Owner, 23 Oct 2026: "different colors of drag handles for the breadth and the width and the depth and all the different things, just so you can see which ones you're dragging".

@@ -82,6 +82,9 @@ export class NavMarksView {
   private readonly q = new THREE.Quaternion();
   private readonly e = new THREE.Euler();
   private readonly v = new THREE.Vector3();
+  /** Each mark's last height on the waves (NaN: not yet), and the frame count for taking turns. */
+  private heights = new Float32Array(0);
+  private frame = 0;
   private readonly one = new THREE.Vector3(1, 1, 1);
 
   constructor() {
@@ -119,14 +122,23 @@ export class NavMarksView {
    * @param waves    the sea as drawn this frame
    * @param time     seconds (the lights' rhythm)
    * @param darkness 0 (noon) .. 1 (night)
+   * @param viewer   where the viewer is: near marks are set on the waves every frame, farther
+   *                 ones in turns (CONFIG.navMarks.wavesEvery; review, Oct 2026: every mark on
+   *                 the map was sampled every frame, 97 on the Clyde)
    */
-  update(waves: readonly PreparedWave[], time: number, darkness: number): void {
+  update(waves: readonly PreparedWave[], time: number, darkness: number, viewer?: { x: number; z: number }): void {
     const pos = this.lampPos.array as Float32Array;
     const col = this.lampCol.array as Float32Array;
+    if (this.heights.length !== MARKS.length) this.heights = new Float32Array(MARKS.length).fill(NaN);
+    const frame = ++this.frame;
+    const w = CONFIG.navMarks.wavesEvery;
     for (const [kind, { mesh, marks }] of this.meshes) {
       marks.forEach((idx, k) => {
         const mk = MARKS[idx];
-        const y = surfaceHeight(waves, mk.x, mk.z) - 0.25;
+        const d = viewer ? Math.hypot(mk.x - viewer.x, mk.z - viewer.z) : 0;
+        const every = d < w.nearM ? 1 : d < w.midM ? w.mid : w.far;
+        if (Number.isNaN(this.heights[idx]) || (frame + idx) % every === 0) this.heights[idx] = surfaceHeight(waves, mk.x, mk.z, CONFIG.ocean.sceneryIterations) - 0.25;
+        const y = this.heights[idx];
         // A gentle rock with the swell, each buoy out of step with the others.
         const ph = idx * 1.7;
         this.e.set(0.06 * Math.sin(time * 0.9 + ph), 0, 0.06 * Math.sin(time * 0.75 + ph * 1.3));
@@ -135,7 +147,9 @@ export class NavMarksView {
         mesh.setMatrixAt(k, this.m);
         // The lamp at the top, flashing its character (staggered a little per buoy).
         this.v.set(0, LAMP_Y[kind], 0).applyQuaternion(this.q);
-        pos.set([mk.x + this.v.x, y + this.v.y, mk.z + this.v.z], idx * 3);
+        pos[idx * 3] = mk.x + this.v.x;
+        pos[idx * 3 + 1] = y + this.v.y;
+        pos[idx * 3 + 2] = mk.z + this.v.z;
         const on = lightOn(LIGHT_CHARACTERS[kind].pattern, time, idx * 0.37);
         for (let j = 0; j < 3; j++) col[idx * 3 + j] = on ? this.base[idx * 3 + j] : 0;
       });

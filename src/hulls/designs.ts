@@ -703,12 +703,13 @@ export const DESIGNS: HullDesign[] = [
       [0.93, 1.6],
       [1, 0],
     ],
-    // A low working deck aft, rising in a strong sheer to the bow.
+    // A low working deck aft, rising in a sheer to the bow (owner, Oct 2026: a little less
+    // than the first 2.45 m at the stem; the Shipyard's Sheer adds more).
     sheer: [
       [0, 0.95],
       [0.4, 1.0],
-      [0.7, 1.35],
-      [1, 2.45],
+      [0.7, 1.25],
+      [1, 2.1],
     ],
     // A drag aft: deepest under the propeller, the keel rising forward to the forefoot and stem.
     keel: [

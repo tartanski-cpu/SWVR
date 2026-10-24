@@ -93,7 +93,8 @@ describe('outboards: built', () => {
   });
 });
 
-describe('outboards: cooling', () => {
+// (Ten minutes flat out, simulated: about 12 s here, and a GitHub runner can take twice that or more, so it's given room.)
+describe('outboards: cooling', { timeout: 90000 }, () => {
   it('held flat out on the plane for ten minutes they stay cool (owner: the throttles are set for it)', () => {
     const d = boat(1, 1);
     useDesign({ ...d, gear: matchGear(d).gear });

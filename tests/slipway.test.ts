@@ -50,7 +50,8 @@ describe('the slipways', () => {
   });
 });
 
-describe('landing on a slipway', () => {
+// Room for the long runs: about twice as slow on GitHub's publishing machine, past the 20 s default.
+describe('landing on a slipway', { timeout: 60000 }, () => {
   it('the landing craft lies landed level at her waterline, her bottom just on the slip, her flaps resting on it above the water', () => {
     const def = VESSEL_DEFS.landingCraft;
     for (const s of SLIPWAYS) {
@@ -171,7 +172,7 @@ describe('landing on a slipway', () => {
   });
 });
 
-describe('walking off down the ramp', () => {
+describe('walking off down the ramp', { timeout: 60000 }, () => {
   it('the ramp floor runs from her bow deck down to the flaps\' tips; the crossing is at the tips, ashore below aboard', () => {
     const def = VESSEL_DEFS.landingCraft;
     const p = landedPose(def, SLIPWAYS[0]);

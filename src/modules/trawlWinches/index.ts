@@ -13,6 +13,7 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import type { GearFootprint, ModuleDefinition } from '../../modular/module';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 
@@ -62,6 +63,7 @@ export const TRAWL_WINCHES: ModuleDefinition<TrawlWinchesConfig> = {
         rolls.push(roll);
       }
       let shown = -1;
+      const smooth = new TickSmoother([0.5]);
       const show = (out: number) => {
         // The warp's roll: full in, the core bare all out.
         const r = Math.sqrt(c.drumRadius ** 2 + (1 - out) * (c.fullRadius ** 2 - c.drumRadius ** 2));
@@ -75,8 +77,9 @@ export const TRAWL_WINCHES: ModuleDefinition<TrawlWinchesConfig> = {
         staticParts: fixed,
         movingParts: drums,
         controls: [],
-        update: (read) => {
-          const out = keys.warp ? read.num(keys.warp) : 0;
+        update: (read, _s, dt) => {
+          // (Drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
+          const out = smooth.update([keys.warp ? read.num(keys.warp) : 0], dt)[0];
           if (out !== shown) show(out);
         },
       };

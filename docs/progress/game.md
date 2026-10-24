@@ -10,6 +10,201 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### No hitches from the short seas' field, and less garbage from the wave sums (owner, 24 Oct 2026)
+
+Owner: "the wave sampling garbage and wind-sea field hitches next" (review: the field was worked out again in one go, 10-20 ms on the main thread, every time the wind moved 4 % or 4°, and a rising wind did it dozens of times; the wave sums made thousands of throwaway objects a frame).
+
+- **The field a slice at a time** (`src/ocean/windSea.ts`):
+  - A refresh is worked out `CONFIG.ocean.fetchSeas.sliceCells` (4000) cells a tick, the old field in use meanwhile, and swapped in whole when done: the Clyde's 25,000 cells in about 7 ticks.
+  - The first field (the map's loading, or Debug turning short seas back on) is still made at once.
+  - The long waves' exposure is kept for the map (it never changes); nothing is allocated per cell.
+  - Every wind direction's fetch is worked out when the grid is made (`src/world/fetch.ts`), not first thing when a new wind comes.
+  - Measured (Node), a wind rising 5 → 17 m/s and veering, warm:
+
+    | | Before | After |
+    |---|---|---|
+    | Each refresh | 10-18 ms at once | 1.4 ms (Oban) / 2.0 ms (Clyde) for the longest single call, none over 2 ms |
+
+    The map's load does a little more (the grid with all its sectors: 35 ms Oban, 50-65 ms Clyde, was 7 / 25 ms; the first field 22-35 ms, was 37-57 ms).
+  - Checked in a browser on the Clyde: as the wind rose the field refreshed and the drawn sea took each new one, no errors.
+- **Less garbage from the wave sums** (`src/ocean/waves.ts`, `src/vessel/physics/vesselPhysics.ts`):
+  - `sampleSurface` fills a sample given to it (`newSurfaceSample`), and the physics keeps six of its own, instead of a new object and two arrays per sample, dozens a tick.
+  - The closures and arrays went in the previous change set (the wind-sea lookup, the rest position).
+  - The physics' recorded traces (`tests/golden.test.ts`) are unchanged.
+- **Two smaller ones** (`src/app/App.ts`):
+  - the debug readout's text is built only while the overlay is shown (it was built every frame regardless);
+  - the boards' menu list is kept, not made again three times a frame.
+- **Shared changes:** `src/vessel/physics/vesselPhysics.ts` (reused samples), `src/world/fetch.ts` (all sectors at the grid's making).
+
+### Harbour boats, buoys and marks cheaper on the waves (owner, 24 Oct 2026)
+
+Owner: "the harbour boats and buoys performance fix next" (review: in a busy marina, where every Voyage starts, the scenery's wave samples were about 10 ms a frame before anything was drawn).
+
+- **Every wave sample is cheaper** (`src/ocean/waves.ts`, `windSea.ts`), for the boats' physics as well as the scenery:
+  - the factors (shelter, tidal races, the wind sea) are taken once per sample, at the point, not again at each of the rest-position search's six steps (they change over hundreds of metres; the rest position is within a metre or two);
+  - the wind-sea lookup no longer makes two throwaway functions per call;
+  - the height and the full sample stop making new arrays.
+  The physics' traces (`tests/golden.test.ts`) and the wave tests are unchanged.
+- **The scenery asks less of the waves:**
+  - `CONFIG.ocean.sceneryIterations` (3): the scenery's samples search for the rest position in 3 steps, not 6. They're within 5 cm of the full sample in a moderate sea and 20 cm in a storm (`tests/sceneryWaves.test.ts`).
+  - Harbour boats (`src/world/view/harbourBoatsView.ts`): posed every frame within `everyFrame` (150 m); out to `bobDistance` every 2nd frame; beyond, every `farEvery`th (4), taking turns. The last pose is held between, and the swing to the wind is still worked out every frame. A moored boat's buoy takes her height instead of a sample of its own. The Quest's `bobDistance` goes 400 → 250 m. A per-frame Map is now kept.
+  - Marks (`src/world/view/navMarksView.ts`): every frame within 300 m, every 4th within 2 km, every 16th beyond (`CONFIG.navMarks.wavesEvery`). Their lights flash on time every frame. A per-mark array each frame is gone.
+- **Measured** (Node on this machine, the review's own benchmark):
+
+  | | Before | After |
+  |---|---|---|
+  | One wave sample | 13-14 µs | 4.5-7.6 µs |
+  | Harbour boats, Oban's busiest marina (94 boats) | 4.5 ms/frame | 1.0 ms/frame |
+  | Harbour boats, the Clyde's busiest (301 boats, desktop settings) | 11.9 ms/frame | 1.7 ms/frame |
+
+  The Quest is slower in absolute terms; the share saved is the same.
+- Checked headless on Oban: 130 harbour boats posed, every matrix sound, the boats on the water by the pontoon (screenshot). Not checked on the Quest itself (frame times there).
+- **Shared changes:** `src/world/view/harbourBoatsView.ts`, `src/world/view/navMarksView.ts` (as above), `src/config.ts` (`ocean.sceneryIterations`, `harbourBoats.everyFrame/farEvery/bobDistance`, `navMarks`).
+
+### The review's quick fixes, and weather that changes (owner, 24 Oct 2026)
+
+Owner: "go ahead with the seven quick fixes and the weather" (from `docs/REVIEW_2026-10-24.md`; eight were listed, all done).
+
+- **Go to some harbours did nothing** (`src/core/launch.ts`, shared): the anchor-spot search was given a list of boats with an empty entry for her own and threw. It now gets the other boats and `anchorSpotFor` (the anchorage circle, depth, the harbour boats' moorings). A failing Go can no longer stop the tick either (`src/core/simulation.ts`, shared: caught, she lies as the plain Go puts her). Test `tests/voyageGo.test.ts`: every Tayvallich harbour, Ashfield included, made fast. It fails on the old code.
+- **Leaving a friend's game saved their career over yours** (`src/app/App.ts`): a world adopted from a host is marked `worldBorrowed`. Nothing in it is saved here: career, chart marks, notes board, rescues, batteries, Voyage place, plan and barges (`savesHere()`). Leave game then reloads your own game. Checked with two headless browsers on career.html: the crew-mate's slot (£111) held through joining a host (£999) and leaving, and the page came back in their own career.
+- **VR messages cut off at ~30 characters on the wrist** (`src/debug/overlay.ts`): their own card, word-wrapped (largest type that fits, up to five lines), low in the view, with a buzz on the left hand. `CONFIG.debug.vrToast`: width 0.62 m, 1.25 m out, 0.34 m down, pulse 0.3 for 30 ms. The wrist panel keeps the debug readout. Rendered headless: the long start-up message wraps to four lines, about 2.4 cm tall in the headset.
+- **A held control followed the body** (`src/controls/InteractionSystem.ts`, `Control.ts`, `src/app/App.ts`):
+  - breakaway: a hand more than `CONFIG.interaction.breakaway` (0.25 m) from the control it holds lets go, with a firm buzz;
+  - while a hand holds a control, the sticks don't walk or snap-turn you and the free hand doesn't pull you along;
+  - the VHF handset (carried freely, `carried`) is exempt.
+  Test in `tests/controls.test.ts`: a hand jerked 0.6 m away lets go, the lever left where it was.
+- **W/S and the neutral stop** (`src/app/App.ts`, `src/controls/Tiller.ts`):
+  - W/S no longer move the throttle while they steer a clicked joystick (searchlight, pod helm);
+  - holding the key stops at neutral and stays there until it's let go and pressed again (helm keys, gamepad bumpers, the skiff tiller's W/S; the tiller also stops when the gear would flip).
+  Test in `tests/tiller.test.ts`. Headless at the helm: W to 0.9, S held 6 s stays at 0, S again goes astern.
+- **A design that won't build killed the game page** (`src/boats/library.ts`, shared): `boatType` catches a build failure and returns null, as for an unreadable code, so the default boat is used with a notice. A career whose saved refit won't build forgets it (`forgetCareerDesign`, `src/app/careerSession.ts`) and loads. The notice names the right fallback boat (pilot boat in Voyage). Test `tests/designWontBuild.test.ts`. The builder's own fault (`src/shipyard/parts/recipe.ts:409`) is the Shipyard chat's to mend; it has been told the owner approved it.
+- **SOS did nothing on the Voyage maps** (`src/rescue/sos.ts`): with no boatyard, the salvage tug brings her into the nearest harbour's cargo berth (`sosHaven`), named by the coastguard. In Voyage she's made fast there, with the settle time. Test in `tests/voyageGo.test.ts`.
+- **The Clyde froze ~25 s at the start laying out its 837 cargo items** (`src/cargo/cargo.ts`): the waiting counts are taken once and kept up while filling (`waitingCounts`), and the free-place search looks only at items near the port (`groundNear`). Measured in Node: the Clyde 22.0 s → 1.3 s, Tayvallich 38 → 32 ms, the layout identical item for item. A retry cap guards against a hung start.
+- **Live weather froze the weather** (`src/environment/weather.ts` setLiveWeather, App): it's now the starting point. The director plans the next change from it by the map's odds (`profile`), the real sea holds until that first change, then follows the wind; the forecast's "becoming…" comes true. `tests/liveWeatherApplied.test.ts` updated.
+- **Shared changes:** `src/core/launch.ts`, `src/core/simulation.ts`, `src/boats/library.ts` (as above); `tests/shipyard/build.test.ts`: a 120 s limit on the searchlight/fire-monitor placement test (14 s here, past the 20 s default on GitHub's machine), as the map chat did for the outboards.
+- Checked: typecheck; all tests (1,485; the one failure in the full run was that Shipyard test timing out while two browsers ran, and it passes alone, now with room); the headless checks above. Not checked in a headset: the message card, the breakaway, the stick lock.
+
+### A full-game review (owner, 24 Oct 2026)
+
+Owner: "Can you run a review of the full game?", with Voyage's basics (exploring, random things, dynamic weather, playing with friends) and the Shipyard-to-game link weighted most, and career kept light.
+
+- The findings and the suggested priorities are in `docs/REVIEW_2026-10-24.md`: 115 confirmed of 119 (11 high, 48 medium, 47 low, 9 polish; nothing critical). Nothing has been changed yet: the owner chooses what to fix.
+- How it was done:
+  - nine area reviewers, then an adversarial verifier per area;
+  - a reproduce check on every serious finding (all 11 reproduced);
+  - three more reviewers on the gaps a completeness pass named.
+  The reviewers read code and ran scratch simulations only (no browser).
+- Findings for other areas are marked by owner: the Shipyard builder crash, the stability warning and the Voyage link are the Shipyard chat's; the far-hills re-merge and the coast meshes never released are the Map chat's. Both chats have been pointed to the document.
+
+### W and S for the throttle at the helm (owner, 24 Oct 2026)
+
+Owner: "when you're using mouse and keyboard, currently the cursor keys control your throttle and steering ... could you move the throttle ... maybe it's just W and S, because ... the steering, the idea is you use it with your steering wheel."
+
+- At the helm (F by the wheel), **W / S** move the throttle/gear lever ahead / astern, at the same rate as the arrow keys (`src/app/App.ts` handleDebugDriving). Walking is already off at the helm, so W/S had nothing to do there; away from the helm they walk as before. Not while working the deck crane's remote, which uses W/S itself.
+- The arrow keys still work too: ↑ / ↓ the lever, ← / → the wheel. A and D do nothing at the helm: you steer with the wheel itself (drag it).
+- The help panel (H) and the README's controls table say so (`src/core/keybindings.ts`).
+- Not run in a browser: a small change to which keys feed the lever; typecheck and the menu/controls tests.
+
+### The gangway mark: step ashore and aboard by pointing (owner, 24 Oct 2026)
+
+Owner: "it's a bit clunky to get from the ship onto the quay side. So usually we're just jumping, and if the ship's low, you kind of fall underneath it. Would it be possible to have something where you look at the quay side from the boat, as long as it's docked, that you can click maybe by somewhere high on the dock side, and then it just puts you ashore?"
+
+- **The mark** (`src/player/gangway.ts`): an amber ring with a down arrow and its words, turned to face you.
+  - **Aboard a moored boat:** "Step ashore", low over the quay's edge abreast of her.
+  - **Ashore near a moored boat** (within 14 m): "Step aboard", over her deck by the rail on the quay side.
+  - It's drawn over everything (as the menu panels are), so you see it from inside the wheelhouse, where the quay's top is above your eyes and the roof would hide it.
+- **Using it:** point a free hand at it in VR and pull the trigger, or click it on desktop (the reticle says "Step ashore / click"). Ashore puts you on the quay a step back from the edge, by her berth. Aboard puts you where you'd board her. It reaches up to 25 m. It sends the same `board` intent as the B key and the left stick click, which still work.
+  - It's checked before the roving fender's quay-pointing, which it can't be confused with: it hangs in the air, the fender aims at the quay itself.
+- **Fix:** going ashore by any means now uses the berth of the boat you're on (`src/player/playerControl.ts`), not always your home boat's: stepping off a second boat moored elsewhere put you on your own boat's quay.
+- `CONFIG.gangway`: `up` 1.6 m (Step aboard, over the quay), `ashoreUp` 0.8 m (Step ashore, over the quay), `edgeIn` 0.6 m (in from the quay's edge), `radius` 0.35 m (the ring, and the pointer's target), `reach` 25 m, `aboardRange` 14 m.
+- Tests: `tests/gangway.test.ts` (aboard a second boat moored at another berth, ashore by hers).
+- Checked headless on Oban:
+  - "Step aboard" over the pilot boat seen from the quay, and "Step ashore" seen from inside her wheelhouse over the door header, both clear (screenshots);
+  - a click on "Step ashore" put the player on the quay, and the mark turned to "Step aboard".
+- Not checked: in VR.
+
+### Tests: room for the long game simulations on GitHub's machine (24 Oct 2026)
+
+/next/ showed "failed its tests or its build" after the Shipyard door went up (publishing run 584). Nothing in the game was wrong. `tests/weather.test.ts` "the director moves on only to presets allowed to follow" ran out of time: about 19 s here against the 20 s default, and GitHub's runner is about twice as slow.
+
+- The same fix the map chat made for the engine and outboard tests (2bc11fb): describe-level timeouts, with a comment saying why.
+  - `tests/weather.test.ts`: 120 s (the director test 19 s here, fog 17 s).
+  - `tests/weatherCrew.test.ts`: 30 → 120 s (20 s here).
+  - `tests/painter.test.ts`: 60 s (15 s here).
+  - `tests/slipway.test.ts`: 60 s (14 s here).
+- `vitest.config.ts` is unchanged. The slowest of the rest already have room: the 750 kW test 51 s of 120, the coast traffic 25 s of 60, multi-tow 22 s of 120.
+
+### Voyage: boats arrive made fast (owner, 24 Oct 2026)
+
+Owner: "in voyage mode ... the boats spawn in and they're not docked. So they quickly drift off if it's windy. It'd be good that they're docked when they spawn in."
+
+- **What was loose:** a Voyage start, a reload and a crew-mate's launch already came in moored (checked headless on all four maps). Two ways in didn't:
+  - **Go** to a harbour put her alongside "ready to make fast" with no lines on;
+  - a boat added from the fleet list was put afloat beside yours.
+  Both drifted off in a wind.
+- **Now, in Voyage** (`src/core/launch.ts`, `src/core/spawnBoat.ts`, shared):
+  - **Go:** at a free berth she's moored with her lines fast; with the harbour full, she lies to her anchor in its bay, set and holding.
+  - **The fleet list:** the boat comes in at the harbour the same way, at a free berth her size or at anchor off it (`berthOrAnchor`, which a crew-mate's launch now uses too). Only with no room for either does she go beside yours as before.
+- **The career is unchanged:** its Go is the Debug menu's, and its tests and the first voyage's steps expect her to lie free and be made fast by hand.
+- Tests: `tests/voyageMadeFast.test.ts`:
+  - Go to four harbours in a squall: made fast, and still within 4 m of her berth (60 m at anchor) after a minute;
+  - a spawned boat made fast in Voyage, free beside you in the career.
+- Checked headless on Oban: Go to Brandy Rock Pier, Oban and Creag Moraig Pier, each moored and still. A spawned landing craft came in moored at Creag Moraig Pier.
+- **Shared changes:** `src/core/launch.ts` (`berthOrAnchor`, `anchorAt`; Go in Voyage made fast), `src/core/spawnBoat.ts` (in Voyage, made fast at the harbour).
+
+### The Shipyard from the yard: refit her in the real Shipyard page (owner, 24 Oct 2026)
+
+Owner: "is it possible to render the whole shipyard web page in the 3D environment ... assess the feasibility ... and come up with a plan" (`docs/SHIPYARD_IN_GAME.md`). Then, on the plan: go with option A. "For Voyage mode ... no concept of money ... just configure a new ship. In career mode ... the money you have in your career save should be respected ... show you how much money you've got, and how much it costs ... back to the boat returns you to the game ... no multiplayer needed."
+
+The game's side (the Shipyard page's refit mode is the Shipyard chat's, asked for with the address contract below):
+- **The door:**
+  - Career: the boatyard boards (Calder Haven, Loch Tarsk) get a button, **Open the Shipyard: refit her** (`ui/yardBoard.ts`).
+  - Voyage: a **Shipyard** sign stands beside the planning table on the start quay (`ui/shipyardDoor.ts`, `CONFIG.voyage.shipyardSign`: width 0.9 m, 0.9 m past the table's end, 1.5 m up, seen within 25 m, reached within 4 m). It goes with the table when the host's Go moves it.
+  - It opens only alone or hosting with no crew aboard (no multiplayer for this: owner), in a boat with a Shipyard design; in the career, with her in the yard's port. Otherwise the button says why.
+- **The trip** (`app/shipyardTrip.ts`): the game saves (the career; Voyage its place), leaves VR, and goes to `shipyard.html?refit=career|voyage&back=<the game>&money=<career only>#<her code>`. Today the Shipyard opens on her design; its refit bar and "Back to the boat" come with the Shipyard chat's part.
+- **Back:** the Shipyard returns to `back` with `design=<new>&refitFrom=<old>`.
+  - Career: pays the difference in the Shipyard's price (new less old; nothing back for a cheaper boat; worked out again here, not taken from the address), as "Refit at the yard".
+  - The career keeps her design (`CareerState.design`, saved), and from then on Career starts in her. A refit the career can't afford goes back to the old design.
+  - Voyage: no money.
+- Tests: `tests/shipyardTrip.test.ts` (the address out and back, the price rule, the career's design saved); `tests/menu.test.ts` updated.
+- Checked headless:
+  - On Oban the sign opens beside the table, and through it the Shipyard opens on the pilot boat (£295,000).
+  - Career with £900,000, back from a refit of the beginner boat to the pilot boat: charged £209,000, "Refit at the yard" in the ledger, and the next Career start was in her.
+- **Save format:** the career save gains an optional `design`. The live game's parser ignores it, but if a career is played on the live game it saves without it, and she'd start in the beginner boat again on /next/. Nothing else changes.
+
+### Voyage: no career, but damage and session money (owner, 23-24 Oct 2026)
+
+Owner, first: "most of the boats, when they spawn in, still have the career task list board ... and many spawn in with a damaged hull ... untangle anything to do with career mode and the voyage mode." Then, setting it straight: "you do still have the ability to damage your hull or your engine ... a need to go to the shipyard to repair it ... it should never spawn in with damage. It should only be if you really crash ... You should be able to earn money ... just in the local session ... see how much you've made ... buy upgrades with it ... But there shouldn't be a duty board ... career doesn't exist in the voyage mode."
+
+- **`WorldState.voyage`** (`src/core/world.ts`, shared): set by `createWorld(…, { voyage: true })`, which the app passes on the Voyage page. It goes to the crew in the snapshots.
+- **Damage as in the career, but never at the start** (`src/core/simulation.ts`, shared): in Voyage a boat takes no hull damage for `CONFIG.wear.spawnGraceS` (10 s) from her first tick, or from being sent to a port with Go (`VesselState.settleUntil`, `src/vessel/vesselState.ts`, shared). After that, a real crash does damage, and the engine wears, as ever. The career is unchanged: it keeps her condition from its save.
+- **This session's money** (`src/career/career.ts`): pay, bills and the timber sale go in and out as in the career, but nothing is saved (the Voyage account `swvr.voyage.money` is no longer read or written; the career's slots were never written in Voyage). No harbour office offers, so no contracts.
+- **No duty board** (`src/app/App.ts`): every boat's duty board is hidden in Voyage.
+- **Repairs and upgrades in Voyage: not yet.** A Boatyard tab in the menu was built and taken out again the same day (owner: yard work doesn't go in that menu). The owner's idea instead: the Shipyard itself, from a yard building in the world; see `docs/SHIPYARD_IN_GAME.md`. Until then, the money shows in its pop-ups as it comes and goes.
+- Tests: `tests/voyageMoney.test.ts` (the flag; money earned; the settle time). `tests/metaverse.test.ts` as before (the sale pays).
+- Checked headless on Oban: the flag set, the board hidden, damage 0 at the start with 10 s of settling, £500 to start.
+- **Shared changes:** `src/core/world.ts` (the `voyage` field and option), `src/core/simulation.ts` (the settling time in Voyage), `src/vessel/vesselState.ts` (`settleUntil`).
+
+### More cargo, and crane cargo (owner request via the map chat, then in person, 23 Oct 2026)
+
+Owner: "significantly more cargo now that the boats are bigger" (a fixed bigger amount, by the owner's choice); then "some cargo ... can only be lifted on by the cargo crane, so larger, heavier cargo ... close enough to the side of it to pick up with the crane."
+
+- **More:**
+  - `CONFIG.cargo.perPort` 5 → 12, stacked in rows of `stackRow` 6 (0.9 m apart). Further rows go `stackRowGap` 1.1 m back, on the side with the higher ground (away from the water).
+  - Cargo contracts ask for 4, 8 or 12 deliveries (were 2, 4, 6).
+- **Crane cargo** (`CONFIG.cargo.crane`):
+  - Three new kinds: Pallet of blocks 420 kg, Engine block 380 kg, Chain basket 450 kg, 3 to 4 deck slots each.
+  - Too heavy to carry (`takeBlocker`: "too heavy to carry. Lift it with a deck crane"); the crane's hook takes them as any load within its lift.
+  - Three wait at each port with a cargo berth, 1.1 m in from its quay edge (`edgeIn`), 2.4 m apart (`spacing`) from the berth's middle outward, on free quay. They go only to another port with a cargo berth.
+  - Within reach with the workboat's crane on her far side: her beam plus the fender clearance, less the column's inset, plus 1.1 m is 5.35 m, inside the boom run out (5.4 m). The lift there is 800 × 3.4 / 5.35 ≈ 508 kg, over the heaviest (450). Move her along the quay for the next.
+  - Delivered at the destination's cargo quay (`portAtPoint` counts the berth's quay too). Paid × `payFactor` 3.
+  - Labels say "crane only: lift it with a deck crane".
+- **Drawing:** the cargo view drew at most 48 of each shape in the whole world, taken in the world's order, so with a dozen at every port your own quay's could miss out. Now 128, and goods ashore only within `drawRange` (400 m) of you.
+- Tests:
+  - `tests/moreCargo.test.ts`: 12 + 3 at every port; the crane cargo within the crane's reach and lift; no hand lift; × 3 pay; Oban and Tayvallich stocked on dry land.
+  - `tests/cargo.test.ts`: updated for the crane cargo.
+- Checked in headless Chromium: Calder Haven's quay, two rows of six, and three pallets along the edge beside the berth (screenshot). Not checked: lifting one aboard by the crane in play, VR.
+
 ### The handheld VHF easier to find in VR (owner request, 23 Oct 2026)
 
 Owner: "very hard to find where it is because you can't see it ... a slightly bigger grab spot and ... a little bit of haptics when your hand reaches it."

@@ -68,19 +68,64 @@ export function teleportToPortSlot(world: WorldState, v: VesselState, portId: st
   if (!port) return false;
   const berth = freeBerthFor(world.vessels, port.id, v.defId, v.id);
   const at = berth ? berthPose(v, berth) : null;
-  const spot = at ? { x: at.x, z: at.z, headingDeg: at.headingDeg } : (() => {
-    const a = port.cargo.anchorage ? { x: port.cargo.anchorage.x, z: port.cargo.anchorage.z } : null;
-    const clear = a && !Object.values(world.vessels).some((o) => o.id !== v.id && Math.hypot(o.position[0] - a.x, o.position[2] - a.z) < CONFIG.spawn.anchorClear) ? a : anchorSpotFor({ ...world.vessels, [v.id]: undefined as unknown as VesselState }, port, vesselLength(v.defId));
-    return clear ? { ...clear, headingDeg: 0 } : null;
-  })();
+  // No berth: a spot in the anchorage circle (or off the port) in water deep enough, clear of
+  // the other boats and the harbour boats' moorings (world/slots.ts). The other boats are
+  // listed without her (review, Oct 2026: an empty entry for her made the search throw, and Go
+  // silently did nothing at Tayvallich's Ashfield, Syros' Kini and Foinikas, and 7 Clyde harbours).
+  const others = Object.fromEntries(Object.entries(world.vessels).filter(([id]) => id !== v.id));
+  const free = at ? null : anchorSpotFor(others, port, vesselLength(v.defId));
+  const spot = at ? { x: at.x, z: at.z, headingDeg: at.headingDeg } : free ? { ...free, headingDeg: 0 } : null;
   if (!spot) return false;
-  placeVessel(v, spot.x, 0, spot.z, spot.headingDeg);
   v.controls.lever = 0;
-  v.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };
-  v.controls.anchor = 0;
-  v.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
   v.refuelling = false;
+  // Voyage (owner, Oct 2026): a boat that comes into a harbour this way is made fast, not
+  // left to blow away: alongside, her lines fast; in the bay, lying to her anchor. (The
+  // career's Go is the Debug menu's: there she lies ready to make fast, as before.)
+  if (!world.voyage) {
+    placeVessel(v, spot.x, 0, spot.z, spot.headingDeg);
+    v.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };
+    v.controls.anchor = 0;
+    v.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
+  } else if (berth) {
+    v.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };
+    v.controls.anchor = 0;
+    moorAtBerth(v, berth);
+  } else anchorAt(v, spot, port);
   return true;
+}
+
+/**
+ * Lying to her anchor at `spot`, heading for `toward` (the harbour): the anchor set ahead of
+ * her, the chain out to the usual scope, the windlass left down so it holds (vessel/physics/anchor.ts).
+ */
+function anchorAt(v: VesselState, spot: { x: number; z: number }, toward: { x: number; z: number }): void {
+  const toPort = Math.atan2(toward.x - spot.x, -(toward.z - spot.z));
+  placeVessel(v, spot.x, 0, spot.z, (toPort * 180) / Math.PI);
+  v.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
+  const depth = Math.max(1, -groundHeight(spot.x, spot.z));
+  const cfg = CONFIG.vessels.workboat.anchor;
+  const ahead = Math.min(cfg.chainM, cfg.scopeRatio * depth) * 0.8;
+  v.anchor = { phase: 'set', x: spot.x + Math.sin(toPort) * ahead, z: spot.z - Math.cos(toPort) * ahead, rodeM: Math.min(cfg.chainM, cfg.scopeRatio * depth), tension: 0, dragging: false };
+  v.controls.anchor = 1;
+}
+
+/**
+ * A boat new to the harbour (a launch, a spawn): moored at a free berth her size, else at
+ * anchor off it, else off the home boat. Null if there's no room anywhere.
+ */
+export function berthOrAnchor(world: WorldState, v: VesselState, port: { id: string; x: number; z: number }): 'moored' | 'anchored' | null {
+  const berth = freeBerthFor(world.vessels, port.id, v.defId, v.id);
+  if (berth) {
+    moorAtBerth(v, berth);
+    return 'moored';
+  }
+  const L = vesselLength(v.defId);
+  const home = homeVessel(world);
+  const others = Object.fromEntries(Object.entries(world.vessels).filter(([id]) => id !== v.id));
+  const spot = anchorSpotFor(others, port, L) ?? (home ? anchorSpotFor(others, { x: home.position[0], z: home.position[2] }, L) : null);
+  if (!spot) return null;
+  anchorAt(v, spot, port);
+  return 'anchored';
 }
 
 /** The boat this player launched, if any. */
@@ -110,29 +155,11 @@ export function launchBoat(world: WorldState, playerId: EntityId, ref: string): 
   const n = (world.launched = (world.launched ?? 0) + 1);
   const v = createVesselState(`boat-${playerId}-${n}`, defId);
   v.owner = playerId;
-  const L = vesselLength(defId);
-  const berth = freeBerthFor(world.vessels, port.id, defId);
-  if (berth) {
-    moorAtBerth(v, berth);
-    world.vessels[v.id] = v;
-    return { vessel: v, how: 'moored' };
-  }
-  // No room at the harbour nor off it: off the home boat herself, wherever she is.
-  const home = homeVessel(world)!;
-  const spot = anchorSpotFor(world.vessels, port, L) ?? anchorSpotFor(world.vessels, { x: home.position[0], z: home.position[2] }, L);
-  if (!spot) return { error: 'no room at the harbour or its anchorage' };
-  // Anchored: lying to her anchor, set ahead of her, the chain out to the usual scope, the
-  // windlass left down so it holds (vessel/physics/anchor.ts).
-  const toPort = Math.atan2(port.x - spot.x, -(port.z - spot.z));
-  placeVessel(v, spot.x, 0, spot.z, (toPort * 180) / Math.PI);
-  v.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
-  const depth = Math.max(1, -groundHeight(spot.x, spot.z));
-  const cfg = CONFIG.vessels.workboat.anchor;
-  const ahead = Math.min(cfg.chainM, cfg.scopeRatio * depth) * 0.8;
-  v.anchor = { phase: 'set', x: spot.x + Math.sin(toPort) * ahead, z: spot.z - Math.cos(toPort) * ahead, rodeM: Math.min(cfg.chainM, cfg.scopeRatio * depth), tension: 0, dragging: false };
-  v.controls.anchor = 1;
+  // At the harbour's free berth, else at anchor off it, else off the home boat herself.
+  const how = berthOrAnchor(world, v, port);
+  if (!how) return { error: 'no room at the harbour or its anchorage' };
   world.vessels[v.id] = v;
-  return { vessel: v, how: 'anchored' };
+  return { vessel: v, how };
 }
 
 export function withdrawBoat(world: WorldState, playerId: EntityId): boolean {

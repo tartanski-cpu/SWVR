@@ -153,12 +153,21 @@ export function boatType(token: string): string | null {
   if (BOAT_TYPES.has(id)) return id;
   const read = readDesign(token);
   if (!('design' in read)) return null;
-  const boat = buildDesign(read.design, shortCode(read.design) ?? 'custom', id);
-  BOAT_TYPES.set(id, { token: token.trim(), boat });
-  BOAT_HULLS.set(boat.hull.id, boat.hull);
-  RECIPES[id] = loadRecipe(boat.recipe);
-  putVesselDef(id, vesselDefFrom(id, RECIPES[id], LIBRARY), token.trim());
-  return id;
+  // A design the builder can't build (review, Oct 2026: one with dash screens placed by hand
+  // threw in the builder) is no boat: null, as an unreadable code is, never a dead page.
+  try {
+    const boat = buildDesign(read.design, shortCode(read.design) ?? 'custom', id);
+    BOAT_TYPES.set(id, { token: token.trim(), boat });
+    BOAT_HULLS.set(boat.hull.id, boat.hull);
+    RECIPES[id] = loadRecipe(boat.recipe);
+    putVesselDef(id, vesselDefFrom(id, RECIPES[id], LIBRARY), token.trim());
+    return id;
+  } catch (e) {
+    console.warn(`Shipyard design ${token.slice(0, 24)}: can't build her (${(e as Error).message})`);
+    BOAT_TYPES.delete(id);
+    delete RECIPES[id];
+    return null;
+  }
 }
 
 // A launch by token (core/launch.ts) builds her type here.

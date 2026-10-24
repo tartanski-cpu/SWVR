@@ -26,9 +26,12 @@ export function applyPlayerIntent(world: WorldState, p: PlayerState, intent: Int
       p.mode = 'walk';
       delete p.velocity;
       if (!vessel) {
-        // Ashore: onto the quay by the boat's berth when she's moored, else the start's.
+        // Ashore: onto the quay by the berth of the boat you're on when she's moored (the
+        // gangway mark: player/gangway.ts), else by your home boat's, else the start's.
+        const on = p.aboardVesselId ? world.vessels[p.aboardVesselId] : undefined;
         const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
-        placeAshore(p, home?.mooring.phase === 'moored' ? home.mooring.berthId : null);
+        const from = on?.mooring.phase === 'moored' ? on : home;
+        placeAshore(p, from?.mooring.phase === 'moored' ? from.mooring.berthId : null);
         break;
       }
       p.aboardVesselId = vessel.id;

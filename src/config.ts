@@ -275,6 +275,8 @@ export const CONFIG = {
       steepness: 0.7,
       refreshWindPct: 4,
       refreshDirDeg: 4,
+      /** A refresh is worked out this many cells a tick (ocean/windSea.ts), the old field in use meanwhile: no hitch. */
+      sliceCells: 4000,
     },
     seaStates: [
       { name: 'Calm', scale: 0 },
@@ -285,6 +287,14 @@ export const CONFIG = {
     ],
     /** Largest sea scale the fine control allows, and its step. */
     maxSeaScale: 3,
+    /**
+     * Scenery on the waves (harbour boats, buoys and marks; ocean/waves.ts surfaceHeight): the
+     * rest-position search's steps. The boats' physics takes 6 (under a centimetre even in a
+     * storm); scenery that only bobs takes this many, within a few centimetres in a moderate
+     * sea, for under half the cost (review, Oct 2026: the harbour boats' wave samples were a
+     * big share of the Quest's frame).
+     */
+    sceneryIterations: 3,
     /**
      * Added resistance in waves (vessel/physics/vesselPhysics.ts): the drag a sea puts on a
      * hull beyond calm water, ∝ ρ g ζ² B²/L (ζ the local wave amplitude, B her beam, L her
@@ -680,7 +690,7 @@ export const CONFIG = {
       refresh: 600,
       tierRep: [0, 15, 40],
       kinds: {
-        cargo: { counts: [2, 4, 6], bonusPer: 90, secondsPer: 480 },
+        cargo: { counts: [4, 8, 12], bonusPer: 90, secondsPer: 480 },
         fish: { counts: [4, 8, 12], bonusPer: 35, secondsPer: 240 },
         logs: { counts: [1, 2, 3], bonusPer: 160, secondsPer: 720 },
       },
@@ -733,6 +743,8 @@ export const CONFIG = {
     grindDamage: 0.02,
     /** Rubbing on the guards damages her only in a sea over this scale (a storm), at this much per m. */
     stormSea: 2.5,
+    /** Voyage: a boat just come into the world, or sent to a port, takes no hull damage for this long (s): she settles into her berth or the water without it counting as a crash. */
+    spawnGraceS: 10,
     stormRubDamage: 0.002,
     /** Damage or wear over this blinks the HULL / ENGINE lamp (on from the duty board's thresholds). */
     badAt: 0.5,
@@ -893,8 +905,35 @@ export const CONFIG = {
 
   /** Cargo between ports (cargo/cargo.ts). */
   cargo: {
-    /** Each port keeps this many items waiting (a delivery spawns a replacement elsewhere). */
-    perPort: 5,
+    /**
+     * Each port keeps this many items waiting (a delivery spawns a replacement elsewhere).
+     * 12 (owner, Oct 2026: "significantly more cargo now that the boats are bigger"; it was
+     * 5), stacked in rows of `stackRow` along the quay, the rows `stackRowGap` (m) apart,
+     * back from the water.
+     */
+    perPort: 12,
+    /** Goods waiting ashore are drawn only this near you (m: cargo/cargoView.ts). */
+    drawRange: 400,
+    stackRow: 6,
+    stackRowGap: 1.1,
+    /**
+     * Crane cargo (owner, Oct 2026: "some cargo ... can only be lifted on by the cargo
+     * crane, so larger, heavier cargo"): the `kinds` named here can't be carried by hand,
+     * only lifted by a deck crane's hook. `perPort` of them wait at each port with a cargo
+     * berth (and go only to another), in a row along the berth's quay edge, `edgeIn` (m) in
+     * from it and `spacing` apart, centred on the berth: within reach of a crane on a boat
+     * lying there, on her quay side or across her deck (the workboat's crane runs out to
+     * 5.4 m, lifting 800 kg × 3.4 / 5.4 ≈ 500 kg there: so 450 kg at most). Move her along
+     * the quay to come under the next. They pay `payFactor` times a hand item's rate.
+     */
+    crane: {
+      kinds: ['Pallet of blocks', 'Engine block', 'Chain basket'] as readonly string[],
+      perPort: 3,
+      edgeIn: 1.1,
+      spacing: 2.4,
+      payFactor: 3,
+      note: 'crane only: lift it with a deck crane',
+    },
     /** Counts as anchored in a port's bay only nearly stopped (m/s). */
     maxSpeed: 0.6,
     /** Set an item down ashore within this of its destination's goods stack to deliver it (m). */
@@ -935,6 +974,10 @@ export const CONFIG = {
        * boxy frame with netting, its line coiled on top and the marker buoy tied to it.
        */
       { name: 'Pot', mass: 24, size: [0.75, 0.42, 0.5] as [number, number, number], shape: 'pot' as const, slots: 2 },
+      // Crane cargo (`crane` above): too heavy to carry, lifted by a deck crane.
+      { name: 'Pallet of blocks', mass: 420, size: [1.1, 0.75, 1.1] as [number, number, number], shape: 'box' as const, slots: 4 },
+      { name: 'Engine block', mass: 380, size: [1.0, 0.8, 0.8] as [number, number, number], shape: 'box' as const, slots: 3 },
+      { name: 'Chain basket', mass: 450, size: [0.95, 0.7, 0.95] as [number, number, number], shape: 'drum' as const, slots: 3 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,
@@ -1389,6 +1432,22 @@ export const CONFIG = {
     rayLength: 6,
     endClear: 0.4,
   },
+
+  /**
+   * The gangway mark (player/gangway.ts; owner, Oct 2026: "a bit clunky to get from the ship
+   * onto the quay side ... you kind of fall underneath it"): with her moored, a mark stands
+   * in the air over the quay beside her, "Step ashore"; ashore near a moored boat, one over
+   * her deck, "Step aboard". Point at it and press (a free hand's trigger in VR, a click on
+   * desktop), and you're put there.
+   *   up          "Step aboard": its height over the quay (m), over her deck by her rail
+   *   ashoreUp    "Step ashore": its height over the quay (m), low enough to be seen from
+   *               her wheelhouse's side windows, under the roof
+   *   edgeIn      "Step ashore" stands this far in from the quay's edge, abreast of her (m)
+   *   radius      how big a target it is (m): the ring's radius, and the pointer's hit
+   *   reach       how far away it can be pointed at (m)
+   *   aboardRange shown over a moored boat when you're ashore within this of her (m)
+   */
+  gangway: { up: 1.6, ashoreUp: 0.8, edgeIn: 0.6, radius: 0.35, reach: 25, aboardRange: 14 },
 
   contacts: {
     /** The values below are for a boat of this mass (the workboat); lighter ones scale them down. */
@@ -2091,6 +2150,14 @@ export const CONFIG = {
   interaction: {
     /** Direct grab: hand within this distance of a lever knob / the wheel rim (m). */
     grabRadius: 0.12,
+    /**
+     * Breakaway (review, Oct 2026): a held control (lever, wheel, joystick, gear selector) is let
+     * go, with a firm buzz, once the hand is this far from it (m), e.g. as you jump off or are
+     * thrown from her, so she isn't left at full throttle. While a hand holds one, the sticks
+     * don't walk or turn you, and the free hand doesn't pull you along: moving the body moves
+     * the held hand, which would drag the control with it.
+     */
+    breakaway: 0.25,
     /** Direct press: controller tip within this distance of a button / switch (m). */
     touchRadius: 0.06,
     /**
@@ -2305,6 +2372,13 @@ export const CONFIG = {
       drawPx: 2048,
       table: { width: 2.4, depth: 1.6, height: 0.9, back: 3.2, keyDepth: 0.12 },
     },
+    /**
+     * The sign into the Shipyard beside the planning table (ui/shipyardDoor.ts; owner, Oct 2026:
+     * refit or design her anew in the real Shipyard page): its width (m), how far past the
+     * table's end it stands (m), its middle's height above the quay (m), how near you must be
+     * to see it and to reach it (m).
+     */
+    shipyardSign: { width: 0.9, besideM: 0.9, up: 1.5, range: 25, reach: 4 },
     /**
      * The timber run (owner's spec, 23 Oct 2026: Workboat World x Timber; voyage/timber.ts,
      * voyage/metaverse.ts, docs/metaverse-contract.md). Anchor in a marked bay, go ashore to
@@ -2738,7 +2812,19 @@ export const CONFIG = {
    *                    three wave samples), the farther just rise and fall; re-picked every
    *                    `refresh` s. `desktop`: farther on a desktop (Settings > Trees: the same
    *                    device level as the trees, render/device.ts).
+   *   everyFrame       posed every frame within this of the viewer (m); out to `bobDistance`
+   *                    every 2nd frame, beyond it every `farEvery`th, taking turns (review, Oct
+   *                    2026: the busiest marina cost ~10 ms a frame on wave samples). A
+   *                    moored boat's buoy takes her height (no sample of its own).
    */
+  /**
+   * The navigation marks (world/view/navMarksView.ts): set on the waves every frame within
+   * `nearM` of the viewer (m), every `mid`th frame out to `midM`, every `far`th beyond, taking
+   * turns (a far mark's rise and fall can't be seen; its light still flashes on time). Review,
+   * Oct 2026: every mark on the map was sampled every frame.
+   */
+  navMarks: { wavesEvery: { nearM: 300, midM: 2000, mid: 4, far: 16 } },
+
   harbourBoats: {
     pontoonShare: 0.55,
     quayShare: 0.2,
@@ -2757,7 +2843,9 @@ export const CONFIG = {
     stepReach: 250,
     drawDistance: 1500,
     maxShown: 120,
-    bobDistance: 400,
+    bobDistance: 250,
+    everyFrame: 150,
+    farEvery: 4,
     refresh: 1,
     desktop: { drawDistance: 3500, maxShown: 400, bobDistance: 900 },
   },
@@ -2769,6 +2857,13 @@ export const CONFIG = {
     hydroDebugVisibleAtStart: false,
     /** How often the overlay text is refreshed (Hz). */
     overlayUpdateHz: 4,
+    /**
+     * VR messages (debug/overlay.ts vrToast; review, Oct 2026): a card held in the view, this
+     * wide (m), this far in front of your eyes (m) and this far below your line of sight (m),
+     * so it's read with a glance down and doesn't hide the horizon. A buzz of `pulse` strength
+     * for `pulseMs` on the left controller says one has come.
+     */
+    vrToast: { width: 0.62, distance: 1.25, down: 0.34, pulse: 0.3, pulseMs: 30 },
   },
 
   // Each area's own file (src/config/), so the chats working on each don't edit one file:

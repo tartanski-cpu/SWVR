@@ -239,9 +239,12 @@ export const SHIPYARD_CONFIG = {
      * The window sills, one height all round (owner), above the wheelhouse floor (m):
      * `standard` (the dash top stands above it at the front), or `low`, below the console's
      * desk (0.9 m), with the console's upright panel taken off and its screens on stalks so
-     * you see down past them (owner).
+     * you see down past them (owner), or `high` (owner, Oct 2026: "a third option ... to have
+     * them higher ... standing up, you should be able to see through the windows"): level with
+     * the dash top (0.9 + 0.41 m), chest height, as a heavy-weather trawler's or tug's; a
+     * standing helmsman's eyes (about 1.6 m) are still well up in the glass.
      */
-    windowSills: { standard: 1.0, low: 0.75 },
+    windowSills: { standard: 1.0, low: 0.75, high: 1.3 },
     /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
@@ -440,7 +443,27 @@ export const SHIPYARD_CONFIG = {
        * `minFore` of top forward of the wheelhouse, or a strip beside it wide enough for the
        * ladder.
        */
-      walk: { margin: 0.25, railHeight: 0.9, postSpacing: 1.2, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
+      walk: {
+        margin: 0.25,
+        railHeight: 0.9,
+        postSpacing: 1.2,
+        railKgPerM: 4,
+        minFore: 0.6,
+        ladder: { width: 0.45, depth: 0.45, kg: 20 },
+        /**
+         * The stair across the aft face of a deckhouse run on aft of the wheelhouse (owner, Oct
+         * 2026: "a steep transverse stair" rather than a ladder; house.ts transverseStair): each
+         * step at most `rise` (m) up and `tread` across her (about 54 degrees), `width` out from
+         * the face; a `landing` that wide (across her) at its head; `kg` the stair and its rails.
+         */
+        stair: { rise: 0.3, tread: 0.22, width: 0.65, landing: 0.7, kg: 90 },
+      },
+      /**
+       * Run on aft of the wheelhouse (design.dhAft; owner, Oct 2026: the stern trawler's deck
+       * behind the bridge): it stops short of leaving less than this (m) of working deck
+       * forward of her transom.
+       */
+      aftDeck: 4,
       /**
        * A cabin below it (parametric boats P2c, design.foreCabin; owner): its sole sunk so there's
        * `headroom` (m) under the trunk's top, but no lower than leaves the sole `minHalf` wide each

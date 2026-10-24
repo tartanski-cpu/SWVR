@@ -152,18 +152,23 @@ export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, tim
 
 /**
  * Live weather (a Voyage map's real conditions, fetched as the session starts; app/App.ts):
- * the values and the nearest preset straight in, held for the session (`fixed`: no director),
- * and the sea at the marine model's height where it gave one (`seaHeld`), else as the wind
- * raises it. The waves rebuilt for it at once.
+ * the values and the nearest preset straight in, and the sea at the marine model's height
+ * where it gave one (`seaHeld`), else as the wind raises it. The waves rebuilt for it at once.
+ *
+ * It's the starting point, not a freeze (owner, Oct 2026: dynamic weather is one of Voyage's
+ * basics; review: held for the session, it never changed online). The director plans the
+ * next change from it by the region's odds (`profile`), as for the game's own weather; the
+ * real sea holds until that first change, then follows the wind.
  */
-export function setLiveWeather(env: EnvironmentState, values: WeatherValues, preset: WeatherPresetName, time: number, live: { text: string; credit: string }, seaScale?: number): void {
+export function setLiveWeather(env: EnvironmentState, values: WeatherValues, preset: WeatherPresetName, time: number, live: { text: string; credit: string }, seaScale?: number, profile?: WeatherProfile): void {
   const w = env.weather;
   if (!w) return;
   w.seq += 3;
   w.preset = preset;
   w.now = { ...values };
   w.target = { ...values };
-  w.fixed = true;
+  w.fixed = CONFIG.weather.fixed;
+  w.next = { preset: pickNext(preset, w.seq + 1, profile), at: time + holdFor(preset, w.seq + 2, profile) / w.speed };
   w.live = live;
   if (seaScale !== undefined) w.seaHeld = clamp(seaScale, 0, CONFIG.ocean.maxSeaScale);
   else delete w.seaHeld;

@@ -292,7 +292,7 @@ describe('Shipyard: the boats it builds', () => {
     // Every hull finds room for both poles on either deck, with or without a crane; only the
     // shortest aft decks can't take the aft crane and both poles too (and say so).
     for (const l of left) expect(l).toMatch(/^hull [01] crane 2 lamp 3 monitor 3: There's no room on her aft deck for the fire monitor's pole/);
-  });
+  }, 120000); // Room: about 14 s here, twice that on GitHub's publishing machine, past the 20 s default.
 
   it('a unit on the roof is worked from the helm; one on a pole has its own controls, and the helm\'s too with the advanced controls', () => {
     const helm = (d: Partial<ShipDesign>) => {

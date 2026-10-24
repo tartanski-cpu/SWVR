@@ -31,6 +31,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import type { ModuleDefinition } from '../../modular/module';
 import { flatVertexColorMaterial, mergeParts } from '../../render/geometryUtils';
 import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
@@ -297,6 +298,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       const one = new THREE.Vector3(1, 1, 1);
       const up = new THREE.Vector3(0, 1, 0);
       const last = c.units.map(() => NaN);
+      const swing = new TickSmoother([45, 45]);
       const place = (i: number, deg: number) => {
         q.setFromAxisAngle(up, (deg * Math.PI) / 180);
         mesh.setMatrixAt(i, m.compose(new THREE.Vector3(c.units[i], c.mount.y, c.mount.z), q, one));
@@ -308,10 +310,12 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
         staticParts,
         movingParts: [mesh, ...waterStop(hull.engineSpace)],
         controls: [],
-        update: (read) => {
+        update: (read, _s, dt) => {
           let moved = false;
+          // (Their swing drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
+          const swung = swing.update([read.num(keys.portAngle), read.num(keys.stbdAngle)], dt);
           c.units.forEach((_, i) => {
-            const deg = read.num(i === 0 ? keys.portAngle : keys.stbdAngle);
+            const deg = swung[i];
             if (Math.abs(deg - last[i]) > 0.05) {
               place(i, deg);
               moved = true;

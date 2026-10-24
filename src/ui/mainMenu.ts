@@ -158,6 +158,9 @@ export interface MenuHost {
   repairStatus(i: number): string;
   repair(i: number): void;
   debugDamage(): void;
+  /** The yard's door into the Shipyard (app/shipyardTrip.ts): why it won't open now ('' if it will), and through it. */
+  shipyardStatus(): string;
+  openShipyard(): void;
   /**
    * Phase 3: career save slots (1..3; host / solo), a new career in the slot (press twice),
    * the first voyage (skip / restart), the crew aboard.

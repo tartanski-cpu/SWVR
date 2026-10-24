@@ -202,12 +202,16 @@ export const HOUSE_ICONS = {
   // Her front windows from above: flat across, or in three facets.
   flat: svg('<path d="M8 8h32v18H8zM8 8h32" stroke-width="2.4"/>'),
   facets: svg('<path d="M8 14l6-6h20l6 6v12H8z"/><path d="M8 14l6-6h20l6 6" stroke-width="2.4"/>'),
+  // Her aft windows from above (the front at the top): flat across, or in three facets.
+  aftFlat: svg('<path d="M8 8h32v18H8z"/><path d="M8 26h32" stroke-width="2.4"/>'),
+  aftFacets: svg('<path d="M8 8h32v12l-6 6H14l-6-6z"/><path d="M40 20l-6 6H14l-6-6" stroke-width="2.4"/>'),
   // From ahead: the sides upright, or raked out (wider at the top).
   upright: svg('<path d="M12 26V8h24v18M12 14h24M8 26h32"/>'),
   rakedOut: svg('<path d="M14 26L9 6h30l-5 20M11 13h26M8 26h32"/>'),
   // From the side: the window sill at the standard height, or low, below the console.
   sillStd: svg('<path d="M6 26V6h36v20zM6 15h36M10 15V9h28v6"/><path d="M12 26v-5h8v5"/>'),
   sillLow: svg('<path d="M6 26V6h36v20zM6 21h36M10 21V9h28v12"/><path d="M12 26v-8h8v8"/>'),
+  sillHigh: svg('<path d="M6 26V6h36v20zM6 12h36M10 12V9h28v3"/><path d="M12 26v-12h8v12"/>'),
   // Her helm from above: the console in the middle, to port or to starboard (bow up).
   consoleMid: svg('<path d="M10 4h28v24H10z"/><rect x="18" y="7" width="12" height="5" fill="currentColor"/>'),
   consolePort: svg('<path d="M10 4h28v24H10z"/><rect x="12" y="7" width="12" height="5" fill="currentColor"/>'),

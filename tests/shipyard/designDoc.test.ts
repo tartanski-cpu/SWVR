@@ -35,12 +35,12 @@ function designs(): ShipDesign[] {
   });
 }
 /** The choices her short code holds: all but the helm assist panel, the cockpit overhead, the walked deckhouse top, the cabin below, extra sheer and a raised foredeck (a design with one travels as a document). */
-const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', 'foreCabin', 'fishHold', 'rescueBoat', 'netDrum', 'trawlWinches', 'sheer', 'fcLength', 'fcHeight', 'oldSchool', 'touch', 'consoleLen', 'houseX', ...FURNITURE_FIELDS.map((f) => f.key), ...CONSOLE_FIELDS.map((f) => f.key)];
+const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', 'dhAft', 'aftFacets', 'foreCabin', 'fishHold', 'rescueBoat', 'netDrum', 'trawlWinches', 'sheer', 'fcLength', 'fcHeight', 'oldSchool', 'touch', 'consoleLen', 'houseX', ...FURNITURE_FIELDS.map((f) => f.key), ...CONSOLE_FIELDS.map((f) => f.key)];
 const CODE_FIELDS = ALL_FIELDS.filter((f) => !NOT_IN_CODE.includes(f.key));
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];
-  // (The hull and engine fields' steps include the types beyond the code: the stern trawler and the 750 kW diesel travel as a document.)
-  const top = (f: (typeof CODE_FIELDS)[number]) => (f.key === 'hull' ? CODE_HULLS : f.key === 'engine' ? CODE_ENGINES : f.steps);
+  // (The hull and engine fields' steps include the types beyond the code: the stern trawler and the 750 kW diesel travel as a document; so do high window sills.)
+  const top = (f: (typeof CODE_FIELDS)[number]) => (f.key === 'hull' ? CODE_HULLS : f.key === 'engine' ? CODE_ENGINES : f.key === 'sills' ? 2 : f.steps);
   for (const f of CODE_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: top(f) - 1 }) });
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);

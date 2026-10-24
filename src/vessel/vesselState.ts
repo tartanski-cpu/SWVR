@@ -305,6 +305,8 @@ export interface VesselState {
   bilge?: number;
   /** Hull damage, 0 (sound) .. 1: it leaks into the bilge (vessel/wear.ts). */
   damage?: number;
+  /** World time until which knocks do her no damage: she's just come into the world, or been sent to a port (core/simulation.ts, CONFIG.wear.spawnGraceS). */
+  settleUntil?: number;
   /** The roving fender hung over the side by a deckhand (vessel/walkFender.ts); null or unset: none. */
   walkFender?: { side: -1 | 1; z: number; by?: string } | null;
 }

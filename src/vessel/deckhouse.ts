@@ -1,3 +1,4 @@
+import type { FloorPatch } from './vesselDef';
 /**
  * A deckhouse (owner, Oct 2026): a lower tier of superstructure on the main deck that the
  * wheelhouse stands on, as on pilot and rescue boats (and, later, tugs). In plan it runs
@@ -31,6 +32,12 @@ export interface DeckhouseLayout {
    * is always walked out to them, and its own rail runs only across its front and aft edges.
    */
   full?: boolean;
+  /**
+   * Run on aft of the wheelhouse (owner, Oct 2026: the stern trawler's deck behind the
+   * bridge): the house's aft wall (z), its top walked on aft of it to `z1`, the house's aft
+   * door opening onto it; its rail right across its aft edge (open at the ladder head).
+   */
+  houseAft?: number;
 }
 
 /**
@@ -48,7 +55,16 @@ export interface DeckhouseWalk {
   railHeight: number;
   /** Its rail's posts no further apart than this (m). */
   postSpacing: number;
-  ladder: { face: 'aft' | 'front'; x: number; width: number; depth: number };
+  /** ('stair': the head of `stair`, a transverse stair down its aft face; x and width its landing's, depth the stair's out from the face. Walked, not climbed.) */
+  ladder: { face: 'aft' | 'front' | 'stair'; x: number; width: number; depth: number };
+  /**
+   * A steep stair across its aft face (owner, Oct 2026, on a deckhouse run on aft of the
+   * wheelhouse): its landing at the top first, then its treads down to her deck. The landing is
+   * walked as a floor (the Shipyard puts it in layout.extraFloors); the treads are walked as one
+   * smooth slope from her deck up to the landing (vessel/layout.ts; owner: steps "hard to walk
+   * up", "it can just be a ramp"), and drawn as plates with a rail by vessel/view/hullMesh.ts.
+   */
+  stair?: FloorPatch[];
 }
 
 /** How far in from a full-width deckhouse's side its top is walked (m): just inside her risen bulwark. */
@@ -67,7 +83,8 @@ export function onDeckhouseTop(dh: DeckhouseLayout, x: number, z: number, pad = 
 /** The ladder's climbing zone in plan: x across, z along (from the face out onto the deck, or up a raked front's slope). */
 export function deckhouseLadderZone(dh: DeckhouseLayout): { x0: number; x1: number; z0: number; z1: number } | null {
   const l = dh.walk?.ladder;
-  if (!l) return null;
+  // (A stair is walked: no ladder to climb.)
+  if (!l || l.face === 'stair') return null;
   const [x0, x1] = [l.x - l.width / 2, l.x + l.width / 2];
   return l.face === 'aft' ? { x0, x1, z0: dh.z1 + 0.02, z1: dh.z1 + l.depth } : { x0, x1, z0: dh.z0 - l.depth, z1: dh.walk!.z0 };
 }

@@ -9,7 +9,7 @@ import type { MenuRow } from './menuPanel';
 import { WristMenu } from './wristMenu';
 
 /** What the board needs from the game (the career's side of the menu host). */
-export type YardHost = Pick<MenuHost, 'balance' | 'upgradeStatus' | 'buyUpgrade' | 'repairText' | 'repairStatus' | 'repair'>;
+export type YardHost = Pick<MenuHost, 'balance' | 'upgradeStatus' | 'buyUpgrade' | 'repairText' | 'repairStatus' | 'repair' | 'shipyardStatus' | 'openShipyard'>;
 
 /**
  * The boatyard's board (owner, Oct 2026: the chandlery taken out of the O menu, into the
@@ -58,7 +58,11 @@ export class YardBoard {
         { text: () => h.repairStatus(i) || (i === 0 ? 'Repair' : 'Overhaul'), active: () => !h.repairStatus(i), press: () => h.repair(i) },
       ],
     }));
-    const header: MenuRow[] = [{ label: '', buttons: [{ text: yard.name, weight: 2 }, { text: () => h.balance(), weight: 2 }] }];
+    const header: MenuRow[] = [
+      { label: '', buttons: [{ text: yard.name, weight: 2 }, { text: () => h.balance(), weight: 2 }] },
+      // Into the Shipyard itself, on her design, to refit her (app/shipyardTrip.ts).
+      { label: '', buttons: [{ text: () => h.shipyardStatus() || 'Open the Shipyard: refit her', active: () => !h.shipyardStatus(), press: () => h.openShipyard(), weight: 4 }] },
+    ];
     this.menu = new WristMenu(
       {
         header,

@@ -84,6 +84,8 @@ export interface CareerState {
   contractsDone: number;
   /** The workboat's condition as last saved (phase 2: it carries over to the next session). */
   boat?: { damage: number; wear: number };
+  /** Her design, once refitted at a yard in the Shipyard (a Shipyard code, app/shipyardTrip.ts): the career starts in her. Absent: the beginner boat. */
+  design?: string;
   /** The guided first voyage (phase 3, career/tutorial.ts); absent: none. */
   tutorial?: TutorialState;
 }
@@ -177,7 +179,9 @@ function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
       const a = PORTS.find((x) => x.id === o.from);
       const b = PORTS.find((x) => x.id === o.port);
       const km = a && b ? Math.hypot(a.x - b.x, a.z - b.z) / 1000 : 1;
-      return p.cargoBase + p.cargoPerKm * km;
+      // Crane cargo (CONFIG.cargo.crane) pays more: heavier, and it needs the crane.
+      const heavy = o.what && CONFIG.cargo.crane.kinds.includes(o.what) ? CONFIG.cargo.crane.payFactor : 1;
+      return (p.cargoBase + p.cargoPerKm * km) * heavy;
     }
     case 'fish':
       return p.fishBox * (hasUpgrade(world, 'ice') ? p.iceFactor : 1);
@@ -356,11 +360,12 @@ export function officeAt(world: WorldState): string | null {
 export function stepCareer(world: WorldState): void {
   const c = (world.career ??= createCareer());
   const v = workboat(world);
-  if (c.offersAt <= world.time) refreshOffers(world, c);
+  // Voyage has no career: no harbour office offers, so no contracts (world.voyage).
+  if (!world.voyage && c.offersAt <= world.time) refreshOffers(world, c);
   if (v) {
     // The boatyard's bigger fuel tank (fuelTank.ts reads it).
     const base = gearOf(v, 'diesel')?.engine.fuel.tankL;
-    if (base && c.upgrades.includes('bigTank')) v.engine.tankL = Math.round(base * CONFIG.career.bigTankFactor);
+    if (base && hasUpgrade(world, 'bigTank')) v.engine.tankL = Math.round(base * CONFIG.career.bigTankFactor);
     else delete v.engine.tankL;
     // Fuel: count what flows in while refuelling, bill it when the hose comes off.
     const fuel = v.engine.fuelL;
@@ -506,6 +511,7 @@ export function parseCareer(raw: string | null): CareerState | null {
     // A career saved before the starter workboat (no `kit`) had her with all her equipment.
     if (typeof (o as { kit?: unknown }).kit !== 'number') for (const u of CONFIG.career.upgrades) if (u.fit && !c.upgrades.includes(u.id)) c.upgrades.push(u.id);
     c.contractsDone = typeof o.contractsDone === 'number' ? o.contractsDone : 0;
+    if (typeof o.design === 'string' && o.design.length <= 4000) c.design = o.design;
     if (o.tutorial && typeof o.tutorial.step === 'number') c.tutorial = { step: Math.max(0, Math.floor(o.tutorial.step)), base: 0, said: false };
     if (o.boat && typeof o.boat.damage === 'number' && typeof o.boat.wear === 'number') {
       c.boat = { damage: Math.max(0, Math.min(1, o.boat.damage)), wear: Math.max(0, Math.min(1, o.boat.wear)) };
@@ -517,9 +523,9 @@ export function parseCareer(raw: string | null): CareerState | null {
 }
 
 /**
- * What's kept between sessions: money, ledger, reputation, upgrades (not offers or the
+ * What's kept between sessions: money, ledger, reputation, upgrades, her design (not offers or the
  * contract). `kit: 1`: the workboat's equipment is in the upgrades (see parseCareer).
  */
 export function serializeCareer(c: CareerState): string {
-  return JSON.stringify({ kit: 1, money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined });
+  return JSON.stringify({ kit: 1, money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, design: c.design, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined });
 }

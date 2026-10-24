@@ -21,6 +21,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 - **Checked:** typecheck, all 1451 tests (with 3 radius stations; with 1, the typecheck, the hull tests and all the Shipyard tests again); Shipyard screenshots of the pilot boat, gillnetter, trawler and catamaran, plumb and 12.5 deg, from the side and from under the bow quarter: no holes, the stem straight with a rounded forefoot.
 - **Shared changes:** `src/vessel/view/hullMesh.ts` (which way her side faces look; every boat's drawing, the hull faces otherwise as before). In the Shipyard's files (told the Shipyard chat): `shipyard/parts/catalog.ts` (`bowKeel`'s straight stem and radius, its extra stations; the catamaran's bow choice), `shipyard/handles.ts` (the bow handle on the catamaran), `config/shipyard.ts` (`CONFIG.shipyard.bow`), and the two Shipyard tests that expected the catamaran to have no bow choice (`tests/shipyard/build.test.ts`, `handles.test.ts`).
 
+### (From the modular-builder chat) The stern trawler's sheer a little less
+
+At the owner's word ("slightly less shear by default"), in the modular builder's chat: `designs.ts`, `sternTrawler`'s sheer now 2.1 m at the stem and 1.25 m at 70 % of her length (was 2.45 and 1.35); aft unchanged. The Shipyard's Sheer still adds more. Its tests (`sternTrawler.test.ts`) pass: no warnings, level on her lines.
+
 ### The catamaran redrawn for her real weight; a displacement hull's resistance; publishing runs finish (owner)
 
 - **On `next`** (23 Oct, the owner's go-ahead): merged with `origin/next`; typecheck, all 1415 tests and the build pass. The Shipyard chat now wires the displacement curve in, re-measures the tug and trawler, and checks the catamaran's weight (its engine power limit, `CONFIG.shipyard.maxKwPerTonne`, is on `preview/shipyard`).

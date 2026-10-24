@@ -289,6 +289,14 @@ export interface HouseShape {
    */
   facet?: { centre: number; depth: number };
   /**
+   * Its aft windows in three facets too (owner, Oct 2026: "rear windows faceted in the same
+   * way"): the middle pane (the aft door in it) square across her, the outer two angled
+   * forward to the side walls, from `centre` to `depth` (m forward) at the side walls; the
+   * floor, ceiling and roof follow (hullMesh.ts aftFacetDz), and the floor walked is cut back
+   * to match (layout.ts).
+   */
+  aftFacet?: { centre: number; depth: number };
+  /**
    * Windows raked out all round (owner: a tug's or supply vessel's bridge): above the side
    * windows' sill the side walls lean out and the aft wall leans aft, `tan` (of the rake
    * from vertical) per m of height, up to the window head and on up to the roof at the
