@@ -536,6 +536,8 @@ export const SHIPYARD_CONFIG = {
      */
     /** The small tug's push fender (GBP), with its fixings. */
     pushFenderPrice: 4500,
+    /** A bow fender (design.bowFender, modules/bowFender): the moulded rubber block and its fitting (GBP). */
+    bowFenderPrice: 6000,
     protection: { fendersPrice: 450, strakePerM: 110, tyrePrice: 90, tyreFitting: 600, fenders: 3 },
   },
 };

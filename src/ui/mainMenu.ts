@@ -349,7 +349,7 @@ const RAIN = [
   { name: 'heavy', v: 0.75 },
   { name: 'torrent', v: 1 },
 ];
-const WAVES_M = [0, 0.25, 0.5, 1, 1.5, 2, 2.5, 3];
+const WAVES_M = [0, 0.5, 1, 1.5, 2, 3, 4, 5];
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 export function mainMenu(h: MenuHost): MainMenu {
@@ -794,7 +794,7 @@ export function mainMenu(h: MenuHost): MainMenu {
           label: 'Waves Hs (m)',
           buttons: [
             ...WAVES_M.map((m) => ({ text: String(m), active: () => h.waveHeight() >= m - 0.05, press: () => h.setWeatherManual(3, m) })),
-            // The game's biggest sea (CONFIG.ocean.maxSeaScale, Hs about 3.6 m).
+            // The game's biggest sea (CONFIG.ocean.maxSeaScale, Hs about 6 m).
             { text: 'max', active: () => h.waveHeight() >= h.maxWaveHeight() - 0.05, press: () => h.setWeatherManual(3, h.maxWaveHeight()) },
           ],
         },

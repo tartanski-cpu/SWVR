@@ -201,7 +201,13 @@ export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp
  * CONFIG.interiors (none: the wood lining); `cabinFloor`: its floor, into CONFIG.cabinFloors
  * (none: matting).
  */
-export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'frame' | 'interior' | 'cabinFloor', number>>;
+/**
+ * A boat's colours, her interior finish and cabin floor (CONFIG.interiors, cabinFloors: an
+ * index each), and `weathering`: how used her hull looks (render/pixelPaint.ts `topsides`:
+ * grime at the waterline, rust runs from the deck edge, faded paint), 0 as new .. 1 well used
+ * (a Shipyard choice, owner Oct 2026; unset: CONFIG.pixelPaint.weathering.strength).
+ */
+export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'frame' | 'interior' | 'cabinFloor' | 'weathering', number>>;
 
 /**
  * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side

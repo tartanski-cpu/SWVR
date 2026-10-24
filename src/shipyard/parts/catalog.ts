@@ -433,7 +433,8 @@ export const DESIGN_HULLS: DesignHull[] = [
     // engines, one in each hull (her hulls are too slim for one engine on her centreline).
     // Twin 400 kW as she comes: twin 280s make about 24.4 kn on her redrawn lines, under the
     // owner's 25 to 28 (re-measured 23 Oct 2026).
-    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 1, bow: 0, housePos: 12, houseLength: 5, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 0 }),
+    // A bow fender as she comes (owner, Oct 2026: the usual crew-transfer boat is a catamaran).
+    defaults: { ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 1, bow: 0, housePos: 12, houseLength: 5, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 0 }), bowFender: 1 },
   },
 ];
 

@@ -136,7 +136,7 @@ export function createWeather(preset: WeatherPresetName = CONFIG.weather.startPr
 
 /** Sea scale the wind would raise in the long run. */
 export function seaForWind(wind: number): number {
-  return clamp(wind * CONFIG.weather.seaPerWind, 0, CONFIG.ocean.maxSeaScale);
+  return clamp(wind * CONFIG.weather.seaPerWind, 0, CONFIG.weather.windSeaMax);
 }
 
 /** Change to a preset now (the director, or a debug force); `instant` jumps the values too. */

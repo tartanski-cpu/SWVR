@@ -755,7 +755,29 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+/** A few set options in a row, as buttons (for choices with only a handful of settings). */
+function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
+  labels[key] ??= label;
+  optionNames[key] = names;
+  const row = document.createElement('div');
+  row.className = 'row opts';
+  row.innerHTML = `<label>${label}</label><div></div>`;
+  const box = row.querySelector('div')!;
+  names.forEach((name, i) => {
+    if (!name) return; // a step no longer offered
+    const c = document.createElement('span');
+    c.className = 'choice';
+    c.dataset.key = key;
+    c.dataset.i = String(i);
+    c.textContent = name;
+    // Gear placed by hand goes back to its usual place when chosen here.
+    c.onclick = () => change({ [key]: i, ...(PLACED_BY[key] ? { [PLACED_BY[key]!]: 0 } : {}) });
+    box.appendChild(c);
+  });
+  controls.appendChild(row);
+  return row;
+}
 /** The choices whose gear can also be placed by hand (pinGear.ts), and where that's kept. */
 const PLACED_BY: Partial<Record<keyof ShipDesign, PlaceKey>> = { deckCrane: 'craneAt', searchlight: 'lampAt', fireMonitor: 'monitorAt', towWinch: 'winchAt' };
 
@@ -810,6 +832,11 @@ optionTiles('guard', 'Protection', [
   { icon: HULL_ICONS.guardTyres, name: GUARDS[3], sub: 'soft, grippy', info: 'Tyres along her sides: always there, soft and grippy, the best at a hard knock and for pushing; a little weight and drag.' },
   { icon: HULL_ICONS.guardBoth, name: 'Strake + fenders', info: 'The rubbing strake, and fenders for coming alongside.' },
 ]);
+// A bow fender (owner, Oct 2026: crew transfer to wind farms): to push on a turbine's boat landing. Not on a push bow (its knees do it).
+optionTiles('bowFender', 'Bow fender', [
+  { icon: HULL_ICONS.noBowFender, name: 'None', info: 'No bow fender: her stem takes it.' },
+  { icon: HULL_ICONS.bowFender, name: 'Bow fender', sub: 'crew transfer', info: 'A thick block of rubber on her bow, its front upright: push her against a wind turbine’s boat landing and hold her there with the throttle while the technicians step across. It grips, so she doesn’t slide. The catamaran comes with one.' },
+]).dataset.when = 'bowFenderChoice';
 optionTiles('rails', 'Rails', [
   { icon: HULL_ICONS.rails, name: RAILS[0], info: 'Handrails on posts over her bulwarks.' },
   { icon: HULL_ICONS.noRails, name: RAILS[1], info: 'No handrails: her bulwarks only.' },

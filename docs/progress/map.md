@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) A wind farm in the home region
+
+At the owner's word (24 Oct 2026, crew transfer to wind farms): `src/world/regions/home.ts` has a new `windFarms` list, the Holm Rig wind farm (three turbines south-east of Calder Holm, clear of the Calder Bank fishing ground). The data type is `WindFarmDef` in `src/world/defs.ts`, the collision `src/world/windFarm.ts`, the drawing `src/world/view/windFarmView.ts`. Details in `docs/progress/modules.md`.
+
 ### Fix: /next/ failed to build: two long tests out of time on GitHub's machine (24 Oct 2026)
 
 Owner: "The work-in-progress build (branch next) failed its tests or its build this time."

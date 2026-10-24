@@ -87,8 +87,8 @@ describe('regions', () => {
     const flat = REGIONS.flatMap((r) => r.islands);
     expect(ISLANDS).toEqual(flat);
     expect(PORTS.slice(0, HOME.ports.length)).toEqual(HOME.ports);
-    // Blocks: the regions' quays, piers and barges, and a low block for each fish-farm cage ring.
-    expect(BLOCKS.length).toBe(REGIONS.reduce((n, r) => n + r.blocks.length + (r.farms ?? []).reduce((k, f) => k + f.rows * f.cols, 0), 0));
+    // Blocks: the regions' quays, piers and barges, a low block for each fish-farm cage ring, and two for each wind turbine (its foundation, its boat landing: world/windFarm.ts).
+    expect(BLOCKS.length).toBe(REGIONS.reduce((n, r) => n + r.blocks.length + (r.farms ?? []).reduce((k, f) => k + f.rows * f.cols, 0) + (r.windFarms ?? []).reduce((k, f) => k + 2 * f.turbines.length, 0), 0));
     expect(MARKS.length).toBe(REGIONS.reduce((n, r) => n + r.marks.length, 0));
     expect(FOG_BANKS.length).toBe(REGIONS.reduce((n, r) => n + r.fogBanks.length, 0));
     expect(FISHING_GROUNDS.length).toBe(REGIONS.reduce((n, r) => n + r.fishingGrounds.length, 0));

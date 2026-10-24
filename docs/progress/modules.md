@@ -39,6 +39,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **Crew transfer, stop 1: the bow fender and the Holm Rig wind farm** (this log). Shipyard: the catamaran shows her bow fender (Deck gear step, Bow view); any other type but the tug can add one (Hull step, Hull protection). In the game, in the catamaran: steam out of Calder Haven, round Calder Holm to the south-east, to the three turbines. Look at one close up (the landing's tubes and ladder). Nose her slowly onto the landing's two tubes, then hold her there with a little throttle ahead: she should stay put, not slide off sideways, with no damage. Try it in a small sea too. At night, the red lights on the nacelles flash together and a yellow one burns on each platform.
 - [ ] **The deckhouse's steep transverse stair** (this log). On the trawler with the deckhouse run aft (as in the next item): walk out of the aft door onto its top, to the landing at the middle of its aft edge, and walk down the stair to starboard and back up (it's walked as a smooth slope now, on desktop and in VR). Does it feel right, steep but easy to walk? Is the handrail where you'd reach for it?
 - [ ] **Stern trawler: deckhouse run on aft, up to 2.5 m; less sheer; raised foredeck to 15 m** (this log). Shipyard → Stern trawler → Wheelhouse step, Deckhouse: Forward 1 m, Height 2.5 m, **Aft** 2 m. Check the rail and the stair on its aft face, and that the gear sits aft of it (Deck gear step). Hull step: Raised foredeck back to 10–15 m. In the game: out of the aft door onto the deckhouse top (the stair down is the item above). Is 2.5 m high enough to see over the gear?
 - [ ] **The smoother on the A-frame and the other moving gear** (this log). On the stern trawler: shoot and haul the trawl and watch the A-frame swing, the net drum and the trawl winches turn; swing the searchlight. On the pilot boat: the pod drives' swing as you steer, the fire monitor. All should glide, no stepping, especially in VR.
@@ -53,6 +54,58 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### Crew transfer to wind farms, stop 1: the bow fender and the Holm Rig wind farm (done; on next, in your test round)
+
+Owner, 24 Oct 2026: "let's start with the crew transfer to wind farms" (the first of the deck-work backlog). Agreed: the farm in the career world; technicians, and players too, step across (stop 2); a bow fender as a Shipyard choice, standard on the catamaran; all built in this chat.
+
+- **The bow fender** (new module `hull.bow-fender`, `modules/bowFender`; Shipyard design choice `bowFender`, Hull step, Hull protection, **Bow fender**):
+  - a thick block of black rubber on her bow, its front upright, 0.4 m forward of her stem at the deck, from her bulwark top down 1.2 m;
+  - on a pointed bow it sits round the top of her stem, its back following the stem's rake; on the catamaran it spans the front of her bridge deck between the hulls (1.8 m wide, a monohull's 0.9 m);
+  - it grips as the tug's push knees do (it gives the same `pushFender` gear: `CONFIG.contacts.guards.pushFender`, friction 0.8), so she holds on the landing without sliding;
+  - not on the tug (her push knees already do it); the catamaran comes with one;
+  - weight about a quarter of a tonne on the catamaran (`kgPerM3` 250: a moulded fender round a hollow core), price £6,000 (`CONFIG.shipyard.bowFenderPrice`);
+  - settings `CONFIG.modules.bowFender`; not in the short code (she travels as a link or file).
+- **The Holm Rig wind farm** (career world, home region; `windFarms` in `src/world/regions/home.ts`):
+  - three turbines in 40 m of open water south-east of Calder Holm, in a row running ESE, each with its boat landing facing NW toward Calder Haven;
+  - placed clear of the Calder Bank fishing ground and the potting grounds (it was first drawn on Calder Bank; moved before pushing);
+  - each turbine:
+    - a dark monopile under a yellow transition piece, a grey platform 13 m up with a rail, and a white tower to a 72 m hub;
+    - a nacelle turning to face the wind, and a 42 m-blade rotor turning with it (stopped in a gale);
+    - red nacelle lights flashing together after dark, a yellow light on the platform;
+  - the boat landing: two yellow tubes 1.1 m apart standing 1.4 m off the transition piece, from 3 m under the water to 5 m up, braced to it, a ladder between them and on up to the platform;
+  - solid (`src/world/windFarm.ts`): a block for the foundation and one for the landing, its face where the tubes are; nowhere to tie up;
+  - drawn in four draw calls for the whole farm (`src/world/view/windFarmView.ts`: the still parts merged, the nacelles and rotors instanced, the lights one set of points);
+  - settings `CONFIG.windFarm` (in `src/config/modules.ts`).
+- **Shared changes:**
+  - `src/world/defs.ts` (`WindFarmDef`, `RegionDef.windFarms`);
+  - `src/world/archipelago.ts` (`WIND_FARMS`; the turbines' blocks in `BLOCKS`);
+  - `src/world/regions/home.ts` (the farm: the map chat's file);
+  - `src/app/App.ts` (the view: three lines, the main game's file);
+  - `tests/regions.test.ts` (it counts the blocks: two per turbine now);
+  - the Shipyard's files (`design.ts`, `parts/trim.ts`, `hullDef.ts`, `recipe.ts`, `weights.ts`, `catalog.ts` (the catamaran's default), `page.ts`, `tiles.ts`, `src/config/shipyard.ts`).
+- **Checked:**
+  - typecheck, all of `npm test`, the build;
+  - `tests/windFarm.test.ts`:
+    - which boats have the fender; it's the first of her ahead, weighed and priced;
+    - the turbines are deep, clear of the grounds, and solid with their landing face where the tubes are;
+    - four draw calls for the whole farm;
+    - in the simulation, the catamaran nosed onto a landing with a quarter throttle holds there, pushing about 18 kN on her fender, still to within a few centimetres for 20 s, her hull never touching, no damage;
+  - in waves (the same push at a third throttle, 20 s, measured once, not kept as a test), much as real crew boats find it (their limit is about 1.5 m):
+    - in 0.6 m significant wave height: held to within 7 cm;
+    - in 1.2 m: she creeps about 0.5 m sideways along the landing;
+    - in 1.8 m: about 1 m;
+    - no damage in any;
+  - screenshots:
+    - the Shipyard: the fender on the catamaran and the pilot boat;
+    - the game: the turbine from a boat's deck, its landing close up, and the farm from Calder Holm.
+- **Not checked:**
+  - VR;
+  - the night lights' look.
+- **Next (stop 2):**
+  - technicians to carry: picked up at Calder Haven; they step across when she's held steady on the landing;
+  - players stepping onto the landing and climbing to the platform;
+  - the job in the career, and the farm on the chart.
 
 ### The deckhouse stair walked as a slope (done; on next, in your test round)
 
