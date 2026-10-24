@@ -66,7 +66,7 @@ describe('handles', () => {
     const fcH = HANDLES.find((h) => h.key === 'fcHeight')!;
     for (const [hull, t] of DESIGN_HULLS.entries()) {
       const d: ShipDesign = { ...DEFAULT_DESIGN, ...t.defaults, hull };
-      expect(bow.applies!(d)).toBe(!t.pushBow && !t.landingBow && !t.catamaran);
+      expect(bow.applies!(d)).toBe(!t.pushBow && !t.landingBow);
       expect(fcH.applies!({ ...d, fcLength: 0 })).toBe(false);
     }
   });

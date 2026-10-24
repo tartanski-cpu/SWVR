@@ -657,6 +657,13 @@ export const CONFIG = {
    *             career's workboat hasn't got until it's bought (CareerUpgrade).
    */
   career: {
+    /**
+     * A sea trial (owner, Oct 2026: "a sea trial is time limited to 5 mins"): a Shipyard design
+     * the career hasn't paid for (the Shipyard's "Try her in the game", or Office > Your boats
+     * away from a boatyard) is sailed this long (s of game time), nothing from it saved, then
+     * the career is back in its own boat. At a boatyard, Take her buys her instead.
+     */
+    seaTrialS: 300,
     startMoney: 500,
     /** Paid when the first voyage (the tutorial) is done. */
     tutorialBonus: 200,

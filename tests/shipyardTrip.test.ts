@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backUrl, designPrice, refitCost, refitReturn, shipyardUrl } from '../src/app/shipyardTrip';
+import { backUrl, designPrice, isSeaTrial, refitCost, refitReturn, shipyardUrl } from '../src/app/shipyardTrip';
 import { FLEET } from '../src/boats/fleet';
 import { createCareer, parseCareer, serializeCareer } from '../src/career/career';
 import { designToken } from '../src/shipyard/designDoc';
@@ -46,5 +46,18 @@ describe('to the Shipyard and back', () => {
     c.design = code('pilotBoat');
     expect(parseCareer(serializeCareer(c))?.design).toBe(c.design);
     expect(parseCareer(serializeCareer(createCareer()))?.design).toBeUndefined();
+  });
+
+  it('a design the career has not paid for is a sea trial; her own boat, a purchase coming back, crew and Voyage are not (owner: 5 minutes)', () => {
+    const small = code('starterBoat');
+    const big = code('pilotBoat');
+    const q = (c: string, extra = '') => `?design=${encodeURIComponent(c)}${extra}`;
+    expect(isSeaTrial('career', q(big), undefined)).toBe(true); // no boat of her own yet
+    expect(isSeaTrial('career', q(big), small)).toBe(true);
+    expect(isSeaTrial('career', q(big), big)).toBe(false); // her own refitted boat
+    expect(isSeaTrial('career', q(big, `&refitFrom=${encodeURIComponent(small)}`), small)).toBe(false); // bought, settling
+    expect(isSeaTrial('career', q(big, '&join=12345'), small)).toBe(false); // crew in the host's boat
+    expect(isSeaTrial('voyage', q(big), undefined)).toBe(false); // the sandbox
+    expect(isSeaTrial('career', '', small)).toBe(false); // her own boat, no design on the address
   });
 });
