@@ -285,8 +285,13 @@ export const CONFIG = {
       { name: 'Rough', scale: 1.8 },
       { name: 'Storm', scale: 2.6 },
     ],
-    /** Largest sea scale the fine control allows, and its step. */
-    maxSeaScale: 3,
+    /**
+     * Largest sea scale anything may set: 5 is Hs about 6.0 m in open water (owner, Oct 2026:
+     * "try raising the max sea to about 6 m", for testing in Debug > World > Weather; it was 3,
+     * Hs 3.6 m). The crests still don't loop: the Gerstner factor Σ Q·k·A is 0.46 at 5 (0.37
+     * at 3), well under 1. The wind's own sea stays capped lower (weather.windSeaMax).
+     */
+    maxSeaScale: 5,
     /**
      * Scenery on the waves (harbour boats, buoys and marks; ocean/waves.ts surfaceHeight): the
      * rest-position search's steps. The boats' physics takes 6 (under a centimetre even in a
@@ -1107,6 +1112,12 @@ export const CONFIG = {
     squallHold: [90, 150] as [number, number],
     transition: 60,
     seaPerWind: 0.12,
+    /**
+     * The biggest sea the wind alone raises (sea scale; 3 = Hs about 3.6 m): the game's own
+     * weather as it was before the cap above went up to 5. Bigger seas come only from a
+     * marine forecast (live weather) or by hand (Debug).
+     */
+    windSeaMax: 3,
     seaBuild: 90,
     seaDecay: 160,
     windDir: 225,
