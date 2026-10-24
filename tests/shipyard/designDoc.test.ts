@@ -39,8 +39,9 @@ const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', '
 const CODE_FIELDS = ALL_FIELDS.filter((f) => !NOT_IN_CODE.includes(f.key));
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];
-  // (The hull and engine fields' steps include the types beyond the code: the stern trawler and the 750 kW diesel travel as a document; so do high window sills.)
-  const top = (f: (typeof CODE_FIELDS)[number]) => (f.key === 'hull' ? CODE_HULLS : f.key === 'engine' ? CODE_ENGINES : f.key === 'sills' ? 2 : f.steps);
+  // (The hull and engine fields' steps include the types beyond the code: the stern trawler and the 750 kW diesel travel as a document; so do high window sills and the paints added in Oct 2026.)
+  const CODE_TOPS: Partial<Record<keyof ShipDesign, number>> = { hull: CODE_HULLS, engine: CODE_ENGINES, sills: 2, paint: 8, roofPaint: 5, roofTop: 5, houseColour: 10 };
+  const top = (f: (typeof CODE_FIELDS)[number]) => CODE_TOPS[f.key] ?? f.steps;
   for (const f of CODE_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: top(f) - 1 }) });
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);

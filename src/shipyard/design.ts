@@ -528,7 +528,20 @@ const NOZZLE_FIELD: { key: 'nozzle'; steps: number } = { key: 'nozzle', steps: 2
 export const SALOON_ROOFS = ['As high as the wheelhouse', 'One step lower', 'Two steps lower', 'Three steps lower'] as const;
 const SALOON_ROOF_FIELD: { key: 'saloonRoof'; steps: number } = { key: 'saloonRoof', steps: SALOON_ROOFS.length };
 /** How many roof-top choices there are (build.ts ROOF_TOPS: one colour, then the second colours). */
-const ROOF_TOP_FIELD: { key: 'roofTop'; steps: number } = { key: 'roofTop', steps: 5 };
+const ROOF_TOP_FIELD: { key: 'roofTop'; steps: number } = { key: 'roofTop', steps: 8 };
+/**
+ * The paints the short code holds (owner, Oct 2026: "a few more options for paint colors"): the
+ * first 8 hull paints, 5 roof colours, 5 roof tops and 10 wheelhouse colours, as before. A colour
+ * added after them is kept by a link or file; the code's packing keeps these counts, so every
+ * old code reads the same.
+ */
+const CODE_PAINTS = 8;
+const CODE_ROOF_PAINTS = 5;
+const CODE_ROOF_TOPS = 5;
+const CODE_HOUSE_COLOURS = 10;
+/** The hull paints (design.paint) and roof colours (design.roofPaint): as many as LIVERIES and ROOF_PAINTS have (a test keeps them the same). */
+export const PAINT_TYPES = 14;
+export const ROOF_PAINT_TYPES = 9;
 /** The rod rack's places (design.rodRack), as the page names them. */
 export const ROD_RACKS = ['', 'aft wall, port', 'aft wall, starboard', 'port wall', 'starboard wall'] as const;
 const ROD_RACK_FIELD: { key: 'rodRack'; steps: number } = { key: 'rodRack', steps: ROD_RACKS.length };
@@ -544,7 +557,7 @@ export const INTERIOR_FIELD: { key: 'interior'; steps: number } = { key: 'interi
 /** The wheelhouse floor (design.cabinFloor): as many as CONFIG.cabinFloors has (a test keeps them the same). */
 export const CABIN_FLOOR_FIELD: { key: 'cabinFloor'; steps: number } = { key: 'cabinFloor', steps: 3 };
 /** The wheelhouse's colour (design.houseColour) and its frames' (design.frames): as many as HOUSE_PAINTS and FRAME_COLOURS have (a test keeps them the same). */
-export const HOUSE_COLOUR_FIELD: { key: 'houseColour'; steps: number } = { key: 'houseColour', steps: 10 };
+export const HOUSE_COLOUR_FIELD: { key: 'houseColour'; steps: number } = { key: 'houseColour', steps: 14 };
 export const FRAMES_FIELD: { key: 'frames'; steps: number } = { key: 'frames', steps: 2 };
 /** The helm assist panel (design.helmAssist): none, or fitted. Not in the code. */
 const HELM_ASSIST_FIELD: { key: 'helmAssist'; steps: number } = { key: 'helmAssist', steps: 2 };
@@ -652,7 +665,7 @@ export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, DH_AFT_FIELD, AFT_FACETS_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f.key === 'paint' ? { ...f, steps: PAINT_TYPES } : f.key === 'roofPaint' ? { ...f, steps: ROOF_PAINT_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, DH_AFT_FIELD, AFT_FACETS_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -878,6 +891,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (d.touch) throw new Error('touchscreens aren’t in the code: she travels as a link or file');
   if (d.consoleLen) throw new Error('a console of a set length isn’t in the code: she travels as a link or file');
   if ((d.houseX ?? 20) !== 20) throw new Error('a wheelhouse offset across her isn’t in the code: she travels as a link or file');
+  if (d.paint >= CODE_PAINTS || d.roofPaint >= CODE_ROOF_PAINTS || (d.roofTop ?? 0) >= CODE_ROOF_TOPS || (d.houseColour ?? 0) >= CODE_HOUSE_COLOURS) throw new Error('this paint isn’t in the code: she travels as a link or file');
   if (!Number.isInteger(d.hull) || d.hull < 0 || d.hull >= HULL_TYPES) throw new Error(`design hull ${d.hull} is off its scale (0..${HULL_TYPES - 1})`);
   if (d.hull >= CODE_HULLS) throw new Error('this hull type isn’t in the code: she travels as a link or file');
   // A hull type after the first four: 0 in the first 16 characters, its number in the extension.
@@ -939,7 +953,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (frames !== 0 && frames !== 1) throw new Error(`design frames ${frames} is off its scale (0..1)`);
   // From the top: the frames, the house's colour, the floor, the interior finish, the exhaust stacks' style, pod drives, the console's side, the rod rack, the roof's top colour and the saloon's roof, the nozzle, the saloon's floor and length, stern drives, the material, the outboards, the sills, the raked-out windows, a later engine, the facets, a later hull type, the skiff, no anchor, the narrow deckhouse,
   // no rails, protection (each 0: as before).
-  const top = (((((((((((((((((((((((BigInt(frames) * BigInt(HOUSE_COLOUR_FIELD.steps) + BigInt(houseColour)) * BigInt(CABIN_FLOOR_FIELD.steps) + BigInt(cabinFloor)) * BigInt(INTERIOR_FIELD.steps) + BigInt(interior)) * BigInt(STACK_STYLE_FIELD.steps) + BigInt(stackStyle)) * BigInt(PODS_FIELD.steps) + BigInt(pods)) * BigInt(CONSOLE_SIDE_FIELD.steps) + BigInt(consoleSide)) * BigInt(ROD_RACK_FIELD.steps) + BigInt(rodRack)) * BigInt(ROOF_TOP_FIELD.steps) + BigInt(roofTop)) * BigInt(SALOON_ROOF_FIELD.steps) + BigInt(saloonRoof)) * BigInt(NOZZLE_FIELD.steps) + BigInt(nozzle)) * BigInt(SALOON_FLOOR_FIELD.steps) + BigInt(saloonFloor)) * BigInt(SALOON_FIELD.steps) + BigInt(saloon)) * BigInt(STERN_DRIVE_FIELD.steps) + BigInt(sternDrive)) * BigInt(MATERIAL_FIELD.steps) + BigInt(material)) * BigInt(OUTBOARDS_FIELD.steps) + BigInt(outboards)) * BigInt(CODE_SILLS) + BigInt(sills)) * BigInt(FLARE_FIELD.steps) + BigInt(flare)) * BigInt(MORE_ENGINES) + BigInt(moreEngine)) * BigInt(FACETS_FIELD.steps) + BigInt(facets)) * BigInt(MORE_HULLS) + BigInt(more)) * BigInt(SKIFF_FIELD.steps) + BigInt(skiff)) * 2n + BigInt(noAnchor)) * 2n + BigInt(narrow)) * BigInt(RAIL_FIELD.steps) + BigInt(rails);
+  const top = (((((((((((((((((((((((BigInt(frames) * BigInt(CODE_HOUSE_COLOURS) + BigInt(houseColour)) * BigInt(CABIN_FLOOR_FIELD.steps) + BigInt(cabinFloor)) * BigInt(INTERIOR_FIELD.steps) + BigInt(interior)) * BigInt(STACK_STYLE_FIELD.steps) + BigInt(stackStyle)) * BigInt(PODS_FIELD.steps) + BigInt(pods)) * BigInt(CONSOLE_SIDE_FIELD.steps) + BigInt(consoleSide)) * BigInt(ROD_RACK_FIELD.steps) + BigInt(rodRack)) * BigInt(CODE_ROOF_TOPS) + BigInt(roofTop)) * BigInt(SALOON_ROOF_FIELD.steps) + BigInt(saloonRoof)) * BigInt(NOZZLE_FIELD.steps) + BigInt(nozzle)) * BigInt(SALOON_FLOOR_FIELD.steps) + BigInt(saloonFloor)) * BigInt(SALOON_FIELD.steps) + BigInt(saloon)) * BigInt(STERN_DRIVE_FIELD.steps) + BigInt(sternDrive)) * BigInt(MATERIAL_FIELD.steps) + BigInt(material)) * BigInt(OUTBOARDS_FIELD.steps) + BigInt(outboards)) * BigInt(CODE_SILLS) + BigInt(sills)) * BigInt(FLARE_FIELD.steps) + BigInt(flare)) * BigInt(MORE_ENGINES) + BigInt(moreEngine)) * BigInt(FACETS_FIELD.steps) + BigInt(facets)) * BigInt(MORE_HULLS) + BigInt(more)) * BigInt(SKIFF_FIELD.steps) + BigInt(skiff)) * 2n + BigInt(noAnchor)) * 2n + BigInt(narrow)) * BigInt(RAIL_FIELD.steps) + BigInt(rails);
   let ext = (top * BigInt(GUARD_FIELD.steps) + BigInt(guard)) * (DECKHOUSE_COMBINATIONS + 1n);
   if (d.dhLength) ext += 1n + pack(d, DECKHOUSE_FIELDS);
   let which = 0;
@@ -1007,8 +1021,8 @@ function unpackPlaces(ext: bigint): (Pick<ShipDesign, PlaceKey | DeckhouseKey | 
   up /= BigInt(NOZZLE_FIELD.steps);
   const saloonRoof = up % BigInt(SALOON_ROOF_FIELD.steps);
   up /= BigInt(SALOON_ROOF_FIELD.steps);
-  const roofTop = up % BigInt(ROOF_TOP_FIELD.steps);
-  up /= BigInt(ROOF_TOP_FIELD.steps);
+  const roofTop = up % BigInt(CODE_ROOF_TOPS);
+  up /= BigInt(CODE_ROOF_TOPS);
   const rodRack = up % BigInt(ROD_RACK_FIELD.steps);
   up /= BigInt(ROD_RACK_FIELD.steps);
   const consoleSide = up % BigInt(CONSOLE_SIDE_FIELD.steps);
@@ -1021,8 +1035,8 @@ function unpackPlaces(ext: bigint): (Pick<ShipDesign, PlaceKey | DeckhouseKey | 
   up /= BigInt(INTERIOR_FIELD.steps);
   const cabinFloor = up % BigInt(CABIN_FLOOR_FIELD.steps);
   up /= BigInt(CABIN_FLOOR_FIELD.steps);
-  const houseColour = up % BigInt(HOUSE_COLOUR_FIELD.steps);
-  const frames = up / BigInt(HOUSE_COLOUR_FIELD.steps);
+  const houseColour = up % BigInt(CODE_HOUSE_COLOURS);
+  const frames = up / BigInt(CODE_HOUSE_COLOURS);
   if (frames >= BigInt(FRAMES_FIELD.steps)) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
   out.rodRack = Number(rodRack);
   out.consoleSide = Number(consoleSide);

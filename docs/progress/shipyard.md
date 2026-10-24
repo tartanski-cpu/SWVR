@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The Paint step revamped, with more colours (preview/shipyard)
+
+Owner, 24 Oct 2026: "could do with a revamp of the painting page, make sure it's organized nicely, and maybe give us a few more options for paint colors."
+
+- **Organised:** the step is in three groups under headings, Hull, Wheelhouse and Roof (each with its ⓘ note), and every choice is a row of colour swatches with its label and, under the label, the name of the colour chosen. Before, the hull swatches had no label, the roof top and frames were word buttons, and nothing named the colour chosen. A swatch marked = follows another part's colour and shows it: the walls follow her paint, the roof her topsides, the top panel the roof (page.ts `PAINT_LIKE`, `paintRow`; the word-button `options()` helper had no other users and is gone).
+- **The view:** arriving at Paint looks at all of her from the bow quarter (`setView('Bow ¾')`), not wherever the last step left the camera (often inside the wheelhouse).
+- **More colours** (parts/catalog.ts): hull paints 8 → 14 (Teal, Burgundy, Sky blue, Slate grey, Sand, Royal blue, each with its bottom, deck and house colours); wheelhouse walls 10 → 14 (Teal, Burgundy, Sky blue, Sand); roof colours 5 → 9 (Cream, Red, Blue, Sand); roof top panels 5 → 8 (Cream, Black, Orange).
+- **Codes kept:** the short code still holds the first 8 / 10 / 5 / 5 (design.ts `CODE_PAINTS`, `CODE_HOUSE_COLOURS`, `CODE_ROOF_PAINTS`, `CODE_ROOF_TOPS`, used in its packing), so every old code reads the same; a boat in a newer colour travels as a link or file ("this paint isn't in the code"). The Shipyard's own steps: `PAINT_TYPES` 14, `ROOF_PAINT_TYPES` 9, `HOUSE_COLOUR_FIELD` 14, `ROOF_TOP_FIELD` 8.
+- No new draw calls: the colours are the same materials' colours.
+- Tests: tests/shipyard/paintColours.test.ts (every colour offered and distinct, the first ones still in the code, the newer ones by link and back, a newer colour paints her); designDoc.test.ts and houseColours.test.ts keep to the code's colours. `npm run test:shipyard`, the full `npm test` and the typecheck pass.
+- README: the Paint step's groups and the new colours.
+
 ### Fixes from the review of 24 Oct 2026: the dash crash, capsizing boats, a winch with no tow point, the catamaran's roll chart (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "fix 1, 2, 5 and 6" of the Shipyard's findings in docs/REVIEW_2026-10-24.md (3 and 4, the game buttons to Voyage and the same-tab project, are left for the refit work).
