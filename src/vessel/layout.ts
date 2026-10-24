@@ -167,6 +167,10 @@ function houseWalk(
   const facet = wh.shape?.facet;
   const wrapK = facet ? facet.depth / (wh.halfWidth - facet.centre) : 0;
   const consoleAftAt = (x: number) => int.z0 + (wh.consoleBack ?? 0) + wh.consoleDepth + (facet ? Math.max(0, Math.abs(x) - facet.centre) * wrapK : 0);
+  // Faceted aft windows (HouseShape.aftFacet): the floor's aft edge comes forward with the outer panes.
+  const aftFacet = wh.shape?.aftFacet;
+  const aftK = aftFacet ? aftFacet.depth / (wh.halfWidth - aftFacet.centre) : 0;
+  const aftEdgeAt = (x: number) => int.z1 - (aftFacet ? Math.max(0, Math.abs(x) - aftFacet.centre) * aftK : 0);
   // A console cut short (consoleSpan): is x across from it (within `pad`)? Beside it, the floor runs to the front wall.
   const span = wh.consoleSpan;
   const byConsole = (x: number, pad: number) => !span || (x > span.x0 - pad && x < span.x1 + pad);
@@ -213,7 +217,7 @@ function houseWalk(
         height: (_x, z) => floorAt(z),
         contains: (x, z) =>
           // (Clear of her gear standing on it: furniture, a stack's casing; module footprints at this floor's height.)
-          (Math.abs(L(x)) <= int.x - r && z >= (byConsole(L(x), r) ? consoleAftAt(Math.abs(L(x)) + r) + r : int.z0 + r) && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z) && !onGear(gear, x, z, r, floorAt(z))) ||
+          (Math.abs(L(x)) <= int.x - r && z >= (byConsole(L(x), r) ? consoleAftAt(Math.abs(L(x)) + r) + r : int.z0 + r) && z <= aftEdgeAt(Math.abs(L(x)) + r) - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z) && !onGear(gear, x, z, r, floorAt(z))) ||
           (Math.abs(L(x)) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
           // The port side door, out to the side deck.
           (!!sd && L(x) < -int.x + r + 0.02 && L(x) > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),

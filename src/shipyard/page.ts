@@ -897,6 +897,10 @@ section('2. Wheelhouse');
     { icon: HOUSE_ICONS.flat, name: 'Flat across', info: 'Her front windows flat across her.' },
     { icon: HOUSE_ICONS.facets, name: 'Three facets', info: 'Three facets, as on a tug: the middle square across her, the outer two angled back to the sides, the dash wrapping round behind them.' },
   ]);
+  optionTiles('aftFacets', 'Aft', [
+    { icon: HOUSE_ICONS.aftFlat, name: 'Flat across', info: 'Her aft windows flat across her.' },
+    { icon: HOUSE_ICONS.aftFacets, name: 'Three facets', info: 'Her aft windows in three facets, as the front’s can be: the middle square across her with the door in it, the outer two angled forward to the sides. With the windows raked out all round, they lean out with the rest. Not with a cockpit overhead. Travels as a link or file, not a code.' },
+  ]);
   measure('windowRake', 'Front rake', (a) => (Math.abs(a) < 0.5 ? 'upright' : a > 0 ? `${a.toFixed(0)}° reverse` : `${(-a).toFixed(0)}° back`)).dataset.unless = 'flare';
   // (Raked out all round, the front leans out with them: its own rake stands aside.)
   optionTiles('flare', 'Sides & aft', [
@@ -906,6 +910,7 @@ section('2. Wheelhouse');
   optionTiles('sills', 'Sills', [
     { icon: HOUSE_ICONS.sillStd, name: SILLS[0], info: 'The window sills at the standard height, one height all round.' },
     { icon: HOUSE_ICONS.sillLow, name: 'Low', sub: 'below the console', info: 'Low sills, below the console: its upright panel comes off and its screens stand on stalks, so you can see down over the bow.' },
+    { icon: HOUSE_ICONS.sillHigh, name: 'High', sub: 'level with the dash', info: 'High sills, 1.3 m up, level with the top of the dash: chest height, as on a heavy-weather trawler or tug, more wall and less glass. Standing at the helm you still see out over them. Travels as a link or file, not a code.' },
   ]);
 
   // (Its colours are on the Paint step; no visor choice: the roof overhangs the windows by a set length, owner.)

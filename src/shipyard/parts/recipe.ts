@@ -9,7 +9,7 @@ import type { Mount, Recipe } from '../../modular/recipe';
 import { houseFlare } from '../../vessel/houseFlare';
 import { cellsOf, SCREENS, type ScreenName, type TouchPage } from '../../controls/instruments';
 import { dashCap, packDash, packPanel, panelKey, placeDashByHand, placeOnDash, placePanelByHand, SCREEN_NAMES, type GridPlace, type PanelGroup } from './consoleGrid';
-import { DASH_SLOTS, dashCell, PANEL_SLOTS } from '../design';
+import { DASH_SLOTS, dashCell, lowSills, PANEL_SLOTS } from '../design';
 import { BASE_TORQUE, type BuildArgs, type V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
@@ -287,7 +287,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // Clear of the wheel if they fit so; else in front of it too (`inFront`; owner, Oct 2026),
   // and only then up onto the face, a group from a side that still doesn't fit at a time.
   const switchesAt = (half: number) => {
-    const inFront = !d.sills && !panelPinned && !panelFits(half, []);
+    const inFront = !lowSills(d) && !panelPinned && !panelFits(half, []);
     const moved: string[] = [];
     if (inFront)
       for (;;) {
@@ -308,7 +308,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     });
   // (The warning lamps' row is wider than ENGINE's plate: on a console shorter than any before
   // CS6, `lampsUpBelow`, it would run under the wheel's rim, so it goes up on the face too.)
-  const lampsUp = !d.sills && !panelPinned && !toFace.includes('ENGINE') && fitted('lamps') && 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow;
+  const lampsUp = !lowSills(d) && !panelPinned && !toFace.includes('ENGINE') && fitted('lamps') && 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow;
   const faceItems = [...faceItemsFor(toFace), ...(lampsUp ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])];
   const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
@@ -418,7 +418,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   {
     const fullSize = (half: number) => {
       const { moved } = switchesAt(half);
-      const up = !d.sills && !panelPinned && !moved.includes('ENGINE') && fitted('lamps') && 2 * (half + 0.11) < hcfg.lampsUpBelow;
+      const up = !lowSills(d) && !panelPinned && !moved.includes('ENGINE') && fitted('lamps') && 2 * (half + 0.11) < hcfg.lampsUpBelow;
       const cols = packDash([...screens.map((id) => ({ id, cells: cellsFor(id) })), ...faceItemsFor(moved), ...(up ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])], ROWS).cols;
       return (cols * pitch - gap) / 2 + gap <= half + 1e-9 && overflowing(half, moved, moved.length > 0 || !panelFits(half, [])).length === 0;
     };
@@ -433,7 +433,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // front stays as it was; never so far its top is under 2 cm deep), and the screens and gauges
   // lie flat on it (owner, Oct 2026: "I'd certainly not like the gauges or the instruments
   // floating"). Not with low sills: the dash comes off then, its screens on stalks.
-  if (!d.sills) {
+  if (!lowSills(d)) {
     const dd = cc.dash as { front: number; aft: number; bottom: number; top: number };
     const dashY0 = (cc.slots.speed?.position[1] ?? 0.21) as number;
     // (Raised a little first: the lower row's foot was behind the ledge in front of the dash.)
@@ -611,7 +611,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   }
   // Low windows (owner): the console's upright panel comes off, so you see down past it; its
   // screens stay where they were, each on a stalk from the desk (console.standard's `bare`).
-  if (d.sills) cc.bare = { screens: consoleMount.modules!.filter((m) => m.module === 'instrument.screen').map((m) => m.socket) };
+  if (lowSills(d)) cc.bare = { screens: consoleMount.modules!.filter((m) => m.module === 'instrument.screen').map((m) => m.socket) };
   if (hasMonitor && !monitorFoot) {
     // The roof monitor's FIRE gauge on the console, between the two joysticks.
     const [mx, , mz] = cc.slots.monJoystick.position as V3;
