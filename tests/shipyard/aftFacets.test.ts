@@ -61,16 +61,26 @@ describe('faceted aft windows', () => {
     expect(vesselWalkArea(flat, flat.layout).walkable(corner.x, corner.z, flat.layout.wheelhouse!.floorY)).toBe(true);
   });
 
-  it('left flat with windows raked out all round, a cockpit overhead, or a house too narrow; travels as a link or file', () => {
+  it('left flat with a cockpit overhead or a house too narrow; travels as a link or file', () => {
     const flat = (more: Partial<ShipDesign>) => {
       const b = buildDesign(typeOf(3, more));
       useDesign(typeOf(3, more));
       return { b, f: VESSEL_DEFS.design.layout.wheelhouse!.shape?.aftFacet };
     };
-    expect(flat({ flare: 1 }).f).toBeUndefined();
-    expect(flat({ flare: 1 }).b.warnings.join(' ')).toMatch(/raked out all round/);
     expect(flat({ overhead: 6 }).f).toBeUndefined();
     expect(flat({ houseWidth: 0.4 }).f).toBeUndefined();
     expect(() => encodeDesign(typeOf(3))).toThrow(/faceted aft windows/);
+  });
+
+  it('with windows raked out all round too (owner: "a proper wheelhouse"): faceted, and they lean out with the rest', () => {
+    for (const hull of [3, 4]) {
+      const d = typeOf(hull, { flare: 1, facets: 1 });
+      const b = buildDesign(d);
+      useDesign(d);
+      const sh = VESSEL_DEFS.design.layout.wheelhouse!.shape!;
+      expect(sh.aftFacet).toBeTruthy();
+      expect(sh.flare).toBeTruthy();
+      expect(b.warnings.join(' ')).not.toMatch(/aft windows/);
+    }
   });
 });

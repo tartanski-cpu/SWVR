@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Faceted aft windows with windows raked out all round (done, on the preview)
+
+Owner, 24 Oct 2026: "When the raked out option for the sides and aft of the wheelhouse is activated, the three facets on the aft of the wheelhouse are not respected. Please fix that. I would like it so that you can have basically like a proper wheelhouse."
+
+- **Why it was left out:** faceted aft windows were left flat with raked-out windows, on the reckoning that the aft wall leaning aft and the corners angling forward wouldn't meet. They do. The rake (houseFlare.ts) stretches the house as a whole, linear in x and z at each height, so flat walls stay flat and walls that meet keep meeting. The angled aft corners lean out with the sides and aft, as the front's angled corners already did.
+- **Fix** (parts/house.ts): the refusal is gone; the page's and README's words say so. A cockpit overhead still leaves them flat.
+- **Checked:** tests/shipyard/aftFacets.test.ts (the pilot boat and the tug with both: faceted, raked, no warning). Headless Chromium: the tug with three facets front and aft, raked out all round, Stern ¾, Bow ¾, Stern and Plan. `npm run test:shipyard`, the full `npm test` and the typecheck pass.
+- **Shared changes:** none.
+
 ### Faceted aft windows: a choice as the front's (done, on the preview)
 
 Owner, 24 Oct 2026: "at the moment we have a three facets option for the wheelhouse and it makes the front faceted. I'd like an additional option that you can have rear windows faceted in the same way."

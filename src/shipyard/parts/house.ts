@@ -187,14 +187,14 @@ export function housePart(a: BuildArgs, p: HullPart) {
   }
   // Faceted aft windows (owner, Oct 2026: "rear windows faceted in the same way"; design.aftFacets):
   // as the front's, the middle pane (the aft door in it) square, the outer two angled forward to
-  // the side walls. Not with windows raked out all round (the aft wall leans out), nor a cockpit
-  // overhead (its wings meet the aft corners).
+  // the side walls. With windows raked out all round they lean out with the rest (houseFlare.ts
+  // stretches the house as a whole, so the angled corners go with the sides and aft; owner: "a
+  // proper wheelhouse"). Not with a cockpit overhead (its wings meet the aft corners).
   let aftFacet: { centre: number; depth: number } | null = null;
   if (d.aftFacets) {
     const centre = facetCentre(hw);
     const depth = Math.round((hw - centre) * facetTan * 1000) / 1000;
     if (hw - centre < 0.25) warnings.push('Her wheelhouse is too narrow for faceted aft windows (the middle pane would be all of it): left flat.');
-    else if (d.flare) warnings.push('Her aft windows are raked out all round: they can’t be faceted too: left flat.');
     else if (d.overhead) warnings.push('The cockpit overhead’s wings meet the wheelhouse’s aft corners: no faceted aft windows with it: left flat.');
     else if (aft - front - (facet?.depth ?? 0) - depth < 1.6) warnings.push('Her wheelhouse is too short for faceted aft windows (the helm would have no room): left flat.');
     else aftFacet = { centre, depth };
