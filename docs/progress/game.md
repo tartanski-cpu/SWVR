@@ -10,6 +10,14 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Held controls stay held in VR; W/S on the wheel with the mouse (24 Oct 2026)
+
+Owner: "revert the fix you put in for the VR wheel and throttle controls. When I grab them, I want to be locked onto them. Doesn't matter if I move my body away from them. And ... if you're on mouse and keyboard and you grab the wheel, that you can use the W and S keys for the throttle instead of the cursor keys."
+
+- **The breakaway is gone** (it was the review's fix, Oct 2026): a held lever, wheel, joystick or gear selector is held for as long as the grip is, however far your body moves. With it go the rules it brought: while a hand holds a control, the sticks walk and turn you again and the free hand pulls you along again. Removed: `CONFIG.interaction.breakaway`, `InteractionSystem.holdingAny`, `Control.carried` (only the breakaway read them) and the breakaway test.
+- **W and S work the throttle while the mouse holds the wheel**, not only in helm mode (H) as before: `App.handleDebugDriving` takes W/S when `interaction.desktopHeld` is the wheel. Walking was already off while the mouse holds a control, so W/S were free. The neutral detent is as at the helm: S stops at neutral; let go and press again for astern.
+- Checked: typecheck, all tests. Headless (career, beginner boat): W with hands free walks, the throttle stays at 0; holding the wheel, W took it to 0.45 ahead and S back to neutral, where it stopped. Not checked: VR (the breakaway's removal is a straight revert to how it was before).
+
 ### The bow fender at the yard (24 Oct 2026)
 
 Owner: "we've now got crew transfer in the missions in career mode, but I need to build a new boat for that. Maybe a quick way to test it is just to add it to the upgrades", then "Go ahead with the bow fender on the yard upgrades".

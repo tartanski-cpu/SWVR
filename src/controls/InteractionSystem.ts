@@ -176,12 +176,9 @@ export class InteractionSystem {
         this.pulse(hand, 0.8, 80);
       }
       if (h.held) {
-        if (f.gripDown && h.held.distanceTo(f.grip) > cfg.breakaway) {
-          // The hand has gone from it (CONFIG.interaction.breakaway): let go.
-          h.held.grabEnd(p);
-          h.held = null;
-          this.pulse(hand, 0.7, 70);
-        } else if (f.gripDown) {
+        // Held while the grip is (owner, Oct 2026: "when I grab them, I want to be locked onto
+        // them. Doesn't matter if I move my body away from them"): no letting go by distance.
+        if (f.gripDown) {
           h.held.grabMove(p);
         } else {
           h.held.grabEnd(p);
@@ -273,13 +270,6 @@ export class InteractionSystem {
     pos.setXYZ(0, f.ray.origin.x, f.ray.origin.y, f.ray.origin.z);
     pos.setXYZ(1, hit.x, hit.y, hit.z);
     pos.needsUpdate = true;
-  }
-
-  /** Does either hand hold a control now (the body mustn't move under it)? Not the handset, carried freely. */
-  holdingAny(): boolean {
-    const l = this.hands.left.held;
-    const r = this.hands.right.held;
-    return (!!l && !l.carried) || (!!r && !r.carried);
   }
 
   private releaseHand(hand: Handedness): void {

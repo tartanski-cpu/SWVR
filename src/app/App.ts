@@ -96,6 +96,7 @@ import { GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padL
 import { HelmPrompt } from '../ui/helmPrompt';
 import { YardBoard } from '../ui/yardBoard';
 import { careerShipyardSpots, ShipyardDoor } from '../ui/shipyardDoor';
+import { Wheel } from '../controls/Wheel';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { fallHarm, fireExposure, stepHealth, wakeNow } from '../player/health';
@@ -1541,10 +1542,12 @@ export class App {
     const cfg = CONFIG.debugDriving;
     // A game controller at the helm: the bumpers work the throttle, the left stick the wheel.
     const pad = this.atHelm && this.pad.state.connected ? this.pad.state : null;
-    // At the helm, W and S work the throttle too (owner, Oct 2026: the arrow keys were awkward;
-    // you steer with the wheel itself). Walking is off at the helm, so W/S are free there.
+    // At the helm, or holding the wheel with the mouse, W and S work the throttle too (owner,
+    // Oct 2026: "if you're on mouse and keyboard and you grab the wheel, you can use the W and S
+    // keys for the throttle"; the arrow keys were awkward). Walking is off then, so W/S are free.
     // (Not while they steer a clicked control, the searchlight or pod joystick: review, Oct 2026.)
-    const ws = this.atHelm && !this.craneRemote && !this.interaction?.steering ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
+    const onWheel = this.interaction?.desktopHeld instanceof Wheel;
+    const ws = (this.atHelm || onWheel) && !this.craneRemote && !this.interaction?.steering ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
     const leverIn = clamp((k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + ws + (pad ? padLever(pad) : 0), -1, 1);
     const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
@@ -2199,8 +2202,7 @@ export class App {
     if (inXR) {
       for (const h of ['left', 'right'] as const) {
         // (Not a hand pointing or giving the finger: it stays where you hold it.)
-        // (Nor while the other hand holds a control: pulling the body along drags it.)
-        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h] && !this.gestures.gesturing(h) && !this.interaction?.holdingAny()) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
+        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h] && !this.gestures.gesturing(h)) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
       }
     }
     let desktopDelta: { x: number; y: number; z: number } | null = null;
@@ -2220,9 +2222,7 @@ export class App {
       desktopDelta = { x: (x * c + z * s) * speedScale, y, z: (-x * s + z * c) * speedScale };
     }
     // A stick making a hand gesture (its grip held on a free hand) doesn't walk or turn.
-    // Nor while a hand holds a control (CONFIG.interaction.breakaway): the body would drag it.
-    const holding = inXR && !!this.interaction?.holdingAny();
-    const [lx, ly] = this.gestures.ownsStick('left') || holding ? [0, 0] : this.xrInput.hands.left.stick;
+    const [lx, ly] = this.gestures.ownsStick('left') ? [0, 0] : this.xrInput.hands.left.stick;
     // Run (on foot): push the stick right to the edge - it ramps from walk to run over the
     // last fifth of its travel, so it doesn't lurch. (A stick click is already "board".)
     const push = Math.min(1, Math.max(0, (Math.hypot(lx, ly) - 0.8) / 0.2));
@@ -2235,7 +2235,7 @@ export class App {
       headForward: this.headFwd,
       grabbing,
       moveStick: inXR ? [lx * speedScale * run, -ly * speedScale * run] : [0, 0],
-      turnStick: inXR && !this.gestures.ownsStick('right') && !holding ? this.xrInput.hands.right.stick[0] : 0,
+      turnStick: inXR && !this.gestures.ownsStick('right') ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
       fly,
       // The desktop's fly camera (J): the body stays at its height, whatever is under the camera.
