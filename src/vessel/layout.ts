@@ -48,7 +48,7 @@ const FENCE = 0.15;
 /** Largest rise you can just step up (door sills, deck sheer) without climbing (m). */
 export const STEP_HEIGHT = 0.4;
 
-import type { LayoutConfig } from './vesselDef';
+import type { FloorPatch, LayoutConfig } from './vesselDef';
 export type { LayoutConfig };
 
 /** Linear interpolation of a per-station quantity at longitudinal position z. */
@@ -98,6 +98,28 @@ export function onGear(gear: readonly GearFootprint[], x: number, z: number, pad
 interface Surface {
   height(x: number, z: number): number;
   contains(x: number, z: number): boolean;
+}
+
+/**
+ * A deckhouse's stair as one slope (vessel/deckhouse.ts DeckhouseWalk.stair: its landing, then
+ * its treads down across her): from her deck just beyond its lowest tread up to the landing's
+ * edge, as wide (fore and aft) as the treads.
+ */
+function stairRamp(stair: readonly FloorPatch[], deckY: (z: number) => number): Surface {
+  const [landing, ...treads] = stair;
+  const low = treads[treads.length - 1];
+  // Which way it runs down: from the landing toward the lowest tread.
+  const dir = Math.sign((low.x0 + low.x1) / 2 - (landing.x0 + landing.x1) / 2) || 1;
+  const xHead = dir > 0 ? landing.x1 : landing.x0;
+  const xFoot = dir > 0 ? low.x1 : low.x0;
+  const [z0, z1] = [low.z0, low.z1];
+  return {
+    height: (x, z) => {
+      const t = Math.min(1, Math.max(0, (x - xHead) / (xFoot - xHead)));
+      return landing.y + (deckY(z) - landing.y) * t;
+    },
+    contains: (x, z) => z >= z0 && z <= z1 && (x - xHead) * dir >= 0 && (x - xFoot) * dir <= 0,
+  };
 }
 
 /** A boat with no wheelhouse (the skiff): just its deck, inside the gunwale. */
@@ -312,6 +334,8 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
     if (x < dhLadder.x0 || x > dhLadder.x1) return false;
     return dh.walk.ladder.face === 'aft' ? z > dh.z1 - dh.walk.margin - 0.3 && z <= dh.z1 + 0.05 : z >= dh.walk.z0 - 0.05 && z < dh.walk.z0 + dh.walk.margin + 0.3;
   };
+  // (Its stair as one slope: the deck under it isn't walked, or you'd walk on under it.)
+  const stairSlope = dh?.walk?.stair && dh.walk.stair.length > 1 ? stairRamp(dh.walk.stair, deckY) : null;
   let leafFolded = false;
   // The engine hatch in the helm house's floor (or in the deck, at its `y`): open, its hole
   // can't be walked into (you can still stand where you were if it opened under you; you
@@ -350,7 +374,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       contains: (x, z) => {
         const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
         const nearDeckhouse = !!dh && inDeckhouse(dh, x, z, r);
-        return onDeck && !houses.some((h) => h.near(x, z) || h.inSteps(x, z)) && !nearDeckhouse && !inOpening(x, z) && !onGear(gear, x, z, r, deckY(z)) && !inWingBand(x, z, r);
+        return onDeck && !houses.some((h) => h.near(x, z) || h.inSteps(x, z)) && !nearDeckhouse && !stairSlope?.contains(x, z) && !inOpening(x, z) && !onGear(gear, x, z, r, deckY(z)) && !inWingBand(x, z, r);
       },
     },
     ...helmHouse.floors,
@@ -365,6 +389,10 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
           },
         ]
       : []),
+    // A stair across the deckhouse's aft face: walked as one slope under its treads, from her deck
+    // at its foot up to its landing (owner, Oct 2026: steps "hard to walk up ... it can just be a
+    // ramp"). Drawn as steps all the same.
+    ...(stairSlope ? [stairSlope] : []),
     // Other floors (the companionway's treads, the fore cabin's sole), a little short of
     // their edges each way so you don't stand half off them.
     ...(layout.extraFloors ?? []).map(

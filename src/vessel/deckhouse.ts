@@ -59,8 +59,10 @@ export interface DeckhouseWalk {
   ladder: { face: 'aft' | 'front' | 'stair'; x: number; width: number; depth: number };
   /**
    * A steep stair across its aft face (owner, Oct 2026, on a deckhouse run on aft of the
-   * wheelhouse): its landing at the top first, then its treads down to her deck. Walked as floors
-   * (the Shipyard puts them in layout.extraFloors), drawn with a rail by vessel/view/hullMesh.ts.
+   * wheelhouse): its landing at the top first, then its treads down to her deck. The landing is
+   * walked as a floor (the Shipyard puts it in layout.extraFloors); the treads are walked as one
+   * smooth slope from her deck up to the landing (vessel/layout.ts; owner: steps "hard to walk
+   * up", "it can just be a ramp"), and drawn as plates with a rail by vessel/view/hullMesh.ts.
    */
   stair?: FloorPatch[];
 }
