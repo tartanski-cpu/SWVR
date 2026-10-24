@@ -523,6 +523,19 @@ export interface FarmDef {
 }
 
 /**
+ * An offshore wind farm (owner, Oct 2026: crew transfer to wind farms): its turbines, each on
+ * a monopile with a yellow transition piece, a platform round it, and a boat landing (two
+ * upright tubes and a ladder) on the face looking out along the bearing `landingDeg`: a crew
+ * boat comes in heading the other way, pushes her bow fender against the tubes and holds
+ * there. Drawn by world/view/windFarmView.ts; solid to a boat (world/windFarm.ts); its sizes
+ * CONFIG.windFarm.
+ */
+export interface WindFarmDef {
+  name: string;
+  turbines: { x: number; z: number; landingDeg: number }[];
+}
+
+/**
  * A ferry route from the map (the coast extras plan, C7; a coast map's): the route cut to the
  * map, each end a terminal (`dock`: she berths there) or the map's edge (she sails in from
  * beyond, or out of sight), each named. Her class, livery and (invented) name; the path's
@@ -680,6 +693,8 @@ export interface RegionDef {
   /** Waterfalls, fish farms, katabatic gust zones (milestone 5: the Fjord). */
   falls?: FallDef[];
   farms?: FarmDef[];
+  /** Offshore wind farms (world/windFarm.ts). */
+  windFarms?: WindFarmDef[];
   /** What stands up against its sky (castles, masts, turbines...; a coast map's), and the region's look for them ('aegean': white chapels with domes). */
   skyline?: SkylineDef[];
   skylineStyle?: string;

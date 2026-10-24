@@ -17,6 +17,37 @@ export const MODULES_CONFIG = {
    * Modular boats: each module's own tunables (its defaults; a boat's recipe may override
    * them). docs/MODULAR_BOATS.md.
    */
+  /**
+   * An offshore wind farm's turbines (world/windFarm.ts, world/view/windFarmView.ts; owner,
+   * Oct 2026: crew transfer to wind farms). Our own design, sized as a modest older offshore
+   * turbine, all heights from the mean sea level (m):
+   *   pile      the monopile, `radius`, drawn from `from` (just under the water, where you'd see it) up
+   *   tp        the yellow transition piece over it, `radius`, from `from` up to the platform
+   *   platform  the deck round it at `y`, `radius` out, `thickness`, with a rail `rail` high
+   *   tower     tapering from `base` to `top` radius, up to the hub
+   *   hub       the rotor's centre's height; `blade` each blade's length; `nacelle` its box
+   *   landing   the boat landing, on the face out along the turbine's landingDeg: two upright
+   *             tubes `tube` in radius, their centres `halfSpacing` either side of the middle and
+   *             `out` m out from the transition piece, from `bottom` to `top`; a ladder between
+   *             them, rungs `rung` apart, on up the transition piece to the platform
+   *   rotor     turning from `cutIn` m/s of wind, `rpm` at `rated`, stopped (feathered) over `cutOut`
+   *   lights    red on the nacelle after dark, flashing every `flash` s (as the coast maps'
+   *             turbines); a yellow light on each platform (the marking of an offshore structure)
+   */
+  windFarm: {
+    pile: { radius: 2.5, from: -6 },
+    tp: { radius: 2.7, from: -1 },
+    platform: { y: 13, radius: 5.5, thickness: 0.4, rail: 1.1 },
+    tower: { base: 2.1, top: 1.3 },
+    hub: 72,
+    blade: 42,
+    nacelle: { length: 10, width: 3.6, height: 3.8 },
+    landing: { out: 1.4, tube: 0.22, halfSpacing: 0.55, bottom: -3, top: 5, rung: 0.3 },
+    rotor: { cutIn: 3, rated: 12, cutOut: 25, rpm: 14 },
+    lights: { flash: 2, size: 1.4 },
+    colors: { pile: 0x3c4246, tp: 0xe8c020, grey: 0x8c9094, tower: 0xeef0f0 },
+  },
+
   modules: {
     /**
      * Drawing moving gear smoothly between simulation ticks (mechanisms/tickSmoother.ts; owner,
@@ -281,6 +312,18 @@ export const MODULES_CONFIG = {
      * against quays and other boats.
      */
     pushFender: { knees: 2, kneeWidth: 0.6, kneeAt: 0.55, thickness: 0.32, chamfer: 0.08, inset: 0.06, clear: 0.05, kgPerM2: 140, across: 2, up: 3 },
+    /**
+     * hull.bow-fender (modules/bowFender; owner, Oct 2026: crew transfer to wind farms): a
+     * crew-transfer boat's bow fender, a block of black rubber round the top of her stem (or
+     * across the front of a catamaran's bridge deck), its plumb front `thickness` m forward of
+     * her stem at the deck, `width` m across (`catWidth` on a catamaran), from `above` m over
+     * her deck (her bulwark top) down `depth` m (not below her bridge deck's underside on a
+     * catamaran, nor `clear` over her DWL), its front corners chamfered by `chamfer`. It weighs
+     * `kgPerM3` a cubic metre of its outline (a moulded fender, its rubber round a hollow core: on
+     * the catamaran about a quarter of a tonne), and is probed on its face at
+     * `across` x `up` points (it grips as the tug's push knees do: CONFIG.contacts.guards.pushFender).
+     */
+    bowFender: { thickness: 0.4, width: 0.9, catWidth: 1.8, depth: 1.2, clear: 0.4, chamfer: 0.1, kgPerM3: 250, across: 3, up: 3, color: 0x1b1c1e },
 
     hullGuard: {
       strake: { radius: 0.07, drop: 0.06, kgPerM: 5, spacing: 0.6 },

@@ -187,6 +187,9 @@ export const HULL_ICONS = {
   guardNone: svg('<path d="M4 9h40l-2 15H6z"/>'),
   guardFenders: svg('<path d="M4 9h40l-2 15H6zM13 9v4M24 9v4M35 9v4"/><rect x="11" y="13" width="4" height="8" rx="2"/><rect x="22" y="13" width="4" height="8" rx="2"/><rect x="33" y="13" width="4" height="8" rx="2"/>'),
   guardStrake: svg('<path d="M4 9h40l-2 15H6z"/><path d="M4.5 13h39" stroke-width="3.2"/>'),
+  // A bow fender: her bow in profile, a thick block of rubber on the stem.
+  bowFender: svg('<path d="M4 12h26l10 10H6z"/><path d="M30 8h7v8h-3z" fill="currentColor"/>'),
+  noBowFender: svg('<path d="M4 12h26l10 10H6z"/>'),
   guardTyres: svg('<path d="M4 9h40l-2 15H6z"/><circle cx="12" cy="15" r="3.5"/><circle cx="24" cy="15" r="3.5"/><circle cx="36" cy="15" r="3.5"/>'),
   guardBoth: svg('<path d="M4 9h40l-2 15H6zM18 9v6M30 9v6"/><path d="M4.5 12h39" stroke-width="3.2"/><rect x="16" y="15" width="4" height="7" rx="2"/><rect x="28" y="15" width="4" height="7" rx="2"/>'),
   // Her bulwark, with handrails on posts over it, or bare.

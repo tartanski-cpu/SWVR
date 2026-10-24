@@ -123,6 +123,20 @@ export const HOME: RegionDef = {
     { ax: 680, az: 742, bx: 602, bz: 712, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
     { ax: 602, az: 712, bx: 580, bz: 664, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
   ],
+  // Holm Rig wind farm (owner, Oct 2026: crew transfer to wind farms): three turbines in 40 m
+  // of open water south-east of Calder Holm, clear of the Calder Bank fishing ground, a row
+  // running ESE, each landing facing NW (toward Calder Haven, the way the crew boat comes in).
+  // world/windFarm.ts.
+  windFarms: [
+    {
+      name: 'Holm Rig wind farm',
+      turbines: [
+        { x: 1300, z: 1250, landingDeg: 300 },
+        { x: 1500, z: 1350, landingDeg: 300 },
+        { x: 1700, z: 1450, landingDeg: 300 },
+      ],
+    },
+  ],
   blocks: [
     // Calder Haven quay: 70 m wall along the basin's east side, facing west.
     // The apron runs back to the shore (x 711-751), so the quay is part of the land.

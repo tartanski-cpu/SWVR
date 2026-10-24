@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The bow fender
+
+At the owner's word (24 Oct 2026, crew transfer to wind farms): new design field `bowFender` (not in the code; the catamaran's default 1), worked out in `parts/trim.ts` (`bowFenderAt`), its socket in `hullDef.ts`, module `hull.bow-fender` in `recipe.ts`, weight and price in `weights.ts` (`CONFIG.shipyard.bowFenderPrice`), the Hull step's **Bow fender** tiles in `page.ts` (icons in `tiles.ts`). Details in `docs/progress/modules.md`.
+
 ### Fixes from the review of 24 Oct 2026: the dash crash, capsizing boats, a winch with no tow point, the catamaran's roll chart (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "fix 1, 2, 5 and 6" of the Shipyard's findings in docs/REVIEW_2026-10-24.md (3 and 4, the game buttons to Voyage and the same-tab project, are left for the refit work).

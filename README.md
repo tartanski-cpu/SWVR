@@ -592,6 +592,8 @@ A new game starts in **Calder Haven**: your boat lies moored alongside the quay 
 
 Also look out for **Gull Rocks** (on the direct line to Calder Haven), **Tarran** with its lighthouse (Fl W 10 s), Skerry and Eilean Dubh.
 
+**Holm Rig wind farm**, south-east of Calder Holm (on /next/): three offshore wind turbines in a row in open water, their rotors turning to face the wind (still in a gale), red lights flashing on the nacelles after dark and a yellow light on each platform. Each stands on a yellow transition piece with a platform round it, and on the side facing Calder Haven a **boat landing**: two upright yellow tubes with a ladder between them, running up to the platform. They're solid. A crew-transfer boat with a **bow fender** (the catamaran comes with one) noses her fender onto the landing's tubes and holds there with a little throttle: the rubber grips, so she stays put rather than sliding off. Practise it now; carrying technicians out to the turbines comes next.
+
 ### Beyond home: the regions (being built)
 
 The world is growing: new map areas round home, each with its own harbours, weather, fish, goods and jobs, reached by a short passage across open water. For now (on /next/):
@@ -691,6 +693,7 @@ Then the choices, a step at a time:
    - A **rubber rubbing strake**, fixed, right round her sheer and the transom (across a square bow too, if she has no ramp). Firm: it takes a rub or a moderate knock.
    - **Tyres**, fixed, in a close row along her sides and one on her stem, as on a tug. Soft and grippy, the best at a hard knock and for pushing, but a little extra weight and drag.
    - **Strake and fenders**, or **none**.
+   - And a **bow fender** (any type but the tug, whose push knees do the same; the catamaran comes with one): a thick block of black rubber on her bow, its front upright, for pushing against a wind turbine's boat landing and holding there while crew step across. It grips, so she doesn't slide. A boat with one travels as a link or file.
 
    Hit a quay too hard and her hull is damaged and leaks. Each of these takes up part of the knock first.
 2. Optionally give her a **deckhouse**, as on pilot and rescue boats: a lower block on the main deck from the wheelhouse's aft wall forward, that the wheelhouse stands on. Choose how far it reaches forward of the house, how far it runs on **aft** of the house (up to 6 m: a deck behind the wheelhouse that its aft door opens onto, railed, with a steep stair across its aft face down to the working deck (walk up and down it, from a landing near the middle down to starboard), as on a stern trawler; gear on the aft deck keeps clear of it), its height (up to 2.5 m, high enough to see over a trawler's gear), its width (out to her sides, or set in leaving side decks) and its front (upright, or raked 30° or 50°). The helm is then raised onto it, with steps up to the aft door. For now it's solid: no way in, and its top isn't walked; its weight is high up, so her GM drops a little.
