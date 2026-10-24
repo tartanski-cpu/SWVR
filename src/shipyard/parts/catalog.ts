@@ -479,6 +479,14 @@ export const LIVERIES: { name: string; livery: Livery }[] = [
   { name: 'Black', livery: { bottom: 0x8c2a22, topsides: 0x22262a, deck: 0x6f746f, house: 0xe6e6df, roof: 0xb9bdb6 } },
   { name: 'Pilot yellow', livery: { bottom: 0x2f3438, topsides: 0xe0b020, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
   { name: 'Rescue red', livery: { bottom: 0x2f3438, topsides: 0xc0302a, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+  // More (owner, Oct 2026: "a few more options for paint colors"); after the first 8, so a
+  // boat in one of these travels as a link or file (design.ts CODE_PAINTS).
+  { name: 'Teal', livery: { bottom: 0x8c2a22, topsides: 0x1f6f6a, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'Burgundy', livery: { bottom: 0x2f3438, topsides: 0x6e1f2a, deck: 0x7d7a6a, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'Sky blue', livery: { bottom: 0x8c2a22, topsides: 0x5b8fbf, deck: 0x8a9096, house: 0xf4f4f0, roof: 0xd8d8d2 } },
+  { name: 'Slate grey', livery: { bottom: 0x8c2a22, topsides: 0x56606a, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'Sand', livery: { bottom: 0x2f3438, topsides: 0xc8b48a, deck: 0x7d7a6a, house: 0xf4f4f0, roof: 0xd8d8d2 } },
+  { name: 'Royal blue', livery: { bottom: 0x2f3438, topsides: 0x2850a0, deck: 0x8a9096, house: 0xf4f4f0, roof: 0xd8d8d2 } },
 ];
 
 /** Roof colours (owner): the hull's own topsides colour (null), or one of its own; an orange roof is common on workboats. */
@@ -497,6 +505,11 @@ export const HOUSE_PAINTS: { name: string; colour: number | null }[] = [
   { name: 'Green', colour: 0x2f5a3a },
   { name: 'Orange', colour: 0xe0661f },
   { name: 'Yellow', colour: 0xe0b020 },
+  // More (owner, Oct 2026); after the first 10, so they travel as a link or file (design.ts CODE_HOUSE_COLOURS).
+  { name: 'Teal', colour: 0x1f6f6a },
+  { name: 'Burgundy', colour: 0x6e1f2a },
+  { name: 'Sky blue', colour: 0x5b8fbf },
+  { name: 'Sand', colour: 0xc8b48a },
 ];
 
 /**
@@ -516,6 +529,11 @@ export const ROOF_PAINTS: { name: string; colour: number | null }[] = [
   { name: 'White', colour: 0xeeeeea },
   { name: 'Grey', colour: 0xb9bdb6 },
   { name: 'Black', colour: 0x22262a },
+  // More (owner, Oct 2026); after the first 5, so they travel as a link or file (design.ts CODE_ROOF_PAINTS).
+  { name: 'Cream', colour: 0xe9e1c8 },
+  { name: 'Red', colour: 0xc0302a },
+  { name: 'Blue', colour: 0x1f3a5c },
+  { name: 'Sand', colour: 0xc8b48a },
 ];
 
 /**
@@ -529,6 +547,10 @@ export const ROOF_TOPS: { name: string; colour: number | null }[] = [
   { name: 'White', colour: 0xeeeeea },
   { name: 'Sand', colour: 0xc8b48a },
   { name: 'Dark grey', colour: 0x4a4f54 },
+  // More (owner, Oct 2026); after the first 5, so they travel as a link or file (design.ts CODE_ROOF_TOPS).
+  { name: 'Cream', colour: 0xe9e1c8 },
+  { name: 'Black', colour: 0x22262a },
+  { name: 'Orange', colour: 0xe0661f },
 ];
 
 /** Her livery with the roof's colour chosen, and its top's (the workboat orange livery is `{}`: the workboat's own orange topsides), and the finish inside (none: the wood lining) and the floor (none: matting). */
@@ -542,6 +564,8 @@ export function liveryOf(d: ShipDesign): Livery {
     ...(top != null ? { roofTop: top } : {}),
     ...(house != null ? { house } : {}),
     ...(d.frames ? { frame: FRAME_COLOURS[d.frames].colour } : {}),
+    // Her finish: how used her hull looks (CONFIG.shipyard.finish).
+    weathering: CONFIG.shipyard.finish[d.finish ?? 0] ?? CONFIG.shipyard.finish[0],
     ...(d.interior ? { interior: d.interior } : {}),
     ...(d.cabinFloor ? { cabinFloor: d.cabinFloor } : {}),
   };

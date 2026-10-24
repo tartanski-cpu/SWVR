@@ -255,6 +255,14 @@ export const SHIPYARD_CONFIG = {
      */
     windowSills: { standard: 1.0, low: 0.75, high: 1.3 },
     /**
+     * Her hull's finish (owner, Oct 2026: "pre-configure a boat to look used or new";
+     * design.finish): how much the weathering tile shows on her topsides (render/pixelPaint.ts
+     * `topsides`: waterline grime, rust runs from the deck edge, faded paint), 0 plain paint ..
+     * 1 the tile as drawn. In the design's order: well used first (0, as every boat looked
+     * before the choice), then worked, then as new.
+     */
+    finish: [1, 0.5, 0],
+    /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
      * placed by it, go aft until each part rising above the sill (the dash, or the low-sill

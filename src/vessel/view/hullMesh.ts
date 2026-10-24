@@ -264,7 +264,12 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
         panel(m0, P(i, k), m1, P(i + 1, k), color);
         continue;
       }
-      panel(a0, b0, a1, b1, color);
+      // Each quad's diagonal mirrored side to side (owner, Oct 2026: a plumb stem looked raked
+      // from starboard): split the same way as port's, a starboard panel at a plumb stem (two of
+      // its corners on her centreline) would leave one triangle flat in the centreline plane,
+      // unseen from starboard, and her stem's edge the other triangle's slant.
+      if (!cat && a >= last / 2 && a !== last) panel(b0, a0, b1, a1, color);
+      else panel(a0, b0, a1, b1, color);
     }
   }
   // Transom (station 0) as a fan around its centre.
@@ -280,8 +285,10 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   else for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides, 'topsides');
   // A square bow (a landing bow: the last station still has width) is closed the same way,
   // by a bow plate. (A catamaran's bow: the bridge deck's front, across her tunnel.)
+  // (A sharp bow whose stem head still has a little width, the deck's few centimetres across
+  // there, is closed the same way: else a slit shows up her stem head, head on: owner, Oct 2026.)
   const e = st.length - 1;
-  if (st[e].halfBeamDeck > SQUARE_BOW) {
+  if (st[e].halfBeamDeck > 1e-4) {
     const bIn = inside(e).add(new THREE.Vector3(0, 0, 1));
     const bC = new THREE.Vector3(0, (st[e].polygon[2][1] + st[e].polygon[0][1]) / 2, st[e].z);
     if (cat) endPlate(e, bIn);
