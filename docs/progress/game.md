@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) Twin engines worked separately
+
+A twin's starboard engine now has a state of its own (`VesselState.engine.stbd`, made by `starboardEngine`, `vessel/physics/propulsion.ts`), with its own lever and START (`controls.lever2`, `controls.start2`; bus keys `throttle.demand2`, `ignition.start2`, `propulsion.state2`, `propulsion.rpm2`). `toggleEngine` starts both (the starboard one `queued` until the port one catches) and stops both; the 'lever' intent (keys, gamepad, menus) sets both levers once they've been split. `controls/Lever.ts` takes a label and can be worked by another handle (`follow`, `heldBy`). The ENGINE screen (`controls/instruments.ts`) shows both engines when there are two. `app/interiorDetail.ts` keeps the new levers visible through the windows. Only on the diesel module's `twin.split` (twin shaft engines in Shipyard designs). See `docs/progress/modules.md`.
+
 ### Debug: a project stage back (25 Oct 2026)
 
 Owner: an option in the debug menu to go back a stage. Debug → Missions → **Project** is now a row of its own: **Stage done** (as before) and **Stage back**: the project to the start of the stage before (the first: its start again), as if every stage before it had been done and nothing since. What those stages built stands (driven piles, pieces on, turbines up, the survey run, the marks), nothing is paid again, and what was about from the stage left (its items on the quay or aboard, a tow, the fitters' transfer, a ship sent for the works) is cleared away (`careerProjectBack`, career/projects.ts `setStage`). Test: tests/projects.test.ts, 1 new.

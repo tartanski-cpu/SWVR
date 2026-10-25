@@ -227,6 +227,26 @@ export const BUS_KEYS = {
     // tests still send 'lever').
     writer: 'module',
   }),
+  // Twin engines worked separately (the twin lever control; owner, Oct 2026): the starboard
+  // engine's lever and START. Only on such a boat; its lever reads as the port one's until moved.
+  'throttle.demand2': {
+    ...setting('lever2', [-1, 1], '-1..1', 'Twin engines worked separately: the starboard engine\'s throttle / gear lever (throttle.demand is then the port engine\'s). Reads as the port lever until it is moved.', { hold: 'lever2', writer: 'module' }),
+    bind: {
+      get: (s) => (gearOf(s, 'diesel')?.split ? (s.controls.lever2 ?? s.controls.lever) : undefined),
+      set: (s, v) => {
+        s.controls.lever2 = v as number;
+      },
+    },
+  },
+  'ignition.start2': {
+    ...control('start2', 'Twin engines worked separately: the starboard engine\'s START held (ignition.start is then the port engine\'s).'),
+    bind: {
+      get: (s) => (gearOf(s, 'diesel')?.split ? (s.controls.start2 ?? 0) > 0.5 : undefined),
+      set: (s, v) => {
+        s.controls.start2 = v ? 1 : 0;
+      },
+    },
+  },
   'helm.demand': setting('helm', [-1, 1], '-1..1', 'Wheel (or tiller) position: -1 hard to port, +1 hard to starboard.', { hold: 'helm', aliases: ['helm'] }),
   'ignition.key': {
     type: 'boolean',
@@ -315,6 +335,8 @@ export const BUS_KEYS = {
   // ── Engine and propulsion ──
   'propulsion.state': state('enum', (s) => s.engine.phase, 'The engine: off, cranking or running.', { values: ['off', 'cranking', 'running'], aliases: ['engine.phase'], writer: 'module' }),
   'propulsion.rpm': state('number', (s) => s.engine.rpm, 'Engine (crankshaft) speed.', { unit: 'rpm', aliases: ['engine.rpm'], writer: 'module' }),
+  'propulsion.state2': state('enum', (s) => s.engine.stbd?.phase, 'Twin engines worked separately: the starboard engine, off, cranking or running (propulsion.state is then the port engine).', { values: ['off', 'cranking', 'running'], writer: 'module' }),
+  'propulsion.rpm2': state('number', (s) => s.engine.stbd?.rpm, 'Twin engines worked separately: the starboard engine\'s speed.', { unit: 'rpm', writer: 'module' }),
   'propulsion.load': state('number', (s) => s.engine.rack, 'Fuel rack position as set by the governor: the engine load.', { unit: '0..1', aliases: ['engine.rack'], writer: 'module' }),
   'propulsion.gear': state('number', (s) => s.engine.gear, 'Gearbox engaged: -1 astern, 0 neutral, +1 ahead.', { unit: 'gear', integer: true, range: [-1, 1], aliases: ['engine.gear'], writer: 'module' }),
   'propulsion.thrust': kept('number', (s) => s.thrust, (s, v) => (s.thrust = v as number), 'Propeller (or outboard) thrust on the last tick.', { unit: 'N' }),

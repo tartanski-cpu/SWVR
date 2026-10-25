@@ -12,20 +12,22 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `throttle.demand` | -1..1 | player sets; held: lever | module | `lever` | Throttle / gear lever: -1 full astern, 0 neutral, +1 full ahead. On an outboard boat, the twist-grip throttle 0..1 in the selected gear. |
+| `throttle.demand2` | -1..1 | player sets; held: lever2 | module |  | Twin engines worked separately: the starboard engine's throttle / gear lever (throttle.demand is then the port engine's). Reads as the port lever until it is moved. |
+
+## ignition
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `ignition.start2` | on / off | player sets | legacy |  | Twin engines worked separately: the starboard engine's START held (ignition.start is then the port engine's). |
+| `ignition.key` | on / off | player sets | legacy | `key` | Ignition key on / off. Off closes the fuel solenoid: a running diesel stops. |
+| `ignition.heat` | on / off | player sets | legacy | `heat` | HEAT button held: extra glow-plug heat (key on). The boats have no HEAT button now: the plugs preheat on their own with the key. |
+| `ignition.start` | on / off | player sets | legacy | `start` | START button held: the starter cranks (key on, lever in neutral). |
 
 ## helm
 
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `helm.demand` | -1..1 | player sets; held: helm | legacy | `helm` | Wheel (or tiller) position: -1 hard to port, +1 hard to starboard. |
-
-## ignition
-
-| Key | Values | Use | Written by | Old names | What it is |
-|---|---|---|---|---|---|
-| `ignition.key` | on / off | player sets | legacy | `key` | Ignition key on / off. Off closes the fuel solenoid: a running diesel stops. |
-| `ignition.heat` | on / off | player sets | legacy | `heat` | HEAT button held: extra glow-plug heat (key on). The boats have no HEAT button now: the plugs preheat on their own with the key. |
-| `ignition.start` | on / off | player sets | legacy | `start` | START button held: the starter cranks (key on, lever in neutral). |
 
 ## outboard
 
@@ -132,6 +134,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `propulsion.state` | off / cranking / running | read only | module | `engine.phase` | The engine: off, cranking or running. |
 | `propulsion.rpm` | rpm | read only | module | `engine.rpm` | Engine (crankshaft) speed. |
+| `propulsion.state2` | off / cranking / running | read only | module |  | Twin engines worked separately: the starboard engine, off, cranking or running (propulsion.state is then the port engine). |
+| `propulsion.rpm2` | rpm | read only | module |  | Twin engines worked separately: the starboard engine's speed. |
 | `propulsion.load` | 0..1 | read only | module | `engine.rack` | Fuel rack position as set by the governor: the engine load. |
 | `propulsion.gear` | gear, -1 to 1, whole | read only | module | `engine.gear` | Gearbox engaged: -1 astern, 0 neutral, +1 ahead. |
 | `propulsion.thrust` | N | read only | module |  | Propeller (or outboard) thrust on the last tick. |

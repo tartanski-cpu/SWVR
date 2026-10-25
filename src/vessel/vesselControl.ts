@@ -55,7 +55,7 @@ export function dropVessel(s: VesselState): void {
 }
 
 /** Grab controls that can be held, by channel. */
-const HOLDABLE: Record<string, true> = { lever: true, helm: true, spotPan: true, monPan: true };
+const HOLDABLE: Record<string, true> = { lever: true, lever2: true, helm: true, spotPan: true, monPan: true };
 /** Intent -> the hold that guards it (the joystick drives pan and tilt). */
 const HOLD_KEY: Record<string, string> = { lever: 'lever', helm: 'helm', spotPan: 'spotPan', spotTilt: 'spotPan', monPan: 'monPan', monTilt: 'monPan' };
 
@@ -95,6 +95,8 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     }
     case 'lever':
       s.controls.lever = clamp(intent.value, -1, 1);
+      // (Twin engines worked separately: the keys, the menus and the helpers work both levers.)
+      if (s.controls.lever2 !== undefined) s.controls.lever2 = s.controls.lever;
       break;
     case 'helm':
       s.controls.helm = clamp(intent.value, -1, 1);

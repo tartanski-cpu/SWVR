@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) Twin shaft engines get the twin lever control
+
+`parts/recipe.ts`: a twin with shaft engines (not pods, stern drives or outboards) has its diesel's `twin.split` set, the console's `throttle` socket gets `control.twin-throttle`, the START becomes START P and a second, START S (`start2`, bound to `ignition.start2`), joins the ENGINE group (`BASIC_KEEP` too). See `docs/progress/modules.md`.
+
 ### (From the modular-builder chat) The autopilot's own group on the console
 
 With the helm assist (`design.helmAssist`), three console push buttons `apPort`, `apOn`, `apStbd` (PORT 5°, AUTO, STBD 5°) in an AUTOPILOT switch group, starboard side, nearest the wheel (`parts/recipe.ts`); `PANEL_SLOTS.AUTOPILOT` (`panelAutopilot`, not in the code); `CONFIG.shipyard.helm.faceSwitchOrder` takes it after DECK. The panel grid's reported starts (`cc.panelGrid.runs[].start`) are now nudged apart when the rules close the switches up tighter than a cell, so pinning a crowded console where it stands keeps every group. The Assist tile's words changed. See `docs/progress/modules.md`.

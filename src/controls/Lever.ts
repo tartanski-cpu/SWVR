@@ -16,7 +16,7 @@ import { Control, type Pointer, type Wiring } from './Control';
  */
 export class Lever extends Control {
   readonly kind = 'grab' as const;
-  readonly label = 'Throttle / gear lever';
+  readonly label: string;
   private readonly arm = new THREE.Group();
   private readonly knob: THREE.Mesh;
   private readonly max: number;
@@ -41,7 +41,7 @@ export class Lever extends Control {
    */
   constructor(
     id: string,
-    opts: { maxAngleDeg: number; length: number; style?: 'standard' | 'black' },
+    opts: { maxAngleDeg: number; length: number; style?: 'standard' | 'black'; label?: string },
     private readonly detent = 0.15,
     wiring: Wiring = {},
     private readonly feel: { hold: number; click: { strength: number; ms: number }; release: { strength: number; ms: number } } = {
@@ -51,6 +51,7 @@ export class Lever extends Control {
     },
   ) {
     super(id, wiring.channel ?? 'lever');
+    this.label = opts.label ?? 'Throttle / gear lever';
     this.read = wiring.read ?? ((s) => s.controls.lever);
     this.max = (opts.maxAngleDeg * Math.PI) / 180;
     this.length = opts.length;
@@ -147,6 +148,27 @@ export class Lever extends Control {
       }
     }
     this.setTheta(next);
+  }
+
+  /** Its angle (rad, + astern), for a handle that works it with another (the twin control's grip). */
+  get angle(): number {
+    return this.theta;
+  }
+
+  /** Worked by another handle (the twin control's grip): held while it is, moved to `theta` (rad), sent as from the hand. */
+  follow(theta: number): void {
+    this.setTheta(theta);
+  }
+
+  /** Taken (true) or let go (false) by another handle: held, it ignores the state's position; let go, it waits for its own to arrive. */
+  heldBy(on: boolean): void {
+    this.held = on;
+    if (!on) this.markPending();
+  }
+
+  /** The angle (rad) for a value (-1 astern .. +1 ahead). */
+  thetaOf(value: number): number {
+    return -value * this.max;
   }
 
   private setTheta(raw: number): void {
