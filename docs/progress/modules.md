@@ -59,6 +59,10 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 
 ## Changes
 
+### The Your boats board: favourites read as you walk up to it (done; on next)
+
+Your question after the lag: the main game chat's fix read the favourites once a second; now they're read when you walk up to the board, when you save one in the game, or when the Shipyard in another tab changes them, and kept otherwise. Details in `docs/progress/game.md`. **Shared changes:** `src/ui/shipyardDoor.ts` (`onOpen`), `src/shipyard/takeHer.ts` (the favourites kept), `tests/shipyardTrip.test.ts`.
+
 ### The autopilot moved to the console, with PORT 5° and STBD 5° (done; on next, in your test round)
 
 You asked for the autopilot to come off the helm assist panel on the wall and become a control on the main console, still switched on and off by one button, with two more buttons that alter course 5 degrees left and right.

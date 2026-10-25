@@ -28,6 +28,8 @@ export type BoatsBoardHost = Pick<MenuHost, 'shipyardCodes' | 'takeDesign' | 'ta
 export class ShipyardDoor {
   readonly menu: WristMenu;
   private readonly world = new THREE.Vector3();
+  /** As it comes up, the viewer walking up to it (the Your boats board reads the favourites afresh). */
+  onOpen: () => void = () => {};
 
   /**
    * @param at     the career's: where it stands on its own (updateAt); Voyage's stands by the table (update)
@@ -67,12 +69,15 @@ export class ShipyardDoor {
    */
   static boats(h: BoatsBoardHost, at?: SignSpot): ShipyardDoor {
     const b = CONFIG.voyage.boatsBoard;
-    return new ShipyardDoor(
+    const board = new ShipyardDoor(
       { header: boatsBoardRows(h), pages: [] },
       b.width,
       at,
       -(b.besideM + (b.width + CONFIG.voyage.shipyardSign.width) / 2),
     );
+    // Walking up to it: the favourites read afresh, once (then kept while it's up).
+    board.onOpen = () => h.shipyardCodes().forget();
+    return board;
   }
 
   /**
@@ -86,7 +91,10 @@ export class ShipyardDoor {
     // To the right of the table as you face it (the table's local +z is the reader's side), or
     // to the left (`side` < 0: the boats board, on the table's other side).
     const x = CONFIG.voyage.plan.table.width / 2 + d.besideM;
-    if (near && !this.menu.isOpen) this.menu.openFixed(table, this.side < 0 ? -x : x, d.up, 0, 0);
+    if (near && !this.menu.isOpen) {
+      this.onOpen();
+      this.menu.openFixed(table, this.side < 0 ? -x : x, d.up, 0, 0);
+    }
     else if (!near && this.menu.isOpen) this.menu.close();
     this.menu.refresh();
   }
@@ -100,7 +108,10 @@ export class ShipyardDoor {
     // `side` along the sign's own right (its local +x, turned by its yaw −farHeading).
     const rx = Math.cos(at.farHeading) * this.side;
     const rz = Math.sin(at.farHeading) * this.side;
-    if (near && !this.menu.isOpen) this.menu.openFixed(scene, at.x + rx, at.y + d.up, at.z + rz, -at.farHeading);
+    if (near && !this.menu.isOpen) {
+      this.onOpen();
+      this.menu.openFixed(scene, at.x + rx, at.y + d.up, at.z + rz, -at.farHeading);
+    }
     else if (!near && this.menu.isOpen) this.menu.close();
     this.menu.refresh();
   }

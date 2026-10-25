@@ -1,4 +1,19 @@
-import { describe, expect, it } from 'vitest';
+// The board's panel drawn on a canvas: not here (no document); only whether it's up matters.
+vi.mock('../src/ui/wristMenu', () => ({
+  WristMenu: class {
+    isOpen = false;
+    rayLine = {};
+    openFixed() {
+      this.isOpen = true;
+    }
+    close() {
+      this.isOpen = false;
+    }
+    refresh() {}
+  },
+}));
+import { describe, expect, it, vi } from 'vitest';
+import * as THREE from 'three';
 import { backUrl, designPrice, isSeaTrial, refitCost, refitReturn, shipyardUrl } from '../src/app/shipyardTrip';
 import { FLEET } from '../src/boats/fleet';
 import { createCareer, parseCareer, serializeCareer } from '../src/career/career';
@@ -75,15 +90,35 @@ describe('the Your boats board stays cheap (owner, Oct 2026: 2 fps on the Quest 
     expect(t2 - t1).toBeLessThan(t1 - t0);
   });
 
-  it('the favourites are read from storage at most once a second, and afresh after saving one', async () => {
+  it('the favourites are read from storage once and kept; afresh after saving one, or walking up to the Your boats board', async () => {
     const { ShipyardCodes } = await import('../src/shipyard/takeHer');
+    const { ShipyardDoor } = await import('../src/ui/shipyardDoor');
     let reads = 0;
     const m = new Map<string, string>();
     const store = { getItem: (k: string) => (reads++, m.get(k) ?? null), setItem: (k: string, v: string) => void m.set(k, v) };
     const codes = new ShipyardCodes(() => store);
-    for (let i = 0; i < 20; i++) codes.favourites();
+    // Asked every frame for a long while: one read.
+    for (let i = 0; i < 200; i++) codes.favourites();
     expect(reads).toBe(1);
     codes.saveBoat(designToken(FLEET[0].design), 'Test', '');
     expect(codes.favourites().map((f) => f.name)).toEqual(['Test']);
+    // Walking up to the board (its own spot on the quay): read once more as it comes up, then kept while it's up.
+    const at = { x: 0, y: 0, z: 0, farHeading: 0 };
+    const board = ShipyardDoor.boats({ shipyardCodes: () => codes } as never, at as never);
+    const scene = new THREE.Group();
+    const far = new THREE.Vector3(500, 0, 0);
+    const near = new THREE.Vector3(1, 0, 0);
+    board.updateAt(scene, far);
+    const before = reads;
+    for (let i = 0; i < 20; i++) {
+      board.updateAt(scene, near);
+      codes.favourites();
+    }
+    expect(reads - before).toBe(1);
+    // Away and back: once more.
+    board.updateAt(scene, far);
+    board.updateAt(scene, near);
+    codes.favourites();
+    expect(reads - before).toBe(2);
   });
 });
