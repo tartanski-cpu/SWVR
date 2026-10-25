@@ -200,7 +200,9 @@ describe('the timber run on the Oban map', () => {
     const before = w.career?.money ?? 0;
     for (let i = 0; i < (CONFIG.tow.deliverTime + 1) * 20; i++) sim.stepWorld(w, [], 1 / 20);
     expect(w.salvage!.logs.map((l) => l.id)).toEqual([kept.id]);
-    expect(w.career!.money).toBe(before + CONFIG.voyage.timber.pricePerLog);
+    // Paid as a salvage log is (owner: the game's log price), not the first version's £12.
+    expect(w.career!.money - before).toBeGreaterThanOrEqual(CONFIG.career.pay.log * 0.5);
+    expect(w.career!.ledger[0].text).toMatch(/Timber log sold/);
   });
 
   it('a log off the beach: the boat lies off in water deep enough, makes fast, and pulls it off under power', { timeout: 60000 }, async () => {

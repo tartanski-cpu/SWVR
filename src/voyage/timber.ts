@@ -12,7 +12,9 @@
  *                  as salvage logs (salvage/salvage.ts) marked `timber`: a line on one (the
  *                  hook, or Make fast), pull it off the beach, tow it across. Afloat and slow
  *                  by the merchant's quay for CONFIG.tow.deliverTime s, it's bought
- *                  (`stepTimberLogs`, `pricePerLog`). Kept with the Voyage save.
+ *                  (`stepTimberLogs`) at the game's price for a salvage log
+ *                  (CONFIG.career.pay.log, through career.ts earn: owner, 25 Oct 2026, not
+ *                  the first version's £12 a log). Kept with the Voyage save.
  *   The log barge  (until 25 Oct 2026; a barge saved before then still comes back and sells)
  *                  the towable work barge (CONFIG.vessels.barge, 9 m) with logs stacked on her
  *                  deck (voyage/timberView.ts), `world.timber.barges[id].logs`. The logs are
@@ -20,13 +22,13 @@
  *                  barge sits deeper and tows heavier: more resistance, more to stop and turn.
  *                  She's towed, cast off and made fast like any tow (tow/tow.ts).
  *   The merchant   at a harbour's berth (`merchants`): the barge brought within `sellRangeM` of
- *                  its quay, the boat stopped, and the sale is offered: logs × `pricePerLog`.
+ *                  its quay, the boat stopped, and the sale is offered: logs × the salvage log's price.
  *                  Sold, the barge is gone and the money is paid in.
  *
  * Plain JSON in the world, as everything the host decides; no page or scene here.
  */
 import { CONFIG } from '../config';
-import { post, createCareer, money } from '../career/career';
+import { earn, post, createCareer, money } from '../career/career';
 import type { WorldState } from '../core/world';
 import type { EntityId } from '../core/ids';
 import { makeFastNow } from '../tow/tow';
@@ -117,7 +119,8 @@ export function logsFromCamp(world: WorldState, site: MetaverseSite, logs: numbe
 
 /**
  * The camp's logs sold: afloat, slow, by a timber merchant's quay (within `sellRangeM` plus
- * half the log) for CONFIG.tow.deliverTime s; the line comes off and `pricePerLog` is paid.
+ * half the log) for CONFIG.tow.deliverTime s; the line comes off and it's paid as a salvage
+ * log is (earn 'log': CONFIG.career.pay.log, with the harbour's reputation and any log contract).
  * (Washed-up salvage sells at any harbour instead: salvage/salvage.ts.)
  */
 export function stepTimberLogs(world: WorldState, dt: number): void {
@@ -136,8 +139,10 @@ export function stepTimberLogs(world: WorldState, dt: number): void {
     s.logs = s.logs.filter((l) => l !== log);
     s.sold += 1;
     const left = s.logs.filter((l) => l.timber).length;
-    post(world, (world.career ??= createCareer()), `Timber log sold to ${m.name}`, c.pricePerLog);
-    sayRadio(world, 'info', `${m.name[0].toUpperCase()}${m.name.slice(1)}: good timber, skipper. ${money(c.pricePerLog)} paid.${left ? ` ${left} more on the beach.` : ''}`);
+    const career = (world.career ??= createCareer());
+    const before = career.money;
+    earn(world, 'log', { port: berthWithId(m.berthId)?.portId ?? '', text: `Timber log sold to ${m.name}` });
+    sayRadio(world, 'info', `${m.name[0].toUpperCase()}${m.name.slice(1)}: good timber, skipper. ${money(career.money - before)} paid.${left ? ` ${left} more on the beach.` : ''}`);
   }
 }
 
@@ -220,7 +225,7 @@ export function saleOffer(world: WorldState, boat: VesselState | undefined, mapI
     for (const [id, b] of Object.entries(barges)) {
       const v = world.vessels[id];
       if (!v || !b.logs) continue;
-      if (Math.hypot(v.position[0] - qx, v.position[2] - qz) <= c.sellRangeM + c.bargeHalfLengthM) return { bargeId: id, merchant: m, logs: b.logs, total: b.logs * c.pricePerLog };
+      if (Math.hypot(v.position[0] - qx, v.position[2] - qz) <= c.sellRangeM + c.bargeHalfLengthM) return { bargeId: id, merchant: m, logs: b.logs, total: b.logs * CONFIG.career.pay.log };
     }
   }
   return null;
@@ -230,7 +235,7 @@ export function saleOffer(world: WorldState, boat: VesselState | undefined, mapI
 export function sellBarge(world: WorldState, bargeId: EntityId, merchant: Merchant): number {
   const b = world.timber?.barges[bargeId];
   if (!b) return 0;
-  const total = b.logs * CONFIG.voyage.timber.pricePerLog;
+  const total = b.logs * CONFIG.career.pay.log;
   delete world.timber!.barges[bargeId];
   delete world.vessels[bargeId];
   for (const [boat, line] of Object.entries(world.tow?.lines ?? {})) if (line.target === `v:${bargeId}`) delete world.tow!.lines[boat];
@@ -238,9 +243,9 @@ export function sellBarge(world: WorldState, bargeId: EntityId, merchant: Mercha
   return total;
 }
 
-/** "20 logs × £12 = £240". */
+/** "20 logs × £180 = £3,600" (a saved barge's sale). */
 export function saleText(logs: number, total: number): string {
-  return `${logs} logs × ${money(CONFIG.voyage.timber.pricePerLog)} = ${money(total)}`;
+  return `${logs} logs × ${money(CONFIG.career.pay.log)} = ${money(total)}`;
 }
 
 // ── Kept with the Voyage save (app/voyagePlace.ts sits beside it) ──
