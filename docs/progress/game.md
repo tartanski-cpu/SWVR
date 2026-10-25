@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Your boats on a board on the quay (25 Oct 2026)
+
+Owner (from the backlog): "The favourites screen as a board on the quayside. Your saved boats would be on a board ashore, worked like the boatyard board and the Shipyard sign: pick one and take her out."
+
+- **A Your boats board beside every Shipyard sign** (`ui/shipyardDoor.ts`: `ShipyardDoor.boats`, its rows `boatsBoardRows`): in the career at every harbour, to the left of the sign; in Voyage on the planning table's other side from the sign. It shows the boat you're in, your Shipyard favourites saved in this browser five to a page with ◀ ▶, and beside each the same button as Office > Your boats (`takeDesign`, `takeLabel`): in the career a 5-minute sea trial, or at a boatyard "Buy her (£…)"; in Voyage, take her. The game starts again in her, as from the menu.
+- `ShipyardDoor` is now the quay sign for both (its constructor takes the rows; `ShipyardDoor.shipyard`, `ShipyardDoor.boats`; a `side` offset along the sign's right). Settings: `CONFIG.voyage.boatsBoard` { width 1.2 m, besideM 0.3 m }; height, range and reach are the Shipyard sign's.
+- Office > Your boats stays, with the code keypad (the board has no keypad: favourites only).
+- Tests: `tests/shipyardSign.test.ts` (the board lists the favourites a page at a time, its button takes the one pressed). Typecheck clean, all tests pass. Headless (career, Calder, two favourites saved): the board stands left of the Shipyard sign with both boats; at the yard their buttons read "Not enough money" on a new career (the buy price), as in the menu. Not checked: Voyage by eye, VR.
+
 ### Held controls stay held in VR; W/S on the wheel with the mouse (24 Oct 2026)
 
 Owner: "revert the fix you put in for the VR wheel and throttle controls. When I grab them, I want to be locked onto them. Doesn't matter if I move my body away from them. And ... if you're on mouse and keyboard and you grab the wheel, that you can use the W and S keys for the throttle instead of the cursor keys."

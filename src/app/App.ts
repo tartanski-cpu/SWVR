@@ -422,6 +422,8 @@ export class App {
   private planTable: PlanTable | null = null;
   /** Voyage mode: the sign into the Shipyard beside the planning table (ui/shipyardDoor.ts). */
   private shipyardDoor: ShipyardDoor | null = null;
+  /** Voyage mode: the Your boats board on the planning table's other side. */
+  private boatsBoard: ShipyardDoor | null = null;
   /** The career: a sign into the Shipyard on the quay at every harbour (ui/shipyardDoor.ts careerShipyardSpots). */
   private shipyardSigns: ShipyardDoor[] = [];
   private planSaved = -1;
@@ -796,7 +798,8 @@ export class App {
     // Only the yards whose port is in this world (the coast region test leaves the Sounds out).
     this.yardBoards = CONFIG.boatyards.filter((y) => PORTS.some((p) => p.id === y.port)).map((y) => new YardBoard(host, y));
     // The career's Shipyard signs, one on the quay at every harbour (Voyage's stands by the planning table: setupPlan).
-    if (MODE === 'career') this.shipyardSigns = careerShipyardSpots().map((at) => new ShipyardDoor(host, at));
+    // ...and beside each, the Your boats board (your Shipyard favourites).
+    if (MODE === 'career') this.shipyardSigns = careerShipyardSpots().flatMap((at) => [ShipyardDoor.shipyard(host, at), ShipyardDoor.boats(host, at)]);
     this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine));
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
@@ -5092,8 +5095,9 @@ export class App {
     });
     this.scene.add(this.planTable.root);
     this.interaction?.addControls(this.planTable.controls);
-    this.shipyardDoor = new ShipyardDoor(this.menuHost());
-    this.scene.add(this.shipyardDoor.menu.rayLine);
+    this.shipyardDoor = ShipyardDoor.shipyard(this.menuHost());
+    this.boatsBoard = ShipyardDoor.boats(this.menuHost());
+    this.scene.add(this.shipyardDoor.menu.rayLine, this.boatsBoard.menu.rayLine);
   }
 
   /**
@@ -5111,6 +5115,7 @@ export class App {
     }
     if (this.planTable && this.focus.distanceTo(this.planTable.root.position) < 250) this.planTable.update(this.world);
     if (this.planTable && this.shipyardDoor) this.shipyardDoor.update(this.planTable.root, this.focus);
+    if (this.planTable && this.boatsBoard) this.boatsBoard.update(this.planTable.root, this.focus);
     if (plan?.note && plan.note.t !== this.planNoteT) {
       if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);
       this.planNoteT = plan.note.t;
@@ -5311,8 +5316,9 @@ export class App {
   /** The world's fixed boards worked like the menu: the boatyards' and the Shipyard signs (Voyage's one, the career's at every harbour). */
   private boardMenus(): WristMenu[] {
     // One list, kept (asked for several times a frame), made again only if the boards change.
-    const n = this.yardBoards.length + this.shipyardSigns.length + (this.shipyardDoor ? 1 : 0);
-    if (this.boardMenuList.length !== n) this.boardMenuList = [...this.yardBoards.map((b) => b.menu), ...this.shipyardSigns.map((s) => s.menu), ...(this.shipyardDoor ? [this.shipyardDoor.menu] : [])];
+    const solo = [this.shipyardDoor, this.boatsBoard].filter((b): b is ShipyardDoor => !!b);
+    const n = this.yardBoards.length + this.shipyardSigns.length + solo.length;
+    if (this.boardMenuList.length !== n) this.boardMenuList = [...this.yardBoards.map((b) => b.menu), ...this.shipyardSigns.map((s) => s.menu), ...solo.map((s) => s.menu)];
     return this.boardMenuList;
   }
   private boardMenuList: WristMenu[] = [];

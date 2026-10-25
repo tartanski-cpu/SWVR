@@ -664,6 +664,8 @@ On desktop, aim the **+** reticle at a control. Click buttons and switches. Clic
 
 **Hulls look used.** Every hull wears a little weathering: the paint faded in soft patches, a band of grime along the waterline, a dirt line under the deck edge with rust runs down from it, and fender scuffs low down. It shows most on a light hull (rust runs orange on white; on navy it's a faint dark streak). How used a boat looks is to be a Shipyard choice, new or well used; until that's in, every boat is "used".
 
+**Your boats on the quay.** Beside each Shipyard sign stands a **Your boats** board: the Shipyard favourites saved in this browser, five to a page, each with its button to take her out (in the career a 5-minute sea trial, or at a boatyard buy her; the game starts again in her). The same list is under Menu → Office → Your boats, with a keypad for a code.
+
 **Into the Shipyard from the game.** A **Shipyard** sign stands on the quay at every career harbour (and beside the planning table in Voyage): walk up to it and press **Open the Shipyard** to refit your boat or design her anew, on your own or hosting with no crew aboard. In the career the refit costs the difference in price when you come back. The boatyards' boards have the same button.
 
 Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html (work in progress). The page is dark, easy on the eyes next to the game. It works like a designer's tool, in steps along the bar under the title: **Brief → Hull → Wheelhouse → Deck gear → Furniture → Engine → Controls → Paint → Trials & handover**. **← Back** and **Next** sit at either end of the bar, or click a step. In a session everyone moves together: when anyone changes step, everyone goes there, and the bar says who moved you.
