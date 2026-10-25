@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Career: Brannock Pier the deep-water berth; deep boats start there (25 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "We need a new deep water harbour on the career map. The new tugboat's got about 5.5 metres draft minimum. And we're going to have vessels with up to 10 ... Maybe just make Brannock Pier the deep water one, where by default bigger ships spawn in." Asked: keep the pier as it is (its 50 m T-head), and choose the start by draught.
 
 - **Measured first:** Brannock's T-head already has 35 to 37 m of water alongside (the island's slope), and 35 m along its seaward face; Calder Haven's basin is 4.5 m. So no dredging; nothing in `home.ts` changes.
