@@ -52,7 +52,7 @@ import { regionAt } from '../world/regions';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { createRescueState, nearestPort, sayRadio } from '../rescue/rescue';
 import { formatPosition } from '../nav/geo';
-import { logOf, salvageStatus, stepLog } from '../salvage/salvage';
+import { logMass, logOf, salvageStatus, stepLog } from '../salvage/salvage';
 import { earn, hasUpgrade } from '../career/career';
 
 export interface TowJob {
@@ -523,7 +523,7 @@ function lineForce(world: WorldState, v: VesselState, line: TowLine, out: Map<En
   else if (log) vB.set(log.vel[0], 0, log.vel[1]);
   else vB.set(line.vel?.[0] ?? 0, 0, line.vel?.[1] ?? 0);
   const rate = vB.sub(pointVelocity(v, pA, vA)).dot(dir);
-  const mT = t ? VESSEL_DEFS[t.defId].mass : log ? CONFIG.salvage.mass : cfg.debris.mass;
+  const mT = t ? VESSEL_DEFS[t.defId].mass : log ? logMass(log) : cfg.debris.mass;
   const m = (defV.mass * mT) / (defV.mass + mT);
   const c = 2 * cfg.dampingRatio * Math.sqrt(cfg.stiffness * m);
   const T = Math.max(0, cfg.stiffness * stretch + c * rate);
