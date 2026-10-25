@@ -61,3 +61,29 @@ describe('to the Shipyard and back', () => {
     expect(isSeaTrial('career', '', small)).toBe(false); // her own boat, no design on the address
   });
 });
+
+describe('the Your boats board stays cheap (owner, Oct 2026: 2 fps on the Quest standing by it)', () => {
+  it('a design is priced once: asked again, the price is remembered', () => {
+    const code = designToken(FLEET[0].design);
+    const t0 = performance.now();
+    const first = designPrice(code);
+    const t1 = performance.now();
+    for (let i = 0; i < 50; i++) expect(designPrice(code)).toBe(first);
+    const t2 = performance.now();
+    expect(first).not.toBeNull();
+    // Fifty more asks cost less than the one build did.
+    expect(t2 - t1).toBeLessThan(t1 - t0);
+  });
+
+  it('the favourites are read from storage at most once a second, and afresh after saving one', async () => {
+    const { ShipyardCodes } = await import('../src/shipyard/takeHer');
+    let reads = 0;
+    const m = new Map<string, string>();
+    const store = { getItem: (k: string) => (reads++, m.get(k) ?? null), setItem: (k: string, v: string) => void m.set(k, v) };
+    const codes = new ShipyardCodes(() => store);
+    for (let i = 0; i < 20; i++) codes.favourites();
+    expect(reads).toBe(1);
+    codes.saveBoat(designToken(FLEET[0].design), 'Test', '');
+    expect(codes.favourites().map((f) => f.name)).toEqual(['Test']);
+  });
+});

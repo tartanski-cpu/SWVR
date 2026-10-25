@@ -69,8 +69,23 @@ export class ShipyardCodes {
 
   constructor(private readonly store: () => Store | null) {}
 
+  /**
+   * The favourites saved in this browser: read from storage at most once a second (each read
+   * parses every favourite and her picture, and the Your boats board asks every frame).
+   */
   favourites(): Favourite[] {
-    return readFavourites(this.store());
+    const now = Date.now();
+    if (!this.cached || now - this.readAt > 1000) {
+      this.cached = readFavourites(this.store());
+      this.readAt = now;
+    }
+    return this.cached;
+  }
+  private cached: Favourite[] | null = null;
+  private readAt = 0;
+  /** Read them afresh next time (one was just saved or removed here). */
+  forget(): void {
+    this.cached = null;
   }
 
   /** The favourite at row `i` of the page shown, if any. */
@@ -107,9 +122,11 @@ export class ShipyardCodes {
    * hand): her design code, a name, a line of her figures, no picture. Says what it did.
    */
   saveBoat(code: string, name: string, summary: string, now = Date.now()): string {
-    const list = this.favourites();
+    // (Read afresh, not the once-a-second copy: nothing saved meanwhile is lost.)
+    const list = readFavourites(this.store());
     const r = saveBoatFavourite(list, code, name, summary, now);
     if (!r.list) return r.text;
+    this.forget();
     return writeFavourites(this.store(), r.list) ? r.text : 'This browser won’t save (private window, or storage switched off)';
   }
 

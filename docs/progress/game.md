@@ -10,6 +10,11 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fix: 2 fps standing by the Your boats board, with favourites saved (25 Oct 2026)
+
+Owner: the career at about 2 fps on the Quest, and desktop Chrome barely moving; Edge fine. The cause: the **Your boats** board (beside every Shipyard sign, since 25 Oct, 6fa7b0f), shown whenever you're near one (you start a career beside one), works out its page every frame. For each of its four rows that meant reading every favourite back from storage (their pictures too) and, for the "Buy her (£…)" label, **building both your boat and the favourite from scratch** to price them: about 100 ms a frame on a desktop with eight favourites, several times that on the Quest. Edge had no favourites saved, nor had the test browser, so neither showed it. Now `designPrice` (app/shipyardTrip.ts) remembers each code's price (up to 64; a code always builds the same boat), and `ShipyardCodes.favourites()` (shipyard/takeHer.ts) reads the list at most once a second (afresh after saving one in the game). Measured in a headless browser with eight favourites: about 96 ms of work a frame before, under 1 ms after. The menu's Office > Your boats page had the same cost while open and is fixed by the same. Tests: tests/shipyardTrip.test.ts, 2 new. All of `npm test`: 1561 passing.
+- **Shared changes:** none (`src/shipyard/takeHer.ts` is the Shipyard area's file, but this is its in-game Your boats list: a small cache, nothing else changed in it).
+
 ### Debug: +£50,000 (25 Oct 2026)
 
 Owner: a +50k on the money in the debug menu, to have enough to test with. Debug → Missions → Career → **+£50,000**, beside +£5000, rep (`careerDebugCash` with value 50000: that much money alone, no reputation). Test: tests/projects.test.ts, 1 new.
