@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) A TV on the wall
+
+Furniture kind `tv` (`tvAt`, `tvAt2`; not in the code): on the nearest wall at seated eye height, over low furniture but clear of doorways and tall pieces (`parts/furniture.ts`, `CONFIG.shipyard.furniture.tvCeiling` / `tvLowest`); menu entry, icon and about text (`furnishing.ts`, `gearMenu.ts`), ghost height (`placing.ts`); the Add button's limit says each piece's own count (`page.ts`). Also: "moved along the wall to fit" now counts only movement along the wall, not being put back against it. See `docs/progress/modules.md`.
+
 ### (From the modular-builder chat) Twelve seats, each turnable
 
 For the crew-transfer catamaran's rows of seats: `design.ts` has seat fields `seatAt5`..`seatAt12` and a facing per seat (`seatFace`..`seatFace12`, 0-7 in 45 degree steps; `SEAT_FACES`, `seatYawDeg`), none in the code; `furnishing.ts` adds `turnSeat` and moves facings up with the seats in `removeFurniture`; `parts/furniture.ts` turns a seat's footprint and socket by its facing; `page.ts` has a Turn button on seat rows. See `docs/progress/modules.md`.

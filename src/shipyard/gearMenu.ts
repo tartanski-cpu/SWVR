@@ -54,6 +54,7 @@ export const GEAR_ABOUT: Record<string, string> = {
   bunk: 'Two berths one over the other, for the crew: a lee rail on the upper one, rungs up to it. Needs headroom to sit up in the top bunk.',
   mess: 'A table against a wall with a bench at each end: where the crew eat. Put it by the galley.',
   shower: 'A shower stall with a curtain, to the ceiling.',
+  tv: 'A flat-screen TV on a wall bracket. In the game, on a desktop, click it to show one of your browser tabs on it (a video, a map): everyone aboard sees it.',
 };
 
 /** How it goes on her (above). */
@@ -78,6 +79,8 @@ export const GEAR_ICONS: Record<string, string> = {
   mess: svg('<path d="M8 11h8M12 11v8M3 6v13M3 15h4v4M21 6v13M21 15h-4v4"/>'),
   // The stall, its rose and the curtain.
   shower: svg('<path d="M5 3v18M19 3v18M5 21h14M9 5h4v2M11 7v1M9.5 10l-.5 1.5M12 10v1.5M14.5 10l.5 1.5M5 4h8"/>'),
+  // The screen on its bracket, a play mark on it.
+  tv: svg('<rect x="3" y="5" width="18" height="11" rx="1"/><path d="M10.5 8.5v4l3.5-2zM12 16v3M8 20h8"/>'),
   // The ring, its shank and stock, the curved arms with their flukes.
   anchor: svg('<circle cx="12" cy="4.5" r="2"/><path d="M12 6.5V20.5M8.5 9.5h7M5 13.5c0 4 3 7 7 7s7-3 7-7M3.5 15l1.5-1.5 1.5 1.5M17.5 15l1.5-1.5 1.5 1.5"/>'),
   // The ring and its four bands of tape.

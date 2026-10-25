@@ -183,6 +183,9 @@ import { electedHost } from '../net/takeover';
 import { PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
 import type Peer from 'peerjs';
 import { VoiceChat, type VoiceSpeaker } from '../net/voice';
+import { canShowTab, TvCast } from '../modules/furniture/tvCast';
+import { TvScreen } from '../modules/furniture/tvScreen';
+import { tvKey } from '../modules/furniture/tvState';
 import { APP_BUILD } from '../build';
 import { RadioHandset } from '../player/radioHandset';
 import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
@@ -190,7 +193,7 @@ import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
 import { fuelTankL } from '../vessel/fuelTank';
 import { consumeReturn, issueId, newHandoffId, outboundUrl, takeEnvelope, type Envelope, type MetaverseSite } from '../voyage/metaverse';
-import { bargeFromCamp, bargesKey, bargesToSave, HotspotWatch, merchantsOn, parseBarges, positionFor, restoreBarges, saleOffer, saleText, sellBarge, sitesOn, hotspotAt } from '../voyage/timber';
+import { bargesKey, bargesToSave, HotspotWatch, logsFromCamp, merchantsOn, parseBarges, parseTimberLogs, positionFor, restoreBarges, restoreTimberLogs, saleOffer, saleText, sellBarge, sitesOn, hotspotAt, timberLogsKey, timberLogsToSave } from '../voyage/timber';
 import { TimberView } from '../voyage/timberView';
 
 /**
@@ -708,6 +711,10 @@ export class App {
   private hostPeerId = '';
   /** Voice with the crew (net/voice.ts), while in a game with others. */
   private voice: VoiceChat | null = null;
+  /** Browser tabs shown on the boats' TVs (modules/furniture/tvCast.ts): ours, and what the crew send. */
+  private readonly tvCast = new TvCast(() => this.sound.engine.context ?? null);
+  /** Every TV in the scene, by its name in the world (filled each frame). */
+  private readonly tvScreens = new Map<string, TvScreen>();
   /** Your microphone off (Crew menu); kept across games. */
   private voiceMuted = false;
   /** The handheld VHF on your chest (player/radioHandset.ts). */
@@ -954,6 +961,7 @@ export class App {
     this.updateSceneViews(dt, renderTime, darkness);
     this.updateBoardsAndSaves(dt);
     this.updateCrewViews(dt, inXR, darkness);
+    this.updateTv();
     this.updateHullSounds(dt, slam, lap);
     this.menu.refresh();
     this.host?.tick(dt);
@@ -1368,6 +1376,40 @@ export class App {
     this.sound.whistle.setListener(this.focus, this.listenerFwd, this.listenerUp);
     this.updateVoice();
     this.updateHandsetSound();
+  }
+
+  /**
+   * A TV pressed (modules/furniture/tv*.ts): on a desktop, the browser's picker for a tab to show on it, and
+   * the world told (everyone's TV then shows it); pressed again, ours stops. In VR there's no
+   * tab to pick: it says so.
+   */
+  private pressTv(vesselId: string, socketId: string): void {
+    const key = tvKey(vesselId, socketId);
+    if (this.tvCast.showing === key) {
+      this.tvCast.stop();
+      return this.pushIntentTo(vesselId, 'tvCast', 0, socketId);
+    }
+    if (this.renderer.xr.isPresenting || !canShowTab()) return this.overlay.notify('Show a browser tab on the TV from a desktop browser: here you can watch it', 4);
+    // The browser's own stop button (its "Stop sharing" bar): the TV goes dark for everyone.
+    this.tvCast.onStopped = (k) => this.pushIntentTo(k.slice(0, k.indexOf('/')), 'tvCast', 0, k.slice(k.indexOf('/') + 1));
+    // The picker needs the mouse back.
+    if (document.pointerLockElement) document.exitPointerLock();
+    void this.tvCast.start(key).then((ok) => {
+      if (ok) this.pushIntentTo(vesselId, 'tvCast', 1, socketId);
+    });
+  }
+
+  /** Each frame: every TV shows its tab (ours, a crew-mate's) or goes dark (modules/furniture/tvCast.ts). */
+  private updateTv(): void {
+    const tvs = this.tvScreens;
+    tvs.clear();
+    for (const [id, b] of this.boats) for (const c of b.controls) if (c instanceof TvScreen) tvs.set(tvKey(id, c.socketId), c);
+    const casts = this.world.tv?.casts ?? {};
+    if (!tvs.size && !this.tvCast.showing) return;
+    const inGame = !!this.host || this.client?.status === 'connected';
+    this.tvCast.attach(inGame ? this.netPeer : null);
+    const crew = inGame ? Object.values(this.world.players).flatMap((p) => (p.id !== this.localPlayerId && p.peerId ? [{ peerId: p.peerId }] : [])) : [];
+    this.tvCast.update(casts, this.localPlayerId, crew, tvs, this.focus);
   }
 
   /**
@@ -3921,6 +3963,9 @@ export class App {
       (channel, value) => {
         // A berth: lie down in it, or get up (yours, not the boat's: nothing goes to her).
         if (channel === 'berthRest' || channel.endsWith(':berthRest')) return this.toggleRest();
+        // A TV: show one of your browser tabs on it, or stop yours.
+        const tv = this.routeChannel(channel);
+        if (tv.control.startsWith('tvCast.')) return this.pressTv(tv.vesselId, tv.control.slice('tvCast.'.length));
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
@@ -5142,9 +5187,10 @@ export class App {
     this.rememberT = 0;
     const v = this.world.vessels[this.testVesselId];
     if (v) rememberPlace(VOYAGE_MAP_ID, placeOf(this.world, v, this.localPlayerId));
-    // The timber run's barges (voyage/timber.ts). Not the money: Voyage's money is this session's only.
+    // The timber run's logs on the beach and barges (voyage/timber.ts). Not the money: Voyage's money is this session's only.
     try {
       localStorage.setItem(bargesKey(VOYAGE_MAP_ID), JSON.stringify(bargesToSave(this.world, this.testVesselId, headingOf)));
+      localStorage.setItem(timberLogsKey(VOYAGE_MAP_ID), JSON.stringify(timberLogsToSave(this.world)));
     } catch {
       // Not saved.
     }
@@ -5162,8 +5208,8 @@ export class App {
   }
 
   /**
-   * Voyage: the timber run set up (voyage/timber.ts). The barges saved for this map
-   * back, and if we're back from the camp with a barge, it at the site's spawn on our line;
+   * Voyage: the timber run set up (voyage/timber.ts). The logs and barges saved for this map
+   * back, and if we're back from the camp with logs, they're laid on the site's beach;
    * the bay's buoy and the merchant on the chart; the screen faded in if we came back.
    */
   private setupTimber(back: Envelope | null): void {
@@ -5180,15 +5226,20 @@ export class App {
     if (back) setTimeout(() => (this.fade.style.opacity = '0'), 400);
     const v = this.world.vessels[this.testVesselId];
     try {
-      if (!START_PARAMS.has('start')) restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
+      if (!START_PARAMS.has('start')) {
+        restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
+        restoreTimberLogs(this.world, parseTimberLogs(localStorage.getItem(timberLogsKey(VOYAGE_MAP_ID))));
+      }
     } catch {
       // Storage blocked: none.
     }
     const site = back && this.timberSites.find((s) => s.id === back.site);
     if (back && site && v) {
-      if (back.status === 'barge_ready' && back.cargo.logs > 0 && bargeFromCamp(this.world, site, v, back.cargo.logs)) {
+      // `barge_ready` (the contract's first name for it): logs to collect, laid on the beach.
+      const laid = back.status === 'barge_ready' && back.cargo.logs > 0 ? logsFromCamp(this.world, site, back.cargo.logs) : 0;
+      if (laid) {
         const m = merchantsOn(VOYAGE_MAP_ID)[0];
-        this.timberNote = `Back aboard from the timber camp: a barge of ${back.cargo.logs} logs on your towline.${m ? ` Tow her to ${m.name} to sell.` : ''}`;
+        this.timberNote = `Back aboard from the timber camp: ${laid} ${laid === 1 ? 'log' : 'logs'} on the beach at the head of the bay (LOG on the plotter). Put a line on one, pull it off and tow it${m ? ` to ${m.name}` : ''} to sell.`;
       } else this.timberNote = 'Back aboard from the timber camp.';
       this.rememberT = Infinity;
       this.rememberVoyagePlace(0);

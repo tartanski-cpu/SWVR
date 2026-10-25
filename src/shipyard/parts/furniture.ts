@@ -40,16 +40,16 @@ const overlaps = (a: Rect, b: Rect) => a[0] < b[1] && b[0] < a[1] && a[2] < b[3]
  * first), their field, their place's id and their name in words: "the berth", the second
  * one "berth 2" (furnitureSocketId, furnitureName).
  */
-const PIECES: { kind: FurnitureKind; key: FurnitureKey; id: string; name: string }[] = (['head', 'shower', 'locker', 'bunk', 'galley', 'mess', 'settee', 'berth', 'seat'] as const).flatMap((kind) =>
+const PIECES: { kind: FurnitureKind; key: FurnitureKey; id: string; name: string }[] = (['head', 'shower', 'locker', 'bunk', 'galley', 'mess', 'settee', 'berth', 'seat', 'tv'] as const).flatMap((kind) =>
   FURNITURE_SLOTS[kind].map((key, i) => ({ kind, key, id: furnitureSocketId(kind, i), name: furnitureName(kind, i) })),
 );
 /** A piece's place id: furniture.berth for the first, furniture.berth2 for the second. */
 export function furnitureSocketId(kind: FurnitureKind, i: number): string {
   return `furniture.${kind}${i ? i + 1 : ''}`;
 }
-/** A piece's name in words: berth, berth 2. */
+/** A piece's name in words: berth, berth 2 (a TV: TV, TV 2). */
 export function furnitureName(kind: FurnitureKind, i: number): string {
-  return `${kind}${i ? ` ${i + 1}` : ''}`;
+  return `${kind === 'tv' ? 'TV' : kind}${i ? ` ${i + 1}` : ''}`;
 }
 
 /**
@@ -85,18 +85,20 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     floors.push({ name: 'the cabin below', y: cabin.sole, z0, z1: cabin.stair.z0, half: (z) => planHalfWidth(cabin.plan, z), ceiling: (z) => (z < cabin.ceiling.front ? cabin.ceiling.trunk : cabin.ceiling.house), aftWall: false });
   }
   // ── What's in the way (in plan), on the wheelhouse's floors (`house`) or the cabin's sole ──
-  const blocked: { rect: Rect; house: boolean }[] = [];
+  // (`tall`: in the way of a TV on the wall over it too: a doorway, a piece to the ceiling, another TV.
+  // A TV hangs over the rest: a settee, a berth, the chart table.)
+  const blocked: { rect: Rect; house: boolean; tall?: boolean }[] = [];
   const inHouse = (...rects: Rect[]) => blocked.push(...rects.map((rect) => ({ rect, house: true })));
   // The helm's standing room behind the console, and the aft door's way in (and its steps inside).
   inHouse([cx - fc.helmRoom.halfWidth, cx + fc.helmRoom.halfWidth, cf, cf + 0.5 + fc.helmRoom.depth]);
-  inHouse([-fc.doorWay.halfWidth, fc.doorWay.halfWidth, aft - wall - fc.doorWay.depth, aft + 0.1]);
-  if (sideDoor) inHouse([-inside - 0.1, -inside + fc.doorWay.depth, sideDoor.z0 - 0.15, sideDoor.z1 + 0.15]);
+  blocked.push({ rect: [-fc.doorWay.halfWidth, fc.doorWay.halfWidth, aft - wall - fc.doorWay.depth, aft + 0.1], house: true, tall: true });
+  if (sideDoor) blocked.push({ rect: [-inside - 0.1, -inside + fc.doorWay.depth, sideDoor.z0 - 0.15, sideDoor.z1 + 0.15], house: true, tall: true });
   // (Laid out in the house's own frame: what's in her axes, the chart table and the hatch, taken across into it; housePart `hx`.)
   if (chartTableAt) inHouse([chartTableAt[0] - hx, chartTableAt[0] - hx + ctab.width + fc.chartRoom, chartTableAt[2] - 0.05, chartTableAt[2] + ctab.depth + 0.05]);
   for (const h of layout.wheelhouse?.floorHoles ?? []) inHouse([h.x0 - fc.holeClear, h.x1 + fc.holeClear, h.z0 - fc.holeClear, h.z1 + fc.holeClear + 0.4]);
   const eh = layout.engineHatch;
   if (eh && eh.y === undefined) inHouse([eh.x0 - hx - 0.1, eh.x1 - hx + 0.1, eh.z0 - 0.1, eh.z1 + 0.1]);
-  for (const pipe of stack?.pipes ?? []) inHouse([pipe.x - 0.3, pipe.x + 0.3, pipe.z - 0.3, pipe.z + 0.3]);
+  for (const pipe of stack?.pipes ?? []) blocked.push({ rect: [pipe.x - 0.3, pipe.x + 0.3, pipe.z - 0.3, pipe.z + 0.3], house: true, tall: true });
 
   const furnitureSockets: Socket[] = [];
   const furnitureMounts: Mount[] = [];
@@ -154,7 +156,8 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
       return w === 'port' ? [-half, -half + D, z0, z1] : [half - D, half, z0, z1];
     };
     const onHouse = floor !== floors.find((f) => f.name === 'the cabin below');
-    const clear = (r: Rect) => !blocked.some((b) => b.house === onHouse && overlaps(r, b.rect));
+    const tv = piece.kind === 'tv';
+    const clear = (r: Rect) => !blocked.some((b) => b.house === onHouse && (!tv || b.tall) && overlaps(r, b.rect));
     let found: { wall: Wall; rect: Rect } | null = null;
     for (const w of walls) {
       const along = w === 'aft' ? px : w === 'free' ? px : pz;
@@ -194,11 +197,19 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
       furnitureWhy[piece.key] = `only ${ceiling.toFixed(2)} m under the ceiling here (a berth fits lower)`;
       continue;
     }
-    const height = r2(piece.kind === 'head' || piece.kind === 'locker' || piece.kind === 'shower' ? ceiling - mf.ceilingGap : piece.kind === 'berth' ? mf.berth.top + mf.berth.cushion : piece.kind === 'settee' ? mf.settee.back : piece.kind === 'galley' ? mf.galley.top : piece.kind === 'bunk' ? mf.bunk.upper + mf.bunk.cushion + mf.bunk.rail : piece.kind === 'mess' ? mf.mess.back : mf.seat.back);
+    // A TV's height is its middle's over the floor: its own, or lower to clear a low ceiling.
+    const tvMid = Math.min(mf.tv.centre, ceiling - mf.tv.screenH / 2 - fc.tvCeiling);
+    if (tv && tvMid - mf.tv.screenH / 2 < fc.tvLowest) {
+      warnings.push(`There's only ${ceiling.toFixed(2)} m of headroom for the ${piece.name} in ${floor.name}: left off.`);
+      furniturePlaced[piece.key] = null;
+      furnitureWhy[piece.key] = `only ${ceiling.toFixed(2)} m of headroom here`;
+      continue;
+    }
+    const height = r2(tv ? tvMid : piece.kind === 'head' || piece.kind === 'locker' || piece.kind === 'shower' ? ceiling - mf.ceilingGap : piece.kind === 'berth' ? mf.berth.top + mf.berth.cushion : piece.kind === 'settee' ? mf.settee.back : piece.kind === 'galley' ? mf.galley.top : piece.kind === 'bunk' ? mf.bunk.upper + mf.bunk.cushion + mf.bunk.rail : piece.kind === 'mess' ? mf.mess.back : mf.seat.back);
     // Its turn: its back (+z its axes) to the wall.
     // (A seat as it's turned: design.seatFace.)
     const yaw = found.wall === 'starboard' ? 90 : found.wall === 'port' ? -90 : piece.kind === 'seat' ? seatYawDeg(face) : 0;
-    blocked.push({ rect: [x0 - 0.02, x1 + 0.02, z0 - 0.02, z1 + 0.02], house: onHouse });
+    blocked.push({ rect: [x0 - 0.02, x1 + 0.02, z0 - 0.02, z1 + 0.02], house: onHouse, tall: tv || piece.kind === 'head' || piece.kind === 'shower' || piece.kind === 'locker' || piece.kind === 'bunk' });
     const id = piece.id;
     const where = `${floor.name[0].toUpperCase()}${floor.name.slice(1)}, ${found.wall === 'free' ? `standing free, facing ${FACINGS[face]}` : `against the ${found.wall} wall`}`;
     const put: V3 = [r2(mid[0] + hx), mid[1], mid[2]];
@@ -206,7 +217,9 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     const config: FurnitureConfig = { kind: piece.kind, length: L, depth: D, height };
     furnitureMounts.push({ socket: id, module: 'furniture.piece', config: config as unknown as Record<string, unknown> });
     furnitureKg += size.kg;
-    furniturePlaced[piece.key] = { x: put[0], z: mid[2], moved: Math.hypot(mid[0] - px, mid[2] - pz) > fc.movedOver };
+    // Moved: along its wall (put back against the wall it's always; a free seat, any way).
+    const off = found.wall === 'free' ? Math.hypot(mid[0] - px, mid[2] - pz) : found.wall === 'aft' ? Math.abs(mid[0] - px) : Math.abs(mid[2] - pz);
+    furniturePlaced[piece.key] = { x: put[0], z: mid[2], moved: off > fc.movedOver };
   }
   // The cabin below's V-berth (drawn with her, hullMesh.ts): a place to lie down in it and rest
   // (owner, Oct 2026: "the berth ... in the cabin which appears under the wheelhouse"; modules/furniture REST_SPOT).
