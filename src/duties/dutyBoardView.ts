@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import type { Duty } from './duties';
 import { contractText, money } from '../career/career';
+import { projectBoardLines } from '../career/projects';
 import { part } from '../render/geometryUtils';
 
 const CW = 1024;
@@ -55,13 +56,15 @@ export class DutyBoardView {
     const k = c?.active;
     const head = c ? money(c.money) : '';
     const contract = k ? `Contract: ${contractText(k)} ${k.done}/${k.count}, ${Math.max(0, Math.round(((k.due ?? 0) - world.time) / 60))} min left` : '';
-    const sig = JSON.stringify([items.map((d) => [d.id, d.doneAt !== undefined, d.steps.map((s) => s.done)]), fc?.receivedAt ?? null, head, contract, note]);
+    // The construction project under way (career/projects.ts), under the contract: its stage, the next job.
+    const project = projectBoardLines(world);
+    const sig = JSON.stringify([items.map((d) => [d.id, d.doneAt !== undefined, d.steps.map((s) => s.done)]), fc?.receivedAt ?? null, head, contract, note, project]);
     if (sig === this.signature) return;
     this.signature = sig;
-    this.draw(items, fc, head, contract, note);
+    this.draw(items, fc, head, contract, note, project);
   }
 
-  private draw(items: Duty[], fc: { text: string; receivedAt: string } | null, head = '', contract = '', note = ''): void {
+  private draw(items: Duty[], fc: { text: string; receivedAt: string } | null, head = '', contract = '', note = '', project: string[] = []): void {
     const g = this.g;
     const H = this.ch;
     // Board: dark green, chalky lettering.
@@ -90,6 +93,19 @@ export class DutyBoardView {
       g.fillStyle = '#8ad8ff';
       g.fillText(contract, 28, y);
       y += 46;
+    }
+    if (project.length) {
+      // Orange, as the project's on the plotter is magenta and the contract blue; cut to fit.
+      g.fillStyle = '#ffb870';
+      project.forEach((line, i) => {
+        if (!line) return;
+        g.font = `${i === 0 ? 'bold ' : ''}28px system-ui, sans-serif`;
+        let t = line;
+        while (t.length > 8 && g.measureText(t).width > CW - 56) t = t.slice(0, -2);
+        g.fillText(t === line ? t : `${t.trimEnd()}…`, 28, y);
+        y += 40;
+      });
+      y += 6;
     }
     const bottom = forecastTop - 20;
     if (!items.length) {

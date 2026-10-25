@@ -11,7 +11,7 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld, type WorldState } from '../src/core/world';
 import { parseCareer, serializeCareer } from '../src/career/career';
-import { activeProject, foundations, installAt, isProjectItem, jackUpAt, laidMarks, layProjectBuoy, projectOffered, stepProjects, towId } from '../src/career/projects';
+import { activeProject, foundations, installAt, projectBoardLines, isProjectItem, jackUpAt, laidMarks, layProjectBuoy, projectOffered, stepProjects, towId } from '../src/career/projects';
 import { useDesign } from '../src/boats/sims';
 import { craneStateOf, cranesOf, hookOnBoat } from '../src/cargo/craneHook';
 import { DEFAULT_DESIGN } from '../src/shipyard/design';
@@ -70,6 +70,14 @@ describe('construction projects', { timeout: 30000 }, () => {
     expect(activeProject(world)!.p.stage).toBe(0);
     send('careerProjectStage');
     expect(activeProject(world)!.p.stage).toBe(1);
+  });
+
+  it('in short (the Jobs page, the duty board): the stage, the jobs left, the next one', () => {
+    const { world, send } = taken();
+    expect(projectBoardLines(world)).toEqual([`Project: Tarran Rig, stage 1 of ${def.stages.length}: Survey the site, 4 of 4 jobs left`, 'Next: Survey line 1 (north) (any order: Menu > Office > Projects)']);
+    for (let i = 0; i < def.stages.length; i++) send('careerProjectStage');
+    expect(projectBoardLines(world)[0]).toBe(`Project: Tarran Rig, stages 1-${def.stages.length} done`);
+    expect(projectBoardLines(setup().world)).toEqual([]);
   });
 
   it('a survey line counts only run along it, close to it, at survey speed; the whole of it run, it is paid', () => {

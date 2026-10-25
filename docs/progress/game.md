@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Projects: what's next, on the Jobs page and the duty board (25 Oct 2026)
+
+Owner: where do I see what to do next in the project, and whether I've another mission on at the same time? It was only on Office > Projects. Now `projectBoardLines` (career/projects.ts) gives it in two short lines (the stage, its jobs left; the next job, and that a stage's jobs go in any order), shown on Office > **Jobs** under the contract (a Project heading; "None under way" otherwise) and on the **duty board** under the contract line, in orange (duties/dutyBoardView.ts; words and counts only, so the board still redraws only when it changes). The beginner boat has no duty board (nor chartplotter: basic controls), so the Jobs page is the one every boat has. Test: tests/projects.test.ts, 1 new; the board drawn headless with the project at stage 5.
+
 ### (From the modular-builder chat) The Your boats board reads the favourites as you walk up, not every second (25 Oct 2026)
 
 Owner, after the 2 fps fix: "It still doesn't sound very efficient to read it every second. Is it not a case of reading them when you walk up to the board?" The favourites (`ShipyardCodes.favourites`, `src/shipyard/takeHer.ts`) are now kept from the last read with no time limit, and read again only when they may have changed: as you come up to a Your boats board (`ShipyardDoor.onOpen`, set by `ShipyardDoor.boats`: `src/ui/shipyardDoor.ts`), when one is saved in the game (`saveBoat`, as before), and when the Shipyard in another tab saves or removes one (the browser's `storage` event for `swvr.shipyard.favourites`). The prices stay remembered as before. Test: `tests/shipyardTrip.test.ts` (one read over 200 frames; once more walking up to the board, kept while it's up; away and back, once more). Not checked by hand: the Shipyard in another tab saving one while the game is open (the browser's own event).

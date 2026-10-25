@@ -19,7 +19,7 @@ import {
 import { tutorialLine } from '../career/tutorial';
 import { PORTS } from '../world/archipelago';
 import { MODE } from '../mode';
-import { activeProject, jobStatus, projectBlocker, projectOffered } from '../career/projects';
+import { activeProject, jobStatus, projectBlocker, projectBoardLines, projectOffered } from '../career/projects';
 
 /**
  * Career save slots (phase 3): swvr.fleetCareer.1..3, and which one is in use. Careers in the
@@ -230,6 +230,7 @@ export class CareerSession {
         const offer = projectOffered(w());
         if (offer && !projectBlocker(w(), offer)) h.pushEnv('careerProjectAccept', 1, offer.id);
       },
+      projectSummary: (i: number) => projectBoardLines(w())[i] ?? '',
       projectLine: (i: number) => {
         const a = activeProject(w());
         const job = a?.jobs[i];

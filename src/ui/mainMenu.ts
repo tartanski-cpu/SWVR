@@ -167,6 +167,8 @@ export interface MenuHost {
   projectAction(): string;
   projectAccept(): void;
   projectLine(i: number): string;
+  /** The project under way in short: line 0 its stage and jobs left, line 1 the next job ('' none). */
+  projectSummary(i: number): string;
   debugProjectStage(): void;
   /** Phase 2: the hull and engine (0 'hull', 1 'engine'): state and cost, why not, mend it. */
   repairText(i: number): string;
@@ -545,6 +547,11 @@ export function mainMenu(h: MenuHost): MainMenu {
         { label: '', buttons: [{ text: 'Add-ons, upgrades, repairs: the boatyard on the Calder Haven quay', weight: 3 }] },
         { heading: 'Contract' },
         { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+        // The construction project under way, alongside the contract (owner: what's next, and
+        // what else is on); each job's state is on the Projects page.
+        { heading: 'Project' },
+        { label: '', buttons: [{ text: () => h.projectSummary(0) || 'None under way (see the Projects page)', weight: 3 }] },
+        { label: '', buttons: [{ text: () => h.projectSummary(1), weight: 3 }] },
         { heading: 'Job board' },
         { label: '', buttons: [{ text: () => h.officeName() }] },
         ...[0, 1].map(

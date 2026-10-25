@@ -158,6 +158,22 @@ export function projectItemName(item: CargoItem): string {
 /** A tow's vessel id (it's in world.vessels while it waits and while it's towed). */
 export const towId = (def: ProjectDef, job: ProjectJobDef) => `proj-${def.id}-${job.id}`;
 
+/**
+ * The project under way in two short lines, for the duty board (duties/dutyBoardView.ts): the
+ * stage and how many of its jobs are left, then the next job's name. Only words and counts
+ * (no live percentages), so the board redraws only when it moves on. Empty: no project.
+ */
+export function projectBoardLines(world: WorldState): string[] {
+  const a = activeProject(world);
+  if (!a) return [];
+  const name = a.def.name.replace(/ wind farm$/, '');
+  const n = a.def.stages.length;
+  if (!a.jobs.length) return [`Project: ${name}, stages 1-${n} done`, 'Next stage coming in a later update'];
+  const left = a.jobs.filter((j) => !a.p.done.includes(j.id));
+  const next = left[0];
+  return [`Project: ${name}, stage ${a.p.stage + 1} of ${n}: ${a.def.stages[a.p.stage].name}, ${left.length} of ${a.jobs.length} jobs left`, next ? `Next: ${next.name}${left.length > 1 ? ' (any order: Menu > Office > Projects)' : ''}` : ''];
+}
+
 /** Where a tow is to be handed over: its turbine, or (none) the jack-up wherever she stands; and how near. */
 function handoverAt(world: WorldState, def: ProjectDef, job: TowJob): { x: number; z: number; r: number } | null {
   if (job.turbine !== undefined) {
