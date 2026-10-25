@@ -76,10 +76,20 @@ A backlog from the modular builder's research into real workboats; the detail is
 
 | Idea | Status | Notes |
 |---|---|---|
-| Crew transfer to wind farms: hold the bow against a turbine's landing while crew step across | **Open** | A bow fender module, a turbine, a transfer job. Later the same at a ferry's pilot ladder. |
+| Crew transfer to wind farms: hold the bow against a turbine's landing while crew step across | **Partly** | The bow fender (Shipyard, and the beginner boat's yard add-on), the Holm Rig wind farm and the transfer job are in. Later the same at a ferry's pilot ladder. |
 | Better casualty recovery: a frame over the side to lift them lying flat, a stretcher to carry them | **Open** | Builds on the rescues; a two-person carry in multiplayer. |
 | Navigation buoy maintenance | **Open** | Lift the buoy with the crane, chain on a deck stopper, fix its light, put it back. |
 | Landing craft equipment, vehicles as deck cargo | **Open (later)** | A vehicle you drive needs the owner's OK (a new physics body). |
+
+## Backlog (owner, 25 Oct 2026)
+
+Noted for later; not started.
+
+| Idea | Status | Notes |
+|---|---|---|
+| The favourites screen as an interactive board on the quayside | **Open** | Your saved boats (Menu → Office → Your boats today) on a board ashore, worked like the boatyard's board and the Shipyard sign: pick one and take her out. |
+| A thorough study of the multiplayer flow and the mission system | **Open** | A deep review (several agents) of joining, crewing, hosting and leaving, and of how missions are offered, taken, run and paid, solo and in multiplayer; findings ranked, for the owner to choose from. |
+| Pluto as an Easter egg somewhere | **Open** | Where and how it shows is to agree with the owner. |
 
 ## Follow-ups noted along the way
 
