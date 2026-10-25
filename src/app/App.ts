@@ -186,7 +186,7 @@ import { VoiceChat, type VoiceSpeaker } from '../net/voice';
 import { canShowTab, TvCast } from '../modules/furniture/tvCast';
 import { TvScreen } from '../modules/furniture/tvScreen';
 import { tvKey } from '../modules/furniture/tvState';
-import { APP_BUILD } from '../build';
+import { APP_BUILD, isNewerBuild } from '../build';
 import { RadioHandset } from '../player/radioHandset';
 import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
@@ -3188,8 +3188,22 @@ export class App {
         this.overlay.notify(`Hosting: game code ${code} (the page's address carries it: share the link)`, 5);
         // A crew-mate on a newer page than ours: they can't stay, and only we can put it right.
         this.host.onOtherBuild = (name, theirs) => {
-          this.netMessage = `${name}'s page is another build (${theirs}; yours ${APP_BUILD}): reload this page (Ctrl+F5) and host again`;
-          this.overlay.notify(this.netMessage, 10);
+          // Theirs newer: this page is behind (open since before the last update). Update it,
+          // hosting the same code again, the crew following (owner, Oct 2026: a crew-mate's
+          // newer page couldn't join and played alone). Theirs older: their page reloads itself.
+          // (Once: a page that came up still behind, the site's cache lagging, says so instead.)
+          const ours = this.world.build?.app ?? APP_BUILD; // (our page's: the stamp the crew see)
+          if (isNewerBuild(theirs, ours) && !START_FRESH) {
+            const url = new URL(location.href);
+            url.searchParams.set('fresh', '1');
+            url.searchParams.set('t', String(Date.now()));
+            this.overlay.notify(`${name} has a newer version of the game: updating this page, hosting game ${code} again (in VR: enter VR again)`, 8);
+            return this.restartPage(url);
+          }
+          this.netMessage = isNewerBuild(theirs, ours)
+            ? `${name}'s page is a newer build (${theirs}; yours ${ours}) and this page couldn't update: reload it (Ctrl+F5) and host again`
+            : `${name}'s page is another build (${theirs}; yours ${ours}): it reloads to catch up`;
+          this.overlay.notify(this.netMessage, 6);
         };
       },
       (e: { type?: string }) => {
@@ -3492,6 +3506,19 @@ export class App {
     }
     const theirs = world.build?.app;
     if (!theirs || theirs === APP_BUILD || theirs === 'dev' || APP_BUILD === 'dev') return true;
+    if (isNewerBuild(APP_BUILD, theirs)) {
+      // The host's page is the older one: reloading ours can't help. Its page updates itself
+      // when it sees ours (onOtherBuild) and hosts the same code again: wait and join it then.
+      const code = this.joinCode;
+      this.netMessage = 'The host\'s game is an older version: it is updating itself, joining again in a moment...';
+      this.overlay.notify(this.netMessage, 6);
+      this.leaveGame();
+      this.joinCode = code;
+      showGameOnAddress(code);
+      this.togetherTries = CONFIG.net.togetherTries;
+      setTimeout(() => this.joinGame(), CONFIG.net.olderHostRetryS * 1000);
+      return false;
+    }
     if (START_FRESH) {
       this.netMessage = `The host's game is another version (${theirs}; yours ${APP_BUILD}): the host reloads the page`;
       this.leaveGame();
@@ -3935,6 +3962,8 @@ export class App {
     } catch {
       // No storage: an empty board, no count.
     }
+    // Crew: the page closing or reloading says goodbye, so the host drops us now (HostSession).
+    window.addEventListener('pagehide', () => this.client?.close());
     // Started again to build the host's boat: join their game again.
     if (START_JOIN) {
       this.joinCode = START_JOIN;
