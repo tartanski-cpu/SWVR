@@ -93,21 +93,41 @@ export function leverDemand(def: EngineSpec, lever: number): { gear: -1 | 0 | 1;
  * running, it turns the key off. The real procedure is key on, wait for the GLOW lamp to go
  * out, START (ignitionStep).
  */
-export function toggleEngine(s: VesselState, def: EngineSpec): void {
+export function toggleEngine(s: VesselState, def: EngineSpec & { split?: boolean }): void {
   const e = s.engine;
+  // (Twin engines worked separately: both together, each from its own lever.)
+  const both = def.split ? [e, (e.stbd ??= starboardEngine(e))] : [e];
+  const levers = [s.controls.lever, s.controls.lever2 ?? s.controls.lever];
   if (e.phase === 'off') {
     if (!isPowered(s)) return; // no 12 V: the starter doesn't turn
     if (def.engine.startOnlyInNeutral && leverDemand(def, s.controls.lever).gear !== 0) return;
-    e.key = 1;
-    e.glow = preheatNeeded(s, def);
-    e.phase = 'cranking';
-    e.crank = 0;
-    e.autoCrank = true;
+    both.forEach((x, k) => {
+      if (k && def.engine.startOnlyInNeutral && leverDemand(def, levers[k]).gear !== 0) return;
+      if (k && x.phase !== 'off') return;
+      x.key = 1;
+      x.glow = preheatNeeded(s, def);
+      // (The starboard engine after the port one has caught: modules/dieselInboard.)
+      if (k) {
+        x.queued = true;
+        return;
+      }
+      x.phase = 'cranking';
+      x.crank = 0;
+      x.autoCrank = true;
+    });
   } else {
-    e.phase = 'off';
-    e.key = 0;
-    e.autoCrank = false;
+    for (const x of both) {
+      x.phase = 'off';
+      x.key = 0;
+      x.autoCrank = false;
+      x.queued = false;
+    }
   }
+}
+
+/** The starboard engine of a twin worked separately, made the first time: as the port one is, stopped. */
+export function starboardEngine(e: EngineState): EngineState {
+  return { ...e, stbd: undefined, phase: 'off', crank: 0, rpm: 0, rack: 0, gear: 0, shift: 0, fuelFlowLph: 0, glow: 0, autoCrank: false, queued: false };
 }
 
 /**

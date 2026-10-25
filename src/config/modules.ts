@@ -126,6 +126,13 @@ export const MODULES_CONFIG = {
     },
 
     /**
+     * control.twin-throttle (modules/twinThrottle; owner, Oct 2026): a lever for each engine of
+     * a twin worked separately (each as throttleLever above), `spacing` apart (m), and between
+     * their knobs a bright `grip` (`radius`, m; `colour`) that works both as one.
+     */
+    twinThrottle: { spacing: 0.16, grip: { radius: 0.019, colour: 0xffc21a } },
+
+    /**
      * console.standard (modules/console): the helm console's dash, pedestals and group
      * plates, and its SLOTS: where each control and screen sits. All positions are from the
      * console's reference point (its top, on the centreline, at its aft face; on the

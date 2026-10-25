@@ -405,6 +405,24 @@ const paintRpm: Painter = (g, s) => {
   if (!diesel) return;
   const rudder = gearOf(s, 'rudder');
   const e = s.engine;
+  // (A word for each engine's state and gear, and its colour.)
+  const gearOf2 = (x: typeof e) => (x.phase !== 'running' ? (x.phase === 'cranking' ? 'CRANKING' : 'ENGINE OFF') : x.gear === 1 ? 'AHEAD' : x.gear === -1 ? 'ASTERN' : 'NEUTRAL');
+  const colourOf2 = (x: typeof e) => (x.phase !== 'running' ? (x.phase === 'cranking' ? AMBER : RED) : x.gear === 1 ? GREEN : x.gear === -1 ? RED : AMBER);
+  if (e.stbd) {
+    // Twin engines worked separately: a line each, port then starboard.
+    title(g, 'ENGINES');
+    [e, e.stbd].forEach((x, k) => {
+      const y = 50 + k * 40;
+      text(g, k ? 'S' : 'P', 24, y - 6, k ? GREEN : RED, 26);
+      g.textAlign = 'right';
+      big(g, (Math.round(x.rpm / 10) * 10).toString(), 196, y, 36);
+      g.textAlign = 'left';
+      big(g, 'rpm', 204, y, 18, DIM);
+      g.textAlign = 'right';
+      big(g, gearOf2(x), 488, y, 26, colourOf2(x));
+    });
+    text(g, `${e.fuelFlowLph.toFixed(1)} L/h  ${e.coolantC.toFixed(0)}°C`, 488, 122, DIM, TEXT_PX, 'right');
+  } else {
   title(g, 'ENGINE');
   // Revs in figures (in tens, like a real tacho), gear and engine state beside them.
   g.textAlign = 'right';
@@ -422,6 +440,7 @@ const paintRpm: Painter = (g, s) => {
   g.fillRect(80, 110, 408, 12);
   g.fillStyle = e.rack > 0.95 ? RED : AMBER;
   g.fillRect(80, 110, 408 * Math.min(1, e.rack), 12);
+  }
   if (!rudder) return;
   // Steering: a scale across, port red, starboard green; the needle where it is, the ring
   // where the helm asks for it.
@@ -1052,7 +1071,7 @@ const paintClock: Painter = (g, _s, _def, env) => {
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
   heading: { paint: paintHeading, key: (s) => [Math.round(headingDeg(s)), knots(s) > 0.3 ? Math.round(cogDeg(s)) : -1, Math.abs(rateOfTurn(s)) < 3 ? 0 : Math.round(rateOfTurn(s))].join('|') },
-  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), s.engine.coolantC.toFixed(0), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
+  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, s.engine.stbd ? `${Math.round(s.engine.stbd.rpm / 10)}${s.engine.stbd.phase}${s.engine.stbd.gear}` : '', Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), s.engine.coolantC.toFixed(0), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },

@@ -59,7 +59,10 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   engine.sampleAt = rudderPos;
   engine.voice = eng.voice;
   engine.massKg = eng.kg;
-  if (twin) engine.twin = { x: twinX };
+  // Twin shaft engines are worked separately (owner, Oct 2026: a twin engine control, a START
+  // each): a lever each on the console (control.twin-throttle, below).
+  const splitTwin = !!twin && !sdLegs && !pods && !outboards;
+  if (twin) engine.twin = { x: twinX, ...(splitTwin ? { split: true } : {}) };
   Object.assign(engine.maintenance, {
     engine: { ...engine.maintenance.engine, x: engX, z: rnd(engMid), length: engL, width: engW, height: engH },
     dipstick: [dip[0], dip[2]],
@@ -184,6 +187,16 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { socket: 'monJoystick', module: 'control.joystick', config: { label: 'Fire monitor joystick', engrave: 'MONITOR', knob: '#d8301a', panRateDeg: 40 }, bind: { pan: 'monitor.pan', tilt: 'monitor.tilt' } },
     );
   }
+  // Twin engines worked separately: the twin lever control in the single lever's place, and a
+  // START for each (port's, then starboard's, in the ENGINE group with the key).
+  if (splitTwin) {
+    const lever = consoleMount.modules!.find((m) => m.socket === 'throttle')!;
+    lever.module = 'control.twin-throttle';
+    lever.config = {};
+    const start = consoleMount.modules!.find((m) => m.socket === 'start')!;
+    start.config = { ...start.config, label: 'START port engine (hold)', engrave: 'START P' };
+    consoleMount.modules!.push({ socket: 'start2', module: 'control.push-button', config: { ...start.config, label: 'START starboard engine (hold)', engrave: 'START S', lit: { key: 'propulsion.state2', is: 'running' } }, bind: { press: 'ignition.start2' } });
+  }
   // The ANCHOR switch (in the DECK group with the skiff crane's button: the switch panel, below).
   if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
   // The autopilot's buttons (with the helm assist panel; owner, Oct 2026: "a separate control that
@@ -264,7 +277,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     consoleMount.modules!.push({ socket: clockId, module: 'instrument.screen', config: { screen: clockId } });
   }
   // What the basic controls keep at the helm (the rest comes off with them, below).
-  const BASIC_KEEP = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
+  const BASIC_KEEP = ['wheel', 'throttle', 'podJoystick', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
   /** The switch panel's groups (CS2) from whichever switches she has (`has`). */
   const panelGroups = (has: (id: string) => boolean): PanelGroup[] => {
     const search = ['spotlight', 'firePump'].filter(has);
@@ -272,7 +285,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { title: 'LIGHTS', color: colourOf.LIGHTS, side: 'port', members: ['navLights', 'cabinLight', 'wipers'].filter(has) },
       { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
       { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
-      { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'key'].filter(has) },
+      { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'start2', 'key'].filter(has) },
       { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
       // (Last of the starboard side's: nearest the wheel, under the helmsman's hand.)
       { title: 'AUTOPILOT', color: 0xe0a020, side: 'starboard', members: ['apPort', 'apOn', 'apStbd'].filter(has) },

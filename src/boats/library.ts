@@ -62,6 +62,7 @@ import { STERN_ROLLER } from '../modules/sternRoller';
 import { SWIM_LADDER } from '../modules/swimLadder';
 import { TENDER_CRANE } from '../modules/tenderCrane';
 import { THROTTLE_LEVER } from '../modules/throttleLever';
+import { TWIN_THROTTLE } from '../modules/twinThrottle';
 import { TILLER } from '../modules/tiller';
 import { TOGGLE } from '../modules/toggle';
 import { TOW_WINCH } from '../modules/towWinch';
@@ -205,7 +206,7 @@ export function ensureBoatTypes(world: { vessels: Record<string, { defId: string
 }
 
 export const MODULES = createModuleLibrary([
-  CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
+  CONSOLE, WHEEL, THROTTLE_LEVER, TWIN_THROTTLE, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
   OVERHEAD_PANEL, FM_RADIO, BREAKER_PANEL, BATTERY_MASTER, BATTERY_SELECTOR,
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
   DIESEL_INBOARD, OUTBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
