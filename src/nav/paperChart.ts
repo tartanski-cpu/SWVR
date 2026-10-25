@@ -19,6 +19,8 @@ import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
 import { toLatLon } from './geo';
 import { sheetById, type ChartSheet } from './chartSheets';
+import { siteWorld, sitesOn } from '../dive/diveSites';
+import { MODE, VOYAGE_MAP_ID } from '../mode';
 
 export interface PaperChart {
   canvas: HTMLCanvasElement;
@@ -222,6 +224,30 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
     }
     g.stroke();
     label(`Wk ${w.name}`, x - 40 * u, y + 24 * u, `italic ${15 * u}px Georgia, serif`, INK);
+  }
+  // Dive sites (dive/diveSites.ts: the submersible game's wrecks) not drawn above: the same
+  // wreck mark, with the depth over her, as a chart gives a wreck of known depth.
+  for (const site of sitesOn(MODE === 'career' ? 'career' : VOYAGE_MAP_ID)) {
+    const at = siteWorld(site);
+    if (!at || WRECKS.some((w) => w.name === site.name)) continue;
+    const x = px(at.x);
+    const y = pz(at.z);
+    g.strokeStyle = INK;
+    g.lineWidth = 1.5 * u;
+    g.setLineDash([3 * u, 4 * u]);
+    g.beginPath();
+    g.arc(x, y, 11 * u, 0, Math.PI * 2);
+    g.stroke();
+    g.setLineDash([]);
+    g.beginPath();
+    g.moveTo(x - 8 * u, y);
+    g.lineTo(x + 8 * u, y);
+    for (const dx of [-4, 0, 4]) {
+      g.moveTo(x + dx * u, y - 3.5 * u);
+      g.lineTo(x + dx * u, y + 3.5 * u);
+    }
+    g.stroke();
+    label(`Wk ${site.name} ${site.depthM} m`, x - 40 * u, y + 22 * u, `italic ${14 * u}px Georgia, serif`, INK);
   }
   // Fish farms (a coast map's, C2): the lease's outline in a magenta pecked line, as a chart
   // draws a marine farm, with what it is; its corner marks are the region's lights.

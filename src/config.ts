@@ -697,6 +697,13 @@ export const CONFIG = {
    *             carry to fit it (the deck crane's motion compensation). `fit`: equipment a new
    *             career's workboat hasn't got until it's bought (CareerUpgrade).
    */
+  /**
+   * Dive sites (src/dive/diveSites.ts: wrecks for the submersible game, on the career map and
+   * the Oban map): each drawn on the chartplotter as a ring `radius` m round its middle, with
+   * the chart's wreck mark, its name and its depth; on the paper chart as a wreck mark and
+   * its depth.
+   */
+  dive: { radius: 50 },
   career: {
     /**
      * A sea trial (owner, Oct 2026: "a sea trial is time limited to 5 mins"): a Shipyard design

@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Dive sites: wrecks for the submersible game (25 Oct 2026)
+
+Owner: a submersible launched off a dive support ship will go into its own game to search wrecks with an ROV; this game needs the areas where the wrecks are, like the potting and fishing grounds, some shallow, some deep, some by places of interest; the missions later. Chosen with the owner: both maps, 6-8 sites.
+
+- **Eight sites** (`src/dive/diveSites.ts` `DIVE_SITES`): five on the Oban map by latitude and longitude (real coast, real depths: Selene 12 m off Dunstaffnage, Sound Spirit 13 m off north Kerrera, Morven Lass 28 m off Slatrach Bay, the Gylen wreck 40 m under Gylen Castle, the Lorn Trader 54 m north-west of Maiden Island, the map's deepest water, about 55 m), three in the career archipelago by its metres (the Margaret Ann 8 m, the wreck already there; Ellen Rose 27 m off Brannock; Sgarbh 40 m north of Eilean Garbh, the islands' deepest). Bands: shallow under 20 m, mid to under 40, deep 40 and more (the islands go no deeper). Invented wrecks at real places. Picked by sampling the seabed round the maps' named capes, islets and bays.
+- **On the charts:** the chartplotter draws each as a dashed pale blue ring `CONFIG.dive.radius` 50 m round it, the wreck mark, her name and depth; the paper chart a wreck mark with her depth (the Margaret Ann is already there as a wreck).
+- **The contract, a draft:** `docs/dive-contract.md`, the site table (ids, positions, depths, the wrecks) and a proposed launch and return in Timber's envelope, with the open questions for the Submersible World chat. This chat couldn't attach the Submersible-World repository (the session's permissions refused it), so it's written from this side only.
+- **Tests:** tests/diveSites.test.ts (3: ids and bands, every band on both maps; each career and Oban site at its charted depth on the ground within a few metres, clear of the potting grounds). Headless: the plotter by the Sound Spirit (Oban) and the Ellen Rose (career).
+
 ### (From the modular-builder chat) The console screens tidied (owner's list)
 
 `controls/instruments.ts`: the speed screen is the log (`logKnots`: speed through the water, ground speed less `addCurrent` at her position), without the anchor line (`paintAnchor` removed: the anchor has its own screen); the heading screen without the rate of turn (`rateOfTurn` kept, unused on screen); the ENGINE screen without the coolant temperature (on the engine monitor). The round LOG dial reads through the water too. SOG stays on the NAV panel. See `docs/progress/modules.md`.

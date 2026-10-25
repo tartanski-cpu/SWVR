@@ -451,6 +451,15 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500. With a career saved, the front page's Career tile says **Continue your career**, with its slot and balance; start a new one, or switch slot, from Menu → Office → Career.
 - **Debug:** Debug → Missions → Career → **+£5000, rep** (cash and +25 reputation everywhere).
 
+### Dive sites (new: for the submersible game, coming later)
+
+Eight wrecks are marked on the charts, for a submersible game to come (a submersible launched off a dive support ship, with an ROV to search the wrecks). On the chartplotter each is a dashed pale blue ring with the chart's wreck mark, her name and the depth ("Sound Spirit (wreck, 13 m)"); on the paper chart a wreck mark with her depth. Some shallow, some mid, some deep:
+
+- **Oban and Lorn (Voyage):** the **Selene** off Dunstaffnage (12 m), the **Sound Spirit** off the north end of Kerrera (13 m), the **Morven Lass** off Slatrach Bay (28 m), the **Gylen wreck** under Gylen Castle (40 m), and the **Lorn Trader** north-west of Maiden Island (54 m, the map's deepest water).
+- **The career islands:** the **Margaret Ann** west of Calder Haven (8 m, the wreck you can see), the **Ellen Rose** off Brannock (27 m), and the **Sgarbh** north of Eilean Garbh (40 m).
+
+Nothing happens at them yet: the launch, the dive support ship and the missions come with the submersible game.
+
 ### Construction projects (new, being built)
 
 Bigger jobs that build something new, in stages. The first is **Tarran Rig wind farm**: two new turbines in open water about 1 km north of Calder Haven (Holm Rig stays as it is).

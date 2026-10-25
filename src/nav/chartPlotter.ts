@@ -13,7 +13,7 @@ import { REGIONS } from '../world/regions';
 import type { RegionDef } from '../world/defs';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
-import { MODE } from '../mode';
+import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { ferriesInSight } from '../traffic/ferries';
 import { boatOwnerName, playerBoats } from '../core/launch';
 import { nextPoint, pointLabel } from '../voyage/plan';
@@ -23,6 +23,10 @@ import { Button } from '../controls/Button';
 import { coastTerrains } from '../world/coastTerrain';
 import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
 import { activeProject, foundations, installAt, jackUpAt, laidMarks, towId } from '../career/projects';
+import { siteWorld, sitesOn } from '../dive/diveSites';
+
+/** The dive sites on this page's map (the career's, or the Voyage map's). */
+const DIVE_SITES_HERE = sitesOn(MODE === 'career' ? 'career' : VOYAGE_MAP_ID);
 
 const W = 512;
 const H = 384;
@@ -750,6 +754,33 @@ export class ChartPlotter {
           g.fill();
         }
       }
+    }
+    // Dive sites (dive/diveSites.ts: wrecks for the submersible game): a dashed pale blue ring,
+    // the chart's wreck mark (a line crossed by three strokes) in it, the name and the depth.
+    for (const site of DIVE_SITES_HERE) {
+      const at = siteWorld(site);
+      if (!at) continue;
+      const [cx, cy] = toPx(at.x, at.z);
+      const rad = Math.max(CONFIG.dive.radius / mpp, 7);
+      if (cx + rad < -60 || cx - rad > W + 60 || cy + rad < -20 || cy - rad > H + 20) continue;
+      g.strokeStyle = 'rgba(170, 215, 255, 0.85)';
+      g.lineWidth = 1.5;
+      g.setLineDash([4, 3]);
+      g.beginPath();
+      g.arc(cx, cy, rad, 0, Math.PI * 2);
+      g.stroke();
+      g.setLineDash([]);
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(cx - 6, cy);
+      g.lineTo(cx + 6, cy);
+      for (const dx of [-3.5, 0, 3.5]) {
+        g.moveTo(cx + dx, cy - 3);
+        g.lineTo(cx + dx, cy + 3);
+      }
+      g.stroke();
+      g.fillStyle = '#b8dcff';
+      g.fillText(`${site.name} (wreck, ${site.depthM} m)`, cx - 40, cy - rad - 4);
     }
     // Salvage logs washed up: brown bars, LOG.
     for (const l of world.salvage?.logs ?? []) {
