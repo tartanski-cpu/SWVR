@@ -44,6 +44,7 @@ import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
 import { holdPayload, stepHold } from '../fishing/fishHold';
 import { stepRodSale } from '../fishing/rod';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
+import { stepProjects } from '../career/projects';
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
@@ -250,6 +251,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepFishing(world, dt);
   stepHold(world);
   stepCareer(world);
+  stepProjects(world);
   stepTutorial(world);
   world.tick += 1;
   world.time = world.tick * dt;

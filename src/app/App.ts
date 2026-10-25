@@ -10,6 +10,7 @@ import { createWorld, type WorldState } from '../core/world';
 import { randomLook } from '../net/avatarOutfits';
 import { updatePanelLighting } from '../controls/panelLighting';
 import { NavMarksView } from '../world/view/navMarksView';
+import { ProjectView } from '../career/projectView';
 import { HelpPanel } from '../debug/helpPanel';
 import { DebugOverlay } from '../debug/overlay';
 import { EnvironmentView } from '../environment/environmentView';
@@ -474,6 +475,8 @@ export class App {
   private showRegionMap = false;
   /** The hazard buoys, riding the swell with their lights (owner request). */
   private readonly navMarks = new NavMarksView();
+  /** A construction project's marks as they're laid (career/projectView.ts). */
+  private readonly projectView = new ProjectView();
   private readonly cargoView = new CargoView();
   private readonly cargoHands = new CargoHands();
   /** Our laser pointer (others see it in our pose; laserPointer.ts). */
@@ -804,7 +807,7 @@ export class App {
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.projectView.root, this.cargoView.root);
     this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root, this.skylineView.root, this.windFarmView.root, this.transferView.root);
     // A test (owner): an outside model, the dirt bike, on the Calder Haven quay by where you
     // start, only with `?bike` in the address (public/models/mx_gold_dirt.glb: the owner's
@@ -1296,6 +1299,7 @@ export class App {
     }
     this.worldView.lights.update(renderTime, darkness, this.focus, this.environment.visibility);
     this.navMarks.update(this.renderWaves, renderTime, darkness, this.focus);
+    this.projectView.update(this.world, this.renderWaves, renderTime, darkness, this.focus);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));

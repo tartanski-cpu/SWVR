@@ -10,6 +10,23 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Construction projects, step 1: the system, Tarran Rig's survey and marks (25 Oct 2026)
+
+Owner, approving the plan: "keep the existing wind turbine farm ... we're going to build another one as the first project. It can be smaller, like 2 turbines ... The tug should do the tows ... if they're over a certain size, and ... any kind of boat that's got a big enough deck crane could do the buoy laying ... big ships' jobs happening in the background."
+
+- **The project system** (`src/career/projects.ts`): a project is offered at a harbour office (Office > **Projects**), one at a time; it runs in stages, each a handful of jobs done in any order by any of the players' boats. Each job pays when done, each stage its bonus when its last job is, the project its bonus at the end. Progress is the career's (`CareerState.project`, `projectsDone`), saved with it (`serializeCareer` / `parseCareer`, an addition: older saves read as before). Voyage has none. Multiplayer: it's the host's career, in the snapshot like the rest of the world.
+- **The first project, Tarran Rig wind farm** (`CONFIG.career.projects`): two turbines in 40 m of open water about 1.1 km north of Calder Haven, at (350, −420) and (600, −420), landings facing south; clear of Holm Rig, the fishing grounds and the other marks (checked against the seabed). Offered at Calder, no reputation needed.
+  - **Stage 1, Survey the site** (bonus £800): three survey lines east-west across the site, £450 each, and the met buoy, £600.
+  - **Stage 2, Mark the site** (bonus £1000): a north, east, south and west cardinal boxing the zone, £600 each.
+  - Stages 3-6 (foundations with the floated monopile tow and the jack-up, transition pieces, the turbines, commissioning) are the next steps; until then the project waits after stage 2 ("the next stage is being planned").
+- **Survey lines:** a line counts where a boat runs along it (either way, within ±25°), within 30 m of it, at 2.5-6.5 kn; it's cut into 13 stretches, and it's done when all are run (`CONFIG.career.projectSurvey`).
+- **Mark buoys:** each waits on the office's quay as crane cargo (a new kind, `Mark buoy`, 420 kg, buoy yellow), so only a boat with a deck crane big enough lifts it. Lowered into the sea within 25 m of its spot (`CONFIG.career.projectBuoy.radius`) it's laid and paid; anywhere else it stays on the hook and the office says how far off it is; lost overboard, another is put on the quay. Laid, it's a lit mark like the map's (`career/projectView.ts`: the sea-mark view, now able to draw any list of marks).
+- **A special mark** for the met buoy: yellow, a yellow X topmark, Fl(5)Y 20s (IALA), in the mark kinds, the lights, the 3D marks and the paper chart's symbol.
+- **On the chartplotter:** the site's turbine positions (dashed rings), the stage's survey lines in dashed magenta with the stretches run in green, and each buoy's spot (a magenta ring its radius wide, named) until it's laid, then a mark.
+- **Debug:** Debug > Missions > Career > **Project: stage done** finishes the stage's jobs (paid as usual).
+- **Shared changes:** `src/world/defs.ts` (`MarkKind` gains `special`), `src/world/navMarks.ts` (its light), `src/world/view/navMarksView.ts` (its shape; the view takes a list of marks), `src/nav/paperChart.ts` (its symbol), `src/core/simulation.ts` (`stepProjects`), `src/config.ts`.
+- Tests: `tests/projects.test.ts` (offered at Calder only; a survey line counts only along it, close, at survey speed, and pays when run; a buoy waits on the quay, laid only at its spot, replaced when lost; stage bonuses and the next stage; saved and read back; a real deck crane lowering the buoy from its hook at the spot lays it). `tests/menu.test.ts` stubs. Headless (career): offered and taken from the menu, the met buoy yellow on Calder's quay, both stages finished by the debug button (£6,150 paid), the north cardinal laid and lit on station.
+
 ### Your boats on a board on the quay (25 Oct 2026)
 
 Owner (from the backlog): "The favourites screen as a board on the quayside. Your saved boats would be on a board ashore, worked like the boatyard board and the Shipyard sign: pick one and take her out."

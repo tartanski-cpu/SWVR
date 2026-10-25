@@ -8,6 +8,24 @@ import { MAP_CONFIG } from './config/map';
  */
 export type WeatherPresetName = 'Clear' | 'Overcast' | 'Fog' | 'Rain' | 'Squall';
 
+/** A construction project (CONFIG.career.projects; career/projects.ts). */
+export interface ProjectDef {
+  id: string;
+  name: string;
+  /** The harbour office that offers it, and whose quay its buoys wait on. */
+  port: string;
+  minRep: number;
+  desc: string;
+  bonus: number;
+  /** Where the turbines go (world x, z; the landing's bearing): the later stages build them. */
+  turbines: { x: number; z: number; landingDeg: number }[];
+  stages: { name: string; bonus: number; jobs: ProjectJobDef[] }[];
+}
+/** A job in a project's stage: a survey line run, or a mark buoy laid (see CONFIG.career.projects). */
+export type ProjectJobDef =
+  | { id: string; kind: 'survey'; name: string; from: [number, number]; to: [number, number]; pay: number }
+  | { id: string; kind: 'buoy'; name: string; mark: 'N' | 'E' | 'S' | 'W' | 'special'; at: [number, number]; pay: number };
+
 /** A career upgrade, bought at the yard (CONFIG.career.upgrades). */
 export interface CareerUpgrade {
   id: string;
@@ -757,6 +775,62 @@ export const CONFIG = {
       { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, needs: 'fishing.trawl', needsName: 'the trawl gear', desc: 'Iced fish fetch 30 % more' },
       { id: 'craneComp', name: 'Crane motion compensation', price: 3500, minRep: 15, needs: 'deck.crane', needsName: 'a deck crane', desc: 'The deck crane holds its hook steady as she rolls, pitches and heaves' },
     ] as CareerUpgrade[],
+    /**
+     * Construction projects (owner, Oct 2026: "build another [wind farm] as the first project
+     * ... 2 turbines or something, to prove the system"; career/projects.ts). A project is a
+     * chain of stages offered at a harbour office; each stage is a handful of jobs, each paid
+     * when done, the stage's `bonus` when the last is; the project's when the last stage is.
+     * Its progress is saved with the career. Jobs:
+     *   survey  run the line from `from` to `to` (world x, z), either way, at survey speed: every
+     *           stretch of it (`projectSurvey.segments`) covered within `projectSurvey.width` m
+     *           of it, heading along it (±`headingDeg`), at `speedKn` (min, max).
+     *   buoy    a mark buoy (crane cargo on the office's quay) lifted out and lowered into the
+     *           sea within `projectBuoy.radius` m of its spot `at`: it's laid there, a lit mark.
+     * Positions: Tarran Rig, two turbines in 40 m of open water about 1.1 km north of Calder
+     * Haven, clear of Holm Rig and the fishing grounds; its zone boxed by four cardinals.
+     * Stages 3-6 (foundations, transition pieces, turbines, commissioning) come in later steps.
+     */
+    projects: [
+      {
+        id: 'tarranRig',
+        name: 'Tarran Rig wind farm',
+        port: 'calder',
+        minRep: 0,
+        desc: 'A new two-turbine wind farm north of Calder Haven: survey the site, then mark it out',
+        /** Paid when the whole project is done (later steps add its last stages). */
+        bonus: 5000,
+        turbines: [
+          { x: 350, z: -420, landingDeg: 180 },
+          { x: 600, z: -420, landingDeg: 180 },
+        ],
+        stages: [
+          {
+            name: 'Survey the site',
+            bonus: 800,
+            jobs: [
+              { id: 'line1', kind: 'survey', name: 'Survey line 1 (north)', from: [150, -520], to: [800, -520], pay: 450 },
+              { id: 'line2', kind: 'survey', name: 'Survey line 2 (middle)', from: [150, -420], to: [800, -420], pay: 450 },
+              { id: 'line3', kind: 'survey', name: 'Survey line 3 (south)', from: [150, -320], to: [800, -320], pay: 450 },
+              { id: 'met', kind: 'buoy', name: 'Met buoy', mark: 'special', at: [700, -560], pay: 600 },
+            ],
+          },
+          {
+            name: 'Mark the site',
+            bonus: 1000,
+            jobs: [
+              { id: 'cardN', kind: 'buoy', name: 'North cardinal', mark: 'N', at: [475, -640], pay: 600 },
+              { id: 'cardE', kind: 'buoy', name: 'East cardinal', mark: 'E', at: [820, -420], pay: 600 },
+              { id: 'cardS', kind: 'buoy', name: 'South cardinal', mark: 'S', at: [475, -200], pay: 600 },
+              { id: 'cardW', kind: 'buoy', name: 'West cardinal', mark: 'W', at: [130, -420], pay: 600 },
+            ],
+          },
+        ],
+      },
+    ] as ProjectDef[],
+    /** Survey lines (see `projects`): stretches a line is cut into, how far off it counts (m), heading off it (deg), speed (kn). */
+    projectSurvey: { segments: 13, width: 30, headingDeg: 25, speedKn: [2.5, 6.5] as [number, number] },
+    /** Mark buoys (see `projects`): how near its spot it must go in to be laid (m), and its cargo kind (CONFIG.cargo.kinds). */
+    projectBuoy: { radius: 25, kind: 'Mark buoy' },
   },
 
   /**
@@ -1011,6 +1085,8 @@ export const CONFIG = {
       { name: 'Pallet of blocks', mass: 420, size: [1.1, 0.75, 1.1] as [number, number, number], shape: 'box' as const, slots: 4 },
       { name: 'Engine block', mass: 380, size: [1.0, 0.8, 0.8] as [number, number, number], shape: 'box' as const, slots: 3 },
       { name: 'Chain basket', mass: 450, size: [0.95, 0.7, 0.95] as [number, number, number], shape: 'drum' as const, slots: 3 },
+      // A construction project's mark buoy (career/projects.ts), on its float: crane only, never trade cargo.
+      { name: 'Mark buoy', mass: 420, size: [1.1, 1.5, 1.1] as [number, number, number], shape: 'drum' as const, slots: 4 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,

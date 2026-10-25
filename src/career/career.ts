@@ -38,6 +38,7 @@ import { cargoPortAt } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
 import type { TutorialState } from './tutorial';
 import { gearOf, hasModule } from '../boats/sims';
+import { applyProjectIntent, projectDef, type ProjectProgress } from './projects';
 
 export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod' | 'transfer';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
@@ -88,6 +89,10 @@ export interface CareerState {
   design?: string;
   /** The guided first voyage (phase 3, career/tutorial.ts); absent: none. */
   tutorial?: TutorialState;
+  /** The construction project under way (career/projects.ts); absent: none. */
+  project?: ProjectProgress;
+  /** The projects finished (their ids). */
+  projectsDone?: string[];
 }
 
 export function createCareer(): CareerState {
@@ -158,7 +163,7 @@ export function post(world: WorldState, c: CareerState, text: string, amount: nu
   c.seq += 1;
 }
 
-function addRep(c: CareerState, port: string | null | undefined, d: number): void {
+export function addRep(c: CareerState, port: string | null | undefined, d: number): void {
   if (!port) return;
   c.rep[port] = Math.max(0, Math.min(CONFIG.career.rep.max, (c.rep[port] ?? 0) + d));
 }
@@ -456,6 +461,10 @@ export function applyCareerIntent(world: WorldState, intent: Intent): void {
       sayRadio(world, 'info', `${portName(k.port)} harbour office: it's yours, skipper - ${contractText(k)}. ${Math.round(k.allowed / 60)} minutes.`);
       break;
     }
+    case 'careerProjectAccept':
+    case 'careerProjectStage':
+      applyProjectIntent(world, intent);
+      break;
     case 'careerAbandon':
       if (c.active) {
         addRep(c, c.active.port, CONFIG.career.rep.contractFail);
@@ -522,6 +531,14 @@ export function parseCareer(raw: string | null): CareerState | null {
     if (o.boat && typeof o.boat.damage === 'number' && typeof o.boat.wear === 'number') {
       c.boat = { damage: Math.max(0, Math.min(1, o.boat.damage)), wear: Math.max(0, Math.min(1, o.boat.wear)) };
     }
+    // The construction project under way (career/projects.ts): kept if it's still one we know.
+    const pr = o.project;
+    if (pr && typeof pr.id === 'string' && projectDef(pr.id) && typeof pr.stage === 'number' && Array.isArray(pr.done)) {
+      const survey: Record<string, number[]> = {};
+      for (const [k, v] of Object.entries(pr.survey ?? {})) if (Array.isArray(v)) survey[k] = v.filter((n) => typeof n === 'number');
+      c.project = { id: pr.id, stage: Math.max(0, Math.floor(pr.stage)), done: pr.done.filter((d) => typeof d === 'string'), survey };
+    }
+    if (Array.isArray(o.projectsDone)) c.projectsDone = o.projectsDone.filter((d) => typeof d === 'string');
     return c;
   } catch {
     return null;
@@ -529,9 +546,9 @@ export function parseCareer(raw: string | null): CareerState | null {
 }
 
 /**
- * What's kept between sessions: money, ledger, reputation, upgrades, her design (not offers or the
- * contract). `kit: 1`: the workboat's equipment is in the upgrades (see parseCareer).
+ * What's kept between sessions: money, ledger, reputation, upgrades, her design, the construction
+ * project under way and those done (not offers or the contract). `kit: 1`: the workboat's equipment is in the upgrades (see parseCareer).
  */
 export function serializeCareer(c: CareerState): string {
-  return JSON.stringify({ kit: 1, money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, design: c.design, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined });
+  return JSON.stringify({ kit: 1, money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, design: c.design, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined, project: c.project, projectsDone: c.projectsDone });
 }

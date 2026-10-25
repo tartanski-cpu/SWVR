@@ -22,6 +22,7 @@ import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
 import { coastTerrains } from '../world/coastTerrain';
 import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
+import { activeProject, laidMarks } from '../career/projects';
 
 const W = 512;
 const H = 384;
@@ -400,6 +401,81 @@ export class ChartPlotter {
       g.closePath();
       g.fill();
       g.stroke();
+    }
+
+    // A construction project under way (career/projects.ts): its site, the stage's survey lines
+    // (dashed magenta, the stretches run in green) and its buoys' spots (a magenta ring and the
+    // mark's name until laid, then a mark like the others).
+    const proj = activeProject(world);
+    if (proj) {
+      const { def, p, jobs } = proj;
+      g.save();
+      // Small print, as the chart's other notes; the buoys' names only zoomed in (they'd pile up).
+      g.font = '11px system-ui, sans-serif';
+      const named = mpp < 4;
+      for (const t of def.turbines) {
+        const [px, py] = toPx(t.x, t.z);
+        g.strokeStyle = 'rgba(230, 90, 200, 0.7)';
+        g.lineWidth = 1.5;
+        g.setLineDash([3, 3]);
+        g.beginPath();
+        g.arc(px, py, 6, 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
+      }
+      const [lx, ly] = toPx(def.turbines[0].x, def.turbines[0].z);
+      g.fillStyle = '#f0a0e0';
+      g.fillText(`${def.name.replace(' wind farm', '')} works`, lx - 20, ly - 12);
+      const segs = CONFIG.career.projectSurvey.segments;
+      for (const job of jobs) {
+        if (p.done.includes(job.id)) continue;
+        if (job.kind === 'survey') {
+          const [ax, ay] = toPx(job.from[0], job.from[1]);
+          const [bx, by] = toPx(job.to[0], job.to[1]);
+          g.strokeStyle = '#e65ac8';
+          g.lineWidth = 2;
+          g.setLineDash([6, 4]);
+          g.beginPath();
+          g.moveTo(ax, ay);
+          g.lineTo(bx, by);
+          g.stroke();
+          g.setLineDash([]);
+          g.strokeStyle = '#4be08a';
+          g.lineWidth = 3;
+          for (const k of p.survey[job.id] ?? []) {
+            g.beginPath();
+            g.moveTo(ax + ((bx - ax) * k) / segs, ay + ((by - ay) * k) / segs);
+            g.lineTo(ax + ((bx - ax) * (k + 1)) / segs, ay + ((by - ay) * (k + 1)) / segs);
+            g.stroke();
+          }
+          g.fillStyle = '#f0a0e0';
+          g.fillText(job.name.replace(/Survey line (\d).*/, 'L$1'), bx + 4, by + 4);
+        } else {
+          const [px, py] = toPx(job.at[0], job.at[1]);
+          g.strokeStyle = '#e65ac8';
+          g.lineWidth = 2;
+          g.beginPath();
+          g.arc(px, py, Math.max(CONFIG.career.projectBuoy.radius / mpp, 5), 0, Math.PI * 2);
+          g.stroke();
+          g.fillStyle = '#f0a0e0';
+          if (named) g.fillText(job.name, px + 8, py - 6);
+        }
+      }
+      for (const m of laidMarks(world)) {
+        const [px, py] = toPx(m.x, m.z);
+        g.fillStyle = '#ffd23a';
+        g.strokeStyle = '#101010';
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(px, py - 6);
+        g.lineTo(px + 5, py);
+        g.lineTo(px, py + 6);
+        g.lineTo(px - 5, py);
+        g.closePath();
+        g.fill();
+        g.stroke();
+      }
+      g.restore();
     }
 
     // Wind turbines (world/windFarm.ts): a white three-bladed sign each; the crew transfer's

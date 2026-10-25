@@ -161,6 +161,12 @@ export interface MenuHost {
   upgradeStatus(i: number): string;
   buyUpgrade(i: number): void;
   debugCash(): void;
+  /** Office > Projects (career/projects.ts): the project under way or offered, what to press, the stage's jobs; debug: the stage done. */
+  projectTitle(): string;
+  projectAction(): string;
+  projectAccept(): void;
+  projectLine(i: number): string;
+  debugProjectStage(): void;
   /** Phase 2: the hull and engine (0 'hull', 1 'engine'): state and cost, why not, mend it. */
   repairText(i: number): string;
   repairStatus(i: number): string;
@@ -560,6 +566,18 @@ export function mainMenu(h: MenuHost): MainMenu {
       ],
     },
     {
+      // Construction projects (career/projects.ts; owner, Oct 2026): a chain of jobs that builds
+      // something new, Tarran Rig wind farm the first. Its marks and lines are on the plotter.
+      name: 'Projects',
+      rows: [
+        { heading: 'Construction project' },
+        { label: '', buttons: [{ text: () => h.projectTitle(), weight: 3 }, { text: () => h.projectAction(), active: () => h.projectAction() === 'Take it on', press: () => h.projectAccept(), weight: 1.1 }] },
+        { heading: 'This stage' },
+        ...[0, 1, 2, 3, 4].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.projectLine(i), weight: 3 }] })),
+        { label: '', buttons: [{ text: 'Survey lines and buoy spots are on the chartplotter, in magenta. Buoys: lift them off the quay with a deck crane, lower them into the sea at their spot.', weight: 3 }] },
+      ],
+    },
+    {
       name: 'Your boats',
       rows: yourBoats(h),
     },
@@ -949,7 +967,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
           ],
         },
-        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }] },
+        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }, { text: 'Project: stage done', press: () => h.debugProjectStage() }] },
       ],
     },
     {

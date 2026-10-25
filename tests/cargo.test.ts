@@ -70,7 +70,8 @@ describe('cargo by hand', () => {
   });
 
   it('all kinds but crane cargo are man-portable; the heavy ones need two hands', () => {
-    for (const k of CONFIG.cargo.kinds) if (!CONFIG.cargo.crane.kinds.includes(k.name)) expect(k.mass).toBeLessThanOrEqual(120);
+    // (A construction project's mark buoy is crane cargo too: career/projects.ts.)
+    for (const k of CONFIG.cargo.kinds) if (!CONFIG.cargo.crane.kinds.includes(k.name) && k.name !== CONFIG.career.projectBuoy.kind) expect(k.mass).toBeLessThanOrEqual(120);
     expect(CONFIG.cargo.kinds.some((k) => k.mass > CONFIG.cargo.twoHandKg)).toBe(true);
   });
 

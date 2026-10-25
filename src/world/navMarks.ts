@@ -10,10 +10,11 @@ import type { MarkKind } from './archipelago';
  *   isolated  Fl(2) 5s   two white flashes every 5 s
  *   port      Fl R 4s    a red flash every 4 s
  *   stbd      Fl G 4s    a green flash every 4 s
+ *   special   Fl(5) Y 20s  five yellow flashes every 20 s (a met buoy)
  * A pattern is on, off, on, off... durations (s) repeating; its sum is the period.
  */
 export interface LightCharacter {
-  color: 'white' | 'red' | 'green';
+  color: 'white' | 'red' | 'green' | 'yellow';
   pattern: number[];
   /** As it's written on the chart. */
   label: string;
@@ -38,6 +39,7 @@ export const LIGHT_CHARACTERS: Record<MarkKind, LightCharacter> = {
   isolated: { color: 'white', pattern: period([0.5, 1.0, 0.5, 1.0], 5), label: 'Fl(2) 5s' },
   port: { color: 'red', pattern: period([0.5, 0.5], 4), label: 'Fl R 4s' },
   stbd: { color: 'green', pattern: period([0.5, 0.5], 4), label: 'Fl G 4s' },
+  special: { color: 'yellow', pattern: period(Array.from({ length: 5 }, () => [0.5, 1.0]).flat(), 20), label: 'Fl(5)Y 20s' },
 };
 
 /** Is a light with this pattern lit at time `t` (s)? `phase` staggers lights of the same kind. */
