@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### A load on the crane hook drawn as smoothly as the crane (25 Oct 2026)
+
+Owner: the crane is smooth now, but lifting cargo from the side, it jerks. The crane's view draws its boom and hook smoothed between the simulation's ticks (mechanisms/tickSmoother.ts), but the load under the hook was drawn straight from the latest tick (cargo/cargoView.ts), so at 60 ticks drawn at 90 frames it stood still one frame in three under a gliding hook. Now each hooked load's hook point (in her axes, so the boat's own motion stays the app's) goes through a TickSmoother of its own, the same as the crane's; just hooked, it starts where the load was drawn and comes up onto the hook (the lift's last half metre) rather than jumping; a jump past `HOOK_SNAP` 1.5 m (a reset, a snapshot) is drawn at once. Test: tests/craneLoadSmooth.test.ts (the crane slewing at 60 ticks drawn at 90 frames: the load moves every frame, evenly; on the old code a frame stands still). All of `npm test`: 1583 passing. Not checked on the Quest.
+
 ### (From the modular-builder chat) Diesels stall; twin lever keys
 
 `vessel/physics/propulsion.ts` `engineStep`: in gear and below `stallFraction` of idle (`CONFIG.vessels.workboat.engine.stallFraction` 0.3, the fallback for engines without one; `modules.outboard.engine.stallFraction`), a running engine stalls (phase off). Before, it could sit 'running' at 0 rpm in gear with no alternator charge and flatten the battery (owner's twin trawler). `core/keybindings.ts` + `app/App.ts`: on a twin worked separately, holding the wheel with the mouse, E/D and R/F work the port and starboard levers (`twinLeverKeys`); E, F and R don't do their usual jobs then. See `docs/progress/modules.md`.
