@@ -236,6 +236,13 @@ export class CareerSession {
         const job = a?.jobs[i];
         return job ? jobStatus(w(), job) : '';
       },
+      debugProjectBack: () => {
+        const a = activeProject(w());
+        if (!a) return h.notify('Debug: no project under way', 3);
+        const n = Math.max(0, a.p.stage - 1);
+        h.notify(`Debug: ${a.def.name} back to stage ${n + 1}, ${a.def.stages[n].name.toLowerCase()}`, 4);
+        h.pushEnv('careerProjectBack', 1);
+      },
       debugProjectStage: () => {
         // Say what the press does (the host does it): takes the project, or finishes its stage.
         const a = activeProject(w());

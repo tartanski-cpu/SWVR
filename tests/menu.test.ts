@@ -149,6 +149,7 @@ function fakeHost() {
     projectAccept: () => {},
     projectLine: () => '',
     projectSummary: () => '',
+    debugProjectBack: () => {},
     debugProjectStage: () => calls.push('project stage'),
     repairText: () => '',
     repairStatus: () => '',

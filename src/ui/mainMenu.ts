@@ -167,6 +167,8 @@ export interface MenuHost {
   projectAction(): string;
   projectAccept(): void;
   projectLine(i: number): string;
+  /** Debug: the project back to the start of the stage before. */
+  debugProjectBack(): void;
   /** The project under way in short: line 0 its stage and jobs left, line 1 the next job ('' none). */
   projectSummary(i: number): string;
   debugProjectStage(): void;
@@ -975,7 +977,8 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
           ],
         },
-        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }, { text: '+£50,000', press: () => h.debugCash(50000) }, { text: 'Project: stage done', press: () => h.debugProjectStage() }] },
+        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }, { text: '+£50,000', press: () => h.debugCash(50000) }] },
+        { label: 'Project', buttons: [{ text: 'Stage done', press: () => h.debugProjectStage() }, { text: 'Stage back', press: () => h.debugProjectBack() }] },
       ],
     },
     {

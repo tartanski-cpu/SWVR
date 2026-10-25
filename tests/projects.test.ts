@@ -80,6 +80,28 @@ describe('construction projects', { timeout: 30000 }, () => {
     expect(projectBoardLines(setup().world)).toEqual([]);
   });
 
+  it('the debug back button: to the start of the stage before, what was built before it standing, nothing paid', () => {
+    const { world, send } = taken();
+    for (let i = 0; i < 4; i++) send('careerProjectStage');
+    expect(activeProject(world)!.p.stage).toBe(4);
+    const money = world.career!.money;
+    send('careerProjectBack');
+    const p = activeProject(world)!.p;
+    expect(p.stage).toBe(3); // the transition pieces, to do again
+    expect(world.career!.money).toBe(money);
+    expect(p.driven).toEqual(['mono1', 'mono2']);
+    expect(p.fitted).toBeUndefined();
+    expect(p.done).not.toContain('tps');
+    expect(foundations(world).map((f) => f.tp)).toEqual([null, null]);
+    // Done again (debug), it moves on as before.
+    send('careerProjectStage');
+    expect(activeProject(world)!.p.stage).toBe(4);
+    // Back all the way: the first stage, from its start.
+    for (let i = 0; i < 6; i++) send('careerProjectBack');
+    expect(activeProject(world)!.p).toMatchObject({ stage: 0, done: [], survey: {} });
+    expect(laidMarks(world)).toEqual([]);
+  });
+
   it('a survey line counts only run along it, close to it, at survey speed; the whole of it run, it is paid', () => {
     const { world, v } = taken();
     const job = def.stages[0].jobs.find((j) => j.kind === 'survey')!;

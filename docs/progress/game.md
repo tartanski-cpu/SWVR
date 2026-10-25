@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Debug: a project stage back (25 Oct 2026)
+
+Owner: an option in the debug menu to go back a stage. Debug → Missions → **Project** is now a row of its own: **Stage done** (as before) and **Stage back**: the project to the start of the stage before (the first: its start again), as if every stage before it had been done and nothing since. What those stages built stands (driven piles, pieces on, turbines up, the survey run, the marks), nothing is paid again, and what was about from the stage left (its items on the quay or aboard, a tow, the fitters' transfer, a ship sent for the works) is cleared away (`careerProjectBack`, career/projects.ts `setStage`). Test: tests/projects.test.ts, 1 new.
+
 ### Projects: what's next, on the Jobs page and the duty board (25 Oct 2026)
 
 Owner: where do I see what to do next in the project, and whether I've another mission on at the same time? It was only on Office > Projects. Now `projectBoardLines` (career/projects.ts) gives it in two short lines (the stage, its jobs left; the next job, and that a stage's jobs go in any order), shown on Office > **Jobs** under the contract (a Project heading; "None under way" otherwise) and on the **duty board** under the contract line, in orange (duties/dutyBoardView.ts; words and counts only, so the board still redraws only when it changes). The beginner boat has no duty board (nor chartplotter: basic controls), so the Jobs page is the one every boat has. Test: tests/projects.test.ts, 1 new; the board drawn headless with the project at stage 5.

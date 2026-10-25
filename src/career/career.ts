@@ -466,6 +466,7 @@ export function applyCareerIntent(world: WorldState, intent: Intent): void {
     }
     case 'careerProjectAccept':
     case 'careerProjectStage':
+    case 'careerProjectBack':
       applyProjectIntent(world, intent);
       break;
     case 'careerAbandon':

@@ -727,6 +727,39 @@ function surveyed(world: WorldState, job: Extract<ProjectJobDef, { kind: 'survey
   return out;
 }
 
+/**
+ * Debug: the project put at the start of stage `n`, as if every stage before it had been done
+ * (and nothing since): what those stages built standing, nothing paid again. What's about from
+ * the stage being left (its items on the quay or aboard, a tow, the fitters' transfer, a ship
+ * sent for the works) is cleared away.
+ */
+function setStage(world: WorldState, def: ProjectDef, n: number): void {
+  const c = world.career!;
+  const key = `${def.id}:`;
+  for (const item of Object.values(world.cargo)) if (isProjectItem(item) && item.to.startsWith(key)) delete world.cargo[item.id];
+  for (const s of def.stages)
+    for (const j of s.jobs)
+      if (j.kind === 'tow' && world.vessels[towId(def, j)]) {
+        castOffKey(world, vesselKey(towId(def, j)));
+        delete world.vessels[towId(def, j)];
+      }
+  if (world.transfer?.job?.project?.startsWith(key)) world.transfer.job.done = true;
+  if (world.traffic) world.traffic.ships = world.traffic.ships.filter((s) => s.bound !== def.id);
+  const before = def.stages.slice(0, n).flatMap((s) => s.jobs);
+  const all = def.turbines.map((_, i) => i);
+  const next: ProjectProgress = { id: def.id, stage: n, done: before.map((j) => j.id), survey: {} };
+  for (const j of before) {
+    if (j.kind === 'survey') next.survey[j.id] = Array.from({ length: CONFIG.career.projectSurvey.segments }, (_, k) => k);
+    else if (j.kind === 'tow' && j.turbine !== undefined) (next.driven ??= []).push(j.id);
+    else if (j.kind === 'tow') next.fitted = all;
+    else if (j.kind === 'supply') (next.supplied ??= {})[j.id] = j.count;
+    else if (j.kind === 'guard') next.erected = all;
+  }
+  c.project = next;
+  c.seq += 1;
+  sayRadio(world, 'info', `${portName(def.port)} harbour office: ${def.name} back to stage ${n + 1}, ${def.stages[n].name.toLowerCase()} (debug).`);
+}
+
 /** Project intents (the career's: CareerState is the host's). */
 export function applyProjectIntent(world: WorldState, intent: Intent): void {
   const c = (world.career ??= createCareer());
@@ -736,6 +769,10 @@ export function applyProjectIntent(world: WorldState, intent: Intent): void {
     c.project = { id: def.id, stage: 0, done: [], survey: {} };
     c.seq += 1;
     sayRadio(world, 'info', `${portName(def.port)} harbour office: ${def.name} is yours, skipper. First: ${def.stages[0].name.toLowerCase()} - it's on your plotter.`);
+  } else if (intent.control === 'careerProjectBack') {
+    // Debug: back to the start of the stage before (the first: its start again).
+    const a = activeProject(world);
+    if (a) setStage(world, a.def, Math.max(0, a.p.stage - 1));
   } else if (intent.control === 'careerProjectStage') {
     // Debug: the stage's jobs done as if worked (paid as usual), and what they build built at
     // once. No project under way: the first not yet done is taken (as if at its office).
