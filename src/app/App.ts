@@ -84,7 +84,7 @@ import { setPaintNight } from '../render/pixelPaint';
 import { treeLevel } from '../world/view/treesView';
 import { MAX_SHELTERS } from '../world/shelter';
 import type { ShelterDef } from '../world/defs';
-import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
+import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, hookNote, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
@@ -3995,6 +3995,12 @@ export class App {
         // A TV: show one of your browser tabs on it, or stop yours.
         const tv = this.routeChannel(channel);
         if (tv.control.startsWith('tvCast.')) return this.pressTv(tv.vesselId, tv.control.slice('tvCast.'.length));
+        // A deck crane's HOOK with a load that it won't set down here: say why (too high, no room).
+        if (tv.control.endsWith('crane.hook') && value > 0) {
+          const v = this.world.vessels[tv.vesselId];
+          const note = v ? hookNote(this.world, v) : null;
+          if (note) this.overlay.notify(note, 3);
+        }
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();

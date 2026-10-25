@@ -568,6 +568,38 @@ export function stepCraneCargo(world: WorldState, dt: number): void {
   }
 }
 
+/**
+ * Why a HOOK press now wouldn't set her cranes' load down, in a few words for whoever pressed
+ * (the App shows it on their screen; owner, Oct 2026: "the button to drop them off didn't
+ * work", the buoy hanging over the side too high above the water), or null: it would (or
+ * there's no load). The same rules as setDown, read only. A project buoy at the water but off
+ * its spot is the office's to say (layProjectBuoy).
+ */
+export function hookNote(world: WorldState, v: VesselState): string | null {
+  for (const crane of cranesOf(v)) {
+    const s = craneStateOf(v, crane.path);
+    const item = s?.hooked ? world.cargo[s.hooked] : undefined;
+    const hook = item ? hookOnBoat(v, crane.path) : null;
+    if (!item || !hook) continue;
+    const base = hook.clone().setY(hook.y - kindOf(item).size[1]);
+    const m = (x: number) => `${Math.max(0.1, x).toFixed(1)} m`;
+    if (onOpenDeck(v.defId, footprint(item), base.x, base.z)) {
+      const gap = base.y - deckHeight(v.defId, base.z);
+      if (gap > SET_DOWN_ABOVE) return `Lower it onto the deck: ${m(gap - SET_DOWN_ABOVE)} to go (hoist down)`;
+      if (gap < -SET_DOWN_BELOW || placeBlocker(world, v, item)) return 'No room on deck there: move the hook to a clear spot';
+      continue;
+    }
+    const w = onWorld(v, base);
+    const g = standingHeight(w.x, w.z);
+    if (g > -0.3) {
+      if (w.y - g > SET_DOWN_ABOVE) return `Lower it to the ground: ${m(w.y - g - SET_DOWN_ABOVE)} to go (hoist down)`;
+      continue;
+    }
+    if (w.y > SET_DOWN_ABOVE) return `Lower it right down to the water first: ${m(w.y - SET_DOWN_ABOVE)} to go (hoist down)`;
+  }
+  return null;
+}
+
 /** Set a hooked item down under the hook (`hook`: in her axes). False: it stays on the hook. */
 function setDown(world: WorldState, v: VesselState, item: CargoItem, hook: THREE.Vector3): boolean {
   const h = kindOf(item).size[1];

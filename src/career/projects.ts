@@ -398,7 +398,11 @@ export function laidMarks(world: WorldState): MarkDef[] {
 export function layProjectBuoy(world: WorldState, item: CargoItem, x: number, z: number): boolean {
   const a = activeProject(world);
   const job = a?.jobs.find((j) => j.kind === 'buoy' && itemTo(a.def, j) === item.to);
-  if (!a || !job || job.kind !== 'buoy' || a.p.done.includes(job.id)) return false;
+  if (!a || !job || job.kind !== 'buoy' || a.p.done.includes(job.id)) {
+    // (Not this stage's, or laid already: said, so the press isn't met with silence.)
+    if (a) sayRadio(world, 'info', `${portName(a.def.port)} harbour office: that buoy isn't wanted now, skipper. Bring it back to the quay.`);
+    return false;
+  }
   const off = Math.hypot(x - job.at[0], z - job.at[1]);
   if (off > CONFIG.career.projectBuoy.radius) {
     sayRadio(world, 'info', `${portName(a.def.port)} harbour office: that's ${Math.round(off)} m off its spot, skipper. The ${job.name.toLowerCase()} goes where it's marked on your plotter.`);
