@@ -1904,8 +1904,8 @@ function saveSessionCopy(): void {
     } catch {
       /* storage full or off: the session still works, it just isn't kept here */
     }
-    // On your own with a project open, the project saves itself too.
-    if (!sessionId && tabHasProject()) autosaveProject();
+    // On your own with a saved project open, the project saves itself too (a scratch boat isn't kept).
+    if (!sessionId && tabHasProject() && currentProject()) autosaveProject();
   }, 800);
 }
 function myName(): string {
@@ -3451,7 +3451,9 @@ function switchProject(doc: YardDoc, name: string): void {
     msg.textContent = 'You’re designing together: leave the session first (👥), then start a new design or open another.';
     return;
   }
-  if (!isBlank(side().doc())) {
+  if (!isBlank(side().doc()) && !currentProject()) {
+    if (!confirm('This scratch boat isn’t saved: leave her? (Press 💾 Save first to keep her.)')) return;
+  } else if (!isBlank(side().doc())) {
     const kept = saveProject();
     if (!kept) {
       msg.textContent = 'This browser won’t save (storage full or switched off), so this work would be lost: delete an old project, or copy her code first.';
@@ -3496,6 +3498,23 @@ $('projectsBtn').onclick = () => {
   if (!$('projectsPop').hidden) showProjects();
 };
 $('projClose').onclick = () => closeProject();
+/** A scratch boat (no project) to a project, by her name (asked for if she has none): she then saves herself as you work. */
+function saveScratch(): void {
+  if (sessionId) return;
+  const n = (brief.name ?? '').trim() || prompt('Her name, for the project:', defaultName())?.trim();
+  if (!n) return;
+  if (n !== brief.name) setBrief({ name: n });
+  const kept = saveProject();
+  $('projState').textContent = kept ? `“${kept}”, saved as you work` : 'This browser won’t save (storage full or switched off): delete an old project, or copy her code.';
+  showSaved();
+}
+$('saveBtn').onclick = saveScratch;
+/** The 💾 Save button (only on a scratch boat, on your own) and the Projects box's line on this work. */
+function showSaved(): void {
+  const scratch = !sessionId && !currentProject();
+  $('saveBtn').hidden = !scratch;
+  $('projState').textContent = scratch ? 'A scratch boat: not saved. Press 💾 Save to keep her as a project.' : currentProject() ? `“${currentProject()}”, saved as you work` : $('projState').textContent;
+}
 
 /** Does this tab have a project open (see OPEN_KEY)? */
 function tabHasProject(): boolean {
@@ -3520,7 +3539,8 @@ function keepWorkLeftOnTable(): void {
   const store = storage();
   const doc = readDocCopy('solo');
   try {
-    if (doc && !isBlank(doc)) {
+    // (A scratch boat, no project, isn't kept: owner, Oct 2026.)
+    if (doc && !isBlank(doc) && currentProject()) {
       const d = doc.variants[0].design;
       const summary = `${DESIGN_HULLS[d.hull]?.name.split(':')[0].trim() ?? 'A boat'}${doc.variants.length > 1 ? ` · ${doc.variants.length - 1} variant${doc.variants.length > 2 ? 's' : ''}` : ''}`;
       writeProjects(store, keepLeftWork(readProjects(store), doc, currentProject(), Date.now(), summary));
@@ -3546,7 +3566,9 @@ function closeProject(): void {
     return;
   }
   clearTimeout(saveTimer);
-  if (!saveProject()) {
+  if (!currentProject()) {
+    if (!isBlank(side().doc()) && !confirm('This scratch boat isn’t saved: close her and lose her? (Press 💾 Save first to keep her.)')) return;
+  } else if (!saveProject()) {
     if (!confirm('This browser won’t save (storage full or switched off), so this work would be lost. Close it anyway?')) return;
   }
   try {
@@ -3571,9 +3593,17 @@ function showStartScreen(): void {
     markProjectOpen();
     pop.hidden = true;
     const n = name.value.trim();
+    // Named, she's a project from the start; unnamed, a scratch boat, kept by nobody until 💾 Save (owner, Oct 2026).
+    try {
+      localStorage.removeItem(PROJECT_KEY);
+    } catch {
+      /* nothing to clear */
+    }
     if (n) setBrief({ name: n });
     goStep(0);
+    if (n) saveProject();
     saveSessionCopy();
+    showSaved();
   };
   $('startNew').onclick = go;
   name.onkeydown = (e) => {
@@ -3966,6 +3996,7 @@ function look(eye: [number, number, number], at: [number, number, number]): void
   orbit.update();
 }
 if (showStart) showStartScreen();
+showSaved();
 /** For scripted checks: where a point on her (boat axes) is on the page (client pixels). */
 function toScreen(p: [number, number, number]): [number, number] {
   const v = new THREE.Vector3(...p).project(viewCam());

@@ -477,12 +477,13 @@
       <div class="topRight">
         <button id="undo" title="Undo (Ctrl+Z)">↶</button><button id="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
         <span id="people"></span>
-        <button id="projectsBtn" title="Your projects: this one saves itself as you work; close it, or open another">📁 Projects</button>
+        <button id="saveBtn" class="primary" hidden title="A scratch boat isn’t saved: save her as a project to keep her (she then saves herself as you work)">💾 Save</button>
+        <button id="projectsBtn" title="Your projects: a saved one saves itself as you work; close it, or open another">📁 Projects</button>
         <button id="togetherBtn">👥 Design together</button>
       </div>
       <div id="projectsPop" hidden>
         <div class="row2"><span id="projState" class="meta">This project saves itself as you work.</span><button id="projClose">Close project</button></div>
-        <div id="projMsg" class="meta">A project is all of this work: the brief, the design and its variants, their pins and sketches. Kept in this browser. Open another below (this one is kept).</div>
+        <div id="projMsg" class="meta">A project is all of this work: the brief, the design and its variants, their pins and sketches. Kept in this browser. Open another below (a saved one is kept as it is; a scratch boat is let go).</div>
         <div id="projList"></div>
       </div>
       <div id="togetherPop" hidden>
@@ -498,9 +499,9 @@
     <div id="yardStart" hidden>
       <div class="startBox">
         <h1>Shipyard</h1>
-        <p class="meta">Each boat you design is a project. It saves itself as you work, in this browser.</p>
+        <p class="meta">Name her and she’s a project: she saves herself as you work, in this browser. Start without a name for a scratch boat, to try something out: she isn’t kept unless you press 💾 Save.</p>
         <h2>New project</h2>
-        <div class="startNewRow"><input id="startName" placeholder="Her name (you can change it later)" maxlength="60" /><button id="startNew" class="primary">Start</button></div>
+        <div class="startNewRow"><input id="startName" placeholder="Her name, to keep her (blank: a scratch boat)" maxlength="60" /><button id="startNew" class="primary">Start</button></div>
         <h2>Open a project</h2>
         <div id="startProjects" class="startList"></div>
         <h2 id="startFavsHead">Or start one from a favourite</h2>

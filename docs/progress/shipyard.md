@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Scratch boats: a project only when you name or save her (preview/shipyard)
+
+Owner, 25 Oct 2026: "when you start a new session, and you just say, you don't give a name, you just say go, it creates a project, and quite often I'm just creating like a throwaway ship to test things. So I don't want it to save a project every time I go in. There should be an explicit save button."
+
+- **Start with a name:** a project at once, saving itself as you work (as before).
+- **Start with no name** (or a link or code to a boat): a **scratch boat**. Nothing goes into the projects list: no saving as you work, and when the Shipyard opens afresh the work left on the table is let go, not kept as "Unsaved work". A reload keeps her (the tab's own copy, as before).
+- **💾 Save** in the header, shown only on a scratch boat on your own: asks her name (her name at the top if she has one), makes her a project, and from then on she saves herself. The Projects box says which she is.
+- Leaving a changed scratch boat (Close project, or opening another) asks first.
+- How it's told: a scratch boat is work with no project behind it (page.ts `currentProject()` empty: the start screen clears it, and a name or Save sets it). page.ts `saveScratch`, `showSaved`; `keepWorkLeftOnTable` and the autosave keep only a project's work.
+- Checked in the browser (headless Chromium): a scratch boat adds no project, survives a reload, is let go on a new visit; Save makes her a project that then saves her changes; a named start makes one at once. The full `npm test` and the typecheck pass.
+- README: scratch boats and 💾 Save.
+- **Shared changes:** none.
+
 ### Her finish: as new, worked or well used (approved by the owner 24 Oct 2026; on next)
 
 Owner (to the main game chat, Oct 2026): "these weathering and rusted texture should be an option in the shipyard, so you can pre-configure a boat to look used or new"; to this chat, 24 Oct 2026: "yes, go ahead with the weathering option". The game side (the `topsides` weathering tile, `Livery.weathering`) is the main game chat's, merged from next.
