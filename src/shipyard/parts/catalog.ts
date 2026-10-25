@@ -223,7 +223,11 @@ export function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow:
   const fc = forecastle ? { forecastle } : {};
   if (bow === null) return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: by(d.keel, D), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc };
   const bowed = bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow));
-  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc };
+  const extra = bowed.stations.length ? { extraStations: bowed.stations } : {};
+  // Her chines from her keel as cut (they sweep up her stem with the forefoot), or run on from
+  // the uncut one; her paint line runs on from it either way (owner: straight to her stem).
+  const lines = chinesRunOn ? { chineKeel: bowed.base } : { paintKeel: bowed.base };
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...lines, rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc, ...extra };
 }
 
 /**
@@ -237,28 +241,55 @@ export function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow:
  *   vertical overall (stem head to forefoot), and curved (owner, after a straight stem read
  *   as too raked): full forward, like the hull study's pilot boat, steeper at the deck
  *   (atan(tan deg / 2): 31 deg at 50) and running into the keel along it, with no knuckle.
- *   In profile it's a parabola added to the keel line. 0 deg is a plumb stem. A 50 deg stem
- *   on a 2 m deep bow reaches back ~2.4 m (owner: the keel not cut away further back).
+ *   In profile it's a parabola added to the keel line. A 50 deg stem on a 2 m deep bow
+ *   reaches back ~2.4 m (owner: the keel not cut away further back).
+ * - A plumb stem, or one raked no more than CONFIG.shipyard.bow.straightUpTo (owner: "straight
+ *   down, then a nice radius at the bottom"), is straight from the stem head, raked `deg`, and
+ *   rounded into the keel by a forefoot radius (a circular arc, tangent to the stem and the
+ *   keel). Her stations are closer round it (`stations`: extra stations for the loft), so it
+ *   reads as a curve, not a corner.
  * Drawn through samples every 1.25 % of her length.
  */
-export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): { keel: [number, number][]; base: [number, number][] } {
+export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): { keel: [number, number][]; base: [number, number][]; stations: number[] } {
   const own = (t: number) => curveAt(keel, t);
   const from = 0.6;
   const slope = (own(from + 1e-4) - own(from - 1e-4)) / 2e-4;
   const line = (t: number) => (t < from ? own(t) : own(from) + slope * (t - from));
   const top = stemDeckY - 0.15;
   const rise = top - line(1);
-  // How far back from the stem head the stem meets the keel (m).
-  const reach = deg > 0.1 ? rise * Math.tan((deg * Math.PI) / 180) : 0;
-  const at = (t: number) => {
-    const d = (1 - t) * lengthM;
-    return reach > 0 && d < reach ? line(t) + rise * (1 - d / reach) ** 2 : line(t);
-  };
+  const c = CONFIG.shipyard.bow;
   const ts = Array.from({ length: 81 }, (_, i) => i / 80);
-  // The forefoot, where the stem runs into the keel: sampled too.
-  if (reach > 0 && reach < lengthM) ts.push(1 - reach / lengthM);
+  const stations: number[] = [];
+  // Her stem's height over her keel line, `d` m aft of her stem head.
+  let over: (d: number) => number;
+  if (deg <= c.straightUpTo + 1e-9) {
+    // A straight stem raked b, and an arc of radius R tangent to it and to the keel line: its
+    // centre (dc, R) aft of the stem, R off it; it meets the stem at dt, the keel at dc.
+    const b = (deg * Math.PI) / 180;
+    const R = c.forefootRadius * rise;
+    const dc = (R + (rise - R) * Math.sin(b)) / Math.cos(b);
+    const dt = dc - R * Math.cos(b);
+    // (A plumb stem has no straight part in profile: her last station is the stem itself,
+    // from the arc's top up to her deck.)
+    over = (d) => (d <= dt && b > 1e-9 ? rise - d / Math.tan(b) : d < dc ? R - Math.sqrt(Math.max(0, R * R - (d - dc) ** 2)) : 0);
+    // Stations round the arc, evenly by its angle (b at the stem's end .. 90 deg at the keel's).
+    const n = c.radiusStations + 1;
+    for (let k = 0; k <= n; k++) {
+      const a = b + ((Math.PI / 2 - b) * k) / n;
+      const d = dc - R * Math.cos(a);
+      if (d > 1e-6 && d < lengthM) stations.push(1 - d / lengthM);
+    }
+  } else {
+    // How far back from the stem head the stem meets the keel (m).
+    const reach = rise * Math.tan((deg * Math.PI) / 180);
+    over = (d) => (d < reach ? rise * (1 - d / reach) ** 2 : 0);
+    // The forefoot, where the stem runs into the keel: sampled too.
+    if (reach < lengthM) ts.push(1 - reach / lengthM);
+  }
+  const at = (t: number) => line(t) + over((1 - t) * lengthM);
+  ts.push(...stations);
   ts.sort((a, b) => a - b);
-  return { keel: ts.map((t) => [t, at(t)]), base: ts.map((t) => [t, line(t)]) };
+  return { keel: ts.map((t) => [t, at(t)]), base: ts.map((t) => [t, line(t)]), stations };
 }
 
 /** The small tug's hull (its index in DESIGN_HULLS): a tug's wheelhouse kept forward, her towing hook amidships. */
@@ -382,14 +413,14 @@ export const DESIGN_HULLS: DesignHull[] = [
     // on all sizes with the engines we have"): the hull study's `workCat` (the hull
     // modifications chat drew her lines and her two-hull physics). 10 to 14.7 m (the usual 0.8
     // to 1.175 of 12.5 m). Her demihulls' spacing scales with her beam, her wet deck's height
-    // over the DWL with her depth. Her bows are her own (fine, raked: no bow choice). Not in the
-    // design code: she travels as a link or file.
+    // over the DWL with her depth. Her bows take the bow choice (owner, Oct 2026; plumb by
+    // default, as most work cats). Not in the design code: she travels as a link or file.
     name: 'Fast catamaran: 12.5 m aluminium, two slim hulls under a wide bridge deck',
     scantlings: CONFIG.shipyard.catamaran.scantlings,
     material: 'aluminium',
     catamaran: true,
-    form: (L, B, D, _bow, sheer) => {
-      const d = scaledStudy(study('workCat'), L, B, D, null, false, sheer);
+    form: (L, B, D, bow, sheer) => {
+      const d = scaledStudy(study('workCat'), L, B, D, bow, false, sheer);
       const cat = study('workCat').catamaran!;
       return { kind: 'lofted', design: { ...d, catamaran: { spacing: cat.spacing * B, tunnel: cat.tunnel * D } } };
     },
@@ -402,7 +433,8 @@ export const DESIGN_HULLS: DesignHull[] = [
     // engines, one in each hull (her hulls are too slim for one engine on her centreline).
     // Twin 400 kW as she comes: twin 280s make about 24.4 kn on her redrawn lines, under the
     // owner's 25 to 28 (re-measured 23 Oct 2026).
-    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 1, bow: 0, housePos: 12, houseLength: 5, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 0 }),
+    // A bow fender as she comes (owner, Oct 2026: the usual crew-transfer boat is a catamaran).
+    defaults: { ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 1, bow: 0, housePos: 12, houseLength: 5, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 0 }), bowFender: 1 },
   },
 ];
 
@@ -447,6 +479,14 @@ export const LIVERIES: { name: string; livery: Livery }[] = [
   { name: 'Black', livery: { bottom: 0x8c2a22, topsides: 0x22262a, deck: 0x6f746f, house: 0xe6e6df, roof: 0xb9bdb6 } },
   { name: 'Pilot yellow', livery: { bottom: 0x2f3438, topsides: 0xe0b020, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
   { name: 'Rescue red', livery: { bottom: 0x2f3438, topsides: 0xc0302a, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+  // More (owner, Oct 2026: "a few more options for paint colors"); after the first 8, so a
+  // boat in one of these travels as a link or file (design.ts CODE_PAINTS).
+  { name: 'Teal', livery: { bottom: 0x8c2a22, topsides: 0x1f6f6a, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'Burgundy', livery: { bottom: 0x2f3438, topsides: 0x6e1f2a, deck: 0x7d7a6a, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'Sky blue', livery: { bottom: 0x8c2a22, topsides: 0x5b8fbf, deck: 0x8a9096, house: 0xf4f4f0, roof: 0xd8d8d2 } },
+  { name: 'Slate grey', livery: { bottom: 0x8c2a22, topsides: 0x56606a, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'Sand', livery: { bottom: 0x2f3438, topsides: 0xc8b48a, deck: 0x7d7a6a, house: 0xf4f4f0, roof: 0xd8d8d2 } },
+  { name: 'Royal blue', livery: { bottom: 0x2f3438, topsides: 0x2850a0, deck: 0x8a9096, house: 0xf4f4f0, roof: 0xd8d8d2 } },
 ];
 
 /** Roof colours (owner): the hull's own topsides colour (null), or one of its own; an orange roof is common on workboats. */
@@ -465,6 +505,11 @@ export const HOUSE_PAINTS: { name: string; colour: number | null }[] = [
   { name: 'Green', colour: 0x2f5a3a },
   { name: 'Orange', colour: 0xe0661f },
   { name: 'Yellow', colour: 0xe0b020 },
+  // More (owner, Oct 2026); after the first 10, so they travel as a link or file (design.ts CODE_HOUSE_COLOURS).
+  { name: 'Teal', colour: 0x1f6f6a },
+  { name: 'Burgundy', colour: 0x6e1f2a },
+  { name: 'Sky blue', colour: 0x5b8fbf },
+  { name: 'Sand', colour: 0xc8b48a },
 ];
 
 /**
@@ -484,6 +529,11 @@ export const ROOF_PAINTS: { name: string; colour: number | null }[] = [
   { name: 'White', colour: 0xeeeeea },
   { name: 'Grey', colour: 0xb9bdb6 },
   { name: 'Black', colour: 0x22262a },
+  // More (owner, Oct 2026); after the first 5, so they travel as a link or file (design.ts CODE_ROOF_PAINTS).
+  { name: 'Cream', colour: 0xe9e1c8 },
+  { name: 'Red', colour: 0xc0302a },
+  { name: 'Blue', colour: 0x1f3a5c },
+  { name: 'Sand', colour: 0xc8b48a },
 ];
 
 /**
@@ -497,6 +547,10 @@ export const ROOF_TOPS: { name: string; colour: number | null }[] = [
   { name: 'White', colour: 0xeeeeea },
   { name: 'Sand', colour: 0xc8b48a },
   { name: 'Dark grey', colour: 0x4a4f54 },
+  // More (owner, Oct 2026); after the first 5, so they travel as a link or file (design.ts CODE_ROOF_TOPS).
+  { name: 'Cream', colour: 0xe9e1c8 },
+  { name: 'Black', colour: 0x22262a },
+  { name: 'Orange', colour: 0xe0661f },
 ];
 
 /** Her livery with the roof's colour chosen, and its top's (the workboat orange livery is `{}`: the workboat's own orange topsides), and the finish inside (none: the wood lining) and the floor (none: matting). */
@@ -510,6 +564,8 @@ export function liveryOf(d: ShipDesign): Livery {
     ...(top != null ? { roofTop: top } : {}),
     ...(house != null ? { house } : {}),
     ...(d.frames ? { frame: FRAME_COLOURS[d.frames].colour } : {}),
+    // Her finish: how used her hull looks (CONFIG.shipyard.finish).
+    weathering: CONFIG.shipyard.finish[d.finish ?? 0] ?? CONFIG.shipyard.finish[0],
     ...(d.interior ? { interior: d.interior } : {}),
     ...(d.cabinFloor ? { cabinFloor: d.cabinFloor } : {}),
   };

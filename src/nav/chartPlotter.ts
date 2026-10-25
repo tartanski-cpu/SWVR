@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { CURRENTS, FISHING_GROUNDS, MARKS, PLACES, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, MARKS, PLACES, PORTS, POTTING_GROUNDS, WIND_FARMS, WRECKS } from '../world/archipelago';
 
 /** The place names, most prominent first (they claim their room on the screen first). */
 const PLACES_BY_RANK = [...PLACES].sort((a, b) => a.rank - b.rank);
@@ -13,7 +13,7 @@ import { REGIONS } from '../world/regions';
 import type { RegionDef } from '../world/defs';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
-import { MODE } from '../mode';
+import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { ferriesInSight } from '../traffic/ferries';
 import { boatOwnerName, playerBoats } from '../core/launch';
 import { nextPoint, pointLabel } from '../voyage/plan';
@@ -22,6 +22,11 @@ import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
 import { coastTerrains } from '../world/coastTerrain';
 import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
+import { activeProject, foundations, installAt, jackUpAt, laidMarks, towId } from '../career/projects';
+import { siteWorld, sitesOn } from '../dive/diveSites';
+
+/** The dive sites on this page's map (the career's, or the Voyage map's). */
+const DIVE_SITES_HERE = sitesOn(MODE === 'career' ? 'career' : VOYAGE_MAP_ID);
 
 const W = 512;
 const H = 384;
@@ -402,6 +407,189 @@ export class ChartPlotter {
       g.stroke();
     }
 
+    // A construction project under way (career/projects.ts): its site, the stage's survey lines
+    // (dashed magenta, the stretches run in green) and its buoys' spots (a magenta ring and the
+    // mark's name until laid, then a mark like the others).
+    const proj = activeProject(world);
+    if (proj) {
+      const { def, p, jobs } = proj;
+      g.save();
+      // Small print, as the chart's other notes; the buoys' names only zoomed in (they'd pile up).
+      g.font = '11px system-ui, sans-serif';
+      const named = mpp < 4;
+      for (const t of def.turbines) {
+        const [px, py] = toPx(t.x, t.z);
+        g.strokeStyle = 'rgba(230, 90, 200, 0.7)';
+        g.lineWidth = 1.5;
+        g.setLineDash([3, 3]);
+        g.beginPath();
+        g.arc(px, py, 6, 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
+      }
+      const [lx, ly] = toPx(def.turbines[0].x, def.turbines[0].z);
+      g.fillStyle = '#f0a0e0';
+      g.fillText(`${def.name.replace(' wind farm', '')} works`, lx - 20, ly - 12);
+      const segs = CONFIG.career.projectSurvey.segments;
+      for (const job of jobs) {
+        if (p.done.includes(job.id)) continue;
+        if (job.kind === 'survey') {
+          const [ax, ay] = toPx(job.from[0], job.from[1]);
+          const [bx, by] = toPx(job.to[0], job.to[1]);
+          g.strokeStyle = '#e65ac8';
+          g.lineWidth = 2;
+          g.setLineDash([6, 4]);
+          g.beginPath();
+          g.moveTo(ax, ay);
+          g.lineTo(bx, by);
+          g.stroke();
+          g.setLineDash([]);
+          g.strokeStyle = '#4be08a';
+          g.lineWidth = 3;
+          for (const k of p.survey[job.id] ?? []) {
+            g.beginPath();
+            g.moveTo(ax + ((bx - ax) * k) / segs, ay + ((by - ay) * k) / segs);
+            g.lineTo(ax + ((bx - ax) * (k + 1)) / segs, ay + ((by - ay) * (k + 1)) / segs);
+            g.stroke();
+          }
+          g.fillStyle = '#f0a0e0';
+          g.fillText(job.name.replace(/Survey line (\d).*/, 'L$1'), bx + 4, by + 4);
+        } else if (job.kind === 'tow' || job.kind === 'supply') {
+          // A tow or a supply run: the hand-over ring (at a monopile's turbine, or round the
+          // jack-up), and a tow itself where it is (at the laydown, or in tow): a magenta bar
+          // along its length.
+          const ju = jackUpAt(world);
+          const t = job.kind === 'tow' && job.turbine !== undefined ? def.turbines[job.turbine] : ju;
+          if (t) {
+            const [tx, ty] = toPx(t.x, t.z);
+            const r = job.kind === 'supply' ? CONFIG.career.projectSupply.radius : job.turbine !== undefined ? CONFIG.career.projectTow.handover.radius : CONFIG.career.projectTow.toJackUpRadius;
+            g.strokeStyle = '#e65ac8';
+            g.lineWidth = 2;
+            g.beginPath();
+            g.arc(tx, ty, Math.max(r / mpp, 5), 0, Math.PI * 2);
+            g.stroke();
+          }
+          if (job.kind === 'supply') continue;
+          const mv = world.vessels[towId(def, job)];
+          if (mv) {
+            const [mx, my] = toPx(mv.position[0], mv.position[2]);
+            const [qx, qy, qz, qw] = mv.orientation;
+            const fx = -(2 * (qx * qz + qw * qy));
+            const fz = -(1 - 2 * (qx * qx + qy * qy));
+            const half = Math.max(20 / mpp, 4);
+            g.strokeStyle = '#f080e0';
+            g.lineWidth = 4;
+            g.beginPath();
+            g.moveTo(mx - fx * half, my - fz * half);
+            g.lineTo(mx + fx * half, my + fz * half);
+            g.stroke();
+            g.fillStyle = '#f0a0e0';
+            g.fillText(job.turbine !== undefined ? `Pile ${job.turbine + 1}` : 'TP barge', mx + 8, my - 6);
+          }
+        } else if (job.kind === 'buoy') {
+          const [px, py] = toPx(job.at[0], job.at[1]);
+          g.strokeStyle = '#e65ac8';
+          g.lineWidth = 2;
+          g.beginPath();
+          g.arc(px, py, Math.max(CONFIG.career.projectBuoy.radius / mpp, 5), 0, Math.PI * 2);
+          g.stroke();
+          g.fillStyle = '#f0a0e0';
+          if (named) g.fillText(job.name, px + 8, py - 6);
+        }
+      }
+      // Guard duty: the installation ship (a grey block), the zone round her (red, dashed) and
+      // where a guard boat stands by (faint); the ships sent for the works (red, named: her
+      // radar's contacts, passed to the guard, AIS or not).
+      const inst = installAt(world);
+      if (inst) {
+        const gc = CONFIG.career.projectGuard;
+        const [ix, iy] = toPx(inst.x, inst.z);
+        g.strokeStyle = 'rgba(230, 90, 200, 0.35)';
+        g.lineWidth = 1;
+        g.beginPath();
+        g.arc(ix, iy, gc.standBy / mpp, 0, Math.PI * 2);
+        g.stroke();
+        g.strokeStyle = '#ff4040';
+        g.lineWidth = 2;
+        g.setLineDash([6, 4]);
+        g.beginPath();
+        g.arc(ix, iy, Math.max(gc.zone / mpp, 6), 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
+        const [hl, hw] = CONFIG.career.projectInstall.hull;
+        g.fillStyle = '#7c8488';
+        g.fillRect(ix - Math.max(hl / 2 / mpp, 4), iy - Math.max(hw / 2 / mpp, 2), Math.max(hl / mpp, 8), Math.max(hw / mpp, 4));
+        for (const sh of world.traffic?.ships ?? []) {
+          if (sh.bound !== def.id) continue;
+          const [sx, sy] = toPx(sh.x, sh.z);
+          const fx = Math.sin(sh.course);
+          const fz = -Math.cos(sh.course);
+          g.fillStyle = '#ff4040';
+          g.beginPath();
+          g.moveTo(sx + fx * 8, sy + fz * 8);
+          g.lineTo(sx - fx * 5 - fz * 4, sy - fz * 5 + fx * 4);
+          g.lineTo(sx - fx * 5 + fz * 4, sy - fz * 5 - fx * 4);
+          g.closePath();
+          g.fill();
+          g.fillText(sh.name, sx + 8, sy - 6);
+        }
+      }
+      // The foundations driven (and the one being driven): grey discs, yellow once their
+      // transition piece is on, white once the turbine's up.
+      for (const f of foundations(world)) {
+        const [px, py] = toPx(f.x, f.z);
+        g.fillStyle = f.erect === 1 ? '#f4f6f6' : f.tp === 1 ? '#e8c020' : f.driving === null ? '#9aa0a4' : '#c8ccd0';
+        g.beginPath();
+        g.arc(px, py, 4, 0, Math.PI * 2);
+        g.fill();
+      }
+      for (const m of laidMarks(world)) {
+        const [px, py] = toPx(m.x, m.z);
+        g.fillStyle = '#ffd23a';
+        g.strokeStyle = '#101010';
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(px, py - 6);
+        g.lineTo(px + 5, py);
+        g.lineTo(px, py + 6);
+        g.lineTo(px - 5, py);
+        g.closePath();
+        g.fill();
+        g.stroke();
+      }
+      g.restore();
+    }
+
+    // Wind turbines (world/windFarm.ts): a white three-bladed sign each; the crew transfer's
+    // turbine (transfer/transfer.ts) ringed in amber with its number, while the job is on.
+    const tj = world.transfer?.job && !world.transfer.job.done ? world.transfer.job : null;
+    WIND_FARMS.forEach((f, fi) =>
+      f.turbines.forEach((t, ti) => {
+        const [px, py] = toPx(t.x, t.z);
+        if (px < -20 || px > W + 20 || py < -20 || py > H + 20) return;
+        g.strokeStyle = '#f2f2ee';
+        g.lineWidth = 2;
+        g.beginPath();
+        for (let k = 0; k < 3; k++) {
+          const a = -Math.PI / 2 + (k * 2 * Math.PI) / 3;
+          g.moveTo(px, py);
+          g.lineTo(px + Math.cos(a) * 6, py + Math.sin(a) * 6);
+        }
+        g.stroke();
+        if (tj && tj.farm === fi && tj.turbine === ti) {
+          g.strokeStyle = '#f0b030';
+          g.lineWidth = 2.5;
+          g.beginPath();
+          g.arc(px, py, 11, 0, Math.PI * 2);
+          g.stroke();
+          g.fillStyle = '#f0b030';
+          g.font = 'bold 15px system-ui, sans-serif';
+          g.textBaseline = 'middle';
+          g.fillText(`T${ti + 1}`, px + 14, py);
+        }
+      }),
+    );
+
     // Special places: the timber camp's anchorage, the timber merchant.
     g.font = 'bold 16px system-ui, sans-serif';
     g.textBaseline = 'middle';
@@ -566,6 +754,33 @@ export class ChartPlotter {
           g.fill();
         }
       }
+    }
+    // Dive sites (dive/diveSites.ts: wrecks for the submersible game): a dashed pale blue ring,
+    // the chart's wreck mark (a line crossed by three strokes) in it, the name and the depth.
+    for (const site of DIVE_SITES_HERE) {
+      const at = siteWorld(site);
+      if (!at) continue;
+      const [cx, cy] = toPx(at.x, at.z);
+      const rad = Math.max(CONFIG.dive.radius / mpp, 7);
+      if (cx + rad < -60 || cx - rad > W + 60 || cy + rad < -20 || cy - rad > H + 20) continue;
+      g.strokeStyle = 'rgba(170, 215, 255, 0.85)';
+      g.lineWidth = 1.5;
+      g.setLineDash([4, 3]);
+      g.beginPath();
+      g.arc(cx, cy, rad, 0, Math.PI * 2);
+      g.stroke();
+      g.setLineDash([]);
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(cx - 6, cy);
+      g.lineTo(cx + 6, cy);
+      for (const dx of [-3.5, 0, 3.5]) {
+        g.moveTo(cx + dx, cy - 3);
+        g.lineTo(cx + dx, cy + 3);
+      }
+      g.stroke();
+      g.fillStyle = '#b8dcff';
+      g.fillText(`${site.name} (wreck, ${site.depthM} m)`, cx - 40, cy - rad - 4);
     }
     // Salvage logs washed up: brown bars, LOG.
     for (const l of world.salvage?.logs ?? []) {

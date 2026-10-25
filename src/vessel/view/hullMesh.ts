@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
 import { frontMullions, houseFloorAt, houseFloorLow, housesOf, houseX, planHalfWidth, wingCurveY, type CabinBelow, type Livery } from '../vesselDef';
-import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
+import { flatVertexColorMaterial, mergeParts, paintLocal, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
-import { paintIndex, type PaintName } from '../../render/pixelPaint';
+import { paintIndex, setHullWeathering, type PaintName } from '../../render/pixelPaint';
 import type { HouseShape } from '../vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../deckhouse';
 import { houseFlare, type HouseFlare } from '../houseFlare';
@@ -40,7 +40,7 @@ export function paintOf(livery?: Livery): Paint {
   const fin = CONFIG.interiors[livery?.interior ?? 0] ?? CONFIG.interiors[0];
   const fl = CONFIG.cabinFloors[livery?.cabinFloor ?? 0] ?? CONFIG.cabinFloors[0];
   const paint: Paint = { ...COLORS, lining: fin.walls, ceiling: fin.ceiling, liningTile: fin.wallTile, ceilingTile: fin.ceilingTile, floorTile: fl.tile };
-  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined && k !== 'interior' && k !== 'cabinFloor') (paint as unknown as Record<string, number>)[k] = v;
+  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined && k !== 'interior' && k !== 'cabinFloor' && k !== 'weathering') (paint as unknown as Record<string, number>)[k] = v;
   if (fl.colour !== null) paint.floor = fl.colour;
   return paint;
 }
@@ -51,9 +51,16 @@ export function paintOf(livery?: Livery): Paint {
  * Everything static is merged into one vertex-coloured, flat-shaded mesh: one draw call.
  */
 export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number], livery?: Livery): THREE.Mesh {
-  const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout, exhaustOutlet, paintOf(livery))), flatVertexColorMaterial());
+  const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout, exhaustOutlet, paintOf(livery))), hullMaterial(livery));
   mesh.name = 'hull';
   return mesh;
+}
+
+/** The hull's material: the shared flat-shaded one, with her own weathering (the livery's, new or used; the config's if none). */
+function hullMaterial(livery?: Livery): THREE.MeshLambertMaterial {
+  const m = flatVertexColorMaterial();
+  setHullWeathering(m, livery?.weathering ?? CONFIG.pixelPaint.weathering.strength);
+  return m;
 }
 
 /**
@@ -65,7 +72,7 @@ export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOut
 export function buildVesselMeshParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number], livery?: Livery): { hull: THREE.Mesh; house: THREE.Mesh | null } {
   const at = { house: 0 };
   const parts = buildParts(form, layout, exhaustOutlet, paintOf(livery), at);
-  const mesh = (list: THREE.BufferGeometry[]) => new THREE.Mesh(mergeParts(list), flatVertexColorMaterial());
+  const mesh = (list: THREE.BufferGeometry[]) => new THREE.Mesh(mergeParts(list), hullMaterial(livery));
   const hull = mesh(parts.slice(0, at.house));
   hull.name = 'hull';
   const rest = parts.slice(at.house);
@@ -97,14 +104,22 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const e2 = new THREE.Vector3();
   const centroid = new THREE.Vector3();
 
-  /** Add triangle a-b-c, flipped if needed so its normal points away from `inside`. */
-  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName) => {
+  /**
+   * Add triangle a-b-c, flipped if needed so its normal points away from `inside`. `axisX`
+   * (a hull's side or bottom): away from her centreline (a demihull's, for a catamaran) at the
+   * triangle's own height instead, wherever the face leans out sideways. A point halfway down
+   * her side read a high panel in a fine, plumb bow as facing in, and it went missing.
+   */
+  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName, axisX?: number) => {
     e1.subVectors(b, a);
     e2.subVectors(d, a);
     n.crossVectors(e1, e2);
     if (n.lengthSq() < 1e-10) return; // degenerate (stem)
-    centroid.copy(a).add(b).add(d).divideScalar(3).sub(inside);
-    const verts = n.dot(centroid) >= 0 ? [a, b, d] : [a, d, b];
+    centroid.copy(a).add(b).add(d).divideScalar(3);
+    const out = axisX === undefined ? 0 : centroid.x - axisX;
+    const sideways = axisX !== undefined && Math.abs(n.x) > 0.05 * n.length() && Math.abs(out) > 1e-4;
+    const facesOut = sideways ? n.x * out > 0 : n.dot(centroid.sub(inside)) >= 0;
+    const verts = facesOut ? [a, b, d] : [a, d, b];
     c.set(color);
     for (const v of verts) {
       positions.push(v.x, v.y, v.z);
@@ -142,6 +157,8 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     if (k === 4) return new THREE.Vector3(0, poly[4][1] + 0.3, st[i].z);
     return new THREE.Vector3((k < 4 ? -1 : 1) * cat.spacing / 2, (poly[2][1] + poly[0][1]) / 2, st[i].z);
   };
+  // Her keel's points in the outline (each demihull's, on a catamaran).
+  const keelIdx = cat ? [2, 7] : [last / 2];
   const topsideEdge = (k: number) => (cat ? [0, 3, 4, 5, 8].includes(k) : k < chine || k >= last - chine);
 
   // A cabin sunk below the deck (its floor lower than the deck under it: you step down into
@@ -199,12 +216,60 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       const b0 = P(i, b);
       const a1 = P(i + 1, a);
       const b1 = P(i + 1, b);
-      // Non-slip paint on the deck; her topsides and bottom plain (owner: workboats are mostly
-      // GRP, or aluminium in big sheets: no plate seams).
-      const paint = color === col.deck && a === last ? 'nonSlip' : undefined;
+      // Non-slip paint on the deck; her topsides weathered (the `topsides` tile: grime, rust
+      // runs and faded paint, hullPaintUvs below) and her bottom plain (owner: workboats are
+      // mostly GRP, or aluminium in big sheets: no plate seams).
+      const paintOf = (c: number, k: number): PaintName | undefined => (c === col.deck && k === last ? 'nonSlip' : c === col.topsides ? 'topsides' : undefined);
+      const paint = paintOf(color, a);
       const ref = cat && a !== last ? insideEdge(i, a).add(insideEdge(i + 1, a)).multiplyScalar(0.5) : mid;
-      tri(a0, b0, b1, ref, color, paint);
-      tri(a0, b1, a1, ref, color, paint);
+      // Her sides and bottom face away from her centreline (a demihull's); the deck and a
+      // catamaran's wet deck by `ref`.
+      const axisX = a === last || (cat && a === 4) ? undefined : cat ? ((a < 4 ? -1 : 1) * cat.spacing) / 2 : 0;
+      const panel = (p0: THREE.Vector3, q0: THREE.Vector3, p1: THREE.Vector3, q1: THREE.Vector3, c: number) => {
+        tri(p0, q0, q1, ref, c, paintOf(c, a), axisX);
+        tri(p0, q1, p1, ref, c, paintOf(c, a), axisX);
+      };
+      // Her bottom up to her paint line where it's under her chine (Station.paintY: a chine
+      // dragged up her stem by her forefoot), her topsides' colour above it, so the line runs on
+      // straight to her stem. Each station's point on the panel's edge, chine to keel, at it.
+      const k = keelIdx.includes(a) ? a : keelIdx.includes(b) ? b : -1;
+      if (color === col.bottom && k >= 0 && (st[i].paintY !== undefined || st[i + 1].paintY !== undefined)) {
+        const up = k === a ? b : a;
+        const at = (j: number) => {
+          const U = P(j, up);
+          const K = P(j, k);
+          const y = st[j].paintY;
+          if (y === undefined || y >= U.y) return U;
+          return y <= K.y ? K : K.lerp(U, (y - K.y) / (U.y - K.y));
+        };
+        const m0 = at(i);
+        const m1 = at(i + 1);
+        // Where her keel rises through the paint line between the two (her forefoot), the
+        // bottom paint stops where it crosses, on her keel between them: X.
+        const over = (j: number) => st[j].paintY !== undefined && st[j].paintY! <= P(j, k).y;
+        if (over(i) !== over(i + 1)) {
+          const [o, j] = over(i) ? [i + 1, i] : [i, i + 1];
+          const Ko = P(o, k);
+          const Kj = P(j, k);
+          const po = (o === i ? m0 : m1).y - Ko.y;
+          const pj = (st[j].paintY ?? P(j, up).y) - Kj.y;
+          const X = Ko.clone().lerp(Kj, po / Math.max(po - pj, 1e-9));
+          const mo = o === i ? m0 : m1;
+          tri(mo, Ko, X, ref, color, paint, axisX);
+          tri(mo, X, Kj, ref, col.topsides, 'topsides', axisX);
+          panel(P(o, up), mo, P(j, up), Kj, col.topsides);
+          continue;
+        }
+        panel(P(i, up), m0, P(i + 1, up), m1, col.topsides);
+        panel(m0, P(i, k), m1, P(i + 1, k), color);
+        continue;
+      }
+      // Each quad's diagonal mirrored side to side (owner, Oct 2026: a plumb stem looked raked
+      // from starboard): split the same way as port's, a starboard panel at a plumb stem (two of
+      // its corners on her centreline) would leave one triangle flat in the centreline plane,
+      // unseen from starboard, and her stem's edge the other triangle's slant.
+      if (!cat && a >= last / 2 && a !== last) panel(b0, a0, b1, a1, color);
+      else panel(a0, b0, a1, b1, color);
     }
   }
   // Transom (station 0) as a fan around its centre.
@@ -214,18 +279,20 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // leave the tunnel open, each demihull's transom and the bridge deck's plate across.
   const endPlate = (i: number, ref: THREE.Vector3) => {
     const tris = THREE.ShapeUtils.triangulateShape(outlines[i].map(([x, y]) => new THREE.Vector2(x, y)), []);
-    for (const [a, b, d] of tris) tri(P(i, a), P(i, b), P(i, d), ref, col.topsides);
+    for (const [a, b, d] of tris) tri(P(i, a), P(i, b), P(i, d), ref, col.topsides, 'topsides');
   };
   if (cat) endPlate(0, tIn);
-  else for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides);
+  else for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides, 'topsides');
   // A square bow (a landing bow: the last station still has width) is closed the same way,
   // by a bow plate. (A catamaran's bow: the bridge deck's front, across her tunnel.)
+  // (A sharp bow whose stem head still has a little width, the deck's few centimetres across
+  // there, is closed the same way: else a slit shows up her stem head, head on: owner, Oct 2026.)
   const e = st.length - 1;
-  if (st[e].halfBeamDeck > SQUARE_BOW) {
+  if (st[e].halfBeamDeck > 1e-4) {
     const bIn = inside(e).add(new THREE.Vector3(0, 0, 1));
     const bC = new THREE.Vector3(0, (st[e].polygon[2][1] + st[e].polygon[0][1]) / 2, st[e].z);
     if (cat) endPlate(e, bIn);
-    else for (let k = 0; k <= last; k++) tri(bC, P(e, k), P(e, (k + 1) % (last + 1)), bIn, col.topsides);
+    else for (let k = 0; k <= last; k++) tri(bC, P(e, k), P(e, (k + 1) % (last + 1)), bIn, col.topsides, 'topsides');
   }
 
   const hull = new THREE.BufferGeometry();
@@ -233,6 +300,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   hull.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   hull.setAttribute('paint', new THREE.Float32BufferAttribute(paints, 1));
   hull.computeVertexNormals();
+  hullPaintUvs(hull, hullPlan({ hull: form }).deckY);
 
   const parts = [hull, ...buildDeckFittings(form, layout, col)];
   // The engine space under a deck hatch: as under one in the cabin floor (buildFloor).
@@ -308,6 +376,35 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     }
   }
   return parts;
+}
+
+/**
+ * The hull's paint coordinates. Her topsides wear the weathering tile (pixelPaint `topsides`),
+ * which stands the freeboard high rather than repeating in metres, so its waterline grime and
+ * the rust runs from the deck edge fall where they should on any hull: along her in metres
+ * (across her on the transom and a bow plate), and up her as a fraction of the freeboard
+ * there, 0 at the design waterline (y = 0) and 1 at the deck edge (`deckY`). Below the
+ * waterline it goes negative and the shader fades it out. The deck keeps the usual
+ * projection (geometryUtils paintLocal).
+ */
+export function hullPaintUvs(hull: THREE.BufferGeometry, deckY: (z: number) => number): void {
+  paintLocal(hull);
+  const uv = hull.attributes.paintUv;
+  const pos = hull.attributes.position;
+  const paint = hull.attributes.paint;
+  const top = paintIndex('topsides');
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  for (let i = 0; i + 2 < pos.count; i += 3) {
+    if (paint.getX(i) !== top) continue;
+    a.fromBufferAttribute(pos, i);
+    b.fromBufferAttribute(pos, i + 1);
+    c.fromBufferAttribute(pos, i + 2);
+    const n = c.clone().sub(b).cross(a.clone().sub(b));
+    const sideways = Math.abs(n.x) >= Math.abs(n.z);
+    for (const [k, v] of [a, b, c].entries()) uv.setXY(i + k, sideways ? v.z : v.x, v.y / Math.max(0.3, deckY(v.z)));
+  }
 }
 
 /**

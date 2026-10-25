@@ -61,6 +61,15 @@ export const SHIPYARD_CONFIG = {
      */
     shaftAngleMaxDeg: 15,
     /**
+     * The least stability (GM, m) she's let into the game with (review, 24 Oct 2026: slim,
+     * deep designs with GM below 0 turned turtle at the berth seconds after Play). Below it
+     * the Shipyard says she'd capsize and holds back Try her (page.ts); 0.15 m leaves a
+     * margin over upright for the game's sea and her crew moving about. Low stability (under
+     * `lowGM`) is still only a warning.
+     */
+    minGM: 0.15,
+    lowGM: 0.5,
+    /**
      * The most power a displacement hull (the tug, the trawler) takes, kW per tonne of her
      * lines' displacement (owner, Oct 2026: two 750 kW engines don't fit a small tug). Her
      * speed is held by her length, not her power, so past this the power is spent making
@@ -182,6 +191,17 @@ export const SHIPYARD_CONFIG = {
      */
     sheer: { from: 0.4 },
     /**
+     * A straight stem (owner, Oct 2026: "a plumb bow should be straight down, then a nice
+     * radius at the bottom"; catalog.ts bowKeel): a stem raked up to `straightUpTo` deg (the
+     * plumb and the first step) is a straight line down from her stem head, rounded into her
+     * keel by a forefoot radius of `forefootRadius` x her stem's height (keel to stem head).
+     * A station at its foot and `radiusStations` between its ends, so it reads as a rounded
+     * forefoot, not a corner; few, as it's under water (owner: no need for a fine radius there).
+     * Each station is about 85 more triangles on her hull and a little more work for her
+     * physics. A more raked stem is curved all the way down (full forward, as before).
+     */
+    bow: { straightUpTo: 12.5, forefootRadius: 0.3, radiusStations: 1 },
+    /**
      * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's;
      * shipyard/parts/house.ts raisedForedeck): her deck stepped up forward of a break, a
      * vertical bulkhead across her, her sides and bulwarks stepping up with it. Reached as on a
@@ -234,6 +254,14 @@ export const SHIPYARD_CONFIG = {
      * standing helmsman's eyes (about 1.6 m) are still well up in the glass.
      */
     windowSills: { standard: 1.0, low: 0.75, high: 1.3 },
+    /**
+     * Her hull's finish (owner, Oct 2026: "pre-configure a boat to look used or new";
+     * design.finish): how much the weathering tile shows on her topsides (render/pixelPaint.ts
+     * `topsides`: waterline grime, rust runs from the deck edge, faded paint), 0 plain paint ..
+     * 1 the tile as drawn. In the design's order: well used first (0, as every boat looked
+     * before the choice), then worked, then as new.
+     */
+    finish: [1, 0.5, 0],
     /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
@@ -293,7 +321,7 @@ export const SHIPYARD_CONFIG = {
     /** helm.screenLift: the dash screens and gauges raised this far up the (leaning) dash face (m), so the lower row's foot clears the ledge in front of it. */
     /** helm.minInside: the narrowest wheelhouse, inside (m; CS6: one at a short console). helm.faceSwitchOrder: on a console too short for its switch panel, the groups moved up onto the dash face, in this order, until the rest fit. */
     /** helm.lampsUpBelow: on a console shorter than this (m; the shortest before CS6), the warning lamps' row goes up onto the dash face, clear of the wheel's rim. */
-    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
+    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'AUTOPILOT', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
@@ -374,8 +402,10 @@ export const SHIPYARD_CONFIG = {
      * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
      * (`pricePerKg`, GBP). The Furniture step opens with the section tool cut at a waterline
      * `planCut` (m) over the wheelhouse floor, seen from above (the roof and the top of the walls off).
+     * A TV on the wall keeps `tvCeiling` (m) under the ceiling, coming down to do so, and its
+     * screen's foot no lower than `tvLowest` over the floor (else it's left off).
      */
-    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25 },
+    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25, tvCeiling: 0.1, tvLowest: 0.8 },
     /**
      * The Shipyard's section tool (owner: "cut the ship through as you want"): her drawing cut by
      * a waterline (level), a buttock (fore and aft, upright) or a station (athwartships, upright)
@@ -516,6 +546,8 @@ export const SHIPYARD_CONFIG = {
      */
     /** The small tug's push fender (GBP), with its fixings. */
     pushFenderPrice: 4500,
+    /** A bow fender (design.bowFender, modules/bowFender): the moulded rubber block and its fitting (GBP). */
+    bowFenderPrice: 6000,
     protection: { fendersPrice: 450, strakePerM: 110, tyrePrice: 90, tyreFitting: 600, fenders: 3 },
   },
 };

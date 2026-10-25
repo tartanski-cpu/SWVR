@@ -131,8 +131,8 @@ describe('Shipyard: the boats it builds', () => {
         mass.push(VESSEL_DEFS.design.mass);
         lwl.push(VESSEL_DEFS.design.resistance.lwl);
       }
-      // A tug's push bow, a landing craft's landing bow and a catamaran's fine bows are their own: the bow choice leaves them as they are.
-      if (DESIGN_HULLS[hull].pushBow || DESIGN_HULLS[hull].landingBow || DESIGN_HULLS[hull].catamaran) {
+      // A tug's push bow and a landing craft's landing bow are their own: the bow choice leaves them as they are.
+      if (DESIGN_HULLS[hull].pushBow || DESIGN_HULLS[hull].landingBow) {
         expect(new Set(mass).size, `hull ${hull}`).toBe(1);
         continue;
       }
@@ -292,7 +292,7 @@ describe('Shipyard: the boats it builds', () => {
     // Every hull finds room for both poles on either deck, with or without a crane; only the
     // shortest aft decks can't take the aft crane and both poles too (and say so).
     for (const l of left) expect(l).toMatch(/^hull [01] crane 2 lamp 3 monitor 3: There's no room on her aft deck for the fire monitor's pole/);
-  });
+  }, 120000); // Room: about 14 s here, twice that on GitHub's publishing machine, past the 20 s default.
 
   it('a unit on the roof is worked from the helm; one on a pole has its own controls, and the helm\'s too with the advanced controls', () => {
     const helm = (d: Partial<ShipDesign>) => {

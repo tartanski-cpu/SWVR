@@ -10,6 +10,76 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) Twin stern drives get the twin lever control
+
+`parts/recipe.ts`: two stern-drive legs are worked separately too (the outboard module's `split`), with the twin lever control and START P / START S, as twin shafts. Twin outboards keep one lever. See `docs/progress/modules.md`.
+
+### (From the modular-builder chat) Twin shaft engines get the twin lever control
+
+`parts/recipe.ts`: a twin with shaft engines (not pods, stern drives or outboards) has its diesel's `twin.split` set, the console's `throttle` socket gets `control.twin-throttle`, the START becomes START P and a second, START S (`start2`, bound to `ignition.start2`), joins the ENGINE group (`BASIC_KEEP` too). See `docs/progress/modules.md`.
+
+### (From the modular-builder chat) The autopilot's own group on the console
+
+With the helm assist (`design.helmAssist`), three console push buttons `apPort`, `apOn`, `apStbd` (PORT 5°, AUTO, STBD 5°) in an AUTOPILOT switch group, starboard side, nearest the wheel (`parts/recipe.ts`); `PANEL_SLOTS.AUTOPILOT` (`panelAutopilot`, not in the code); `CONFIG.shipyard.helm.faceSwitchOrder` takes it after DECK. The panel grid's reported starts (`cc.panelGrid.runs[].start`) are now nudged apart when the rules close the switches up tighter than a cell, so pinning a crowded console where it stands keeps every group. The Assist tile's words changed. See `docs/progress/modules.md`.
+
+### (From the modular-builder chat) A TV on the wall
+
+Furniture kind `tv` (`tvAt`, `tvAt2`; not in the code): on the nearest wall at seated eye height, over low furniture but clear of doorways and tall pieces (`parts/furniture.ts`, `CONFIG.shipyard.furniture.tvCeiling` / `tvLowest`); menu entry, icon and about text (`furnishing.ts`, `gearMenu.ts`), ghost height (`placing.ts`); the Add button's limit says each piece's own count (`page.ts`). Also: "moved along the wall to fit" now counts only movement along the wall, not being put back against it. See `docs/progress/modules.md`.
+
+### (From the modular-builder chat) Twelve seats, each turnable
+
+For the crew-transfer catamaran's rows of seats: `design.ts` has seat fields `seatAt5`..`seatAt12` and a facing per seat (`seatFace`..`seatFace12`, 0-7 in 45 degree steps; `SEAT_FACES`, `seatYawDeg`), none in the code; `furnishing.ts` adds `turnSeat` and moves facings up with the seats in `removeFurniture`; `parts/furniture.ts` turns a seat's footprint and socket by its facing; `page.ts` has a Turn button on seat rows. See `docs/progress/modules.md`.
+
+### Her finish: as new, worked or well used (approved by the owner 24 Oct 2026; on next)
+
+Owner (to the main game chat, Oct 2026): "these weathering and rusted texture should be an option in the shipyard, so you can pre-configure a boat to look used or new"; to this chat, 24 Oct 2026: "yes, go ahead with the weathering option". The game side (the `topsides` weathering tile, `Livery.weathering`) is the main game chat's, merged from next.
+
+- **The choice:** Paint step, Hull group, **Finish**: As new, Worked, Well used (design field `finish`: 0 well used, 1 worked, 2 as new, so every design from before reads as well used, as every boat looked). `liveryOf` writes `livery.weathering` from `CONFIG.shipyard.finish` ([1, 0.5, 0]: how much of the tile shows); the page draws it as the game does.
+- **Codes:** well used keeps her short code; worked or as new travels as a link or file ("her finish ... isn't in the code"), as the bow fender.
+- No draw calls added (the hull's own material).
+- Tests: tests/shipyard/finish.test.ts (well used as before, the livery's weathering for each, her hull's material drawn with it, the code and link). designDoc.test.ts: `finish` not in the code. The full `npm test` and the typecheck pass.
+- README: the Finish choice.
+- **Shared changes:** none (the merge brought the game side).
+
+### A plumb stem raked from starboard, and a slit up the stem head (approved by the owner 24 Oct 2026; on next)
+
+Owner, 24 Oct 2026: "when the pilot boat's got a plumb bow, it's straight from the port side, but not from the starboard ... I can see a missing face actually from the straight in front view."
+
+- **Raked from starboard:** each hull panel (a quad between two stations) is drawn as two triangles, and the diagonal ran the same way round the section on both sides, so starboard's split wasn't port's mirror. At a plumb stem, where the bottom panel has two corners on her centreline, starboard's split left one triangle lying flat in the centreline plane: unseen from starboard, so her stem's edge there was the other triangle's slant, from the keel at the station aft up to the chine at the stem. Now starboard's panels are split as port's mirror (vessel/view/hullMesh.ts), and both sides are drawn the same everywhere. (Not on a catamaran: her demihulls' panels are their own.)
+- **The missing face, head on:** a Shipyard stem head is a few centimetres wide (the deck's edge, ±0.03 m), but her sides close to a point below it, and the plate across a bow was drawn only on a square bow (over 0.2 m). The wedge between them, about 0.55 m deep, was open: a slit up her stem head. Now any stem head with width is plated across. This was on every bow rake, not only plumb.
+- No draw calls added (a few triangles in her hull mesh).
+- Tests: tests/shipyard/stemMirror.test.ts (the pilot boat, plumb, standard and most raked: starboard's panels mirror port's, and her stem head is closed; fails before the fix). The full `npm test` and the typecheck pass.
+- **Shared changes:** vessel/view/hullMesh.ts: the panels' diagonals mirrored side to side, and the stem head's plate. Every boat's starboard panels are now split as port's, so her starboard shading can look a touch different (the same shape).
+
+### The Paint step revamped, with more colours (approved by the owner 24 Oct 2026; on next)
+
+Owner, 24 Oct 2026: "could do with a revamp of the painting page, make sure it's organized nicely, and maybe give us a few more options for paint colors."
+
+- **Organised:** the step is in three groups under headings, Hull, Wheelhouse and Roof (each with its ⓘ note), and every choice is a row of colour swatches with its label and, under the label, the name of the colour chosen. Before, the hull swatches had no label, the roof top and frames were word buttons, and nothing named the colour chosen. A swatch marked = follows another part's colour and shows it: the walls follow her paint, the roof her topsides, the top panel the roof (page.ts `PAINT_LIKE`, `paintRow`; the word-button `options()` helper had no other users and is gone).
+- **The view:** arriving at Paint looks at all of her from the bow quarter (`setView('Bow ¾')`), not wherever the last step left the camera (often inside the wheelhouse).
+- **More colours** (parts/catalog.ts): hull paints 8 → 14 (Teal, Burgundy, Sky blue, Slate grey, Sand, Royal blue, each with its bottom, deck and house colours); wheelhouse walls 10 → 14 (Teal, Burgundy, Sky blue, Sand); roof colours 5 → 9 (Cream, Red, Blue, Sand); roof top panels 5 → 8 (Cream, Black, Orange).
+- **Codes kept:** the short code still holds the first 8 / 10 / 5 / 5 (design.ts `CODE_PAINTS`, `CODE_HOUSE_COLOURS`, `CODE_ROOF_PAINTS`, `CODE_ROOF_TOPS`, used in its packing), so every old code reads the same; a boat in a newer colour travels as a link or file ("this paint isn't in the code"). The Shipyard's own steps: `PAINT_TYPES` 14, `ROOF_PAINT_TYPES` 9, `HOUSE_COLOUR_FIELD` 14, `ROOF_TOP_FIELD` 8.
+- No new draw calls: the colours are the same materials' colours.
+- Tests: tests/shipyard/paintColours.test.ts (every colour offered and distinct, the first ones still in the code, the newer ones by link and back, a newer colour paints her); designDoc.test.ts and houseColours.test.ts keep to the code's colours. `npm run test:shipyard`, the full `npm test` and the typecheck pass.
+- README: the Paint step's groups and the new colours.
+
+### (From the modular-builder chat) The bow fender
+
+At the owner's word (24 Oct 2026, crew transfer to wind farms): new design field `bowFender` (not in the code; the catamaran's default 1), worked out in `parts/trim.ts` (`bowFenderAt`), its socket in `hullDef.ts`, module `hull.bow-fender` in `recipe.ts`, weight and price in `weights.ts` (`CONFIG.shipyard.bowFenderPrice`), the Hull step's **Bow fender** tiles in `page.ts` (icons in `tiles.ts`). Details in `docs/progress/modules.md`.
+
+### Fixes from the review of 24 Oct 2026: the dash crash, capsizing boats, a winch with no tow point, the catamaran's roll chart (approved by the owner 24 Oct 2026; on next)
+
+Owner, 24 Oct 2026: "fix 1, 2, 5 and 6" of the Shipyard's findings in docs/REVIEW_2026-10-24.md (3 and 4, the game buttons to Voyage and the same-tab project, are left for the refit work).
+
+1. **A dash laid out by hand crashed the builder** (high): with screens placed by hand, one with no room came off the console, but the shortest-console search (`fullSize`) still looked it up there and threw. The page died, and the broken design was already in the tab's saved copy. Now each screen's cells are read once, before any comes off (parts/recipe.ts `screenCells`). Test: tests/shipyard/dashPinned.test.ts (every dash screen pinned at four columns, every controls level, two hull types). It failed before the fix (landing craft, controls 1, the speed screen at column 2) and passes now.
+2. **Boats that would capsize** (medium): under `CONFIG.shipyard.minGM` (0.15 m) the warning, first among her warnings, says "She would capsize: she can't float upright (GM …)", not "low stability" (parts/trim.ts; `lowGM` 0.5 for the old warning). The page greys out **Try her in the game** (its tooltip says why) and **Try her together** until she's fixed (page.ts `floatsUpright`). Saving and sharing her still work, so work in progress isn't lost. The pilot boat at her slimmest and deepest (GM -0.43 m) is told and held back; checked in headless Chromium.
+3. **A tow winch with no tow point** (low): the tow point is the stern roller's (its towing hook too, on a tug), so a winch without one never takes a tow. Now the Shipyard says "Her tow winch has no tow point to tow from: fit the stern roller" (parts/deckGear.ts), and the gear menu's line says the winch leads over the roller (gearMenu.ts).
+4. **The catamaran's roll chart read "NaN %"** (low): her roll dies in about one swing, two peaks, and the damping was only worked out from three. Now two peaks give it from the half-cycle decrement (shared: vessel/seaTrials.ts); with fewer, the chart draws the measured dots and says "heavily damped" (trialCharts.ts).
+
+- Tests: tests/shipyard/reviewFixes.test.ts (the capsize warning, the tow point warning, the cat's damping and a chart with no NaN; the last failed before the fix), dashPinned.test.ts. `npm run test:shipyard`, the full `npm test` and the typecheck pass.
+- README: Try her held back for a boat that would capsize; the tow winch needs the stern roller.
+- **Shared changes:** vessel/seaTrials.ts, the roll damping from two peaks and its text line when it can't be measured (one swing's worth: before, NaN).
+
 ### Faceted aft windows with windows raked out all round (approved by the owner 24 Oct 2026; on next)
 
 Owner, 24 Oct 2026: "When the raked out option for the sides and aft of the wheelhouse is activated, the three facets on the aft of the wheelhouse are not respected. Please fix that. I would like it so that you can have basically like a proper wheelhouse."

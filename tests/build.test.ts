@@ -25,3 +25,14 @@ describe('a page behind the site reloads once', () => {
     expect(freshUrl('NEXT aaa', 'NEXT bbb', href + '&fresh=1&t=1')).toBeNull();
   });
 });
+
+describe('isNewerBuild', () => {
+  it('compares two builds by when they were made; dev or the same minute is not newer', async () => {
+    const { isNewerBuild } = await import('../src/build');
+    expect(isNewerBuild('NEXT db2e869 2026-10-25 16:43', 'NEXT 18ff12f 2026-10-25 14:57')).toBe(true);
+    expect(isNewerBuild('NEXT 18ff12f 2026-10-25 14:57', 'NEXT db2e869 2026-10-25 16:43')).toBe(false);
+    expect(isNewerBuild('NEXT aaaaaaa 2026-10-25 16:43', 'NEXT bbbbbbb 2026-10-25 16:43')).toBe(false);
+    expect(isNewerBuild('dev', 'NEXT db2e869 2026-10-25 16:43')).toBe(false);
+    expect(isNewerBuild('2026-10-26 09:00', undefined)).toBe(false);
+  });
+});

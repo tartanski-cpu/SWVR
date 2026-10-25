@@ -52,7 +52,7 @@ import { regionAt } from '../world/regions';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { createRescueState, nearestPort, sayRadio } from '../rescue/rescue';
 import { formatPosition } from '../nav/geo';
-import { logOf, salvageStatus, stepLog } from '../salvage/salvage';
+import { logMass, logOf, salvageStatus, stepLog } from '../salvage/salvage';
 import { earn, hasUpgrade } from '../career/career';
 
 export interface TowJob {
@@ -196,7 +196,7 @@ export function isTugClass(world: WorldState, v: VesselState): boolean {
 /** The kinds this boat may be called for: a ship only for a tug. */
 function kindsFor(world: WorldState, v: VesselState): readonly (typeof TOW_DEFS)[number][] {
   const tug = isTugClass(world, v);
-  return TOW_DEFS.filter((d) => !VESSEL_DEFS[d].tow?.needs || tug);
+  return TOW_DEFS.filter((d) => !VESSEL_DEFS[d].tow?.project && (!VESSEL_DEFS[d].tow?.needs || tug));
 }
 
 /**
@@ -305,13 +305,19 @@ export const vesselKey = (id: EntityId) => `v:${id}`;
 
 /**
  * Everything the towline can go on now: vessels afloat other than ours (a tender hanging
- * in her cradle or on the crane isn't afloat) and drifting debris.
+ * in her cradle or on the crane isn't afloat) and drifting debris. A construction project's
+ * tug tow (a floated monopile: TowLook.project, needs 'tug') only for a tug (owner, Oct 2026:
+ * "the tug should do the tows ... if they're over a certain size"). A dead ship stays open to
+ * any boats that can shift her between them, as before (multi-boat towing).
  */
 export function towTargets(world: WorldState, boatId?: EntityId): string[] {
   const v = towerFor(world, boatId);
+  const tug = !!v && isTugClass(world, v);
   const keys: string[] = [];
   for (const o of Object.values(world.vessels)) {
     if (o === v || (o.tender && o.tender.phase !== 'free')) continue;
+    const look = VESSEL_DEFS[o.defId]?.tow;
+    if (look?.project && look.needs === 'tug' && !tug) continue;
     keys.push(vesselKey(o.id));
   }
   for (const d of world.traffic?.debris ?? []) keys.push(`d:${d.id}`);
@@ -523,7 +529,7 @@ function lineForce(world: WorldState, v: VesselState, line: TowLine, out: Map<En
   else if (log) vB.set(log.vel[0], 0, log.vel[1]);
   else vB.set(line.vel?.[0] ?? 0, 0, line.vel?.[1] ?? 0);
   const rate = vB.sub(pointVelocity(v, pA, vA)).dot(dir);
-  const mT = t ? VESSEL_DEFS[t.defId].mass : log ? CONFIG.salvage.mass : cfg.debris.mass;
+  const mT = t ? VESSEL_DEFS[t.defId].mass : log ? logMass(log) : cfg.debris.mass;
   const m = (defV.mass * mT) / (defV.mass + mT);
   const c = 2 * cfg.dampingRatio * Math.sqrt(cfg.stiffness * m);
   const T = Math.max(0, cfg.stiffness * stretch + c * rate);
@@ -898,7 +904,7 @@ export function applyTowIntent(world: WorldState, intent: Intent): void {
       const fz = -(1 - 2 * (qx * qx + qy * qy));
       const len = Math.hypot(fx, fz) || 1;
       // A kind by name, or one of a size (the debug menu's Small / Medium / Large / Ship, owner), at random.
-      const ofSize = TOW_DEFS.filter((d) => VESSEL_DEFS[d].tow?.size === intent.ref);
+      const ofSize = TOW_DEFS.filter((d) => VESSEL_DEFS[d].tow?.size === intent.ref && !VESSEL_DEFS[d].tow?.project);
       const kind = TOW_DEFS.includes(intent.ref as (typeof TOW_DEFS)[number]) ? intent.ref! : ofSize.length ? ofSize[Math.floor(rand(t) * ofSize.length)] : TOW_DEFS[0];
       const back = CONFIG.tow.debugDistance + hullPlan(VESSEL_DEFS[v.defId]).transom - hullPlan(VESSEL_DEFS[kind]).stem;
       const nj = spawnTow(world, kind, v.position[0] - (fx / len) * back, v.position[2] - (fz / len) * back, 'accepted');

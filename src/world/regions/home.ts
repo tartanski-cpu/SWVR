@@ -123,6 +123,20 @@ export const HOME: RegionDef = {
     { ax: 680, az: 742, bx: 602, bz: 712, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
     { ax: 602, az: 712, bx: 580, bz: 664, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
   ],
+  // Holm Rig wind farm (owner, Oct 2026: crew transfer to wind farms): three turbines in 40 m
+  // of open water south-east of Calder Holm, clear of the Calder Bank fishing ground, a row
+  // running ESE, each landing facing NW (toward Calder Haven, the way the crew boat comes in).
+  // world/windFarm.ts.
+  windFarms: [
+    {
+      name: 'Holm Rig wind farm',
+      turbines: [
+        { x: 1300, z: 1250, landingDeg: 300 },
+        { x: 1500, z: 1350, landingDeg: 300 },
+        { x: 1700, z: 1450, landingDeg: 300 },
+      ],
+    },
+  ],
   blocks: [
     // Calder Haven quay: 70 m wall along the basin's east side, facing west.
     // The apron runs back to the shore (x 711-751), so the quay is part of the land.
@@ -199,7 +213,7 @@ export const HOME: RegionDef = {
       cargo: { berth: { x: 707, z: 660, radius: 16 }, stackX: 714.8, stackZ: 666, stackYawDeg: 0, color: 0x2f6fd0 },
       // Calder Boatyard: the equipment and the everyday upgrades at the standard rate. The
       // radar and the heavy towing post are fitted at Loch Tarsk's yard only (regions).
-      economy: { repairs: { hull: 1, engine: 1 }, sells: ['trawlGear', 'skiff', 'searchlight', 'fireMonitor', 'fenders', 'lifeRing', 'ais', 'bigTank', 'trawl', 'ice', 'craneComp'] },
+      economy: { repairs: { hull: 1, engine: 1 }, sells: ['trawlGear', 'skiff', 'searchlight', 'fireMonitor', 'fenders', 'lifeRing', 'bowFender', 'ais', 'bigTank', 'trawl', 'ice', 'craneComp'] },
     },
     { id: 'brannock', name: 'Brannock Pier', kind: 'pier', x: -553, z: 317, fuel: { x: -545, z: 305, radius: 14, pumpX: -556.6, pumpZ: 309.3 }, // the pump abeam the fuel berth, within the hose's reach
       clearRadius: 70,

@@ -12,6 +12,7 @@ import { groundHeight } from '../world/terrain';
 import type { EnvironmentState } from '../environment/environmentState';
 import { beaufort, windVector } from '../environment/weather';
 import { formatPosition } from '../nav/geo';
+import { addCurrent } from '../world/currents';
 
 /**
  * The bridge's screens (speed, heading, rpm, rudder, engine monitor, NAV / WIND) and the
@@ -195,7 +196,6 @@ export class DisplayAtlas {
   }
 }
 
-/** Speed screen: speed, the echo sounder and the anchor (flash phases while it moves). */
 /*
  * Lettering (owner, Oct 2026: the text "can be slightly smaller" so each screen fits more).
  * Sizes in atlas pixels; a screen's 512 px span its 0.38 m width, so 20 px letters stand
@@ -216,11 +216,9 @@ function font(px: number): string {
   return `bold ${px}px ${MONO}`;
 }
 
-/** Speed screen: speed, the echo sounder, heading and course, and the anchor (flash phases while it moves). */
+/** Speed screen: the log (speed through the water), the echo sounder, heading and course. */
 function speedKey(s: VesselState, def: VesselDef): string {
-  const a = s.anchor;
-  const anchorFlash = a.phase !== 'stowed' && (a.phase !== 'set' || a.dragging) ? Math.floor(performance.now() / 500) % 2 : 0;
-  return [knots(s).toFixed(1), Math.min(99.9, depthUnderKeel(s, def)).toFixed(1), Math.round(headingDeg(s)), Math.round(cogDeg(s)), a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, anchorFlash].join('|');
+  return [logKnots(s).toFixed(1), Math.min(99.9, depthUnderKeel(s, def)).toFixed(1), Math.round(headingDeg(s)), Math.round(cogDeg(s))].join('|');
 }
 
 function engineKey(s: VesselState): string {
@@ -269,8 +267,20 @@ function depthUnderKeel(s: VesselState, def: VesselDef): number {
   return -groundHeight(s.position[0], s.position[2]) + def.hull.params.keelY;
 }
 
+/** Speed over the ground (kn): what the GPS gives (the overhead NAV panel's SOG). */
 function knots(s: VesselState): number {
   return Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) * 1.943844;
+}
+
+/**
+ * Speed through the water (kn): what the log reads (owner, Oct 2026: "the speed gauge should
+ * actually read speed through water"): her speed over the ground less the tidal current where
+ * she is (world/currents.ts), as her hull feels it.
+ */
+export function logKnots(s: VesselState): number {
+  const c = { x: 0, z: 0 };
+  addCurrent(s.position[0], s.position[2], c);
+  return Math.hypot(s.linearVelocity[0] - c.x, s.linearVelocity[2] - c.z) * 1.943844;
 }
 
 export function headingDeg(s: VesselState): number {
@@ -290,9 +300,10 @@ function depthText(d: number): string {
 }
 
 const paintSpeed: Painter = (g, s, def) => {
-  title(g, 'SPEED  SOG');
+  // The log: speed through the water (over the ground is the overhead NAV panel's SOG).
+  title(g, 'SPEED  LOG');
   text(g, 'DEPTH', 316, 16);
-  const kn = knots(s);
+  const kn = logKnots(s);
   g.textAlign = 'right';
   big(g, kn.toFixed(1), 228, 92, 84);
   g.textAlign = 'left';
@@ -305,8 +316,7 @@ const paintSpeed: Painter = (g, s, def) => {
   big(g, 'm', 458, 108, 28, DIM);
   // Heading and course, under the speed and depth.
   text(g, `HDG ${bearing(headingDeg(s))}`, 24, 146, GREEN);
-  text(g, `COG ${kn > 0.3 ? bearing(cogDeg(s)) : '---'}`, 316, 146, GREEN);
-  paintAnchor(g, s);
+  text(g, `COG ${knots(s) > 0.3 ? bearing(cogDeg(s)) : '---'}`, 316, 146, GREEN);
   // 0-15 kn bar.
   g.fillStyle = '#1f2a24';
   g.fillRect(24, 210, 464, 16);
@@ -314,48 +324,15 @@ const paintSpeed: Painter = (g, s, def) => {
   g.fillRect(24, 210, Math.min(464, (kn / 15) * 464), 16);
 };
 
-/**
- * Anchor indicator on the speed screen (left, under the title), so it's plain whether the
- * anchor is down: UP (dim) when stowed, DOWN with the chain out (steady amber) when it's
- * on the bottom, flashing while the chain runs out or comes in, red DRAGGING.
- */
-function paintAnchor(g: CanvasRenderingContext2D, s: VesselState): void {
-  const a = s.anchor;
-  const flash = Math.floor(performance.now() / 500) % 2 === 0;
-  let t: string;
-  let color = AMBER;
-  switch (a.phase) {
-    case 'stowed':
-      t = 'ANCHOR UP';
-      color = DIM;
-      break;
-    case 'set':
-      t = a.dragging ? 'DRAGGING' : `ANCHOR DOWN ${a.rodeM.toFixed(0)} m`;
-      color = a.dragging ? (flash ? RED : DIM) : AMBER;
-      break;
-    case 'paying':
-      t = `LETTING GO ${a.rodeM.toFixed(0)} m`;
-      color = flash ? AMBER : DIM;
-      break;
-    default: // weighing, hanging
-      t = `HEAVING IN ${a.rodeM.toFixed(0)} m`;
-      color = flash ? AMBER : DIM;
-  }
-  text(g, t, 24, 178, color);
-}
-
 const paintHeading: Painter = (g, s) => {
   title(g, 'HEADING');
   const h = headingDeg(s);
   g.textAlign = 'left';
   big(g, bearing(h), 24, 84, 72);
-  // Course over ground and rate of turn, beside the heading.
+  // Course over ground, beside the heading. (No rate of turn: owner, Oct 2026, its flicker
+  // between port and starboard told nothing.)
   const kn = knots(s);
-  const rot = rateOfTurn(s);
   text(g, `COG ${kn > 0.3 ? bearing(cogDeg(s)) : '---'}`, 488, 50, GREEN, TEXT_PX, 'right');
-  // (Under 3°/min reads 0: a moored boat's sway isn't a turn.)
-  const turning = Math.abs(rot) >= 3;
-  text(g, `ROT ${turning ? String(Math.round(Math.abs(rot))).padStart(3, ' ') : '  0'}°/min ${!turning ? ' ' : rot > 0 ? 'S' : 'P'}`, 488, 82, !turning ? AMBER : rot > 0 ? GREEN : RED, TEXT_PX, 'right');
   // Compass tape: 90 degrees visible across the width, centre line = heading.
   const pxPerDeg = 464 / 90;
   g.save();
@@ -405,6 +382,24 @@ const paintRpm: Painter = (g, s) => {
   if (!diesel) return;
   const rudder = gearOf(s, 'rudder');
   const e = s.engine;
+  // (A word for each engine's state and gear, and its colour.)
+  const gearOf2 = (x: typeof e) => (x.phase !== 'running' ? (x.phase === 'cranking' ? 'CRANKING' : 'ENGINE OFF') : x.gear === 1 ? 'AHEAD' : x.gear === -1 ? 'ASTERN' : 'NEUTRAL');
+  const colourOf2 = (x: typeof e) => (x.phase !== 'running' ? (x.phase === 'cranking' ? AMBER : RED) : x.gear === 1 ? GREEN : x.gear === -1 ? RED : AMBER);
+  if (e.stbd) {
+    // Twin engines worked separately: a line each, port then starboard.
+    title(g, 'ENGINES');
+    [e, e.stbd].forEach((x, k) => {
+      const y = 50 + k * 40;
+      text(g, k ? 'S' : 'P', 24, y - 6, k ? GREEN : RED, 26);
+      g.textAlign = 'right';
+      big(g, (Math.round(x.rpm / 10) * 10).toString(), 196, y, 36);
+      g.textAlign = 'left';
+      big(g, 'rpm', 204, y, 18, DIM);
+      g.textAlign = 'right';
+      big(g, gearOf2(x), 488, y, 26, colourOf2(x));
+    });
+    text(g, `${e.fuelFlowLph.toFixed(1)} L/h`, 488, 122, DIM, TEXT_PX, 'right');
+  } else {
   title(g, 'ENGINE');
   // Revs in figures (in tens, like a real tacho), gear and engine state beside them.
   g.textAlign = 'right';
@@ -415,13 +410,15 @@ const paintRpm: Painter = (g, s) => {
   const color = e.phase !== 'running' ? (e.phase === 'cranking' ? AMBER : RED) : e.gear === 1 ? GREEN : e.gear === -1 ? RED : AMBER;
   g.textAlign = 'right';
   big(g, gear, 488, 54, 28, color);
-  text(g, `${e.fuelFlowLph.toFixed(1)} L/h  ${e.coolantC.toFixed(0)}°C`, 488, 78, DIM, TEXT_PX, 'right');
+  // (Fuel burn; the coolant's on the ENGINE MONITOR: owner, Oct 2026.)
+  text(g, `${e.fuelFlowLph.toFixed(1)} L/h`, 488, 78, DIM, TEXT_PX, 'right');
   // Load (fuel rack) bar.
   text(g, 'LOAD', 24, 108, DIM, SMALL_PX);
   g.fillStyle = '#1f2a24';
   g.fillRect(80, 110, 408, 12);
   g.fillStyle = e.rack > 0.95 ? RED : AMBER;
   g.fillRect(80, 110, 408 * Math.min(1, e.rack), 12);
+  }
   if (!rudder) return;
   // Steering: a scale across, port red, starboard green; the needle where it is, the ring
   // where the helm asks for it.
@@ -899,7 +896,7 @@ const paintDialRpm: Painter = (g, s) => {
   dial(g, { min: 0, max, value: s.engine.rpm, ticks: max / 500, label: 'RPM', units: 'x100', red: rated, fig: (v) => String(Math.round(v / 100)) });
 };
 /** The speed log: knots, 0 to 30. */
-const paintDialSpeed: Painter = (g, s) => dial(g, { min: 0, max: 30, value: knots(s), ticks: 6, label: 'LOG', units: 'kn' });
+const paintDialSpeed: Painter = (g, s) => dial(g, { min: 0, max: 30, value: logKnots(s), ticks: 6, label: 'LOG', units: 'kn' });
 /** The depth gauge: the water under her keel, 0 to 50 m (red under 2 m: a mark, as on an old sounder). */
 const paintDialDepth: Painter = (g, s, def) => dial(g, { min: 0, max: 50, value: depthUnderKeel(s, def), ticks: 5, label: 'DEPTH', units: 'm', note: depthUnderKeel(s, def) < 2 ? 'SHALLOW' : undefined, noteColour: RED });
 /** Coolant temperature, 40 to 120 C, red from her alarm. */
@@ -1051,15 +1048,15 @@ const paintClock: Painter = (g, _s, _def, env) => {
 /** The screens there are, for the screen module (modules/screen) to pick from. */
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
-  heading: { paint: paintHeading, key: (s) => [Math.round(headingDeg(s)), knots(s) > 0.3 ? Math.round(cogDeg(s)) : -1, Math.abs(rateOfTurn(s)) < 3 ? 0 : Math.round(rateOfTurn(s))].join('|') },
-  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), s.engine.coolantC.toFixed(0), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
+  heading: { paint: paintHeading, key: (s) => [Math.round(headingDeg(s)), knots(s) > 0.3 ? Math.round(cogDeg(s)) : -1].join('|') },
+  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, s.engine.stbd ? `${Math.round(s.engine.stbd.rpm / 10)}${s.engine.stbd.phase}${s.engine.stbd.gear}` : '', Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
   towline: { paint: paintTowline, cells: [2, 1], key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
   // Old school: the analogue gauges, each a quarter.
   dialRpm: { paint: paintDialRpm, cells: [1, 1], round: true, key: (s) => String(Math.round(s.engine.rpm / 25)) },
-  dialSpeed: { paint: paintDialSpeed, cells: [1, 1], round: true, key: (s) => knots(s).toFixed(1) },
+  dialSpeed: { paint: paintDialSpeed, cells: [1, 1], round: true, key: (s) => logKnots(s).toFixed(1) },
   dialDepth: { paint: paintDialDepth, cells: [1, 1], round: true, key: (s, def) => Math.min(60, depthUnderKeel(s, def)).toFixed(1) },
   dialTemp: { paint: paintDialTemp, cells: [1, 1], round: true, key: (s) => s.engine.coolantC.toFixed(0) },
   dialFuel: { paint: paintDialFuel, cells: [1, 1], round: true, key: (s) => s.engine.fuelL.toFixed(0) },

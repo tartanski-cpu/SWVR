@@ -176,6 +176,8 @@ export class InteractionSystem {
         this.pulse(hand, 0.8, 80);
       }
       if (h.held) {
+        // Held while the grip is (owner, Oct 2026: "when I grab them, I want to be locked onto
+        // them. Doesn't matter if I move my body away from them"): no letting go by distance.
         if (f.gripDown) {
           h.held.grabMove(p);
         } else {

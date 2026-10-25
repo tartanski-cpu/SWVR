@@ -43,6 +43,8 @@ export interface Ship {
   sighted: boolean;
   /** Last time it sounded its fog signal (s, world time). */
   hornAt: number;
+  /** Bound for a construction project's works (its id: career/projects.ts, guard duty) until she's met and turns away. */
+  bound?: string;
 }
 
 export interface Debris {
@@ -111,12 +113,7 @@ export function spawnShip(world: WorldState, t: TrafficState, v: VesselState, ne
   const [bx, , bz] = v.position;
   const [qx, qy, qz, qw] = v.orientation;
   const hdg = Math.atan2(-(2 * (qx * qz + qw * qy)), (1 - 2 * (qx * qx + qy * qy)));
-  const add = (n: number, type: ShipType, sx: number, sz: number, course: number): Ship => {
-    const st = c.ships[type];
-    const ship: Ship = { id: `ship${n}`, type, name: st.names[Math.floor(hash01(n + 0.7) * st.names.length) % st.names.length], x: sx, z: sz, course, speed: st.speed, sighted: false, hornAt: world.time - hash01(n + 0.8) * 120 };
-    t.ships.push(ship);
-    return ship;
-  };
+  const add = (n: number, type: ShipType, sx: number, sz: number, course: number): Ship => addShip(world, t, n, type, sx, sz, course);
   // Open water: a straight track crossing ahead of us.
   for (let tries = 0; tries < 12; tries++) {
     const n = (t.seq += 1);
@@ -143,6 +140,36 @@ export function spawnShip(world: WorldState, t: TrafficState, v: VesselState, ne
   for (let i = first; i < types.length; i++) {
     const run = confinedTrack(bx, bz, n + i, minDepth(types[i]), near);
     if (run) return add(n, types[i], run.x, run.z, run.course);
+  }
+  return null;
+}
+
+/** A new ship of `type` at (sx, sz) on `course`, its name and fog-signal clock from `n`. */
+function addShip(world: WorldState, t: TrafficState, n: number, type: ShipType, sx: number, sz: number, course: number): Ship {
+  const st = CONFIG.traffic.ships[type];
+  const ship: Ship = { id: `ship${n}`, type, name: st.names[Math.floor(hash01(n + 0.7) * st.names.length) % st.names.length], x: sx, z: sz, course, speed: st.speed, sighted: false, hornAt: world.time - hash01(n + 0.8) * 120 };
+  t.ships.push(ship);
+  return ship;
+}
+
+/**
+ * A ship sent for (x, z) (a construction project's works, `bound` its id: guard duty,
+ * career/projects.ts): `from` m off on some bearing, on a course straight for it, with deep
+ * enough water all the way in and as far again past it. Null if no clear approach was found.
+ */
+export function spawnShipFor(world: WorldState, x: number, z: number, from: number, bound: string): Ship | null {
+  const t = (world.traffic ??= createTraffic(world.time));
+  for (let tries = 0; tries < 24; tries++) {
+    const n = (t.seq += 1);
+    const type = SHIP_TYPES[Math.floor(hash01(n) * SHIP_TYPES.length) % SHIP_TYPES.length];
+    const brg = hash01(n + 0.3) * Math.PI * 2;
+    const sx = x + Math.sin(brg) * from;
+    const sz = z - Math.cos(brg) * from;
+    const course = wrapAngle(brg + Math.PI);
+    if (!clearTrack(sx, sz, course, from * 2, minDepth(type))) continue;
+    const ship = addShip(world, t, n, type, sx, sz, course);
+    ship.bound = bound;
+    return ship;
   }
   return null;
 }

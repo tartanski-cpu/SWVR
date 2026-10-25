@@ -203,6 +203,7 @@ describe('InteractionSystem (VR hands)', () => {
     expect(lever.held).toBe(false);
   });
 
+
   it('a hand away from every control is free for grab-the-world', () => {
     const lever = new Lever('lever', { maxAngleDeg: 40, length: 0.2 }, 0.06);
     lever.root.updateMatrixWorld(true);

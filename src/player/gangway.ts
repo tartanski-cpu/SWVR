@@ -7,6 +7,7 @@ import { hasWheelhouse, VESSEL_DEFS } from '../vessel/vesselDef';
 import { berthWithId } from '../world/berths';
 import { landFloor } from '../world/landWalkArea';
 import { quaySpot } from '../world/startSpot';
+import { allFarms, landingFace, platformAt } from '../world/windFarm';
 import type { Handedness } from './xrInput';
 
 /**
@@ -19,6 +20,11 @@ import type { Handedness } from './xrInput';
  *                          (you go ashore a step back from the edge: world/startSpot.ts quaySpot);
  *   ashore near one        a mark over her deck by the rail on the quay side, "Step aboard"
  *                          (you go aboard where you'd board her: her boarding spot).
+ *   on a turbine's landing (crew transfer, transfer/transfer.ts: her bow held on its tubes)
+ *                          a mark over the tubes, "Step across" (onto its platform, at the
+ *                          ladder's head: world/windFarm.ts platformSpot); and on the
+ *                          platform, while she's still held there, one over her bow,
+ *                          "Step aboard".
  *
  * Point at it and press: VR, a free hand's trigger (its ray on the ring); desktop, a click
  * with the reticle on it. It sends the same `board` intent as the board key (the host puts
@@ -37,7 +43,8 @@ export interface GangwayContext {
   pulse: (h: Handedness, intensity: number, ms: number) => void;
 }
 
-type Target = { kind: 'ashore' | 'aboard'; boatId: string };
+/** Ashore, aboard, or (crew transfer) across from a boat on a turbine's landing onto its platform: `turbine` "farm:turbine". */
+type Target = { kind: 'ashore' | 'aboard' | 'across'; boatId: string; turbine?: string };
 
 const AMBER = 0xf0b030;
 
@@ -79,7 +86,7 @@ export class Gangway {
     this.target = this.find(ctx);
     this.root.visible = !!this.target && this.place(ctx, this.target);
     if (!this.root.visible) return;
-    this.paint(this.target!.kind === 'ashore' ? 'Step ashore' : 'Step aboard');
+    this.paint(this.target!.kind === 'ashore' ? 'Step ashore' : this.target!.kind === 'across' ? 'Step across' : 'Step aboard');
     // Face the viewer, upright.
     this.root.lookAt(viewer.x, this.root.position.y, viewer.z);
   }
@@ -90,7 +97,16 @@ export class Gangway {
     if (!p || p.mode !== 'walk') return null;
     if (p.aboardVesselId) {
       const v = ctx.world.vessels[p.aboardVesselId];
+      // Held on a wind turbine's landing (crew transfer: transfer/transfer.ts): across onto its platform.
+      const on = v ? ctx.world.transfer?.landed[v.id] : undefined;
+      if (v && on) return { kind: 'across', boatId: v.id, turbine: on };
       return v?.mooring.phase === 'moored' && v.mooring.berthId ? { kind: 'ashore', boatId: v.id } : null;
+    }
+    // On a turbine's platform: back aboard the boat held on its landing, if there is one.
+    const here = platformAt(p.position[0], p.position[2]);
+    if (here) {
+      const landed = Object.entries(ctx.world.transfer?.landed ?? {}).find(([, t]) => t === here);
+      return landed && ctx.boatRoot(landed[0]) ? { kind: 'aboard', boatId: landed[0], turbine: here } : null;
     }
     let best: Target | null = null;
     let bd = CONFIG.gangway.aboardRange;
@@ -108,7 +124,21 @@ export class Gangway {
     const v = ctx.world.vessels[t.boatId];
     if (!v) return false;
     const up = CONFIG.gangway.up;
-    if (t.kind === 'ashore') {
+    if (t.kind === 'across' || t.turbine) {
+      // Across: over the landing's tubes at her bow. Back aboard: over her bow, seen from the platform.
+      const [f, i] = (t.turbine ?? '').split(':').map(Number);
+      const tb = allFarms()[f]?.turbines[i];
+      if (!tb) return false;
+      if (t.kind === 'across') {
+        const face = landingFace(tb);
+        this.at.set(face.x, CONFIG.windFarm.landing.top + 0.4, face.z);
+      } else {
+        const root = ctx.boatRoot(v.id);
+        if (!root) return false;
+        const plan = hullPlan(VESSEL_DEFS[v.defId]);
+        root.localToWorld(this.at.set(0, plan.deckY(plan.stem) + up, plan.stem + 1.5));
+      }
+    } else if (t.kind === 'ashore') {
       // On the quay's edge abreast of her (a little in from it), low over the quay.
       const berth = berthWithId(v.mooring.berthId ?? '');
       if (!berth) return false;
@@ -163,6 +193,7 @@ export class Gangway {
     if (!this.target || now - this.lastPress < 500) return;
     this.lastPress = now;
     if (this.target.kind === 'ashore') ctx.board();
+    else if (this.target.kind === 'across') ctx.board(`turbine:${this.target.turbine}`);
     else ctx.board(this.target.boatId);
     if (hand !== 'desk') ctx.pulse(hand, 0.5, 40);
   }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CONFIG } from '../src/config';
 import { IdFactory } from '../src/core/ids';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
@@ -89,6 +90,32 @@ describe('multiplayer (loopback)', () => {
     host.broadcast({ t: 'restart', boat: 'pilotBoat', fit: 'all' });
     await flush();
     expect(got).toEqual([{ t: 'restart', boat: 'pilotBoat', fit: 'all' }]);
+  });
+
+  it('a crew-mate who says goodbye is dropped at once, even if the link still looks open', async () => {
+    const { world } = await setup();
+    const loop = new LoopbackHost();
+    const ids = new IdFactory();
+    const host = new HostSession(world, ids, loop, '12345');
+    const t = loop.client();
+    new ClientSession(t, 'Leaver');
+    await flush();
+    const ids0 = Object.keys(world.players).length;
+    t.send({ t: 'bye' }); // the goodbye alone: no close behind it
+    expect(Object.keys(world.players)).toHaveLength(ids0 - 1);
+    expect(host.playerCount).toBe(1);
+  });
+
+  it('a crew-mate gone quiet (a page closed without saying) is taken out of the world, and back as they were when heard from', async () => {
+    const { world, host, client } = await setup();
+    client.sendPose(pose(null));
+    const before = structuredClone(world.players['player-2']);
+    host.tick(CONFIG.net.crewSilentS - 1);
+    expect(world.players['player-2']).toBeDefined();
+    host.tick(2);
+    expect(world.players['player-2']).toBeUndefined(); // no frozen avatar
+    client.sendPose(pose(null));
+    expect(world.players['player-2']).toEqual(before);
   });
 
   it('a player who leaves is removed from the world', async () => {

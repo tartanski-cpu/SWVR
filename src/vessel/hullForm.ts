@@ -72,6 +72,12 @@ export interface Station {
    */
   spray?: [number, number];
   /**
+   * Her paint line's height here, where it's under her chine (a Shipyard bow whose chine is
+   * dragged up the stem: hulls/loft.ts paintKeel): her bottom paint stops here, her topsides'
+   * colour above it. Drawn only.
+   */
+  paintY?: number;
+  /**
    * A catamaran's station (a hull-study design with `catamaran`; owner, Oct 2026: the fast
    * work cat). Her polygon is the whole section across both demihulls, ten points: port outer
    * deck edge, port outer chine, port keel, port inner chine, the wet deck's port corner (where
@@ -210,6 +216,7 @@ function catamaranForm(d: HullDesign, cat: { spacing: number; tunnel: number }):
       halfBeamChine: o + bC,
       halfBeamDeck: o + bD,
       demihull: { offset: o, halfBeamChine: bC, halfBeamDeck: bD },
+      ...(s.paintY !== undefined ? { paintY: s.paintY } : {}),
     };
   });
   const first = stations[0].polygon;
@@ -272,6 +279,7 @@ export function hullFormFromDesign(d: HullDesign): HullForm {
       halfBeamChine: bC,
       halfBeamDeck: bD,
       ...(spray ? { spray: [Math.abs(spray.x), spray.y] as [number, number] } : {}),
+      ...(s.paintY !== undefined ? { paintY: s.paintY } : {}),
     };
   });
   const first = stations[0].polygon;

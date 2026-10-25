@@ -18,7 +18,21 @@
  * back for a cheaper one.
  */
 import { buildDesign } from '../shipyard/build';
-import { readDesign } from '../shipyard/designDoc';
+import { readDesign, sameDesign } from '../shipyard/designDoc';
+
+/**
+ * Is this career page a sea trial (CONFIG.career.seaTrialS; the free career boats, review Oct
+ * 2026)? A Shipyard design on the address that isn't the career's own boat (`own`:
+ * CareerState.design), not a paid refit or purchase coming back (`refitFrom`), and not a
+ * crew-mate joining (the host's boat). Voyage has no trials: it's a sandbox.
+ */
+export function isSeaTrial(mode: string, search: string, own: string | undefined): boolean {
+  if (mode !== 'career') return false;
+  const p = new URLSearchParams(search);
+  const code = p.get('design');
+  if (!code || p.has('refitFrom') || p.has('join')) return false;
+  return !own || !sameDesign(own, code);
+}
 
 /** The address of the Shipyard in refit mode, for her design `code`. */
 export function shipyardUrl(code: string, mode: 'career' | 'voyage', back: string, money?: number): string {
@@ -36,14 +50,27 @@ export function backUrl(href: string): string {
 
 /** A design's price in the Shipyard (GBP), or null if the code doesn't read or build. */
 export function designPrice(code: string): number | null {
+  // Remembered: building a design is a whole boat's work (tens of ms, more on the Quest), and
+  // the Your boats board asks for each favourite's price every frame it's shown (owner, Oct
+  // 2026: 2 fps on the Quest standing by it). A code always builds the same boat.
+  const known = PRICES.get(code);
+  if (known !== undefined) return known;
   const read = readDesign(code);
-  if (!('design' in read)) return null;
-  try {
-    return buildDesign(read.design).figures.price;
-  } catch {
-    return null;
+  let price: number | null = null;
+  if ('design' in read) {
+    try {
+      price = buildDesign(read.design).figures.price;
+    } catch {
+      price = null;
+    }
   }
+  if (PRICES.size >= 64) PRICES.clear();
+  PRICES.set(code, price);
+  return price;
 }
+
+/** Each design's price by its code (designPrice), up to 64 of them. */
+const PRICES = new Map<string, number | null>();
 
 /** What a refit from `oldCode` to `newCode` costs: the difference in price, nothing for a cheaper one; null if either doesn't build. */
 export function refitCost(oldCode: string, newCode: string): number | null {

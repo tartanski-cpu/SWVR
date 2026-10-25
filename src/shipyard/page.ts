@@ -42,7 +42,7 @@ import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
 import { buildDesign, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -58,7 +58,7 @@ import type { GearKind } from '../modular/module';
 import { aboutHeading, CONTROL_ICONS, ENGINE_ICONS, floorIcon, HOUSE_ICONS, HULL_ICONS, liningIcon, pickTiles, toggleTiles, type Tile } from './tiles';
 import { GEAR_ABOUT, GEAR_GROUPS, GEAR_ICONS, gearKind } from './gearMenu';
 import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment } from './pinGear';
-import { FURNITURE_MENU, nextSlot, placedOf, removeFurniture, slotOf } from './furnishing';
+import { FURNITURE_MENU, nextSlot, placedOf, removeFurniture, slotOf, turnSeat } from './furnishing';
 import { furnitureName, furnitureSocketId } from './parts/furniture';
 import { SheetEditor } from './sheetEditor';
 import { holdSlots, type FishHoldConfig } from '../modules/fishHold';
@@ -755,7 +755,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -832,6 +832,11 @@ optionTiles('guard', 'Protection', [
   { icon: HULL_ICONS.guardTyres, name: GUARDS[3], sub: 'soft, grippy', info: 'Tyres along her sides: always there, soft and grippy, the best at a hard knock and for pushing; a little weight and drag.' },
   { icon: HULL_ICONS.guardBoth, name: 'Strake + fenders', info: 'The rubbing strake, and fenders for coming alongside.' },
 ]);
+// A bow fender (owner, Oct 2026: crew transfer to wind farms): to push on a turbine's boat landing. Not on a push bow (its knees do it).
+optionTiles('bowFender', 'Bow fender', [
+  { icon: HULL_ICONS.noBowFender, name: 'None', info: 'No bow fender: her stem takes it.' },
+  { icon: HULL_ICONS.bowFender, name: 'Bow fender', sub: 'crew transfer', info: 'A thick block of rubber on her bow, its front upright: push her against a wind turbine’s boat landing and hold her there with the throttle while the technicians step across. It grips, so she doesn’t slide. The catamaran comes with one.' },
+]).dataset.when = 'bowFenderChoice';
 optionTiles('rails', 'Rails', [
   { icon: HULL_ICONS.rails, name: RAILS[0], info: 'Handrails on posts over her bulwarks.' },
   { icon: HULL_ICONS.noRails, name: RAILS[1], info: 'No handrails: her bulwarks only.' },
@@ -1120,81 +1125,68 @@ section('6. Controls');
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
 optionTiles('helmAssist', 'Helm assist', [
   { icon: CONTROL_ICONS.noAssist, name: 'None', info: 'No helm assist panel.' },
-  { icon: CONTROL_ICONS.assist, name: 'Assist', sub: 'autopilot, dock', info: 'A helm assist panel: an autopilot, docking help and an automatic engine start.' },
+  { icon: CONTROL_ICONS.assist, name: 'Assist', sub: 'autopilot, dock', info: 'An autopilot on the console (AUTO holds her heading; PORT 5° and STBD 5° alter it), and a helm assist panel by the breakers: docking help and an automatic engine start.' },
 ]).dataset.when = 'controls';
 // Her console laid out by hand (dynamic console sockets CS3): in a panel under the view (showConsoleEditor).
 group('Console layout', 'Under the view, her console from the helm: drag a screen or a switch group to where you want it. Your first move pins everything where it stands; Automatic puts it all back to the rules. Placed by hand, she travels as a link or file, not a code.');
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 section('7. Paint');
-{
-  const box = document.createElement('div');
-  box.className = 'swatches';
-  LIVERIES.forEach((l, i) => {
-    const s = document.createElement('div');
-    s.className = 'swatch';
-    s.title = l.name;
-    s.dataset.key = 'paint';
-    s.dataset.i = String(i);
-    s.style.background = hex(l.livery.topsides ?? 0xd9622b);
-    s.onclick = () => change({ paint: i });
-    box.appendChild(s);
-  });
-  controls.appendChild(box);
-}
-{
-  // The roof's colour: the hull's own (its swatch follows the hull's paint), or one of its own.
+/**
+ * The Paint step (owner, Oct 2026: "a revamp of the painting page ... organized nicely"): her
+ * hull, her wheelhouse and its roof, each under its heading, each choice a row of colour
+ * swatches with the one chosen named under its label. A swatch marked '=' follows another part's
+ * colour (`PAINT_LIKE`), and shows it.
+ */
+const PAINT_LIKE: Record<string, (d: ShipDesign) => number> = {
+  hull: (d) => LIVERIES[d.paint].livery.topsides ?? 0xd9622b,
+  house: (d) => LIVERIES[d.paint].livery.house ?? 0xe6e6df,
+  roof: (d) => ROOF_PAINTS[d.roofPaint].colour ?? PAINT_LIKE.hull(d),
+};
+/** A row of colour swatches for a paint choice; `like` names what a null colour follows. */
+function paintRow(key: keyof ShipDesign, label: string, paints: { name: string; colour: number | null }[], like = ''): void {
+  labels[key] ??= label;
+  optionNames[key] = paints.map((p) => p.name);
   const row = document.createElement('div');
-  row.className = 'row opts';
-  row.innerHTML = '<label>Roof</label><div class="swatches"></div>';
+  row.className = 'row opts paint';
+  row.innerHTML = `<label>${label}<output data-paint="${key}"></output></label><div class="swatches"></div>`;
   const box = row.querySelector('div')!;
-  ROOF_PAINTS.forEach((p, i) => {
+  paints.forEach((p, i) => {
     const s = document.createElement('div');
     s.className = 'swatch';
     s.title = p.name;
-    s.dataset.key = 'roofPaint';
+    s.dataset.key = key;
     s.dataset.i = String(i);
     if (p.colour === null) {
-      s.classList.add('likeHull');
+      s.dataset.like = like;
       s.textContent = '=';
     } else s.style.background = hex(p.colour);
-    s.onclick = () => change({ roofPaint: i });
+    s.onclick = () => change({ [key]: i });
     box.appendChild(s);
   });
   controls.appendChild(row);
 }
-// The roof's top (owner: the eyebrow): one colour, or a panel in a second colour set in from its edges.
-options('roofTop', 'Roof top', ROOF_TOPS.map((t) => t.name));
+group('Hull', 'Her topsides, above the waterline. Below it she has her antifouling, and her deck its own grey or green to go with her paint. Her finish: as new (clean paint), worked, or well used (grime along her waterline, rust running down from her deck edge, faded paint).');
+paintRow('paint', 'Topsides', LIVERIES.map((l) => ({ name: l.name, colour: l.livery.topsides ?? 0xd9622b })));
+// Her finish (owner, Oct 2026: "pre-configure a boat to look used or new"): as new, worked or well used (shown in that order).
 {
-  // The wheelhouse's colour (owner, Oct 2026): her paint's own (its swatch follows her paint), or one of its own.
-  const row = document.createElement('div');
-  row.className = 'row opts';
-  row.innerHTML = '<label>Wheelhouse</label><div class="swatches"></div>';
-  const box = row.querySelector('div')!;
-  HOUSE_PAINTS.forEach((p, i) => {
-    const s = document.createElement('div');
-    s.className = 'swatch';
-    s.title = p.name;
-    s.dataset.key = 'houseColour';
-    s.dataset.i = String(i);
-    if (p.colour === null) {
-      s.classList.add('likeHouse');
-      s.textContent = '=';
-    } else s.style.background = hex(p.colour);
-    s.onclick = () => change({ houseColour: i });
-    box.appendChild(s);
-  });
-  controls.appendChild(row);
+  const box = options('finish', 'Finish', [...FINISHES]).querySelector('div')!;
+  box.append(...[...box.children].reverse());
 }
+group('Wheelhouse', 'Its walls outside: her paint’s own wheelhouse colour (=), or one of their own.');
+paintRow('houseColour', 'Walls', HOUSE_PAINTS, 'house');
 // Its window frames, mullions and posts (owner, Oct 2026): black or white.
-options('frames', 'Window frames', FRAME_COLOURS.map((f) => f.name));
+paintRow('frames', 'Window frames', FRAME_COLOURS);
+group('Roof', 'The roof’s colour: her topsides’ (=), or its own; an orange roof is common on workboats. Its top can have a panel in a second colour, set in from the edges so the roof’s colour shows as a band round it.');
+paintRow('roofPaint', 'Colour', ROOF_PAINTS, 'hull');
+// The roof's top (owner: the eyebrow): one colour, or a panel in a second colour set in from its edges.
+paintRow('roofTop', 'Top panel', ROOF_TOPS, 'roof');
 
 /** Show the design in the controls. */
 function syncControls(): void {
   syncDhWidth();
-  const likeHull = document.querySelector<HTMLElement>('.swatch.likeHull');
-  if (likeHull) likeHull.style.background = hex(LIVERIES[design.paint].livery.topsides ?? 0xd9622b);
-  const likeHouse = document.querySelector<HTMLElement>('.swatch.likeHouse');
-  if (likeHouse) likeHouse.style.background = hex(LIVERIES[design.paint].livery.house ?? 0xe6e6df);
+  // The Paint step's '=' swatches show the colour they follow; each row names the one chosen.
+  document.querySelectorAll<HTMLElement>('.swatch[data-like]').forEach((el) => (el.style.background = hex(PAINT_LIKE[el.dataset.like!](design))));
+  document.querySelectorAll<HTMLElement>('output[data-paint]').forEach((el) => (el.textContent = optionNames[el.dataset.paint as keyof ShipDesign]?.[design[el.dataset.paint as keyof ShipDesign] as number] ?? ''));
   document.querySelectorAll<HTMLElement>('[data-key][data-i]').forEach((el) => el.classList.toggle('on', design[el.dataset.key as keyof ShipDesign] === Number(el.dataset.i)));
   // A retired hull type (build.ts DESIGN_HULLS `retired`: the workboat) shows only on a design already on her.
   document.querySelectorAll<HTMLElement>('[data-key=hull][data-i]').forEach((el) => (el.style.display = DESIGN_HULLS[Number(el.dataset.i)].retired && design.hull !== Number(el.dataset.i) ? 'none' : ''));
@@ -1607,6 +1599,12 @@ window.addEventListener('resize', placePanels);
   setViewSize(size === 'balanced' || size === 'big' ? size : 'design');
 }
 function showCode(): void {
+  // Not into the game while she'd capsize (CONFIG.shipyard.minGM; her warnings say so).
+  const capsizes = !floatsUpright();
+  const btn = $('play').querySelector('button')!;
+  btn.disabled = capsizes;
+  btn.title = capsizes ? `She would capsize (GM ${boat.figures.gmM.toFixed(2)} m): give her more beam or less depth first.` : '';
+  ($('playTogether') as HTMLButtonElement).disabled = capsizes;
   const matched = matchedFor === matchKey(design);
   const el = $('code');
   el.classList.toggle('pending', !matched);
@@ -1694,15 +1692,19 @@ function change(patch: Partial<ShipDesign>, by: 'me' | Person | null = 'me'): vo
 function gameUrl(code: string, extra = ''): string {
   return `./career.html?design=${code}${extra}&t=${Date.now()}`;
 }
+/** Does she float upright (GM over CONFIG.shipyard.minGM)? Only then is she let into the game. */
+function floatsUpright(): boolean {
+  return boat.figures.gmM >= CONFIG.shipyard.minGM;
+}
 $('play').onclick = (e) => {
   e.preventDefault();
-  if (matchedFor === matchKey(design)) location.assign(gameUrl(designToken(design)));
+  if (matchedFor === matchKey(design) && floatsUpright()) location.assign(gameUrl(designToken(design)));
 };
 // "Try her together" (owner, Oct 2026): in a session, one press takes everyone into the game in
 // her, in one multiplayer game. The presser hosts it in a new room; the others join it
 // (session.ts sends them the room; the game waits for the host, App.ts).
 $('playTogether').onclick = () => {
-  if (matchedFor !== matchKey(design) || !link?.side) return;
+  if (matchedFor !== matchKey(design) || !link?.side || !floatsUpright()) return;
   const code = designToken(design);
   const room = randomRoomCode();
   link.side.go({ design: code, room });
@@ -2913,7 +2915,7 @@ function showFurniture(): void {
     const add = button(acts, on.length ? 'Add another' : 'Add', `Then click on her where it goes`, () => next && furnitureTool(next), true);
     if (!next) {
       add.disabled = true;
-      add.title = kind === 'head' ? 'One head a boat' : 'Four is the most of a piece';
+      add.title = kind === 'head' ? 'One head a boat' : `${FURNITURE_SLOTS[kind].length} is the most of a piece`;
     }
     if (placing?.target.kind === 'furniture' && placing.target.key === next) add.classList.add('on');
     const list = card.querySelector('.furnList')!;
@@ -2925,6 +2927,8 @@ function showFurniture(): void {
       const ra = row.querySelector('.gearActs')!;
       const mv = button(ra, 'Move', 'Then click on her where it goes instead', () => furnitureTool(key));
       if (placing?.target.kind === 'furniture' && placing.target.key === key) mv.classList.add('on');
+      // A seat turns (owner, Oct 2026: "those seats to be rotatable"): 45 degrees clockwise a press.
+      if (kind === 'seat') button(ra, 'Turn', 'Turn it 45° clockwise (seen from above)', () => change(turnSeat(key, design)));
       button(ra, 'Take off', 'Take it off her (the ones after it move up a number)', () => change(removeFurniture(key, design)));
       list.appendChild(row);
     }
@@ -3102,6 +3106,8 @@ function goStep(to: number | string, share = true): void {
   // Arriving at Controls: her console from behind the wheel, laid out in a panel under the view (showConsoleEditor).
   $('consolePanel').hidden = els[i].dataset.step !== 'controls';
   if (els[i].dataset.step === 'controls' && shownStep !== 'controls') frameConsole();
+  // Arriving at Paint: all of her, hull, house and roof, from her bow quarter.
+  if (els[i].dataset.step === 'paint' && shownStep !== 'paint') setView('Bow ¾');
   if (els[i].dataset.step !== 'controls' && camera.fov !== USUAL_FOV) {
     camera.fov = USUAL_FOV;
     camera.updateProjectionMatrix();

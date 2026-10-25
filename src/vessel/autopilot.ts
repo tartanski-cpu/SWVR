@@ -3,9 +3,11 @@
  *   - AUTO START: the whole start-up in one press, as the debug's quick start does: battery
  *     master on, the main breakers on, the engine started;
  *   - DOCK: the menu's Dock / Cast off (vessel/physics/mooring.ts toggleDock);
- *   - AUTOPILOT: holds the compass heading she was on when it was engaged, by turning the
- *     wheel itself, as a helmsman would (its gear: CONFIG.modules.helmAssist.autopilot). It lets go when
- *     anyone turns the wheel, or when the INSTRUMENTS circuit goes dead.
+ *   - AUTOPILOT (its own group on the console: AUTO, and PORT / STBD to alter course): holds
+ *     the compass heading she was on when it was engaged, by turning the wheel itself, as a
+ *     helmsman would (its gear: CONFIG.modules.helmAssist.autopilot); PORT and STBD move that
+ *     heading a few degrees a press. It lets go when anyone turns the wheel, or when the
+ *     INSTRUMENTS circuit goes dead.
  * Simulation only: the boat's own state, no drawing.
  */
 import { gearOf } from '../boats/sims';
@@ -42,6 +44,12 @@ export function engageAutopilot(s: VesselState, on: boolean): void {
     s.controls.autopilotHeading = compassHeading(s);
     s.controls.autopilotHelm = s.controls.helm;
   } else s.controls.autopilot = 0;
+}
+
+/** Alter the heading the autopilot holds by `deg` (+ to starboard), if it's engaged (PORT / STBD on the console). */
+export function nudgeAutopilot(s: VesselState, deg: number): void {
+  if (!s.controls.autopilot) return;
+  s.controls.autopilotHeading = ((((s.controls.autopilotHeading ?? 0) + deg) % 360) + 360) % 360;
 }
 
 /**

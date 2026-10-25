@@ -61,6 +61,9 @@ export function fetchGrid(): FetchGrid {
     for (let i = 0; i < nx; i++) land[j * nx + i] = groundHeight(x0 + (i + 0.5) * cell, z, false) > -c.landDepth ? 1 : 0;
   }
   grid = { x0, z0, cell, nx, nz, land, sectors: Array.from({ length: c.sectors }, () => null) };
+  // Every sector's fetch now, while the map loads (review, Oct 2026: a wind from a new
+  // direction ray-marched its sectors mid-voyage, a hitch on the main thread).
+  for (let k = 0; k < c.sectors; k++) sectorFetch(grid, k);
   return grid;
 }
 

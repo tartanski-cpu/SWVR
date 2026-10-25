@@ -17,6 +17,84 @@ export const MODULES_CONFIG = {
    * Modular boats: each module's own tunables (its defaults; a boat's recipe may override
    * them). docs/MODULAR_BOATS.md.
    */
+  /**
+   * An offshore wind farm's turbines (world/windFarm.ts, world/view/windFarmView.ts; owner,
+   * Oct 2026: crew transfer to wind farms). Our own design, sized as a modest older offshore
+   * turbine, all heights from the mean sea level (m):
+   *   pile      the monopile, `radius`, drawn from `from` (just under the water, where you'd see it) up
+   *   tp        the yellow transition piece over it, `radius`, from `from` up to the platform
+   *   platform  the deck round it at `y`, `radius` out, `thickness`, with a rail `rail` high
+   *   tower     tapering from `base` to `top` radius, up to the hub
+   *   hub       the rotor's centre's height; `blade` each blade's length; `nacelle` its box
+   *   landing   the boat landing, on the face out along the turbine's landingDeg: two upright
+   *             tubes `tube` in radius, their centres `halfSpacing` either side of the middle and
+   *             `out` m out from the transition piece, from `bottom` to `top`; a ladder between
+   *             them, rungs `rung` apart, on up the transition piece to the platform
+   *   rotor     turning from `cutIn` m/s of wind, `rpm` at `rated`, stopped (feathered) over `cutOut`
+   *   lights    red on the nacelle after dark, flashing every `flash` s (as the coast maps'
+   *             turbines); a yellow light on each platform (the marking of an offshore structure)
+   */
+  /**
+   * The TV (furniture kind 'tv'; modules/furniture/tv*.ts; owner, Oct 2026: "streaming of another browser
+   * tab into the TV screen. So only for desktop users, but the screen should be visible for
+   * all users"). A player on a desktop clicks a TV and picks a browser tab to show; the tab's
+   * picture (and its sound, if they tick "share tab audio") goes to every crew-mate over the
+   * game's own peer-to-peer link, as voice chat does (no server in between).
+   *   capture     what's asked of the browser: at most `width` x `height` pixels at `fps`
+   *               frames a second (a smaller picture costs the Quest less to decode and draw,
+   *               and the caster less upload: one copy goes to each crew-mate).
+   *   showWithin  m: the picture is drawn only from this near (farther, the screen is dark,
+   *               and the Quest uploads no video frames).
+   *   sound       its sound from the TV, in 3D (on the FM radio's volume slider): `gain`
+   *               (0..1), full within `nearFull` m, fading to nothing at `nearMax` m.
+   *   confirmS    s: started showing a tab, we wait this long for the world to say so before
+   *               taking it that someone else has the TV (it's theirs then: ours stops).
+   *   retryS      s: a call to a crew-mate that failed is tried again after this.
+   */
+  tv: {
+    capture: { width: 1280, height: 720, fps: 30 },
+    showWithin: 40,
+    sound: { gain: 0.8, nearFull: 2, nearMax: 14 },
+    confirmS: 3,
+    retryS: 5,
+  },
+
+  /**
+   * Crew transfer to the wind farm (transfer/transfer.ts; owner, Oct 2026). A job is called
+   * `firstAfter` s into the game, then every `every` s (a range) once the last is done: `techs`
+   * technicians (a range) for one turbine, waiting on the quay at `pickupPort`, at `pickup`
+   * (world x, z; the first, the others `spacing` m along the quay, facing `yawDeg`). A boat
+   * made fast in that port takes them aboard, one every `boardEvery` s. On a landing: her bow
+   * within `reach` m of its face (and `across` m beyond its tubes either side), moving under
+   * `maxSpeed` m/s, pushing at least `minPush` N; held `hold` s, the first steps across, then
+   * one every `perTech` s more. Each takes `cross` s to step over, and climbs at `climb` m/s.
+   */
+  transfer: {
+    firstAfter: 240,
+    every: [420, 780] as [number, number],
+    techs: [2, 3] as [number, number],
+    pickupPort: 'calder',
+    pickup: { x: 715.5, z: 640, spacing: 1.2, yawDeg: -90 },
+    boardEvery: 1.5,
+    landing: { reach: 0.9, across: 0.6, maxSpeed: 0.4, minPush: 2500, hold: 3, perTech: 2.5 },
+    cross: 1.5,
+    climb: 0.6,
+  },
+
+  windFarm: {
+    pile: { radius: 2.5, from: -6 },
+    tp: { radius: 2.7, from: -1 },
+    platform: { y: 13, radius: 5.5, thickness: 0.4, rail: 1.1 },
+    tower: { base: 2.1, top: 1.3 },
+    hub: 72,
+    blade: 42,
+    nacelle: { length: 10, width: 3.6, height: 3.8 },
+    landing: { out: 1.4, tube: 0.22, halfSpacing: 0.55, bottom: -3, top: 5, rung: 0.3 },
+    rotor: { cutIn: 3, rated: 12, cutOut: 25, rpm: 14 },
+    lights: { flash: 2, size: 1.4 },
+    colors: { pile: 0x3c4246, tp: 0xe8c020, grey: 0x8c9094, tower: 0xeef0f0 },
+  },
+
   modules: {
     /**
      * Drawing moving gear smoothly between simulation ticks (mechanisms/tickSmoother.ts; owner,
@@ -46,6 +124,13 @@ export const MODULES_CONFIG = {
       release: { strength: 0.4, ms: 25 },
       engrave: 'AHEAD ▲  ▼ ASTERN',
     },
+
+    /**
+     * control.twin-throttle (modules/twinThrottle; owner, Oct 2026): a lever for each engine of
+     * a twin worked separately (each as throttleLever above), `spacing` apart (m), and between
+     * their knobs a bright `grip` (`radius`, m; `colour`) that works both as one.
+     */
+    twinThrottle: { spacing: 0.16, grip: { radius: 0.019, colour: 0xffc21a } },
 
     /**
      * console.standard (modules/console): the helm console's dash, pedestals and group
@@ -281,6 +366,18 @@ export const MODULES_CONFIG = {
      * against quays and other boats.
      */
     pushFender: { knees: 2, kneeWidth: 0.6, kneeAt: 0.55, thickness: 0.32, chamfer: 0.08, inset: 0.06, clear: 0.05, kgPerM2: 140, across: 2, up: 3 },
+    /**
+     * hull.bow-fender (modules/bowFender; owner, Oct 2026: crew transfer to wind farms): a
+     * crew-transfer boat's bow fender, a block of black rubber round the top of her stem (or
+     * across the front of a catamaran's bridge deck), its plumb front `thickness` m forward of
+     * her stem at the deck, `width` m across (`catWidth` on a catamaran), from `above` m over
+     * her deck (her bulwark top) down `depth` m (not below her bridge deck's underside on a
+     * catamaran, nor `clear` over her DWL), its front corners chamfered by `chamfer`. It weighs
+     * `kgPerM3` a cubic metre of its outline (a moulded fender, its rubber round a hollow core: on
+     * the catamaran about a quarter of a tonne), and is probed on its face at
+     * `across` x `up` points (it grips as the tug's push knees do: CONFIG.contacts.guards.pushFender).
+     */
+    bowFender: { thickness: 0.4, width: 0.9, catWidth: 1.8, depth: 1.2, clear: 0.4, chamfer: 0.1, kgPerM3: 250, across: 3, up: 3, color: 0x1b1c1e },
 
     hullGuard: {
       strake: { radius: 0.07, drop: 0.06, kgPerM: 5, spacing: 0.6 },
@@ -371,15 +468,18 @@ export const MODULES_CONFIG = {
 
     /**
      * panel.helm-assist (owner, Oct 2026; modules/helmAssist): a small box by the breaker panel
-     * with three buttons, AUTO START, DOCK and AUTOPILOT. `width`, `height` (m), `pitch` between
-     * the buttons, `amps` with the master on (INSTRUMENTS circuit; it works only with it live).
-     * `gap`: how far aft of the breaker panel it hangs (m, between their edges).
-     * `autopilot` (vessel/autopilot.ts): it steers to hold her heading as a helmsman would, the
-     * wheel turned in proportion to how far she is off her heading (`helmPerDeg`, helm travel
-     * per degree off) less how fast she is already swinging back (`helmPerDegS`, per degree a
-     * second: so she doesn't overshoot), never more than `maxHelm` of the wheel's travel.
+     * with two buttons, AUTO START and DOCK. `width`, `height` (m), `pitch` between the buttons,
+     * `amps` with the master on (INSTRUMENTS circuit; it works only with it live). `gap`: how far
+     * aft of the breaker panel it hangs (m, between their edges).
+     * `autopilot` (vessel/autopilot.ts; the boat with the panel has one, its buttons on the
+     * console: owner, Oct 2026, "a separate control that goes on the main console"): it steers to
+     * hold her heading as a helmsman would, the wheel turned in proportion to how far she is off
+     * her heading (`helmPerDeg`, helm travel per degree off) less how fast she is already swinging
+     * back (`helmPerDegS`, per degree a second: so she doesn't overshoot), never more than
+     * `maxHelm` of the wheel's travel. Its PORT and STBD buttons move the heading it holds
+     * `stepDeg` degrees a press ("two buttons which add 5 degrees left and right").
      */
-    helmAssist: { width: 0.3, height: 0.14, pitch: 0.085, amps: 0.6, gap: 0.04, autopilot: { helmPerDeg: 0.04, helmPerDegS: 0.25, maxHelm: 0.5 } },
+    helmAssist: { width: 0.22, height: 0.14, pitch: 0.085, amps: 0.6, gap: 0.04, autopilot: { helmPerDeg: 0.04, helmPerDegS: 0.25, maxHelm: 0.5, stepDeg: 5 } },
 
     /** radio.vhf (M3c): the VHF set hung from the roof; how far its face tilts down toward you; its draw (A, RADIO circuit). */
     vhf: { tiltDeg: 35, amps: 1.5 },
@@ -420,8 +520,13 @@ export const MODULES_CONFIG = {
       bunk: { length: 1.95, depth: 0.75, lower: 0.3, upper: 1.1, cushion: 0.1, rail: 0.18, sitUp: 0.55, kg: 95 },
       mess: { length: 1.7, depth: 0.75, table: 0.74, bench: 0.45, seat: 0.45, back: 0.85, kg: 75 },
       shower: { length: 0.85, depth: 0.85, wall: 0.04, kg: 45 },
+      // A flat-screen TV on a wall bracket (modules/furniture/tvScreen.ts): `length` wide (a 32-inch screen), its
+      // case `depth` deep off the wall on the bracket, the screen `screenH` high with a `bezel`
+      // round it, its middle `centre` m over the floor (eye height seated, over a settee; lower
+      // under a low ceiling).
+      tv: { length: 0.76, depth: 0.1, screenH: 0.4, bezel: 0.015, centre: 1.35, kg: 8 },
       ceilingGap: 0.05,
-      colours: { joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30, curtain: 0x7fa8c0 },
+      colours: { tvCase: 0x16181b, tvOff: 0x0b0d10, joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30, curtain: 0x7fa8c0 },
     },
 
     /**

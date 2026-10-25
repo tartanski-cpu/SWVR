@@ -10,7 +10,7 @@
  */
 import { CONFIG } from '../config';
 import { VOYAGE_MAP_ID } from '../mode';
-import { BERTHS } from './archipelago';
+import { berthWithId } from './berths';
 import type { BerthDef } from './defs';
 import { voyageMap } from './maps';
 
@@ -34,11 +34,14 @@ export function quaySpotByBerth(b: BerthDef): QuaySpot {
 
 /**
  * The spot ashore for a berth (by id): Calder's is the hand-placed one (CONFIG.start.quay);
- * any other's is beside its face; an unknown berth falls back to the start.
+ * any other's (named, or one along a quay face) is beside its face; an unknown berth falls back to the start.
  */
 export function quaySpot(berthId: string | null | undefined): QuaySpot {
   const id = berthId ?? startBerthId();
   if (id === CONFIG.start.berthId) return CONFIG.start.quay;
-  const b = BERTHS.find((x) => x.id === id);
+  // Any berth she can lie at: the named ones and those along every quay face (world/berths.ts;
+  // owner, Oct 2026: stepping ashore at Wemyss Bay, alongside a face with no named berth, put
+  // him on the start's quay at Rothesay).
+  const b = berthWithId(id);
   return b ? quaySpotByBerth(b) : quaySpot(startBerthId() === id ? CONFIG.start.berthId : startBerthId());
 }

@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Review fixes: real latitude and longitude, far hills merged less, passed chunks freed (24 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner, after the main game chat's review (`docs/REVIEW_2026-10-24.md`): "Do the two map items and the lat/long".
 
 - **Real latitude and longitude on the Voyage maps.** The GPS (NAV display), the paper chart's scale and the radio's positions used the career archipelago's made-up origin on every map, so Syros read as Scotland. Each package now carries its box in degrees (`bbox`, from the request; the four maps re-packaged, nothing else in them changed), and `src/world/coastGeo.ts` inverts the pipeline's projection about the box's middle, both ways (the same sums as the Timber handoff's `metaverse.ts`, which the test checks against). `toLatLon` uses it whenever a coast map is loaded; a new `fromLatLon` does the reverse, and the paper chart draws its scale with it. The career islands keep their made-up origin (`CONFIG.nav`). In the game: Syros's quay reads 37.437° N 24.940° E (Ermoupoli), Rothesay 55.839° N 5.055° W, Oban bay 56.414° N 5.475° W.
@@ -21,6 +23,10 @@ Owner, after the main game chat's review (`docs/REVIEW_2026-10-24.md`): "Do the 
 - **Tests:** `tests/coastGeo.test.ts` (every map's weather point both ways; Syros in the Aegean; Oban as the handoff places it; north up, east right), `tests/coastViewBudget.test.ts` (the 30 km Clyde run: merges and meshes kept). `npm run test:map`, the typecheck and all of `npm test` (1484) pass. Headless: Syros, Clyde and Oban start without errors, their positions as above, the Clyde's far hills drawn.
 - **Not checked:** frame times on the Quest (the merges were a stutter there, not measurable here); the paper chart's scale by eye.
 - **Shared changes:** `src/nav/geo.ts` (`toLatLon` uses the coast map's grid when one is loaded; new `fromLatLon`) and `src/nav/paperChart.ts` (its scale through `fromLatLon`), the main game's. `src/world/coastRegion.ts`'s `CoastPackage` gains `bbox`. README: a line on real positions.
+
+### (From the modular-builder chat) A wind farm in the home region
+
+At the owner's word (24 Oct 2026, crew transfer to wind farms): `src/world/regions/home.ts` has a new `windFarms` list, the Holm Rig wind farm (three turbines south-east of Calder Holm, clear of the Calder Bank fishing ground). The data type is `WindFarmDef` in `src/world/defs.ts`, the collision `src/world/windFarm.ts`, the drawing `src/world/view/windFarmView.ts`. Details in `docs/progress/modules.md`.
 
 ### Fix: /next/ failed to build: two long tests out of time on GitHub's machine (24 Oct 2026)
 

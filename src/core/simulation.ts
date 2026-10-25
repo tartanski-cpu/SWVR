@@ -39,10 +39,14 @@ import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/pot
 import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
+import { stepTimberLogs } from '../voyage/timber';
+import { applyTransferIntent, isTransferIntent, stepTransfer } from '../transfer/transfer';
+import { applyTvIntent, isTvIntent, stepTv } from '../modules/furniture/tvState';
 import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
 import { holdPayload, stepHold } from '../fishing/fishHold';
 import { stepRodSale } from '../fishing/rod';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
+import { stepProjects } from '../career/projects';
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
@@ -104,6 +108,10 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyFireIntent(world, intent);
     } else if (isTowIntent(intent.control)) {
       applyTowIntent(world, intent);
+    } else if (isTransferIntent(intent.control)) {
+      applyTransferIntent(world, intent);
+    } else if (isTvIntent(intent.control)) {
+      applyTvIntent(world, intent);
     } else if (isPlanIntent(intent.control)) {
       applyPlanIntent(world, intent);
     } else if (isTutorialIntent(intent.control)) {
@@ -130,7 +138,15 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyLaunchIntent(world, intent);
     } else if (intent.control === 'teleportToPort' && intent.ref && world.vessels[intent.targetId]) {
       // With several boats about (multi-boat M5): a free berth, else the bay.
-      if (!teleportToPortSlot(world, world.vessels[intent.targetId], intent.ref)) applyVesselIntent(world.vessels[intent.targetId], intent);
+      // One harbour that can't be placed mustn't stop the whole tick: then she lies as the
+      // plain Go would put her.
+      let placed = false;
+      try {
+        placed = teleportToPortSlot(world, world.vessels[intent.targetId], intent.ref);
+      } catch (e) {
+        console.warn(`Go to ${intent.ref}: ${(e as Error).message}`);
+      }
+      if (!placed) applyVesselIntent(world.vessels[intent.targetId], intent);
       // Settling into her new berth is no crash (CONFIG.wear.spawnGraceS).
       world.vessels[intent.targetId].settleUntil = world.time + CONFIG.wear.spawnGraceS;
       // The host's boat sent somewhere: the planning table goes with her (voyage/plan.ts).
@@ -235,9 +251,13 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepFuelHoses(world);
   stepFire(world, dt);
   stepSalvage(world, dt);
+  stepTimberLogs(world, dt);
+  stepTransfer(world, dt);
+  stepTv(world);
   stepFishing(world, dt);
   stepHold(world);
   stepCareer(world);
+  stepProjects(world, dt);
   stepTutorial(world);
   world.tick += 1;
   world.time = world.tick * dt;

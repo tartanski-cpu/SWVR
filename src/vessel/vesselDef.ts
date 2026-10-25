@@ -201,7 +201,13 @@ export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp
  * CONFIG.interiors (none: the wood lining); `cabinFloor`: its floor, into CONFIG.cabinFloors
  * (none: matting).
  */
-export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'frame' | 'interior' | 'cabinFloor', number>>;
+/**
+ * A boat's colours, her interior finish and cabin floor (CONFIG.interiors, cabinFloors: an
+ * index each), and `weathering`: how used her hull looks (render/pixelPaint.ts `topsides`:
+ * grime at the waterline, rust runs from the deck edge, faded paint), 0 as new .. 1 well used
+ * (a Shipyard choice, owner Oct 2026; unset: CONFIG.pixelPaint.weathering.strength).
+ */
+export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'frame' | 'interior' | 'cabinFloor' | 'weathering', number>>;
 
 /**
  * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side
@@ -393,7 +399,7 @@ export interface VesselConfig {
 
 /** A towable hull: the model drawn over it (tow/towLook.ts) and what the radio calls it. */
 export interface TowLook {
-  look: 'derelict' | 'logs' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage' | 'coaster';
+  look: 'derelict' | 'logs' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage' | 'coaster' | 'monopile' | 'tpBarge';
   name: string;
   /** Small, medium, large or a ship: the debug menu's choice (owner) and roughly the pay. */
   size: TowSize;
@@ -401,6 +407,8 @@ export interface TowLook {
   lineFactor?: number;
   /** Only a tug gets this call (tow/tow.ts isTugClass): a ship. Unset: any boat with a tow point. */
   needs?: 'tug';
+  /** A construction project's tow (career/projects.ts puts it in the water): never a call, nor a debug pick. */
+  project?: boolean;
 }
 
 export type TowSize = 'small' | 'medium' | 'large' | 'ship';
@@ -553,7 +561,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
 }
 
 /** The vessel types, by def id (the ids live on in saves and snapshots: never rename). */
-export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'dory', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'landingCraft', 'alaskan38', 'design', 'lander', 'fishingBoat', 'pilotBoat', 'smallTug', 'starterBoat', 'rib'] as const;
+export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'dory', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'monopile', 'tpBarge', 'landingCraft', 'alaskan38', 'design', 'lander', 'fishingBoat', 'pilotBoat', 'smallTug', 'starterBoat', 'rib'] as const;
 
 let built: Record<string, VesselDef> | null = null;
 let builder: (() => Record<string, VesselDef>) | null = null;
@@ -604,4 +612,4 @@ export const VESSEL_DEFS: Record<string, VesselDef> = new Proxy({} as Record<str
 });
 
 /** The towable kinds (towing missions), by def id. */
-export const TOW_DEFS = ['derelict', 'dory', 'logRaft', 'barge', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster'] as const;
+export const TOW_DEFS = ['derelict', 'dory', 'logRaft', 'barge', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'monopile', 'tpBarge'] as const;
