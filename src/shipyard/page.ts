@@ -1125,7 +1125,7 @@ section('6. Controls');
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
 optionTiles('helmAssist', 'Helm assist', [
   { icon: CONTROL_ICONS.noAssist, name: 'None', info: 'No helm assist panel.' },
-  { icon: CONTROL_ICONS.assist, name: 'Assist', sub: 'autopilot, dock', info: 'A helm assist panel: an autopilot, docking help and an automatic engine start.' },
+  { icon: CONTROL_ICONS.assist, name: 'Assist', sub: 'autopilot, dock', info: 'An autopilot on the console (AUTO holds her heading; PORT 5° and STBD 5° alter it), and a helm assist panel by the breakers: docking help and an automatic engine start.' },
 ]).dataset.when = 'controls';
 // Her console laid out by hand (dynamic console sockets CS3): in a panel under the view (showConsoleEditor).
 group('Console layout', 'Under the view, her console from the helm: drag a screen or a switch group to where you want it. Your first move pins everything where it stands; Automatic puts it all back to the rules. Placed by hand, she travels as a link or file, not a code.');

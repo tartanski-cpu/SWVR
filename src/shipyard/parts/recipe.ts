@@ -186,6 +186,15 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   }
   // The ANCHOR switch (in the DECK group with the skiff crane's button: the switch panel, below).
   if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
+  // The autopilot's buttons (with the helm assist panel; owner, Oct 2026: "a separate control that
+  // goes on the main console"), its own AUTOPILOT group on the switch panel, below: AUTO holds the
+  // heading she's on (lit while it does), PORT and STBD alter that heading a few degrees a press.
+  if (helmAssist)
+    consoleMount.modules!.push(
+      { socket: 'apPort', module: 'control.push-button', config: { label: 'Autopilot: 5° to port', engrave: 'PORT 5°', mode: 'pulse', color: '#d0d0d0' }, bind: { press: 'autopilot.port' } },
+      { socket: 'apOn', module: 'control.push-button', config: { label: 'AUTO: hold this heading (press again, or turn the wheel, to let go)', engrave: 'AUTO', mode: 'pulse', color: '#e0a020', lit: { key: 'autopilot.on' } }, bind: { press: 'autopilot.engage' } },
+      { socket: 'apStbd', module: 'control.push-button', config: { label: 'Autopilot: 5° to starboard', engrave: 'STBD 5°', mode: 'pulse', color: '#d0d0d0' }, bind: { press: 'autopilot.starboard' } },
+    );
   // The dash along the console (cut short on a wide wheelhouse: consoleHalf), what's on it spread or closed up with it.
   const dashHalf = consoleHalf - 0.11;
   const sx = dashHalf / cc.dash.halfWidth;
@@ -265,6 +274,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
       { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'key'].filter(has) },
       { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
+      // (Last of the starboard side's: nearest the wheel, under the helmsman's hand.)
+      { title: 'AUTOPILOT', color: 0xe0a020, side: 'starboard', members: ['apPort', 'apOn', 'apStbd'].filter(has) },
     ];
   };
   // Switches up onto the dash face (CS6; owner, Oct 2026: "the switches can go on the upright
@@ -605,13 +616,14 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     }
     // Her switch panel, for the Shipyard (CS3) and the tests: its whole row of cells, whether
     // placed by hand, and each group's members, its run (m) and its first cell on the row.
-    cc.panelGrid = {
-      cap,
-      cell: r3(cellP),
-      pitch: r3(laid.pitch),
-      byHand,
-      runs: laid.runs.map((r) => ({ key: panelKey(r.group), title: r.group.title, color: r.group.color, members: r.group.members, n: Math.max(r.group.cells ?? 0, r.group.members.length), start: Math.max(0, Math.round((r.x0 + dashHalf) / cellP)), x: [r3(r.x0), r3(r.x1)] })),
-    };
+    const runs = laid.runs.map((r) => ({ key: panelKey(r.group), title: r.group.title, color: r.group.color, members: r.group.members, n: Math.max(r.group.cells ?? 0, r.group.members.length), start: Math.max(0, Math.round((r.x0 + dashHalf) / cellP)), x: [r3(r.x0), r3(r.x1)] }));
+    // (Closed up closer than a cell, the rules' groups would overlap on the row of cells, and
+    // pinning them where they stand would put some back: nudged apart, in their order along it,
+    // as far as the row has room.)
+    const along = [...runs].sort((u, v) => u.x[0] - v.x[0]);
+    for (let i = 1; i < along.length; i++) along[i].start = Math.max(along[i].start, along[i - 1].start + along[i - 1].n);
+    for (let i = along.length - 1; i >= 0; i--) along[i].start = Math.max(0, Math.min(along[i].start, (i + 1 < along.length ? along[i + 1].start : cap) - along[i].n));
+    cc.panelGrid = { cap, cell: r3(cellP), pitch: r3(laid.pitch), byHand, runs };
   }
   // Low windows (owner): the console's upright panel comes off, so you see down past it; its
   // screens stay where they were, each on a stalk from the desk (console.standard's `bare`).

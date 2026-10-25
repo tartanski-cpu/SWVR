@@ -1,7 +1,9 @@
 /**
  * The helm assist panel (owner, Oct 2026): a box by the breaker panel with AUTO START (the
- * whole start-up), DOCK (the menu's Dock) and AUTOPILOT (holds the compass heading by
- * steering). A Shipyard choice with the advanced controls; modules/helmAssist,
+ * whole start-up) and DOCK (the menu's Dock), and the autopilot (holds the compass heading by
+ * steering) with its own AUTOPILOT group on the console: AUTO, PORT 5° and STBD 5° (owner, Oct
+ * 2026: "a separate control that goes on the main console ... two buttons which add 5 degrees
+ * left and right"). A Shipyard choice with the advanced controls; modules/helmAssist,
  * vessel/autopilot.ts.
  */
 import { afterAll, describe, expect, it } from 'vitest';
@@ -16,6 +18,8 @@ import { buildDesign } from '../src/shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../src/shipyard/design';
 import { designToken, readDesign, shortCode } from '../src/shipyard/designDoc';
 import { compassHeading } from '../src/vessel/autopilot';
+import { CONFIG } from '../src/config';
+import { HELM_ASSIST } from '../src/modules/helmAssist';
 import { berthPose } from '../src/vessel/physics/mooring';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { BERTHS } from '../src/world/archipelago';
@@ -55,6 +59,25 @@ describe('the helm assist panel', () => {
     expect(shortCode({ ...DEFAULT_DESIGN, controls: 1, helmAssist: 0 })).not.toBeNull();
   });
 
+  it('the autopilot is on the console, its own group of three (PORT 5°, AUTO lit while engaged, STBD 5°), not on the panel', () => {
+    const pilot = buildDesign(design('pilotBoat'));
+    const helm = pilot.recipe.modules.find((m) => m.socket === 'helm')!;
+    const ap = ['apPort', 'apOn', 'apStbd'].map((id) => helm.modules!.find((m) => m.socket === id)!);
+    expect(ap.map((m) => m.bind)).toEqual([{ press: 'autopilot.port' }, { press: 'autopilot.engage' }, { press: 'autopilot.starboard' }]);
+    expect(ap[1].config).toMatchObject({ engrave: 'AUTO', lit: { key: 'autopilot.on' } });
+    const cc = helm.config as { slots: Record<string, { position: number[] }>; groups?: { title: string; x: [number, number] }[]; faceGroups?: { title: string }[] };
+    expect([...(cc.groups ?? []), ...(cc.faceGroups ?? [])].some((g) => g.title === 'AUTOPILOT')).toBe(true);
+    // Side by side, port to starboard.
+    const xs = ap.map((m) => cc.slots[m.socket].position[0]);
+    expect(xs[0]).toBeLessThan(xs[1]);
+    expect(xs[1]).toBeLessThan(xs[2]);
+    // The panel by the breakers keeps AUTO START and DOCK only.
+    expect(Object.keys(HELM_ASSIST.ports)).toEqual(['start', 'dock']);
+    // Without the helm assist, no autopilot buttons.
+    const none = buildDesign({ ...design('pilotBoat'), helmAssist: 0 }).recipe.modules.find((m) => m.socket === 'helm')!;
+    expect(none.modules!.some((m) => m.socket.startsWith('ap'))).toBe(false);
+  });
+
   it('every fleet boat with the advanced controls has it; the beginner boat does not', () => {
     for (const f of FLEET) expect(RECIPES[f.id].modules.some((m) => m.module === 'panel.helm-assist'), f.id).toBe(f.id !== 'starterBoat');
   });
@@ -91,6 +114,37 @@ describe('the helm assist panel', () => {
     expect(v.controls.autopilot).toBe(1);
     send('autopilot.engage', 1);
     expect(v.controls.autopilot).toBe(0);
+  });
+
+  it('PORT 5° and STBD 5°: each press moves the heading it holds 5°, and she follows; off, they do nothing', () => {
+    const { v, send, run } = boat('fishingBoat');
+    send('helmAssist.autoStart', 1);
+    run(5);
+    send('lever', 0.6);
+    run(15);
+    send('autopilot.engage', 1);
+    const held = v.controls.autopilotHeading!;
+    const err = (h: number, to: number) => Math.abs(((h - to + 540) % 360) - 180);
+    const step = CONFIG.modules.helmAssist.autopilot.stepDeg;
+    send('autopilot.starboard', 1);
+    send('autopilot.starboard', 1);
+    expect(err(v.controls.autopilotHeading!, held + 2 * step)).toBeLessThan(1e-9);
+    run(30);
+    expect(err(compassHeading(v), held + 2 * step)).toBeLessThan(1.5);
+    send('autopilot.port', 1);
+    expect(err(v.controls.autopilotHeading!, held + step)).toBeLessThan(1e-9);
+    run(30);
+    expect(err(compassHeading(v), held + step)).toBeLessThan(1.5);
+    // Round through north: 358° + 5° is 3°.
+    v.controls.autopilotHeading = 358;
+    send('autopilot.starboard', 1);
+    expect(v.controls.autopilotHeading).toBeCloseTo(3, 9);
+    // Let go: the buttons leave it alone.
+    send('autopilot.engage', 1);
+    const was = v.controls.autopilotHeading;
+    send('autopilot.port', 1);
+    expect(v.controls.autopilot).toBe(0);
+    expect(v.controls.autopilotHeading).toBe(was);
   });
 
   it('AUTOPILOT needs the instruments live: with the master off it won’t engage, and lets go if it goes off', () => {

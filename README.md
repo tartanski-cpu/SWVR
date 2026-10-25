@@ -174,10 +174,11 @@ At the helm, from left to right on the console:
   - **Big engines (the landing craft and Shipyard boats) have a trolling valve:** the first part of the lever's travel either side of neutral keeps the engine at idle and lets the gearbox slip, from dead slow (2 to 3 knots) up to her idle speed in gear; past about a third of the travel the throttle opens. The workboat's lever opens the throttle straight from the notch.
 - **Start/stop** button. The engine only starts with the lever in neutral.
 
-**Helm assist panel** (a Shipyard choice with the Advanced controls; on the fleet's landing craft, fishing boat, pilot boat and small tug): a small box on the starboard wall beside the breaker panel, with three buttons:
-- **AUTO START** (green): the whole start-up in one press: battery master and breakers on, engine started.
-- **DOCK** (blue): what the menu's Dock / Cast off does: both lines ashore at the berth in range, or cast off.
-- **AUTOPILOT** (amber, lit while it's on): holds the compass heading she's on when you press it, steering by itself (you'll see the wheel move). Press again to let go. Turning the wheel yourself also lets it go, and it needs the INSTR breaker on.
+**Helm assist** (a Shipyard choice with the Advanced controls; on the fleet's landing craft, fishing boat, pilot boat and small tug): an autopilot on the console, and a small panel on the starboard wall beside the breaker panel.
+- **The autopilot**, its own amber **AUTOPILOT** group on the console, starboard of the wheel:
+  - **AUTO** (amber, lit while it's on): holds the compass heading she's on when you press it, steering by itself (you'll see the wheel move). Press again to let go. Turning the wheel yourself also lets it go, and it needs the INSTR breaker on.
+  - **PORT 5°** and **STBD 5°**: while it's on, each press alters the heading it holds by 5 degrees that way, and she comes round to it. Tap a few times for a bigger alteration.
+- **The panel by the breakers:** **AUTO START** (green), the whole start-up in one press (battery master and breakers on, engine started); **DOCK** (blue), what the menu's Dock / Cast off does (both lines ashore at the berth in range, or cast off).
 
 **Instrument lighting:** the dials, screens, labels and the start-up card dim by themselves as it gets dark, and at night turn a dim red, so you keep your night vision and still see out. The switch and button labels are tilted up toward you so they read from the helm.
 
