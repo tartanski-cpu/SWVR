@@ -315,10 +315,10 @@ To work in peace, set **Menu → Voyage → Emergency calls → Off (quiet)**. N
 
 The dash shows:
 
-- **Speed** (kn) and **depth under the keel** (red below 2 m), side by side, with heading, course over ground and the anchor.
+- **Speed through the water** (the LOG, kn: her speed less the tide where she is) and **depth under the keel** (red below 2 m), side by side, with heading and course over ground. Speed over the ground (SOG) is on the overhead NAV panel.
 - **Anchor** (a small screen beside the speed screen, on every Shipyard boat with an anchor; on a boat with the tow line it sits on top of it, the two sharing one screen's place): how much chain is out (m), with a bar against all she carries, and what the anchor is doing: **▼ LETTING GO** (flashing) while the chain runs out, **SET** (green) once it's holding, **DRAGGING** (flashing red) if it isn't, **▲ HEAVING IN** (flashing) while it comes up, **OFF BOTTOM** when it hangs clear (**NO BOTTOM** with all the chain out: too deep), and **HOUSED** once it's back in the roller.
-- **Heading** (compass tape), with course over ground and **rate of turn** (degrees a minute, S or P).
-- **Engine**: rpm, gear, engine state, load, fuel burn and coolant temperature, and the **rudder's actual angle** (the needle) against the helm's order (the ring), so you can see it catching up with the wheel. With outboards, stern drives or pod drives it shows their legs (DRIVES).
+- **Heading** (compass tape), with course over ground.
+- **Engine**: rpm, gear, engine state, load and fuel burn (both engines' revs and gear on a twin; the coolant temperature is on the engine monitor), and the **rudder's actual angle** (the needle) against the helm's order (the ring), so you can see it catching up with the wheel. With outboards, stern drives or pod drives it shows their legs (DRIVES).
 - **Tow line** (advanced instruments, on a boat that can tow: she has a stern roller; a strip, half the height of the other screens): the towline's pull in kN, and a bar of how near it is to **parting**: green, amber past half, red near breaking (EASE OFF). A white mark holds the highest load for a few seconds, so a sudden snatch still shows. NO LINE when nothing's made fast; PARTED when it goes. A steady pull, even flat out, won't part it: a tow that's stuck, a squall pushing you apart, or a hard snatch on a slack line will.
 - **Rudder angle**: the needle is the actual rudder, the ring is the helm order (also in figures, top right).
 - The **engine monitor**, behind the wheel (read it through the spokes): coolant and oil temperature, fuel litres and L/h, battery volts, and HIGH TEMP / LOW FUEL lamps. A buzzer sounds with the alarms.

@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The console screens tidied (owner's list)
+
+`controls/instruments.ts`: the speed screen is the log (`logKnots`: speed through the water, ground speed less `addCurrent` at her position), without the anchor line (`paintAnchor` removed: the anchor has its own screen); the heading screen without the rate of turn (`rateOfTurn` kept, unused on screen); the ENGINE screen without the coolant temperature (on the engine monitor). The round LOG dial reads through the water too. SOG stays on the NAV panel. See `docs/progress/modules.md`.
+
 ### Deck crane: HOOK says why it won't let go (25 Oct 2026)
 
 Owner: laying the cardinals, the buoys over the side at their circles, "the button to drop them off didn't work". The crane sets a load down in the sea only once its foot is within `SET_DOWN_ABOVE` 0.8 m of the water (cargo.ts setDown), and a press above that did nothing and said nothing. Now a HOOK press with a load it won't set down shows, to whoever pressed, why: "Lower it right down to the water first: 2.3 m to go (hoist down)", or onto the deck / the ground, or "No room on deck there" (`hookNote`, cargo/cargo.ts, read only, the same rules as setDown; shown by App on the press, so crew see it too). A project buoy lowered at the water but not wanted now (not this stage's) is answered by the office instead of silence (projects.ts `layProjectBuoy`); off its spot was already said. The mechanics themselves were sound: the crane reaches well below the water with its wire run out. Test: tests/projects.test.ts (the crane-laying test now presses too high first: told, still on the hook). All of `npm test`: 1566 passing. Not checked in a running game.

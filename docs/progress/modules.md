@@ -39,6 +39,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **The console screens tidied** (this log). Speed screen: LOG (speed through the water), no anchor line; heading: no rate of turn; ENGINE: no temperature. In a tidal race the LOG and the NAV panel's SOG should differ.
 - [ ] **Twin stern drives: a lever and a START each** (this log). Shipyard: a boat with Stern drives and Twin; in the game, each leg follows its own lever (one ahead, one astern spins her).
 - [ ] **Twin engine control, a lever and a START each** (this log). In the catamaran (or the pilot boat): key on, START P, then START S. VR: grab one knob, then the other, then the yellow grip between them (both come together). One ahead and one astern: she turns on the spot. Desktop: drag a knob, drag the grip; W/S moves both. Is the grip easy to find and grab? Does START P hide behind the levers from the helm?
 - [ ] **The autopilot on the console: AUTO, PORT 5°, STBD 5°** (this log). In the pilot boat (or any fleet boat but the beginner boat): steam out, press **AUTO** on the console (starboard of the wheel), then tap **STBD 5°** a few times: she should come round 5° a tap and hold the new heading. Is it in a good place on the console (the throttle lever stands in front of PORT 5° from the helm)? The wall panel now has only AUTO START and DOCK.
@@ -60,6 +61,19 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### The console screens tidied: the log, no rate of turn, no doubled readings (done; on next, in your test round)
+
+You went through the pilot boat's screens and listed what isn't useful. On every boat's console screens:
+
+- **Heading screen:** the rate of turn is gone (its flicker between P and S told nothing). Course over ground stays.
+- **ENGINE screen:** the coolant temperature is gone (it's on the ENGINE MONITOR); the fuel burn (L/h) stays, as you said.
+- **Speed screen:** now the **log**, speed through the water (SPEED LOG): her speed over the ground less the tidal current where she is (the same current the hull feels in the physics; `logKnots`, `src/controls/instruments.ts`). Speed over the ground stays on the overhead NAV panel. The old school round LOG gauge reads through the water too.
+- **Speed screen:** the ANCHOR UP / DOWN line is gone (the anchor has its own screen now).
+
+Tests: `tests/screens.test.ts` (carried by the tide in a race: moving over the ground, 0 on the log; stemming it, the log reads the ground speed plus the current; out of the races they agree). Checked in the headless game on the pilot boat's dash.
+
+**Shared changes:** `src/controls/instruments.ts` (the main game's: the speed, heading and engine screens, the round LOG gauge).
 
 ### Twin stern drives get the twin engine control too (done; on next, in your test round)
 
