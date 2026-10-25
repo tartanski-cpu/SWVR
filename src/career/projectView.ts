@@ -4,6 +4,8 @@ import type { WorldState } from '../core/world';
 import type { PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { NavMarksView } from '../world/view/navMarksView';
+import { transitionPieceParts } from '../world/view/windFarmView';
+import { landingAxis } from '../world/windFarm';
 import { foundations, jackUpAt, laidMarks, syncProjectBlocks } from './projects';
 
 /** How deep the piles are drawn (m): well under the surface, out of sight below. */
@@ -11,6 +13,8 @@ const PILE_FOOT = -12;
 /** A driven pile's top (m above the sea), and a pile's as it's pitched upright, before driving. */
 const PILE_TOP = 4;
 const PILE_PITCHED = 14;
+/** How high over its foundation a transition piece starts as it's lifted on (m). */
+const TP_LIFT = 12;
 
 /**
  * A construction project in the world (career/projects.ts): its marks as they're laid (the
@@ -31,6 +35,8 @@ export class ProjectView {
   /** The pile being driven: a unit-height tube, scaled to the height still standing. */
   private readonly driving: THREE.Mesh;
   private readonly jackUp: THREE.Mesh;
+  /** The transition piece being lifted on: one piece, lowered onto its foundation as it goes. */
+  private readonly lifting: THREE.Mesh;
 
   constructor() {
     this.root.name = 'project';
@@ -44,7 +50,10 @@ export class ProjectView {
     this.jackUp = new THREE.Mesh(jackUpGeometry(), this.material);
     this.jackUp.name = 'jackUp';
     this.jackUp.visible = false;
-    this.root.add(this.driving, this.jackUp);
+    this.lifting = new THREE.Mesh(mergeParts(transitionPieceParts()), this.material);
+    this.lifting.name = 'tpLifting';
+    this.lifting.visible = false;
+    this.root.add(this.driving, this.jackUp, this.lifting);
   }
 
   update(world: WorldState, waves: readonly PreparedWave[], time: number, darkness: number, viewer: { x: number; z: number }): void {
@@ -67,14 +76,15 @@ export class ProjectView {
     // The foundations standing, and the pile being driven (its top coming down to PILE_TOP).
     const found = foundations(world);
     const standing = found.filter((f) => f.driving === null);
-    const pk = standing.map((f) => `${f.x},${f.z}`).join('|');
+    const pk = standing.map((f) => `${f.x},${f.z},${f.tp === 1}`).join('|');
     if (pk !== this.pilesKey) {
       this.pilesKey = pk;
       if (this.piles) {
         this.root.remove(this.piles);
         this.piles.geometry.dispose();
       }
-      this.piles = standing.length ? new THREE.Mesh(mergeParts(standing.map((f) => pileGeometry(f.x, f.z))), this.material) : null;
+      // Each foundation, and its transition piece once it's on (a turbine's own: windFarmView).
+      this.piles = standing.length ? new THREE.Mesh(mergeParts(standing.flatMap((f) => [pileGeometry(f.x, f.z), ...(f.tp === 1 ? tpPlaced(f.x, f.z, f.landingDeg) : [])])), this.material) : null;
       if (this.piles) {
         this.piles.name = 'foundations';
         this.root.add(this.piles);
@@ -87,11 +97,26 @@ export class ProjectView {
       this.driving.position.set(d.x, PILE_FOOT, d.z);
       this.driving.scale.set(1, top - PILE_FOOT, 1);
     }
+    // The transition piece being lifted on: lowered from TP_LIFT over its foundation onto it.
+    const lift = found.find((f) => f.tp !== null && f.tp < 1);
+    this.lifting.visible = !!lift;
+    if (lift) {
+      const { ax, az } = landingAxis(lift.landingDeg);
+      this.lifting.rotation.set(0, Math.atan2(-ax, -az), 0);
+      this.lifting.position.set(lift.x, TP_LIFT * (1 - Math.min(1, (lift.tp ?? 0) * 1.25)), lift.z);
+    }
     // The jack-up, on site while the piles go in.
     const ju = jackUpAt(world);
     this.jackUp.visible = !!ju;
     if (ju) this.jackUp.position.set(ju.x, 0, ju.z);
   }
+}
+
+/** A transition piece on its foundation at (x, z), its landing out along its bearing (as windFarmView places a turbine's). */
+function tpPlaced(x: number, z: number, landingDeg: number): THREE.BufferGeometry[] {
+  const { ax, az } = landingAxis(landingDeg);
+  const yaw = Math.atan2(-ax, -az);
+  return transitionPieceParts().map((g) => g.rotateY(yaw).translate(x, 0, z));
 }
 
 /** A driven pile at (x, z): the tube from below the surface to PILE_TOP, a flange round its top. */

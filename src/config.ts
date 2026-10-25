@@ -25,7 +25,8 @@ export interface ProjectDef {
 export type ProjectJobDef =
   | { id: string; kind: 'survey'; name: string; from: [number, number]; to: [number, number]; pay: number }
   | { id: string; kind: 'buoy'; name: string; mark: 'N' | 'E' | 'S' | 'W' | 'special'; at: [number, number]; pay: number }
-  | { id: string; kind: 'tow'; name: string; tow: string; turbine: number; pay: number };
+  | { id: string; kind: 'tow'; name: string; tow: string; turbine?: number; pay: number }
+  | { id: string; kind: 'supply'; name: string; cargo: string; count: number; pay: number };
 
 /** A career upgrade, bought at the yard (CONFIG.career.upgrades). */
 export interface CareerUpgrade {
@@ -791,9 +792,14 @@ export const CONFIG = {
      *           (`projectTow.laydown`), towed out and handed over at its turbine (`turbine`, an
      *           index into `turbines`) to the jack-up, which drives it in the background
      *           (`projectTow.driveS`). One at a time: the next comes out once the last is driven.
+     *           Without a `turbine` it's for the jack-up itself (the transition pieces' barge):
+     *           handed over alongside her, and she lifts each piece onto its foundation in turn
+     *           (`projectTow.fitS` each).
+     *   supply  `count` loads of `cargo` (hand cargo) on the office's quay, carried out and
+     *           brought alongside the jack-up (`projectSupply`): her crane takes them aboard.
      * Positions: Tarran Rig, two turbines in 40 m of open water about 1.1 km north of Calder
      * Haven, clear of Holm Rig and the fishing grounds; its zone boxed by four cardinals.
-     * Stages 4-6 (transition pieces, turbines, commissioning) come in later steps.
+     * Stages 5-6 (the turbines, commissioning) come in later steps.
      */
     projects: [
       {
@@ -837,6 +843,14 @@ export const CONFIG = {
               { id: 'mono2', kind: 'tow', name: 'Monopile 2 to turbine 2', tow: 'monopile', turbine: 1, pay: 1800 },
             ],
           },
+          {
+            name: 'Transition pieces',
+            bonus: 2000,
+            jobs: [
+              { id: 'tps', kind: 'tow', name: 'Transition pieces to the jack-up', tow: 'tpBarge', pay: 2500 },
+              { id: 'supply1', kind: 'supply', name: 'Bolts and grout for the jack-up', cargo: 'Building materials', count: 4, pay: 900 },
+            ],
+          },
         ],
       },
     ] as ProjectDef[],
@@ -850,7 +864,9 @@ export const CONFIG = {
      * mouth, clear of the fairway). Hand-over: within `handover.radius` m of its turbine, under
      * `handover.speed` m/s for `handover.holdS` s; then the jack-up drives it, `driveS` s.
      */
-    projectTow: { laydown: { x: 370, z: 745, headingDeg: 0 }, handover: { radius: 30, speed: 0.4, holdS: 8 }, driveS: 120 },
+    projectTow: { laydown: { x: 370, z: 745, headingDeg: 0 }, handover: { radius: 30, speed: 0.4, holdS: 8 }, driveS: 120, fitS: 90, toJackUpRadius: 50 },
+    /** Supplies for the jack-up (see `projects`): alongside her within `radius` m of her middle, under `speed` m/s for `holdS` s, and her crane takes what's aboard. */
+    projectSupply: { radius: 45, speed: 0.5, holdS: 6 },
     /**
      * The jack-up that drives the piles (career/projectView.ts draws it; a set piece, no physics:
      * its legs are solid blocks). It stands `offsetM` north of the turbine it's working on, its

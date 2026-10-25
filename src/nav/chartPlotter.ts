@@ -22,7 +22,7 @@ import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
 import { coastTerrains } from '../world/coastTerrain';
 import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
-import { activeProject, foundations, laidMarks, towId } from '../career/projects';
+import { activeProject, foundations, jackUpAt, laidMarks, towId } from '../career/projects';
 
 const W = 512;
 const H = 384;
@@ -450,16 +450,22 @@ export class ChartPlotter {
           }
           g.fillStyle = '#f0a0e0';
           g.fillText(job.name.replace(/Survey line (\d).*/, 'L$1'), bx + 4, by + 4);
-        } else if (job.kind === 'tow') {
-          // A monopile tow: the hand-over ring at its turbine, and the pile itself where it is
-          // (at the laydown, or in tow): a magenta bar along its length.
-          const t = def.turbines[job.turbine];
-          const [tx, ty] = toPx(t.x, t.z);
-          g.strokeStyle = '#e65ac8';
-          g.lineWidth = 2;
-          g.beginPath();
-          g.arc(tx, ty, Math.max(CONFIG.career.projectTow.handover.radius / mpp, 5), 0, Math.PI * 2);
-          g.stroke();
+        } else if (job.kind === 'tow' || job.kind === 'supply') {
+          // A tow or a supply run: the hand-over ring (at a monopile's turbine, or round the
+          // jack-up), and a tow itself where it is (at the laydown, or in tow): a magenta bar
+          // along its length.
+          const ju = jackUpAt(world);
+          const t = job.kind === 'tow' && job.turbine !== undefined ? def.turbines[job.turbine] : ju;
+          if (t) {
+            const [tx, ty] = toPx(t.x, t.z);
+            const r = job.kind === 'supply' ? CONFIG.career.projectSupply.radius : job.turbine !== undefined ? CONFIG.career.projectTow.handover.radius : CONFIG.career.projectTow.toJackUpRadius;
+            g.strokeStyle = '#e65ac8';
+            g.lineWidth = 2;
+            g.beginPath();
+            g.arc(tx, ty, Math.max(r / mpp, 5), 0, Math.PI * 2);
+            g.stroke();
+          }
+          if (job.kind === 'supply') continue;
           const mv = world.vessels[towId(def, job)];
           if (mv) {
             const [mx, my] = toPx(mv.position[0], mv.position[2]);
@@ -474,9 +480,9 @@ export class ChartPlotter {
             g.lineTo(mx + fx * half, my + fz * half);
             g.stroke();
             g.fillStyle = '#f0a0e0';
-            g.fillText(`Pile ${job.turbine + 1}`, mx + 8, my - 6);
+            g.fillText(job.turbine !== undefined ? `Pile ${job.turbine + 1}` : 'TP barge', mx + 8, my - 6);
           }
-        } else {
+        } else if (job.kind === 'buoy') {
           const [px, py] = toPx(job.at[0], job.at[1]);
           g.strokeStyle = '#e65ac8';
           g.lineWidth = 2;
@@ -487,10 +493,10 @@ export class ChartPlotter {
           if (named) g.fillText(job.name, px + 8, py - 6);
         }
       }
-      // The foundations driven (and the one being driven): grey discs.
+      // The foundations driven (and the one being driven): grey discs, yellow once their transition piece is on.
       for (const f of foundations(world)) {
         const [px, py] = toPx(f.x, f.z);
-        g.fillStyle = f.driving === null ? '#9aa0a4' : '#c8ccd0';
+        g.fillStyle = f.tp === 1 ? '#e8c020' : f.driving === null ? '#9aa0a4' : '#c8ccd0';
         g.beginPath();
         g.arc(px, py, 4, 0, Math.PI * 2);
         g.fill();

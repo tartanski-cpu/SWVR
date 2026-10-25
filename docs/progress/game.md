@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Construction projects, step 3: the transition pieces (25 Oct 2026)
+
+Owner: "Go to stage 4."
+
+- **Stage 4, Transition pieces** (bonus £2000; `CONFIG.career.projects`): two jobs. **Transition pieces to the jack-up** (£2500): a new tug's tow, the **transition pieces' barge** (`CONFIG.vessels.tpBarge`: the crane pontoon's hull and handling, two transition pieces standing upright on grillages with sea-fastening struts, drawn with Holm Rig's own transition piece: `world/view/windFarmView.ts transitionPieceParts`, now split out of the turbine's parts), out at the laydown like the monopiles, handed over within `projectTow.toJackUpRadius` (50 m) of the jack-up wherever she stands. Then she lifts the pieces onto the driven foundations one at a time, `projectTow.fitS` (90 s) each (`fitting`, then `fitted`): drawn lowered from 12 m onto the foundation, then standing with its platform and landing. **Bolts and grout for the jack-up** (£900): a **supply** job, four loads of `Building materials` (hand cargo) on the Calder goods row; brought alongside the jack-up (within 45 m, under 0.5 m/s, 6 s: `CONFIG.career.projectSupply`), her crane takes what's aboard (`supplied` counts them; paid when all four are).
+- A tow job without a `turbine` is for the jack-up (the barge); a `supply` job is new. Project hand cargo is ordinary hand cargo (only the mark buoys are crane only: `isProjectBuoy`); lost, another is put on the quay.
+- The **jack-up** now stays on site through stage 4: at a piece being lifted on, else the next to have one, else (supplies still wanted) the last turbine; gone when the pieces are on and her supplies aboard.
+- **Solid:** a turbine base with its piece on takes Holm Rig's blocks (`windFarmBlocks`: the piece up to the platform, and the boat landing's face), so a crew boat can push on its landing.
+- Saved: a piece being lifted on when the session ends reads back as on; supplies taken stay counted. **Chartplotter:** the barge ("TP barge"), the ring round the jack-up for the barge and the supplies, foundations yellow once their piece is on. **Debug:** Project: stage done fits both pieces.
+- **Shared changes:** `src/world/view/windFarmView.ts` (`transitionPieceParts` exported), `src/config/vessels.ts` (`tpBarge`), `src/vessel/vesselDef.ts`, `src/boats/towHulls.ts`, `src/boats/library.ts`, `src/boats/tow-tpBarge.json`.
+- Tests: `tests/projects.test.ts` (the barge out, handed over at the jack-up, the pieces on one by one with the landing solid, the jack-up staying for the supplies and gone after; a supply run in two trips, paid at the last; saved mid-way). Headless (career): the barge with its two pieces, a piece being lowered under the jack-up's hook, a turbine base standing with its platform and landing. Not checked: a full tow and supply run by hand, VR.
+
 ### Construction projects, step 2: the foundations (monopile tows and the jack-up) (25 Oct 2026)
 
 Owner: "go ahead with step 2, the monopile tow".

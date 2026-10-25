@@ -399,7 +399,7 @@ export interface VesselConfig {
 
 /** A towable hull: the model drawn over it (tow/towLook.ts) and what the radio calls it. */
 export interface TowLook {
-  look: 'derelict' | 'logs' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage' | 'coaster' | 'monopile';
+  look: 'derelict' | 'logs' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage' | 'coaster' | 'monopile' | 'tpBarge';
   name: string;
   /** Small, medium, large or a ship: the debug menu's choice (owner) and roughly the pay. */
   size: TowSize;
@@ -561,7 +561,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
 }
 
 /** The vessel types, by def id (the ids live on in saves and snapshots: never rename). */
-export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'dory', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'monopile', 'landingCraft', 'alaskan38', 'design', 'lander', 'fishingBoat', 'pilotBoat', 'smallTug', 'starterBoat', 'rib'] as const;
+export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'dory', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'monopile', 'tpBarge', 'landingCraft', 'alaskan38', 'design', 'lander', 'fishingBoat', 'pilotBoat', 'smallTug', 'starterBoat', 'rib'] as const;
 
 let built: Record<string, VesselDef> | null = null;
 let builder: (() => Record<string, VesselDef>) | null = null;
@@ -612,4 +612,4 @@ export const VESSEL_DEFS: Record<string, VesselDef> = new Proxy({} as Record<str
 });
 
 /** The towable kinds (towing missions), by def id. */
-export const TOW_DEFS = ['derelict', 'dory', 'logRaft', 'barge', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'monopile'] as const;
+export const TOW_DEFS = ['derelict', 'dory', 'logRaft', 'barge', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster', 'monopile', 'tpBarge'] as const;

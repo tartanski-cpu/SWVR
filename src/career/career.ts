@@ -541,7 +541,10 @@ export function parseCareer(raw: string | null): CareerState | null {
       for (const [k, v] of Object.entries(pr.survey ?? {})) if (Array.isArray(v)) survey[k] = v.filter((n) => typeof n === 'number');
       // A pile still being driven when the session ended is driven by now (the jack-up worked on).
       const driven = [...(Array.isArray(pr.driven) ? pr.driven : []), ...Object.keys(pr.driving ?? {})].filter((d) => typeof d === 'string');
-      c.project = { id: pr.id, stage: Math.max(0, Math.floor(pr.stage)), done: pr.done.filter((d) => typeof d === 'string'), survey, ...(driven.length ? { driven } : {}) };
+      // Likewise a transition piece being lifted on; and the supplies taken aboard so far.
+      const fitted = [...(Array.isArray(pr.fitted) ? pr.fitted : []), ...Object.keys(pr.fitting ?? {}).map(Number)].filter((n) => Number.isInteger(n));
+      const supplied = Object.fromEntries(Object.entries(pr.supplied ?? {}).filter(([, n]) => typeof n === 'number'));
+      c.project = { id: pr.id, stage: Math.max(0, Math.floor(pr.stage)), done: pr.done.filter((d) => typeof d === 'string'), survey, ...(driven.length ? { driven } : {}), ...(fitted.length ? { fitted } : {}), ...(Object.keys(supplied).length ? { supplied } : {}) };
     }
     if (Array.isArray(o.projectsDone)) c.projectsDone = o.projectsDone.filter((d) => typeof d === 'string');
     return c;

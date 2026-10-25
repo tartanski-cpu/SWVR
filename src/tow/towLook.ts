@@ -4,6 +4,8 @@ import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { hullPlan } from '../vessel/layout';
 import type { VesselDef } from '../vessel/vesselDef';
 import { bowEyeLocal } from './tow';
+import { CONFIG } from '../config';
+import { transitionPieceParts } from '../world/view/windFarmView';
 
 /**
  * The models drawn for the towable hulls (towing missions). Each is a single merged,
@@ -139,7 +141,7 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
     for (const s of [-1, 1]) parts.push(part(new THREE.BoxGeometry(0.2, 3.6, 0.2).rotateX(-0.25).translate(s * 2.2, st + 1.7, tz - 0.7), 0xd6a020));
     box(4.6, 0.25, 0.25, 0, st + 3.45, tz - 0.25, 0xd6a020);
     parts.push(part(new THREE.CylinderGeometry(0.75, 0.75, 3.0, 12).rotateZ(Math.PI / 2).translate(0, st + 0.9, tz - 3.2), 0x3c5a3c));
-  } else if (look === 'barge' || look === 'pontoon') {
+  } else if (look === 'barge' || look === 'pontoon' || look === 'tpBarge') {
     // (Only these: the coaster, drawn below, fell in here too and got a barge round her.)
     // Barge (and the pontoon, larger): side profile (z aft, y up) extruded across the beam. Shape x = -z (see below).
     const L = p.length / 2;
@@ -155,7 +157,7 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
     // ExtrudeGeometry extrudes along +Z; rotateY(90°) maps (x, y, z) -> (z, y, -x): shape
     // x becomes -z (hence the sign above) and the extrusion runs across the beam.
     const hull = new THREE.ExtrudeGeometry(s, { depth: p.beamDeck, bevelEnabled: false }).rotateY(Math.PI / 2).translate(-p.beamDeck / 2, 0, 0);
-    parts.push(part(hull, look === 'pontoon' ? 0x4a5a48 : 0x8a3a24, 'worn'));
+    parts.push(part(hull, look === 'barge' ? 0x8a3a24 : 0x4a5a48, 'worn'));
     box(p.beamDeck - 0.1, 0.04, p.length - 0.6, 0, top + 0.02, 0.15, 0x6a6c68);
     const bx = p.beamDeck / 2 - 0.4;
     for (const [x, z] of [
@@ -165,7 +167,30 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
       [bx, L - 0.4],
     ])
       parts.push(part(new THREE.CylinderGeometry(0.09, 0.11, 0.3, 8).translate(x, top + 0.15, z), 0x222222));
-    if (look === 'barge') {
+    if (look === 'tpBarge') {
+      // Two transition pieces standing upright (a turbine's own: world/view/windFarmView.ts),
+      // their feet on grillages on her deck, 9 m apart along her, each with its landing facing
+      // out over her side; sea-fastening struts from the deck to each piece's shoulder.
+      const tp = CONFIG.windFarm.tp;
+      for (const [z, side] of [
+        [-4.5, -1],
+        [4.5, 1],
+      ]) {
+        box(tp.radius * 2 + 0.6, 0.3, tp.radius * 2 + 0.6, 0, top + 0.15, z, 0x3a3c3a);
+        for (const g of transitionPieceParts()) parts.push(g.rotateY((side * Math.PI) / 2).translate(0, top + 0.3 - tp.from, z));
+        for (const [sx, sz] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ]) {
+          const from = new THREE.Vector3(sx * (tp.radius + 1.6), top, z + sz * (tp.radius + 1.6));
+          const to = new THREE.Vector3(sx * tp.radius, top + 3, z + sz * tp.radius);
+          const d = to.clone().sub(from);
+          parts.push(part(new THREE.CylinderGeometry(0.12, 0.12, d.length(), 6).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize())).translate((from.x + to.x) / 2, (from.y + to.y) / 2, (from.z + to.z) / 2), 0xd8a020));
+        }
+      }
+    } else if (look === 'barge') {
       box(1.4, 1.0, 1.6, 0, top + 0.5, L - 1.4, 0xd8d4c8);
       box(1.5, 0.06, 1.7, 0, top + 1.03, L - 1.4, 0x3a3e40);
     } else {

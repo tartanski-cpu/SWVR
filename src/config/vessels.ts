@@ -1785,6 +1785,27 @@ export const VESSELS_CONFIG = {
       boardingSpot: [0, 2.0, 0] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
     },
+    /**
+     * The transition pieces' barge (career/projects.ts, Tarran Rig's stage 4): the crane
+     * pontoon's hull and handling, two transition pieces standing upright on her deck, sea-
+     * fastened (drawn: tow/towLook.ts). A tug's tow, out to the jack-up.
+     */
+    tpBarge: {
+      tow: { look: 'tpBarge' as const, name: 'a barge with two transition pieces sea-fastened on her deck', size: 'large' as const, lineFactor: 2, needs: 'tug' as const, project: true },
+      hull: { length: 20, beamDeck: 8.0, beamChine: 7.9, keelY: -1.2, chineYAft: -1.1, chineYBow: -0.6, deckYAft: 0.9, deckYBow: 1.0, stations: 9, physicsStations: 5, deckParallel: 0.85 },
+      mass: PONTOON_MASS,
+      cg: [0, -0.2, PONTOON_LCB] as [number, number, number],
+      gyradius: { roll: 2.8, pitch: 5.0, yaw: 5.4 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 1430000, pitch: 750000, yaw: 375000 },
+      resistance: { lwl: 19.5, formFactor: 2.5, waveA: 4, waveB: 3.5, waveKnee: 0.15, waveCap: 0.3, asternFactor: 1.5, y: -0.5 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      // The two pieces standing 14 m over her deck catch the wind.
+      windage: { side: 90, front: 45, center: [0, 5, 0] as [number, number, number] },
+      boardingSpot: [0, 1.0, 4] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
     coaster: {
       tow: { look: 'coaster' as const, name: 'a loaded coaster with her engine dead', size: 'ship' as const, lineFactor: 3, needs: 'tug' as const },
       hull: { length: 58, beamDeck: 10.5, beamChine: 9.8, keelY: -3.4, chineYAft: -2.2, chineYBow: -0.4, deckYAft: 3.2, deckYBow: 4.6, stations: 15, physicsStations: 7, deckParallel: 0.6 },

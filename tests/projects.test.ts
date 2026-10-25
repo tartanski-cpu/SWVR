@@ -204,13 +204,13 @@ describe('construction projects: the foundations', { timeout: 60000 }, () => {
     }
     expect(world.vessels[pile.id]).toBeUndefined();
     expect(world.career!.money).toBe(money0 + tows[0].pay);
-    expect(foundations(world)).toEqual([{ x: t.x, z: t.z, driving: expect.any(Number) }]);
+    expect(foundations(world)).toMatchObject([{ x: t.x, z: t.z, driving: expect.any(Number), tp: null }]);
     expect(jackUpAt(world)).toEqual({ x: t.x, z: t.z - CONFIG.career.projectJackUp.offsetM });
     // Driven: a foundation, solid.
     const { blockContact } = await import('../src/world/geography');
     const hit = { depth: 0, nx: 0, ny: 0, nz: 0, fendered: false };
     for (let i = 0; i < (CONFIG.career.projectTow.driveS + 1) / DT; i++) stepWorld(world, [], DT);
-    expect(foundations(world)).toEqual([{ x: t.x, z: t.z, driving: null }]);
+    expect(foundations(world)).toMatchObject([{ x: t.x, z: t.z, driving: null, tp: null }]);
     expect(blockContact(t.x + 1, 0, t.z, hit)).toBe(true);
     expect(blockContact(t.x + 10, 0, t.z, hit)).toBe(false);
     // The next pile at the laydown; the jack-up moved to its turbine.
@@ -220,5 +220,96 @@ describe('construction projects: the foundations', { timeout: 60000 }, () => {
     activeProject(world)!.p.driving = { [tows[1].id]: world.time };
     const back = parseCareer(serializeCareer(world.career!))!;
     expect(back.project!.driven).toEqual([tows[0].id, tows[1].id]);
+  });
+});
+
+describe('construction projects: the transition pieces', { timeout: 60000 }, () => {
+  /** At stage 4: everything before done by the debug button (both piles driven). */
+  function atTps() {
+    const s = taken();
+    for (let i = 0; i < 3; i++) s.send('careerProjectStage');
+    const a = activeProject(s.world)!;
+    expect(a.def.stages[a.p.stage].name).toBe('Transition pieces');
+    return s;
+  }
+  const [tpsJob, supplyJob] = def.stages[3].jobs;
+
+  it('the barge comes out to the laydown; handed over alongside the jack-up, the pieces go on one by one, each a turbine base with its boat landing, solid', async () => {
+    const { world } = atTps();
+    stepProjects(world);
+    const barge = world.vessels[towId(def, tpsJob)];
+    expect(barge?.defId).toBe('tpBarge');
+    // The jack-up stands at the first turbine; the barge let go alongside her.
+    const ju = jackUpAt(world)!;
+    expect(ju.x).toBe(def.turbines[0].x);
+    activeProject(world)!.p.released = [tpsJob.id];
+    for (let i = 0; i < 12 / DT && world.vessels[barge.id]; i++) {
+      barge.position[0] = ju.x + 30;
+      barge.position[2] = ju.z;
+      barge.linearVelocity[0] = barge.linearVelocity[2] = 0;
+      stepProjects(world, DT);
+    }
+    expect(world.vessels[barge.id]).toBeUndefined();
+    expect(activeProject(world)!.p.done).toContain(tpsJob.id);
+    // The first piece being lifted on; then the second; then the jack-up's gone.
+    stepProjects(world, DT);
+    expect(foundations(world)[0].tp).not.toBeNull();
+    for (let i = 0; i < (2 * CONFIG.career.projectTow.fitS + 2) / DT; i++) stepWorld(world, [], DT);
+    expect(foundations(world).map((f) => f.tp)).toEqual([1, 1]);
+    // Each a turbine base: its boat landing's face solid, as Holm Rig's.
+    const { blockContact } = await import('../src/world/geography');
+    const { landingFace } = await import('../src/world/windFarm');
+    const face = landingFace(def.turbines[0]);
+    const hit = { depth: 0, nx: 0, ny: 0, nz: 0, fendered: false };
+    expect(blockContact(face.x * 0.98 + def.turbines[0].x * 0.02, 2, face.z * 0.98 + def.turbines[0].z * 0.02, hit)).toBe(true);
+    // The supplies still to go: the jack-up stays till they're aboard, then she's gone.
+    expect(activeProject(world)!.p.stage).toBe(3);
+    expect(jackUpAt(world)).not.toBeNull();
+    stepWorld(world, [{ playerId: 'p', targetId: 'env', control: 'careerProjectStage', value: 1 } as Intent], DT);
+    expect(jackUpAt(world)).toBeNull();
+  });
+
+  it('a supply run: its loads on the Calder quay, carried by hand; brought alongside the jack-up and held there, her crane takes them', () => {
+    const { world, v } = atTps();
+    stepProjects(world);
+    stepProjects(world);
+    if (supplyJob.kind !== 'supply') throw new Error('no supply');
+    for (let i = 0; i < supplyJob.count + 2; i++) stepProjects(world);
+    const loads = Object.values(world.cargo).filter((c) => isProjectItem(c) && c.to === `${def.id}:${supplyJob.id}`);
+    expect(loads).toHaveLength(supplyJob.count);
+    expect(loads.every((c) => 'ground' in c.at)).toBe(true);
+    // Hand cargo, not crane only.
+    expect(loads[0].mass).toBeLessThanOrEqual(CONFIG.cargo.twoHandKg);
+    // Two of them aboard, alongside the jack-up and slow: taken.
+    const ju = jackUpAt(world)!;
+    for (const c of loads.slice(0, 2)) c.at = { vessel: v.id, pos: [0, 1, 2], yaw: 0, vel: [0, 0], lashed: false };
+    const money0 = world.career!.money;
+    for (let i = 0; i < 8 / DT; i++) {
+      v.position[0] = ju.x + 25;
+      v.position[2] = ju.z;
+      v.linearVelocity[0] = v.linearVelocity[2] = 0;
+      stepProjects(world, DT);
+    }
+    expect(activeProject(world)!.p.supplied?.[supplyJob.id]).toBe(2);
+    expect(world.career!.money).toBe(money0); // paid when all are aboard her
+    for (const c of Object.values(world.cargo).filter((c) => isProjectItem(c) && c.to === `${def.id}:${supplyJob.id}`)) c.at = { vessel: v.id, pos: [0, 1, 2], yaw: 0, vel: [0, 0], lashed: false };
+    for (let i = 0; i < 8 / DT && !activeProject(world)!.p.done.includes(supplyJob.id); i++) {
+      v.position[0] = ju.x + 25;
+      v.position[2] = ju.z;
+      v.linearVelocity[0] = v.linearVelocity[2] = 0;
+      stepProjects(world, DT);
+    }
+    expect(activeProject(world)!.p.done).toContain(supplyJob.id);
+    expect(world.career!.money).toBe(money0 + supplyJob.pay);
+  });
+
+  it('saved mid-way, a piece being lifted on reads back as on, and the supplies taken stay counted', () => {
+    const { world } = atTps();
+    const p = activeProject(world)!.p;
+    p.fitting = { '0': world.time };
+    p.supplied = { [supplyJob.id]: 3 };
+    const back = parseCareer(serializeCareer(world.career!))!;
+    expect(back.project!.fitted).toEqual([0]);
+    expect(back.project!.supplied).toEqual({ [supplyJob.id]: 3 });
   });
 });

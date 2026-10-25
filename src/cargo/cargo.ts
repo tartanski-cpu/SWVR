@@ -44,7 +44,7 @@ import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
 import { berthWithId } from '../world/berths';
 import type { BerthDef } from '../world/defs';
-import { isProjectItem, layProjectBuoy, projectBuoyName, projectItemLost } from '../career/projects';
+import { isProjectBuoy, isProjectItem, layProjectBuoy, projectItemLost, projectItemName } from '../career/projects';
 
 export type CargoAt =
   /** Ashore (world frame): `pos` is the middle of its base. */
@@ -96,7 +96,7 @@ export function kindOf(item: CargoItem) {
 
 /** Crane cargo (CONFIG.cargo.crane): too heavy to carry, lifted only by a deck crane's hook. */
 export function craneOnly(item: CargoItem): boolean {
-  return isProjectItem(item) || CONFIG.cargo.crane.kinds.includes(kindOf(item)?.name ?? '');
+  return isProjectBuoy(item) || CONFIG.cargo.crane.kinds.includes(kindOf(item)?.name ?? '');
 }
 
 /** A port's cargo berth (its quay, for crane cargo), or null (an anchorage, a beach). */
@@ -241,16 +241,7 @@ export function spawnCargo(world: WorldState, tally?: Map<string, number>): Carg
   const takers = needing.length ? needing : others.filter((p) => !p.economy?.needs?.length);
   const pool = takers.length ? takers : others;
   const to = pool[Math.floor(hash01(n + 0.5) * pool.length)];
-  // First free place in the row (nothing within half a spacing of it), among the items set
-  // down near this port's stack.
-  const first = stackPoint(from, 0);
-  const near = groundNear(world, first[0], first[2], 250);
-  let pos = first;
-  for (let i = 0; i < Math.max(40, cfg.perPort * 3); i++) {
-    pos = stackPoint(from, i);
-    const p = pos;
-    if (!near.some((g) => Math.hypot(g[0] - p[0], g[2] - p[2]) < cfg.stackSpacing * 0.6)) break;
-  }
+  const pos = freeStackSpot(world, from);
   const yaw = (from.cargo.stackYawDeg * Math.PI) / 180 + (hash01(n + 0.75) - 0.5) * 0.3;
   const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw } };
   world.cargo[item.id] = item;
@@ -292,6 +283,23 @@ export function spawnCraneCargo(world: WorldState, tally?: Map<string, number>):
     if (at) tally.set(at.id, (tally.get(at.id) ?? 0) + 1);
   }
   return item;
+}
+
+/**
+ * The first free place in a port's goods row (nothing within half a spacing of it), among the
+ * items set down near its stack; the row's last place if none is free.
+ */
+export function freeStackSpot(world: WorldState, port: PortDef): Vec3 {
+  const cfg = CONFIG.cargo;
+  const first = stackPoint(port, 0);
+  const near = groundNear(world, first[0], first[2], 250);
+  let pos = first;
+  for (let i = 0; i < Math.max(40, cfg.perPort * 3); i++) {
+    pos = stackPoint(port, i);
+    const p = pos;
+    if (!near.some((g) => Math.hypot(g[0] - p[0], g[2] - p[2]) < cfg.stackSpacing * 0.6)) break;
+  }
+  return pos;
 }
 
 /** A free place along a port's cargo quay for crane cargo (clear of anything set down there), or null. */
@@ -897,7 +905,8 @@ export function cargoLabel(item: CargoItem): string {
     if (p && (p.crab || p.lobster)) return `Lobster pot: ${catchText(p.crab, p.lobster)}: set it down on a harbour quay to sell`;
     return `Lobster pot ${item.mass} kg, baited: shoot it over the side on a potting ground`;
   }
-  if (isProjectItem(item)) return `${projectBuoyName(item)}, ${item.mass} kg: lift it with a deck crane and lower it into the sea at its spot (on your chartplotter)`;
+  if (isProjectBuoy(item)) return `${projectItemName(item)}, ${item.mass} kg: lift it with a deck crane and lower it into the sea at its spot (on your chartplotter)`;
+  if (isProjectItem(item)) return `${projectItemName(item)}, ${item.mass} kg: take it out and lie alongside her (on your chartplotter)`;
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
   return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}${craneOnly(item) ? ` (${CONFIG.cargo.crane.note})` : anchorageOnly(item.to) ? ` (${CONFIG.cargo.anchorageNote})` : ''}`;
 }

@@ -33,8 +33,25 @@ function turbineParts(): THREE.BufferGeometry[] {
   const c = CONFIG.windFarm;
   const col = c.colors;
   const P = c.platform;
+  return [
+    cyl(c.pile.radius, c.pile.radius, c.pile.from, c.tp.from + 0.2, 16, col.pile),
+    ...transitionPieceParts(),
+    // The tower, white, tapering up to the nacelle.
+    cyl(c.tower.base, c.tower.top, P.y, c.hub - c.nacelle.height / 2, 16, col.tower),
+  ];
+}
+
+/**
+ * A transition piece, in a turbine's frame (its landing out along -z): the yellow piece over
+ * the pile, the platform on top with its rail, and the boat landing with its ladder. A turbine's
+ * (above), and on its own: a construction project's as it's fitted, or carried on its barge
+ * (career/projectView.ts, tow/towLook.ts).
+ */
+export function transitionPieceParts(): THREE.BufferGeometry[] {
+  const c = CONFIG.windFarm;
+  const col = c.colors;
+  const P = c.platform;
   const out: THREE.BufferGeometry[] = [];
-  out.push(cyl(c.pile.radius, c.pile.radius, c.pile.from, c.tp.from + 0.2, 16, col.pile));
   out.push(cyl(c.tp.radius, c.tp.radius, c.tp.from, P.y - P.thickness, 16, col.tp));
   // The platform: a disc, and its rail on posts round the edge (open over the ladder's head).
   out.push(cyl(P.radius, P.radius, P.y - P.thickness, P.y, 16, col.grey));
@@ -49,8 +66,6 @@ function turbineParts(): THREE.BufferGeometry[] {
     const len = Math.hypot(x1 - x0, z1 - z0);
     for (const k of [1, 0.5]) out.push(part(new THREE.BoxGeometry(0.06, 0.06, len).rotateY(Math.atan2(x1 - x0, z1 - z0)).translate((x0 + x1) / 2, P.y + P.rail * k, (z0 + z1) / 2), col.tp));
   }
-  // The tower, white, tapering up to the nacelle.
-  out.push(cyl(c.tower.base, c.tower.top, P.y, c.hub - c.nacelle.height / 2, 16, col.tower));
   // The boat landing, out along -z: two tubes, braced to the transition piece top and bottom
   // and midway; the ladder's rungs between them, and on up the transition piece's face to the platform.
   const L = c.landing;
