@@ -321,7 +321,7 @@ export const SHIPYARD_CONFIG = {
     /** helm.screenLift: the dash screens and gauges raised this far up the (leaning) dash face (m), so the lower row's foot clears the ledge in front of it. */
     /** helm.minInside: the narrowest wheelhouse, inside (m; CS6: one at a short console). helm.faceSwitchOrder: on a console too short for its switch panel, the groups moved up onto the dash face, in this order, until the rest fit. */
     /** helm.lampsUpBelow: on a console shorter than this (m; the shortest before CS6), the warning lamps' row goes up onto the dash face, clear of the wheel's rim. */
-    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
+    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'AUTOPILOT', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).

@@ -262,8 +262,8 @@ export interface ShipDesign extends Record<FurnitureField, number>, Record<Conso
   frames: number;
   /**
    * The helm assist panel (owner, Oct 2026; modules/helmAssist): 0 none, 1 a small box by the
-   * breaker panel with AUTO START, DOCK and AUTOPILOT (holds her compass heading). With the
-   * advanced controls only. Not in the short code: a design with it travels as a link or file.
+   * breaker panel with AUTO START and DOCK, and an autopilot (holds her compass heading) with
+   * its own group on the console: AUTO, PORT 5° and STBD 5°. With the advanced controls only. Not in the short code: a design with it travels as a link or file.
    */
   helmAssist: number;
   /**
@@ -659,7 +659,7 @@ export function furnitureAt(v: number): { x: number; fromTransom: number } | nul
  * grids from its port end. Not in the code: a boat placed by hand travels as a link or file.
  */
 export const DASH_SLOTS = { speed: 'dashSpeed', anchorScreen: 'dashAnchor', heading: 'dashHeading', rpm: 'dashRpm', engineMonitor: 'dashMonitor', towline: 'dashTow', dialCompass: 'dashCompass', dialSpeed: 'dashLog', dialDepth: 'dashDepth', dialChain: 'dashChain', dialRpm: 'dashTacho', dialTemp: 'dashTemp', dialFuel: 'dashFuel', clock: 'dashClock', dialClock: 'dashClockDial', touch1: 'dashTouch1', touch2: 'dashTouch2' } as const;
-export const PANEL_SLOTS = { LIGHTS: 'panelLights', SEARCH: 'panelSearch', horn: 'panelHorn', ENGINE: 'panelEngine', DECK: 'panelDeck' } as const;
+export const PANEL_SLOTS = { LIGHTS: 'panelLights', SEARCH: 'panelSearch', horn: 'panelHorn', ENGINE: 'panelEngine', DECK: 'panelDeck', AUTOPILOT: 'panelAutopilot' } as const;
 export type ConsoleKey = (typeof DASH_SLOTS)[keyof typeof DASH_SLOTS] | (typeof PANEL_SLOTS)[keyof typeof PANEL_SLOTS];
 /** The most columns a dash's grid has, and cells a panel's (a console's longest, 2.2 m, has fewer). */
 export const DASH_COLS_MAX = 24;

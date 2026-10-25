@@ -174,10 +174,11 @@ At the helm, from left to right on the console:
   - **Big engines (the landing craft and Shipyard boats) have a trolling valve:** the first part of the lever's travel either side of neutral keeps the engine at idle and lets the gearbox slip, from dead slow (2 to 3 knots) up to her idle speed in gear; past about a third of the travel the throttle opens. The workboat's lever opens the throttle straight from the notch.
 - **Start/stop** button. The engine only starts with the lever in neutral.
 
-**Helm assist panel** (a Shipyard choice with the Advanced controls; on the fleet's landing craft, fishing boat, pilot boat and small tug): a small box on the starboard wall beside the breaker panel, with three buttons:
-- **AUTO START** (green): the whole start-up in one press: battery master and breakers on, engine started.
-- **DOCK** (blue): what the menu's Dock / Cast off does: both lines ashore at the berth in range, or cast off.
-- **AUTOPILOT** (amber, lit while it's on): holds the compass heading she's on when you press it, steering by itself (you'll see the wheel move). Press again to let go. Turning the wheel yourself also lets it go, and it needs the INSTR breaker on.
+**Helm assist** (a Shipyard choice with the Advanced controls; on the fleet's landing craft, fishing boat, pilot boat and small tug): an autopilot on the console, and a small panel on the starboard wall beside the breaker panel.
+- **The autopilot**, its own amber **AUTOPILOT** group on the console, starboard of the wheel:
+  - **AUTO** (amber, lit while it's on): holds the compass heading she's on when you press it, steering by itself (you'll see the wheel move). Press again to let go. Turning the wheel yourself also lets it go, and it needs the INSTR breaker on.
+  - **PORT 5°** and **STBD 5°**: while it's on, each press alters the heading it holds by 5 degrees that way, and she comes round to it. Tap a few times for a bigger alteration.
+- **The panel by the breakers:** **AUTO START** (green), the whole start-up in one press (battery master and breakers on, engine started); **DOCK** (blue), what the menu's Dock / Cast off does (both lines ashore at the berth in range, or cast off).
 
 **Instrument lighting:** the dials, screens, labels and the start-up card dim by themselves as it gets dark, and at night turn a dim red, so you keep your night vision and still see out. The switch and button labels are tilted up toward you so they read from the helm.
 
@@ -250,7 +251,7 @@ A loop with the Timber game. Cut logs ashore, then tow them to market.
 3. **Ashore:** the screen fades to black and the Timber game opens, in the same browser tab. Your voyage is saved first, anchored where you left her. In VR, the browser may drop you out of the headset view as the page changes; press Enter VR on the Timber page.
 4. **Back aboard:** when you return from the camp you're on your boat, still at anchor. The logs you delivered are on the beach at the head of the bay, side by side, each pointing out to sea (LOG marks on the chartplotter).
 5. **Pull one off.** Lie off the beach stern to it, put your towline on a log (the hook, or Make fast in the menu) and ease ahead: it slides off the beach and floats. One log at a time.
-6. **Tow it to Oban and sell it.** Tow it to the timber merchant at Oban's North Pier (a square on the chartplotter, "Timber merchant"). Leave it afloat by the quay, stopped, and after a few seconds the merchant buys it, at the same price as a washed-up salvage log (£180, more with a good name at the harbour). The money is this session's, not saved when you leave.
+6. **Tow it to Oban and sell it.** Tow it to the timber merchant at Oban's North Pier (a square on the chartplotter, "Timber merchant"). Leave it afloat by the quay, stopped, and after a few seconds the merchant buys it: £2,000 a log, more with a good name at the harbour. The money is this session's, not saved when you leave.
 
 Logs you leave on the beach (or afloat) stay where they are, saved with the voyage; they don't wash away. Then go back for more: weigh anchor and let it go again in the bay (coming back from the camp you're anchored there already, and that doesn't send you straight back). A barge of logs from an earlier version still comes back with the voyage and sells as before. The timber camp takes one player at a time: anchoring there takes you ashore only when you're playing alone or hosting with no crew aboard.
 

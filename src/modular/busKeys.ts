@@ -16,7 +16,7 @@ import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { gearOf } from '../boats/sims';
-import { engageAutopilot, quickStart } from '../vessel/autopilot';
+import { engageAutopilot, nudgeAutopilot, quickStart } from '../vessel/autopilot';
 import { toggleDock } from '../vessel/physics/mooring';
 import { BREAKERS, type BreakerName, type VesselControls, type VesselState } from '../vessel/vesselState';
 import type { BusKeySpec, BusValue } from './bus';
@@ -352,6 +352,8 @@ export const BUS_KEYS = {
   'helmAssist.autoStart': press('AUTO START pressed: the whole start-up, master and main breakers on and the engine started.', [], quickStart),
   'helmAssist.dock': press('DOCK pressed: both lines ashore at the berth in range, or cast off (the menu Dock).', [], toggleDock),
   'autopilot.engage': press('AUTOPILOT pressed: hold the heading she is on now, or let go. Turning the wheel lets go too.', [], (s) => engageAutopilot(s, !s.controls.autopilot)),
+  'autopilot.port': press('PORT pressed on the autopilot: the heading it holds moves a few degrees to port (CONFIG.modules.helmAssist.autopilot.stepDeg).', [], (s) => nudgeAutopilot(s, -(gearOf(s, 'autopilot')?.stepDeg ?? 0))),
+  'autopilot.starboard': press('STBD pressed on the autopilot: the heading it holds moves a few degrees to starboard.', [], (s) => nudgeAutopilot(s, gearOf(s, 'autopilot')?.stepDeg ?? 0)),
   'autopilot.on': state('boolean', (s) => (gearOf(s, 'autopilot') ? !!s.controls.autopilot : undefined), 'The autopilot is holding her heading.'),
   'autopilot.heading': state('number', (s) => (s.controls.autopilot ? s.controls.autopilotHeading : undefined), 'The heading the autopilot holds.', { unit: 'deg' }),
   // ── Pod drives' joystick (owner, Oct 2026; modules/pods, modules/helmJoystick) ──

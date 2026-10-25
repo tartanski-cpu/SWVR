@@ -24,6 +24,16 @@ Owner: "go ahead with step 2, the monopile tow".
 - **Shared changes:** `src/world/geography.ts` (`setExtraBlocks`), `src/config/vessels.ts` (`monopile`), `src/vessel/vesselDef.ts` (the tow kind, `TowLook.project`), `src/boats/towHulls.ts`, `src/boats/library.ts`, `src/boats/tow-monopile.json`.
 - Tests: `tests/projects.test.ts` (the laydown and its moorings, one pile at a time, only a tug can make fast; hand-over pays and starts the drive, the jack-up there, the foundation solid when driven, the next pile out and the jack-up moved; saved mid-drive reads back driven), `tests/monopileTow.test.ts` (floats level at 190 t, stable; the small tug tows it at a few knots, line held, upright), `tests/tow.test.ts` (project tows left out of the size list). Headless (career): the monopile at the laydown, the jack-up on site, the pile pitched and part-driven under its hook, the foundation standing. Not checked: a whole tow by hand, VR.
 
+### Timber logs £2,000 each (25 Oct 2026)
+
+Owner: "the base price of a log should be 2,000, and eventually when we get really big ones, that could be up to 10,000."
+
+- `CONFIG.voyage.timber.logPrice` 2000: a timber camp log sold at the merchant (`stepTimberLogs`), and each log of a saved barge (`saleOffer`, `sellBarge`, `saleText`).
+- It's still paid through `earn('log')`, so the harbour's reputation bonus and buyer factor apply on top, and it counts toward a log contract. For that, `career.ts` `EarnOpts.base` lets a job give its own base pay.
+- Washed-up salvage in the career keeps `CONFIG.career.pay.log` £180: £2,000 there would swamp the career's other jobs (£50-500). Owner to say if those should rise too.
+- Up to £10,000 for big logs needs the camp to send each log's size in the handoff (it sends a count): later, with bigger trees.
+- Tests: `tests/metaverse.test.ts` (a sale pays at least `logPrice`). Typecheck clean, all tests pass. **Shared changes:** none.
+
 ### Construction projects, step 1: the system, Tarran Rig's survey and marks (25 Oct 2026)
 
 Owner, approving the plan: "keep the existing wind turbine farm ... we're going to build another one as the first project. It can be smaller, like 2 turbines ... The tug should do the tows ... if they're over a certain size, and ... any kind of boat that's got a big enough deck crane could do the buoy laying ... big ships' jobs happening in the background."
