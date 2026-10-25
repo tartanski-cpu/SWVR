@@ -87,7 +87,7 @@ Noted for later; not started.
 
 | Idea | Status | Notes |
 |---|---|---|
-| The favourites screen as an interactive board on the quayside | **Open** | Your saved boats (Menu → Office → Your boats today) on a board ashore, worked like the boatyard's board and the Shipyard sign: pick one and take her out. |
+| The favourites screen as an interactive board on the quayside | **Done** | Your saved boats (Menu → Office → Your boats today) on a board ashore, worked like the boatyard's board and the Shipyard sign: pick one and take her out. |
 | A thorough study of the multiplayer flow and the mission system | **Open** | A deep review (several agents) of joining, crewing, hosting and leaving, and of how missions are offered, taken, run and paid, solo and in multiplayer; findings ranked, for the owner to choose from. |
 | Pluto as an Easter egg somewhere | **Open** | Where and how it shows is to agree with the owner. |
 
