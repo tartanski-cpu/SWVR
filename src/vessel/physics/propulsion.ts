@@ -359,6 +359,14 @@ export function engineStep(e: EngineState, def: DieselSpec, inp: DieselInputs, s
       e.rack = 0.3; // fuel on: catches and runs up to idle
     }
   }
+  // ── Stalling ── in gear and dragged far below idle by the propeller, she stops (no
+  // magic: a diesel can't keep turning there). Only in gear: running up from the starter in
+  // neutral is slow too, and fine.
+  // (An engine without its own figure, a recipe's from before it: the standard diesel's.)
+  if (e.phase === 'running' && e.gear !== 0 && e.rpm < (cfg.stallFraction ?? CONFIG.vessels.workboat.engine.stallFraction) * cfg.idleRpm) {
+    e.phase = 'off';
+    e.autoCrank = false;
+  }
   if (e.phase === 'off' && e.rpm < 1) e.rpm = 0;
   return thrust;
 }

@@ -39,6 +39,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **Twin engines: E/D and R/F, and engines that stall** (this log). Desktop, a twin, holding the wheel with the mouse: E/D the port lever, R/F the starboard; W/S both. Put a twin in gear with a lever and check the revs hold. If you can, send the code of the twin trawler that stalled.
 - [ ] **The console screens tidied** (this log). Speed screen: LOG (speed through the water), no anchor line; heading: no rate of turn; ENGINE: no temperature. In a tidal race the LOG and the NAV panel's SOG should differ.
 - [ ] **Twin stern drives: a lever and a START each** (this log). Shipyard: a boat with Stern drives and Twin; in the game, each leg follows its own lever (one ahead, one astern spins her).
 - [ ] **Twin engine control, a lever and a START each** (this log). In the catamaran (or the pilot boat): key on, START P, then START S. VR: grab one knob, then the other, then the yellow grip between them (both come together). One ahead and one astern: she turns on the spot. Desktop: drag a knob, drag the grip; W/S moves both. Is the grip easy to find and grab? Does START P hide behind the levers from the helm?
@@ -61,6 +62,19 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### Twin engines: what went wrong on your twin trawler, and a lever each on the keys (done; on next, in your test round)
+
+You tried a twin engine trawler: moving the starboard throttle ahead dropped its revs to 0; the port one astern stopped the engine; restarting, the glow plugs took a long time, and only changing the battery fixed it.
+
+- **What happened.** I could make that happen in the simulation, and it isn't the twin control: the same boat with one engine, and the code from before the twin control, do the same. The stern trawler's slow 1000 rpm diesel turns a 1.9 m propeller through a gearbox the Shipyard fits in her sea trial ("matching her propeller"). With a gearbox far too high for her (a design taken to sea before it was fitted, or with the fitting lost), the propeller wants many times the torque the engine has: in gear the revs fall to 0. And the engine then sat "running" at 0 rpm: no diesel does that. At 0 rpm her alternator gave nothing, so the battery ran down, and with it flat the fuel solenoids closed (the engine stopped) and the glow plugs dragged on, until a new battery. With the gearbox the Shipyard fits, your steps all behave: the starboard engine ahead at 635 rpm, the port one astern at 541 rpm, back to idle in neutral, the battery charging throughout.
+- **The fix: a diesel stalls.** In gear and dragged below 30 % of her idle (`CONFIG.vessels.workboat.engine.stallFraction`; the outboards' `stallFraction` too), she stalls and stops, as a real one does: back to neutral and START her again. Only in gear, so an engine running up from the starter is never stopped. A crash stop or a heavy tow still sags her revs without stopping her.
+- I couldn't see how your trawler got its gearbox so high: the Shipyard's play button waits for the fitting. If you can send me her code (or link), I'll check her.
+- **A lever each on the keys** (your ask): on a twin worked separately, holding the wheel with the mouse, E / D move the port lever ahead / astern and R / F the starboard one, each stopping at neutral on the way through as W / S do; W / S still move both. While you hold the wheel on a twin, E, F and R aren't their usual keys (engine start, take the helm, the debug drop). At the helm with F (not holding the wheel) the keys are as before, since F there leaves the helm.
+
+Tests: `tests/twinEngines.test.ts` (the stern trawler on a gearbox far too high: in gear she stalls and stops, the other engine runs on; in neutral she starts again). Not checked by hand: the keys (they need a real mouse on the wheel).
+
+**Shared changes:** `src/vessel/physics/propulsion.ts` (the stall), `src/config/vessels.ts` (`engine.stallFraction`), `src/core/keybindings.ts` (`portAhead`, `portAstern`, `stbdAhead`, `stbdAstern`), `src/app/App.ts` (the twin keys holding the wheel; E, F, R not their own then).
 
 ### The console screens tidied: the log, no rate of turn, no doubled readings (done; on next, in your test round)
 
