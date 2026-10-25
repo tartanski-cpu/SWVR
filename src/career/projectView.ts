@@ -4,9 +4,9 @@ import type { WorldState } from '../core/world';
 import type { PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { NavMarksView } from '../world/view/navMarksView';
-import { transitionPieceParts } from '../world/view/windFarmView';
+import { nacelleGeometry, rotorGeometry, transitionPieceParts } from '../world/view/windFarmView';
 import { landingAxis } from '../world/windFarm';
-import { foundations, jackUpAt, laidMarks, syncProjectBlocks } from './projects';
+import { foundations, installAt, jackUpAt, laidMarks, syncProjectBlocks } from './projects';
 
 /** How deep the piles are drawn (m): well under the surface, out of sight below. */
 const PILE_FOOT = -12;
@@ -15,13 +15,16 @@ const PILE_TOP = 4;
 const PILE_PITCHED = 14;
 /** How high over its foundation a transition piece starts as it's lifted on (m). */
 const TP_LIFT = 12;
+/** How high over its place a nacelle and a rotor start as they're lifted on (m). */
+const PART_LIFT = 14;
 
 /**
  * A construction project in the world (career/projects.ts): its marks as they're laid (the
  * met buoy, the site's cardinals, drawn and lit as the map's own buoys are), its foundations
  * (each driven pile standing at its turbine), the pile being driven, and the jack-up working
- * on site. Each a single merged mesh (one draw call), made again only when what's built
- * changes. It also keeps the collision's added blocks in step on the crew's side (the host's
+ * on site; the turbines going up (tower, nacelle, rotor: still, they're not turning till
+ * they're commissioned) and the installation ship putting them up. Each a single merged mesh
+ * (one draw call), made again only when what's built changes. It also keeps the collision's added blocks in step on the crew's side (the host's
  * tick does on its own).
  */
 export class ProjectView {
@@ -37,6 +40,11 @@ export class ProjectView {
   private readonly jackUp: THREE.Mesh;
   /** The transition piece being lifted on: one piece, lowered onto its foundation as it goes. */
   private readonly lifting: THREE.Mesh;
+  /** The turbine going up: its tower (a unit-height tube, scaled as it's lifted), nacelle and rotor, each lowered onto it in turn. */
+  private readonly tower: THREE.Mesh;
+  private readonly nacelle: THREE.Mesh;
+  private readonly rotor: THREE.Mesh;
+  private readonly installer: THREE.Mesh;
 
   constructor() {
     this.root.name = 'project';
@@ -53,7 +61,19 @@ export class ProjectView {
     this.lifting = new THREE.Mesh(mergeParts(transitionPieceParts()), this.material);
     this.lifting.name = 'tpLifting';
     this.lifting.visible = false;
-    this.root.add(this.driving, this.jackUp, this.lifting);
+    const c = CONFIG.windFarm;
+    this.tower = new THREE.Mesh(towerGeometry(0, 0, 1), this.material);
+    this.nacelle = new THREE.Mesh(nacelleGeometry(), this.material);
+    this.rotor = new THREE.Mesh(rotorGeometry(), this.material);
+    this.installer = new THREE.Mesh(installerGeometry(), this.material);
+    this.tower.name = 'towerGoingUp';
+    this.nacelle.name = 'nacelleGoingUp';
+    this.rotor.name = 'rotorGoingUp';
+    this.rotor.rotation.z = Math.PI;
+    this.installer.name = 'installationShip';
+    for (const m of [this.tower, this.nacelle, this.rotor, this.installer]) m.visible = false;
+    this.tower.position.y = c.platform.y;
+    this.root.add(this.driving, this.jackUp, this.lifting, this.tower, this.nacelle, this.rotor, this.installer);
   }
 
   update(world: WorldState, waves: readonly PreparedWave[], time: number, darkness: number, viewer: { x: number; z: number }): void {
@@ -76,7 +96,7 @@ export class ProjectView {
     // The foundations standing, and the pile being driven (its top coming down to PILE_TOP).
     const found = foundations(world);
     const standing = found.filter((f) => f.driving === null);
-    const pk = standing.map((f) => `${f.x},${f.z},${f.tp === 1}`).join('|');
+    const pk = standing.map((f) => `${f.x},${f.z},${f.tp === 1},${f.erect === 1}`).join('|');
     if (pk !== this.pilesKey) {
       this.pilesKey = pk;
       if (this.piles) {
@@ -84,7 +104,8 @@ export class ProjectView {
         this.piles.geometry.dispose();
       }
       // Each foundation, and its transition piece once it's on (a turbine's own: windFarmView).
-      this.piles = standing.length ? new THREE.Mesh(mergeParts(standing.flatMap((f) => [pileGeometry(f.x, f.z), ...(f.tp === 1 ? tpPlaced(f.x, f.z, f.landingDeg) : [])])), this.material) : null;
+      // and the turbine itself once it's up.
+      this.piles = standing.length ? new THREE.Mesh(mergeParts(standing.flatMap((f) => [pileGeometry(f.x, f.z), ...(f.tp === 1 ? tpPlaced(f.x, f.z, f.landingDeg) : []), ...(f.erect === 1 ? turbineUp(f.x, f.z) : [])])), this.material) : null;
       if (this.piles) {
         this.piles.name = 'foundations';
         this.root.add(this.piles);
@@ -105,6 +126,26 @@ export class ProjectView {
       this.lifting.rotation.set(0, Math.atan2(-ax, -az), 0);
       this.lifting.position.set(lift.x, TP_LIFT * (1 - Math.min(1, (lift.tp ?? 0) * 1.25)), lift.z);
     }
+    // The turbine going up: the tower rising to its height, then the nacelle lowered onto it,
+    // then the rotor onto the nacelle (CONFIG.career.projectInstall's lifts).
+    const up = found.find((f) => f.erect !== null && f.erect < 1);
+    const ic = CONFIG.career.projectInstall;
+    const wf = CONFIG.windFarm;
+    const towerTop = wf.hub - wf.nacelle.height / 2;
+    for (const m of [this.tower, this.nacelle, this.rotor]) m.visible = !!up;
+    if (up) {
+      const e = up.erect ?? 0;
+      const lowered = (from: number, to: number) => PART_LIFT * (1 - Math.min(1, Math.max(0, (e - from) / ((to - from) * 0.8))));
+      this.tower.position.set(up.x, wf.platform.y, up.z);
+      this.tower.scale.set(1, Math.max(0.01, (towerTop - wf.platform.y) * Math.min(1, e / (ic.nacelleAt * 0.8))), 1);
+      this.nacelle.visible = e >= ic.nacelleAt;
+      this.nacelle.position.set(up.x, wf.hub + lowered(ic.nacelleAt, ic.rotorAt), up.z);
+      this.rotor.visible = e >= ic.rotorAt;
+      this.rotor.position.set(up.x, wf.hub + lowered(ic.rotorAt, 1), up.z);
+    }
+    const inst = installAt(world);
+    this.installer.visible = !!inst;
+    if (inst) this.installer.position.set(inst.x, 0, inst.z);
     // The jack-up, on site while the piles go in.
     const ju = jackUpAt(world);
     this.jackUp.visible = !!ju;
@@ -117,6 +158,78 @@ function tpPlaced(x: number, z: number, landingDeg: number): THREE.BufferGeometr
   const { ax, az } = landingAxis(landingDeg);
   const yaw = Math.atan2(-ax, -az);
   return transitionPieceParts().map((g) => g.rotateY(yaw).translate(x, 0, z));
+}
+
+/** A tower from the platform (its base at y0) `h` m up, at (x, z): white, tapering. */
+function towerGeometry(x: number, z: number, h: number): THREE.BufferGeometry {
+  const c = CONFIG.windFarm;
+  return part(new THREE.CylinderGeometry(c.tower.top, c.tower.base, h, 16).translate(x, h / 2, z), c.colors.tower);
+}
+
+/**
+ * A turbine that's up, at (x, z): its tower, nacelle and rotor (still: they turn once it's
+ * commissioned), the hub to the north, one blade hanging down (clear of the crane's boom).
+ */
+function turbineUp(x: number, z: number): THREE.BufferGeometry[] {
+  const c = CONFIG.windFarm;
+  const top = c.hub - c.nacelle.height / 2;
+  return [towerGeometry(x, z, top - c.platform.y).translate(0, c.platform.y, 0), nacelleGeometry().translate(x, c.hub, z), rotorGeometry().rotateZ(Math.PI).translate(x, c.hub, z)];
+}
+
+/**
+ * The installation ship (CONFIG.career.projectInstall), in her own axes: centred on her hull,
+ * standing `offsetM` north of the turbine she's putting up (+z). A dark blue hull on four legs
+ * (banded at the top), the accommodation and bridge forward on her north side with a helideck,
+ * a tower section, a nacelle and a rack of blades on deck waiting, and her big crane on the
+ * south side, its boom raised high over the turbine, the hook block over the hub.
+ */
+function installerGeometry(): THREE.BufferGeometry {
+  const j = CONFIG.career.projectInstall;
+  const wf = CONFIG.windFarm;
+  const [L, W, D] = j.hull;
+  const deck = j.hullY + D;
+  const parts: THREE.BufferGeometry[] = [];
+  const box = (w: number, h: number, l: number, x: number, y: number, z: number, color: number, paint?: 'worn') => parts.push(part(new THREE.BoxGeometry(w, h, l).translate(x, y, z), color, paint));
+  // The hull: dark blue sides, a white band, a grey deck.
+  box(L, D, W, 0, j.hullY + D / 2, 0, 0x1e3a5c, 'worn');
+  box(L + 0.04, 0.6, W + 0.04, 0, deck - 0.3, 0, 0xeeeeee);
+  box(L - 0.4, 0.1, W - 0.4, 0, deck + 0.05, 0, 0x6c7072);
+  // The legs at her corners, from the seabed (drawn from -20) to 30 m above her deck.
+  const lh = j.legHalf * 2;
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1]) {
+      const x = (sx * j.legSpacing[0]) / 2;
+      const z = (sz * j.legSpacing[1]) / 2;
+      const top = deck + 30;
+      box(lh, top + 20, lh, x, (top - 20) / 2, z, 0xb8bcbe, 'worn');
+      for (const b of [0, 2]) box(lh + 0.06, 1, lh + 0.06, x, top - 1.5 - b, z, b === 0 ? 0xc8281c : 0xeeeeee);
+      box(lh + 2.6, 4, lh + 2.6, x, deck + 2, z, 0x1e3a5c);
+    }
+  // The accommodation and bridge at her west end, north side (-z); the helideck over it.
+  const ax = -L / 2 + 12;
+  box(18, 12, W - 10, ax, deck + 6, -2, 0xeceae4);
+  box(18.04, 1.2, W - 9.9, ax, deck + 10.5, -2, 0x1c2a30);
+  parts.push(part(new THREE.CylinderGeometry(10, 10, 0.3, 16).translate(ax - 2, deck + 12.8, -2), 0x2f4a36));
+  parts.push(part(new THREE.TorusGeometry(7, 0.2, 4, 24).rotateX(Math.PI / 2).translate(ax - 2, deck + 13, -2), 0xe8c020));
+  // On deck, waiting: a tower section and a nacelle, and a rack of blades along her.
+  parts.push(part(new THREE.CylinderGeometry(wf.tower.base, wf.tower.base, 24, 12).rotateZ(Math.PI / 2).translate(8, deck + wf.tower.base + 0.6, -10), wf.colors.tower));
+  box(wf.nacelle.length, wf.nacelle.height, wf.nacelle.width, 24, deck + wf.nacelle.height / 2 + 0.4, -10, wf.colors.tower);
+  for (let k = 0; k < 3; k++) box(wf.blade, 0.4, 1.6, 10, deck + 1 + k * 0.8, 6, wf.colors.tower);
+  box(wf.blade, 3, 0.4, 10, deck + 1.5, 7.2, 0xd8a020);
+  // The crane: a pedestal on the south side (+z), its boom raised to put its tip high over the turbine.
+  const cz = W / 2 - 5;
+  const base = deck + 10;
+  parts.push(part(new THREE.CylinderGeometry(2.4, 2.8, 10, 12).translate(0, deck + 5, cz), 0xd8a020));
+  box(7, 5, 8, 0, base + 1.5, cz, 0xd8a020);
+  const reach = j.offsetM - cz;
+  const tipY = wf.hub + 20;
+  const boom = Math.hypot(reach, tipY - base);
+  const ang = Math.atan2(tipY - base, reach);
+  const hookY = wf.hub + 6;
+  parts.push(part(new THREE.BoxGeometry(2.2, 2.2, boom).translate(0, 0, boom / 2).rotateX(-ang).translate(0, base, cz), 0xd8a020));
+  parts.push(part(new THREE.CylinderGeometry(0.08, 0.08, tipY - hookY, 5).translate(0, (tipY + hookY) / 2, j.offsetM), 0x222222));
+  box(1.8, 2.4, 1.8, 0, hookY, j.offsetM, 0xe8c020);
+  return mergeParts(parts);
 }
 
 /** A driven pile at (x, z): the tube from below the surface to PILE_TOP, a flange round its top. */

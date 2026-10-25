@@ -40,7 +40,7 @@ import { WIND_FARMS } from '../world/archipelago';
 import { berthWithId } from '../world/berths';
 import { LIBRARY, RECIPES } from '../boats/library';
 import { flattenMounts } from '../modular/recipe';
-import { landingAxis, landingFace } from '../world/windFarm';
+import { allFarms, landingAxis, landingFace } from '../world/windFarm';
 
 export interface Technician {
   id: string;
@@ -57,7 +57,7 @@ export interface Technician {
 
 export interface TransferJob {
   id: string;
-  /** The turbine: its farm's and its own index (WIND_FARMS). */
+  /** The turbine: its farm's and its own index (world/windFarm.ts allFarms: a project's after the map's). */
   farm: number;
   turbine: number;
   techs: Technician[];
@@ -68,6 +68,8 @@ export interface TransferJob {
   /** Told off for the wrong turbine already (said once a time). */
   wrongTold?: boolean;
   done?: boolean;
+  /** A construction project's job ("project:job", career/projects.ts): it pays them, not the transfer. */
+  project?: string;
 }
 
 export interface TransferState {
@@ -87,7 +89,7 @@ export function createTransferState(spawn = false): TransferState {
 
 /** A turbine's name as the radio and the chart give it: "Holm Rig turbine 2". */
 export function turbineName(farm: number, turbine: number): string {
-  const f = WIND_FARMS[farm];
+  const f = allFarms()[farm];
   return `${f ? f.name.replace(/ wind farm$/, '') : 'the wind farm'} turbine ${turbine + 1}`;
 }
 
@@ -116,8 +118,9 @@ export function landedOn(v: VesselState): { farm: number; turbine: number } | nu
     ? [probes.reduce((a, p) => a + p[0], 0) / probes.length, probes.reduce((a, p) => a + p[1], 0) / probes.length, Math.min(...probes.map((p) => p[2]))]
     : [0, plan.deckY(plan.stem), plan.stem];
   vesselToWorld(v, local, bow);
-  for (let f = 0; f < WIND_FARMS.length; f++) {
-    const ts = WIND_FARMS[f].turbines;
+  const farms = allFarms();
+  for (let f = 0; f < farms.length; f++) {
+    const ts = farms[f].turbines;
     for (let i = 0; i < ts.length; i++) {
       const face = landingFace(ts[i]);
       const { ax, az } = landingAxis(ts[i].landingDeg);
@@ -133,14 +136,15 @@ export function landedOn(v: VesselState): { farm: number; turbine: number } | nu
 }
 
 /** Raise a job now (the game's own clock does it otherwise): `techs` technicians for that turbine. */
-export function raiseTransfer(world: WorldState, farm: number, turbine: number, techs: number): TransferJob | null {
+export function raiseTransfer(world: WorldState, farm: number, turbine: number, techs: number, project?: string): TransferJob | null {
   const s = (world.transfer ??= createTransferState());
   if (s.job && !s.job.done) return null;
-  if (!WIND_FARMS[farm]?.turbines[turbine]) return null;
+  const f = allFarms()[farm];
+  if (!f?.turbines[turbine]) return null;
   const id = `tr${++s.n}`;
-  s.job = { id, farm, turbine, hold: 0, techs: Array.from({ length: techs }, (_, k) => ({ id: `${id}-${k}`, phase: 'quay', t: 0 })) };
+  s.job = { id, farm, turbine, hold: 0, techs: Array.from({ length: techs }, (_, k) => ({ id: `${id}-${k}`, phase: 'quay', t: 0 })), ...(project ? { project } : {}) };
   const port = CONFIG.transfer.pickupPort;
-  sayRadio(world, 'info', `${WIND_FARMS[farm].name.replace(/ wind farm$/, '')} to any crew boat: ${techs} technicians for ${turbineName(farm, turbine)}, waiting on the quay at ${portLabel(port)}. Make fast there to take them out; put your bow on the turbine's landing and hold her there for them to step across.`);
+  sayRadio(world, 'info', `${f.name.replace(/ wind farm$/, '')} to any crew boat: ${techs} technicians for ${turbineName(farm, turbine)}, waiting on the quay at ${portLabel(port)}. Make fast there to take them out; put your bow on the turbine's landing and hold her there for them to step across.`);
   return s.job;
 }
 
@@ -263,7 +267,8 @@ export function stepTransfer(world: WorldState, dt: number): void {
   }
   if (job.techs.every((t) => t.phase === 'platform')) {
     job.done = true;
-    earn(world, 'transfer', { port: c.pickupPort, people: job.techs.length, text: `Crew transfer: ${job.techs.length} technicians to ${turbineName(job.farm, job.turbine)}` });
+    // (A project's fitters: the project pays, career/projects.ts.)
+    if (!job.project) earn(world, 'transfer', { port: c.pickupPort, people: job.techs.length, text: `Crew transfer: ${job.techs.length} technicians to ${turbineName(job.farm, job.turbine)}` });
     sayRadio(world, 'info', `${turbineName(job.farm, job.turbine)}: all ${job.techs.length} technicians up. Thanks, nicely held. You're clear to back off.`);
   }
 }
@@ -295,7 +300,7 @@ export function applyTransferIntent(world: WorldState, intent: Intent): void {
   }
   const v = world.vessels[intent.targetId];
   const job = s.job && !s.job.done ? s.job : null;
-  const t = WIND_FARMS[job?.farm ?? 0]?.turbines[job?.turbine ?? 0];
+  const t = allFarms()[job?.farm ?? 0]?.turbines[job?.turbine ?? 0];
   if (!v || !t) return;
   const f = landingFace(t);
   const { ax, az } = landingAxis(t.landingDeg);

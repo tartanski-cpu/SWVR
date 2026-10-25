@@ -22,7 +22,7 @@ import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
 import { coastTerrains } from '../world/coastTerrain';
 import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
-import { activeProject, foundations, jackUpAt, laidMarks, towId } from '../career/projects';
+import { activeProject, foundations, installAt, jackUpAt, laidMarks, towId } from '../career/projects';
 
 const W = 512;
 const H = 384;
@@ -493,10 +493,48 @@ export class ChartPlotter {
           if (named) g.fillText(job.name, px + 8, py - 6);
         }
       }
-      // The foundations driven (and the one being driven): grey discs, yellow once their transition piece is on.
+      // Guard duty: the installation ship (a grey block), the zone round her (red, dashed) and
+      // where a guard boat stands by (faint); the ships sent for the works (red, named: her
+      // radar's contacts, passed to the guard, AIS or not).
+      const inst = installAt(world);
+      if (inst) {
+        const gc = CONFIG.career.projectGuard;
+        const [ix, iy] = toPx(inst.x, inst.z);
+        g.strokeStyle = 'rgba(230, 90, 200, 0.35)';
+        g.lineWidth = 1;
+        g.beginPath();
+        g.arc(ix, iy, gc.standBy / mpp, 0, Math.PI * 2);
+        g.stroke();
+        g.strokeStyle = '#ff4040';
+        g.lineWidth = 2;
+        g.setLineDash([6, 4]);
+        g.beginPath();
+        g.arc(ix, iy, Math.max(gc.zone / mpp, 6), 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
+        const [hl, hw] = CONFIG.career.projectInstall.hull;
+        g.fillStyle = '#7c8488';
+        g.fillRect(ix - Math.max(hl / 2 / mpp, 4), iy - Math.max(hw / 2 / mpp, 2), Math.max(hl / mpp, 8), Math.max(hw / mpp, 4));
+        for (const sh of world.traffic?.ships ?? []) {
+          if (sh.bound !== def.id) continue;
+          const [sx, sy] = toPx(sh.x, sh.z);
+          const fx = Math.sin(sh.course);
+          const fz = -Math.cos(sh.course);
+          g.fillStyle = '#ff4040';
+          g.beginPath();
+          g.moveTo(sx + fx * 8, sy + fz * 8);
+          g.lineTo(sx - fx * 5 - fz * 4, sy - fz * 5 + fx * 4);
+          g.lineTo(sx - fx * 5 + fz * 4, sy - fz * 5 - fx * 4);
+          g.closePath();
+          g.fill();
+          g.fillText(sh.name, sx + 8, sy - 6);
+        }
+      }
+      // The foundations driven (and the one being driven): grey discs, yellow once their
+      // transition piece is on, white once the turbine's up.
       for (const f of foundations(world)) {
         const [px, py] = toPx(f.x, f.z);
-        g.fillStyle = f.tp === 1 ? '#e8c020' : f.driving === null ? '#9aa0a4' : '#c8ccd0';
+        g.fillStyle = f.erect === 1 ? '#f4f6f6' : f.tp === 1 ? '#e8c020' : f.driving === null ? '#9aa0a4' : '#c8ccd0';
         g.beginPath();
         g.arc(px, py, 4, 0, Math.PI * 2);
         g.fill();

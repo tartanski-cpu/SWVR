@@ -27,9 +27,19 @@
  *              (CONFIG.career.projectSupply), her crane takes what's aboard.
  *   jack-up    a set piece on site from the foundations until the transition pieces are on
  *              (jackUpAt), at the turbine it's working on.
+ *   guard      guard duty while the installation ship (another set piece, installAt) puts the
+ *              turbines up, one at a time (`erect`, then `erected`): her work goes on only
+ *              while a players' boat stands by her, and stops while any ship is inside the
+ *              zone round her. Now and then a ship is sent for the works (traffic.ts
+ *              spawnShipFor); meet her (`hail` m) and she's called on the VHF and alters away.
+ *              One that gets into the zone is a strike: she's turned away by the installation
+ *              ship, and the guard job pays less.
+ *   transfer   fitters for a turbine once it's up: a crew transfer (transfer/transfer.ts) to
+ *              the project's farm (world/windFarm.ts setProjectFarm: its turbines, once their
+ *              transition pieces are on, are a farm like the map's), paid by the project.
  *
  * Voyage has no career, so no projects. The stages after the last one built so far (the
- * turbines onward: later steps) leave the project waiting at the last stage done.
+ * commissioning: a later step) leave the project waiting at the last stage done.
  */
 import { CONFIG, type ProjectDef, type ProjectJobDef } from '../config';
 import type { Intent } from '../core/intents';
@@ -38,17 +48,22 @@ import type { WorldState } from '../core/world';
 import { freeCraneSpot, freeStackSpot, type CargoItem } from '../cargo/cargo';
 import { sayRadio } from '../rescue/rescue';
 import { castOffKey, onAnyLine, vesselKey } from '../tow/tow';
+import { SHIP_NAMES, spawnShipFor, type Ship } from '../traffic/traffic';
+import { raiseTransfer } from '../transfer/transfer';
 import { createVesselState } from '../vessel/vesselState';
 import { placeVessel } from '../vessel/vesselControl';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { PORTS } from '../world/archipelago';
 import type { BlockDef, MarkDef } from '../world/defs';
 import { setExtraBlocks } from '../world/geography';
-import { windFarmBlocks } from '../world/windFarm';
+import { setProjectFarm, windFarmBlocks } from '../world/windFarm';
+import { WIND_FARMS } from '../world/archipelago';
 import { createCareer, money, officeAt, portName, post, repOf, addRep } from './career';
 
 type TowJob = Extract<ProjectJobDef, { kind: 'tow' }>;
 type SupplyJob = Extract<ProjectJobDef, { kind: 'supply' }>;
+type GuardJob = Extract<ProjectJobDef, { kind: 'guard' }>;
+type TransferJobDef = Extract<ProjectJobDef, { kind: 'transfer' }>;
 
 /** A project under way: which, the stage it's at, the jobs done, and what's being built. */
 export interface ProjectProgress {
@@ -69,6 +84,16 @@ export interface ProjectProgress {
   fitted?: number[];
   /** Supplies taken aboard the jack-up so far, by job. */
   supplied?: Record<string, number>;
+  /** The turbine the installation ship is putting up: its index and the seconds of work done on it (CONFIG.career.projectInstall.erectS). Not saved: a session that ends finishes it. */
+  erect?: Record<string, number>;
+  /** Turbines up (tower, nacelle and rotor): their indices. */
+  erected?: number[];
+  /** Guard duty: ships turned away (met), and ships that got into the zone (each docks the guard job's pay). Saved. */
+  warned?: number;
+  strikes?: number;
+  /** Guard duty: when the next ship is sent for the works (world time, s), and whether a guard boat stood by last tick (the radio says when that changes). Not saved. */
+  shipAt?: number;
+  guarded?: boolean;
   /** Tows let go from the laydown moorings (a tug made fast once): free to drift from then on. Not saved. */
   released?: string[];
   /** Seconds each tow (or supply run, by its job id) has lain slow at its hand-over (CONFIG.career.projectTow.handover). Not saved. */
@@ -165,6 +190,24 @@ export function jobStatus(world: WorldState, job: ProjectJobDef): string {
     const left = h ? Math.hypot(v.position[0] - h.x, v.position[2] - h.z) : 0;
     return `${job.name}: in tow, ${left < 1000 ? `${Math.round(left)} m` : `${(left / 1852).toFixed(1)} nm`} to go; stop her within ${h?.r ?? 0} m of ${where}`;
   }
+  if (job.kind === 'guard') {
+    const k = a.def.turbines.findIndex((_, i) => !a.p.erected?.includes(i));
+    const tally = `${a.p.warned ?? 0} turned away, ${a.p.strikes ?? 0} got into the zone`;
+    if (k < 0) return `${job.name}: turbines up (${tally})`;
+    const f = erectFraction(a.p, k);
+    const lift = f < CONFIG.career.projectInstall.nacelleAt ? 'tower' : f < CONFIG.career.projectInstall.rotorAt ? 'nacelle' : 'rotor';
+    return `${job.name}: turbine ${k + 1} going up (${lift}, ${Math.round(f * 100)} %); ${a.p.guarded ? 'you are standing by' : `stand by within ${CONFIG.career.projectGuard.standBy} m of the installation ship`}; ${tally}`;
+  }
+  if (job.kind === 'transfer') {
+    if (!a.p.erected?.includes(job.turbine)) return `${job.name}: once turbine ${job.turbine + 1} is up, ${money(job.pay)}`;
+    const tj = world.transfer?.job;
+    if (tj && !tj.done && tj.project === itemTo(a.def, job)) {
+      const up = tj.techs.filter((t) => t.phase === 'platform').length;
+      const quay = tj.techs.filter((t) => t.phase === 'quay').length;
+      return `${job.name}: ${quay ? `${quay} on the ${portName(CONFIG.transfer.pickupPort)} crew-transfer quay` : `aboard, ${up} of ${tj.techs.length} up`}; put your bow on turbine ${job.turbine + 1}'s landing`;
+    }
+    return `${job.name}: waiting for the crew-transfer quay to be free`;
+  }
   if (job.kind === 'supply') {
     const got = a.p.supplied?.[job.id] ?? 0;
     const items = Object.values(world.cargo).filter((c) => isProjectItem(c) && c.to === itemTo(a.def, job));
@@ -190,7 +233,15 @@ export interface FoundationState {
   driving: number | null;
   /** The transition piece: none, being lifted on (how far, 0..1), or on (1). */
   tp: number | null;
+  /** The turbine itself: none, going up (how far, 0..1), or up (1). */
+  erect: number | null;
   landingDeg: number;
+}
+
+/** How far the turbine `k` is up (0..1): its work done over CONFIG.career.projectInstall.erectS, or 1 once up. */
+function erectFraction(p: ProjectProgress, k: number): number {
+  if (p.erected?.includes(k)) return 1;
+  return Math.min(1, (p.erect?.[String(k)] ?? 0) / CONFIG.career.projectInstall.erectS);
 }
 
 /** The foundations standing (driven) and the one being driven, at their turbines, with their transition pieces (the view, the plotter, the blocks). */
@@ -208,7 +259,8 @@ export function foundations(world: WorldState): FoundationState[] {
       if (!driven && since === undefined) continue;
       const fit = a.p.fitting?.[String(j.turbine)];
       const tp = a.p.fitted?.includes(j.turbine) ? 1 : fit !== undefined ? Math.min(1, (world.time - fit) / cfg.fitS) : null;
-      out.push({ turbine: j.turbine, x: t.x, z: t.z, driving: driven ? null : Math.min(1, (world.time - since!) / cfg.driveS), tp, landingDeg: t.landingDeg });
+      const erect = a.p.erected?.includes(j.turbine) ? 1 : a.p.erect?.[String(j.turbine)] !== undefined ? erectFraction(a.p, j.turbine) : null;
+      out.push({ turbine: j.turbine, x: t.x, z: t.z, driving: driven ? null : Math.min(1, (world.time - since!) / cfg.driveS), tp, erect, landingDeg: t.landingDeg });
     }
   return out;
 }
@@ -242,6 +294,26 @@ export function jackUpAt(world: WorldState): { x: number; z: number } | null {
   return null;
 }
 
+/** The guard job of the stage under way, while it's not done. */
+function guardJob(world: WorldState): GuardJob | null {
+  const a = activeProject(world);
+  const g = a?.jobs.find((j): j is GuardJob => j.kind === 'guard');
+  return a && g && !a.p.done.includes(g.id) ? g : null;
+}
+
+/**
+ * Where the installation ship stands (north of the turbine she's putting up), and which
+ * turbine that is; or null (no turbines going up now: before the guard job's stage, or all up).
+ */
+export function installAt(world: WorldState): { x: number; z: number; turbine: number } | null {
+  const a = activeProject(world);
+  if (!a || !guardJob(world)) return null;
+  const k = a.def.turbines.findIndex((_, i) => !a.p.erected?.includes(i));
+  if (k < 0) return null;
+  const t = a.def.turbines[k];
+  return { x: t.x, z: t.z - CONFIG.career.projectInstall.offsetM, turbine: k };
+}
+
 /**
  * The solid blocks the project has added (world/geography.ts setExtraBlocks): each foundation
  * (and the pile being driven), and once its transition piece is on, the turbine's own (its
@@ -260,13 +332,31 @@ export function projectBlocks(world: WorldState): BlockDef[] {
     const j = CONFIG.career.projectJackUp;
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) out.push({ kind: 'pier', x: ju.x + (sx * j.legSpacing[0]) / 2, z: ju.z + (sz * j.legSpacing[1]) / 2, halfLength: j.legHalf, halfWidth: j.legHalf, yawDeg: 0, top: j.hullY + 20, fendered: false, farm: true });
   }
+  const inst = installAt(world);
+  if (inst) {
+    const j = CONFIG.career.projectInstall;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) out.push({ kind: 'pier', x: inst.x + (sx * j.legSpacing[0]) / 2, z: inst.z + (sz * j.legSpacing[1]) / 2, halfLength: j.legHalf, halfWidth: j.legHalf, yawDeg: 0, top: j.hullY + 20, fendered: false, farm: true });
+  }
   for (const m of laidMarks(world)) out.push({ kind: 'pier', x: m.x, z: m.z, halfLength: 0.7, halfWidth: 0.7, yawDeg: 0, top: 1.4, fendered: true, farm: true });
   return out;
 }
 
 let blocksKey = '';
-/** Keep the collision's added blocks in step with the project (the host's tick; crew's frames). */
+let farmKey = '';
+/**
+ * Keep the collision's added blocks in step with the project (the host's tick; crew's frames),
+ * and its wind farm (world/windFarm.ts setProjectFarm: for crew transfer and the platforms
+ * underfoot) once every transition piece is on.
+ */
 export function syncProjectBlocks(world: WorldState): void {
+  const a = activeProject(world);
+  const found = foundations(world);
+  const standing = !!a && found.length === a.def.turbines.length && found.every((f) => f.tp === 1);
+  const fk = standing ? a!.def.id : '';
+  if (fk !== farmKey) {
+    farmKey = fk;
+    setProjectFarm(standing ? { name: a!.def.name, turbines: a!.def.turbines } : null);
+  }
   const blocks = projectBlocks(world);
   const key = blocks.map((b) => `${b.x.toFixed(1)},${b.z.toFixed(1)},${b.top}`).join('|');
   if (key === blocksKey) return;
@@ -311,11 +401,11 @@ export function projectItemLost(world: WorldState, item: CargoItem): void {
 }
 
 /** A job done: paid, and the stage (and the project) moved on when it's the last. */
-function finishJob(world: WorldState, def: ProjectDef, p: ProjectProgress, job: ProjectJobDef, text: string): void {
+function finishJob(world: WorldState, def: ProjectDef, p: ProjectProgress, job: ProjectJobDef, text: string, pay = job.pay): void {
   const c = (world.career ??= createCareer());
   if (p.done.includes(job.id)) return;
   p.done.push(job.id);
-  post(world, c, `${def.name}: ${text}`, job.pay);
+  post(world, c, `${def.name}: ${text}`, pay);
   addRep(c, def.port, CONFIG.career.rep.contract / 2);
   const stage = def.stages[p.stage];
   if (stage && stage.jobs.every((j) => p.done.includes(j.id))) {
@@ -324,7 +414,7 @@ function finishJob(world: WorldState, def: ProjectDef, p: ProjectProgress, job: 
     p.stage += 1;
     const next = def.stages[p.stage];
     sayRadio(world, 'info', next ? `${portName(def.port)} harbour office: ${stage.name.toLowerCase()} done, well done skipper - ${money(stage.bonus)} bonus. Next: ${next.name.toLowerCase()}.` : `${portName(def.port)} harbour office: ${stage.name.toLowerCase()} done - ${money(stage.bonus)} bonus. That's all we can do on ${def.name} for now; the next stage is being planned.`);
-  } else sayRadio(world, 'info', `${portName(def.port)} harbour office: ${text.toLowerCase()}, skipper. ${money(job.pay)} to your account.`);
+  } else sayRadio(world, 'info', `${portName(def.port)} harbour office: ${text.toLowerCase()}, skipper. ${money(pay)} to your account.`);
   c.seq += 1;
 }
 
@@ -347,6 +437,10 @@ export function stepProjects(world: WorldState, dt = 1 / 60): void {
       if (job === firstTow && !(busy && job.turbine !== undefined)) stepTowJob(world, def, p, job, dt);
     } else if (job.kind === 'supply') {
       if (port) stepSupply(world, def, p, job, port, dt);
+    } else if (job.kind === 'guard') {
+      stepGuard(world, def, p, job, dt);
+    } else if (job.kind === 'transfer') {
+      stepFitters(world, def, p, job);
     } else if (job.kind === 'buoy') {
       // Its buoy: one somewhere (the quay, aboard, on a hook), or a new one on the quay.
       if (!port || Object.values(world.cargo).some((c) => isProjectItem(c) && c.to === itemTo(def, job))) continue;
@@ -484,6 +578,110 @@ function stepSupply(world: WorldState, def: ProjectDef, p: ProjectProgress, job:
   else sayRadio(world, 'info', `${def.name}: jack-up here. ${taken.length} aboard, thank you skipper: ${job.count - now} more to come.`);
 }
 
+/**
+ * Guard duty, and the installation ship's work it guards: the turbine she's on goes up while a
+ * players' boat stands by her and no ship is inside the zone; ships sent for the works now and
+ * then; met, each is called on the VHF and alters away; in the zone, a strike.
+ */
+function stepGuard(world: WorldState, def: ProjectDef, p: ProjectProgress, job: GuardJob, dt: number): void {
+  const inst = installAt(world);
+  const g = CONFIG.career.projectGuard;
+  if (!inst) {
+    // Every turbine up: paid, less the strikes.
+    const strikes = p.strikes ?? 0;
+    const pay = Math.max(g.minPay, job.pay - strikes * g.strike);
+    finishJob(world, def, p, job, `${job.name}: turbines up${strikes ? `, ${strikes} ship${strikes > 1 ? 's' : ''} in the zone` : ', not a ship in the zone'}`, pay);
+    return;
+  }
+  const boats = playerBoats(world);
+  const guarded = boats.some((v) => Math.hypot(v.position[0] - inst.x, v.position[2] - inst.z) < g.standBy);
+  if (guarded !== !!p.guarded) {
+    p.guarded = guarded;
+    world.career!.seq += 1;
+    sayRadio(world, 'info', guarded ? `${def.name}: installation ship here. Guard boat on station, thank you skipper: we're lifting. Keep the traffic off us.` : `${def.name}: installation ship here. No guard boat on station: we can't lift with traffic about. Stand by within ${g.standBy} m of us.`);
+  }
+  const ships = world.traffic?.ships ?? [];
+  // Ships bound for the works: met by a guard boat (called up, she alters away), or into the zone (a strike).
+  for (const s of ships) {
+    if (s.bound !== def.id) continue;
+    const met = boats.some((v) => Math.hypot(v.position[0] - s.x, v.position[2] - s.z) < g.hail);
+    const inZone = Math.hypot(s.x - inst.x, s.z - inst.z) < g.zone;
+    if (!met && !inZone) continue;
+    turnAway(s, inst.x, inst.z);
+    if (met && !inZone) {
+      p.warned = (p.warned ?? 0) + 1;
+      sayRadio(world, 'info', `${SHIP_NAMES[s.type]} ${s.name}: guard boat, understood. Altering away to clear the ${def.name.replace(' wind farm', '')} works.`);
+    } else {
+      p.strikes = (p.strikes ?? 0) + 1;
+      sayRadio(world, 'info', `${def.name}: installation ship here. ${s.name} is inside the zone - all stop! ${s.name}, ${s.name}, alter away from us now. Guard boat, where were you?`);
+    }
+    world.career!.seq += 1;
+  }
+  // A ship sent for the works now and then, one at a time, while there's a guard to meet her.
+  const seq = world.traffic?.seq ?? 0;
+  if (p.shipAt === undefined) p.shipAt = world.time + g.every[0];
+  if (guarded && world.time >= p.shipAt && !ships.some((s) => s.bound === def.id)) {
+    spawnShipFor(world, inst.x, inst.z, g.from, def.id);
+    p.shipAt = world.time + g.every[0] + (g.every[1] - g.every[0]) * frac(seq * 0.618034 + 0.17);
+  }
+  // The work: on while guarded and the zone's clear.
+  const clear = !ships.some((s) => Math.hypot(s.x - inst.x, s.z - inst.z) < g.zone);
+  if (!guarded || !clear) return;
+  const k = String(inst.turbine);
+  const e = (p.erect ??= {});
+  const c = CONFIG.career.projectInstall;
+  const before = (e[k] ?? 0) / c.erectS;
+  e[k] = (e[k] ?? 0) + dt;
+  const now = e[k] / c.erectS;
+  const n = inst.turbine + 1;
+  if (before === 0) sayRadio(world, 'info', `${def.name}: installation ship here. Lifting turbine ${n}'s tower.`);
+  else if (before < c.nacelleAt && now >= c.nacelleAt) sayRadio(world, 'info', `${def.name}: installation ship here. Turbine ${n}'s tower is up and bolted. Nacelle next.`);
+  else if (before < c.rotorAt && now >= c.rotorAt) sayRadio(world, 'info', `${def.name}: installation ship here. Nacelle on. Lifting turbine ${n}'s rotor.`);
+  if (now < 1) return;
+  delete e[k];
+  (p.erected ??= []).push(inst.turbine);
+  world.career!.seq += 1;
+  sayRadio(world, 'info', `${def.name}: installation ship here. Turbine ${n}'s rotor is on: she's up. Fitters wanted aboard her.`);
+}
+
+const frac = (x: number) => x - Math.floor(x);
+
+/** A ship bound for the works turned away: whichever of 70 degrees either way passes further from (x, z). */
+function turnAway(s: Ship, x: number, z: number): void {
+  let best = s.course;
+  let far = -1;
+  for (const dev of [70, -70]) {
+    const c = s.course + (dev * Math.PI) / 180;
+    // How far off (x, z) that course passes (or how far she is now, if it opens from it).
+    const dx = x - s.x;
+    const dz = z - s.z;
+    const along = dx * Math.sin(c) - dz * Math.cos(c);
+    const miss = along <= 0 ? Math.hypot(dx, dz) : Math.abs(dx * Math.cos(c) + dz * Math.sin(c));
+    if (miss > far) [best, far] = [Math.atan2(Math.sin(c), Math.cos(c)), miss];
+  }
+  s.want = best;
+  delete s.bound;
+}
+
+/** The project's farm in the list of wind farms (world/windFarm.ts allFarms): after the map's. */
+const PROJECT_FARM = () => WIND_FARMS.length;
+
+/**
+ * Fitters for a turbine that's up: a crew transfer called (when the transfer quay's free), and
+ * the job done (paid by the project) when they're all up on its platform.
+ */
+function stepFitters(world: WorldState, def: ProjectDef, p: ProjectProgress, job: TransferJobDef): void {
+  if (!p.erected?.includes(job.turbine)) return;
+  const key = itemTo(def, job);
+  const tj = world.transfer?.job;
+  if (tj?.project === key) {
+    if (tj.done) finishJob(world, def, p, job, `${job.name}: all ${tj.techs.length} up`);
+    return;
+  }
+  if (tj && !tj.done) return;
+  raiseTransfer(world, PROJECT_FARM(), job.turbine, job.techs, key);
+}
+
 /** The stretches of a survey line any player's boat is running now (close to it, along it, at survey speed). */
 function surveyed(world: WorldState, job: Extract<ProjectJobDef, { kind: 'survey' }>): number[] {
   const s = CONFIG.career.projectSurvey;
@@ -534,7 +732,12 @@ export function applyProjectIntent(world: WorldState, intent: Intent): void {
         if (job.turbine !== undefined) (a.p.driven ??= []).push(job.id);
         else a.p.fitted = a.def.turbines.map((_, i) => i);
       }
-      const text = job.kind === 'buoy' ? `${job.name} laid on station` : job.kind === 'tow' ? `${job.name.replace(/ to .*/, '')} ${job.turbine !== undefined ? 'driven' : 'lifted on'}` : job.kind === 'supply' ? `${job.name} taken aboard` : `${job.name} run`;
+      if (job.kind === 'guard') {
+        a.p.erected = a.def.turbines.map((_, i) => i);
+        delete a.p.erect;
+      }
+      if (job.kind === 'transfer' && world.transfer?.job?.project === itemTo(a.def, job)) world.transfer.job.done = true;
+      const text = job.kind === 'buoy' ? `${job.name} laid on station` : job.kind === 'tow' ? `${job.name.replace(/ to .*/, '')} ${job.turbine !== undefined ? 'driven' : 'lifted on'}` : job.kind === 'supply' ? `${job.name} taken aboard` : job.kind === 'guard' ? 'turbines up' : job.kind === 'transfer' ? `${job.name} put across` : `${job.name} run`;
       finishJob(world, a.def, a.p, job, text);
     }
   }

@@ -11,11 +11,12 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld, type WorldState } from '../src/core/world';
 import { parseCareer, serializeCareer } from '../src/career/career';
-import { activeProject, foundations, isProjectItem, jackUpAt, laidMarks, layProjectBuoy, projectOffered, stepProjects, towId } from '../src/career/projects';
+import { activeProject, foundations, installAt, isProjectItem, jackUpAt, laidMarks, layProjectBuoy, projectOffered, stepProjects, towId } from '../src/career/projects';
 import { useDesign } from '../src/boats/sims';
 import { craneStateOf, cranesOf, hookOnBoat } from '../src/cargo/craneHook';
 import { DEFAULT_DESIGN } from '../src/shipyard/design';
 import { startEngine } from './helpers/engine';
+import type { Ship } from '../src/traffic/traffic';
 
 const DT = 1 / 60;
 const def = CONFIG.career.projects[0];
@@ -311,5 +312,150 @@ describe('construction projects: the transition pieces', { timeout: 60000 }, () 
     const back = parseCareer(serializeCareer(world.career!))!;
     expect(back.project!.fitted).toEqual([0]);
     expect(back.project!.supplied).toEqual({ [supplyJob.id]: 3 });
+  });
+});
+
+describe('construction projects: the turbines', { timeout: 60000 }, () => {
+  /** At stage 5: everything before done by the debug button (piles driven, pieces on). */
+  function atTurbines() {
+    const s = taken();
+    for (let i = 0; i < 4; i++) s.send('careerProjectStage');
+    const a = activeProject(s.world)!;
+    expect(a.def.stages[a.p.stage].name).toBe('Turbines');
+    return s;
+  }
+  const [guardJob, fit1, fit2] = def.stages[4].jobs;
+  const g = CONFIG.career.projectGuard;
+  const ic = CONFIG.career.projectInstall;
+
+  it('the installation ship stands at turbine 1; she lifts only while a guard boat stands by and no ship is in the zone', () => {
+    const { world, v } = atTurbines();
+    stepProjects(world, DT);
+    const inst = installAt(world)!;
+    expect(inst.turbine).toBe(0);
+    expect(inst.x).toBe(def.turbines[0].x);
+    // The boat in Calder, far off: no work.
+    for (let i = 0; i < 60; i++) stepProjects(world, DT);
+    expect(foundations(world)[0].erect).toBeNull();
+    // Standing by: the tower goes up.
+    v.position[0] = inst.x + 300;
+    v.position[2] = inst.z;
+    for (let i = 0; i < 60; i++) stepProjects(world, DT);
+    expect(activeProject(world)!.p.guarded).toBe(true);
+    const e1 = foundations(world)[0].erect!;
+    expect(e1).toBeGreaterThan(0);
+    // A ship bound for the works, unmet, gets into the zone: a strike, all stop, and she's turned away.
+    const ship: Ship = { id: 'shipX', type: 'cargo', name: 'Test Trader', x: inst.x - g.zone + 10, z: inst.z, course: Math.PI / 2, speed: 0, sighted: false, hornAt: 0, bound: def.id };
+    world.traffic!.ships.push(ship);
+    stepProjects(world, DT);
+    expect(activeProject(world)!.p.strikes).toBe(1);
+    expect(ship.bound).toBeUndefined();
+    expect(ship.want).toBeDefined();
+    const e2 = foundations(world)[0].erect!;
+    for (let i = 0; i < 30; i++) stepProjects(world, DT);
+    expect(foundations(world)[0].erect).toBe(e2); // still in the zone: no lifting
+    // Met by the guard boat before the zone: called up, she alters away, no strike.
+    world.traffic!.ships = [];
+    const ship2: Ship = { id: 'shipY', type: 'yacht', name: 'Test Yacht', x: inst.x - 800, z: inst.z, course: Math.PI / 2, speed: 0, sighted: false, hornAt: 0, bound: def.id };
+    world.traffic!.ships.push(ship2);
+    v.position[0] = ship2.x + 100;
+    stepProjects(world, DT);
+    expect(activeProject(world)!.p.warned).toBe(1);
+    expect(activeProject(world)!.p.strikes).toBe(1);
+    expect(ship2.bound).toBeUndefined();
+    // Her new course passes clear of the works (she was heading straight for them).
+    const c = ship2.want!;
+    const dx = inst.x - ship2.x;
+    const dz = inst.z - ship2.z;
+    expect(Math.abs(dx * Math.cos(c) + dz * Math.sin(c))).toBeGreaterThan(g.zone);
+  });
+
+  it('while a guard stands by, ships are sent for the works, straight at them', () => {
+    const { world, v } = atTurbines();
+    stepProjects(world, DT);
+    const inst = installAt(world)!;
+    v.position[0] = inst.x + 300;
+    v.position[2] = inst.z;
+    activeProject(world)!.p.shipAt = world.time;
+    stepProjects(world, DT);
+    const bound = (world.traffic?.ships ?? []).filter((s) => s.bound === def.id);
+    expect(bound).toHaveLength(1);
+    const s = bound[0];
+    expect(Math.hypot(s.x - inst.x, s.z - inst.z)).toBeCloseTo(g.from, 0);
+    // Heading for her: her track passes through the works.
+    const dx = inst.x - s.x;
+    const dz = inst.z - s.z;
+    expect(Math.abs(dx * Math.cos(s.course) + dz * Math.sin(s.course))).toBeLessThan(1);
+    // One at a time.
+    activeProject(world)!.p.shipAt = world.time;
+    stepProjects(world, DT);
+    expect((world.traffic?.ships ?? []).filter((s) => s.bound === def.id)).toHaveLength(1);
+  });
+
+  it('the turbines up, the guard job pays (less a strike); the fitters go out on a crew transfer to the new farm, paid by the project', async () => {
+    const { world, v } = atTurbines();
+    const { allFarms, platformAt } = await import('../src/world/windFarm');
+    const { WIND_FARMS } = await import('../src/world/archipelago');
+    stepProjects(world, DT);
+    // The farm, for crew transfer and its platforms underfoot, once the pieces are on.
+    expect(allFarms()).toHaveLength(WIND_FARMS.length + 1);
+    const t0 = def.turbines[0];
+    expect(platformAt(t0.x + 4, t0.z)).toBe(`${WIND_FARMS.length}:0`);
+    const p = activeProject(world)!.p;
+    p.strikes = 1;
+    const inst = installAt(world)!;
+    v.position[0] = inst.x + 300;
+    v.position[2] = inst.z;
+    p.shipAt = Infinity;
+    // Turbine 1 nearly up: then up, and the ship moves on to turbine 2.
+    p.erect = { '0': ic.erectS - 0.05 };
+    for (let i = 0; i < 10; i++) stepProjects(world, DT);
+    expect(p.erected).toEqual([0]);
+    expect(installAt(world)!.turbine).toBe(1);
+    // The fitters for turbine 1 called, on the project's farm.
+    if (fit1.kind !== 'transfer' || fit2.kind !== 'transfer') throw new Error('no transfer');
+    const tj = world.transfer!.job!;
+    expect(tj.project).toBe(`${def.id}:${fit1.id}`);
+    expect(tj.farm).toBe(WIND_FARMS.length);
+    expect(tj.turbine).toBe(0);
+    expect(tj.techs).toHaveLength(fit1.techs);
+    // All up on the platform: paid by the project (not by the transfer as well).
+    const money0 = world.career!.money;
+    for (const t of tj.techs) t.phase = 'platform';
+    stepWorld(world, [], DT);
+    expect(p.done).toContain(fit1.id);
+    expect(world.career!.money).toBe(money0 + fit1.pay);
+    // Turbine 2 up: the guard job done, less the strike; the installation ship gone.
+    const inst2 = installAt(world)!;
+    v.position[0] = inst2.x + 300;
+    v.position[2] = inst2.z;
+    p.erect = { '1': ic.erectS - 0.05 };
+    const money1 = world.career!.money;
+    for (let i = 0; i < 10; i++) stepProjects(world, DT);
+    expect(p.done).toContain(guardJob.id);
+    expect(installAt(world)).toBeNull();
+    expect(world.career!.money).toBe(money1 + guardJob.pay - g.strike);
+    expect(foundations(world).map((f) => f.erect)).toEqual([1, 1]);
+  });
+
+  it('saved mid-way, a turbine going up reads back as up, and the guard tally stays', () => {
+    const { world } = atTurbines();
+    const p = activeProject(world)!.p;
+    p.erect = { '0': 30 };
+    p.warned = 2;
+    p.strikes = 1;
+    const back = parseCareer(serializeCareer(world.career!))!;
+    expect(back.project!.erected).toEqual([0]);
+    expect(back.project!.warned).toBe(2);
+    expect(back.project!.strikes).toBe(1);
+  });
+
+  it('the debug button finishes the stage: the turbines up, the fitters across', () => {
+    const { world, send } = atTurbines();
+    send('careerProjectStage');
+    const a = activeProject(world)!;
+    expect(a.p.stage).toBe(5);
+    expect(a.p.erected).toEqual([0, 1]);
+    expect(installAt(world)).toBeNull();
   });
 });

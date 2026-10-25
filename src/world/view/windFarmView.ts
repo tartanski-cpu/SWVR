@@ -85,13 +85,13 @@ export function transitionPieceParts(): THREE.BufferGeometry[] {
 }
 
 /** A nacelle over the tower's axis (the origin), its hub end 3 m forward at -z, into the wind. */
-function nacelleGeometry(): THREE.BufferGeometry {
+export function nacelleGeometry(): THREE.BufferGeometry {
   const n = CONFIG.windFarm.nacelle;
   return mergeParts([part(new THREE.BoxGeometry(n.width, n.height, n.length).translate(0, 0, n.length / 2 - 3), CONFIG.windFarm.colors.tower)]);
 }
 
 /** Three blades about the shaft (z) and the spinner, at the hub (3.5 m forward of the tower's axis). */
-function rotorGeometry(): THREE.BufferGeometry {
+export function rotorGeometry(): THREE.BufferGeometry {
   const b = CONFIG.windFarm.blade;
   const col = CONFIG.windFarm.colors.tower;
   const blades = [0, 1, 2].map((k) => part(new THREE.BoxGeometry(1.6, b, 0.4).translate(0, b / 2 + 1.2, -3.5).rotateZ((k * 2 * Math.PI) / 3), col));

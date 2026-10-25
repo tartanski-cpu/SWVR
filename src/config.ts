@@ -26,7 +26,9 @@ export type ProjectJobDef =
   | { id: string; kind: 'survey'; name: string; from: [number, number]; to: [number, number]; pay: number }
   | { id: string; kind: 'buoy'; name: string; mark: 'N' | 'E' | 'S' | 'W' | 'special'; at: [number, number]; pay: number }
   | { id: string; kind: 'tow'; name: string; tow: string; turbine?: number; pay: number }
-  | { id: string; kind: 'supply'; name: string; cargo: string; count: number; pay: number };
+  | { id: string; kind: 'supply'; name: string; cargo: string; count: number; pay: number }
+  | { id: string; kind: 'guard'; name: string; pay: number }
+  | { id: string; kind: 'transfer'; name: string; turbine: number; techs: number; pay: number };
 
 /** A career upgrade, bought at the yard (CONFIG.career.upgrades). */
 export interface CareerUpgrade {
@@ -797,9 +799,16 @@ export const CONFIG = {
      *           (`projectTow.fitS` each).
      *   supply  `count` loads of `cargo` (hand cargo) on the office's quay, carried out and
      *           brought alongside the jack-up (`projectSupply`): her crane takes them aboard.
+     *   guard   guard duty while the installation ship puts the turbines up (`projectInstall`):
+     *           her work goes on only while a players' boat stands by the works, and stops
+     *           while a ship is inside the zone. Ships are sent through now and then; meet one
+     *           and she's called on the VHF and turns away. Paid when the last turbine's up,
+     *           less `projectGuard.strike` for each ship that got into the zone.
+     *   transfer  `techs` fitters for turbine `turbine` (once it's up), on the crew-transfer
+     *           quay (CONFIG.transfer), put across onto its landing as a wind farm transfer.
      * Positions: Tarran Rig, two turbines in 40 m of open water about 1.1 km north of Calder
      * Haven, clear of Holm Rig and the fishing grounds; its zone boxed by four cardinals.
-     * Stages 5-6 (the turbines, commissioning) come in later steps.
+     * Stage 6 (commissioning) comes in a later step.
      */
     projects: [
       {
@@ -851,6 +860,15 @@ export const CONFIG = {
               { id: 'supply1', kind: 'supply', name: 'Bolts and grout for the jack-up', cargo: 'Building materials', count: 4, pay: 900 },
             ],
           },
+          {
+            name: 'Turbines',
+            bonus: 3000,
+            jobs: [
+              { id: 'guard', kind: 'guard', name: 'Guard the works', pay: 3000 },
+              { id: 'fit1', kind: 'transfer', name: 'Fitters to turbine 1', turbine: 0, techs: 3, pay: 700 },
+              { id: 'fit2', kind: 'transfer', name: 'Fitters to turbine 2', turbine: 1, techs: 3, pay: 700 },
+            ],
+          },
         ],
       },
     ] as ProjectDef[],
@@ -874,6 +892,22 @@ export const CONFIG = {
      * legs `legHalf` m half-width at `legSpacing` (across, along) between centres.
      */
     projectJackUp: { offsetM: 55, hull: [40, 30, 4] as [number, number, number], hullY: 14, legHalf: 1.2, legSpacing: [30, 22] as [number, number] },
+    /**
+     * The installation ship that puts the turbines up (a set piece like the jack-up, bigger:
+     * career/projectView.ts). She stands `offsetM` north of the turbine she's on, her hull
+     * `hull` (length x width x depth, m) `hullY` above the sea on legs at `legSpacing`. Each
+     * turbine takes `erectS` s of work, in three lifts: the tower, then the nacelle (from
+     * `nacelleAt` of the way), then the rotor (from `rotorAt`).
+     */
+    projectInstall: { offsetM: 60, hull: [80, 36, 6] as [number, number, number], hullY: 16, legHalf: 1.8, legSpacing: [64, 28] as [number, number], erectS: 240, nacelleAt: 0.4, rotorAt: 0.65 },
+    /**
+     * Guard duty (see `projects`). The work goes on while a players' boat is within `standBy` m
+     * of the installation ship, and stops while a ship is within `zone` m of her. A ship is
+     * sent for the works every `every` s (a range; one at a time), starting `from` m off;
+     * come within `hail` m of her and she's called on the VHF and alters away. Each that gets
+     * into the zone costs `strike` of the guard job's pay (it never pays under `minPay`).
+     */
+    projectGuard: { standBy: 900, zone: 400, every: [50, 110] as [number, number], from: 1700, hail: 300, strike: 600, minPay: 600 },
   },
 
   /**

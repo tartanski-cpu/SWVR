@@ -10,6 +10,20 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Construction projects, step 4: the turbines and guard duty (25 Oct 2026)
+
+Owner: "go to stage 5". Stage 5 of Tarran Rig, as in the approved plan: the installation ship puts the turbines up in the background while you guard the works and run the fitters out.
+
+- **Installation ship** (`installAt`, career/projectView.ts `installerGeometry`): a set piece like the jack-up, bigger (80 x 36 m hull on four legs, the crane's boom raised over the hub), standing north of the turbine she's on. Each turbine takes `erectS` 240 s of work: the tower rises, the nacelle is lowered on from `nacelleAt` 0.4, the rotor from `rotorAt` 0.65. Turbines that are up are drawn still (one blade hanging down, clear of her boom) in the project's merged mesh; they turn once commissioned (stage 6). Settings: `CONFIG.career.projectInstall`.
+- **Guard duty** (job kind `guard`, `stepGuard`): her work goes on only while a players' boat is within `standBy` 900 m of her and no ship is within `zone` 400 m. While guarded, a ship is sent for the works every `every` 50-110 s, one at a time (traffic.ts `spawnShipFor`: from `from` 1700 m on a clear approach, straight at her; `Ship.bound` marks her). A guard boat within `hail` 300 m: she's called on the VHF and alters 70 deg away (whichever side passes further off). Into the zone: a strike, she's turned away by the installation ship, and the guard job pays `strike` £600 less (never under `minPay` £600). The radio says when the guard comes and goes, and each lift. Settings: `CONFIG.career.projectGuard`.
+- **Fitters** (job kind `transfer`, `stepFitters`): once a turbine is up, a crew transfer to it (three fitters on the usual crew-transfer quay), through the transfer system: the project's turbines become a wind farm once all their transition pieces are on (world/windFarm.ts `setProjectFarm` / `allFarms`, after the map's own), so the landings, the platforms underfoot, the gangway mark and the technicians' figures all work there. `TransferJob.project` marks the project's: the project pays it (not the transfer as well).
+- **Plotter:** the zone (red, dashed), the stand-by ring (faint), the installation ship, the ships bound for the works (red, named), turbines that are up (white).
+- **Saved:** `erected`, and guard duty's `warned` / `strikes`; a turbine going up when the session ends reads back as up.
+- **Debug:** Project: stage done puts both turbines up and the fitters across.
+- **Tests:** tests/projects.test.ts, 5 new (the lifting rules and strikes, ships sent for the works, the guard pay and the fitters' transfer on the new farm, the save, the debug button). All of `npm test`: 1557 passing. Headless screenshots of a turbine going up and of the second one's rotor going on.
+- **Not checked:** a whole guard duty played through in real time; the fitters' transfer driven by hand onto the new landings (the landing check is the same code as Holm Rig's, on the new farm).
+- **Shared changes:** world/windFarm.ts (`setProjectFarm`, `allFarms`: the wind farm list a project can add to; `inTower`, `platformAt`, `platformSpot` use it); world/view/windFarmView.ts (`nacelleGeometry`, `rotorGeometry` exported).
+
 ### Construction projects, step 3: the transition pieces (25 Oct 2026)
 
 Owner: "Go to stage 4."

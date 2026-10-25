@@ -19,9 +19,8 @@ import { decodeLook, headGeometry, lookFromId, type Look } from '../net/avatarOu
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
-import { WIND_FARMS } from '../world/archipelago';
 import { landFloor } from '../world/landWalkArea';
-import { landingAxis, landingFace } from '../world/windFarm';
+import { allFarms, landingAxis, landingFace } from '../world/windFarm';
 import { climbTime, quayPlace, type Technician } from './transfer';
 
 const HIVIS = 0xff7a10;
@@ -99,7 +98,7 @@ export class TransferView {
       this.figures.delete(id);
     }
     if (!job) return;
-    const turbine = WIND_FARMS[job.farm]?.turbines[job.turbine];
+    const turbine = allFarms()[job.farm]?.turbines[job.turbine];
     if (!turbine) return;
     const face = landingFace(turbine);
     const { ax, az } = landingAxis(turbine.landingDeg);

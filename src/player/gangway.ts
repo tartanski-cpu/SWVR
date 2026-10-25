@@ -7,8 +7,7 @@ import { hasWheelhouse, VESSEL_DEFS } from '../vessel/vesselDef';
 import { berthWithId } from '../world/berths';
 import { landFloor } from '../world/landWalkArea';
 import { quaySpot } from '../world/startSpot';
-import { WIND_FARMS } from '../world/archipelago';
-import { landingFace, platformAt } from '../world/windFarm';
+import { allFarms, landingFace, platformAt } from '../world/windFarm';
 import type { Handedness } from './xrInput';
 
 /**
@@ -128,7 +127,7 @@ export class Gangway {
     if (t.kind === 'across' || t.turbine) {
       // Across: over the landing's tubes at her bow. Back aboard: over her bow, seen from the platform.
       const [f, i] = (t.turbine ?? '').split(':').map(Number);
-      const tb = WIND_FARMS[f]?.turbines[i];
+      const tb = allFarms()[f]?.turbines[i];
       if (!tb) return false;
       if (t.kind === 'across') {
         const face = landingFace(tb);
