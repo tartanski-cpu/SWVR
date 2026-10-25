@@ -625,6 +625,8 @@ export const MODULES_CONFIG = {
         starterTorque: 120,
         starterMaxRpm: 400,
         crankTime: 0.8,
+        // In gear, dragged below this fraction of idle: she stalls (CONFIG.vessels.workboat.engine.stallFraction).
+        stallFraction: 0.3,
         startOnlyInNeutral: true,
         preheatTime: 0,
         preheatHotTime: 0,
