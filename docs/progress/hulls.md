@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug, step 1: her hull (owner)
+
+- **The owner:** a larger harbour tug, a one-off complete design, from photographs (and models) of a 25 m azimuth stern drive (ASD) harbour tug and her data sheet: 25.0 x 11.2 m, 5.35 m draught to her pods, 2 x 1850 kW, 70 t bollard pull, 12.2 kn. Hull only for now; her drives (a new propeller and control system), house and fendering come later. Our own lines of her size and type, not the real tug's.
+- **Her lines** (`designs.ts`, `harbourTug`): 25.0 x 10.5 m over her hull (11.2 m over her fenders, to come), 3.3 m draught, 494 t (Cb 0.59, Cp 0.69, Cm 0.86, Cwp 0.93; KM 5.8 m above her keel: GM about 2 m with her weight 3.8 m up).
+  - **Plan:** a parallel midbody, a wide stern rounded at its corners, a blunt bow rounded in plan for pushing ships.
+  - **Profile:** a strong sheer from 1.5 m amidships to 3.05 m at her bow; deep forward (3.3 m), her bottom rising aft in a long run to a transom 0.5 m under the water, room under it for her two drive pods (to about 5.3 m, as the real tug's).
+  - **Sections:** a round bilge drawn as two chines close together (`section.bilge`), more flare forward.
+- **A round bilge in the game** (`vessel/hullForm.ts`, shared): the game's stations are five points (keel, chine, deck edge each side). Using the bilge's lower point as the chine would have made her waterline about 7 % narrower (about a fifth off her stability), the upper one about 10 % of her volume. Her chine is now one point on her side line, below the bilge's upper point, placed so each section keeps the bilge's area (`bilgeChine`): her waterline breadth and her volume her lines' (the game's stations float 492 m3 against the study's 482: the study's sections are a little raked). Both bilge points are drawn (`Station.bilge`, `hullMesh.ts`).
+- **Her bottom painted to her waterline** (`HullDesign.bootTop`, 0.05 m): a ship's boot top, not her chine (her bilge is under water). The paint line in the drawing is now general (`hullMesh.ts paintedTri`): each face of her sides, bottom and transom is cut along the line, her bottom's colour below and her topsides' above. This replaces the special case the plumb bows had (their tests still pass).
+- **Checked:** typecheck, all tests; `tests/hulls/harbourTug.test.ts` (her size, fullness, stiffness, profile, the game's volume and waterline breadth against her lines, floating level, her paint at her waterline); screenshots of the hull study and "As the game draws her" from the bow, side, stern, ahead, astern and under water.
+- **Shared changes:** `src/vessel/hullForm.ts` (`Station.bilge`, `bilgeChine`), `src/vessel/view/hullMesh.ts` (the bilge drawn; the paint line cut generally). Nothing changes for a hull without a bilge or a paint line.
+
 ### Plumb and straight bows drawn whole, with a forefoot radius; the catamaran takes the bow choice (owner)
 
 - **The owner:** the straight-raked or plumb bow left missing facets on some hull forms; a plumb bow should be straight down, then a nice radius at the bottom. On the pilot boat, the gillnetter and the catamaran (and the trawler, which has the bow choice too); not the tug.

@@ -132,16 +132,23 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Each station's outline as drawn: her section (port deck, port chine, keel, starboard
   // chine, starboard deck), with a spray chine between each chine and deck edge where she
   // has one (drawn only; a station without it takes the midpoint, so the panels still join).
+  // A round bilge drawn as two chines (Station.bilge) in place of her polygon's chine, the
+  // hard-chine corner she floats on.
   const sprayed = st.some((s) => s.spray);
+  const bilged = st.some((s) => s.bilge);
   const outlines = st.map((s): [number, number][] => {
     const p = s.polygon;
+    if (bilged) {
+      const [[x1, y1], [x2, y2]] = s.bilge ?? [p[3], p[3]];
+      return [p[0], [-x2, y2], [-x1, y1], p[2], [x1, y1], [x2, y2], p[4]];
+    }
     if (!sprayed) return p;
     const [x, y] = s.spray ?? [(p[3][0] + p[4][0]) / 2, (p[3][1] + p[4][1]) / 2];
     return [p[0], [-x, y], p[1], p[2], p[3], [x, y], p[4]];
   });
   /** Outline points: deck edges first and last, the keel in the middle, chines `chine` in from each end. */
   const last = outlines[0].length - 1;
-  const chine = sprayed ? 2 : 1;
+  const chine = sprayed && !bilged ? 2 : 1;
   const P = (i: number, k: number) => new THREE.Vector3(outlines[i][k][0], outlines[i][k][1], st[i].z);
   const inside = (i: number) => {
     const poly = st[i].polygon;
@@ -157,8 +164,36 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     if (k === 4) return new THREE.Vector3(0, poly[4][1] + 0.3, st[i].z);
     return new THREE.Vector3((k < 4 ? -1 : 1) * cat.spacing / 2, (poly[2][1] + poly[0][1]) / 2, st[i].z);
   };
-  // Her keel's points in the outline (each demihull's, on a catamaran).
-  const keelIdx = cat ? [2, 7] : [last / 2];
+  // Her paint line (Station.paintY; else her chine): her bottom's colour below it, her
+  // topsides' above, each face of her sides and bottom cut along it where it crosses, so it
+  // runs straight between her stations (owner, Oct 2026: "the line straight like the pilot
+  // boat"; a ship's boot top at her waterline, the harbour tug). Only where she has one.
+  const painted = st.some((s) => s.paintY !== undefined);
+  const paintLine = (j: number) => st[j].paintY ?? st[j].polygon[1][1];
+  /** Triangle a-b-d of her side or bottom between stations i and i+1, cut along her paint line. */
+  const paintedTri = (i: number, a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, ref: THREE.Vector3, axisX: number | undefined, paintOf: (c: number) => PaintName | undefined) => {
+    const z0 = st[i].z;
+    const z1 = st[Math.min(i + 1, st.length - 1)].z;
+    const line = (z: number) => (z1 === z0 ? paintLine(i) : paintLine(i) + ((paintLine(i + 1) - paintLine(i)) * (z - z0)) / (z1 - z0));
+    const v = [a, b, d];
+    const f = v.map((p) => p.y - line(p.z));
+    const up = f.map((x) => x > 1e-6);
+    const put = (p: THREE.Vector3, q: THREE.Vector3, r: THREE.Vector3, above: boolean) => {
+      const c = above ? col.topsides : col.bottom;
+      tri(p, q, r, ref, c, paintOf(c), axisX);
+    };
+    const n = up.filter(Boolean).length;
+    if (n === 0 || n === 3) return put(a, b, d, n === 3);
+    // The vertex on its own side of the line, and where the line cuts its two edges.
+    const lone = up.findIndex((u) => (n === 1 ? u : !u));
+    const [o1, o2] = [(lone + 1) % 3, (lone + 2) % 3];
+    const cut = (o: number) => v[lone].clone().lerp(v[o], f[lone] / (f[lone] - f[o]));
+    const c1 = cut(o1);
+    const c2 = cut(o2);
+    put(v[lone], c1, c2, up[lone]);
+    put(c1, v[o1], v[o2], !up[lone]);
+    put(c1, v[o2], c2, !up[lone]);
+  };
   const topsideEdge = (k: number) => (cat ? [0, 3, 4, 5, 8].includes(k) : k < chine || k >= last - chine);
 
   // A cabin sunk below the deck (its floor lower than the deck under it: you step down into
@@ -220,7 +255,6 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       // runs and faded paint, hullPaintUvs below) and her bottom plain (owner: workboats are
       // mostly GRP, or aluminium in big sheets: no plate seams).
       const paintOf = (c: number, k: number): PaintName | undefined => (c === col.deck && k === last ? 'nonSlip' : c === col.topsides ? 'topsides' : undefined);
-      const paint = paintOf(color, a);
       const ref = cat && a !== last ? insideEdge(i, a).add(insideEdge(i + 1, a)).multiplyScalar(0.5) : mid;
       // Her sides and bottom face away from her centreline (a demihull's); the deck and a
       // catamaran's wet deck by `ref`.
@@ -229,39 +263,11 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
         tri(p0, q0, q1, ref, c, paintOf(c, a), axisX);
         tri(p0, q1, p1, ref, c, paintOf(c, a), axisX);
       };
-      // Her bottom up to her paint line where it's under her chine (Station.paintY: a chine
-      // dragged up her stem by her forefoot), her topsides' colour above it, so the line runs on
-      // straight to her stem. Each station's point on the panel's edge, chine to keel, at it.
-      const k = keelIdx.includes(a) ? a : keelIdx.includes(b) ? b : -1;
-      if (color === col.bottom && k >= 0 && (st[i].paintY !== undefined || st[i + 1].paintY !== undefined)) {
-        const up = k === a ? b : a;
-        const at = (j: number) => {
-          const U = P(j, up);
-          const K = P(j, k);
-          const y = st[j].paintY;
-          if (y === undefined || y >= U.y) return U;
-          return y <= K.y ? K : K.lerp(U, (y - K.y) / (U.y - K.y));
-        };
-        const m0 = at(i);
-        const m1 = at(i + 1);
-        // Where her keel rises through the paint line between the two (her forefoot), the
-        // bottom paint stops where it crosses, on her keel between them: X.
-        const over = (j: number) => st[j].paintY !== undefined && st[j].paintY! <= P(j, k).y;
-        if (over(i) !== over(i + 1)) {
-          const [o, j] = over(i) ? [i + 1, i] : [i, i + 1];
-          const Ko = P(o, k);
-          const Kj = P(j, k);
-          const po = (o === i ? m0 : m1).y - Ko.y;
-          const pj = (st[j].paintY ?? P(j, up).y) - Kj.y;
-          const X = Ko.clone().lerp(Kj, po / Math.max(po - pj, 1e-9));
-          const mo = o === i ? m0 : m1;
-          tri(mo, Ko, X, ref, color, paint, axisX);
-          tri(mo, X, Kj, ref, col.topsides, 'topsides', axisX);
-          panel(P(o, up), mo, P(j, up), Kj, col.topsides);
-          continue;
-        }
-        panel(P(i, up), m0, P(i + 1, up), m1, col.topsides);
-        panel(m0, P(i, k), m1, P(i + 1, k), color);
+      // Cut along her paint line, where she has one (her deck and a catamaran's wet deck aside).
+      if (painted && axisX !== undefined) {
+        const [p0, q0, p1, q1] = !cat && a >= last / 2 ? [b0, a0, b1, a1] : [a0, b0, a1, b1];
+        paintedTri(i, p0, q0, q1, ref, axisX, (c) => paintOf(c, a));
+        paintedTri(i, p0, q1, p1, ref, axisX, (c) => paintOf(c, a));
         continue;
       }
       // Each quad's diagonal mirrored side to side (owner, Oct 2026: a plumb stem looked raked
@@ -282,6 +288,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     for (const [a, b, d] of tris) tri(P(i, a), P(i, b), P(i, d), ref, col.topsides, 'topsides');
   };
   if (cat) endPlate(0, tIn);
+  else if (painted) for (let k = 0; k <= last; k++) paintedTri(0, tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, undefined, (c) => (c === col.topsides ? 'topsides' : undefined));
   else for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides, 'topsides');
   // A square bow (a landing bow: the last station still has width) is closed the same way,
   // by a bow plate. (A catamaran's bow: the bridge deck's front, across her tunnel.)
