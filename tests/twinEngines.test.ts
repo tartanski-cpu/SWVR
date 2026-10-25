@@ -157,3 +157,35 @@ describe('the twin lever control', () => {
     expect(sent['throttle.demand2']).toBeCloseTo(sent['throttle.demand'], 6);
   });
 });
+
+describe('twin stern drives worked separately', { timeout: 120000 }, () => {
+  const sd = (): ShipDesign => ({ ...DEFAULT_DESIGN, controls: 1, sternDrive: 1, twin: 1 });
+  it('the Shipyard fits them the twin lever control (each leg its own engine); twin outboards keep one lever', () => {
+    const b = buildDesign(sd());
+    const legs = b.recipe.modules.find((m) => m.module === 'propulsion.outboard')!;
+    expect((legs.config as { units: number[] }).units).toHaveLength(2);
+    expect(legs.config).toMatchObject({ sterndrive: true, split: true });
+    const helm = b.recipe.modules.find((m) => m.socket === 'helm')!;
+    expect(helm.modules!.find((m) => m.socket === 'throttle')!.module).toBe('control.twin-throttle');
+    expect(helm.modules!.some((m) => m.socket === 'start2')).toBe(true);
+    const ob = buildDesign({ ...DEFAULT_DESIGN, controls: 1, outboards: 2 }).recipe.modules.find((m) => m.socket === 'helm')!;
+    expect(ob.modules!.find((m) => m.socket === 'throttle')!.module).toBe('control.throttle-lever');
+  });
+
+  it('a START each, and one leg ahead with the other astern turns her round', () => {
+    const t = boat(sd());
+    t.keyOn();
+    t.start('ignition.start');
+    expect(t.v.engine.phase).toBe('running');
+    expect(t.v.engine.stbd!.phase).toBe('off');
+    t.start('ignition.start2');
+    expect(t.v.engine.stbd!.phase).toBe('running');
+    t.send('throttle.demand', -0.5);
+    t.send('throttle.demand2', 0.5);
+    const h0 = compassHeading(t.v);
+    // (A small light boat: she spins fast, so a short look before the heading wraps round.)
+    t.run(4);
+    // Port astern, starboard ahead: she turns to port.
+    expect(((compassHeading(t.v) - h0 + 540) % 360) - 180).toBeLessThan(-20);
+  });
+});

@@ -61,7 +61,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   engine.massKg = eng.kg;
   // Twin shaft engines are worked separately (owner, Oct 2026: a twin engine control, a START
   // each): a lever each on the console (control.twin-throttle, below).
-  const splitTwin = !!twin && !sdLegs && !pods && !outboards;
+  // (Twin stern drives too, each leg its own engine's: owner, Oct 2026; outboards keep one lever.)
+  const splitTwin = !!twin && !pods && !outboards && (!sdLegs || sdLegs.units.length === 2);
   if (twin) engine.twin = { x: twinX, ...(splitTwin ? { split: true } : {}) };
   Object.assign(engine.maintenance, {
     engine: { ...engine.maintenance.engine, x: engX, z: rnd(engMid), length: engL, width: engW, height: engH },
@@ -98,6 +99,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         maintenance: engine.maintenance,
         voice: eng.voice,
         sterndrive: true,
+        ...(splitTwin ? { split: true } : {}),
         installed: engine.installed,
       },
     });

@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) Twin stern drives get the twin lever control
+
+`parts/recipe.ts`: two stern-drive legs are worked separately too (the outboard module's `split`), with the twin lever control and START P / START S, as twin shafts. Twin outboards keep one lever. See `docs/progress/modules.md`.
+
 ### (From the modular-builder chat) Twin shaft engines get the twin lever control
 
 `parts/recipe.ts`: a twin with shaft engines (not pods, stern drives or outboards) has its diesel's `twin.split` set, the console's `throttle` socket gets `control.twin-throttle`, the START becomes START P and a second, START S (`start2`, bound to `ignition.start2`), joins the ENGINE group (`BASIC_KEEP` too). See `docs/progress/modules.md`.

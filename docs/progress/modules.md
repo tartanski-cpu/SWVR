@@ -39,6 +39,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **Twin stern drives: a lever and a START each** (this log). Shipyard: a boat with Stern drives and Twin; in the game, each leg follows its own lever (one ahead, one astern spins her).
 - [ ] **Twin engine control, a lever and a START each** (this log). In the catamaran (or the pilot boat): key on, START P, then START S. VR: grab one knob, then the other, then the yellow grip between them (both come together). One ahead and one astern: she turns on the spot. Desktop: drag a knob, drag the grip; W/S moves both. Is the grip easy to find and grab? Does START P hide behind the levers from the helm?
 - [ ] **The autopilot on the console: AUTO, PORT 5°, STBD 5°** (this log). In the pilot boat (or any fleet boat but the beginner boat): steam out, press **AUTO** on the console (starboard of the wheel), then tap **STBD 5°** a few times: she should come round 5° a tap and hold the new heading. Is it in a good place on the console (the throttle lever stands in front of PORT 5° from the helm)? The wall panel now has only AUTO START and DOCK.
 - [ ] **A TV on the wall, showing a browser tab** (this log). Shipyard, Furniture: **TV on the wall**, put it on a wall (over a settee). Game, on a desktop: click the TV, pick a tab playing a video (tick "share tab audio"): it shows on the TV, sound from the TV. Click again to stop; also try the browser's **Stop sharing** bar. With a crew-mate (best: one in the Quest): they see and hear it. Is the TV's height right, and does it look odd hung in front of the windows?
@@ -59,6 +60,14 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### Twin stern drives get the twin engine control too (done; on next, in your test round)
+
+The second stop of the twin engine control: a Shipyard boat with twin stern drives now has a lever and a START for each engine, as twin shaft engines do. The port leg is driven by the port engine and the starboard leg by the starboard one, each from its own lever, while the wheel still swings both legs together. One ahead and one astern spins her. Twin outboards keep one lever (your choice).
+
+The twin-engine stepping is now one shared piece (`twinStep`, `src/vessel/physics/propulsion.ts`), used by both the shaft engines' module and the stern drives' (`src/modules/outboard`, its `split`). The Shipyard sets it for two stern-drive legs (`parts/recipe.ts`). Tests: `tests/twinEngines.test.ts` (fitted to twin stern drives, not to twin outboards; a START each; one leg astern and one ahead turns her to port).
+
+**Shared changes:** `src/vessel/physics/propulsion.ts` (`twinStep`).
 
 ### A twin engine control: a lever and a START for each engine (done; on next, in your test round)
 

@@ -23,7 +23,7 @@ import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
 import type { ModuleDefinition } from '../../modular/module';
 import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
-import { engineStep, starboardEngine, type DieselInputs } from '../../vessel/physics/propulsion';
+import { engineStep, twinStep, type DieselInputs } from '../../vessel/physics/propulsion';
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
 import { engineParts, oilShelfParts, waterStop } from '../../vessel/view/engineLook';
@@ -149,43 +149,21 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
         starterFactor: io.has('volts') ? clamp((io.num('volts') - 9) / 2.5, 0, 1) : 1,
         fuelL,
       };
-      const thrust = engineStep(e, c, inputs, -flow.z, wet, dt);
       const p = c.propeller;
       if (c.twin?.split) {
-        // Worked separately: the starboard engine steps on its own, from its own lever and
-        // START, with the port engine's key, oil, wear and coolant (one key, one dipstick).
-        const s = (e.stbd ??= starboardEngine(e));
-        s.key = e.key;
-        s.coolantC = e.coolantC;
-        s.oilC = e.oilC;
-        s.coolingFault = e.coolingFault;
-        s.oil = e.oil;
-        s.wear = e.wear;
-        s.fuelL = e.fuelL;
-        // The quick start: its turn once the port engine has caught (or given up).
-        if (s.queued && e.phase !== 'cranking') {
-          s.queued = false;
-          if (e.phase === 'running' && s.phase === 'off' && s.key > 0) Object.assign(s, { phase: 'cranking', crank: 0, autoCrank: true });
-        }
-        const stbdIn: DieselInputs = { ...inputs, lever: io.has('throttle2') ? io.num('throttle2') : inputs.lever, start: io.num('start2') };
-        const thrust2 = engineStep(s, c, stbdIn, -flow.z, wet, dt);
+        // Worked separately: each engine from its own lever and START (twinStep), each thrust
+        // T(1 - t) along its own shaft (forward is -z), on its own side: more thrust on one
+        // side turns her away from it. Counter-rotating: no walk.
+        const t = twinStep(e, c, inputs, io.has('throttle2') ? io.num('throttle2') : inputs.lever, io.num('start2'), -flow.z, wet, dt);
         // The rudders see the two propellers' wash: as one, the mean.
-        io.set('thrust', (thrust + thrust2) / 2);
+        io.set('thrust', (t.port + t.stbd) / 2);
         io.set('immersion', wet);
-        // Each burns its own; the port engine alone heats the (shared) coolant.
-        const afterPort = fuelAndHeatStep(e, c, fuelL, dt);
-        const portFlow = e.fuelFlowLph;
-        const heat = s.coolantC;
-        const left = fuelAndHeatStep(s, c, afterPort, dt);
-        s.coolantC = heat;
-        e.fuelFlowLph = portFlow + s.fuelFlowLph;
-        io.set('fuel', left);
-        // Net propulsive force T(1 - t) along each shaft (forward is -z), each on its own side:
-        // more thrust on one side turns her away from it. Counter-rotating: no walk.
-        port.addForce([-c.twin.x, p.position[1], p.position[2]], 0, 0, -thrust * (1 - p.thrustDeduction));
-        port.addForce([c.twin.x, p.position[1], p.position[2]], 0, 0, -thrust2 * (1 - p.thrustDeduction));
+        io.set('fuel', t.fuelL);
+        port.addForce([-c.twin.x, p.position[1], p.position[2]], 0, 0, -t.port * (1 - p.thrustDeduction));
+        port.addForce([c.twin.x, p.position[1], p.position[2]], 0, 0, -t.stbd * (1 - p.thrustDeduction));
         return;
       }
+      const thrust = engineStep(e, c, inputs, -flow.z, wet, dt);
       // One shaft's thrust (the rudder sees one propeller's wash: twin rudders, each behind its own).
       io.set('thrust', thrust);
       io.set('immersion', wet);

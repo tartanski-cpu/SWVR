@@ -22,7 +22,7 @@ import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
 import type { VesselDef } from '../vesselDef';
 import type { EngineState, VesselState } from '../vesselState';
-import { derateRackCap } from './engineThermal';
+import { derateRackCap, fuelAndHeatStep } from './engineThermal';
 import { wearRackCapFor } from '../wear';
 
 type Workboat = typeof CONFIG.vessels.workboat;
@@ -123,6 +123,33 @@ export function toggleEngine(s: VesselState, def: EngineSpec & { split?: boolean
       x.queued = false;
     }
   }
+}
+
+/**
+ * Twin engines worked separately (the twin lever control; owner, Oct 2026), one tick for both
+ * and their fuel: the port engine (`e`) from `inp`, the starboard engine (`e.stbd`, made the
+ * first time) from its own lever and START (`lever2`, `start2`) with the port engine's key,
+ * oil, wear and coolant (one key, one dipstick and set of lamps for both). The quick start's
+ * starboard engine cranks once the port one has caught (two starters at once pull the battery
+ * down too far). Each burns its own fuel from the one tank; the port engine alone heats the
+ * shared coolant. Returns each engine's thrust (N) and the fuel left (L).
+ */
+export function twinStep(e: EngineState, spec: DieselSpec, inp: DieselInputs, lever2: number, start2: number, speed: number, immersion: number, dt: number): { port: number; stbd: number; fuelL: number } {
+  const port = engineStep(e, spec, inp, speed, immersion, dt);
+  const s = (e.stbd ??= starboardEngine(e));
+  Object.assign(s, { key: e.key, coolantC: e.coolantC, oilC: e.oilC, coolingFault: e.coolingFault, oil: e.oil, wear: e.wear, fuelL: e.fuelL });
+  if (s.queued && e.phase !== 'cranking') {
+    s.queued = false;
+    if (e.phase === 'running' && s.phase === 'off' && s.key > 0) Object.assign(s, { phase: 'cranking', crank: 0, autoCrank: true });
+  }
+  const stbd = engineStep(s, spec, { ...inp, lever: lever2, start: start2 }, speed, immersion, dt);
+  const afterPort = fuelAndHeatStep(e, spec, inp.fuelL, dt);
+  const portFlow = e.fuelFlowLph;
+  const heat = s.coolantC;
+  const fuelL = fuelAndHeatStep(s, spec, afterPort, dt);
+  s.coolantC = heat;
+  e.fuelFlowLph = portFlow + s.fuelFlowLph;
+  return { port, stbd, fuelL };
 }
 
 /** The starboard engine of a twin worked separately, made the first time: as the port one is, stopped. */
