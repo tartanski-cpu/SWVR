@@ -450,6 +450,17 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
 - **Debug:** Debug → Missions → Career → **+£5000, rep** (cash and +25 reputation everywhere).
 
+### Construction projects (new, being built)
+
+Bigger jobs that build something new, in stages. The first is **Tarran Rig wind farm**: two new turbines in open water about 1 km north of Calder Haven (Holm Rig stays as it is).
+
+- **Take it on** at the Calder Haven harbour office: Menu → Office → **Projects**. It lists the stage's jobs and how each stands. Each job pays when it's done, and each stage pays a bonus when its last job is.
+- **Stage 1, survey the site:** run the three survey lines across it at survey speed, 2.5 to 6.5 knots, keeping within about 30 m of the line and running along it (either way). The chartplotter shows them in dashed magenta, turning green as you cover them. Then lay the **met buoy**.
+- **Stage 2, mark the site:** lay a north, east, south and west **cardinal buoy** round it.
+- **Laying a buoy:** each waits on the Calder quay (yellow, 420 kg: too heavy to carry). A boat with a deck crane big enough lifts it aboard with the hook, carries it out, and lowers it into the sea within 25 m of its spot, shown as a magenta ring on the chartplotter. There it's laid, lit and charted; anywhere else it stays on the hook and the office tells you how far off you are. Lose one overboard and another is put on the quay.
+- **Next (later updates):** towing the foundations out (with a tug), the jack-up driving them, the transition pieces, the turbines going up while you run supplies and keep traffic clear, then the commissioning crews. Until then the project waits after stage 2.
+- **Debug:** Debug → Missions → Career → **Project: stage done**.
+
 ### First voyage, career slots, playing together
 
 - **First voyage:** a new career starts with the Calder harbour master talking you through one job over the VHF, step by step:

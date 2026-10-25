@@ -247,9 +247,11 @@ export interface PortDef {
  *   isolated     isolated danger, moored on the danger itself: black with a red band, two
  *                black balls.
  *   port, stbd   lateral marks on the approach to Calder Haven: red can, green cone.
+ *   special      a special mark (a met buoy, a works area): yellow, a yellow X topmark
+ *                (career/projects.ts lays one on a construction site).
  * Lights (navMarks.ts LIGHT_CHARACTERS) are the IALA characters for each kind.
  */
-export type MarkKind = 'N' | 'E' | 'S' | 'W' | 'isolated' | 'port' | 'stbd';
+export type MarkKind = 'N' | 'E' | 'S' | 'W' | 'isolated' | 'port' | 'stbd' | 'special';
 export interface MarkDef {
   name: string;
   kind: MarkKind;

@@ -461,7 +461,7 @@ function drawMark(g: CanvasRenderingContext2D, kind: MarkKind, x: number, y: num
   const B = INK;
   const R = '#b8281c';
   const G = '#1f7a36';
-  const [top, bottom] = kind === 'N' ? [B, Y] : kind === 'S' ? [Y, B] : kind === 'E' ? [B, B] : kind === 'W' ? [Y, Y] : kind === 'isolated' ? [B, B] : kind === 'port' ? [R, R] : [G, G];
+  const [top, bottom] = kind === 'N' ? [B, Y] : kind === 'S' ? [Y, B] : kind === 'E' ? [B, B] : kind === 'W' || kind === 'special' ? [Y, Y] : kind === 'isolated' ? [B, B] : kind === 'port' ? [R, R] : [G, G];
   const band = kind === 'E' ? Y : kind === 'W' ? B : kind === 'isolated' ? R : null;
   // The body: a short slanted pillar on the position circle.
   g.save();
@@ -501,6 +501,17 @@ function drawMark(g: CanvasRenderingContext2D, kind: MarkKind, x: number, y: num
   else if (kind === 'W') (cone(t0, true), cone(t0 - 9 * u, false));
   else if (kind === 'stbd') cone(t0, true);
   else if (kind === 'port') g.fillRect(-4 * u, t0 - 4 * u, 8 * u, 8 * u);
+  else if (kind === 'special') {
+    // A yellow X (the met buoy's topmark).
+    g.strokeStyle = Y;
+    g.lineWidth = 2.2 * u;
+    g.beginPath();
+    g.moveTo(-4 * u, t0 - 4 * u);
+    g.lineTo(4 * u, t0 + 4 * u);
+    g.moveTo(4 * u, t0 - 4 * u);
+    g.lineTo(-4 * u, t0 + 4 * u);
+    g.stroke();
+  }
   else for (const cy of [t0, t0 - 9 * u]) (g.beginPath(), g.arc(0, cy, 3.5 * u, 0, Math.PI * 2), g.fill());
   g.restore();
   // The light: a magenta flare off the top, and its character beside it.
