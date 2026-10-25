@@ -179,6 +179,7 @@ function buyerFactor(port: string | null | undefined, kind: JobKind): number {
 /** What a job pays before the port's reputation factor. */
 function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
   const p = CONFIG.career.pay;
+  if (o.base !== undefined) return o.base;
   switch (kind) {
     case 'cargo': {
       const a = PORTS.find((x) => x.id === o.from);
@@ -226,6 +227,8 @@ export interface EarnOpts {
   /** A pot's catch sold: how many of each. */
   lobster?: number;
   crab?: number;
+  /** What it pays before the port's factors, if not the kind's usual (`CONFIG.career.pay`): the timber camp's logs. */
+  base?: number;
   /** The ledger line. */
   text: string;
 }

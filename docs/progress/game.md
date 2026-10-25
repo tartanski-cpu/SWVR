@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Timber logs £2,000 each (25 Oct 2026)
+
+Owner: "the base price of a log should be 2,000, and eventually when we get really big ones, that could be up to 10,000."
+
+- `CONFIG.voyage.timber.logPrice` 2000: a timber camp log sold at the merchant (`stepTimberLogs`), and each log of a saved barge (`saleOffer`, `sellBarge`, `saleText`).
+- It's still paid through `earn('log')`, so the harbour's reputation bonus and buyer factor apply on top, and it counts toward a log contract. For that, `career.ts` `EarnOpts.base` lets a job give its own base pay.
+- Washed-up salvage in the career keeps `CONFIG.career.pay.log` £180: £2,000 there would swamp the career's other jobs (£50-500). Owner to say if those should rise too.
+- Up to £10,000 for big logs needs the camp to send each log's size in the handoff (it sends a count): later, with bigger trees.
+- Tests: `tests/metaverse.test.ts` (a sale pays at least `logPrice`). Typecheck clean, all tests pass. **Shared changes:** none.
+
 ### Construction projects, step 1: the system, Tarran Rig's survey and marks (25 Oct 2026)
 
 Owner, approving the plan: "keep the existing wind turbine farm ... we're going to build another one as the first project. It can be smaller, like 2 turbines ... The tug should do the tows ... if they're over a certain size, and ... any kind of boat that's got a big enough deck crane could do the buoy laying ... big ships' jobs happening in the background."

@@ -2517,8 +2517,11 @@ export const CONFIG = {
      *                       `beachMaxAboveM` above the water going down to it; up to `maxLogs`
      *   merchants           where logs are bought: a harbour berth on a map. Oban's North Pier
      *                       berth: Ardantrive Bay is 2 km across the sound, a 10-20 minute tow
-     *   (the price: a log is paid as a salvage log is, CONFIG.career.pay.log, on the beach's
-     *   logs and a saved barge's alike: owner, 25 Oct 2026, not the first version's £12)
+     *   logPrice            paid per log, before the harbour's reputation and buyer factors
+     *                       (owner, 25 Oct 2026: a log's base price is £2,000, "and eventually
+     *                       when we get really big ones, that could be up to 10,000": that needs
+     *                       the camp to send each log's size, later). The beach's logs and a
+     *                       saved barge's alike. (Washed-up salvage keeps CONFIG.career.pay.log.)
      *   sellRangeM          a log afloat within this of the merchant's quay (plus half its
      *                       length), slower than CONFIG.tow.deliverSpeed for
      *                       CONFIG.tow.deliverTime s, is bought; a saved barge's sale is
@@ -2538,6 +2541,7 @@ export const CONFIG = {
       beachSpacingM: 1.2,
       beachMaxAboveM: 0.5,
       merchants: [{ mapId: 'oban', berthId: 'oban-cargo', name: 'the Oban timber merchant' }],
+      logPrice: 2000,
       sellRangeM: 15,
       sellMaxSpeedKn: 0.6,
       bargeHalfLengthM: 4.5,
