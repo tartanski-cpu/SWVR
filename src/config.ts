@@ -2842,8 +2842,12 @@ export const CONFIG = {
    * the game itself, so the message is out before its page closes.
    * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
    * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
+   * A crew-mate the host hasn't heard from for `crewSilentS` s is taken out of its world (put
+   * back if heard from again; net/hostSession.ts): a page gone without saying leaves no frozen
+   * avatar. A crew page whose host is an older build waits for the host's page to update
+   * itself (App `onOtherBuild`) and tries again, `olderHostRetryS` s, then as "sent in together".
    */
-  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 12 },
+  net: { crewSilentS: 20, olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 12 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's
