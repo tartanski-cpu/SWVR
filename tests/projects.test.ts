@@ -14,6 +14,7 @@ import { parseCareer, serializeCareer } from '../src/career/career';
 import { activeProject, foundations, installAt, projectBoardLines, isProjectItem, jackUpAt, laidMarks, layProjectBuoy, projectOffered, stepProjects, towId } from '../src/career/projects';
 import { useDesign } from '../src/boats/sims';
 import { craneStateOf, cranesOf, hookOnBoat } from '../src/cargo/craneHook';
+import { hookNote } from '../src/cargo/cargo';
 import { DEFAULT_DESIGN } from '../src/shipyard/design';
 import { startEngine } from './helpers/engine';
 import type { Ship } from '../src/traffic/traffic';
@@ -194,11 +195,17 @@ describe('construction projects', { timeout: 30000 }, () => {
     // She's on the buoy's spot (the hook a few metres off her side: well inside its radius).
     v.position[0] = met.at[0];
     v.position[2] = met.at[1];
+    // Pressed with the buoy still high over the side: nothing happens, and the presser is told why.
+    expect(hookNote(world, v)).toMatch(/^Lower it right down to the water first: [\d.]+ m to go/);
+    send('crane.hook', 1);
+    send('crane.hook', 0);
+    expect(world.cargo.b1.at).toEqual({ hook: v.id, crane: path });
     // Lower the hook to the water and let go.
     const hook = hookOnBoat(v, path)!;
     s.wire += hook.y - v.position[1] + 0.5;
     send('crane.wire', s.wire);
     for (let i = 0; i < 4 / DT; i++) stepWorld(world, [], DT);
+    expect(hookNote(world, v)).toBeNull();
     send('crane.hook', 1);
     send('crane.hook', 0);
     expect(world.cargo.b1).toBeUndefined();
