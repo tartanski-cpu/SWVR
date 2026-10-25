@@ -609,12 +609,12 @@ The landing craft and the Shipyard's landing craft land; the workboat (no ramp) 
 
 ## The archipelago
 
-A new game starts in **Calder Haven**: your boat lies moored alongside the quay in the sheltered harbour, and you stand on the quay beside her. Walk aboard, power her up and start her; the harbour master talks you through your first voyage. The other ports are a few minutes away. Bearings and ranges are on the menu's Voyage tab.
+A new game starts in **Calder Haven**: your boat lies moored alongside the quay in the sheltered harbour, and you stand on the quay beside her. Walk aboard, power her up and start her; the harbour master talks you through your first voyage. The other ports are a few minutes away. A boat too deep for Calder's 4.5 m basin (with a metre under her keel: a deep tug or a big ship) starts instead alongside **Brannock Pier**, the deep-water berth, about 35 m of water at its T-head, and you on the pier beside her. Bearings and ranges are on the menu's Voyage tab.
 
 | Port | Type | What's there |
 |---|---|---|
 | **Calder Haven**, Calder Holm (SE, ~0.5 nm) | Sheltered harbour | A narrow entrance between breakwaters (Fl R 4 s to port, Fl G 4 s to starboard, entering), a calm dredged basin (4.5 m), a fendered quay with a **fuel berth** at its north end |
-| **Brannock Pier** (WSW, ~0.4 nm) | Big pier | A 130 m pier into deep water with a T-head berth, **fuel** on the T-head, and a red pier-head light |
+| **Brannock Pier** (WSW, ~0.4 nm) | Big pier | A 130 m pier into deep water (about 35 m at the T-head: the deep-water berth, where deep boats start) with a T-head berth, **fuel** on the T-head, and a red pier-head light |
 | **Selkie Bay**, Rona (S, ~0.6 nm) | Anchorage only | A horseshoe bay about 9 m deep with a beach at its head, sheltered from most of the swell |
 
 Also look out for **Gull Rocks** (on the direct line to Calder Haven), **Tarran** with its lighthouse (Fl W 10 s), Skerry and Eilean Dubh.

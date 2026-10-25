@@ -2642,6 +2642,8 @@ export const CONFIG = {
     berthId: 'calder-cargo',
     quay: { x: 713, z: 661.5, yawDeg: 90 },
     quayBack: 2,
+    /** A boat too deep for Calder Haven (4.5 m: her draught and `spawn.underKeel` to spare) starts at this port's first berth with room for her instead: Brannock Pier, deep water at its T-head (world/startSpot.ts startBerthFor). */
+    deepPort: 'brannock',
   },
 
   /**
