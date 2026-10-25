@@ -3884,10 +3884,12 @@ export class App {
         voice: diesel?.voice ?? 'inlineSix',
         ratedRpm: diesel?.engine.ratedRpm ?? 1800,
         twin: !!diesel?.twin,
-        rpm: v.engine.rpm,
-        load: v.engine.rack,
-        running: v.engine.phase === 'running',
-        cranking: v.engine.phase === 'cranking',
+        // One voice for her (the Quest's audio thread): a twin worked separately is heard by
+        // whichever engine is working harder, and starting while either cranks.
+        rpm: Math.max(v.engine.rpm, v.engine.stbd?.rpm ?? 0),
+        load: Math.max(v.engine.rack, v.engine.stbd?.rack ?? 0),
+        running: v.engine.phase === 'running' || v.engine.stbd?.phase === 'running',
+        cranking: v.engine.phase === 'cranking' || v.engine.stbd?.phase === 'cranking',
         horn: v.controls.horn > 0 && isPowered(v),
       });
     }

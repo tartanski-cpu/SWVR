@@ -39,6 +39,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **Twin engines heard one each** (this log). A twin worked separately (the catamaran, or your twin trawler): key on, START P, then START S: each start is heard. Then one lever ahead at a time: you hear that engine rise alone; stop one and it falls silent while the other runs.
 - [ ] **Twin engines: E/D and R/F, and engines that stall** (this log). Desktop, a twin, holding the wheel with the mouse: E/D the port lever, R/F the starboard; W/S both. Put a twin in gear with a lever and check the revs hold. If you can, send the code of the twin trawler that stalled.
 - [ ] **The console screens tidied** (this log). Speed screen: LOG (speed through the water), no anchor line; heading: no rate of turn; ENGINE: no temperature. In a tidal race the LOG and the NAV panel's SOG should differ.
 - [ ] **Twin stern drives: a lever and a START each** (this log). Shipyard: a boat with Stern drives and Twin; in the game, each leg follows its own lever (one ahead, one astern spins her).
@@ -62,6 +63,15 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### Twin engines heard one each: starter, revs and stopping (done; on next, in your test round)
+
+Owner, on the twin trawler: "one of the engines doesn't have sounds ... when you do the key on and start button, it doesn't make any sounds. And then when you throttle up or down one of the engines, it doesn't make any sounds."
+
+A twin already had two engine sounds, but both followed the port engine: the second only ran a touch off its revs for the drone. With the engines worked separately, the starboard engine starting, stalling or throttling was never heard. Now the second sound follows the starboard engine's own state (`EngineState.stbd`: its revs, load, cranking, running), so START S cranks audibly, and each lever is heard on its own engine. The drone (`CONFIG.engineTwinDrift`) still rides on top. Other players' boats keep one voice each (the Quest's audio budget): a twin worked separately is heard by whichever engine is working harder, and cranking while either cranks.
+
+- No new settings. Test: `tests/twinEngineSound.test.ts`.
+- **Shared changes:** `audio/engineAudio.ts` (`EngineAudio.update`), `app/App.ts` (the heard boats' engine numbers): the main game's files, noted in its log.
 
 ### Twin engines: what went wrong on your twin trawler, and a lever each on the keys (done; on next, in your test round)
 
