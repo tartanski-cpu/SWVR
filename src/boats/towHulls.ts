@@ -11,7 +11,7 @@ import type { HullDefinition } from '../modular/hull';
 import type { VesselConfig } from '../vessel/vesselDef';
 import { hullDataFrom } from './hullData';
 
-function towHull(id: string, name: string, kind: 'derelict' | 'logRaft' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage' | 'coaster'): HullDefinition {
+function towHull(id: string, name: string, kind: 'derelict' | 'logRaft' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage' | 'coaster' | 'monopile'): HullDefinition {
   const c: VesselConfig = CONFIG.vessels[kind];
   return { id, version: 1, name, helm: { stand: c.boardingSpot, yawDeg: 0 }, ...hullDataFrom(c), fittings: { tow: c.tow }, sockets: [] };
 }
@@ -26,3 +26,5 @@ export const PONTOON_HULL = towHull('hull.crane-pontoon', 'Crane pontoon, 20 m',
 export const CAGE_HULL = towHull('hull.cage-section', 'Fish-farm cage section, 8 m', 'cage');
 /** A tug's tow (owner, Oct 2026): a loaded coaster, dead in the water. */
 export const COASTER_HULL = towHull('hull.coaster', 'Coaster, 58 m (dead ship)', 'coaster');
+/** A construction project's tow (career/projects.ts): a monopile foundation, floated out sealed. */
+export const MONOPILE_HULL = towHull('hull.monopile', 'Monopile, 40 m (floated)', 'monopile');

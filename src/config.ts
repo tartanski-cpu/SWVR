@@ -24,7 +24,8 @@ export interface ProjectDef {
 /** A job in a project's stage: a survey line run, or a mark buoy laid (see CONFIG.career.projects). */
 export type ProjectJobDef =
   | { id: string; kind: 'survey'; name: string; from: [number, number]; to: [number, number]; pay: number }
-  | { id: string; kind: 'buoy'; name: string; mark: 'N' | 'E' | 'S' | 'W' | 'special'; at: [number, number]; pay: number };
+  | { id: string; kind: 'buoy'; name: string; mark: 'N' | 'E' | 'S' | 'W' | 'special'; at: [number, number]; pay: number }
+  | { id: string; kind: 'tow'; name: string; tow: string; turbine: number; pay: number };
 
 /** A career upgrade, bought at the yard (CONFIG.career.upgrades). */
 export interface CareerUpgrade {
@@ -786,9 +787,13 @@ export const CONFIG = {
      *           of it, heading along it (±`headingDeg`), at `speedKn` (min, max).
      *   buoy    a mark buoy (crane cargo on the office's quay) lifted out and lowered into the
      *           sea within `projectBuoy.radius` m of its spot `at`: it's laid there, a lit mark.
+     *   tow     a floated monopile (a tug's tow, CONFIG.vessels.monopile) waiting at the laydown
+     *           (`projectTow.laydown`), towed out and handed over at its turbine (`turbine`, an
+     *           index into `turbines`) to the jack-up, which drives it in the background
+     *           (`projectTow.driveS`). One at a time: the next comes out once the last is driven.
      * Positions: Tarran Rig, two turbines in 40 m of open water about 1.1 km north of Calder
      * Haven, clear of Holm Rig and the fishing grounds; its zone boxed by four cardinals.
-     * Stages 3-6 (foundations, transition pieces, turbines, commissioning) come in later steps.
+     * Stages 4-6 (transition pieces, turbines, commissioning) come in later steps.
      */
     projects: [
       {
@@ -824,6 +829,14 @@ export const CONFIG = {
               { id: 'cardW', kind: 'buoy', name: 'West cardinal', mark: 'W', at: [130, -420], pay: 600 },
             ],
           },
+          {
+            name: 'Foundations',
+            bonus: 2000,
+            jobs: [
+              { id: 'mono1', kind: 'tow', name: 'Monopile 1 to turbine 1', tow: 'monopile', turbine: 0, pay: 1800 },
+              { id: 'mono2', kind: 'tow', name: 'Monopile 2 to turbine 2', tow: 'monopile', turbine: 1, pay: 1800 },
+            ],
+          },
         ],
       },
     ] as ProjectDef[],
@@ -831,6 +844,20 @@ export const CONFIG = {
     projectSurvey: { segments: 13, width: 30, headingDeg: 25, speedKn: [2.5, 6.5] as [number, number] },
     /** Mark buoys (see `projects`): how near its spot it must go in to be laid (m), and its cargo kind (CONFIG.cargo.kinds). */
     projectBuoy: { radius: 25, kind: 'Mark buoy' },
+    /**
+     * Monopile tows (see `projects`). `laydown`: where each waits, held on its moorings until a
+     * tug makes fast (world x, z; its heading, deg: lying north-south, south-west of Calder Haven's
+     * mouth, clear of the fairway). Hand-over: within `handover.radius` m of its turbine, under
+     * `handover.speed` m/s for `handover.holdS` s; then the jack-up drives it, `driveS` s.
+     */
+    projectTow: { laydown: { x: 370, z: 745, headingDeg: 0 }, handover: { radius: 30, speed: 0.4, holdS: 8 }, driveS: 120 },
+    /**
+     * The jack-up that drives the piles (career/projectView.ts draws it; a set piece, no physics:
+     * its legs are solid blocks). It stands `offsetM` north of the turbine it's working on, its
+     * hull `hull` (length x width x depth, m) with its bottom `hullY` above the sea, on four
+     * legs `legHalf` m half-width at `legSpacing` (across, along) between centres.
+     */
+    projectJackUp: { offsetM: 55, hull: [40, 30, 4] as [number, number, number], hullY: 14, legHalf: 1.2, legSpacing: [30, 22] as [number, number] },
   },
 
   /**

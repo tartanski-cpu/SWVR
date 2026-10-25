@@ -27,8 +27,13 @@ import { playerBoats } from '../core/launch';
 import type { WorldState } from '../core/world';
 import { freeCraneSpot, type CargoItem } from '../cargo/cargo';
 import { sayRadio } from '../rescue/rescue';
+import { castOffKey, onAnyLine, vesselKey } from '../tow/tow';
+import { createVesselState } from '../vessel/vesselState';
+import { placeVessel } from '../vessel/vesselControl';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { PORTS } from '../world/archipelago';
-import type { MarkDef } from '../world/defs';
+import type { BlockDef, MarkDef } from '../world/defs';
+import { setExtraBlocks } from '../world/geography';
 import { createCareer, money, officeAt, portName, post, repOf, addRep } from './career';
 
 /** A project under way: which, the stage it's at, the jobs done, the survey lines' stretches covered. */
@@ -40,6 +45,14 @@ export interface ProjectProgress {
   done: string[];
   /** Each survey line's stretches covered so far (indices, CONFIG.career.projectSurvey.segments). */
   survey: Record<string, number[]>;
+  /** Monopiles handed over and being driven by the jack-up: the job's id and the world time it began (s). Not saved: a session that ends finishes them. */
+  driving?: Record<string, number>;
+  /** Monopiles driven: their jobs' ids (each a foundation standing at its turbine). */
+  driven?: string[];
+  /** Monopiles let go from the laydown moorings (a tug made fast once): free to drift from then on. Not saved. */
+  released?: string[];
+  /** Seconds each monopile has lain slow at its turbine (the hand-over: CONFIG.career.projectTow.handover). Not saved. */
+  hold?: Record<string, number>;
 }
 
 /** Kept in a cargo item's `from`: a project's mark buoy (its `to` is "project:job"). */
@@ -90,7 +103,18 @@ export function projectBuoyName(item: CargoItem): string {
 export function jobStatus(world: WorldState, job: ProjectJobDef): string {
   const a = activeProject(world);
   if (!a) return job.name;
-  if (a.p.done.includes(job.id)) return `${job.name}: done`;
+  if (a.p.done.includes(job.id)) {
+    const since = a.p.driving?.[job.id];
+    return since !== undefined ? `${job.name}: handed over, being driven (${Math.min(99, Math.round((100 * (world.time - since)) / CONFIG.career.projectTow.driveS))} %)` : `${job.name}: done`;
+  }
+  if (job.kind === 'tow') {
+    const v = world.vessels[towId(a.def, job)];
+    if (!v) return `${job.name}: a tug's tow, coming out to the laydown (south-west of ${portName(a.def.port)}'s mouth)`;
+    if (!a.p.released?.includes(job.id)) return `${job.name}: at the laydown, south-west of ${portName(a.def.port)}'s mouth: a tug makes fast to its bridle`;
+    const t = a.def.turbines[job.turbine];
+    const left = Math.hypot(v.position[0] - t.x, v.position[2] - t.z);
+    return `${job.name}: in tow, ${left < 1000 ? `${Math.round(left)} m` : `${(left / 1852).toFixed(1)} nm`} to go; stop her within ${CONFIG.career.projectTow.handover.radius} m of the turbine`;
+  }
   if (job.kind === 'survey') {
     const n = CONFIG.career.projectSurvey.segments;
     const got = a.p.survey[job.id]?.length ?? 0;
@@ -99,6 +123,69 @@ export function jobStatus(world: WorldState, job: ProjectJobDef): string {
   const item = Object.values(world.cargo).find((c) => isProjectItem(c) && c.to === buoyTo(a.def, job));
   const where = !item ? 'on the quay soon' : 'ground' in item.at ? `on the ${portName(a.def.port)} quay` : 'hook' in item.at ? 'on a crane hook' : 'aboard';
   return `${job.name}: ${where}, ${money(job.pay)}`;
+}
+
+/** A monopile tow's vessel id (it's in world.vessels while it waits and while it's towed). */
+export const towId = (def: ProjectDef, job: ProjectJobDef) => `proj-${def.id}-${job.id}`;
+
+/** The foundations standing (driven) and the one being driven, at their turbines (the view, the plotter, the blocks). */
+export function foundations(world: WorldState): { x: number; z: number; driving: number | null }[] {
+  const a = activeProject(world);
+  if (!a) return [];
+  const out: { x: number; z: number; driving: number | null }[] = [];
+  for (const s of a.def.stages)
+    for (const j of s.jobs) {
+      if (j.kind !== 'tow') continue;
+      const t = a.def.turbines[j.turbine];
+      const since = a.p.driving?.[j.id];
+      if (a.p.driven?.includes(j.id)) out.push({ x: t.x, z: t.z, driving: null });
+      else if (since !== undefined) out.push({ x: t.x, z: t.z, driving: Math.min(1, (world.time - since) / CONFIG.career.projectTow.driveS) });
+    }
+  return out;
+}
+
+/**
+ * Where the jack-up stands (north of the turbine it's working on), or null: it's on site while
+ * the stage with the monopile tows is on, or a pile is still being driven.
+ */
+export function jackUpAt(world: WorldState): { x: number; z: number } | null {
+  const a = activeProject(world);
+  if (!a) return null;
+  const tows = a.def.stages.flatMap((s) => s.jobs).filter((j): j is Extract<ProjectJobDef, { kind: 'tow' }> => j.kind === 'tow');
+  const driving = tows.find((j) => a.p.driving?.[j.id] !== undefined);
+  const next = a.jobs.find((j): j is Extract<ProjectJobDef, { kind: 'tow' }> => j.kind === 'tow' && !a.p.done.includes(j.id));
+  const at = driving ?? next;
+  if (!at) return null;
+  const t = a.def.turbines[at.turbine];
+  return { x: t.x, z: t.z - CONFIG.career.projectJackUp.offsetM };
+}
+
+/**
+ * The solid blocks the project has added (world/geography.ts setExtraBlocks): each foundation
+ * (and the pile being driven), the jack-up's four legs, the buoys laid (fendered: a buoy
+ * gives a little when a boat leans on it).
+ */
+export function projectBlocks(world: WorldState): BlockDef[] {
+  const out: BlockDef[] = [];
+  const pile = CONFIG.windFarm.pile.radius * 0.92;
+  for (const f of foundations(world)) out.push({ kind: 'pier', x: f.x, z: f.z, halfLength: pile, halfWidth: pile, yawDeg: 0, top: f.driving === null ? 4 : 14, fendered: false, farm: true });
+  const ju = jackUpAt(world);
+  if (ju) {
+    const j = CONFIG.career.projectJackUp;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) out.push({ kind: 'pier', x: ju.x + (sx * j.legSpacing[0]) / 2, z: ju.z + (sz * j.legSpacing[1]) / 2, halfLength: j.legHalf, halfWidth: j.legHalf, yawDeg: 0, top: j.hullY + 20, fendered: false, farm: true });
+  }
+  for (const m of laidMarks(world)) out.push({ kind: 'pier', x: m.x, z: m.z, halfLength: 0.7, halfWidth: 0.7, yawDeg: 0, top: 1.4, fendered: true, farm: true });
+  return out;
+}
+
+let blocksKey = '';
+/** Keep the collision's added blocks in step with the project (the host's tick; crew's frames). */
+export function syncProjectBlocks(world: WorldState): void {
+  const blocks = projectBlocks(world);
+  const key = blocks.map((b) => `${b.x.toFixed(1)},${b.z.toFixed(1)},${b.top}`).join('|');
+  if (key === blocksKey) return;
+  blocksKey = key;
+  setExtraBlocks(blocks);
 }
 
 /** The marks laid so far (the view and the chartplotter draw them). */
@@ -156,15 +243,22 @@ function finishJob(world: WorldState, def: ProjectDef, p: ProjectProgress, job: 
 }
 
 /** Each tick (the host): the stage's buoys on the quay, the survey lines being run. */
-export function stepProjects(world: WorldState): void {
+export function stepProjects(world: WorldState, dt = 1 / 60): void {
   if (world.voyage) return;
+  syncProjectBlocks(world);
   const a = activeProject(world);
   if (!a) return;
   const { def, p, jobs } = a;
   const port = PORTS.find((x) => x.id === def.port);
+  stepDriving(world, def, p);
+  // One monopile out at a time: the next comes out to the laydown once the jack-up's free.
+  const busy = Object.keys(p.driving ?? {}).length > 0;
+  const firstTow = jobs.find((j) => j.kind === 'tow' && !p.done.includes(j.id));
   for (const job of jobs) {
     if (p.done.includes(job.id)) continue;
-    if (job.kind === 'buoy') {
+    if (job.kind === 'tow') {
+      if (job === firstTow && !busy) stepTowJob(world, def, p, job, dt);
+    } else if (job.kind === 'buoy') {
       // Its buoy: one somewhere (the quay, aboard, on a hook), or a new one on the quay.
       if (!port || Object.values(world.cargo).some((c) => isProjectItem(c) && c.to === buoyTo(def, job))) continue;
       const at = freeCraneSpot(world, port);
@@ -183,6 +277,62 @@ export function stepProjects(world: WorldState): void {
       if (have.length >= CONFIG.career.projectSurvey.segments) finishJob(world, def, p, job, `${job.name} run`);
     }
   }
+}
+
+/** The piles being driven: done after CONFIG.career.projectTow.driveS, each a foundation from then on. */
+function stepDriving(world: WorldState, def: ProjectDef, p: ProjectProgress): void {
+  for (const [id, since] of Object.entries(p.driving ?? {})) {
+    if (world.time - since < CONFIG.career.projectTow.driveS) continue;
+    delete p.driving![id];
+    (p.driven ??= []).push(id);
+    world.career!.seq += 1;
+    const job = def.stages.flatMap((s) => s.jobs).find((j) => j.id === id);
+    sayRadio(world, 'info', `${def.name}: jack-up here. ${job && job.kind === 'tow' ? `Turbine ${job.turbine + 1}'s` : 'The'} pile is driven to depth, skipper. Foundation in.`);
+  }
+}
+
+/**
+ * A monopile tow (the stage's first not yet handed over): out at the laydown, held on its
+ * moorings until a tug makes fast; handed over to the jack-up when she lies slow at its turbine.
+ */
+function stepTowJob(world: WorldState, def: ProjectDef, p: ProjectProgress, job: Extract<ProjectJobDef, { kind: 'tow' }>, dt: number): void {
+  const cfg = CONFIG.career.projectTow;
+  const id = towId(def, job);
+  let v = world.vessels[id];
+  if (!v) {
+    if (!VESSEL_DEFS[job.tow]) return;
+    v = createVesselState(id, job.tow);
+    placeVessel(v, cfg.laydown.x, 0, cfg.laydown.z, cfg.laydown.headingDeg);
+    world.vessels[id] = v;
+    p.released = (p.released ?? []).filter((r) => r !== job.id);
+    sayRadio(world, 'info', `${portName(def.port)} harbour office: ${job.name.toLowerCase().replace(/ to .*/, '')} is floated out at the laydown, south-west of the harbour mouth. A tug's tow, skipper: make fast to her bridle and take her out to turbine ${job.turbine + 1}.`);
+  }
+  if (!p.released?.includes(job.id)) {
+    // On the laydown moorings until a tug's line is on her: held where she lies, heading and all.
+    if (onAnyLine(world, vesselKey(id))) (p.released ??= []).push(job.id);
+    else {
+      v.position[0] = cfg.laydown.x;
+      v.position[2] = cfg.laydown.z;
+      v.linearVelocity[0] = 0;
+      v.linearVelocity[2] = 0;
+      v.angularVelocity[1] = 0;
+      return;
+    }
+  }
+  const t = def.turbines[job.turbine];
+  const near = Math.hypot(v.position[0] - t.x, v.position[2] - t.z) < cfg.handover.radius;
+  const slow = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) < cfg.handover.speed;
+  const hold = (p.hold ??= {});
+  hold[job.id] = near && slow ? (hold[job.id] ?? 0) + dt : 0;
+  if (hold[job.id] < cfg.handover.holdS) return;
+  // The jack-up takes her: the lines cast off, the pile lifted and pitched upright (it's the
+  // jack-up's now: gone from the water), and driven from here (stepDriving).
+  if (Object.values(world.players).some((pl) => pl.aboardVesselId === id)) return;
+  castOffKey(world, vesselKey(id));
+  delete world.vessels[id];
+  delete hold[job.id];
+  (p.driving ??= {})[job.id] = world.time;
+  finishJob(world, def, p, job, `${job.name.replace(/ to .*/, '')} handed over to the jack-up`);
 }
 
 /** The stretches of a survey line any player's boat is running now (close to it, along it, at survey speed). */
@@ -229,7 +379,13 @@ export function applyProjectIntent(world: WorldState, intent: Intent): void {
     if (!a) return;
     for (const job of a.jobs) if (!a.p.done.includes(job.id)) {
       if (job.kind === 'buoy') for (const item of Object.values(world.cargo)) if (isProjectItem(item) && item.to === buoyTo(a.def, job)) delete world.cargo[item.id];
-      finishJob(world, a.def, a.p, job, job.kind === 'buoy' ? `${job.name} laid on station` : `${job.name} run`);
+      // A monopile: off the laydown (or wherever it's got to) and driven at once.
+      if (job.kind === 'tow') {
+        castOffKey(world, vesselKey(towId(a.def, job)));
+        delete world.vessels[towId(a.def, job)];
+        (a.p.driven ??= []).push(job.id);
+      }
+      finishJob(world, a.def, a.p, job, job.kind === 'buoy' ? `${job.name} laid on station` : job.kind === 'tow' ? `${job.name.replace(/ to .*/, '')} driven` : `${job.name} run`);
     }
   }
 }

@@ -536,7 +536,9 @@ export function parseCareer(raw: string | null): CareerState | null {
     if (pr && typeof pr.id === 'string' && projectDef(pr.id) && typeof pr.stage === 'number' && Array.isArray(pr.done)) {
       const survey: Record<string, number[]> = {};
       for (const [k, v] of Object.entries(pr.survey ?? {})) if (Array.isArray(v)) survey[k] = v.filter((n) => typeof n === 'number');
-      c.project = { id: pr.id, stage: Math.max(0, Math.floor(pr.stage)), done: pr.done.filter((d) => typeof d === 'string'), survey };
+      // A pile still being driven when the session ended is driven by now (the jack-up worked on).
+      const driven = [...(Array.isArray(pr.driven) ? pr.driven : []), ...Object.keys(pr.driving ?? {})].filter((d) => typeof d === 'string');
+      c.project = { id: pr.id, stage: Math.max(0, Math.floor(pr.stage)), done: pr.done.filter((d) => typeof d === 'string'), survey, ...(driven.length ? { driven } : {}) };
     }
     if (Array.isArray(o.projectsDone)) c.projectsDone = o.projectsDone.filter((d) => typeof d === 'string');
     return c;

@@ -222,6 +222,31 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
     }
   }
 
+  if (look === 'monopile') {
+    // A monopile floated out (career/projects.ts): the steel tube lying in the water, its axis
+    // `axis` over the DWL, the hull it floats on fitted inside it (CONFIG.vessels.monopile).
+    // Each end sealed with an orange bulkhead cap, a yellow band by each, the lifting trunnions
+    // at its top end, and a towing bridle from the forward cap to the eye.
+    const r = 2.5;
+    const axis = 0.6;
+    const zF = plan.stem + 0.55;
+    const zA = plan.transom - 0.05;
+    const tube = (r0: number, z0: number, z1: number, color: number) =>
+      parts.push(part(new THREE.CylinderGeometry(r0, r0, z1 - z0, 16).rotateX(Math.PI / 2).translate(0, axis, (z0 + z1) / 2), color, 'worn'));
+    tube(r, zF, zA, 0x3c4246);
+    for (const z of [zF + 1.5, zA - 1.5]) tube(r + 0.02, z - 0.4, z + 0.4, 0xe8c020);
+    tube(r + 0.08, zF - 0.12, zF, 0xd2401e);
+    tube(r + 0.08, zA, zA + 0.12, 0xd2401e);
+    for (const s of [-1, 1]) parts.push(part(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 10).rotateZ(Math.PI / 2).translate(s * (r + 0.3), axis, zA - 3), 0x2a2e30));
+    const eye = bowEyeLocal(def);
+    for (const s of [-1, 1]) {
+      const from = new THREE.Vector3(s * 1.4, axis + 1.2, zF - 0.12);
+      const to = new THREE.Vector3(eye[0], eye[1], eye[2]);
+      const d = to.clone().sub(from);
+      parts.push(part(new THREE.CylinderGeometry(0.04, 0.04, d.length(), 5).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize())).translate((from.x + to.x) / 2, (from.y + to.y) / 2, (from.z + to.z) / 2), 0x222222));
+    }
+  }
+
   // The bow eye: an orange ring standing on the stem.
   const eye = bowEyeLocal(def);
   parts.push(part(new THREE.TorusGeometry(0.11, 0.025, 6, 12).translate(eye[0], eye[1] + 0.1, eye[2]), 0xff7a1a));

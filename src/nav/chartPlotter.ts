@@ -22,7 +22,7 @@ import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
 import { coastTerrains } from '../world/coastTerrain';
 import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
-import { activeProject, laidMarks } from '../career/projects';
+import { activeProject, foundations, laidMarks, towId } from '../career/projects';
 
 const W = 512;
 const H = 384;
@@ -450,6 +450,32 @@ export class ChartPlotter {
           }
           g.fillStyle = '#f0a0e0';
           g.fillText(job.name.replace(/Survey line (\d).*/, 'L$1'), bx + 4, by + 4);
+        } else if (job.kind === 'tow') {
+          // A monopile tow: the hand-over ring at its turbine, and the pile itself where it is
+          // (at the laydown, or in tow): a magenta bar along its length.
+          const t = def.turbines[job.turbine];
+          const [tx, ty] = toPx(t.x, t.z);
+          g.strokeStyle = '#e65ac8';
+          g.lineWidth = 2;
+          g.beginPath();
+          g.arc(tx, ty, Math.max(CONFIG.career.projectTow.handover.radius / mpp, 5), 0, Math.PI * 2);
+          g.stroke();
+          const mv = world.vessels[towId(def, job)];
+          if (mv) {
+            const [mx, my] = toPx(mv.position[0], mv.position[2]);
+            const [qx, qy, qz, qw] = mv.orientation;
+            const fx = -(2 * (qx * qz + qw * qy));
+            const fz = -(1 - 2 * (qx * qx + qy * qy));
+            const half = Math.max(20 / mpp, 4);
+            g.strokeStyle = '#f080e0';
+            g.lineWidth = 4;
+            g.beginPath();
+            g.moveTo(mx - fx * half, my - fz * half);
+            g.lineTo(mx + fx * half, my + fz * half);
+            g.stroke();
+            g.fillStyle = '#f0a0e0';
+            g.fillText(`Pile ${job.turbine + 1}`, mx + 8, my - 6);
+          }
         } else {
           const [px, py] = toPx(job.at[0], job.at[1]);
           g.strokeStyle = '#e65ac8';
@@ -460,6 +486,14 @@ export class ChartPlotter {
           g.fillStyle = '#f0a0e0';
           if (named) g.fillText(job.name, px + 8, py - 6);
         }
+      }
+      // The foundations driven (and the one being driven): grey discs.
+      for (const f of foundations(world)) {
+        const [px, py] = toPx(f.x, f.z);
+        g.fillStyle = f.driving === null ? '#9aa0a4' : '#c8ccd0';
+        g.beginPath();
+        g.arc(px, py, 4, 0, Math.PI * 2);
+        g.fill();
       }
       for (const m of laidMarks(world)) {
         const [px, py] = toPx(m.x, m.z);

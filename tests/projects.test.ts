@@ -11,7 +11,7 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld, type WorldState } from '../src/core/world';
 import { parseCareer, serializeCareer } from '../src/career/career';
-import { activeProject, isProjectItem, laidMarks, layProjectBuoy, projectOffered, stepProjects } from '../src/career/projects';
+import { activeProject, foundations, isProjectItem, jackUpAt, laidMarks, layProjectBuoy, projectOffered, stepProjects, towId } from '../src/career/projects';
 import { useDesign } from '../src/boats/sims';
 import { craneStateOf, cranesOf, hookOnBoat } from '../src/cargo/craneHook';
 import { DEFAULT_DESIGN } from '../src/shipyard/design';
@@ -117,9 +117,9 @@ describe('construction projects', { timeout: 30000 }, () => {
     send('careerProjectStage'); // the site marked
     expect(activeProject(world)!.p.stage).toBe(2);
     expect(laidMarks(world).map((m) => m.kind).sort()).toEqual(['E', 'N', 'S', 'W', 'special']);
-    // Nothing more to do until the next stage is built: no jobs, nothing on the quay.
+    // Then the foundations: the monopile tows; no more buoys on the quay.
     stepProjects(world);
-    expect(activeProject(world)!.jobs).toHaveLength(0);
+    expect(activeProject(world)!.jobs.map((j) => j.kind)).toEqual(['tow', 'tow']);
     expect(Object.values(world.cargo).some(isProjectItem)).toBe(false);
   });
 
@@ -155,5 +155,70 @@ describe('construction projects', { timeout: 30000 }, () => {
     send('crane.hook', 0);
     expect(world.cargo.b1).toBeUndefined();
     expect(world.career!.project!.done).toContain(met.id);
+  });
+});
+
+describe('construction projects: the foundations', { timeout: 60000 }, () => {
+  /** At stage 3 (the foundations): the survey and the marks done by the debug button. */
+  function atFoundations() {
+    const s = taken();
+    s.send('careerProjectStage');
+    s.send('careerProjectStage');
+    expect(activeProject(s.world)!.def.stages[activeProject(s.world)!.p.stage].name).toBe('Foundations');
+    return s;
+  }
+  const tows = def.stages[2].jobs;
+
+  it('a monopile comes out to the laydown and waits there, held on its moorings; only a tug can make fast to it', async () => {
+    const { world } = atFoundations();
+    stepProjects(world);
+    const pile = world.vessels[towId(def, tows[0])];
+    expect(pile?.defId).toBe('monopile');
+    const lay = CONFIG.career.projectTow.laydown;
+    for (let i = 0; i < 10 / DT; i++) stepWorld(world, [], DT);
+    expect(Math.hypot(pile.position[0] - lay.x, pile.position[2] - lay.z)).toBeLessThan(0.5);
+    // Only one out at a time.
+    expect(world.vessels[towId(def, tows[1])]).toBeUndefined();
+    // The beginner boat can't take it; a tug can.
+    const { towTargets } = await import('../src/tow/tow');
+    expect(towTargets(world, world.homeVesselId!)).not.toContain(`v:${pile.id}`);
+    const tug = createWorld(new IdFactory(), 'smallTug').world;
+    tug.vessels[pile.id] = pile;
+    expect(towTargets(tug, tug.homeVesselId!)).toContain(`v:${pile.id}`);
+  });
+
+  it('let go at its turbine and lying slow, the jack-up takes it, drives it, and a foundation stands there, solid; then the next comes out', async () => {
+    const { world } = atFoundations();
+    stepProjects(world);
+    const pile = world.vessels[towId(def, tows[0])];
+    const t = def.turbines[0];
+    // As if a tug had brought it out and let go: off its moorings, lying at the turbine.
+    activeProject(world)!.p.released = [tows[0].id];
+    const money0 = world.career!.money;
+    for (let i = 0; i < 12 / DT; i++) {
+      pile.position[0] = t.x + 12;
+      pile.position[2] = t.z + 5;
+      pile.linearVelocity[0] = pile.linearVelocity[2] = 0;
+      stepProjects(world, DT);
+      if (!world.vessels[pile.id]) break;
+    }
+    expect(world.vessels[pile.id]).toBeUndefined();
+    expect(world.career!.money).toBe(money0 + tows[0].pay);
+    expect(foundations(world)).toEqual([{ x: t.x, z: t.z, driving: expect.any(Number) }]);
+    expect(jackUpAt(world)).toEqual({ x: t.x, z: t.z - CONFIG.career.projectJackUp.offsetM });
+    // Driven: a foundation, solid.
+    const { blockContact } = await import('../src/world/geography');
+    const hit = { depth: 0, nx: 0, ny: 0, nz: 0, fendered: false };
+    for (let i = 0; i < (CONFIG.career.projectTow.driveS + 1) / DT; i++) stepWorld(world, [], DT);
+    expect(foundations(world)).toEqual([{ x: t.x, z: t.z, driving: null }]);
+    expect(blockContact(t.x + 1, 0, t.z, hit)).toBe(true);
+    expect(blockContact(t.x + 10, 0, t.z, hit)).toBe(false);
+    // The next pile at the laydown; the jack-up moved to its turbine.
+    expect(world.vessels[towId(def, tows[1])]?.defId).toBe('monopile');
+    expect(jackUpAt(world)!.x).toBe(def.turbines[1].x);
+    // Saved mid-way: the pile being driven counts as driven when read back.
+    activeProject(world)!.p.driving = { [tows[1].id]: world.time };
+    const back = parseCareer(serializeCareer(world.career!))!;
+    expect(back.project!.driven).toEqual([tows[0].id, tows[1].id]);
   });
 });

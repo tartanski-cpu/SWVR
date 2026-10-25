@@ -257,7 +257,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepFishing(world, dt);
   stepHold(world);
   stepCareer(world);
-  stepProjects(world);
+  stepProjects(world, dt);
   stepTutorial(world);
   world.tick += 1;
   world.time = world.tick * dt;
