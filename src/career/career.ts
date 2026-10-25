@@ -504,6 +504,11 @@ export function applyCareerIntent(world: WorldState, intent: Intent): void {
       break;
     }
     case 'careerDebugCash':
+      // Debug: value 1, £5000 and some reputation everywhere; more than 1, that much money alone.
+      if (intent.value > 1) {
+        post(world, c, 'Debug: cash', Math.round(intent.value));
+        break;
+      }
       post(world, c, 'Debug: cash', 5000);
       for (const p of PORTS) addRep(c, p.id, 25);
       break;

@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Debug: +£50,000 (25 Oct 2026)
+
+Owner: a +50k on the money in the debug menu, to have enough to test with. Debug → Missions → Career → **+£50,000**, beside +£5000, rep (`careerDebugCash` with value 50000: that much money alone, no reputation). Test: tests/projects.test.ts, 1 new.
+
 ### Debug: "Project: stage done" takes the project first, and says what it did (25 Oct 2026)
 
 Owner: pressed Project: stage done after spawning in, and nothing happened. It only worked with a project under way (taken at the Calder Haven office), and said nothing otherwise. Now, with none under way, the first press takes the first project not yet done, from anywhere (`careerProjectStage`, career/projects.ts); each press after finishes the stage. A message says which (app/careerSession.ts `debugProjectStage`), or that every stage built so far is done. Test: tests/projects.test.ts, 1 new.

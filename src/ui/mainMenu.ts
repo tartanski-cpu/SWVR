@@ -160,7 +160,8 @@ export interface MenuHost {
   upgradeText(i: number): string;
   upgradeStatus(i: number): string;
   buyUpgrade(i: number): void;
-  debugCash(): void;
+  /** Debug money: £5000 and reputation; or `amount` alone. */
+  debugCash(amount?: number): void;
   /** Office > Projects (career/projects.ts): the project under way or offered, what to press, the stage's jobs; debug: the stage done. */
   projectTitle(): string;
   projectAction(): string;
@@ -967,7 +968,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
           ],
         },
-        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }, { text: 'Project: stage done', press: () => h.debugProjectStage() }] },
+        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }, { text: '+£50,000', press: () => h.debugCash(50000) }, { text: 'Project: stage done', press: () => h.debugProjectStage() }] },
       ],
     },
     {

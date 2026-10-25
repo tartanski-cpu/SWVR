@@ -213,7 +213,7 @@ export class CareerSession {
         const u = CONFIG.career.upgrades[i];
         if (u && !buyBlocker(w(), u.id)) h.pushEnv('careerBuy', 1, u.id);
       },
-      debugCash: () => h.pushEnv('careerDebugCash', 1),
+      debugCash: (amount?: number) => h.pushEnv('careerDebugCash', amount ?? 1),
       // A construction project (career/projects.ts): the one under way, or the one offered here.
       projectTitle: () => {
         const a = activeProject(w());

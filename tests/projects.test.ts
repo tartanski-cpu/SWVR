@@ -55,6 +55,13 @@ describe('construction projects', { timeout: 30000 }, () => {
     expect(projectOffered(t.world)).toBeNull(); // one at a time
   });
 
+  it('the debug cash button gives £50,000 when asked for it', () => {
+    const { world } = setup();
+    const m0 = world.career?.money ?? 0;
+    stepWorld(world, [{ playerId: 'p', targetId: 'env', control: 'careerDebugCash', value: 50000 } as Intent], DT);
+    expect(world.career!.money).toBe(m0 + 50000);
+  });
+
   it('the debug button, with no project under way, takes the first (anywhere); pressed again it finishes its stage', () => {
     const { world, send } = setup();
     expect(activeProject(world)).toBeNull();
