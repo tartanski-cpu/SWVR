@@ -10,6 +10,11 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fix: Step ashore put you at the start harbour from a quay with no named berth (25 Oct 2026)
+
+Owner: moored at Wemyss Bay (the Clyde), the gangway mark's Step ashore took him to another harbour (Rothesay, the map's start). A boat can make fast along any quay face (world/berths.ts `allBerths`: the regions' named berths and one per bollard pair on every seaward face), but the spot ashore was looked up among the named berths only (world/startSpot.ts `quaySpot`, `BERTHS`), so a face berth fell back to the start's quay. Now it's looked up among all of them (`berthWithId`). Test: tests/gangway.test.ts, 1 new (fails on the old code). All of `npm test`: 1578 passing.
+- **Shared changes:** world/startSpot.ts (`quaySpot` finds any berth).
+
 ### Dive sites: wrecks for the submersible game (25 Oct 2026)
 
 Owner: a submersible launched off a dive support ship will go into its own game to search wrecks with an ROV; this game needs the areas where the wrecks are, like the potting and fishing grounds, some shallow, some deep, some by places of interest; the missions later. Chosen with the owner: both maps, 6-8 sites.
