@@ -21,6 +21,7 @@ export const FURNITURE_MENU: { kind: FurniturePiece; name: string }[] = [
   { kind: 'bunk', name: 'Bunks, two high' },
   { kind: 'mess', name: 'Mess table and benches' },
   { kind: 'shower', name: 'Shower' },
+  { kind: 'tv', name: 'TV on the wall' },
 ];
 
 /** The fields of a piece that are set (placed), in order. */

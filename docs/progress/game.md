@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) A TV that shows a browser tab
+
+`world.tv` (who is showing a tab on which TV) with the `tvCast` intent and its tick in `core/simulation.ts`; `App.ts` works the TV's press (`pressTv`) and its frame update (`updateTv`); `net/voice.ts` leaves calls marked `{ tv }` to the TV (`modules/furniture/tvCast.ts`), which sends the picture player to player over the same PeerJS link; the mixer's FM slider is now "FM radio & TV". See `docs/progress/modules.md`.
+
 ### The timber camp's logs on the beach, not a barge (25 Oct 2026)
 
 Owner: "dragging the logs down to the shore is fine, but they should spawn not as a barge in the boat game. They should spawn as logs on the beach, because we already have that mechanism." One tow per log is fine; the owner will set up rafting from this side later.
