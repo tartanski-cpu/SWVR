@@ -15,6 +15,7 @@ import { hullFormFromDesign } from '../../src/vessel/hullForm';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { submergedSection } from '../../src/vessel/physics/sectionClip';
 import { buildVesselMesh } from '../../src/vessel/view/hullMesh';
+import { fenderingGeometry } from '../../src/hulls/fendering';
 import { VESSEL_DEFS, wettedSurfaceAtDWL, type VesselDef } from '../../src/vessel/vesselDef';
 
 const design = DESIGNS.find((d) => d.id === 'harbourTug')!;
@@ -109,5 +110,24 @@ describe('the harbour tug (hull study)', () => {
     for (let k = 0; k < pos.count; k++) if (key(k) === bottom) top = Math.max(top, pos.getY(k));
     expect(top).toBeLessThan(design.bootTop! + 1e-3);
     expect(top).toBeGreaterThan(design.bootTop! - 1e-3);
+  });
+
+  it('her fendering: 11.1 m over her side belts, all of it above her waterline, round her bow and stern, cheap to draw', () => {
+    const g = fenderingGeometry(form, design.fendering!);
+    const box = new THREE.Box3().setFromBufferAttribute(g.getAttribute('position') as THREE.BufferAttribute);
+    const zs = form.stations.map((s) => s.z);
+    // Her belts 0.3 m proud of her 10.5 m hull (the real tug: 11.2 m over hers).
+    expect(box.max.x - box.min.x).toBeGreaterThan(11.0);
+    expect(box.max.x - box.min.x).toBeLessThan(11.4);
+    expect(Math.abs(box.max.x + box.min.x)).toBeLessThan(1e-6);
+    // Round her stern and her bow: a little past her ends, no further.
+    expect(box.max.z).toBeGreaterThan(Math.max(...zs));
+    expect(box.max.z).toBeLessThan(Math.max(...zs) + 1);
+    expect(box.min.z).toBeLessThan(Math.min(...zs));
+    expect(box.min.z).toBeGreaterThan(Math.min(...zs) - 1);
+    // Above her waterline (her blocks reach down towards it), under her bulwark tops.
+    expect(box.min.y).toBeGreaterThan(0);
+    // Cheap on the Quest: fewer triangles than her hull (about 2,300), one mesh, merged with it in the game.
+    expect(g.getAttribute('position').count / 3).toBeLessThan(2000);
   });
 });

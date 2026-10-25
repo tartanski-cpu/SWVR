@@ -858,10 +858,10 @@ export const DESIGNS: HullDesign[] = [
       [0.975, -1.9],
       [1, 0.0],
     ],
+    // Upright sections, as the game draws her: her stem's rake is her forefoot's profile.
     rake: [
-      [0, 0.05],
-      [0.8, 0],
-      [1, -0.1],
+      [0, 0],
+      [1, 0],
     ],
     // A round bilge, drawn as two chines close together: its lower corner on a nearly flat
     // bottom, its upper corner under her near-upright sides.
@@ -905,6 +905,16 @@ export const DESIGNS: HullDesign[] = [
     ],
     // Her bottom paint to her waterline (a ship's boot top), not her bilge.
     bootTop: 0.05,
+    // Heavy rubber all round (hulls/fendering.ts): a D-fender belt under her deck edge and a
+    // smaller one below it along her sides, 0.3 m proud (11.1 m over them); a cylinder fender
+    // round her stern; at her bow a cylinder round the top and a row of block fenders under it
+    // down towards her waterline, for pushing ships.
+    fendering: {
+      belt: { radius: 0.3, drop: 0.3, from: 0.05, to: 0.88 },
+      lowerBelt: { radius: 0.22, drop: 0.95, from: 0.08, to: 0.85 },
+      stern: { radius: 0.4, drop: 0.45, from: 0, to: 0.06 },
+      bow: { radius: 0.4, drop: 0.45, from: 0.86, to: 1, blocks: { width: 0.3, gap: 0.06, depth: 0.3, height: 1.3 } },
+    },
     colours: { topsides: 0x2e3b47, bulwark: 0x2e3b47, bottom: 0x7a2c24, boot: 0x1f2124, house: 0xeceeea, deck: 0x6b6f68, roof: 0xd8352c },
   },
 ];

@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug, step 2: her fendering (owner)
+
+- **Her fendering** (`src/hulls/fendering.ts`, her design's `fendering`), heavy black rubber as on harbour tugs, built on the game's own stations for her so it sits on her hull as the game draws it:
+  - **side belts:** a D-fender (half-round, 0.3 m) just under her deck edge, `t` 0.05 to 0.88, and a smaller one (0.22 m) 0.65 m below it along her parallel body. 11.1 m over them (the real tug: 11.2 m);
+  - **stern:** a cylinder fender (0.4 m) across her transom and round its rounded corners, to where her belts take over;
+  - **bow:** a cylinder fender (0.4 m) round the top of her bow, shoulder to shoulder, and under it a row of block fenders (0.3 m wide, 6 cm apart, 0.3 m thick, 1.3 m deep) down towards her waterline, for pushing ships, the first on her stem.
+  - About 1,800 triangles (her hull is about 2,300), one mesh (to merge with her hull in the game): first drawn at 3,000, cut to 1,800 by fewer facets round each tube (8 round a cylinder, 4 round a belt), with no visible difference.
+- **Her sections upright** (`rake` 0): the game draws them so, and her fendering, built on the game's stations, then sits on the study's drawing of her too. Her stem's rake is her forefoot's profile.
+- **Drawn only, in the hull study** (both views): her contacts with quays and ships, and her place in the game, come when she goes into the Shipyard (step 3). There the geometry can join the `hull.guard` module (the modular builder's) with probes like the strake's.
+- **Checked:** typecheck, all tests; the harbour tug's test: 11.0 to 11.4 m over her fenders, centred, round her ends by under a metre, all above her waterline, under 2,000 triangles (the first stern cylinder ran too far up her quarters and stood 11.7 m wide: stopped at her transom's corners). Screenshots from the bow and stern quarters, ahead and astern.
+- **Shared changes:** none.
+
 ### The harbour tug, step 1: her hull (owner)
 
 - **The owner:** a larger harbour tug, a one-off complete design, from photographs (and models) of a 25 m azimuth stern drive (ASD) harbour tug and her data sheet: 25.0 x 11.2 m, 5.35 m draught to her pods, 2 x 1850 kW, 70 t bollard pull, 12.2 kn. Hull only for now; her drives (a new propeller and control system), house and fendering come later. Our own lines of her size and type, not the real tug's.

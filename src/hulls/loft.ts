@@ -13,6 +13,7 @@
  * design needs a handful of numbers per curve, not an offsets table.
  */
 import * as THREE from 'three';
+import type { TugFendering } from './fendering';
 
 /** Control points [t, value], t from 0 (transom) to 1 (stem), in any order. */
 export type Curve = [number, number][];
@@ -99,6 +100,8 @@ export interface HullDesign {
    * top, at her waterline, not her chine (the harbour tug: her bilge is under water).
    */
   bootTop?: number;
+  /** A harbour tug's fendering (hulls/fendering.ts): drawn on her hull as the game builds it. */
+  fendering?: TugFendering;
   /**
    * Rake: how far the section leans fore-aft per metre of height above the keel (dz/dy).
    * Negative at the stem leans it forward; positive at the transom leans the transom aft.
