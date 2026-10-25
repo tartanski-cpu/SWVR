@@ -402,8 +402,10 @@ export const SHIPYARD_CONFIG = {
      * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
      * (`pricePerKg`, GBP). The Furniture step opens with the section tool cut at a waterline
      * `planCut` (m) over the wheelhouse floor, seen from above (the roof and the top of the walls off).
+     * A TV on the wall keeps `tvCeiling` (m) under the ceiling, coming down to do so, and its
+     * screen's foot no lower than `tvLowest` over the floor (else it's left off).
      */
-    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25 },
+    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25, tvCeiling: 0.1, tvLowest: 0.8 },
     /**
      * The Shipyard's section tool (owner: "cut the ship through as you want"): her drawing cut by
      * a waterline (level), a buttock (fore and aft, upright) or a station (athwartships, upright)

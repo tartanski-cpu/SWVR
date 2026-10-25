@@ -17,7 +17,7 @@ export const BUSES: { id: Bus | 'master'; label: string }[] = [
   { id: 'effects', label: 'Sea & effects' },
   { id: 'radio', label: 'VHF calls' },
   { id: 'voice', label: 'Crew voices' },
-  { id: 'music', label: 'FM radio' },
+  { id: 'music', label: 'FM radio & TV' },
 ];
 
 const KEY = 'swvr.volume';

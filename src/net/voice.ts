@@ -190,6 +190,8 @@ export class VoiceChat {
   }
 
   private answer(call: MediaConnection): void {
+    // A crew-mate's browser tab for a TV (modules/furniture/tvCast.ts answers those), not their voice.
+    if ((call.metadata as { tv?: unknown } | undefined)?.tv !== undefined) return;
     if (this.closed) return call.close();
     const old = this.remotes.get(call.peer);
     if (old) this.drop(call.peer, old);

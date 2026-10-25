@@ -35,6 +35,31 @@ export const MODULES_CONFIG = {
    *             turbines); a yellow light on each platform (the marking of an offshore structure)
    */
   /**
+   * The TV (furniture kind 'tv'; modules/furniture/tv*.ts; owner, Oct 2026: "streaming of another browser
+   * tab into the TV screen. So only for desktop users, but the screen should be visible for
+   * all users"). A player on a desktop clicks a TV and picks a browser tab to show; the tab's
+   * picture (and its sound, if they tick "share tab audio") goes to every crew-mate over the
+   * game's own peer-to-peer link, as voice chat does (no server in between).
+   *   capture     what's asked of the browser: at most `width` x `height` pixels at `fps`
+   *               frames a second (a smaller picture costs the Quest less to decode and draw,
+   *               and the caster less upload: one copy goes to each crew-mate).
+   *   showWithin  m: the picture is drawn only from this near (farther, the screen is dark,
+   *               and the Quest uploads no video frames).
+   *   sound       its sound from the TV, in 3D (on the FM radio's volume slider): `gain`
+   *               (0..1), full within `nearFull` m, fading to nothing at `nearMax` m.
+   *   confirmS    s: started showing a tab, we wait this long for the world to say so before
+   *               taking it that someone else has the TV (it's theirs then: ours stops).
+   *   retryS      s: a call to a crew-mate that failed is tried again after this.
+   */
+  tv: {
+    capture: { width: 1280, height: 720, fps: 30 },
+    showWithin: 40,
+    sound: { gain: 0.8, nearFull: 2, nearMax: 14 },
+    confirmS: 3,
+    retryS: 5,
+  },
+
+  /**
    * Crew transfer to the wind farm (transfer/transfer.ts; owner, Oct 2026). A job is called
    * `firstAfter` s into the game, then every `every` s (a range) once the last is done: `techs`
    * technicians (a range) for one turbine, waiting on the quay at `pickupPort`, at `pickup`
@@ -485,8 +510,13 @@ export const MODULES_CONFIG = {
       bunk: { length: 1.95, depth: 0.75, lower: 0.3, upper: 1.1, cushion: 0.1, rail: 0.18, sitUp: 0.55, kg: 95 },
       mess: { length: 1.7, depth: 0.75, table: 0.74, bench: 0.45, seat: 0.45, back: 0.85, kg: 75 },
       shower: { length: 0.85, depth: 0.85, wall: 0.04, kg: 45 },
+      // A flat-screen TV on a wall bracket (modules/furniture/tvScreen.ts): `length` wide (a 32-inch screen), its
+      // case `depth` deep off the wall on the bracket, the screen `screenH` high with a `bezel`
+      // round it, its middle `centre` m over the floor (eye height seated, over a settee; lower
+      // under a low ceiling).
+      tv: { length: 0.76, depth: 0.1, screenH: 0.4, bezel: 0.015, centre: 1.35, kg: 8 },
       ceilingGap: 0.05,
-      colours: { joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30, curtain: 0x7fa8c0 },
+      colours: { tvCase: 0x16181b, tvOff: 0x0b0d10, joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30, curtain: 0x7fa8c0 },
     },
 
     /**

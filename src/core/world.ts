@@ -27,6 +27,7 @@ import { createFishingState, type FishingState } from '../fishing/fishing';
 import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
 import { createTransferState, type TransferState } from '../transfer/transfer';
+import type { TvState } from '../modules/furniture/tvState';
 import { startBerthId } from '../world/startSpot';
 import type { BerthDef } from '../world/defs';
 import type { VoyagePlan } from '../voyage/plan';
@@ -90,6 +91,8 @@ export interface WorldState {
   potting?: PottingState;
   /** Crew transfer to the wind farm: the job, the technicians, boats on the landings (transfer/transfer.ts). */
   transfer?: TransferState;
+  /** Who is showing a browser tab on which TV (modules/furniture/tvState.ts); made at the first. */
+  tv?: TvState;
   /** The fuel pumps' hoses: where each nozzle is (fuel/fuelHose.ts). Made when first used. */
   fuel?: FuelState;
   /** Fishing: the trawl and the catch (fishing/fishing.ts). */

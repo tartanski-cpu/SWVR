@@ -605,7 +605,7 @@ const AFT_FACETS_FIELD: { key: 'aftFacets'; steps: number } = { key: 'aftFacets'
  * multiple"): a field each, the first as it always was (berthAt), the rest numbered (berthAt2,
  * berthAt3, berthAt4). Up to four of each; one head (its door is the boat's one head door).
  */
-export type FurniturePiece = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head' | 'bunk' | 'mess' | 'shower';
+export type FurniturePiece = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head' | 'bunk' | 'mess' | 'shower' | 'tv';
 /** Seats past the fourth (owner, Oct 2026: rows of seats, "like a bus", in a crew-transfer boat). */
 type SeatMore = '5' | '6' | '7' | '8' | '9' | '10' | '11' | '12';
 export type FurnitureKey = `${FurniturePiece}At${'' | '2' | '3' | '4'}` | `seatAt${SeatMore}`;
@@ -625,6 +625,8 @@ export const FURNITURE_SLOTS: Record<FurniturePiece, FurnitureKey[]> = {
   bunk: ['bunkAt', 'bunkAt2', 'bunkAt3', 'bunkAt4'],
   mess: ['messAt', 'messAt2'],
   shower: ['showerAt'],
+  // A TV on a wall (owner, Oct 2026: a browser tab streamed to it); two at most.
+  tv: ['tvAt', 'tvAt2'],
 };
 /** Every furniture field (a design's other head fields, headAt2 and on, are always 0). */
 export const FURNITURE_KEYS = Object.values(FURNITURE_SLOTS).flat();
