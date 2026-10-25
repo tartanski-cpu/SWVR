@@ -20,6 +20,11 @@
  *   sold      afloat, slow inside any port for CONFIG.tow.deliverTime s: the yard takes it
  *             (radio, `sold` counted). Beached logs nobody wants go after `expire` s if
  *             we're far off.
+ *   timber    logs from the timber camp (Voyage, voyage/timber.ts: owner, 25 Oct 2026, the
+ *             logs the player cut are laid on the beach instead of a barge) are these same
+ *             logs, `timber` set and lighter (`mass`: a 3 m log, not a big washed-up trunk).
+ *             They never go with the tide, and only the timber merchant buys them
+ *             (voyage/timber.ts stepTimberLogs), not any harbour.
  */
 import { gearOf } from '../boats/sims';
 import { CONFIG } from '../config';
@@ -48,7 +53,14 @@ export interface SalvageLog {
   /** World time it washed up, and seconds it has lain slow in a port. */
   at: number;
   inPort: number;
+  /** From the timber camp (see the header): kept until sold, and sold only to the timber merchant. */
+  timber?: boolean;
+  /** Its mass (kg), if not `CONFIG.salvage.mass` (the camp's logs are smaller). */
+  mass?: number;
 }
+
+/** A log's mass (kg). */
+export const logMass = (log: SalvageLog): number => log.mass ?? CONFIG.salvage.mass;
 
 export interface SalvageState {
   logs: SalvageLog[];
@@ -163,20 +175,21 @@ export function logOf(world: WorldState, key: string): SalvageLog | undefined {
 export function stepLog(world: WorldState, log: SalvageLog, T: number, ux: number, uz: number, dt: number): void {
   const c = CONFIG.salvage;
   const g = 9.81;
+  const m = logMass(log);
   const v = log.vel;
   const ground = groundHeight(log.x, log.z);
   log.afloat = ground < -c.floatDepth;
   if (!log.afloat) {
     // On the beach: stuck until the pull beats static friction, then sliding.
     const sp = Math.hypot(v[0], v[1]);
-    if (sp < 0.01 && T < c.frictionStatic * c.mass * g) {
+    if (sp < 0.01 && T < c.frictionStatic * m * g) {
       v[0] = v[1] = 0;
     } else {
-      const fk = c.frictionKinetic * c.mass * g;
-      v[0] += ((T * ux) / c.mass) * dt;
-      v[1] += ((T * uz) / c.mass) * dt;
+      const fk = c.frictionKinetic * m * g;
+      v[0] += ((T * ux) / m) * dt;
+      v[1] += ((T * uz) / m) * dt;
       const s2 = Math.hypot(v[0], v[1]);
-      const slow = Math.min(s2, (fk / c.mass) * dt);
+      const slow = Math.min(s2, (fk / m) * dt);
       if (s2 > 0) {
         v[0] -= (v[0] / s2) * slow;
         v[1] -= (v[1] / s2) * slow;
@@ -185,8 +198,8 @@ export function stepLog(world: WorldState, log: SalvageLog, T: number, ux: numbe
   } else {
     const sp = Math.hypot(v[0], v[1]);
     const drag = c.dragLinear + c.dragQuad * sp;
-    v[0] += ((T * ux - drag * v[0]) / c.mass) * dt;
-    v[1] += ((T * uz - drag * v[1]) / c.mass) * dt;
+    v[0] += ((T * ux - drag * v[0]) / m) * dt;
+    v[1] += ((T * uz - drag * v[1]) / m) * dt;
     if (T === 0) {
       // Off the line: it drifts like the debris (world/drift.ts).
       const dv = driftVelocity(world.environment, log.x, log.z, driftV);
@@ -228,6 +241,8 @@ export function stepSalvage(world: WorldState, dt: number): void {
   for (const log of [...s.logs]) {
     // On the line, tow.ts steps it with the line's pull.
     if (!onLine(world, log)) stepLog(world, log, 0, 0, 0, dt);
+    // The timber camp's logs: kept, and sold by voyage/timber.ts (stepTimberLogs).
+    if (log.timber) continue;
     // Sold: afloat, slow in a port.
     const port = PORTS.find((p) => Math.hypot(p.x - log.x, p.z - log.z) < CONFIG.tow.deliverRadius);
     log.inPort = port && log.afloat && Math.hypot(log.vel[0], log.vel[1]) < CONFIG.tow.deliverSpeed ? log.inPort + dt : 0;
@@ -269,5 +284,6 @@ export function salvageStatus(world: WorldState, boatId?: string): string | null
   const log = line ? logOf(world, line.target) : undefined;
   if (!log) return null;
   const kN = ((line?.tension ?? 0) / 1000).toFixed(1);
+  if (log.timber && log.afloat) return `Timber log afloat: tow it to the timber merchant's quay (line ${kN} kN)`;
   return log.afloat ? `Log afloat: tow it into any harbour (line ${kN} kN)` : `Log on the beach: pull it off - ease ahead, more power (line ${kN} kN)`;
 }

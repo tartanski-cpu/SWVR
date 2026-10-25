@@ -10,6 +10,37 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The timber camp's logs on the beach, not a barge (25 Oct 2026)
+
+Owner: "dragging the logs down to the shore is fine, but they should spawn not as a barge in the boat game. They should spawn as logs on the beach, because we already have that mechanism." One tow per log is fine; the owner will set up rafting from this side later.
+
+- **Back from the camp with logs** (`voyage/timber.ts` `logsFromCamp`), they're laid on the site's beach (the contract's beach point, the head of Ardantrive Bay):
+  - side by side, `voyage.timber.beachSpacingM` 1.2 m apart along the shore, each pointing out to sea (toward the hotspot);
+  - its middle where the ground going down to the water is first under `beachMaxAboveM` 0.5 m (beached, not afloat);
+  - up to `maxLogs` 40.
+- **They are the log salvage's logs** (`salvage/salvage.ts`), marked `timber`, with their own `mass` (`logKg` 170, from `logMass`, also used by the towline in `tow.ts`):
+  - put a line on one (the hook, or Make fast), ease ahead, and it slides off the beach and floats;
+  - they never go with the tide;
+  - only the timber merchant buys them (`stepTimberLogs`, stepped after the salvage in `core/simulation.ts`): afloat and slow (`tow.deliverSpeed`) within `sellRangeM` 15 m (plus half the log) of the merchant's quay for `tow.deliverTime`, then the line comes off, `pricePerLog` £12 is paid, and the radio says how many are left.
+  - A log on the line says "tow it to the timber merchant's quay" in the status line.
+- **Kept with the Voyage save** under their own key, `swvr.voyage.timberlogs.<map>` (`timberLogsToSave`, `parseTimberLogs`, `restoreTimberLogs`), so the live game's saves aren't touched.
+- **The barge:**
+  - `bargeFromCamp` and `voyage.timber.bargeOffM` are gone.
+  - A barge saved before this still comes back, tows and sells as before.
+  - The envelope is unchanged: Timber still sends `barge_ready`, which now means "logs to collect", so the live game (still making barges) and this one both understand every Timber.
+- **The log drawing** (`salvage/logView.ts`): room for 64 logs, up from 6 (with 6, most of a camp's logs would have been invisible). The camp's logs are drawn at their own 0.3 m across (`voyage.timber.logDiameter`), not the 0.6 m washed-up trunk.
+- `docs/metaverse-contract.md` (the same file in Big Timber, which no longer shows a barge either), README's timber run.
+- **Tests** (`tests/metaverse.test.ts`):
+  - 40 logs laid, all beached just above the water near the beach point, none on another;
+  - still there after the salvage's expiry time with the boat far off;
+  - one afloat by the merchant's quay sold for £12, one by another harbour not;
+  - a log pulled off the beach by the pilot boat under power, from water deep enough 26 m off;
+  - the logs kept with the save;
+  - a barge saved before still restored on the line.
+- **Checked:** typecheck; all tests. Headless (Oban, a return envelope with 20 logs): 20 logs on the beach at the head of the bay, seen from the wheelhouse 50 m off as a row at the water's edge.
+- **Not checked:** towing one across to Oban by hand; VR.
+- **Shared changes:** `src/core/simulation.ts` (one line: `stepTimberLogs` after `stepSalvage`), `docs/metaverse-contract.md`.
+
 ### Your boats on a board on the quay (25 Oct 2026)
 
 Owner (from the backlog): "The favourites screen as a board on the quayside. Your saved boats would be on a board ashore, worked like the boatyard board and the Shipyard sign: pick one and take her out."

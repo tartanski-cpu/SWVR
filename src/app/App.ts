@@ -189,7 +189,7 @@ import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
 import { fuelTankL } from '../vessel/fuelTank';
 import { consumeReturn, issueId, newHandoffId, outboundUrl, takeEnvelope, type Envelope, type MetaverseSite } from '../voyage/metaverse';
-import { bargeFromCamp, bargesKey, bargesToSave, HotspotWatch, merchantsOn, parseBarges, positionFor, restoreBarges, saleOffer, saleText, sellBarge, sitesOn, hotspotAt } from '../voyage/timber';
+import { bargesKey, bargesToSave, HotspotWatch, logsFromCamp, merchantsOn, parseBarges, parseTimberLogs, positionFor, restoreBarges, restoreTimberLogs, saleOffer, saleText, sellBarge, sitesOn, hotspotAt, timberLogsKey, timberLogsToSave } from '../voyage/timber';
 import { TimberView } from '../voyage/timberView';
 
 /**
@@ -5138,9 +5138,10 @@ export class App {
     this.rememberT = 0;
     const v = this.world.vessels[this.testVesselId];
     if (v) rememberPlace(VOYAGE_MAP_ID, placeOf(this.world, v, this.localPlayerId));
-    // The timber run's barges (voyage/timber.ts). Not the money: Voyage's money is this session's only.
+    // The timber run's logs on the beach and barges (voyage/timber.ts). Not the money: Voyage's money is this session's only.
     try {
       localStorage.setItem(bargesKey(VOYAGE_MAP_ID), JSON.stringify(bargesToSave(this.world, this.testVesselId, headingOf)));
+      localStorage.setItem(timberLogsKey(VOYAGE_MAP_ID), JSON.stringify(timberLogsToSave(this.world)));
     } catch {
       // Not saved.
     }
@@ -5158,8 +5159,8 @@ export class App {
   }
 
   /**
-   * Voyage: the timber run set up (voyage/timber.ts). The barges saved for this map
-   * back, and if we're back from the camp with a barge, it at the site's spawn on our line;
+   * Voyage: the timber run set up (voyage/timber.ts). The logs and barges saved for this map
+   * back, and if we're back from the camp with logs, they're laid on the site's beach;
    * the bay's buoy and the merchant on the chart; the screen faded in if we came back.
    */
   private setupTimber(back: Envelope | null): void {
@@ -5176,15 +5177,20 @@ export class App {
     if (back) setTimeout(() => (this.fade.style.opacity = '0'), 400);
     const v = this.world.vessels[this.testVesselId];
     try {
-      if (!START_PARAMS.has('start')) restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
+      if (!START_PARAMS.has('start')) {
+        restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
+        restoreTimberLogs(this.world, parseTimberLogs(localStorage.getItem(timberLogsKey(VOYAGE_MAP_ID))));
+      }
     } catch {
       // Storage blocked: none.
     }
     const site = back && this.timberSites.find((s) => s.id === back.site);
     if (back && site && v) {
-      if (back.status === 'barge_ready' && back.cargo.logs > 0 && bargeFromCamp(this.world, site, v, back.cargo.logs)) {
+      // `barge_ready` (the contract's first name for it): logs to collect, laid on the beach.
+      const laid = back.status === 'barge_ready' && back.cargo.logs > 0 ? logsFromCamp(this.world, site, back.cargo.logs) : 0;
+      if (laid) {
         const m = merchantsOn(VOYAGE_MAP_ID)[0];
-        this.timberNote = `Back aboard from the timber camp: a barge of ${back.cargo.logs} logs on your towline.${m ? ` Tow her to ${m.name} to sell.` : ''}`;
+        this.timberNote = `Back aboard from the timber camp: ${laid} ${laid === 1 ? 'log' : 'logs'} on the beach at the head of the bay (LOG on the plotter). Put a line on one, pull it off and tow it${m ? ` to ${m.name}` : ''} to sell.`;
       } else this.timberNote = 'Back aboard from the timber camp.';
       this.rememberT = Infinity;
       this.rememberVoyagePlace(0);

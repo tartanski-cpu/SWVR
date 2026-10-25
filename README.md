@@ -248,11 +248,11 @@ A loop with the Timber game. Cut logs ashore, then tow them to market.
 1. **Find the bay.** A yellow buoy with a brown band marks the timber camp's anchorage in Ardantrive Bay, Kerrera, across the sound from Oban. On the chartplotter it's a dashed ring with an anchor, "Timber camp".
 2. **Anchor there.** Stop inside the ring and let go the anchor. Once it's set and she's still for a few seconds, you go ashore: no question asked.
 3. **Ashore:** the screen fades to black and the Timber game opens, in the same browser tab. Your voyage is saved first, anchored where you left her. In VR, the browser may drop you out of the headset view as the page changes; press Enter VR on the Timber page.
-4. **Back aboard:** when you return from the camp you're on your boat, still at anchor. If you delivered logs, a barge with them stacked on her deck is lying off, already on your towline.
-5. **Tow her to Oban.** Weigh anchor and tow the barge to the timber merchant at Oban's North Pier (a square on the chartplotter, "Timber merchant"). A full barge sits deeper and tows heavier.
-6. **Sell.** With the barge alongside the merchant's quay and your boat stopped, you're offered the sale: logs × £12. Press Enter, or **Sell** in the Voyage tab. The money is this session's, not saved when you leave.
+4. **Back aboard:** when you return from the camp you're on your boat, still at anchor. The logs you delivered are on the beach at the head of the bay, side by side, each pointing out to sea (LOG marks on the chartplotter).
+5. **Pull one off.** Lie off the beach stern to it, put your towline on a log (the hook, or Make fast in the menu) and ease ahead: it slides off the beach and floats. One log at a time.
+6. **Tow it to Oban and sell it.** Tow it to the timber merchant at Oban's North Pier (a square on the chartplotter, "Timber merchant"). Leave it afloat by the quay, stopped, and after a few seconds the merchant buys it: £12 a log. The money is this session's, not saved when you leave.
 
-You can cast the barge off and make fast again like any tow. A barge you leave lying stays where she is, saved with the voyage. Then go straight back for another load: weigh anchor and let it go again in the bay (coming back from the camp you're anchored there already, and that doesn't send you straight back). The timber camp takes one player at a time: anchoring there takes you ashore only when you're playing alone or hosting with no crew aboard.
+Logs you leave on the beach (or afloat) stay where they are, saved with the voyage; they don't wash away. Then go back for more: weigh anchor and let it go again in the bay (coming back from the camp you're anchored there already, and that doesn't send you straight back). A barge of logs from an earlier version still comes back with the voyage and sells as before. The timber camp takes one player at a time: anchoring there takes you ashore only when you're playing alone or hosting with no crew aboard.
 
 ### Transit jobs and closing up
 
