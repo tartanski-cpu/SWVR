@@ -39,6 +39,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **The autopilot on the console: AUTO, PORT 5°, STBD 5°** (this log). In the pilot boat (or any fleet boat but the beginner boat): steam out, press **AUTO** on the console (starboard of the wheel), then tap **STBD 5°** a few times: she should come round 5° a tap and hold the new heading. Is it in a good place on the console (the throttle lever stands in front of PORT 5° from the helm)? The wall panel now has only AUTO START and DOCK.
 - [ ] **A TV on the wall, showing a browser tab** (this log). Shipyard, Furniture: **TV on the wall**, put it on a wall (over a settee). Game, on a desktop: click the TV, pick a tab playing a video (tick "share tab audio"): it shows on the TV, sound from the TV. Click again to stop; also try the browser's **Stop sharing** bar. With a crew-mate (best: one in the Quest): they see and hear it. Is the TV's height right, and does it look odd hung in front of the windows?
 - [ ] **Rows of seats, turnable; technicians sit in them.** Shipyard, Furniture: on the catamaran with a saloon, add six or more seats in rows across the cabin; **Turn** some to face aft. Game: take a crew-transfer job; the technicians sit in those seats, facing the way they face.
 - [ ] **Crew transfer, stop 2: the job** (this log). In the catamaran in the career: **Tests → Wind farm → Call job** (or wait for the VHF call). Make fast in Calder Haven: the three technicians come aboard into her cabin. Steam to their turbine (ringed T2 on the chartplotter, numbered on the paper chart), nose onto its landing and hold her with a little throttle: three seconds, then they step across one by one and climb to the platform; then it pays. Try the wrong turbine, and backing off half way. Step across yourself with the **Step across** mark, walk round the platform, and **Step aboard** back. Is three seconds' hold right? Are they paid enough?
@@ -57,6 +58,21 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### The autopilot moved to the console, with PORT 5° and STBD 5° (done; on next, in your test round)
+
+You asked for the autopilot to come off the helm assist panel on the wall and become a control on the main console, still switched on and off by one button, with two more buttons that alter course 5 degrees left and right.
+
+- **On the console:** an amber **AUTOPILOT** group of three push buttons, starboard of the wheel (nearest it of the starboard groups): **PORT 5°**, **AUTO** (lit while it's on) and **STBD 5°**. AUTO works as before: it holds the heading she's on, turning the wheel itself, and lets go when you press it again, turn the wheel yourself, or lose the INSTR breaker. While it's on, each tap of PORT 5° or STBD 5° moves the heading it holds 5° that way (`CONFIG.modules.helmAssist.autopilot.stepDeg`), round through north; she comes round with the same steering as before. With it off, they do nothing.
+- **The wall panel** keeps AUTO START and DOCK, and is narrower (`CONFIG.modules.helmAssist.width` 0.22 m).
+- **In the Shipyard** it comes with the same choice as before (Controls step, Helm assist: Assist), so every boat that had the autopilot keeps it, the fleet's included. The console layout editor shows the new group, and it can be dragged like the others; on a console too short for its switches it goes up onto the dash face after DECK (`faceSwitchOrder`).
+- **A fix on the way:** on a crowded console the rules close the switches up tighter than the hand-placement grid, and the grid positions they reported could overlap, so the console layout editor's "pin where it stands" moved some groups. They're now nudged apart along the row when it has room (`shipyard/parts/recipe.ts`).
+- **Worth knowing:** on the fleet's boats the throttle lever stands in front of PORT 5° as you look from the helm (the button is on the panel just forward of the lever's base). If it's awkward in VR, drag the group in the console layout, or say and I'll change the rule.
+- The bus keys are `autopilot.engage` (AUTO), and the new `autopilot.port` and `autopilot.starboard`.
+
+Tests: `tests/helmAssist.test.ts` (the group of three, bound and lit, not on the panel; 5° a press, she follows, round through north, nothing when off). Checked in the headless Shipyard: the group on the pilot boat's console, and in the console layout editor.
+
+**Shared changes:** `src/vessel/autopilot.ts` (`nudgeAutopilot`), `src/modular/busKeys.ts` (the two keys); in the Shipyard: `design.ts` (`PANEL_SLOTS.AUTOPILOT`: `panelAutopilot`, a console field, not in the code), `parts/recipe.ts` (the buttons and their group; the panel grid's starts nudged apart), `page.ts` (the Assist tile's words), `config/shipyard.ts` (`faceSwitchOrder`).
 
 ### A TV on the wall that shows a browser tab (done; on next, in your test round)
 

@@ -183,6 +183,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `autopilot.engage` | on / off | press | legacy |  | AUTOPILOT pressed: hold the heading she is on now, or let go. Turning the wheel lets go too. |
+| `autopilot.port` | on / off | press | legacy |  | PORT pressed on the autopilot: the heading it holds moves a few degrees to port (CONFIG.modules.helmAssist.autopilot.stepDeg). |
+| `autopilot.starboard` | on / off | press | legacy |  | STBD pressed on the autopilot: the heading it holds moves a few degrees to starboard. |
 | `autopilot.on` | on / off | read only | legacy |  | The autopilot is holding her heading. |
 | `autopilot.heading` | deg | read only | legacy |  | The heading the autopilot holds. |
 
