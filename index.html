@@ -28,6 +28,7 @@
       .card svg { display: block; width: 100%; height: auto; aspect-ratio: 320 / 130; border-bottom: 1px solid #2f4a58; }
       .card .body { padding: 16px 20px 18px; flex: 1; display: flex; flex-direction: column; }
       .card .body .go { margin-top: auto; align-self: flex-start; }
+      .card .body .note { margin-top: 8px; font-size: 13px; color: #9fb3bf; }
       .card h2 { margin: 0 0 6px; font-size: 22px; color: #ffd27a; }
       .card p { margin: 0 0 10px; color: #c9d6dd; }
       .card.soon svg { opacity: 0.55; }
@@ -75,9 +76,28 @@
             <h2>Career</h2>
             <p>Start in a basic boat, take jobs, earn and buy her equipment. One boat; your crew join aboard her, playing your career.</p>
             <p>Cargo runs, rescues, tows, fires, potting and fishing across the archipelago.</p>
-            <span class="go">Start a career</span>
+            <span class="go" id="careerGo">Start a career</span>
+            <span class="note" id="careerNote" hidden></span>
           </div>
         </a>
+        <script>
+          // A career saved in this browser (the slot last played: app/careerSession.ts keys
+          // swvr.fleetCareerSlot and swvr.fleetCareer.N): the card carries it on, and says so.
+          (function () {
+            try {
+              var n = Number(localStorage.getItem('swvr.fleetCareerSlot'));
+              var slot = n >= 1 && n <= 3 ? n : 1;
+              var c = JSON.parse(localStorage.getItem('swvr.fleetCareer.' + slot) || 'null');
+              if (!c || typeof c.money !== 'number') return;
+              document.getElementById('careerGo').textContent = 'Continue your career';
+              var note = document.getElementById('careerNote');
+              note.textContent = 'Slot ' + slot + ', £' + Math.round(c.money).toLocaleString('en-GB') + '. To start a new one, or switch slot: Menu \u2192 Office \u2192 Career.';
+              note.hidden = false;
+            } catch (e) {
+              // Nothing saved, or no storage: a new career.
+            }
+          })();
+        </script>
         <div class="card">
           <svg viewBox="0 0 320 130" role="img" aria-label="A chart of a real coastline with a route marked across it">
             <rect width="320" height="130" fill="#123b52"/>

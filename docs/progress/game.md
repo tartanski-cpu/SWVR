@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Front page: "Continue your career" when there's one saved (25 Oct 2026)
+
+Owner: the Career tile says "Start a career" even with a career saved; should it say continue? It carries on the slot last played, so now it says so: **Continue your career**, with a line under it giving the slot and balance and where to start a new one (Menu → Office → Career). A small script in `index.html` reads the same keys as app/careerSession.ts (`swvr.fleetCareerSlot`, `swvr.fleetCareer.N`); no save (or no storage): "Start a career" as before. Checked headless, with and without a save. No config keys, no tests touch it.
+
 ### Construction projects, step 4: the turbines and guard duty (25 Oct 2026)
 
 Owner: "go to stage 5". Stage 5 of Tarran Rig, as in the approved plan: the installation ship puts the turbines up in the background while you guard the works and run the fitters out.
