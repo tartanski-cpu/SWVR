@@ -721,7 +721,16 @@ export function applyProjectIntent(world: WorldState, intent: Intent): void {
     c.seq += 1;
     sayRadio(world, 'info', `${portName(def.port)} harbour office: ${def.name} is yours, skipper. First: ${def.stages[0].name.toLowerCase()} - it's on your plotter.`);
   } else if (intent.control === 'careerProjectStage') {
-    // Debug: the stage's jobs done as if worked (paid as usual), and what they build built at once.
+    // Debug: the stage's jobs done as if worked (paid as usual), and what they build built at
+    // once. No project under way: the first not yet done is taken (as if at its office).
+    if (!c.project) {
+      const def = CONFIG.career.projects.find((d) => !(c.projectsDone ?? []).includes(d.id));
+      if (!def || world.voyage) return;
+      c.project = { id: def.id, stage: 0, done: [], survey: {} };
+      c.seq += 1;
+      sayRadio(world, 'info', `${portName(def.port)} harbour office: ${def.name} is yours, skipper (debug). First: ${def.stages[0].name.toLowerCase()}.`);
+      return;
+    }
     const a = activeProject(world);
     if (!a) return;
     for (const job of a.jobs) if (!a.p.done.includes(job.id)) {

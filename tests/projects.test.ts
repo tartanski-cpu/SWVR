@@ -55,6 +55,16 @@ describe('construction projects', { timeout: 30000 }, () => {
     expect(projectOffered(t.world)).toBeNull(); // one at a time
   });
 
+  it('the debug button, with no project under way, takes the first (anywhere); pressed again it finishes its stage', () => {
+    const { world, send } = setup();
+    expect(activeProject(world)).toBeNull();
+    send('careerProjectStage');
+    expect(activeProject(world)?.def.id).toBe(def.id);
+    expect(activeProject(world)!.p.stage).toBe(0);
+    send('careerProjectStage');
+    expect(activeProject(world)!.p.stage).toBe(1);
+  });
+
   it('a survey line counts only run along it, close to it, at survey speed; the whole of it run, it is paid', () => {
     const { world, v } = taken();
     const job = def.stages[0].jobs.find((j) => j.kind === 'survey')!;
