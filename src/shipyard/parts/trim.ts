@@ -9,6 +9,7 @@ import { guardParts } from '../design';
 import { catamaranHandling } from '../../vessel/catamaran';
 import { atDWL, type BuildArgs, type V3 } from './common';
 import { fenderingFit } from './fendering';
+import { markingsFit, SERVICE_LIVERIES } from './markings';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart } from './house';
 
@@ -96,6 +97,10 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const fendering = spec ? fenderingFit(shape, spec) : null;
   const fenderingKg = fendering ? CONFIG.shipyard.harbourTug.fenderingKg : 0;
   if (fendering) cg[1] += (fenderingKg / mass) * (fendering.y - cg[1]);
+  // A service livery's markings on her topsides (parts/markings.ts): paint, no weight.
+  const service = d.markings ? SERVICE_LIVERIES[d.markings - 1] : undefined;
+  const markings = service ? markingsFit(shape, service, bulwarkHeight) : null;
+  if (service && !markings) warnings.push(`The ${service.name.toLowerCase()} markings go on a monohull's topsides: she has her colours without them.`);
   // A tug's push knees on her square bow plate (modules/pushFender): from the bulwark top
   // down to just above where the plate's sides end (its chines), within `inset` of her
   // sides; designed in high at her bow, as the strake is.
@@ -158,6 +163,6 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const planing = regime ? { lean: Math.round((sy.leanBase + sy.leanPerSine * Math.sin(deadriseAft)) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
   const damping = { ...perArea, rollLift: sy.rollLift, verticalCd: Math.round(perArea.verticalCd * slam * 100) / 100, roll: Math.round(0.28 * rollCritical), pitch: Math.round(lc.damping.pitch * sizeK), yaw: Math.round(lc.damping.yaw * sizeK) };
 
-  return { fendering, fenderingKg, beamDeck, bowFender, bowFenderKg, cat, cg, damping, deckMid, gm, guardKg, guardY, gyradius, h, hg, keelMid, lc, lengthM, mass, mid, pf, planing, prot, pushFender, rho, strakeM, tyres };
+  return { fendering, fenderingKg, markings, beamDeck, bowFender, bowFenderKg, cat, cg, damping, deckMid, gm, guardKg, guardY, gyradius, h, hg, keelMid, lc, lengthM, mass, mid, pf, planing, prot, pushFender, rho, strakeM, tyres };
 }
 export type TrimPart = ReturnType<typeof trimPart>;

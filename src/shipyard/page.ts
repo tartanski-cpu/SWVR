@@ -40,6 +40,7 @@ import { alongAxis, HANDLES, nearestStep, type HandleDef, type V3 as HV3 } from 
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
+import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
 import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
 import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
@@ -105,8 +106,8 @@ if (!sessionId && 'design' in fromHash) {
 if ('design' in fromHash) history.replaceState(null, '', `${location.pathname}${location.search}`);
 let design: ShipDesign = { ...startDoc.variants.find((v) => v.id === active)!.design };
 let boat: DesignedBoat = useDesign(design);
-/** The choices her gearbox was matched for (not the paint or the controls, which don't change it). */
-const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, controls: 0 });
+/** The choices her gearbox was matched for (not the paint, its markings or the controls, which don't change it). */
+const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, markings: 0, controls: 0 });
 /**
  * Does a loaded design come with its gearing matched? An inboard's code does (the yard
  * matched it before it was issued). Outboards' lower units are matched from the same step
@@ -1203,6 +1204,15 @@ function paintRow(key: keyof ShipDesign, label: string, paints: { name: string; 
     box.appendChild(s);
   });
   controls.appendChild(row);
+}
+group('Service livery', 'A service’s livery (owner, Oct 2026): police, fire, rescue or coastguard. It paints her in its colours (yours to change after) and puts its markings on her topsides: its bands and its name along each side forward. A monohull’s only. Marked, she travels as a link or file, not a code.');
+// Choosing one sets her colours for it too (SERVICE_LIVERIES); None takes the markings off, and leaves her colours.
+{
+  const box = options('markings', 'Livery', [...MARKING_NAMES]).querySelector('div')!;
+  box.querySelectorAll<HTMLElement>('.choice').forEach((el) => {
+    const i = Number(el.dataset.i);
+    el.onclick = () => change({ markings: i, ...(i ? SERVICE_LIVERIES[i - 1].colours : {}) });
+  });
 }
 group('Hull', 'Her topsides, above the waterline. Below it she has her antifouling, and her deck its own grey or green to go with her paint. Her finish: as new (clean paint), worked, or well used (grime along her waterline, rust running down from her deck edge, faded paint).');
 paintRow('paint', 'Topsides', LIVERIES.map((l) => ({ name: l.name, colour: l.livery.topsides ?? 0xd9622b })));

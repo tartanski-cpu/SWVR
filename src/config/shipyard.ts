@@ -263,6 +263,17 @@ export const SHIPYARD_CONFIG = {
      */
     finish: [1, 0.5, 0],
     /**
+     * Service liveries' markings on her topsides (owner, 26 Oct 2026: "liveries for the pilot
+     * boat and the fast landing craft ... police, fire, and rescue. And Coast Guard";
+     * design.markings, parts/markings.ts, modules/markings): a thin skin `offset` m proud of her
+     * side, from `topDrop` m under the top of her bulwark (or her deck edge, with none) down
+     * `depthShare` of her least height of side there, from `from` to `to` along her (0 her transom, 1 her stem),
+     * `rows` rows deep so it follows her flare. Its picture drawn at `pxPerM` pixels a metre (at
+     * most `maxPx` across); the service's name centred `textAt` along her, at most `textShare`
+     * of her length long. One mesh for both sides: one draw call.
+     */
+    markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
+    /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing
      * heavier than the usual steel by `scantlings` (built heavy, for pushing ships), and her
      * `ballastKg`, so she floats near her lines' 3.3 m draught: a real tug's 494 t is far more
