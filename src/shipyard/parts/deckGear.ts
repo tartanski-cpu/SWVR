@@ -226,7 +226,8 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   // the stern roller as other boats do.
   let towHook: { z: number; height: number } | null = null;
   let tugWinchZ: number | null = null;
-  if (sternRoller && d.hull === TUG_HULL) {
+  const overBow = !!DESIGN_HULLS[a.d.hull]?.towsOverBow;
+  if (sternRoller && (d.hull === TUG_HULL || overBow)) {
     const tg = dg.tug.hook;
     const hookRect = (z: number): Rect => ({ x0: -0.3, x1: 0.3, z0: z - 0.3, z1: z + 0.3 });
     const winchHere = (z: number) => standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 0)));
@@ -250,9 +251,9 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   // her towline leads forward through a staple on her stem (modules/bowStaple), her tow
   // point; her winch on the foredeck behind it, facing forward, as far forward as it stands
   // (clear of the staple, room aft of it to stand at its buttons).
-  const overBow = !!DESIGN_HULLS[a.d.hull]?.towsOverBow;
-  const bowStaple = overBow ? { z: r2(stem + dg.bowStaple.fromStem), height: r2(q.bulwarkTop(stem + dg.bowStaple.fromStem) - q.deckY(stem + dg.bowStaple.fromStem) + dg.bowStaple.overBulwark) } : null;
-  if (overBow && wantWinch && !winchAt) {
+  // (With the stern roller she tows over her stern, from her towing hook: no staple.)
+  const bowStaple = overBow && !sternRoller ? { z: r2(stem + dg.bowStaple.fromStem), height: r2(q.bulwarkTop(stem + dg.bowStaple.fromStem) - q.deckY(stem + dg.bowStaple.fromStem) + dg.bowStaple.overBulwark) } : null;
+  if (bowStaple && wantWinch && !winchAt) {
     for (let z = stem + dg.bowStaple.winchFromStem; z < front - 1; z += 0.1) {
       if (!standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 2)))) continue;
       winchAt = [0, q.deckY(z), r2(z)];
