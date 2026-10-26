@@ -35,12 +35,13 @@ import { fuelBerthAt } from '../world/geography';
 import type { VesselState } from '../vessel/vesselState';
 import { sayRadio } from '../rescue/rescue';
 import { cargoPortAt } from '../cargo/cargo';
+import { sellSalvage } from '../dive/diveReturn';
 import { significantWaveHeight } from '../ocean/waves';
 import type { TutorialState } from './tutorial';
 import { gearOf, hasModule } from '../boats/sims';
 import { applyProjectIntent, projectDef, type ProjectProgress } from './projects';
 
-export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod' | 'transfer';
+export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod' | 'transfer' | 'salvage' | 'dive';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
 
 export interface LedgerEntry {
@@ -212,6 +213,10 @@ function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
     case 'rod':
       // The rod's bucket, by weight (fishing/rod.ts).
       return Math.round((o.kg ?? 0) * CONFIG.rod.pricePerKg);
+    case 'salvage':
+    case 'dive':
+      // A dive's (dive/diveReturn.ts): always its own price, given as `base`.
+      return 0;
   }
 }
 
@@ -245,6 +250,8 @@ const REP_GAIN: Record<JobKind, () => number> = {
   catch: () => CONFIG.career.rep.fish,
   rod: () => 1,
   transfer: () => CONFIG.career.rep.transfer,
+  salvage: () => CONFIG.career.rep.debris,
+  dive: () => 0,
 };
 
 /** A job done: pay it, raise the port's reputation, count it toward the contract. */
@@ -374,6 +381,8 @@ export function stepCareer(world: WorldState): void {
   const v = workboat(world);
   // Voyage has no career: no harbour office offers, so no contracts (world.voyage).
   if (!world.voyage && c.offersAt <= world.time) refreshOffers(world, c);
+  // A dive's salvage on her deck (dive/diveReturn.ts): sold in port.
+  if (v) sellSalvage(world, v);
   if (v) {
     // The boatyard's bigger fuel tank (fuelTank.ts reads it).
     const base = gearOf(v, 'diesel')?.engine.fuel.tankL;

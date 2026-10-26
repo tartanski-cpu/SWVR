@@ -453,14 +453,21 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500. With a career saved, the front page's Career tile says **Continue your career**, with its slot and balance; start a new one, or switch slot, from Menu → Office → Career.
 - **Debug:** Debug → Missions → Career → **+£5000, rep** (cash and +25 reputation everywhere).
 
-### Dive sites (new: for the submersible game, coming later)
+### Dive sites and the submersible
 
-Eight wrecks are marked on the charts, for a submersible game to come (a submersible launched off a dive support ship, with an ROV to search the wrecks). On the chartplotter each is a dashed pale blue ring with the chart's wreck mark, her name and the depth ("Sound Spirit (wreck, 13 m)"); on the paper chart a wreck mark with her depth. Some shallow, some mid, some deep:
+Eight wrecks are marked on the charts, some shallow, some mid, some deep. Nobody knows what they are until you dive on them: each is made up by the submersible game (Wreck ROV) from the site. On the chartplotter each is a dashed pale blue ring with the chart's wreck mark and her depth ("Wreck, 13 m"); on the paper chart a wreck mark with her depth. Once a dive identifies her, the charts write her name.
 
-- **Oban and Lorn (Voyage):** the **Selene** off Dunstaffnage (12 m), the **Sound Spirit** off the north end of Kerrera (13 m), the **Morven Lass** off Slatrach Bay (28 m), the **Gylen wreck** under Gylen Castle (40 m), and the **Lorn Trader** north-west of Maiden Island (54 m, the map's deepest water).
-- **The career islands:** the **Margaret Ann** west of Calder Haven (8 m, the wreck you can see), the **Ellen Rose** off Brannock (27 m), and the **Sgarbh** north of Eilean Garbh (40 m).
+- **Oban and Lorn (Voyage):** off Dunstaffnage (12 m), off the north end of Kerrera (13 m), off Slatrach Bay (28 m), under Gylen Castle (40 m), and north-west of Maiden Island (54 m, the map's deepest water).
+- **The career islands:** west of Calder Haven (8 m, by the wreck you can see), off Brannock (27 m), and north of Eilean Garbh (40 m).
 
-Nothing happens at them yet: the launch, the dive support ship and the missions come with the submersible game.
+**Diving:** in the **Dive support vessel** (or a Shipyard boat with the dive A-frame), stop inside a wreck's ring. At the frame's stand: WINCH UP, FRAME OUT, WINCH DOWN until the sub floats, then press the red **DIVE**. The game is saved and the submersible game opens at that wreck (alone, or hosting with no crew aboard).
+
+**Coming back:** surface by the support ship in the submersible game and call for recovery. After a few seconds of results you're back aboard:
+- what you brought up is in **salvage crates** on her deck (orange), each as heavy as the find. Stop in any port and after half a minute a buyer takes them, each at its price (an anchor about £2,600, a bottle £30);
+- the **survey** is paid at once: £25 a point of coverage gained, £600 for naming the wreck. Finding **how she was lost** pays £800, £2,000 if you got it right first time;
+- in Voyage you're where you dived, with the sub afloat astern: WINCH UP, FRAME IN, WINCH DOWN to bring her aboard. In the career you come back in port, the sub on her cradle.
+
+Each wreck remembers what you did there (in the submersible game): dive again and what you brought up is gone, your survey and clues are as you left them, and only what's new is paid.
 
 ### Construction projects (new, being built)
 

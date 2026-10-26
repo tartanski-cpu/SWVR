@@ -24,6 +24,7 @@ import { coastTerrains } from '../world/coastTerrain';
 import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
 import { activeProject, foundations, installAt, jackUpAt, laidMarks, towId } from '../career/projects';
 import { siteWorld, sitesOn } from '../dive/diveSites';
+import { foundNames } from '../dive/diveReturn';
 
 /** The dive sites on this page's map (the career's, or the Voyage map's). */
 const DIVE_SITES_HERE = sitesOn(MODE === 'career' ? 'career' : VOYAGE_MAP_ID);
@@ -756,7 +757,7 @@ export class ChartPlotter {
       }
     }
     // Dive sites (dive/diveSites.ts: wrecks for the submersible game): a dashed pale blue ring,
-    // the chart's wreck mark (a line crossed by three strokes) in it, the name and the depth.
+    // the chart's wreck mark (a line crossed by three strokes) in it, the depth (and her name, once found).
     for (const site of DIVE_SITES_HERE) {
       const at = siteWorld(site);
       if (!at) continue;
@@ -780,7 +781,9 @@ export class ChartPlotter {
       }
       g.stroke();
       g.fillStyle = '#b8dcff';
-      g.fillText(`${site.name} (wreck, ${site.depthM} m)`, cx - 40, cy - rad - 4);
+      // Unnamed until a dive identifies her (dive/diveReturn.ts).
+      const named = foundNames()[site.id];
+      g.fillText(named ? `${named} (wreck, ${site.depthM} m)` : `Wreck, ${site.depthM} m`, cx - 40, cy - rad - 4);
     }
     // Salvage logs washed up: brown bars, LOG.
     for (const l of world.salvage?.logs ?? []) {
