@@ -1,18 +1,37 @@
 /**
  * The chart's grid: world metres <-> latitude / longitude, and the chart's extent.
- * World axes: +x east, -z north, origin at CONFIG.nav (originLat, originLon). One minute
- * of latitude is a nautical mile (1852 m); a minute of longitude shrinks with cos(lat).
+ * World axes: +x east, -z north. On a coast map (Voyage), its own real grid (world/coastGeo.ts);
+ * on the hand-built archipelago, origin at CONFIG.nav (originLat, originLon): one minute of
+ * latitude is a nautical mile (1852 m); a minute of longitude shrinks with cos(lat).
  */
 import { CONFIG } from '../config';
 import type { IslandDef } from '../world/archipelago';
+import { coastGeoOf, coastLatLon, coastWorld, type CoastGeo } from '../world/coastGeo';
 import { REGIONS, regionById } from '../world/regions';
 
 const M_PER_DEG = 1852 * 60;
 
+/** A coast map's own grid, if one is loaded (world/coastGeo.ts): its real latitude and longitude. Looked up once. */
+let coast: CoastGeo | null | undefined;
+const coastGeo = () => (coast === undefined ? (coast = REGIONS.map(coastGeoOf).find((g) => g) ?? null) : coast);
+
 export function toLatLon(x: number, z: number): { lat: number; lon: number } {
+  const g = coastGeo();
+  if (g) return coastLatLon(g, x, z);
   const lat = CONFIG.nav.originLat - z / M_PER_DEG;
   const lon = CONFIG.nav.originLon + x / (M_PER_DEG * Math.cos((lat * Math.PI) / 180));
   return { lat, lon };
+}
+
+/**
+ * Latitude and longitude to world metres (the chart's grid lines). On the hand-built
+ * archipelago a degree of longitude is taken at `atLat` (the sheet's middle), as the chart has
+ * always drawn it.
+ */
+export function fromLatLon(lat: number, lon: number, atLat = lat): { x: number; z: number } {
+  const g = coastGeo();
+  if (g) return coastWorld(g, lat, lon);
+  return { x: (lon - CONFIG.nav.originLon) * M_PER_DEG * Math.cos((atLat * Math.PI) / 180), z: (CONFIG.nav.originLat - lat) * M_PER_DEG };
 }
 
 /** "56°31.2'N 005°48.4'W", as you'd write it in a log. */

@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { FLEET, FLEET_IDS } from '../boats/fleet';
+import { diveGeometry } from '../modules/diveFrame';
+import { diveFrameOf, diveFrameState, diveSubDocked } from '../modules/diveFrame/onBoat';
 import { CONFIG } from '../config';
 import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
@@ -1461,7 +1463,7 @@ export class App {
     }
     // Your torch has its own pool on the water.
     this.ocean.setTorch(this.gear[1].light);
-    this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered, this.focus);
+    this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered, this.focus, dt);
     const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
     if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
     this.desktopHand.update(this.camera, deskHand, dt);
@@ -1538,7 +1540,8 @@ export class App {
     if (k.actionPressed('toggleHelp')) this.help.toggle();
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
-    if (k.actionPressed('dropVessel')) this.pushVesselIntent('debugDrop', 0);
+    // (On a twin worked separately, holding the wheel, R is the starboard lever: twinLeverKeys.)
+    if (k.actionPressed('dropVessel') && !this.twinLeverKeys()) this.pushVesselIntent('debugDrop', 0);
     // (The recording camera flies on its own keys: none of the body's or the boat's here.)
     if (k.actionPressed('flyMode') && !cam) this.desktop.toggleFly();
     if (k.actionPressed('lash') && !this.renderer.xr.isPresenting && !cam) {
@@ -1547,7 +1550,7 @@ export class App {
       this.cargoHands.desktopLash(this.cargoCtx(), this.tmpRay);
     }
     if (!cam) this.handleDebugDriving(dt);
-    if (k.actionPressed('engine') && !cam) this.requestEngineStartStop();
+    if (k.actionPressed('engine') && !cam && !this.twinLeverKeys()) this.requestEngineStartStop();
     if (this.boardOnStart) {
       this.boardOnStart = false;
       if (!this.world.players[this.localPlayerId]?.aboardVesselId) this.toggleBoardTo(true);
@@ -1620,10 +1623,42 @@ export class App {
     if (stick.helm !== null && helmIn === 0) helm = stick.helm;
     if (k.actionPressed('helmMidships')) helm = 0;
     this.driveTo(id, lever, helm, leverIn !== 0);
+    // Twin engines worked separately, holding the wheel (owner, Oct 2026): E / D the port lever,
+    // R / F the starboard one, each at the keys' rate and stopping at neutral on the way through.
+    if (this.twinLeverKeys()) {
+      const levers = [v.controls.lever, v.controls.lever2 ?? v.controls.lever];
+      (['throttle.demand', 'throttle.demand2'] as const).forEach((key, i) => {
+        const input = (k.action(i ? 'stbdAhead' : 'portAhead') ? 1 : 0) - (k.action(i ? 'stbdAstern' : 'portAstern') ? 1 : 0);
+        if (input === 0) {
+          this.twinLatched[i] = false;
+          return;
+        }
+        if (this.twinLatched[i]) return;
+        const cur = levers[i];
+        let next = clamp(cur + input * cfg.leverRate * dt, -1, 1);
+        if (Math.sign(next) !== Math.sign(cur) && cur !== 0) {
+          next = 0;
+          this.twinLatched[i] = true;
+        }
+        this.pushIntentTo(id, key, next);
+      });
+    }
   }
 
   /** The keys' lever stopped at neutral on the way through: it stays there until the key is let go. */
   private neutralLatched = false;
+  /** The same for each lever of a twin worked separately (port, starboard). */
+  private readonly twinLatched = [false, false];
+
+  /**
+   * Holding the wheel with the mouse on a twin worked separately: E / D and R / F work a lever
+   * each (W / S both), so E, F and R aren't their own keys then (owner, Oct 2026).
+   */
+  private twinLeverKeys(): boolean {
+    if (!(this.interaction?.desktopHeld instanceof Wheel)) return false;
+    const v = this.world.vessels[this.drivenVesselId()];
+    return !!v && !!gearOf(v, 'diesel')?.split;
+  }
 
   /** Her throttle as one signed command, -1 astern .. 1 ahead (an outboard's: gear x twist grip). */
   private signedLever(v: VesselState): number {
@@ -2404,9 +2439,21 @@ export class App {
    * (the crane, the tow winch and the net drum need the engine running and DECK HYD on).
    */
   private hydraulicsHint(channel: string): void {
-    const machine = channel === 'crane' ? 'The crane' : ['winchHeave', 'winchPayOut', 'winch.heaveIn', 'winch.payOut'].includes(channel) ? 'The tow winch' : ['netOut', 'netIn', 'net.payOut', 'net.haul'].includes(channel) || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
+    const machine = channel.startsWith('dive.') ? 'The dive A-frame' : channel === 'crane' ? 'The crane' : ['winchHeave', 'winchPayOut', 'winch.heaveIn', 'winch.payOut'].includes(channel) ? 'The tow winch' : ['netOut', 'netIn', 'net.payOut', 'net.haul'].includes(channel) || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
     const v = this.world.vessels[this.testVesselId];
-    if (!machine || !v || hydraulicsOn(v)) return;
+    if (!machine || !v) return;
+    // The dive A-frame's interlocks (modules/diveFrame): say why it holds.
+    if (hydraulicsOn(v) && channel.startsWith('dive.')) {
+      const f = diveFrameOf(v);
+      const s = diveFrameState(v);
+      if (!f || !s) return;
+      const g = diveGeometry(f.config);
+      const atEnd = s.luff <= g.inDeg + 0.3 || s.luff >= g.outDeg - 0.3;
+      if ((channel === 'dive.frameOut' || channel === 'dive.frameIn') && !diveSubDocked(v)) this.overlay.notify('The frame only swings with the sub up in the docking head: WINCH UP first', 3);
+      else if (channel === 'dive.winchDown' && !atEnd) this.overlay.notify('The winch only lowers with the frame right in (onto her cradle) or right out (into the sea)', 3);
+      return;
+    }
+    if (hydraulicsOn(v)) return;
     const why = v.engine.phase !== 'running' ? 'start the engine' : 'switch the DECK HYD breaker on';
     this.overlay.notify(`${machine} is hydraulic: ${why} (DECK HYD breaker by the helm)`, 3);
   }
@@ -3851,10 +3898,12 @@ export class App {
         voice: diesel?.voice ?? 'inlineSix',
         ratedRpm: diesel?.engine.ratedRpm ?? 1800,
         twin: !!diesel?.twin,
-        rpm: v.engine.rpm,
-        load: v.engine.rack,
-        running: v.engine.phase === 'running',
-        cranking: v.engine.phase === 'cranking',
+        // One voice for her (the Quest's audio thread): a twin worked separately is heard by
+        // whichever engine is working harder, and starting while either cranks.
+        rpm: Math.max(v.engine.rpm, v.engine.stbd?.rpm ?? 0),
+        load: Math.max(v.engine.rack, v.engine.stbd?.rack ?? 0),
+        running: v.engine.phase === 'running' || v.engine.stbd?.phase === 'running',
+        cranking: v.engine.phase === 'cranking' || v.engine.stbd?.phase === 'cranking',
         horn: v.controls.horn > 0 && isPowered(v),
       });
     }
@@ -4079,7 +4128,7 @@ export class App {
     this.helmDist = spot ? Math.hypot(p.position[0] - spot[0], p.position[2] - spot[2]) : Infinity;
     const near = !!spot && !inXR && !cam && (p.mode ?? 'walk') === 'walk' && this.helmDist < CONFIG.gamepad.helmReach && !(this.craneNear && this.craneNearDist < this.helmDist);
     if (this.atHelm && !near) this.atHelm = false;
-    const toggle = (this.keyboard.actionPressed('helm') && !this.interaction?.steering) || !!pad?.pressed[PAD.a];
+    const toggle = (this.keyboard.actionPressed('helm') && !this.interaction?.steering && !this.twinLeverKeys()) || !!pad?.pressed[PAD.a];
     if (toggle && near && v) {
       this.atHelm = !this.atHelm;
       this.helmCam.reset();

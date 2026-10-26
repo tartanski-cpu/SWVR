@@ -189,3 +189,24 @@ describe('twin stern drives worked separately', { timeout: 120000 }, () => {
     expect(((compassHeading(t.v) - h0 + 540) % 360) - 180).toBeLessThan(-20);
   });
 });
+
+describe('a diesel dragged below idle in gear stalls (owner, Oct 2026)', { timeout: 120000 }, () => {
+  it('a gearbox far too high for her propeller: in gear she stalls and stops, not "running" at 0 rpm with the battery running flat; in neutral she starts again', () => {
+    // The stern trawler's slow diesel on its 1.9 m propeller through the lowest gearbox step
+    // (not matched): the propeller wants many times the torque the engine has.
+    const H = DESIGN_HULLS.findIndex((h) => h.name.startsWith('Stern trawler'));
+    const t = boat({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[H].defaults, hull: H, controls: 1, twin: 1, gear: 0 });
+    t.keyOn();
+    t.start('ignition.start');
+    t.start('ignition.start2');
+    expect(t.v.engine.phase).toBe('running');
+    t.send('throttle.demand2', 0.6);
+    t.run(4);
+    expect(t.v.engine.stbd!.phase).toBe('off');
+    expect(t.v.engine.phase).toBe('running');
+    // Back in neutral, START S: she runs again.
+    t.send('throttle.demand2', 0);
+    t.start('ignition.start2');
+    expect(t.v.engine.stbd!.phase).toBe('running');
+  });
+});

@@ -659,6 +659,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // A tug's tow point is her towing hook near amidships (deckGear.ts towHook), not the roller.
   if (sternRoller) recipe.modules.push({ socket: 'sternRoller', module: 'deck.stern-roller', ...(towHook ? { config: { hook: towHook } } : {}) });
   if (aFrame) recipe.modules.push({ socket: 'aFrame', module: 'deck.a-frame' }, { socket: 'trawl', module: 'fishing.trawl' });
+  // The dive A-frame and its sub (design.diveFrame): where it stands on her, and its legs.
+  if (p.diveFrame) recipe.modules.push({ socket: 'diveFrame', module: 'deck.dive-frame', config: { at: p.diveFrame.place, legLength: p.diveFrame.legLength } });
   // The trawl deck gear (step 2 toward a trawler), with the A-frame.
   if (p.netDrumAt) recipe.modules.push({ socket: 'netDrum', module: 'deck.net-drum' });
   if (p.trawlWinchesAt) recipe.modules.push({ socket: 'trawlWinches', module: 'deck.trawl-winches', config: { ...p.trawlWinchesAt } });
@@ -676,7 +678,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     // (The rescue boat's bigger crane, for her: design.rescueBoat.)
     recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { ...(d.rescueBoat ? CONFIG.vessels.rib.crane : {}), consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))] } });
   }
-  if (craneAt || winchAt || skiffAt || aFrame) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
+  if (craneAt || winchAt || skiffAt || aFrame || p.diveFrame) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
   if (pushFender) recipe.modules.push({ socket: 'pushFender', module: 'hull.push-fender', config: pushFender });
   if (bowFender) recipe.modules.push({ socket: 'bowFender', module: 'hull.bow-fender', config: bowFender });

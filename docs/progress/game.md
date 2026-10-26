@@ -10,6 +10,32 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) A dive support vessel: the dive A-frame and the submersible
+
+The new module `deck.dive-frame` (docs/progress/modules.md): an A-frame over the stern that hoists the submersible game's sub off her cradle, swings her out and lowers her until she floats. Shared changes here:
+- `core/simulation.ts`: the sub's weight moved from her cradle as a payload (`modules/diveFrame/onBoat.ts` `diveSubPayload`).
+- `modular/busKeys.ts`, `vessel/vesselState.ts`: four hold-to-run keys, `dive.frameOut`, `dive.frameIn`, `dive.winchUp`, `dive.winchDown` (only on a boat with the frame, so the goldens are unchanged).
+- `boats/library.ts`, `boats/fleet.ts`, `vessel/vesselDef.ts` (`VESSEL_IDS`): a new fleet boat, `diveShip`, the **Dive support vessel** (in the boat lists).
+- `app/App.ts` `hydraulicsHint`: says why the frame or the winch holds (no pressure; the sub not in the docking head; the frame not right in or out).
+- For the dive itself (stage 4, not built): the submersible game reads plain address fields (`?site=…&depth=…&sub=…&return=…`, its `src/core/handoff.ts`), not the coded `mv` envelope in `docs/dive-contract.md`.
+
+### (From the modular-builder chat) Twin engines heard one each
+
+`audio/engineAudio.ts` `EngineAudio.update`: a twin's second engine sound now follows the starboard engine (`EngineState.stbd`) when the engines are worked separately, not the port engine's (its start and throttle were silent). `app/App.ts` `updateBoatVoices`: other players' split twins heard by the harder-working engine (still one voice). Test `tests/twinEngineSound.test.ts`.
+
+### A load on the crane hook drawn as smoothly as the crane (25 Oct 2026)
+
+Owner: the crane is smooth now, but lifting cargo from the side, it jerks. The crane's view draws its boom and hook smoothed between the simulation's ticks (mechanisms/tickSmoother.ts), but the load under the hook was drawn straight from the latest tick (cargo/cargoView.ts), so at 60 ticks drawn at 90 frames it stood still one frame in three under a gliding hook. Now each hooked load's hook point (in her axes, so the boat's own motion stays the app's) goes through a TickSmoother of its own, the same as the crane's; just hooked, it starts where the load was drawn and comes up onto the hook (the lift's last half metre) rather than jumping; a jump past `HOOK_SNAP` 1.5 m (a reset, a snapshot) is drawn at once. Test: tests/craneLoadSmooth.test.ts (the crane slewing at 60 ticks drawn at 90 frames: the load moves every frame, evenly; on the old code a frame stands still). All of `npm test`: 1583 passing. Not checked on the Quest.
+
+### (From the modular-builder chat) Diesels stall; twin lever keys
+
+`vessel/physics/propulsion.ts` `engineStep`: in gear and below `stallFraction` of idle (`CONFIG.vessels.workboat.engine.stallFraction` 0.3, the fallback for engines without one; `modules.outboard.engine.stallFraction`), a running engine stalls (phase off). Before, it could sit 'running' at 0 rpm in gear with no alternator charge and flatten the battery (owner's twin trawler). `core/keybindings.ts` + `app/App.ts`: on a twin worked separately, holding the wheel with the mouse, E/D and R/F work the port and starboard levers (`twinLeverKeys`); E, F and R don't do their usual jobs then. See `docs/progress/modules.md`.
+
+### Fix: Step ashore put you at the start harbour from a quay with no named berth (25 Oct 2026)
+
+Owner: moored at Wemyss Bay (the Clyde), the gangway mark's Step ashore took him to another harbour (Rothesay, the map's start). A boat can make fast along any quay face (world/berths.ts `allBerths`: the regions' named berths and one per bollard pair on every seaward face), but the spot ashore was looked up among the named berths only (world/startSpot.ts `quaySpot`, `BERTHS`), so a face berth fell back to the start's quay. Now it's looked up among all of them (`berthWithId`). Test: tests/gangway.test.ts, 1 new (fails on the old code). All of `npm test`: 1578 passing.
+- **Shared changes:** world/startSpot.ts (`quaySpot` finds any berth).
+
 ### Dive sites: wrecks for the submersible game (25 Oct 2026)
 
 Owner: a submersible launched off a dive support ship will go into its own game to search wrecks with an ROV; this game needs the areas where the wrecks are, like the potting and fishing grounds, some shallow, some deep, some by places of interest; the missions later. Chosen with the owner: both maps, 6-8 sites.

@@ -262,6 +262,15 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `aFrame.luff` | 0..1 | read only | legacy |  | How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts). |
 
+## dive
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `dive.frameOut` | on / off | player sets | module |  | Dive A-frame FRAME OUT button held: swings the sub out over the stern (only with her up in the docking head). |
+| `dive.frameIn` | on / off | player sets | module |  | Dive A-frame FRAME IN button held: swings the sub in over her cradle (only with her up in the docking head). |
+| `dive.winchUp` | on / off | player sets | module |  | Dive A-frame WINCH UP button held: hoists the sub into the docking head. |
+| `dive.winchDown` | on / off | player sets | module |  | Dive A-frame WINCH DOWN button held: lowers the sub onto her cradle, or into the sea with the frame right out. |
+
 ## firePump
 
 | Key | Values | Use | Written by | Old names | What it is |

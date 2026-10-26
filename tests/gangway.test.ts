@@ -22,4 +22,24 @@ describe('stepping ashore and aboard', () => {
     expect(p.aboardVesselId).toBeNull();
     expect(Math.hypot(p.position[0] - q.x, p.position[2] - q.z)).toBeLessThan(0.5);
   });
+
+  it('ashore from a boat made fast along a quay face with no named berth: beside her, not at the start harbour', async () => {
+    const { allBerths } = await import('../src/world/berths');
+    const { BERTHS } = await import('../src/world/archipelago');
+    const { world, vesselId, localPlayerId } = createWorld(new IdFactory());
+    // A berth along some quay face far from the start's, one the regions don't name.
+    const start = world.vessels[vesselId];
+    const named = new Set(BERTHS.map((b) => b.id));
+    const face = allBerths().find((b) => !named.has(b.id) && Math.hypot(b.x - start.position[0], b.z - start.position[2]) > 1500)!;
+    expect(face).toBeTruthy();
+    start.mooring.phase = 'moored';
+    start.mooring.berthId = face.id;
+    start.position[0] = face.x;
+    start.position[2] = face.z;
+    world.players[localPlayerId].aboardVesselId = vesselId;
+    stepWorld(world, [{ playerId: localPlayerId, targetId: localPlayerId, control: 'board', value: 0 }], 1 / 60);
+    const p = world.players[localPlayerId];
+    expect(p.aboardVesselId).toBeNull();
+    expect(Math.hypot(p.position[0] - face.x, p.position[2] - face.z)).toBeLessThan(face.shoreDist + 10);
+  });
 });

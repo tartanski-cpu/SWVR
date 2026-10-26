@@ -32,6 +32,11 @@ The owner, 24 Oct 2026, from this chat's research into what real workboats carry
    - *In the game:* vehicles as deck cargo, driven or winched up the ramp and lashed down; maybe drivable ashore at the far end. Perhaps a livestock pen.
    - *Builds on:* the landing craft and her ramp, deck cargo and lashing, the islands' ports.
    - *New:* vehicle models as cargo; a vehicle you drive would be a new physics body (the owner's OK needed).
+5. **Hold position: a full dynamic positioning (DP) system.** (Owner, 26 Oct 2026, with the dive support vessel: "something for the backlog, like a full DPS system".)
+   - *Real:* a dive support ship holds herself over a spot, and on a heading, with her engines, rudders and thrusters worked together by a computer from her GPS, compass and wind sensor, so the sub or divers can work under her.
+   - *In the game:* a HOLD button on the helm assist panel: she stays over the spot where it's pressed (within a few metres) and on her heading, against wind and tide, until you take the controls back. Wanted over a dive site for the submersible's launch and recovery.
+   - *Builds on:* the helm assist panel (autopilot, dock), the engines, rudders, pod drives and their joystick.
+   - *New:* the holding logic (a controller over where she is and which way she's heading); maybe a bow thruster module for boats without pods. No new physics bodies.
 
 Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, liferaft and float-free beacon, line-throwing gun, salvage pump, fishing gear (jigging, longline, sorting table), diving gear, signals, oil-spill boom, science davit and ROV, galley and bunk extras.
 
@@ -39,6 +44,9 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **The dive support vessel: launch and recover the sub** (this log). Start in the **Dive support vessel** (Voyage: the boat list; or the debug menu). Start the engine, DECK HYD on. At the stand by the starboard foot of the A-frame (stand forward of it, facing aft): WINCH UP until the sub is in the docking head, FRAME OUT until she's out over the stern (feel her trim by the stern), WINCH DOWN until she floats. Then back: WINCH UP, FRAME IN, WINCH DOWN onto her cradle. Try FRAME OUT with her on her cradle (it says why not). Shipyard: Deck gear → Diving on other hulls, and read why it won't go.
+- [ ] **Twin engines heard one each** (this log). A twin worked separately (the catamaran, or your twin trawler): key on, START P, then START S: each start is heard. Then one lever ahead at a time: you hear that engine rise alone; stop one and it falls silent while the other runs.
+- [ ] **Twin engines: E/D and R/F, and engines that stall** (this log). Desktop, a twin, holding the wheel with the mouse: E/D the port lever, R/F the starboard; W/S both. Put a twin in gear with a lever and check the revs hold. If you can, send the code of the twin trawler that stalled.
 - [ ] **The console screens tidied** (this log). Speed screen: LOG (speed through the water), no anchor line; heading: no rate of turn; ENGINE: no temperature. In a tidal race the LOG and the NAV panel's SOG should differ.
 - [ ] **Twin stern drives: a lever and a START each** (this log). Shipyard: a boat with Stern drives and Twin; in the game, each leg follows its own lever (one ahead, one astern spins her).
 - [ ] **Twin engine control, a lever and a START each** (this log). In the catamaran (or the pilot boat): key on, START P, then START S. VR: grab one knob, then the other, then the yellow grip between them (both come together). One ahead and one astern: she turns on the spot. Desktop: drag a knob, drag the grip; W/S moves both. Is the grip easy to find and grab? Does START P hide behind the levers from the helm?
@@ -61,6 +69,62 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### A dive support vessel: the dive A-frame and the submersible (done; on next, in your test round)
+
+Owner, 25 Oct 2026: "We need to create a dive support vessel to support the diving game ... a larger crane that has the ROV ... launches from the A-frame at the back"; then: "the A-frame is fine, and it's a small submersible. You can actually take the 3D model from the other repo ... placeable on any boat that's big enough ... It might only fit on the big [trawler] just now. And regarding hold position, that's something for the backlog, like a full DPS system." Stages 1 to 3 of the plan agreed; stage 4 (the dive itself, the handover to the submersible game) waits for the main game chat.
+
+**The module, `deck.dive-frame`** (`src/modules/diveFrame/`), a launch and recovery system as on a real dive support ship:
+- **The sub:** the submersible game's three-person work sub, drawn as that game draws her (its `src/sub/exterior.ts`, `layout.ts` and thruster positions, ported to `submersible.ts`): yellow fairing and tail cone, the dome and the two side ports (dark glass from outside), the hatch fairing, frame posts and light bar, skids, sample basket, stowed arms, the thruster ducts, and a lift padeye on top. 10 t, about 7.4 m long with her tail cone, 2.9 m over her thrusters. One merged mesh.
+- **The A-frame:** a heavy frame over the transom, its feet pinned on the quarters, swung by two hydraulic rams from in over her cradle (about 34° forward) to out over the stern (about 44° aft, her bow clear of the transom). An umbilical winch on the crosshead, and the docking head hanging plumb under it, which grips the sub's lift point.
+- **Her cradle** on deck forward of the frame, under her skids.
+- **The control stand** by the starboard foot, worked standing forward of it facing aft (frame and sub in view): FRAME OUT / FRAME IN and WINCH UP / WINCH DOWN, hold to run. Hydraulic: the engine running and DECK HYD on, like the crane.
+- **The sequence:** WINCH UP lifts her off her cradle into the docking head; FRAME OUT swings her out over the stern; WINCH DOWN lowers her until she floats. Recovery is the same backwards.
+- **Interlocks, as on a real one:** the frame swings only with the sub home in the docking head; the winch lowers only with the frame right in (onto her cradle) or right out (into the sea), never with her over the transom. The game says why when a button does nothing.
+- **Her weight:** designed into the boat on her cradle (she floats level on her lines with it). Hung out over the stern, the difference is a payload: her weight off the cradle and where she hangs, so the boat trims by the stern (about 2° on the dive ship). Afloat, her weight comes off the boat.
+- **Drawn:** home in the docking head she's held rigid; on wire out she hangs plumb under the head, whatever the boat's trim and heel, and floats at the sea's mean level, level, the umbilical slack. (The view has no waves: in a swell she sits at the mean surface.) Drawn smoothly between ticks.
+- **Draw calls:** five (frame, docking head, sub, umbilical, the rams instanced); cradle, lugs and stand merged with the boat. The dive ship in harbour: 30 draws in the headless view.
+- **Settings:** `CONFIG.modules.diveFrame` (`legLength`, `footFromTransom`, `footInset`, `deckClear`, `overClear`, `luffRateDeg`, `wireRate`, `slack`, `dockTol`, `headDrop`, `frameKg`, `ram`, `stand`, `cradle`, `sub`, `colours`).
+
+**The Shipyard: placeable on any boat big enough** (`design.diveFrame`, Deck gear → Diving; `src/shipyard/parts/diveFrame.ts`). It goes on any hull that passes, and says why not in a few words:
+- her stern wide enough for the sub to pass between the legs;
+- her aft deck clear and on one level for the sub's cradle (about 7.9 m forward of the transom, aft of the wheelhouse);
+- the sub no more than a fifth of her weight (so 50 t or more);
+- her GM still 0.5 m with the sub lifted to the docking head;
+- 0.3 m of freeboard left at the transom with the sub hung out over the stern (her trim from her own waterplane, worked from her stations);
+- legs lengthened (up to 9 m) if her bulwark is too high to swing the sub over.
+- As each hull comes, only the **stern trawler** passes (the small tug, lengthened and with her house forward, does too). The others are told why: no deck aft (the gillnetter, workboat, pilot boat, tug, catamaran), or too small (the pilot boat or catamaran with the deck made: 12 to 25 t).
+- It takes her transom: the trawl A-frame (with its net drum and winches) and the stern roller are left off with it, and said. Its cradle takes its deck from her cargo room. Frame and sub £260,000. Not in the short code: she travels as a link or file.
+- Settings: `CONFIG.shipyard.diveFrame` (`legClear`, `maxLeg`, `bulwarkClear`, `minFreeboard`, `maxShare`, `minGM`), the price `deckGear.price.diveFrame`.
+
+**The fleet: a dive support vessel** (`diveShip`, `src/boats/fleet/diveShip.json`): the stern trawler's hull without her trawl gear or fish hold, the dive A-frame and sub, searchlight, two life rings, helm assist, navy blue. 147 t, GM 1.8 m; floats level. In the boat lists (Voyage spawn, home boat, launch).
+
+- **Tests:** `tests/diveFrame.test.ts` (which hulls it fits and why not; the launch and recovery and their interlocks and payload; she floats level, and trims by the stern hung out); the fleet test; the Shipyard's menu, pin and code tests; `docs/BUS_KEYS.md` regenerated.
+- **Checked:** typecheck, all tests, the build. Headless screenshots in the game (on her cradle, hoisted, mid-swing, out, afloat, the stand and its labels) and in the Shipyard (the dive ship on the Deck gear step; the pilot boat's warning). Not checked: VR feel of the stand's buttons, and the motion in a seaway.
+- **Still to come (stage 4, with the main game chat):** at a dive site, nearly stopped, with the sub in the water, a DIVE button to open the submersible game at that wreck. Note for it: the submersible game reads plain address fields (`?site=…&depth=…&sub=…&return=…`, its `src/core/handoff.ts`), not the coded `mv` envelope `docs/dive-contract.md` proposes.
+- **Shared changes:** `src/core/simulation.ts` (the sub's payload), `src/modular/busKeys.ts` and `src/vessel/vesselState.ts` (the four `dive.*` keys, only on a boat with the frame), `src/boats/library.ts` and `src/boats/fleet.ts` (the module and the fleet boat), `src/vessel/vesselDef.ts` (`diveShip` in `VESSEL_IDS`), `src/app/App.ts` (the hints); the Shipyard's `design.ts`, `parts/deckGear.ts`, `parts/recipe.ts`, `parts/weights.ts`, `parts/hullDef.ts`, `parts/engineRoom.ts`, `gearMenu.ts`, `pinGear.ts`, `src/config/shipyard.ts`. Noted in the game and Shipyard logs.
+
+### Twin engines heard one each: starter, revs and stopping (done; on next, in your test round)
+
+Owner, on the twin trawler: "one of the engines doesn't have sounds ... when you do the key on and start button, it doesn't make any sounds. And then when you throttle up or down one of the engines, it doesn't make any sounds."
+
+A twin already had two engine sounds, but both followed the port engine: the second only ran a touch off its revs for the drone. With the engines worked separately, the starboard engine starting, stalling or throttling was never heard. Now the second sound follows the starboard engine's own state (`EngineState.stbd`: its revs, load, cranking, running), so START S cranks audibly, and each lever is heard on its own engine. The drone (`CONFIG.engineTwinDrift`) still rides on top. Other players' boats keep one voice each (the Quest's audio budget): a twin worked separately is heard by whichever engine is working harder, and cranking while either cranks.
+
+- No new settings. Test: `tests/twinEngineSound.test.ts`.
+- **Shared changes:** `audio/engineAudio.ts` (`EngineAudio.update`), `app/App.ts` (the heard boats' engine numbers): the main game's files, noted in its log.
+
+### Twin engines: what went wrong on your twin trawler, and a lever each on the keys (done; on next, in your test round)
+
+You tried a twin engine trawler: moving the starboard throttle ahead dropped its revs to 0; the port one astern stopped the engine; restarting, the glow plugs took a long time, and only changing the battery fixed it.
+
+- **What happened.** I could make that happen in the simulation, and it isn't the twin control: the same boat with one engine, and the code from before the twin control, do the same. The stern trawler's slow 1000 rpm diesel turns a 1.9 m propeller through a gearbox the Shipyard fits in her sea trial ("matching her propeller"). With a gearbox far too high for her (a design taken to sea before it was fitted, or with the fitting lost), the propeller wants many times the torque the engine has: in gear the revs fall to 0. And the engine then sat "running" at 0 rpm: no diesel does that. At 0 rpm her alternator gave nothing, so the battery ran down, and with it flat the fuel solenoids closed (the engine stopped) and the glow plugs dragged on, until a new battery. With the gearbox the Shipyard fits, your steps all behave: the starboard engine ahead at 635 rpm, the port one astern at 541 rpm, back to idle in neutral, the battery charging throughout.
+- **The fix: a diesel stalls.** In gear and dragged below 30 % of her idle (`CONFIG.vessels.workboat.engine.stallFraction`; the outboards' `stallFraction` too), she stalls and stops, as a real one does: back to neutral and START her again. Only in gear, so an engine running up from the starter is never stopped. A crash stop or a heavy tow still sags her revs without stopping her.
+- I couldn't see how your trawler got its gearbox so high: the Shipyard's play button waits for the fitting. If you can send me her code (or link), I'll check her.
+- **A lever each on the keys** (your ask): on a twin worked separately, holding the wheel with the mouse, E / D move the port lever ahead / astern and R / F the starboard one, each stopping at neutral on the way through as W / S do; W / S still move both. While you hold the wheel on a twin, E, F and R aren't their usual keys (engine start, take the helm, the debug drop). At the helm with F (not holding the wheel) the keys are as before, since F there leaves the helm.
+
+Tests: `tests/twinEngines.test.ts` (the stern trawler on a gearbox far too high: in gear she stalls and stops, the other engine runs on; in neutral she starts again). Not checked by hand: the keys (they need a real mouse on the wheel).
+
+**Shared changes:** `src/vessel/physics/propulsion.ts` (the stall), `src/config/vessels.ts` (`engine.stallFraction`), `src/core/keybindings.ts` (`portAhead`, `portAstern`, `stbdAhead`, `stbdAstern`), `src/app/App.ts` (the twin keys holding the wheel; E, F, R not their own then).
 
 ### The console screens tidied: the log, no rate of turn, no doubled readings (done; on next, in your test round)
 

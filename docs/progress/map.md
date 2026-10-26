@@ -10,6 +10,33 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Career: Brannock Pier the deep-water berth; deep boats start there (25 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "We need a new deep water harbour on the career map. The new tugboat's got about 5.5 metres draft minimum. And we're going to have vessels with up to 10 ... Maybe just make Brannock Pier the deep water one, where by default bigger ships spawn in." Asked: keep the pier as it is (its 50 m T-head), and choose the start by draught.
+
+- **Measured first:** Brannock's T-head already has 35 to 37 m of water alongside (the island's slope), and 35 m along its seaward face; Calder Haven's basin is 4.5 m. So no dredging; nothing in `home.ts` changes.
+- **The start by draught** (`world/startSpot.ts` `startBerthFor`): in the career, a boat that can't lie anywhere in Calder Haven with her draught and `CONFIG.spawn.underKeel` (1 m) to spare starts at `CONFIG.start.deepPort` (`brannock`), at the first of its berths with room for her (the same check as a launched boat's berth: her length along the face, water under her whole hull); a ship too long for any of them lies at its cargo berth, overhanging the head, rather than aground in Calder. The player is put ashore beside her berth (on the pier). Every boat in the game today (the deepest, the coaster, 3.4 m) starts at Calder as before; Voyage maps are unchanged.
+- **Config key:** `CONFIG.start.deepPort` `'brannock'` (`src/config.ts`).
+- **Tests:** `tests/deepStart.test.ts`: every boat today still starts at Calder; the small tug drawn 5.5 m deep starts moored at Brannock's T-head in over 6.5 m of water, the player on the pier beside her; a 58 m ship drawing 10 m lies at Brannock (along its 136 m arm, where she fits) in over 11 m.
+- **Not checked:** in the game by eye (no boat that deep exists yet to start in); the first-voyage tutorial from Brannock (it was written for Calder's start: a deep boat's new career may want its own words).
+- **Shared changes:** `src/world/startSpot.ts` (`startBerthFor`), `src/core/world.ts` (the start uses it; the player ashore beside her berth), `src/config.ts` (`start.deepPort`): the main game's, small. README: the start and Brannock's depth.
+
+### Review fixes: real latitude and longitude, far hills merged less, passed chunks freed (24 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, after the main game chat's review (`docs/REVIEW_2026-10-24.md`): "Do the two map items and the lat/long".
+
+- **Real latitude and longitude on the Voyage maps.** The GPS (NAV display), the paper chart's scale and the radio's positions used the career archipelago's made-up origin on every map, so Syros read as Scotland. Each package now carries its box in degrees (`bbox`, from the request; the four maps re-packaged, nothing else in them changed), and `src/world/coastGeo.ts` inverts the pipeline's projection about the box's middle, both ways (the same sums as the Timber handoff's `metaverse.ts`, which the test checks against). `toLatLon` uses it whenever a coast map is loaded; a new `fromLatLon` does the reverse, and the paper chart draws its scale with it. The career islands keep their made-up origin (`CONFIG.nav`). In the game: Syros's quay reads 37.437° N 24.940° E (Ermoupoli), Rothesay 55.839° N 5.055° W, Oban bay 56.414° N 5.475° W.
+- **Far hills merged less** (`coastView.ts`). A big map merged its far chunks into one mesh again, and sent it to the graphics chip, each time a chunk crossed a line or the visibility drifted, up to twice a second. Now: the fog's reach is rounded up to 500 m steps (`coastFogStep`); a chunk keeps its coarse copy 300 m past its line (`coastHysteresis`); the chunks are re-sorted by distance only after 50 m of movement (`coastResort`); a merge only happens when a chunk must join (a hole otherwise), and then it takes in the chunks within 2 km of needing it too (`coastFarAhead`: the next row about to leave the coarse ring, the hills just beyond the fog), so one merge serves a whole row; chunks no longer needed stay in the mesh, under the nearer ground or in the fog, until they're over a quarter of it (`coastFarSlack`, at most every `coastFarTidy` 5 s). On a 30 km run down the Clyde in wandering visibility: 14 merges, down from 166 for the same run merging chunk by chunk.
+- **Passed chunks freed.** A chunk's coarse copy and its town's buildings stayed in memory once made, so a long Clyde voyage kept every one it had passed. Now they're freed beyond 1.5 times the distance they're drawn within (`coastDropFactor`; 9 km and 3 km) and made again on coming back. On the same run, at most 56 coarse copies at once.
+- **Config keys** (`src/config/map.ts`, `regions`): `coastFogStep` 500, `coastHysteresis` 300, `coastResort` 50, `coastFarAhead` 2000, `coastFarSlack` 0.25, `coastFarTidy` 5, `coastDropFactor` 1.5.
+- **Tests:** `tests/coastGeo.test.ts` (every map's weather point both ways; Syros in the Aegean; Oban as the handoff places it; north up, east right), `tests/coastViewBudget.test.ts` (the 30 km Clyde run: merges and meshes kept). `npm run test:map`, the typecheck and all of `npm test` (1484) pass. Headless: Syros, Clyde and Oban start without errors, their positions as above, the Clyde's far hills drawn.
+- **Not checked:** frame times on the Quest (the merges were a stutter there, not measurable here); the paper chart's scale by eye.
+- **Shared changes:** `src/nav/geo.ts` (`toLatLon` uses the coast map's grid when one is loaded; new `fromLatLon`) and `src/nav/paperChart.ts` (its scale through `fromLatLon`), the main game's. `src/world/coastRegion.ts`'s `CoastPackage` gains `bbox`. README: a line on real positions.
+
 ### (From the modular-builder chat) A wind farm in the home region
 
 At the owner's word (24 Oct 2026, crew transfer to wind farms): `src/world/regions/home.ts` has a new `windFarms` list, the Holm Rig wind farm (three turbines south-east of Calder Holm, clear of the Calder Bank fishing ground). The data type is `WindFarmDef` in `src/world/defs.ts`, the collision `src/world/windFarm.ts`, the drawing `src/world/view/windFarmView.ts`. Details in `docs/progress/modules.md`.

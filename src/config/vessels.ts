@@ -179,6 +179,13 @@ export const VESSELS_CONFIG = {
         starterTorque: 700,
         starterMaxRpm: 160,
         crankTime: 1.6,
+        /**
+         * Stall: in gear, dragged below this fraction of idle by the propeller (a gearbox too
+         * high for her propeller, lugging past what she can pull), she stops, as a real diesel
+         * does; start her again in neutral. (Owner, Oct 2026: an engine sat "running" at 0 rpm
+         * in gear, its alternator still, and ran the battery flat.)
+         */
+        stallFraction: 0.3,
         /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
         startOnlyInNeutral: true,
         /**

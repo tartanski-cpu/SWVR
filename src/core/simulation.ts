@@ -44,6 +44,7 @@ import { applyTransferIntent, isTransferIntent, stepTransfer } from '../transfer
 import { applyTvIntent, isTvIntent, stepTv } from '../modules/furniture/tvState';
 import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
 import { holdPayload, stepHold } from '../fishing/fishHold';
+import { diveSubPayload } from '../modules/diveFrame/onBoat';
 import { stepRodSale } from '../fishing/rod';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
 import { stepProjects } from '../career/projects';
@@ -203,6 +204,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     payload.push(...holdPayload(vessel));
     // (And a codend full of fish hanging from her A-frame: fishing.ts.)
     payload.push(...codendPayload(world, vessel.id));
+    // (And a dive A-frame's submersible, on her cradle or hanging over the stern: modules/diveFrame.)
+    payload.push(...diveSubPayload(vessel));
     // Water in the bilge is weight low in the hull (vessel/wear.ts).
     if (vessel.bilge) payload.push({ mass: vessel.bilge * CONFIG.wear.bilgeMassFull, pos: new THREE.Vector3(0, VESSEL_DEFS[vessel.defId].hull.params.keelY + 0.35, 0) });
     const deckBefore = deckVelocitiesBefore(world, vessel);

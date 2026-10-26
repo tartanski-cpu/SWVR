@@ -325,8 +325,8 @@ export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPa
     { id: 'batteries', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], rnd(soleY), at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },
     { id: 'rudder', type: 'hull.rudder', transform: { position: rudderPos }, label: 'Rudder stock, under the transom' },
-    // (The trawl's net drum, winches and A-frame rams too, with trawl winches and no tow winch.)
-    ...(craneAt || winchAt || skiffAt || p.aFrame ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
+    // (The trawl's net drum, winches and A-frame rams too, with trawl winches and no tow winch; the dive A-frame's rams and winch.)
+    ...(craneAt || winchAt || skiffAt || p.aFrame || p.diveFrame ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
   ];
   return { engineSockets, dip, dipZ, eh, hatchIs, hatchTop, hatchZ, soleY, sx0, sx1 };
 }

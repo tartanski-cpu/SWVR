@@ -26,6 +26,12 @@ export const KEYS = {
   helmPort: { codes: ['ArrowLeft'], description: 'Wheel to port' },
   helmStarboard: { codes: ['ArrowRight'], description: 'Wheel to starboard' },
   leverNeutral: { codes: ['KeyX'], description: 'Lever to neutral' },
+  // Twin engines worked separately, holding the wheel with the mouse (owner, Oct 2026): a lever
+  // each (W / S still work both). Then E, F and R aren't their own keys (engine, helm, drop).
+  portAhead: { codes: ['KeyE'], description: 'Twin engines, holding the wheel: port lever ahead' },
+  portAstern: { codes: ['KeyD'], description: 'Twin engines, holding the wheel: port lever astern' },
+  stbdAhead: { codes: ['KeyR'], description: 'Twin engines, holding the wheel: starboard lever ahead' },
+  stbdAstern: { codes: ['KeyF'], description: 'Twin engines, holding the wheel: starboard lever astern' },
   helmMidships: { codes: ['KeyG'], description: 'Wheel amidships' },
   engine: { codes: ['KeyE'], description: 'Engine start / stop (lever in neutral)' },
   board: { codes: ['KeyB'], description: 'Board the boat / go ashore to the quay' },
