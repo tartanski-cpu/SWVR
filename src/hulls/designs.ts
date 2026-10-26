@@ -916,5 +916,59 @@ export const DESIGNS: HullDesign[] = [
       bow: { radius: 0.4, drop: 0.45, from: 0.86, to: 1, blocks: { width: 0.3, gap: 0.06, depth: 0.3, height: 1.3 } },
     },
     colours: { topsides: 0x2e3b47, bulwark: 0x2e3b47, bottom: 0x7a2c24, boot: 0x1f2124, house: 0xeceeea, deck: 0x6b6f68, roof: 0xd8352c },
+  },  {
+    // A solar-electric catamaran (owner, Oct 2026, from renders and a scale model of a 16 m
+    // solar power cat being built of foam and plywood; our own lines of her size and type):
+    // hull only for now, her house, tilting solar wings, batteries and electric pods to come.
+    id: 'solarCat',
+    name: 'Solar catamaran (16 m type)',
+    blurb: 'Solar-electric catamaran: two very slim, deep hulls (0.54 m at the waterline, L/b about 29) under a bridge deck the full width, knife bows nearly plumb, square transoms for her electric pods; very easily driven, for long quiet passages on sun and battery. Light foam and plywood construction. 16.0 x 5.2 m.',
+    length: 16.0,
+    // One hull's deck half-breadth: full nearly to her bow, a fine knife entry.
+    catamaran: { spacing: 4.62, tunnel: 0.75 },
+    halfBeam: [
+      [0, 0.28],
+      [0.4, 0.29],
+      [0.75, 0.285],
+      [0.9, 0.21],
+      [0.97, 0.1],
+      [1, 0.03],
+    ],
+    sheer: [
+      [0, 1.3],
+      [0.6, 1.32],
+      [1, 1.5],
+    ],
+    // Deep, slim hulls: a straight keel most of her length, a knife bow nearly plumb.
+    keel: [
+      [0, -0.9],
+      [0.3, -1.17],
+      [0.7, -1.2],
+      [0.92, -1.08],
+      [0.99, -0.7],
+      [1, -0.35],
+    ],
+    rake: [
+      [0, 0],
+      [1, 0],
+    ],
+    // Near-upright sides down to a chine just under her waterline, a deep V below it.
+    section: {
+      chineBeam: [
+        [0, 0.92],
+        [0.5, 0.88],
+        [1, 0.6],
+      ],
+      chineHeight: [
+        [0, 0.3],
+        [0.5, 0.33],
+        [1, 0.4],
+      ],
+    },
+    bulwark: [
+      [0, 0],
+      [1, 0],
+    ],
+    colours: { topsides: 0x9ea3a6, bulwark: 0x9ea3a6, bottom: 0x2a2d30, boot: 0x2a2d30, house: 0x3a3f44, deck: 0x6e665c, roof: 0x1d2530 },
   },
 ];

@@ -10,6 +10,20 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The solar catamaran, step 1: her hull, at the Shipyard's weight for her (owner)
+
+- **The owner:** a new one-off to try solar and battery power, from renders and a scale model of a 16 m solar power cat (5.2 m overall, 0.54 m hulls), being built of foam and plywood, light; her weight unknown, so "use our shipyard algorithm to test it". Variable-angle solar panels on her sides. Our own lines of her size and type, not the real boat's.
+- **Her weight, the Shipyard's way** (measured with the Shipyard's build on her lines as a catamaran hull type, in a scratch test):
+  - as the fast cat is built (aluminium, twin diesels, a small wheelhouse): 18.1 t;
+  - foam and plywood, at 16 kg/m2 of hull and 9 of house (against aluminium's 35 and 18, framing and bulkheads in): 11.7 t, her hull structure 4.75 t;
+  - her electric outfit in place of the diesels, shafting and fuel (-3.35 t): two motors and pods +0.3 t, a 100 kWh battery +0.7 t, about 70 m2 of panels with frames and hinges +0.8 t, her long house in place of the small wheelhouse +0.85 t, no bulwarks or fenders -0.4 t: **about 10.7 t**.
+- **Her lines** (`designs.ts`, `solarCat`): two hulls 4.62 m apart, 16.0 x 5.2 m overall, each 0.54 m wide at the waterline (L/b 28), 1.2 m draught, 10.8 t (Cb 0.53 a hull, Cp 0.83; KM 8.4 m). Near-upright sides to a chine just under her waterline, a deep V below; knife bows nearly plumb; square transoms for her pods; a flat bridge deck the full width, its underside 0.75 m over her waterline.
+- **Easily driven:** on the game's catamaran resistance (tuned on the fast cat, so cautious for hulls this slim) and its propulsive efficiency, 2 kW at her motors makes 3.9 kn, 5 kW 5.3, 10 kW 6.6, 20 kW 8.0, 40 kW 9.7, 80 kW 11.4.
+- **The hull study viewer's lines overlay** now draws a catamaran's lines on each hull (it drew one phantom hull on her centreline, the fast cat's too).
+- **To come** (the plan agreed with the owner): into the Shipyard as a fixed one-off (the Shipyard chat), her tilting solar wings and foredeck rack (a mechanism: the modular builder chat), solar and battery power (the main game chat and the Shipyard), and her tender garaged between her hulls aft.
+- **Checked:** typecheck, all tests; `tests/hulls/solarCat.test.ts` (her size, hull width and slenderness, wet deck, weight and draught, KM, the game's volume against her lines, 6-7.5 kn on 10 kW); screenshots of both views.
+- **Shared changes:** none.
+
 ### The harbour tug, step 2: her fendering (owner)
 
 - **Her fendering** (`src/hulls/fendering.ts`, her design's `fendering`), heavy black rubber as on harbour tugs, built on the game's own stations for her so it sits on her hull as the game draws it:
