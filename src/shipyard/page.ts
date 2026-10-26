@@ -40,7 +40,8 @@ import { alongAxis, HANDLES, nearestStep, type HandleDef, type V3 as HV3 } from 
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
-import { buildDesign, withFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
+import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
+import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
 import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
@@ -105,8 +106,8 @@ if (!sessionId && 'design' in fromHash) {
 if ('design' in fromHash) history.replaceState(null, '', `${location.pathname}${location.search}`);
 let design: ShipDesign = { ...startDoc.variants.find((v) => v.id === active)!.design };
 let boat: DesignedBoat = useDesign(design);
-/** The choices her gearbox was matched for (not the paint or the controls, which don't change it). */
-const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, controls: 0 });
+/** The choices her gearbox was matched for (not the paint, its markings or the controls, which don't change it). */
+const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, markings: 0, controls: 0 });
 /**
  * Does a loaded design come with its gearing matched? An inboard's code does (the yard
  * matched it before it was issued). Outboards' lower units are matched from the same step
@@ -115,6 +116,12 @@ const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, co
  */
 const comesMatched = (d: ShipDesign) => outboardCount(d) === 0;
 let matchedFor: string | null = comesMatched(design) ? matchKey(design) : null;
+/**
+ * Is her gearbox matched for what she is now? Always, on a one-off whose gearbox is fixed with
+ * her type (the harbour tug, owner: "a fixed engine configuration and a fixed propulsion, so
+ * there shouldn't be any resolving of the gearbox"): her code or link is ready at once.
+ */
+const matched = (): boolean => gearFixed(design) || matchedFor === matchKey(design);
 let trial: SeaTrialResults | null = null;
 /** The choices `trial` was run for: while they differ from now, its figures are greyed (a new run is coming). */
 let trialFor = '';
@@ -1198,6 +1205,15 @@ function paintRow(key: keyof ShipDesign, label: string, paints: { name: string; 
   });
   controls.appendChild(row);
 }
+group('Service livery', 'A service’s livery (owner, Oct 2026): police, fire, rescue or coastguard. It paints her in its colours (yours to change after) and puts its markings on her topsides: its bands and its name along each side forward. A monohull’s only. Marked, she travels as a link or file, not a code.');
+// Choosing one sets her colours for it too (SERVICE_LIVERIES); None takes the markings off, and leaves her colours.
+{
+  const box = options('markings', 'Livery', [...MARKING_NAMES]).querySelector('div')!;
+  box.querySelectorAll<HTMLElement>('.choice').forEach((el) => {
+    const i = Number(el.dataset.i);
+    el.onclick = () => change({ markings: i, ...(i ? SERVICE_LIVERIES[i - 1].colours : {}) });
+  });
+}
 group('Hull', 'Her topsides, above the waterline. Below it she has her antifouling, and her deck its own grey or green to go with her paint. Her finish: as new (clean paint), worked, or well used (grime along her waterline, rust running down from her deck edge, faded paint).');
 paintRow('paint', 'Topsides', LIVERIES.map((l) => ({ name: l.name, colour: l.livery.topsides ?? 0xd9622b })));
 // Her finish (owner, Oct 2026: "pre-configure a boat to look used or new"): as new, worked or well used (shown in that order).
@@ -1522,7 +1538,7 @@ function figureGroup(key: string, title: string, sum: string, r: ([string, strin
 const pounds = (x: number) => `£${Math.round(x).toLocaleString('en-GB')}`;
 function showFigures(): void {
   const f = boat.figures;
-  const matched = matchedFor === matchKey(design);
+  const isMatched = matched();
   const room = deckRoom();
   const t = currentTrial();
   const balance = Math.abs(boat.weights.balanceM) < 0.05 ? 'over her centre of buoyancy' : `${Math.abs(boat.weights.balanceM).toFixed(2)} m ${boat.weights.balanceM > 0 ? 'aft' : 'forward'} of her centre of buoyancy`;
@@ -1550,7 +1566,7 @@ function showFigures(): void {
     figureGroup('machinery', 'Machinery', f.engine.split(',')[0], [
       ['Engine', f.engine],
       ['Propeller', `${f.propellerM.toFixed(2)} m`],
-      ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
+      ['Gearbox', isMatched ? `${f.gear.toFixed(2)} : 1 (${gearFixed(design) ? 'fixed with her drives' : 'matched'})` : 'matching...'],
     ], false),
     // Her weights, part by part (build.ts): she floats where they add up to.
     figureGroup('cost', 'Price &amp; weight', pounds(f.price), [
@@ -1695,10 +1711,10 @@ function showCode(): void {
   btn.disabled = capsizes;
   btn.title = capsizes ? `She would capsize (GM ${boat.figures.gmM.toFixed(2)} m): give her more beam or less depth first.` : '';
   ($('playTogether') as HTMLButtonElement).disabled = capsizes;
-  const matched = matchedFor === matchKey(design);
+  const isMatched = matched();
   const el = $('code');
-  el.classList.toggle('pending', !matched);
-  if (!matched) {
+  el.classList.toggle('pending', !isMatched);
+  if (!isMatched) {
     el.textContent = 'matching...';
     return;
   }
@@ -1755,7 +1771,7 @@ worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: S
 function runTrial(): void {
   clearTimeout(trialTimer);
   const id = ++trialId;
-  const match = matchedFor !== matchKey(design);
+  const match = !matched();
   $('status').textContent = match ? 'Matching her propeller and running her trials...' : 'Running her trials...';
   trialTimer = window.setTimeout(() => worker.postMessage({ id, design, match }), 500);
 }
@@ -1792,13 +1808,13 @@ function floatsUpright(): boolean {
 }
 $('play').onclick = (e) => {
   e.preventDefault();
-  if (matchedFor === matchKey(design) && floatsUpright()) location.assign(gameUrl(designToken(design)));
+  if (matched() && floatsUpright()) location.assign(gameUrl(designToken(design)));
 };
 // "Try her together" (owner, Oct 2026): in a session, one press takes everyone into the game in
 // her, in one multiplayer game. The presser hosts it in a new room; the others join it
 // (session.ts sends them the room; the game waits for the host, App.ts).
 $('playTogether').onclick = () => {
-  if (matchedFor !== matchKey(design) || !link?.side || !floatsUpright()) return;
+  if (!matched() || !link?.side || !floatsUpright()) return;
   const code = designToken(design);
   const room = randomRoomCode();
   link.side.go({ design: code, room });
@@ -1811,20 +1827,20 @@ function showTogether(): void {
 }
 $('copy').onclick = () => {
   const code = shortCode(design);
-  if (matchedFor === matchKey(design) && code) void navigator.clipboard?.writeText(code);
+  if (matched() && code) void navigator.clipboard?.writeText(code);
 };
 // Sharing her as a document (parametric boats P1; designDoc.ts): a link to the Shipyard with
 // her in it (paste it in a message), or a file (send it, keep it, open it here again).
 /** Her name as shared: the brief's, else what she'd be called. */
 const shareName = () => (brief.name ?? '').trim() || defaultName();
 $('shareLink').onclick = () => {
-  if (matchedFor !== matchKey(design)) return;
+  if (!matched()) return;
   const url = `${location.origin}${location.pathname}#${docToken(design, shareName())}`;
   void navigator.clipboard?.writeText(url);
   $('shareMsg').textContent = 'Link copied: paste it in a message. It opens the Shipyard on her.';
 };
 $('saveFile').onclick = () => {
-  if (matchedFor !== matchKey(design)) return;
+  if (!matched()) return;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([docFileText(design, shareName())], { type: 'application/json' }));
   a.download = docFileName(shareName());
@@ -1892,7 +1908,7 @@ function picture(): string {
 }
 function saveFavourite(): void {
   const msg = $('favMsg');
-  if (matchedFor !== matchKey(design)) {
+  if (!matched()) {
     msg.textContent = 'Wait a moment: her gearbox is still being matched (her code isn’t ready).';
     return;
   }
@@ -1937,7 +1953,7 @@ function showFavourites(): void {
 const groupFavCode = (token: string) => (token.startsWith('doc.') ? 'from a link' : token);
 /** Mark the favourite that is the design on show now (if any). */
 function markCurrent(): void {
-  const now = matchedFor === matchKey(design) ? designToken(design) : '';
+  const now = matched() ? designToken(design) : '';
   document.querySelectorAll<HTMLElement>('.fav').forEach((el) => el.classList.toggle('current', el.dataset.code === now));
 }
 $('load').addEventListener('keydown', (e) => e.key === 'Enter' && loadCode());
