@@ -158,7 +158,7 @@ describe('azimuth drives', { timeout: 300000 }, () => {
   it('the lever: twist the hand and it turns, `twistGain` a degree; push the grip along its arrow for power; idle near upright; it stays where it is left', () => {
     const c = CONFIG.modules.azimuth.lever;
     const sent: [string, number][] = [];
-    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, twistGain: c.twistGain, turntableRadius: c.turntableRadius, colour: 0xff0000, rodColour: 0, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
     lever.bind({ emit: (ch: string, v: number) => sent.push([ch, v]), haptic: () => {} } as never);
     lever.root.updateMatrixWorld(true);
     const grip = lever.grabPoint(new THREE.Vector3());
@@ -172,8 +172,8 @@ describe('azimuth drives', { timeout: 300000 }, () => {
     // Pushed along its arrow, the grip leaned half its travel: about half power, the angle kept.
     const a = (30 * c.twistGain * Math.PI) / 180;
     const lean = ((c.maxTiltDeg / 2) * Math.PI) / 180;
-    const pivot = grip.clone().setY(0.06);
-    const r = grip.y - 0.06;
+    const pivot = grip.clone().setY(lever.pivotY);
+    const r = grip.y - lever.pivotY;
     const at = pivot.clone().add(new THREE.Vector3(Math.sin(a) * Math.sin(lean) * r, Math.cos(lean) * r, -Math.cos(a) * Math.sin(lean) * r));
     lever.grabMove(pointer(at, 30));
     expect(lever.angle).toBeCloseTo(30 * c.twistGain, 0);
