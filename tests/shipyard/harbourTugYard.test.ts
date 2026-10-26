@@ -11,7 +11,8 @@ import { validateRecipe } from '../../src/modular/recipe';
 import { buildDesign, DESIGN_HULLS, ENGINES } from '../../src/shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../../src/shipyard/design';
 import { designToken, readDesign, shortCode } from '../../src/shipyard/designDoc';
-import { HARBOUR_TUG, HARBOUR_TUG_DIESEL } from '../../src/shipyard/parts/catalog';
+import { CONFIG } from '../../src/config';
+import { gearFixed, HARBOUR_TUG, HARBOUR_TUG_DIESEL, withFixed } from '../../src/shipyard/parts/catalog';
 
 afterAll(() => useDesign(DEFAULT_DESIGN));
 
@@ -82,6 +83,12 @@ describe('the harbour tug in the Shipyard', () => {
     expect(tow!.point[2]).toBeGreaterThan(0);
     expect(b.recipe.modules.some((m) => m.module === 'deck.bow-staple')).toBe(false);
     expect(b.hull.sockets.find((s) => s.id === 'towWinch')!.transform.position[2]).toBeGreaterThan(0);
+  });
+
+  it('her gearbox is fixed with her drives: never matched by trial, whatever the design says (owner: "there shouldn\'t be any resolving of the gearbox")', () => {
+    expect(gearFixed(tug)).toBe(true);
+    expect(withFixed({ ...tug, gear: 3 }).gear).toBe(CONFIG.shipyard.harbourTug.gear);
+    expect(gearFixed(DEFAULT_DESIGN)).toBe(false);
   });
 
   it('travels as a link or file, and comes back', () => {

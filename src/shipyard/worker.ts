@@ -6,6 +6,7 @@
 import { useDesign } from '../boats/sims';
 import { runSeaTrials } from '../vessel/seaTrials';
 import type { ShipDesign } from './design';
+import { gearFixed } from './parts/catalog';
 import { matchGear } from './trial';
 
 self.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; match: boolean }>) => {
@@ -13,8 +14,9 @@ self.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; match: boole
   let design = e.data.design;
   try {
     // Her gearbox first, sent back at once (her code is ready to save), then the longer trials
-    // (owner, Oct 2026: on the Quest a big boat's code waited minutes for both).
-    if (match) {
+    // (owner, Oct 2026: on the Quest a big boat's code waited minutes for both). Not a one-off
+    // whose gearbox is fixed with her type: hers stays.
+    if (match && !gearFixed(design)) {
       design = { ...design, gear: matchGear(design).gear };
       self.postMessage({ id, design, matched: true });
     }

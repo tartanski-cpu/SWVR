@@ -240,4 +240,87 @@ const AEGEAN: Theme = {
   },
 };
 
-export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN, aegean: AEGEAN };
+// The Baltic (Turku and the Archipelago Sea): low islands of ice-smoothed grey and pink
+// granite, pine on the rock, spruce and birch in the hollows, reed beds in the bays, hay
+// fields on the clay; wooden houses painted red ochre or yellow with white trim and metal
+// roofs; Turku's stone and rendered city blocks. A dark, muddy seabed in brackish water.
+const BALTIC: Theme = {
+  cover: {
+    10: 0x2e4a2c, // tree cover: pine and spruce, dark
+    20: 0x5e6440, // shrubland: juniper and young birch on the rock
+    30: 0x7a9a4c, // grassland: hay meadows and pasture
+    40: 0x9aa858, // cropland: fields on the clay plains
+    50: 0x8c8884, // built-up
+    60: 0x948884, // bare / sparse: bare granite
+    70: 0xeef2f4, // snow and ice
+    80: 0x3a5a6a, // permanent water (lakes drawn as land for now)
+    90: 0x86885a, // herbaceous wetland: reed beds
+    95: 0x4a6a3a, // mangroves (not here)
+    100: 0x86906c, // moss and lichen on the outer skerries
+  },
+  // Grey-pink granite, rounded by the ice.
+  rock: 0x938680,
+  sand: 0xd6c8a0,
+  shallow: 0x857c60,
+  deep: 0x2e454c,
+  // Grey granite gravel; low dark granite faces (no high cliffs here); fields a yellow-green.
+  shingle: 0x8a847c,
+  cliff: 0x6c625e,
+  fields: 0x98a85a,
+  // Rock and reeds at the water's edge.
+  foreshore: 0x847c62,
+  // Archipelago houses and summer cottages in red ochre and yellow, some white or pale grey,
+  // with white corners and window frames; dark sheet-metal or red roofs; red-ochre boathouses
+  // and sheds; Turku's blocks rendered in cream, yellow and grey.
+  houses: {
+    walls: [0x8e2a20, 0x8e2a20, 0x8e2a20, 0xd8b45a, 0xd8b45a, 0xf0ede4, 0xc4ccd0, 0xe6d8a4],
+    painted: [0xd8b45a, 0xe8c8a0, 0xc8d0c0, 0x8e2a20, 0xf0ede4, 0x9ab0c0, 0xd8a060],
+    doors: [0x2a3a4a, 0x5a2a1e, 0x2f4a30, 0xf0ede4, 0x3a3a3a],
+    signs: [0x1e3a5a, 0x6a1e1e, 0x2a2a2a],
+    roofs: [0x3e4246, 0x34383c, 0x8a3a2e, 0x4a4e52],
+    shedWalls: [0x8a2e24, 0x8a2e24, 0x8c9294, 0xd8b45a],
+    shedRoofs: [0x3e4246, 0x5a5e62, 0x8a3a2e],
+    stone: [0x9a8e88, 0x8a807c, 0xa89a92],
+    levels: { cottage: 1.5, house: 2, terrace: 3, shed: 1, church: 2.5, warehouse: 2, boathouse: 1, castle: 4, ruin: 2 },
+    roofShapes: { cottage: 'gabled', house: [['gabled', 4], ['hipped', 1]], terrace: [['flat', 1], ['gabled', 1]], shed: 'gabled', church: 'gabled', warehouse: 'gabled', boathouse: 'gabled', castle: 'flat', ruin: 'flat' },
+    paintedShare: 0.4,
+  },
+  // Finnish woods: Scots pine on the rock and the dry ridges, spruce in the damp hollows,
+  // birch everywhere at the edges; juniper scrub on the outer islands. Managed forest, not
+  // planted in rows. The land is low, so no treeline to speak of; bare rock only where steep.
+  forest: {
+    treeline: 250,
+    steep: 1.3,
+    thin: 0.8,
+    forestIs: 'mixed',
+    woodIs: 'mixed',
+    kinds: {
+      plantation: { spacing: 5.5, species: [['pine', 3], ['conifer', 3], ['birch', 1]] },
+      broadleaf: { spacing: 7, species: [['birch', 5], ['broadleaf', 3]] },
+      mixed: { spacing: 6.5, species: [['pine', 4], ['conifer', 3], ['birch', 3]] },
+      natural: { spacing: 8, species: [['pine', 4], ['birch', 3], ['conifer', 2]] },
+      scrub: { spacing: 7, species: [['scrub', 3], ['birch', 2], ['pine', 1]] },
+      orchard: { spacing: 7, rows: true, species: [['broadleaf', 1]] },
+    },
+    colours: {
+      conifer: [0x22402a, 0x274630, 0x1e3a26],
+      broadleaf: [0x4e7034, 0x587a3a],
+      birch: [0x7a9a48, 0x88a650, 0x6e9042],
+      scrub: [0x46583a, 0x52623e, 0x5e6a40],
+      pine: [0x38542f, 0x425e36, 0x324c2c],
+      olive: [0x7a8a6a],
+    },
+  },
+  // Archipelago harbours: motor cruisers and day boats at the guest-harbour pontoons, sailing
+  // yachts, open aluminium boats; few swinging moorings (boats lie bow-to the pontoons on a
+  // stern buoy), more yachts at anchor in the sheltered sounds.
+  boats: {
+    alongside: [['cruiser', 4], ['yacht', 3], ['rib', 2], ['creel', 1]],
+    moored: [['yacht', 3], ['cruiser', 2]],
+    anchored: [['yacht', 2], ['cruiser', 1]],
+    moorings: 0.4,
+    hulls: [0xf2f0ea, 0xf2f0ea, 0xf2f0ea, 0x1e2f4a, 0x8a2a24, 0x9a7a4a, 0x3a4a5a],
+  },
+};
+
+export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN, aegean: AEGEAN, baltic: BALTIC };

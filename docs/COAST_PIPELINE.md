@@ -54,6 +54,16 @@ A request with `chunked: true` (the Clyde, 36 x 37 km) is written for streaming:
 - **Drawing:** the harbour kit is drawn in 1 km squares near the viewer only (`coastStructureCell`, `coastStructureDistance`).
 - **The map viewer** (`coast.html`) doesn't read chunked maps yet.
 
+## Crowded archipelagos (Turku)
+
+Where the map data marks everything, three request options keep a map the size of the others (each off unless the request sets it, so the other maps are unchanged):
+
+- **`privateJetties: true`:** a group of piers with no name of its own (no marina, harbour or ferry terminal by it, no name on a pier) and no quay wall is a private jetty, as each Finnish summer cottage has. It's drawn and solid, but isn't a port, has no boats on moorings round it, and brings in only the buildings within 80 m of it (`harbours.ts` `privateReach`).
+- **`pottingApart: <m>`:** creel grounds no closer together than this. Every charted rock otherwise gets one.
+- **`ferriesNamed: true`:** only the named ferry routes, the longest piece of each name.
+
+For every map, a ferry route more than a fifth over the game's land is left out (a river water bus: rivers and lakes are land in the game for now).
+
 ## Milestones (the owner's)
 
 1. **Pipeline skeleton and the first box** (done): fetch, project, reconcile, mesh, colour; the viewer.

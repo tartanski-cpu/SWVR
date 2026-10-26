@@ -192,6 +192,9 @@ export interface DesignHull {
   towsOverBow?: boolean;
 }
 
+/** Is her gearbox fixed with her type (a one-off's), so never matched by trial? */
+export const gearFixed = (d: ShipDesign): boolean => DESIGN_HULLS[d.hull]?.fixed?.gear !== undefined;
+
 /** A design with her one-off type's fixed choices (DesignHull.fixed) kept to. */
 export function withFixed<D extends Pick<ShipDesign, 'hull'>>(d: D): D {
   const fixed = DESIGN_HULLS[d.hull]?.fixed;
@@ -358,10 +361,8 @@ const HARBOUR_TUG_FIXED: Partial<ShipDesign> = {
   pods: 0,
   // (Her propellers in nozzles, as an azimuth drive's are: a tug's bollard pull.)
   nozzle: 1,
-  // Her gearbox fixed too (owner, 26 Oct 2026: "it's a fixed gearbox"): the step the yard's
-  // trial matched to her twin 1,850 kW and nozzled propellers (shipyard/trial.ts matchGear),
-  // never matched again (it took minutes on the Quest, and her code waited for it).
-  gear: 14,
+  // Her gearbox fixed too: her engines and drives are, so no matching by trial (CONFIG.shipyard.harbourTug.gear).
+  gear: CONFIG.shipyard.harbourTug.gear,
   aFrame: 0,
   netDrum: 0,
   trawlWinches: 0,

@@ -32,6 +32,22 @@ const AEGEAN_WEATHER = {
   hold: [600, 1500] as [number, number],
 };
 
+/**
+ * The Archipelago Sea's weather (Turku): grey and changeable, overcast spells the longest,
+ * rain often, fog in the calm spells off the cold water, now and then a clear day; the odd
+ * squall. The islands keep the sea down: the waves come from the ground's fetch (fetchSeas).
+ */
+const BALTIC_WEATHER = {
+  next: {
+    Clear: { Clear: 2, Overcast: 2, Fog: 0.4 },
+    Overcast: { Overcast: 3, Clear: 1.5, Rain: 1.5, Fog: 0.6, Squall: 0.3 },
+    Fog: { Overcast: 2, Clear: 1 },
+    Rain: { Overcast: 2, Rain: 1, Squall: 0.3 },
+    Squall: { Overcast: 2, Rain: 1 },
+  },
+  hold: [600, 1500] as [number, number],
+};
+
 export interface VoyageMap {
   id: string;
   name: string;
@@ -49,6 +65,7 @@ export const VOYAGE_MAPS: readonly VoyageMap[] = [
   { id: 'oban', name: 'Oban and Lorn', blurb: 'Oban Bay, Kerrera and its sound, Dunstaffnage and the Falls of Lora: 12 km of Argyll coast at full scale.', region: OBAN, startBerth: 'oban-cargo', weatherAt: { lat: 56.415, lon: -5.49 } },
   { id: 'clyde', name: 'The Firth of Clyde', blurb: 'Bute and Rothesay, the Kyles and Loch Striven, Dunoon and the Holy Loch, Gourock, Greenock and Helensburgh, Largs and the Cumbraes: 35 by 37 km at full scale.', remote: { x: 0, z: 0, weather: SOUNDS.weather }, startBerth: 'rothesay-harbour-cargo', weatherAt: { lat: 55.86, lon: -4.98 } },
   { id: 'syros', name: 'Syros', blurb: 'The whole island in the Cyclades: Ermoupoli and its harbour under Ano Syros, Foinikas and Posidonia, Kini, Vari and the islets off the east coast: 15 by 19 km at full scale.', remote: { x: 0, z: 0, weather: AEGEAN_WEATHER }, startBerth: 'ermoupoli-cargo', weatherAt: { lat: 37.44, lon: 24.95 } },
+  { id: 'turku', name: 'Turku and the Archipelago Sea', blurb: 'Turku and its port, the Meyer Turku yard at Perno, Ruissalo, the Airisto fairway, Pargas, Nagu and the islands between: 37 by 38 km at full scale.', remote: { x: 0, z: 0, weather: BALTIC_WEATHER }, startBerth: 'port-of-turku-cargo', weatherAt: { lat: 60.3, lon: 22.1 } },
   { id: 'tayvallich', name: 'Tayvallich and Loch Sween', blurb: 'Tayvallich and its bay, Caol Scotnish and the Fairy Isles, Loch Sween to Achnamara, and the Sound of Jura shore: 11 by 16 km at full scale.', region: TAYVALLICH, startBerth: 'tayvallich-cargo', weatherAt: { lat: 55.95, lon: -5.7 } },
 ];
 
