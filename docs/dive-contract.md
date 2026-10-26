@@ -23,9 +23,21 @@ The Oban sites are real places on the real coast, by WGS84 latitude and longitud
 
 Adding a site later: one row here, one entry in `src/dive/diveSites.ts` `DIVE_SITES` in Workboat World, and its scene in Submersible World.
 
-## The launch and the return (proposal)
+## The launch (built, 26 Oct 2026)
 
-The same mechanism as Timber (`docs/metaverse-contract.md`): one JSON envelope, base64url (no padding) of its compact JSON, in a URL query parameter `mv`, with the same rules (strip it from the address on reading, ids issued and consumed once, each game saves its own state before navigating, `v: 1`, unknown fields ignored).
+Workboat World now launches into Submersible World by the address Submersible World already reads (its `src/core/handoff.ts`, its spec's "Handoff in"), not the envelope proposed below:
+
+`https://tartanski-cpu.github.io/Submersible-World/?site=<site id>&depth=<m>&sub=work3&tier=3&crew=1&return=<url>&session=<id>`
+
+- When: the sub launched off the dive A-frame (`deck.dive-frame`, on the fleet's Dive support vessel or a Shipyard boat big enough) and afloat, the ship inside a site's ring (`CONFIG.dive.radius`) making under 0.5 kn, and DIVE pressed on the frame's stand. Alone, or hosting with no crew aboard (as Timber).
+- `site`: the site id from the table above; `depth`: its charted depth (Submersible World clamps it to its own 15 to 80 m, so the three shallow wrecks, 8 to 13 m, dive at 15 m).
+- `return`: the Workboat page as it was (the career, or the Voyage map); Workboat World saves its own state first. Back there the sub is on her cradle again.
+- `session`: a 6-character handoff id, issued in Workboat World's store (`swvr.mv.issued`, as Timber's), so a return carrying it can be checked once and only once.
+- Code: `src/modules/diveFrame/launch.ts` (`diveReady`, `diveUrl`), `App.ts` `goDive`. Settings `CONFIG.modules.diveFrame.dive`.
+
+## The return (proposal)
+
+Not built on either side yet (Submersible World's milestone M9). The proposal stands: the same mechanism as Timber (`docs/metaverse-contract.md`): one JSON envelope, base64url (no padding) of its compact JSON, in a URL query parameter `mv`, with the same rules (strip it from the address on reading, ids issued and consumed once, each game saves its own state before navigating, `v: 1`, unknown fields ignored).
 
 - **Out** (Workboat → Submersible): the dive support ship stopped over a site (inside its ring, under about 0.5 kn) and the submersible launched off her stern. `from: "workboat"`, `site` (the id above), `return`, `boat`, `pos`, `time`, as Timber's.
 - **Back** (Submersible → Workboat): `from: "submersible"`, `status` `"none"` or `"recovered"`, and what was brought up, for Workboat World to put on the ship's deck and pay for, e.g. `"cargo": { "items": [ { "kind": "bell", "name": "Lorn Trader's bell" } ] }`. The kinds and their prices are to agree.
@@ -34,7 +46,7 @@ Open questions for the Submersible World chat:
 1. Which wreck kinds and sizes it can build, and whether the table's descriptions suit it.
 2. What its missions bring back, so Workboat World can carry and pay for them.
 3. Whether the career sites (no real position) are wanted, or only real-coast ones.
-4. The Submersible World address to navigate to.
+4. ~~The Submersible World address to navigate to.~~ Its live address, with the fields above.
 
 ## In Workboat World (for reference)
 

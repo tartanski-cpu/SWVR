@@ -254,6 +254,10 @@ export const MODULES_CONFIG = {
      *                  `bottom` below her axis; her bow `front` forward of the lift point and her
      *                  tail `aft` aft of it; `halfWidth` her widest (the thruster ducts); afloat,
      *                  her axis `floatAxis` under the water (her top fairing just out of it)
+     *   dive           the DIVE button (modules/diveFrame/launch.ts): with the sub afloat, over a
+     *                  wreck site (within CONFIG.dive.radius) and making under `maxSpeedKn`, it
+     *                  opens the submersible game at `url` with her `sub` id and `tier` (3: the
+     *                  three-seat work sub with her mini ROV), after `fadeS` s of fade
      */
     diveFrame: {
       legLength: 6.5,
@@ -272,6 +276,7 @@ export const MODULES_CONFIG = {
       cradle: { height: 0.35 },
       sub: { massKg: 10_000, lift: 1.6, liftZ: 0.5, bottom: 1.46, front: 3.5, aft: 3.9, halfWidth: 1.45, floatAxis: -0.9 },
       colours: { frame: 0xe8e8e2, head: 0x30343a, ram: 0xc8ccd0, cradle: 0x30343a, umbilical: 0xe0a020 },
+      dive: { url: 'https://tartanski-cpu.github.io/Submersible-World/', maxSpeedKn: 0.5, sub: 'work3', tier: 3, fadeS: 1.2 },
     },
 
     /**
