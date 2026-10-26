@@ -430,7 +430,13 @@ const ferryRoutes: object[] = [];
   const portNames = (ports as { name: string; x: number; z: number }[]).map((p) => ({ name: p.name.replace(/ (pier|harbour|marina)$/i, ''), x: p.x, z: p.z }));
   const names = FERRY_NAMES[req.theme] ?? FERRY_NAMES['north-hebridean'];
   const places = (F?.names ?? []) as { name: string; x: number; z: number }[];
-  for (const [n, r] of ((F?.ferries?.routes ?? []) as Ferry[]).entries()) {
+  let routes = (F?.ferries?.routes ?? []) as Ferry[];
+  if (req.ferriesNamed) {
+    const longest = new Map<string, Ferry>();
+    for (const r of routes) if (r.name && len(r.path) > len(longest.get(r.name)?.path ?? [])) longest.set(r.name, r);
+    routes = routes.filter((r) => r.name && longest.get(r.name) === r);
+  }
+  for (const [n, r] of routes.entries()) {
     // The longest run of the route inside the map.
     let best: [number, number][] = [];
     let run: [number, number][] = [];
@@ -442,6 +448,21 @@ const ferryRoutes: object[] = [];
       }
     }
     if (best.length < 2 || len(best) < 300) continue;
+    // Over water: a route more than a fifth on the game's land isn't one it can sail (a river
+    // water bus: the game draws rivers and lakes as land for now). Sampled every 50 m.
+    {
+      let n = 0;
+      let dry = 0;
+      for (let i = 1; i < best.length; i++) {
+        const [a, b] = [best[i - 1], best[i]];
+        const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 50));
+        for (let k = 0; k < steps; k++, n++) if (hAt(a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps) > 0) dry++;
+      }
+      if (dry > n * 0.2) {
+        warnings.push(`ferry ${r.name || '(unnamed)'}: ${Math.round((100 * dry) / n)} % over land: left out`);
+        continue;
+      }
+    }
     // Naming the ends: the route's own name's first and last parts ("Craighouse - Tayvallich")
     // go one to each end, whichever way round puts each nearer a port, terminal or place of
     // its name (letters only, any case: "Hunters Quay" is "Hunter's Quay"); an end at the map's

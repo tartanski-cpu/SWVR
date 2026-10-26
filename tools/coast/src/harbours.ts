@@ -514,8 +514,8 @@ const find = (i: number): number => (group[i] === i ? i : (group[i] = find(group
 for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) if (Math.hypot(items[i].x - items[j].x, items[i].z - items[j].z) < T.clusterGap) group[find(i)] = find(j);
 const clusters = new Map<number, typeof items>();
 items.forEach((it, i) => clusters.set(find(i), [...(clusters.get(find(i)) ?? []), it]));
-const places = Object.values(osm.nodeTags)
-  .map((t, i) => ({ t, p: osm.nodes[Object.keys(osm.nodeTags)[i]] }))
+const places = Object.entries(osm.nodeTags)
+  .map(([id, t]) => ({ t, p: osm.nodes[id] }))
   .filter(({ t, p }) => p && t.name && ['town', 'village', 'hamlet', 'suburb', 'locality'].includes(t.place))
   .map(({ t, p }) => ({ name: nameOf(t), at: P.fwd(p[0], p[1]) }));
 
@@ -562,9 +562,11 @@ for (const list of clusters.values()) {
   const at = nb.length ? nb : [{ x: cx, z: cz }];
   const f = at.reduce((s, b) => s + fetch(b.x, b.z), 0) / at.length;
   const id = slug(name);
-  // A private jetty: nothing names it but the nearest place, and it isn't a quay or a long pier.
+  // Private jetties: nothing names them but the nearest place, no quay wall, no harbour area
+  // (a shore of cottage jetties, each within clusterGap of the next, chains into one group).
   const unnamed = !marina && !named?.name && !terminalName;
-  harbours.push({ id, name, kind: isHarbour ? 'harbour' : 'pier', x: r1(cx), z: r1(cz), pieces: [...new Set(sources)], berths: nb.length, fetch: Math.round(f), ...(req.privateJetties && unnamed && !isHarbour ? { private: true } : {}) });
+  const walled = list.some((it) => it.kind === 'quay') || !!area;
+  harbours.push({ id, name, kind: isHarbour ? 'harbour' : 'pier', x: r1(cx), z: r1(cz), pieces: [...new Set(sources)], berths: nb.length, fetch: Math.round(f), ...(req.privateJetties && unnamed && !walled ? { private: true } : {}) });
 }
 // Unique ids.
 const seenIds = new Map<string, number>();
@@ -704,7 +706,14 @@ for (const [id, w] of Object.entries(osm.ways)) {
   if (p.length < 4) continue;
   const c = p.reduce(([sx, sz], [x, z]) => [sx + x / p.length, sz + z / p.length], [0, 0]);
   if (!inBox(c[0], c[1])) continue;
-  if (!pieces.some(([x, z, reach]) => Math.hypot(x - c[0], z - c[1]) < reach)) {
+  let toPiece = Infinity;
+  let near = false;
+  for (const [x, z, reach] of pieces) {
+    const d = Math.hypot(x - c[0], z - c[1]);
+    if (d < toPiece) toPiece = d;
+    if (d < reach) near = true;
+  }
+  if (!near) {
     skippedFar++;
     continue;
   }

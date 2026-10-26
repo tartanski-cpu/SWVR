@@ -10,6 +10,26 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku and the Archipelago Sea: a new Voyage map, and the Baltic theme (26 Oct 2026)
+
+Owner, after the "Next Waters" research page: "Go ahead with Turku as the next map".
+
+- **The map:** `tools/coast/requests/turku.yaml`, box [21.78, 60.16, 22.45, 60.50], 36.9 by 37.8 km, chunked like the Clyde (359 chunks, the biggest 10,392 faces, within the 12,000 budget; 28 MB of mesh). Turku and its port, the Meyer Turku yard at Perno, Ruissalo, the Airisto fairway, Naantali, Pargas, Nagu and the islands between. Voyage starts at the Port of Turku's cargo berth (4.2 m of water), in its live weather (read at 60.3 N, 22.1 E). Landing page: a Turku line under Voyage.
+- **Data:** the same sources as the other maps (OpenStreetMap, Copernicus GLO-30, ESA WorldCover, EMODnet, which covers the Baltic). No new source was needed. OpenStreetMap here is very full: 2.1 million points, about six times the Clyde's.
+- **The Baltic theme** (`tools/coast/src/themes.ts` `BALTIC`): grey-pink granite shores rounded by the ice, reed beds, hay fields; Scots pine on the rock, spruce in the hollows, birch at the edges, juniper scrub, not planted in rows; wooden houses in red ochre and yellow (some white or pale grey) with dark metal or red roofs, red-ochre sheds and boathouses, Turku's blocks rendered cream and grey, three storeys; motor cruisers and yachts at the guest-harbour pontoons, few swinging moorings. Invented Finnish and Swedish ferry names (`FERRY_NAMES.baltic`). Its weather in `world/maps.ts` (`BALTIC_WEATHER`): grey and changeable, overcast spells longest, rain and fog often.
+- **Keeping a crowded archipelago the size of the others**, three new request options (`common.ts`), off for the other maps, which re-package unchanged:
+  - `privateJetties`: the map marks every summer cottage's jetty as a pier, which gave 471 harbours and 259 ports (the Clyde has 56). A group of piers with no name of its own and no quay wall is now drawn and solid but isn't a port, has no moorings round it, and brings in only the buildings within 80 m (`harbours.ts` `privateReach`). Turku: 48 ports, 8,357 buildings (from 18,152), 338 moorings (from 1,684).
+  - `pottingApart` 1200: creel grounds no closer than 1.2 km (1,706 to 215; every charted rock had one).
+  - `ferriesNamed`: only named ferry routes, the longest piece of each name (45 to 12): the road ferries (Prostvik to Lillmälö, Haverö, Käldö), the archipelago boats to Seili, Röölä, Vepsä and Naantali, the ring routes round Nagu, and the Finnlines ship from Travemünde up the fairway.
+  - For every map: a ferry route more than a fifth over the game's land is left out (Turku's Aura river water bus: rivers are land in the game for now). No other map had one.
+- **Names, by hand** (`turku.edits.yaml`): the harbour the map calls "Silja Line: Turku pier" is the Port of Turku (`port-of-turku`, the Voyage start); "Outfitting place 4-5" is Perno shipyard; "D" is Tammisto jetty; "Boatservices, storage" is Västörä boatyard; "Tiilitehtaanranta A" is Tiilitehtaanranta quay.
+- **Pipeline speed:** the harbours stage looked up the list of every tagged map point once per point (quadratic). On Turku it took 37 minutes; now 64 seconds, with the same result (Oban checked).
+- **Tests:** `tests/coastTurku.test.ts`: the box, the chunks within budget, the Baltic theme; the Port of Turku reads 60.44 N, 22.22 E; the start berth in water; Perno, Pargas, Nagu and Naantali are ports; the private jetties aren't ports but every piece is drawn; 30 to 70 ports, none with a stub name; named ferries only, each once, over water; creel grounds 1.2 km apart. `npm run test:map` (138), the typecheck and all of `npm test` (1,639) pass.
+- **Checked in the game** (headless): Turku loads in about 10 s with no errors, moored at the Port of Turku, the GPS reading 60.436 N, 22.218 E; 161 draw calls at the port. Screenshots at the port, off the Perno yard and off Nagu: the wooden houses in their colours, pine and spruce woods to the water, yachts at anchor, a ferry at the terminal.
+- **Not checked:** on the Quest (frame rate, memory on a long voyage; Turku's mesh is 28 MB against the Clyde's 25 MB, and it has more buildings); ferry schedules by eye; the chart and the radio's place names in Finnish and Swedish (the map has both; the game shows whichever the map gives).
+- **Next, if wanted:** the Perno yard's giant gantry crane and a cruise ship fitting out (the pipeline doesn't take cranes as landmarks yet); winter ice; a ferry livery of its own for the Finnish road ferries (they use the plain one for now).
+- **Shared changes:** `index.html` (a Turku line on the landing page). `src/world/maps.ts` is this area's.
+
 ### Career: Brannock Pier the deep-water berth; deep boats start there (25 Oct 2026)
 
 **Owner approved; merged into `next`.**

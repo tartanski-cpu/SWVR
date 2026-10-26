@@ -1,0 +1,21 @@
+# Hand edits for Turku and the Archipelago Sea (coast pipeline stage 7, src/harbours.ts).
+# Applied after the harbours and buildings are generated from OpenStreetMap, so re-running
+# the pipeline keeps them. See oban.edits.yaml for the forms.
+
+change:
+  # Turku's ferry harbour at the mouth of the Aura: the map names the harbour after one
+  # operator's pier; it's the Port of Turku. Voyage starts you here by this id.
+  - match: silja-line-turku-pier
+    set: { name: Port of Turku, id: port-of-turku }
+  # The shipyard at Perno, where the big cruise ships fit out: the map names only its berth.
+  - match: outfitting-place-4-5
+    set: { name: Perno shipyard, id: perno-shipyard }
+  # A jetty the map calls only "D", at Tammisto.
+  - match: d
+    set: { name: Tammisto jetty, id: tammisto-jetty }
+  # A boat-service yard's storage pier, by Västörä.
+  - match: boatservices-storage
+    set: { name: Västörä boatyard, id: vastora-boatyard }
+  # Tiilitehtaanranta A (the brick-works shore, quay A): keep the place.
+  - match: tiilitehtaanranta-a
+    set: { name: Tiilitehtaanranta quay, id: tiilitehtaanranta-quay }

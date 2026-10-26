@@ -21,3 +21,5 @@ goods: [building-materials, groceries, feed]
 privateJetties: true
 # A sea of charted rocks: creel grounds no closer together than this (m).
 pottingApart: 1200
+# Dozens of ferry lines are mapped, many unnamed or cut in pieces: only the named ones.
+ferriesNamed: true

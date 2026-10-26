@@ -34,13 +34,15 @@ export interface RegionRequest {
   berthFacing?: Record<string, number>;
   /**
    * Where the map marks every private jetty as a pier (Finland: each summer cottage has one):
-   * a pier with no name of its own (no marina, harbour or ferry terminal by it, no name on the
-   * pier, not a quay, short) is drawn and solid, but not a port, with no boats on moorings and
-   * only the buildings right by it (harbours.ts, package.ts, boats.ts).
+   * a group of piers with no name of its own (no marina, harbour or ferry terminal by it, no
+   * name on a pier) and no quay wall is drawn and solid, but not a port, with no boats on
+   * moorings and only the buildings right by it (harbours.ts, package.ts, boats.ts).
    */
   privateJetties?: boolean;
   /** Potting grounds no closer together than this (m): a sea of charted rocks (the Archipelago Sea) would give one at every one (package.ts). */
   pottingApart?: number;
+  /** Only the map's named ferry routes, the longest piece of each name (the Archipelago Sea maps dozens of unnamed and split ones) (package.ts). */
+  ferriesNamed?: boolean;
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {
