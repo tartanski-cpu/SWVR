@@ -15,7 +15,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### The harbour tug: her wheelhouse and deckhouse the player's; her towing gear a choice (preview/shipyard)
+### The harbour tug: her wheelhouse and deckhouse the player's; her towing gear a choice (approved by the owner 26 Oct 2026; on next)
 
 Owner, 26 Oct 2026: "just looking at the predefined wheelhouse you've given me, it doesn't really match the wheelhouse in the pictures, which is much kind of more narrow, tall. Maybe it's good if you in the shipyard give me the control of the wheelhouse and deckhouse as parametric parts. The other thing that's missing is the tugboat towing equipment isn't there as an option."
 
