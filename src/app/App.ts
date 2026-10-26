@@ -3841,7 +3841,10 @@ export class App {
     const hostPeer = this.joinCode.length === 5 ? peerIdForRoom(this.joinCode) : '';
     const host = Object.values(world.players).find((p) => p.peerId && p.peerId === hostPeer);
     const hostBoat = host?.aboardVesselId && playerBoats(world).some((v) => v.id === host.aboardVesselId) ? world.vessels[host.aboardVesselId] : undefined;
-    const target = hostBoat ?? (world.homeVesselId ? world.vessels[world.homeVesselId] : undefined);
+    // Back in a game where a boat of ours waited (the host put us aboard her: core/launch.ts): her.
+    const waited = world.players[this.localPlayerId]?.aboardVesselId;
+    const ours = waited && world.vessels[waited]?.owner === this.localPlayerId ? world.vessels[waited] : undefined;
+    const target = ours ?? hostBoat ?? (world.homeVesselId ? world.vessels[world.homeVesselId] : undefined);
     if (me && target && (rewire || myVessel !== target.id || !myVessel)) {
       this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: target.id });
     }
