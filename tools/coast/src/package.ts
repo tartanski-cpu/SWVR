@@ -415,7 +415,7 @@ const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; y
   const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
   let base = Infinity;
   for (const side of [-1, 1]) for (let k = -2; k <= 2; k++) base = Math.min(base, hAt(g.x + vx * side * (g.span / 2) + (ux * k * g.length) / 5, g.z + vz * side * (g.span / 2) + (uz * k * g.length) / 5));
-  return { ...g, x: r1(g.x), z: r1(g.z), base: r1(Math.max(0.5, base)) };
+  return { ...g, x: r1(g.x), z: r1(g.z), base: r1(Math.max(0.5, base)), ...(req.gantrySign ? { sign: req.gantrySign } : {}) };
 });
 // Ships under construction at a yard (the request's `yardShips`; Perno): in a mapped dry dock,
 // standing on her keel blocks on its floor, or afloat alongside a berth (the outfitting quay),

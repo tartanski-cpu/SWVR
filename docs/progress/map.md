@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku: the finished ship as the dock ship's shape, white and blue; the yard's name on the gantries (27 Oct 2026)
+
+Owner: "the docks [are] usually drained during the build. I don't like the completed cruise ship. You can actually make it look like the same shape as the ones in the dock, but just a nice white paint and a blue coloured hull. And I'd like the text Meyer Turku to be on the gantry cranes."
+
+- **The dock:** drained during the build, as it was drawn; unchanged.
+- **The finished ship** (`coastStructures.ts` `yardShipParts`): now the dock ship's shape complete (her hull, the decks stacked with the raked front and the terraces aft), painted white over a blue hull (`colours.hull` 0x1f3f8a), red below the waterline. The glass bands, the lifeboats, the funnel, the slides and the bridge are gone (and their settings: `boatEvery`, `boatSpan`, the park, boat and funnel colours). About 1,000 triangles. Seen side-on in the game's lighting, her shaded side reads grey-blue; the sunlit side and the deck edges white.
+- **The yard's name on the gantries:** "MEYER TURKU" in block capitals along both faces of each girder, white on the blue, a little to one side of the middle. The wording comes from the map's request (`turku.yaml` `gantrySign`; `common.ts`, `package.ts`, `GantryDef.sign`), not the code. Letters are drawn as flat strokes on a 4 by 6 grid (`STROKES`: the letters needed so far, A E K M N O R T U Y; anything else is a space), two triangles a stroke, in the one landmark mesh. `CONFIG.structures.gantry.signHeight` 6.5 m, `colours.sign`. Note for later: it's the yard's real name and trademark, written plainly (no logo); worth remembering if the game is ever published commercially.
+- **Tests** (`coastTurku.test.ts`): the gantries with their signs still under 2,000 triangles; the ships under 6,000. `npm run test:map` and the typecheck pass. Seen in the game headless: the sign reads along the girder; the finished ship white over blue at the pier.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`GantryDef.sign`).
+
 ### Turku: cruise ships building at Perno (26 Oct 2026)
 
 **Owner approved; merged into `next`.**

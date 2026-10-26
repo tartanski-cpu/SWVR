@@ -50,6 +50,8 @@ export interface RegionRequest {
    * her length (m) and which way her bow points along the dock or berth (`bow`: 1 or -1).
    */
   yardShips?: { dock?: string; berth?: string; stage: number; length: number; bow?: 1 | -1 }[];
+  /** The lettering along a yard's gantry cranes' girders (both faces), as the owner asks (package.ts). */
+  gantrySign?: string;
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

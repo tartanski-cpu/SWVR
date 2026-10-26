@@ -28,3 +28,5 @@ ferriesNamed: true
 yardShips:
   - { dock: largest, stage: 0.45, length: 330 }
   - { berth: perno-shipyard-cargo, stage: 0.88, length: 300 }
+# The yard's name along the gantry cranes' girders (owner).
+gantrySign: MEYER TURKU

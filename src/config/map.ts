@@ -335,7 +335,8 @@ export const MAP_CONFIG = {
      * depth and width, its legs' section and how far apart each A-frame's feet stand along the
      * rails, where its gantries stand along the track (shares of its length, for one, two or
      * more), the T-crane on top of one leg (mast height, jib length), the hoist's drop below
-     * the girder. An original low-poly form to the map's track, not a copy of the yard's.
+     * the girder. An original low-poly form to the map's track, not a copy of the yard's; the
+     * yard's name along the girder where the map asks for it (`signHeight`).
      */
     gantry: {
       height: 100,
@@ -347,16 +348,18 @@ export const MAP_CONFIG = {
       mast: 20,
       jib: 42,
       hoist: 45,
-      colours: { frame: 0x2c55a8, trolley: 0xf2a040, crane: 0xf0c840, dark: 0x3a3e44, rail: 0x55585a },
+      /** The sign along its girder (the map's `gantrySign`): its letters' height (m). */
+      signHeight: 6.5,
+      colours: { frame: 0x2c55a8, trolley: 0xf2a040, crane: 0xf0c840, dark: 0x3a3e44, rail: 0x55585a, sign: 0xffffff },
     },
     /**
      * A cruise ship under construction at a yard (Perno), an original design: her hull to the
      * main deck (`depth`, a share of her length), decks of `deck` m on top, `decks` of them
-     * finished; her superstructure from `aft` to `fore` (shares of her length from the stern),
-     * its front raked back `rake` m a deck, terraced aft every `terrace` decks by `terraceStep`
-     * m; her blocks `block` m long. Lifeboats every `boatEvery` m along `boatSpan` of her
-     * length. Colours: the finished ship's navy and white, red bottom, primer grey, the
-     * lifeboats' orange, the water-park aft. The yard's luffing cranes along the quay.
+     * when finished; her superstructure from `aft` to `fore` (shares of her length from the
+     * stern), its front raked back `rake` m a deck, terraced aft every `terrace` decks by
+     * `terraceStep` m; her blocks `block` m long. Colours: the finished ship's white and blue
+     * hull, red bottom, the blocks' primer and light grey, the windows' band; the yard's
+     * luffing cranes (`cranes` along each ship).
      */
     yardShip: {
       depth: 0.065,
@@ -368,10 +371,8 @@ export const MAP_CONFIG = {
       terrace: 3,
       terraceStep: 7,
       block: 24,
-      boatEvery: 15,
-      boatSpan: [0.3, 0.68] as [number, number],
       cranes: 2,
-      colours: { navy: 0x1d2f5e, white: 0xffffff, glass: 0x7f93a8, red: 0x9a2a24, primer: 0x8e9396, light: 0xb9bdbf, boat: 0xf08a28, deck: 0x8a8278, funnel: 0xeef0ee, park: [0xd8402c, 0x2e7fd0, 0xf0c030, 0x3aa86a, 0x8a4fc0], crane: 0xf0c840 },
+      colours: { hull: 0x1f3f8a, white: 0xffffff, glass: 0x7f93a8, red: 0x9a2a24, primer: 0x8e9396, light: 0xb9bdbf, crane: 0xf0c840 },
     },
     folly: { height: 11, tiers: 2, bay: 3.8, pier: 1.3, thick: 1.2, sill: 0.8, band: 1.2, cornice: 0.8, colours: { wall: 0xb9b2a4, cornice: 0xa39c8e } },
   },

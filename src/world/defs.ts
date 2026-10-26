@@ -591,6 +591,8 @@ export interface GantryDef {
   span: number;
   count: number;
   base: number;
+  /** Lettering along each girder, both faces (block capitals: world/coastStructures.ts). */
+  sign?: string;
 }
 
 /**
