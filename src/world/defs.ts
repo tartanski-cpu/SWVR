@@ -578,6 +578,22 @@ export interface FollyDef {
 }
 
 /**
+ * A shipyard's gantry crane track from the map (Perno, Turku): its middle, the bearing it runs
+ * along (deg), its length and the span between its rails (m), how many gantries share it, and
+ * the ground its rails are on (m). Drawn by world/coastStructures.ts.
+ */
+export interface GantryDef {
+  name: string;
+  x: number;
+  z: number;
+  yawDeg: number;
+  length: number;
+  span: number;
+  count: number;
+  base: number;
+}
+
+/**
  * A place name from the map (the coast extras plan, C4; a coast map's): a town, village,
  * island or islet, or the sea's own (a bay, a headland, a strait). On the charts by `rank`
  * (1 shown farthest out, 4 only close in), and in the radio's calls (world/places.ts).
@@ -707,6 +723,8 @@ export interface RegionDef {
   /** Its bridges over the sea and follies (a coast map's; world/coastStructures.ts). */
   bridges?: BridgeDef[];
   follies?: FollyDef[];
+  /** A shipyard's gantry cranes (a coast map's; world/coastStructures.ts). */
+  gantries?: GantryDef[];
   /** Boats lying in its harbours, on moorings and at anchor (a coast map's; world/harbourBoats.ts). */
   harbourBoats?: HarbourBoatsDef;
   gusts?: GustZoneDef[];

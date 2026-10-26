@@ -405,6 +405,14 @@ const follies = ((F?.follies ?? []) as { name: string; outline: [number, number]
   base: r1(Math.min(...f.outline.map(([x, z]) => hAt(x, z)))),
   ...(f.height ? { height: f.height } : {}),
 }));
+// Gantry cranes (Perno): each stands on its two rails, at the lower of the ground along them.
+const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[]).map((g) => {
+  const a = (g.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  let base = Infinity;
+  for (const side of [-1, 1]) for (let k = -2; k <= 2; k++) base = Math.min(base, hAt(g.x + vx * side * (g.span / 2) + (ux * k * g.length) / 5, g.z + vz * side * (g.span / 2) + (uz * k * g.length) / 5));
+  return { ...g, x: r1(g.x), z: r1(g.z), base: r1(Math.max(0.5, base)) };
+});
 // Ferries (the coast extras plan, C7): each mapped ferry route, cut to the map (its longest
 // stretch `ferryMargin` m inside the box's edge), each end a terminal where she berths (an
 // end of the route inside the map, named from the nearest ferry terminal or port) or the
@@ -594,6 +602,7 @@ const pkg = {
   skylineStyle,
   bridges,
   follies,
+  gantries,
   places,
   ferries: ferryRoutes,
   shelters,

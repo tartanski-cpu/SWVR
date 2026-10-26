@@ -14,6 +14,8 @@ import { setRemotePackage, type ChunkedCoastTerrain, type CoastPackage } from '.
 import { coastSample, registerChunkedCoast, type CoastSample } from '../src/world/coastTerrain';
 import { coastGeoOf, coastLatLon } from '../src/world/coastGeo';
 import { mapRegion, voyageMap } from '../src/world/maps';
+import { CONFIG } from '../src/config';
+import { gantryParts } from '../src/world/coastStructures';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'public', 'regions', 'turku');
@@ -95,5 +97,35 @@ describe('Turku in Voyage', () => {
     expect(pots.length).toBeGreaterThan(50);
     expect(pots.length).toBeLessThan(400);
     for (let i = 0; i < pots.length; i++) for (let j = i + 1; j < pots.length; j++) expect(Math.hypot(pots[i].x - pots[j].x, pots[i].z - pots[j].z)).toBeGreaterThanOrEqual(1200);
+  });
+});
+
+describe('Turku: the Perno yard\'s gantry cranes (owner, from photos of the yard)', () => {
+  it('the map\'s gantry track along the building dock: 743 m, 156 m between the rails, two gantries', () => {
+    const r = mapRegion(voyageMap('turku')!);
+    expect(r.gantries).toHaveLength(1);
+    const g = r.gantries![0];
+    expect(g.length).toBeGreaterThan(700);
+    expect(g.span).toBeGreaterThan(150);
+    expect(g.count).toBe(2);
+    // By the Perno shipyard port.
+    const perno = r.ports.find((p) => p.id === 'perno-shipyard')!;
+    expect(Math.hypot(g.x - perno.x, g.z - perno.z)).toBeLessThan(1000);
+  });
+
+  it('each gantry stands its full height over the rails and spans them', () => {
+    const g = mapRegion(voyageMap('turku')!).gantries![0];
+    const parts = gantryParts(g);
+    let y1 = -Infinity;
+    let y0 = Infinity;
+    for (const p of parts) {
+      p.computeBoundingBox();
+      y1 = Math.max(y1, p.boundingBox!.max.y);
+      y0 = Math.min(y0, p.boundingBox!.min.y);
+    }
+    expect(y1 - g.base).toBeGreaterThan(CONFIG.structures.gantry.height);
+    expect(y0).toBeLessThan(g.base + 1);
+    const tris = parts.reduce((t, p) => t + p.attributes.position.count / 3, 0);
+    expect(tris).toBeLessThan(2000);
   });
 });

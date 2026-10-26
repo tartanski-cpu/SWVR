@@ -11,6 +11,10 @@
  *               diagonals between the chords every `panel` m.
  *   beam        (any other) a deck on girders, on piers down to the seabed every `beamSpan` m
  *               over the water.
+ *   gantry      a shipyard's goliath crane over its building dock (Perno): on each rail an
+ *               A-frame of two legs on their bogies, a box girder across the span on top, a
+ *               cab trolley riding on the girder and a hoist trolley under it with its ropes
+ *               and hook block, a T-crane on top of one leg; the rails along the whole track.
  *   folly       a ring of arches along its mapped footprint (McCaig's Tower above Oban: two
  *               tiers): a pier every `bay` m round it, two tiers of openings between them
  *               under a band each, a cornice on top; its walls from the lowest ground round it.
@@ -21,7 +25,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { mergeParts, part } from '../render/geometryUtils';
-import type { BridgeDef, FollyDef } from './defs';
+import type { BridgeDef, FollyDef, GantryDef } from './defs';
 
 type V3 = [number, number, number];
 
@@ -181,8 +185,55 @@ export function follyParts(f: FollyDef): THREE.BufferGeometry[] {
   return parts;
 }
 
-/** All of a region's bridges and follies, merged (null if it has none). */
-export function structuresGeometry(bridges: readonly BridgeDef[], follies: readonly FollyDef[], ground: (x: number, z: number) => number): THREE.BufferGeometry | null {
-  const parts = [...bridges.flatMap((b) => bridgeParts(b, ground)), ...follies.flatMap((f) => follyParts(f))];
+/** A gantry track's parts: its rails, and each of its gantries where it stands along them. */
+export function gantryParts(g: GantryDef): THREE.BufferGeometry[] {
+  const c = CONFIG.structures.gantry;
+  const k = c.colours;
+  const a = (g.yawDeg * Math.PI) / 180;
+  // Along the track (u) and across it (v), from its middle.
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const at = (s: number, w: number, y: number): V3 => [g.x + ux * s + vx * w, y, g.z + uz * s + vz * w];
+  const y0 = g.base;
+  const H = y0 + c.height;
+  const half = g.span / 2;
+  const parts: THREE.BufferGeometry[] = [];
+  // The rails, two on each side, the track's length.
+  for (const side of [-1, 1]) for (const d of [-1.2, 1.2]) parts.push(member(at(-g.length / 2, side * half + d, y0 + 0.3), at(g.length / 2, side * half + d, y0 + 0.3), 0.8, 0.6, k.rail));
+  const shares = c.at[Math.min(g.count, c.at.length) - 1];
+  for (const f of shares) {
+    const s = (f - 0.5) * g.length;
+    const top = H - c.girderDepth;
+    // The girder, a little past the legs each side.
+    parts.push(member(at(s, -half - 6, H - c.girderDepth / 2), at(s, half + 6, H - c.girderDepth / 2), c.girderWidth, c.girderDepth, k.frame));
+    for (const side of [-1, 1]) {
+      const w = side * half;
+      // The A-frame: two legs from their feet, spread along the rails, to the girder.
+      for (const e of [-1, 1]) {
+        parts.push(member(at(s + (e * c.legBase) / 2, w, y0 + 3), at(s + e * (c.girderWidth / 2 - c.leg / 2), w, top + 0.5), c.leg, c.leg, k.frame));
+        // Its bogie on the rails.
+        parts.push(member(at(s + (e * c.legBase) / 2 - 6, w, y0 + 1.5), at(s + (e * c.legBase) / 2 + 6, w, y0 + 1.5), 4.5, 3, k.dark));
+      }
+      // A tie across the A-frame at a third of its height.
+      const ty = y0 + (top - y0) / 3;
+      const tw = (c.legBase / 2) * (2 / 3) + (c.girderWidth / 2) * (1 / 3);
+      parts.push(member(at(s - tw, w, ty), at(s + tw, w, ty), 2, 2, k.frame));
+    }
+    // The cab trolley riding on the girder, and the hoist trolley under it with its ropes and hook block.
+    parts.push(member(at(s, -half * 0.45 - 7, H + 3), at(s, -half * 0.45 + 7, H + 3), c.girderWidth + 2, 6, k.trolley));
+    const hw = half * 0.15;
+    parts.push(member(at(s, hw - 5, top - 3), at(s, hw + 5, top - 3), c.girderWidth + 1, 6, k.trolley));
+    for (const [ds, dw] of [[-2, -3], [2, -3], [-2, 3], [2, 3]]) parts.push(member(at(s + ds, hw + dw, top - 6), at(s + ds, hw + dw, top - 6 - c.hoist), 0.25, 0.25, k.dark));
+    parts.push(member(at(s, hw - 4, top - 7 - c.hoist), at(s, hw + 4, top - 7 - c.hoist), 4, 2.5, k.trolley));
+    // The T-crane on top of the far leg: its mast and its jib across the girder.
+    const mw = half - 3;
+    parts.push(member(at(s, mw, H), at(s, mw, H + c.mast), 1.8, 1.8, k.trolley));
+    parts.push(member(at(s, mw - c.jib * 0.75, H + c.mast + 1), at(s, mw + c.jib * 0.25, H + c.mast + 1), 2, 2.5, k.trolley));
+  }
+  return parts;
+}
+
+/** All of a region's bridges, follies and gantry cranes, merged (null if it has none). */
+export function structuresGeometry(bridges: readonly BridgeDef[], follies: readonly FollyDef[], ground: (x: number, z: number) => number, gantries: readonly GantryDef[] = []): THREE.BufferGeometry | null {
+  const parts = [...bridges.flatMap((b) => bridgeParts(b, ground)), ...follies.flatMap((f) => follyParts(f)), ...gantries.flatMap((g) => gantryParts(g))];
   return parts.length ? mergeParts(parts) : null;
 }

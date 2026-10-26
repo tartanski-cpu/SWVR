@@ -330,6 +330,25 @@ export const MAP_CONFIG = {
     anchorDepth: 2,
     beamSpan: 30,
     colours: { steel: 0x4c5a55, deck: 0x55585a, stone: 0x8a8478 },
+    /**
+     * A shipyard's gantry crane (Perno): the top of its girder above the rails (m), the girder's
+     * depth and width, its legs' section and how far apart each A-frame's feet stand along the
+     * rails, where its gantries stand along the track (shares of its length, for one, two or
+     * more), the T-crane on top of one leg (mast height, jib length), the hoist's drop below
+     * the girder. An original low-poly form to the map's track, not a copy of the yard's.
+     */
+    gantry: {
+      height: 100,
+      girderDepth: 11,
+      girderWidth: 9,
+      leg: 4,
+      legBase: 34,
+      at: [[0.5], [0.3, 0.7], [0.2, 0.5, 0.8]] as number[][],
+      mast: 20,
+      jib: 42,
+      hoist: 45,
+      colours: { frame: 0x2c55a8, trolley: 0xf2a040, crane: 0xf0c840, dark: 0x3a3e44, rail: 0x55585a },
+    },
     folly: { height: 11, tiers: 2, bay: 3.8, pier: 1.3, thick: 1.2, sill: 0.8, band: 1.2, cornice: 0.8, colours: { wall: 0xb9b2a4, cornice: 0xa39c8e } },
   },
 };
