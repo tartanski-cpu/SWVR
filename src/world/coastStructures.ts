@@ -20,9 +20,10 @@
  *               with a raked front and terraces aft. How far on she is (`stage`) decides what's
  *               there: in the dock, a patchwork of primer-grey and white hull blocks with the
  *               superstructure stacked block by block over part of her, each deck a band of
- *               windows under its white; finished at the quay, the same shape whole, painted
- *               white over a blue hull (owner), with her bridge and its wings, a funnel, a
- *               water-park aft and the lifeboats along her sides. The yard's yellow luffing
+ *               windows under its white; `painted` (the ship at the outfitting pier, owner: "the
+ *               same shape but with fresh paint, lifeboats and windows"), white over a blue
+ *               hull with her lifeboats; finished (`stage` 0.8 on), every deck up, with her
+ *               bridge and its wings, a funnel and a water-park aft as well. The yard's yellow luffing
  *               cranes along her.
  *   folly       a ring of arches along its mapped footprint (McCaig's Tower above Oban: two
  *               tiers): a pier every `bay` m round it, two tiers of openings between them
@@ -369,8 +370,11 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     // (At the stem the two sides meet: one point.)
     return [...side, ...other.filter((p, i) => i > 0 || p[1] > 0.5)];
   };
+  // How far her blocks are built (all her decks once `stage` reaches 0.8), and whether she's
+  // painted (the owner's ship at the outfitting pier: the dock ship's shape, in fresh paint).
   const finished = y.stage >= 0.8;
-  // The hull: her bottom red to the waterline; above it, finished, blue to the main deck; or,
+  const painted = y.painted ?? finished;
+  // The hull: her bottom red to the waterline; above it, painted, blue to the main deck; or,
   // earlier, block by block in primer grey, light grey or white (a few already painted blue).
   const blocks = Math.ceil(L / c.block);
   for (let b = 0; b < blocks; b++) {
@@ -379,7 +383,7 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     if (u1 - u0 < 1) continue;
     const ring = slice(u0, u1);
     parts.push(prism(ring, keel, wl, w, k.red));
-    if (finished) parts.push(prism(ring, wl, main, w, k.hull));
+    if (painted) parts.push(prism(ring, wl, main, w, k.hull));
     else {
       const mid = (wl + main) / 2;
       for (const [y0, y1, t] of [[wl, mid, 2], [mid, main, 3]] as [number, number, number][]) {
@@ -405,8 +409,8 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
       const u1 = finished ? front : Math.min(front, u0 + c.block);
       if (blockDecks(u0) <= d) continue;
       const ring = slice(u0, u1, narrow);
-      // Each deck a band of windows and balconies under its white (finished: all painted).
-      const primer = !finished && hash01(y.seed, u0, d) < 0.45;
+      // Each deck a band of windows and balconies under its white (painted: no primer left).
+      const primer = !painted && hash01(y.seed, u0, d) < 0.45;
       parts.push(prism(ring, y0, y0 + 0.7, w, primer ? k.primer : k.glass));
       parts.push(prism(slice(u0, u1, narrow * 0.985), y0 + 0.7, y0 + c.deck, w, primer ? k.light : k.white));
     }
@@ -432,9 +436,14 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     }
     parts.push(member(w(pu, 0, top), w(pu, 0, top + 11), 5, 5, k.white));
     parts.push(part(new THREE.SphereGeometry(7, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).translate(...w(pu + 30, 0, top)), k.glass));
-    // The lifeboats along her sides, a little out from the hull.
+  }
+  // Painted, her lifeboats along her sides, a little out from the hull, where her decks are up to them.
+  if (painted) {
     const boatY = main + 2 * c.deck + 1;
-    for (let u = -L / 2 + c.boatSpan[0] * L; u < -L / 2 + c.boatSpan[1] * L; u += c.boatEvery) for (const side of [-1, 1]) parts.push(member(w(u - 5.5, side * (B / 2 + 1.5), boatY), w(u + 5.5, side * (B / 2 + 1.5), boatY), 4, 3.2, k.boat));
+    for (let u = -L / 2 + c.boatSpan[0] * L; u < -L / 2 + c.boatSpan[1] * L; u += c.boatEvery) {
+      if (blockDecks(u) < 4) continue;
+      for (const side of [-1, 1]) parts.push(member(w(u - 5.5, side * (B / 2 + 1.5), boatY), w(u + 5.5, side * (B / 2 + 1.5), boatY), 4, 3.2, k.boat));
+    }
   }
   // The yard's luffing cranes along her: on the quay beside her (or the dock's side), each a
   // portal on rails, its slewing house and a jib raised over her.

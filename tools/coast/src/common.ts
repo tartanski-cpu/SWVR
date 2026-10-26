@@ -47,9 +47,11 @@ export interface RegionRequest {
    * Ships under construction at a shipyard (package.ts): in a mapped dry dock (`dock`: its
    * name, or "largest"), or alongside a berth (`berth`: its id, the outfitting quay); how far
    * on she is (`stage`, 0 to 1: hull blocks, then the superstructure deck by deck, then paint),
-   * her length (m) and which way her bow points along the dock or berth (`bow`: 1 or -1).
+   * her length (m) and which way her bow points along the dock or berth (`bow`: 1 or -1);
+   * `painted` in fresh paint whatever her stage, `seed` her blocks' pattern (two ships with
+   * the same seed, stage and length are the same shape).
    */
-  yardShips?: { dock?: string; berth?: string; stage: number; length: number; bow?: 1 | -1 }[];
+  yardShips?: { dock?: string; berth?: string; stage: number; length: number; bow?: 1 | -1; painted?: boolean; seed?: number }[];
   /** The lettering along a yard's gantry cranes' girders (both faces), as the owner asks (package.ts). */
   gantrySign?: string;
 }

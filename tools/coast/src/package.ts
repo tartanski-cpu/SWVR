@@ -430,7 +430,7 @@ for (const [i, y] of (req.yardShips ?? []).entries()) {
       warnings.push(`yard ship ${i + 1}: no dry dock "${y.dock}"`);
       continue;
     }
-    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(hAt(d.x, d.z) + 1), stage: y.stage, seed: i + 1 });
+    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(hAt(d.x, d.z) + 1), stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
   } else if (y.berth) {
     const b = (berths as { id: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number }[]).find((k) => k.id === y.berth);
     if (!b) {
@@ -438,7 +438,7 @@ for (const [i, y] of (req.yardShips ?? []).entries()) {
       continue;
     }
     const off = beam / 2 - T.yardBerthOff;
-    yardShips.push({ x: r1(b.x - b.shoreX * off), z: r1(b.z - b.shoreZ * off), yawDeg: (b.headingDeg + (y.bow === -1 ? 180 : 0)) % 360, length: y.length, beam, keel: -T.yardDraught, stage: y.stage, seed: i + 1 });
+    yardShips.push({ x: r1(b.x - b.shoreX * off), z: r1(b.z - b.shoreZ * off), yawDeg: (b.headingDeg + (y.bow === -1 ? 180 : 0)) % 360, length: y.length, beam, keel: -T.yardDraught, stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
   }
 }
 // Ferries (the coast extras plan, C7): each mapped ferry route, cut to the map (its longest
