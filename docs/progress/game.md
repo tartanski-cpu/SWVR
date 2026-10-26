@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fix: a crane's load lowered over her own deck goes on her deck (26 Oct 2026)
+
+Owner: since the HOOK message, a cardinal buoy can't be set down on the cargo deck: "not close enough to the water". The message was only saying what the crane had always done: a load set down over her deck needed its whole footprint on clear deck right under the hook (all four corners: a 1.1 m buoy on a small working deck seldom fits exactly), and anywhere else was taken for "over the side", so it wanted the water. Now a load lowered anywhere over her (`overDeck`, cargo/deck.ts: inside her deck's outline) goes on her deck, under the hook or at the nearest clear spot within `DECK_NUDGE` 1.2 m (`deckLanding`, cargo/cargo.ts); with no room near, it stays on the hook and HOOK says "No room on deck there: move the hook over a clear part of the deck"; it's never over the sea. A full deck (payload, slots) says so too. Test: tests/craneDeckSetDown.test.ts (a crane boat, the hook over her deck just off a clear patch: the buoy goes on deck; the old code gave "Lower it right down to the water first").
+
 ### Construction projects, step 5: commissioning, and Tarran Rig finished (26 Oct 2026)
 
 Owner: "go to stage 6". The plan's last stage: commissioning crews out by crew transfer; the turbines light and turn; the project done with its bonus.
