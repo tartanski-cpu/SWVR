@@ -33,6 +33,7 @@
  *
  * Random choices use a deterministic hash of a counter in the state, like the rescues.
  */
+import { missionBoat } from '../core/launch';
 import { placePhrase } from '../world/places';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
@@ -121,12 +122,12 @@ function rand(t: TowState): number {
 const between = (t: TowState, [a, b]: [number, number]) => a + (b - a) * rand(t);
 
 /**
- * The boat the tow calls come to: the home boat if she has a tow point (a stern roller;
- * modular boats M5), else the first that has one. A boat without one can't take a tow.
+ * The boat the tow calls come to: of the players' boats with a tow point (a stern roller;
+ * modular boats M5), the one with the most aboard (multiplayer study #27; the home boat on a
+ * tie), else the first boat that has one. A boat without one can't take a tow.
  */
 function tug(world: WorldState): VesselState | undefined {
-  const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
-  return home && gearOf(home, 'towPoint') ? home : Object.values(world.vessels).find((v) => gearOf(v, 'towPoint'));
+  return missionBoat(world, (v) => !!gearOf(v, 'towPoint')) ?? Object.values(world.vessels).find((v) => gearOf(v, 'towPoint'));
 }
 
 /**

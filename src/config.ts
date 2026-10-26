@@ -2882,12 +2882,18 @@ export const CONFIG = {
    * `togetherLeadS`: the Shipyard waits this long after telling the others before going into
    * the game itself, so the message is out before its page closes.
    * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
-   * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
+   * without saying) is tried `hostTries` times in all, each wait `hostRetryS` longer than the last.
    * A crew-mate the host hasn't heard from for `crewHoldS` s lets go of what they held (the
    * wheel, a lever), and after `crewSilentS` s is taken out of its world (put back if heard
    * from again; net/hostSession.ts): a page gone without saying leaves no frozen avatar. A
    * crew page whose host is an older build waits for the host's page to update itself (App
    * `onOtherBuild`) and tries again, `olderHostRetryS` s, then as "sent in together".
+   * A crew-mate's own boat waits `crewBoatGraceS` s for them once they've left (owner, 26 Oct
+   * 2026: two minutes), theirs again if they rejoin from the same tab (core/launch.ts). The
+   * host's page reloaded hosts the game again as it left it, within `hostWorldKeepS` s. A crew
+   * page going to the host's map, mode or version says so `reloadNoticeS` s before it goes.
+   * A join not in after `joinTimeoutS` s gives up (`joinLoadS` once the world is coming); a
+   * game link (`?game=`) is tried `linkTries` times, not `togetherTries` (study #8, #23).
    * The heartbeat the other way (multiplayer study #1): a host not heard from for
    * `hostSilentS` s is "not responding", for `hostLostS` s lost (the takeover's wait starts,
    * `takeoverDelayS`: long enough for a host's page to reload, even a Quest's). A host whose
@@ -2895,7 +2901,7 @@ export const CONFIG = {
    * timers run about once a second). A host whose link to the game finder drops reconnects,
    * `finderRetryS` (first, most) apart, doubling.
    */
-  net: { crewHoldS: 3, crewSilentS: 12, hostSilentS: 4, hostLostS: 10, hiddenStepS: 1, finderRetryS: [2, 30] as [number, number], olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 25 },
+  net: { crewBoatGraceS: 120, hostWorldKeepS: 180, reloadNoticeS: 1.5, joinTimeoutS: 20, joinLoadS: 60, linkTries: 5, crewHoldS: 3, crewSilentS: 12, hostSilentS: 4, hostLostS: 10, hiddenStepS: 1, finderRetryS: [2, 30] as [number, number], olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 5, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 25 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's
@@ -2913,6 +2919,7 @@ export const CONFIG = {
    *                          that's transmitting hears nobody (one talks at a time, as on VHF).
    *   squelchS / squelchGain the short burst of noise as a transmission starts and ends.
    *   retryS                 a call that failed is tried again after this (s).
+   *   answerS                a call with no voice coming after this (s) is dropped and tried again.
    */
   voice: {
     nearFull: 2,
@@ -2927,6 +2934,7 @@ export const CONFIG = {
     squelchS: 0.12,
     squelchGain: 0.25,
     retryS: 5,
+    answerS: 8,
     /** Your own handset's talk button (audio/handsetAudio.ts): the switch's click and the squelch burst after it. */
     handset: { clickHz: 2200, clickGain: 0.5, squelchS: 0.09, squelchGain: 0.18 },
   },

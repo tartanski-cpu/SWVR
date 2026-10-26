@@ -6,7 +6,7 @@ import { createWorld } from '../src/core/world';
 import { ClientSession } from '../src/net/clientSession';
 import { HostSession } from '../src/net/hostSession';
 import type { PlayerPose } from '../src/net/protocol';
-import { LoopbackHost } from '../src/net/transport';
+import { LoopbackHost, plainNetError } from '../src/net/transport';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -146,6 +146,26 @@ describe('multiplayer (loopback)', () => {
     expect(h2.playerCount).toBe(3);
   });
 
+  it('two of the same name are told apart; a crew-mate back from the same tab is put aboard the boat that waited', async () => {
+    const ids = new IdFactory();
+    const { world: w } = createWorld(ids);
+    const loop = new LoopbackHost();
+    new HostSession(w, ids, loop, '12345');
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-a');
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-b');
+    await flush();
+    expect(Object.values(w.players).map((p) => p.name).sort()).toEqual(['Bosun', 'Bosun 2', w.players['player-1'].name].sort());
+    // A boat of tab-a's, left waiting (its player gone, the world kept).
+    const a = Object.values(w.players).find((p) => p.clientId === 'tab-a')!;
+    w.vessels.mine = { ...w.vessels[w.homeVesselId!], id: 'mine', owner: 'player-9', ownerClient: 'tab-a', ownerAwayAt: 0 };
+    delete w.players[a.id];
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-a');
+    await flush();
+    const back = Object.values(w.players).find((p) => p.clientId === 'tab-a')!;
+    expect(w.vessels.mine.owner).toBe(back.id);
+    expect(back.aboardVesselId).toBe('mine');
+  });
+
   it('the host stopping on purpose ends the game for the crew (no takeover); a host quiet or in the background is noticed', async () => {
     const { host, client, setClock } = await setup();
     // Heard from at each snapshot; quiet since then.
@@ -167,5 +187,15 @@ describe('multiplayer (loopback)', () => {
     expect(world.players['player-2']).toBeDefined();
     client.close();
     expect(world.players['player-2']).toBeUndefined();
+  });
+});
+
+describe('plain error words (multiplayer study #20)', () => {
+  it('says what went wrong in plain words, and keeps the words the game acts on', () => {
+    expect(plainNetError('peer-unavailable')).toBe('No game with that code');
+    expect(plainNetError('server-error')).toMatch(/game finder/);
+    expect(plainNetError('network')).toMatch(/game finder/);
+    expect(plainNetError('Negotiation of connection to swvr-room-12345 failed.')).toMatch(/Wi-Fi or a phone hotspot/);
+    expect(plainNetError('The host left')).toBe('The host left');
   });
 });

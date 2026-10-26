@@ -197,7 +197,7 @@ export interface MenuHost {
    * Who's in the game, one by one (the Crew tab's list, owner Oct 2026), or null past the
    * last: their name, whether it's you or the host, and whether you've muted their voice.
    */
-  crewMember(i: number): { name: string; you: boolean; host: boolean; muted: boolean } | null;
+  crewMember(i: number): { name: string; you: boolean; host: boolean; muted: boolean; voiceOff?: boolean } | null;
   /** Mute or unmute one crew-mate's voice, for you only. */
   toggleCrewMute(i: number): void;
   /** Voice with the crew (net/voice.ts): a status line, and your microphone muted. */
@@ -305,6 +305,11 @@ export interface MenuHost {
   cameraNote(): string;
   hostGame(): void;
   leaveGame(): void;
+  /** The world on this page is a friend's (left their game, or they were lost): Back to your own game shows. */
+  borrowed(): boolean;
+  /** Trying to get into a game, or waiting to try again: Stop waiting gives up. */
+  waiting(): boolean;
+  stopWaiting(): void;
   /** Office > Your boats (shipyard/takeHer.ts): the favourites' page and the code being typed. */
   shipyardCodes(): ShipyardCodes;
   /** Restart the game in a Shipyard boat by her code; or back in the game's start boat (the beginner boat). */
@@ -611,7 +616,7 @@ export function mainMenu(h: MenuHost): MainMenu {
   const member = (i: number): MenuRow => ({
     label: '',
     buttons: [
-      { text: () => { const m = h.crewMember(i); return m ? `${m.name}${m.you ? ' (you)' : ''}${m.host ? ' · host' : ''}` : ''; }, weight: 2.4 },
+      { text: () => { const m = h.crewMember(i); return m ? `${m.name}${m.you ? ' (you)' : ''}${m.host ? ' · host' : ''}${m.voiceOff ? ' · voice off' : ''}` : ''; }, weight: 2.4 },
       { text: () => { const m = h.crewMember(i); return !m || m.you ? '' : m.muted ? 'Muted' : 'Mute'; }, active: () => !!h.crewMember(i)?.muted, press: () => h.toggleCrewMute(i) },
     ],
   });
@@ -627,6 +632,10 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => (solo() ? '' : h.netRole() === 'host' ? 'Stop hosting' : 'Leave game'), press: () => h.leaveGame() },
       ],
     },
+    // Still in a friend's world with nobody else (multiplayer study #11): the way home.
+    { label: '', buttons: [{ text: () => (solo() && h.borrowed() ? 'Back to your own game' : ''), press: () => h.leaveGame() }] },
+    // A join that's waiting (a game link, the host away, Try her together): give up (study #23).
+    { label: '', buttons: [{ text: () => (h.waiting() ? 'Stop waiting' : ''), press: () => h.stopWaiting() }] },
     {
       label: 'Or join: code',
       buttons: [

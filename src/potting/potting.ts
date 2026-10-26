@@ -1,3 +1,4 @@
+import { holdsHook } from '../rescue/recovery';
 import { CONFIG } from '../config';
 import { addCurrent } from '../world/currents';
 
@@ -253,7 +254,7 @@ export function stepPotting(world: WorldState, dt: number): void {
     const h = pot.haul;
     if (!h) continue;
     if (h.phase === 'hooked') {
-      if (world.rescue?.hook?.holder !== h.by) pot.haul = undefined;
+      if (!holdsHook(world, h.by)) pot.haul = undefined;
       continue;
     }
     const v = world.vessels[h.vessel ?? ''];
@@ -517,7 +518,7 @@ function applyHaulIntent(world: WorldState, intent: Intent): boolean {
   const cfg = CONFIG.potting.haul;
   switch (intent.control) {
     case 'potHook':
-      if (shot && buoyUp(world, shot) && !shot.haul && world.rescue?.hook?.holder === who) shot.haul = { by: who, phase: 'hooked' };
+      if (shot && buoyUp(world, shot) && !shot.haul && holdsHook(world, who)) shot.haul = { by: who, phase: 'hooked' };
       break;
     case 'potTow': {
       const [x, z] = intent.args ?? [];

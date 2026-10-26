@@ -102,7 +102,7 @@ describe('launching your own boat (multi-boat M3)', { timeout: 90000 }, () => {
     expect(m.launch.ownedBoat(world, 'player-2')).toBeUndefined();
   });
 
-  it('two players get two different berths; a player who leaves takes her boat with them', () => {
+  it('two players get two different berths; a player who leaves takes her boat with them, after a wait', () => {
     const { world, localPlayerId, send } = game();
     world.players['player-3'] = m.player.createPlayerState('player-3', 'Mate');
     send('player-2', 'launchBoat', 'pilotBoat');
@@ -116,8 +116,44 @@ describe('launching your own boat (multi-boat M3)', { timeout: 90000 }, () => {
     expect(h.mooring.phase === 'moored' || h.anchor.phase === 'set').toBe(true);
     delete world.players['player-3'];
     m.sim.stepWorld(world, [], DT);
+    // She waits for them (owner, 26 Oct 2026: two minutes), then goes.
+    expect(world.vessels[b.id]?.ownerAwayAt).toBeCloseTo(world.time, 0);
+    world.time += m.config.CONFIG.net.crewBoatGraceS + 1;
+    m.sim.stepWorld(world, [], DT);
     expect(world.vessels[b.id]).toBeUndefined();
     expect(world.vessels[a.id]).toBeTruthy();
+  });
+
+  it('back from the same tab under a new number: the boat that waited is theirs again', () => {
+    const { world, send } = game();
+    world.players['player-2'].clientId = 'tab-a';
+    send('player-2', 'launchBoat', 'pilotBoat');
+    const v = m.launch.ownedBoat(world, 'player-2')!;
+    expect(v.ownerClient).toBe('tab-a');
+    delete world.players['player-2'];
+    for (let i = 0; i < 20; i++) m.sim.stepWorld(world, [], DT);
+    expect(world.vessels[v.id]).toBeTruthy();
+    world.players['player-4'] = m.player.createPlayerState('player-4', 'Bosun');
+    expect(m.launch.reclaimBoats(world, 'player-4', 'tab-b')).toBeUndefined(); // another tab: not theirs
+    expect(m.launch.reclaimBoats(world, 'player-4', 'tab-a')?.id).toBe(v.id);
+    m.sim.stepWorld(world, [], DT);
+    expect(v.owner).toBe('player-4');
+    expect(v.ownerAwayAt).toBeUndefined();
+    world.time += m.config.CONFIG.net.crewBoatGraceS + 1;
+    m.sim.stepWorld(world, [], DT);
+    expect(world.vessels[v.id]).toBeTruthy();
+  });
+
+  it('a boat taken away sets her cargo down on the quay and puts anyone aboard onto the game boat', () => {
+    const { world, vesselId, send } = game();
+    send('player-2', 'launchBoat', 'pilotBoat');
+    const v = m.launch.ownedBoat(world, 'player-2')!;
+    world.cargo.c1 = { id: 'c1', kind: 0, mass: 40, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [0, 1, 0], yaw: 0, vel: [0, 0], lashed: true } };
+    world.players['player-2'].aboardVesselId = v.id;
+    expect(m.launch.withdrawBoat(world, 'player-2')).toBe(true);
+    expect(world.vessels[v.id]).toBeUndefined();
+    expect('ground' in world.cargo.c1.at).toBe(true);
+    expect(world.players['player-2'].aboardVesselId).toBe(vesselId);
   });
 
   it('no face with room for her: she lies at anchor off the harbour, in deep water, clear of the others', () => {
@@ -156,5 +192,54 @@ describe('launching your own boat (multi-boat M3)', { timeout: 90000 }, () => {
     }
     expect(v.anchor.phase).toBe('set');
     expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2])).toBeLessThan(1);
+  });
+});
+
+describe('rescues with several boats (multiplayer study #15, #27)', { timeout: 90000 }, () => {
+  let m: Awaited<ReturnType<typeof loadOban>>;
+  beforeAll(async () => {
+    m = await loadOban();
+  });
+
+  it("calls follow the boat with the crew aboard; her own ring is thrown, and the survivor climbs aboard her", async () => {
+    const { gearOf } = await import('../src/boats/sims');
+    const recovery = await import('../src/rescue/recovery');
+    const rescue = await import('../src/rescue/rescue');
+    const { world, vesselId, localPlayerId } = (() => {
+      const g = m.world.createWorld(new m.ids.IdFactory(), 'pilotBoat', { harbour: true, weather: true });
+      g.world.environment.waves = [];
+      g.world.players['player-2'] = m.player.createPlayerState('player-2', 'Bosun');
+      return g;
+    })();
+    const send = (playerId: string, control: string, extra: Record<string, unknown> = {}) => m.sim.stepWorld(world, [{ playerId, targetId: 'rescue', control, value: 1, ...extra }], DT);
+    m.sim.stepWorld(world, [{ playerId: 'player-2', targetId: 'env', control: 'launchBoat', value: 1, ref: 'pilotBoat' }], DT);
+    const hers = m.launch.ownedBoat(world, 'player-2')!;
+    expect(gearOf(hers, 'lifeRing')).toBeTruthy();
+    // Nobody aboard anything: the home boat's calls. Both crew in her boat: hers.
+    expect(m.launch.missionBoat(world)!.id).toBe(vesselId);
+    world.players['player-2'].aboardVesselId = hers.id;
+    world.players[localPlayerId].aboardVesselId = hers.id;
+    expect(m.launch.missionBoat(world)!.id).toBe(hers.id);
+    // A person in the water off her stern; she throws her own ring at them.
+    world.rescue ??= rescue.createRescueState();
+    const stern = recovery.vesselToWorld(hers, recovery.rescuePlaces(hers.defId).stern);
+    const t = { id: 'p1', kind: 'person' as const, x: stern.x + 6, z: stern.z, phase: 'floating' as const };
+    world.rescue.active = { defId: 'manOverboard', phase: 'accepted', x: t.x, z: t.z, radius: 50, count: 1, callT: world.time, alertT: world.time, targets: [t] };
+    send('player-2', 'ringTake');
+    expect(recovery.ringIn(world, hers.id)?.state).toBe('held');
+    expect(recovery.ringIn(world, vesselId)?.state ?? 'stowed').toBe('stowed'); // the home boat's stays on its hook
+    send('player-2', 'ringThrow', { args: [t.x, 1, t.z, 0, 0, 0] });
+    for (let i = 0; i < 10; i++) m.sim.stepWorld(world, [], DT);
+    expect(world.rescue.active.targets[0].phase).toBe('onLine');
+    expect(world.rescue.active.targets[0].ring).toBe(hers.id);
+    hers.engine.gear = 0;
+    for (let i = 0; i < 400 && world.rescue.active?.targets[0].phase === 'onLine'; i++) {
+      send('player-2', 'ringPull', { value: 3 });
+    }
+    for (let i = 0; i < 200; i++) m.sim.stepWorld(world, [], DT);
+    const p = world.rescue.active!.targets[0];
+    // Aboard her, and (she's lying at the quay) landed from her.
+    expect(['aboard', 'landing', 'ashore']).toContain(p.phase);
+    expect(p.vessel).toBe(hers.id);
   });
 });

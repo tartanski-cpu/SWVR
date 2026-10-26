@@ -1,6 +1,7 @@
 import type { IdFactory, EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
+import { reclaimBoats } from '../core/launch';
 import { createPlayerState } from '../player/playerState';
 import { randomLook } from './avatarOutfits';
 import { HAND_POSES } from '../player/handGesture';
@@ -10,6 +11,7 @@ import { releaseHolds } from '../vessel/vesselControl';
 import { dropCarried } from '../cargo/cargo';
 import { CONFIG } from '../config';
 import type { PlayerState } from '../player/playerState';
+import { DeltaPacker } from './worldDelta';
 import { NET_RATE, type ClientMessage, type HostMessage } from './protocol';
 import type { HostTransport, Link } from './transport';
 import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
@@ -31,7 +33,7 @@ import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
  */
 export class HostSession {
   /** Each crew-mate: their link, their player, when they were last heard from (s, `now`), and how their silence stands. */
-  private readonly peers = new Map<string, { link: Link; playerId: EntityId; heardAt: number; away?: PlayerState; freed?: boolean; clientId?: string }>();
+  private readonly peers = new Map<string, { link: Link; playerId: EntityId; heardAt: number; away?: PlayerState; freed?: boolean; clientId?: string; fresh?: boolean }>();
   /** This page is hidden, its game stepping slowly (App): said in each snapshot, for the crew. */
   paused = false;
   private pending: Intent[] = [];
@@ -61,6 +63,17 @@ export class HostSession {
     return n;
   }
 
+  /**
+   * A name nobody else in the game has (multiplayer study #17: two "Skipper"s on the crew list
+   * and the notices can't be told apart): the second gets " 2", the third " 3".
+   */
+  private uniqueName(wanted: string, playerId: EntityId): string {
+    const base = wanted.slice(0, 21);
+    const taken = new Set(Object.values(this.world.players).filter((o) => o.id !== playerId).map((o) => o.name));
+    if (!taken.has(wanted.slice(0, 24))) return wanted.slice(0, 24);
+    for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`)) return `${base} ${n}`;
+  }
+
   private receive(link: Link, msg: ClientMessage): void {
     if (msg.t === 'hello') {
       if (this.peers.has(link.id)) return;
@@ -72,11 +85,15 @@ export class HostSession {
             this.drop(old.link);
             old.link.close();
           }
-      const playerId = this.ids.next('player');
-      const p = createPlayerState(playerId, (msg.name || `Player ${this.peers.size + 2}`).slice(0, 24));
+      // A number nobody has, nor any boat left waiting (a world kept or taken over has its own).
+      let playerId = this.ids.next('player');
+      while (playerId in this.world.players || Object.values(this.world.vessels).some((v) => v.owner === playerId)) playerId = this.ids.next('player');
+      const p = createPlayerState(playerId, this.uniqueName(msg.name || `Player ${this.peers.size + 2}`, playerId));
       p.look = randomLook(); // a random set of working clothes (net/avatarOutfits.ts)
-      // Crew join aboard the workboat (wherever she is), at her boarding spot.
-      const boat = homeVessel(this.world);
+      if (cid) p.clientId = cid;
+      // Crew join aboard the workboat (wherever she is), at her boarding spot; back from the
+      // same tab, aboard their own boat if she waited for them (core/launch.ts).
+      const boat = reclaimBoats(this.world, playerId, cid) ?? homeVessel(this.world);
       if (boat) {
         p.aboardVesselId = boat.id;
         p.position = [...VESSEL_DEFS[boat.defId].boardingSpot];
@@ -84,9 +101,11 @@ export class HostSession {
       } else placeAshore(p);
       p.peerId = link.id; // for voice (net/voice.ts): who to call
       const ours = this.world.build?.app;
-      if (msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
+      // (A crew page from another address, the live game and /next/, is sent to ours instead: App.)
+      const sameSite = !msg.site || !this.world.build?.site || msg.site === this.world.build.site;
+      if (sameSite && msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
       this.world.players[playerId] = p;
-      this.peers.set(link.id, { link, playerId, heardAt: this.now(), ...(cid ? { clientId: cid } : {}) });
+      this.peers.set(link.id, { link, playerId, heardAt: this.now(), fresh: true, ...(cid ? { clientId: cid } : {}) });
       this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });
       return;
     }
@@ -114,7 +133,7 @@ export class HostSession {
       const p = this.world.players[peer.playerId];
       if (!p) return;
       const pose = msg.pose;
-      if (typeof pose.name === 'string' && pose.name) p.name = pose.name.slice(0, 24);
+      if (typeof pose.name === 'string' && pose.name) p.name = this.uniqueName(pose.name, p.id);
       p.aboardVesselId = pose.aboardVesselId && this.world.vessels[pose.aboardVesselId] ? pose.aboardVesselId : null;
       p.position = pose.position;
       p.yaw = pose.yaw;
@@ -183,8 +202,24 @@ export class HostSession {
     this.sinceSend += dt;
     if (this.sinceSend < 1 / NET_RATE) return;
     this.sinceSend = 0;
-    for (const { link } of this.peers.values()) this.send(link, { t: 'snapshot', world: this.world, ...(this.paused ? { paused: true } : {}) });
+    // What changed since the last send, as one text for every crew-mate (study #3: the whole
+    // world, packed again for each, was up to 159 KB a time). A crew-mate just welcomed gets
+    // the whole world once more, the changes counted from here.
+    const paused = this.paused ? { paused: true as const } : {};
+    const delta = this.packer.pack(this.world) ?? {};
+    let whole: string | null = null;
+    const changes = JSON.stringify({ t: 'snapshot', delta, ...paused } satisfies HostMessage);
+    for (const peer of this.peers.values()) {
+      if (peer.fresh) {
+        peer.fresh = false;
+        whole ??= JSON.stringify({ t: 'snapshot', world: this.world, ...paused } satisfies HostMessage);
+        peer.link.send(whole);
+      } else peer.link.send(changes);
+    }
   }
+
+  /** The world's changes from send to send (net/worldDelta.ts). */
+  private readonly packer = new DeltaPacker();
 
   private send(link: Link, msg: HostMessage): void {
     link.send(msg);

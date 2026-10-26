@@ -10,6 +10,56 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Multiplayer batch 4: playing together in separate boats, and smaller snapshots (26 Oct 2026)
+
+Owner: "go ahead with multiplayer batch 4" (the study's last batch: #3, #7, #15, #27, #25, #33, #31, #35).
+
+- **#3 Smaller snapshots** (`net/worldDelta.ts`, new). Each send says only what changed since the last: a part of the world whole if it changed, and in a set of things (`vessels`, `cargo`, `players`...) only the things that changed, came or went. Worked out once per send and sent as one text to every crew-mate (it was packed again for each). A crew-mate just welcomed gets the whole world once more with the next send. The crew page keeps the pieces as text and parses the world afresh each time, as it always did, so nothing it holds is shared with the next snapshot. **Measured live** (host and crew through the game finder): the whole world 18 KB (Tayvallich), 37 KB (career), 156 KB (Clyde); a send now 2 to 3 KB on each, the Clyde 48 times smaller. **Not measured on a Quest** (the study asked for before and after there): the host's work per send is one pass over the world, about 1 ms on this computer for the Clyde.
+- **#15 Each boat her own rescue gear.** A life ring and boat hook per boat (`world.rescue.rings`, `hooks`, by boat; `ringOf`, `hookOf`, `ringIn`, `hookIn`; an old save's one ring and hook become the home boat's). Taking, throwing, hauling and the hook work on the boat the player is aboard; a swimmer takes the ring nearest them. A survivor on a ring climbs aboard that boat (`RescueTarget.ring`, `vessel`), sits in her seats, and is landed from her at a quay; people on a raft come across to whichever rescue boat lies alongside. Every boat's ring and hook are drawn on every page (`otherGear` in App), survivors aboard the boat that took them.
+- **#27 Calls follow the players' boats** (`missionBoat`, core/launch.ts): rescue, tow and fire calls come to the players' boat with the most aboard that has the gear for the job (rescue places, a tow point, a fire monitor); the home boat on a tie or with nobody aboard.
+- **#7 Voice in either order:** a crew-mate with voice off isn't called; a call with no voice after `voice.answerS` 8 s is dropped and tried again (`retryS` later); the Crew tab says "voice off" by their name.
+- **#25** Leaving VR, or the page hidden (a headset taken off), lets go of everything your hands held (`InteractionSystem.releaseAll`).
+- **#33** A control someone else holds names them: "Wheel (Bosun has it)" (`HoldRules.holderName`).
+- **#31** A crew-mate can't buy yard gear that's fitted aboard (trawl gear, the skiff: it starts everyone again in her): "Ask the skipper".
+- **#35** A log barge at the merchant's quay can be sold from any page alongside (the `timberSell` intent, voyage/timber.ts `applyTimberSell`); the host's own sale is still made at once.
+- **Shared changes:** `src/core/launch.ts` (`missionBoat`), `src/core/simulation.ts` (the `timberSell` intent). (`src/rescue/`, `src/tow/tow.ts`, `src/fire/fire.ts`, `src/controls/` are the main game's own.)
+- **Tests:** tests/worldDelta.test.ts (new: the world rebuilt exactly over 30 steps with crates and parts coming and going; a send under half the world; an unmoved crate not sent); tests/launch.test.ts (calls follow the crew's boat; her own ring thrown, the survivor aboard her and landed from her); tests/metaverse.test.ts (a crew-mate's barge sale); the rescue tests now read the home boat's ring.
+- **Checked live:** crewcheck 27 of 27 with the new snapshots; the batch 2 reload checks again (a crew reload, the host launching with crew aboard, the host's reload: all as before); the sizes above. **Not checked:** voice (needs two microphones), the Quest (snapshot cost, letting go on taking the headset off), a rescue by two boats live.
+
+### Multiplayer batch 3: joining the right game, clearly (26 Oct 2026)
+
+Owner: "go ahead with multiplayer batch 3" (the study's third batch: #6, #22, #24, #13, #4, #26, #8, #20, #23, #30, #34, #19, #32).
+
+- **#6 The host's game, map and address.** The host's world says its mode and folder (`world.build.mode`, `site`, beside `map`). The crew page checks them first on the welcome (`samePageAsHost`): in the other game, on another Voyage map, or on the other address (#30: the live game and /next/), it goes to the host's page with the code and joins from there. The host doesn't take a crew page from another address as "a newer build" (the hello's `site`).
+- **#22 A notice before each reload** ("The host is in Voyage: Tayvallich and Loch Sween: loading it and joining", the version one too), `net.reloadNoticeS` 1.5 s before it goes. **Leave game goes back to your own page** as it was before the join (kept in the tab, `swvr.ownPage`): your mode, your map, your own boat.
+- **#26** That also drops the host's boat from the address: no "sea trial" of the host's Shipyard boat in your career after following them.
+- **#24** The host's chart is taken only after those checks: a refused join no longer leaves the host's pencil marks in your saved chart.
+- **#4 Try her together** is a try-out (`isTryOut`, shipyardTrip.ts): no five-minute sea-trial clock (it restarted everyone in the beginner boat), nothing saved to the career. The same for a page following its host into a boat its career hasn't paid for. (My call, open to change: the try-out isn't saved as your career boat; buy her at a yard for that.)
+- **#13** The crew page takes the host's world whole (`net/takeWorld.ts`, at the welcome and each snapshot): parts of its own the host hasn't got (its own Voyage plan, its pots) go.
+- **#8 Joins give up:** after `net.joinTimeoutS` 20 s with no answer (`joinLoadS` 60 s once the world has started coming), "No answer from game 12345. Is the host's game open and their headset on? Try again". The Crew tab says the stage: reaching the game finder, looking for the host, linked (the world coming).
+- **#20 Plain error words** (`plainNetError`, net/transport.ts): "Can't reach the game finder: check the internet…", "Found the host, but your networks block a direct link: try home Wi-Fi or a phone hotspot". Hosting tries 5 times (`net.hostTries`), each wait longer, keeping its own game's code.
+- **#23 Old links:** a game link (`?game=`) is tried `net.linkTries` 5 times (not 20), then "Game 99998 isn't open: host your own game or join another", the address cleared. **Stop waiting** on the Crew tab gives up any join or wait (no retry or takeover after it).
+- **#34 Desktop:** with the Crew tab open (on your own), the number keys (both rows) type the code, Backspace, Enter joins; pasting a code or a game link fills the box. The 9 and 0 keys' motion coupling waits meanwhile.
+- **#19** `npm run crewcheck` reads the join box before the leave's reload, and checks the crew's boat now waits (batch 2): all 27 pass.
+- **#32 Docs:** README (no "last code remembered", no restart into the host's boat) and MULTIPLAYER.md (the free relay, the measured snapshot sizes, joining) corrected.
+- **Shared changes:** `src/core/world.ts` (`build.mode`, `build.site`).
+- **Tests:** tests/takeWorld.test.ts (new), tests/net.test.ts (plain error words), tests/shipyardTrip.test.ts (try-outs), tests/menu.test.ts (hooks).
+- **Checked live, two and three browsers through the real game finder:** a Career page joining a Voyage Tayvallich host is told, goes there, joins, and Leave game takes it back to career.html; an old link gives up in about 55 s with the address cleared; crewcheck 27 of 27. **Not checked:** the live game and /next/ together (needs both published), the join time limit against a real sleeping headset, desktop typing by hand, the Quest.
+
+### Multiplayer batch 2: nobody loses their stuff (26 Oct 2026)
+
+Owner: "go ahead with batch 2" (the multiplayer study's second batch: #5, #11, #16, #12, #28, #29, #17, #18), with two answers: a crew-mate's boat **waits 2 minutes**; on a borrowed career, **block boat changes**.
+
+- **#5 Crew boats wait.** A launched boat whose player has gone waits `net.crewBoatGraceS` 120 s (`VesselState.ownerAwayAt`), with her tow and cargo, then goes. Back from the same browser tab (`ownerClient`, the hello's `clientId`, now kept on `PlayerState.clientId`), the player gets her again under their new number and is put aboard her ("…waited for you: you're back aboard") (`core/launch.ts` `stepLaunched`, `reclaimBoats`; HostSession hello). A new crew-mate's number is one no player or waiting boat has, so a stranger never inherits one. Going solo keeps your own launched boat yours.
+- **#28 A boat taken away** (handed back, replaced, her owner long gone) sets her cargo down on the game harbour's goods row, casts off her lines, lets go her controls and puts anyone aboard onto the game's boat (`removeBoat`). Launching again keeps the old boat if the new one finds no room.
+- **#12 The host launches with crew aboard:** she's put beside the game's boat, as a crew-mate's is, instead of the page starting again (and in a friend's world).
+- **#29 A host's reload keeps the world:** as the hosting page goes, its world is kept in the tab (`swvr.hostWorld`, sessionStorage); hosting the same code again within `net.hostWorldKeepS` 180 s, in the same boat, it carries on from there (the crew rejoin; their boats wait). Also when the page updates itself for a newer crew page. Not when changing boat.
+- **#16 A borrowed career:** boat changes, refits, the Shipyard and a launch that would start the page again are blocked with a message while the world is a friend's (`borrowedBlocks`).
+- **#11 Back to your own game** on the Crew tab when you're alone in a friend's world; Host a game there asks you to press again.
+- **#17 Names:** the random first name is saved (it changed on every reload); the host gives a second "Bosun" " 2".
+- **#18 Notices:** "X came aboard (n aboard)", "X left the game", on every page in the game.
+- **Shared changes:** `src/core/launch.ts` (the wait, `removeBoat`, `reclaimBoats`), `src/vessel/vesselState.ts` (`ownerClient`, `ownerAwayAt`).
+- **Tests:** tests/launch.test.ts (the wait, the reclaim, cargo to the quay; 2 new, 1 changed), tests/net.test.ts (names told apart, put aboard the boat that waited; 1 new).
 ### Multiplayer batch 1: noticing who's gone (26 Oct 2026)
 
 Owner: "go ahead with the multiplayer batch 1" (the multiplayer study's first batch: #21, #10, #1, #2, #9, #14).

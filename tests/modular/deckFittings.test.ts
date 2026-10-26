@@ -5,6 +5,7 @@
  * modules' footprints. These tests check the gear's facts and the footprints are where
  * v1.0 had them, and that taking a module out takes its job with it.
  */
+import { ringIn, hookIn } from '../../src/rescue/recovery';
 import { afterEach, describe, expect, it } from 'vitest';
 import { RECIPES } from '../../src/boats/library';
 import { footprintsOf, gearOf, setVesselRecipe, vesselRuntime } from '../../src/boats/sims';
@@ -166,7 +167,7 @@ describe('take a module out and its job goes with it', { timeout: 30000 }, () =>
       send('rescueDebugNear');
       send('ringTake');
       send('hookTake');
-      return { ring: world.rescue!.ring!.state, hook: world.rescue!.hook!.holder };
+      return { ring: ringIn(world, world.homeVesselId!)!.state, hook: hookIn(world, world.homeVesselId!)!.holder };
     };
     expect(take(null)).toEqual({ ring: 'held', hook: 'p' });
     expect(take(without('lifeRing', 'boatHook'))).toEqual({ ring: 'stowed', hook: null });

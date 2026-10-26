@@ -176,17 +176,14 @@ export class TargetsView {
     return m;
   }
 
-  /**
-   * @param vesselId / vesselRoot  the rescuing boat (survivors climb aboard and sit in it)
-   */
   /** Visibility where the viewer is (m): waving is seen within it, the strobe a bit beyond. */
   visibility = Infinity;
 
-  update(world: WorldState, waves: readonly PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number, dt: number, vesselId: string, vesselRoot?: THREE.Object3D): void {
+  /** @param roots each boat's view (survivors climb aboard the boat that took them, and sit in her) */
+  update(world: WorldState, waves: readonly PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number, dt: number, roots: ReadonlyMap<string, THREE.Object3D>): void {
     const cfg = CONFIG.rescue;
     const inc = world.rescue?.active;
     const targets = inc?.targets ?? [];
-    const v = world.vessels[vesselId];
     const seen = new Set<string>();
     let whistle: THREE.Vector3 | null = null;
     this.updateProp(inc, waves, time);
@@ -198,6 +195,10 @@ export class TargetsView {
       m.root.visible = !(t.kind === 'crate' && t.phase === 'aboard');
       if (!m.root.visible) continue;
       if (m.legs) m.legs.visible = t.phase === 'landing' || t.phase === 'ashore';
+      // Their boat (an old save's survivors: the home boat's).
+      const vid = t.vessel ?? world.homeVesselId ?? '';
+      const v = world.vessels[vid];
+      const vesselRoot = roots.get(vid);
       if ((t.phase === 'climbing' || t.phase === 'aboard') && v && vesselRoot) {
         this.poseAboard(m, t, v.defId, vesselRoot, cfg.climbTime);
         continue;

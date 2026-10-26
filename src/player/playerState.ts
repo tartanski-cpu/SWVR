@@ -82,6 +82,8 @@ export interface PlayerState {
    * they join (a client's PeerJS id; the host's own is the room's id). Absent solo.
    */
   peerId?: string;
+  /** Their browser tab's id (net/hostSession.ts: a rejoin from it is the same crew-mate; their boat comes back to them). */
+  clientId?: string;
 }
 
 /** The handheld VHF as others see it: in which hand (null: clipped on the chest), and pressed to talk. */
