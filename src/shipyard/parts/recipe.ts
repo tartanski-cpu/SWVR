@@ -77,6 +77,14 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   rudder.propeller = { wake: prop.wake, diameter: propD };
   rudder.nozzle = nozzle;
   engine.nozzle = nozzle;
+  // The harbour tug's azimuth drives (owner, Oct 2026): her two engines worked separately, each
+  // turning its Z-drive (modules/dieselInboard `azimuth`) in place of its shaft and rudder.
+  if (p.zDriveSet && splitTwin) {
+    engine.azimuth = p.zDriveSet;
+    // (The drive's own bevel gears on top of her gearbox: CONFIG.modules.azimuth.driveRatio.)
+    engine.engine.gearRatio = Math.round(engine.engine.gearRatio * CONFIG.modules.azimuth.driveRatio * 1000) / 1000;
+    recipe.modules = recipe.modules.filter((m) => m.socket !== 'rudder');
+  }
   if (sdLegs) {
     // Her stern drives in place of the shaft and rudder: the outboards' module (the legs swing
     // to steer) with her inboard engine package, drawn inside against the transom.
@@ -193,7 +201,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // START for each (port's, then starboard's, in the ENGINE group with the key).
   if (splitTwin) {
     const lever = consoleMount.modules!.find((m) => m.socket === 'throttle')!;
-    lever.module = 'control.twin-throttle';
+    // (Azimuth drives: their lean-to-point levers and TRANSIT, modules/azimuthLevers.)
+    lever.module = p.zDriveSet ? 'control.azimuth-levers' : 'control.twin-throttle';
     lever.config = {};
     const start = consoleMount.modules!.find((m) => m.socket === 'start')!;
     start.config = { ...start.config, label: 'START port engine (hold)', engrave: 'START P' };

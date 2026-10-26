@@ -23,6 +23,16 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `ignition.heat` | on / off | player sets | legacy | `heat` | HEAT button held: extra glow-plug heat (key on). The boats have no HEAT button now: the plugs preheat on their own with the key. |
 | `ignition.start` | on / off | player sets | legacy | `start` | START button held: the starter cranks (key on, lever in neutral). |
 
+## azimuth
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `azimuth.demand` | deg, -180 to 180 | player sets; held: lever | module |  | Azimuth drives: the way the port drive's lever points, the direction it asks the drive to push (0 ahead, + to starboard, +-180 astern). Its power is throttle.demand. |
+| `azimuth.demand2` | deg, -180 to 180 | player sets; held: lever2 | module |  | Azimuth drives: the way the starboard drive's lever points (as azimuth.demand). Its power is throttle.demand2. |
+| `azimuth.transit` | on / off | player sets | module |  | Azimuth drives: TRANSIT on. The wheel swings both drives together as rudders (the autopilot can steer her); each lever then sets only its engine's power, ahead in its forward half, astern in its after half. |
+| `azimuth.angle` | deg | read only | module |  | Azimuth drives: where the port drive points, the way it pushes (0 ahead, + to starboard), following its lever at its steering rate. |
+| `azimuth.angle2` | deg | read only | module |  | Azimuth drives: where the starboard drive points (as azimuth.angle). |
+
 ## helm
 
 | Key | Values | Use | Written by | Old names | What it is |

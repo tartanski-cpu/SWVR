@@ -802,6 +802,39 @@ export const MODULES_CONFIG = {
       joystick: { maxAngleDeg: 50, rateDegPerS: 60, lever: 0.5, slip: 0.4, side: 1, surge: 1, twist: 2, turnRateDeg: 6, turnGain: 60 },
     },
 
+    /**
+     * Azimuth drives (owner, Oct 2026: the harbour tug's ASD drives and their controls; the
+     * diesel's `azimuth`, modules/dieselInboard; the levers, modules/azimuthLevers). Each drive
+     * a Z-drive under her stern that turns right round on its upright axis and pushes the way
+     * it points (its propeller in a nozzle, pulling, forward of its leg).
+     *   slewDegPerS     how fast each drive turns to follow its lever (deg/s; real ones, about
+     *                   10 to 30 s for a full turn; tune by feel)
+     *   legArea         each leg's side area (m^2): a little rudder in the water past it
+     *   propFwd         the propeller this share of its diameter ahead of the leg, along its push
+     *   transitMaxDeg   TRANSIT: the wheel hard over swings both drives this far (deg), as rudders
+     *   driveRatio      the drive's own bevel gears (upper and lower), on top of her gearbox's
+     *                   ratio: a Z-drive's whole reduction is about 5 to 7 to 1, so a big slow
+     *                   propeller can take the engine's full power
+     *   look            the drive as drawn: the leg's width across and chord (m), the housing's
+     *                   radius as a share of the propeller's diameter, the nozzle's length (share)
+     *                   and its wall's thickness (m)
+     *   hullClear       the Shipyard hangs each drive low enough that the top of its nozzle clears
+     *                   her bottom by this (m), all along and across the nozzle
+     *   lever           each lean-to-point lever (control.azimuth-levers): its length to the knob
+     *                   (m), how far it leans at full power (deg), the power below which it reads
+     *                   idle (`detent`, 0..1), the levers' spacing (m), the knob's radius and colours
+     */
+    azimuth: {
+      slewDegPerS: 12,
+      legArea: 1.6,
+      propFwd: 0.4,
+      transitMaxDeg: 35,
+      driveRatio: 1.6,
+      hullClear: 0.15,
+      look: { legWidth: 0.24, legChord: 0.75, housing: 0.11, nozzleLength: 0.5, nozzleWall: 0.09, colour: 0x4a5560, nozzleColour: 0x30363c },
+      lever: { length: 0.17, maxTiltDeg: 32, detent: 0.07, spacing: 0.2, knobRadius: 0.026, colours: { port: 0xd03a2a, stbd: 0x2a9a4a, rod: 0x9aa0a6, base: 0x23282c } },
+    },
+
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */
     batteryBank: { massKg: 28 },
 

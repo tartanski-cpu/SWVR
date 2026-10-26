@@ -222,6 +222,11 @@ function diveKey(spec: BusKeySpec): BusKeySpec {
   const get = spec.bind.get;
   return { ...spec, bind: { ...spec.bind, get: (s) => (hasDiveFrame(s) ? get(s) : undefined) } };
 }
+/** An azimuth drives key (modules/dieselInboard `azimuth`): there only on a boat with them. */
+function aziKey(spec: BusKeySpec): BusKeySpec {
+  const get = spec.bind.get;
+  return { ...spec, bind: { ...spec.bind, get: (s) => (gearOf(s, 'diesel')?.azimuth ? get(s) : undefined) } };
+}
 const mon = CONFIG.vessels.workboat.fireMonitor;
 
 export const BUS_KEYS = {
@@ -253,6 +258,14 @@ export const BUS_KEYS = {
       },
     },
   },
+  // Azimuth drives (modules/dieselInboard `azimuth`; owner, Oct 2026: the harbour tug's ASD
+  // levers): each lever's direction, and TRANSIT. Only on such a boat. (Each lever's power is
+  // throttle.demand / throttle.demand2.)
+  'azimuth.demand': aziKey(setting('aziAngle', [-180, 180], 'deg', 'Azimuth drives: the way the port drive\'s lever points, the direction it asks the drive to push (0 ahead, + to starboard, +-180 astern). Its power is throttle.demand.', { hold: 'lever', writer: 'module' })),
+  'azimuth.demand2': aziKey(setting('aziAngle2', [-180, 180], 'deg', 'Azimuth drives: the way the starboard drive\'s lever points (as azimuth.demand). Its power is throttle.demand2.', { hold: 'lever2', writer: 'module' })),
+  'azimuth.transit': aziKey(control('aziTransit', 'Azimuth drives: TRANSIT on. The wheel swings both drives together as rudders (the autopilot can steer her); each lever then sets only its engine\'s power, ahead in its forward half, astern in its after half.', { writer: 'module' })),
+  'azimuth.angle': state('number', (s) => (s.engine.azimuth === undefined ? undefined : (s.engine.azimuth * 180) / Math.PI), 'Azimuth drives: where the port drive points, the way it pushes (0 ahead, + to starboard), following its lever at its steering rate.', { unit: 'deg', writer: 'module' }),
+  'azimuth.angle2': state('number', (s) => (s.engine.stbd?.azimuth === undefined ? undefined : (s.engine.stbd.azimuth * 180) / Math.PI), 'Azimuth drives: where the starboard drive points (as azimuth.angle).', { unit: 'deg', writer: 'module' }),
   'helm.demand': setting('helm', [-1, 1], '-1..1', 'Wheel (or tiller) position: -1 hard to port, +1 hard to starboard.', { hold: 'helm', aliases: ['helm'] }),
   'ignition.key': {
     type: 'boolean',

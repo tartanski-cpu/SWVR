@@ -132,9 +132,10 @@ export function toggleEngine(s: VesselState, def: EngineSpec & { split?: boolean
  * oil, wear and coolant (one key, one dipstick and set of lamps for both). The quick start's
  * starboard engine cranks once the port one has caught (two starters at once pull the battery
  * down too far). Each burns its own fuel from the one tank; the port engine alone heats the
- * shared coolant. Returns each engine's thrust (N) and the fuel left (L).
+ * shared coolant. `speed2`: the starboard propeller's speed of advance, if not the port one's
+ * (azimuth drives, each pointing its own way). Returns each engine's thrust (N) and the fuel left (L).
  */
-export function twinStep(e: EngineState, spec: DieselSpec, inp: DieselInputs, lever2: number, start2: number, speed: number, immersion: number, dt: number): { port: number; stbd: number; fuelL: number } {
+export function twinStep(e: EngineState, spec: DieselSpec, inp: DieselInputs, lever2: number, start2: number, speed: number, immersion: number, dt: number, speed2 = speed): { port: number; stbd: number; fuelL: number } {
   const port = engineStep(e, spec, inp, speed, immersion, dt);
   const s = (e.stbd ??= starboardEngine(e));
   Object.assign(s, { key: e.key, coolantC: e.coolantC, oilC: e.oilC, coolingFault: e.coolingFault, oil: e.oil, wear: e.wear, fuelL: e.fuelL });
@@ -142,7 +143,7 @@ export function twinStep(e: EngineState, spec: DieselSpec, inp: DieselInputs, le
     s.queued = false;
     if (e.phase === 'running' && s.phase === 'off' && s.key > 0) Object.assign(s, { phase: 'cranking', crank: 0, autoCrank: true });
   }
-  const stbd = engineStep(s, spec, { ...inp, lever: lever2, start: start2 }, speed, immersion, dt);
+  const stbd = engineStep(s, spec, { ...inp, lever: lever2, start: start2 }, speed2, immersion, dt);
   const afterPort = fuelAndHeatStep(e, spec, inp.fuelL, dt);
   const portFlow = e.fuelFlowLph;
   const heat = s.coolantC;
