@@ -44,6 +44,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **DIVE into the submersible game** (this log). In the Dive support vessel (career): steam to the Margaret Ann wreck west of Calder Haven (the dashed ring on the chart), stop inside the ring, launch the sub (WINCH UP, FRAME OUT, WINCH DOWN until she floats), then press the red **DIVE** on the stand: the submersible game opens at that wreck. Try DIVE away from a wreck, or moving, and read why not. In VR, see if it carries you into the submersible game's VR.
 - [ ] **The dive support vessel: launch and recover the sub** (this log). Start in the **Dive support vessel** (Voyage: the boat list; or the debug menu). Start the engine, DECK HYD on. At the stand by the starboard foot of the A-frame (stand forward of it, facing aft): WINCH UP until the sub is in the docking head, FRAME OUT until she's out over the stern (feel her trim by the stern), WINCH DOWN until she floats. Then back: WINCH UP, FRAME IN, WINCH DOWN onto her cradle. Try FRAME OUT with her on her cradle (it says why not). Shipyard: Deck gear → Diving on other hulls, and read why it won't go.
 - [ ] **Twin engines heard one each** (this log). A twin worked separately (the catamaran, or your twin trawler): key on, START P, then START S: each start is heard. Then one lever ahead at a time: you hear that engine rise alone; stop one and it falls silent while the other runs.
 - [ ] **Twin engines: E/D and R/F, and engines that stall** (this log). Desktop, a twin, holding the wheel with the mouse: E/D the port lever, R/F the starboard; W/S both. Put a twin in gear with a lever and check the revs hold. If you can, send the code of the twin trawler that stalled.
@@ -69,6 +70,18 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### The dive itself: DIVE opens the submersible game at the wreck (done; on next, in your test round)
+
+Owner: "Do stage 4". A red **DIVE** button on the dive A-frame's stand, between the frame's and the winch's buttons, lit while the sub is afloat. Pressed with the sub in the sea, the ship inside a wreck site's ring (the dashed rings on the chart, `CONFIG.dive.radius` 50 m) and making under 0.5 kn, the game saves (the career; a Voyage's place), fades, and opens the submersible game at that wreck. Otherwise it says why: put the sub in the sea first; not over a wreck (and how far the nearest is); stop her first. Alone, or hosting with no crew aboard (as the timber camp); a crew-mate is told only the host can.
+
+- **The address** is the one the submersible game already reads (its `src/core/handoff.ts`): `?site=<site id>&depth=<m>&sub=work3&tier=3&crew=1&return=<this page>&session=<id>`. Tier 3: the three-seat work sub with her mini ROV. The session id is issued in the same store as the timber camp's, ready for the dive's results to be checked once.
+- **In VR** the session isn't ended first, as for the timber camp: a browser that carries VR across pages keeps you in it.
+- **Coming back:** the submersible game doesn't send the crew back yet (its milestone M9). When it does, it opens this page as it was; the sub will be on her cradle again. Bringing back finds (crates on deck, money) waits for that.
+- **Depths:** the submersible game dives between 15 and 80 m, so the three shallow wrecks (the Margaret Ann 8 m, the Selene 12 m, the Sound Spirit 13 m) open there at 15 m. That's its side to change if wanted.
+- `src/modules/diveFrame/launch.ts` (`diveReady`, `diveUrl`), the button in `index.ts`; settings `CONFIG.modules.diveFrame.dive` (`url`, `maxSpeedKn`, `sub`, `tier`, `fadeS`).
+- **Tests:** `tests/diveFrame.test.ts` (the checks in turn, and the address). **Checked headless:** the stand with DIVE lit; DIVE in harbour ("Not over a wreck: the nearest, the Margaret Ann, is 675 m off"); placed over the Margaret Ann, stopped, it went to `…/Submersible-World/?site=career-margaret-ann&depth=8&sub=work3&tier=3&crew=1&return=…&session=…` (caught, not loaded). Not checked: the submersible game actually opening from it on the Quest.
+- **Shared changes:** `src/app/App.ts` (`goDive`, the DIVE press); `docs/dive-contract.md` (the launch as built; the return still a proposal). Noted in the game log.
 
 ### A dive support vessel: the dive A-frame and the submersible (done; on next, in your test round)
 

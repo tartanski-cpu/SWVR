@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) DIVE: the dive support ship opens the submersible game
+
+The dive A-frame's red DIVE (docs/progress/modules.md): with the sub afloat, stopped over a dive site's ring, it saves the game and opens the submersible game at that wreck by the address it reads (`?site=&depth=&sub=&tier=&crew=&return=&session=`). Shared changes: `app/App.ts` (`goDive`, and the DIVE press in the controls' handler); `docs/dive-contract.md` (the launch as built, replacing the proposed `mv` envelope for the way out; the return still to agree, the submersible game's M9). The session id goes in the same issued-ids store as the timber camp's (`swvr.mv.issued`).
+
 ### (From the modular-builder chat) A dive support vessel: the dive A-frame and the submersible
 
 The new module `deck.dive-frame` (docs/progress/modules.md): an A-frame over the stern that hoists the submersible game's sub off her cradle, swings her out and lowers her until she floats. Shared changes here:

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FLEET, FLEET_IDS } from '../boats/fleet';
 import { diveGeometry } from '../modules/diveFrame';
 import { diveFrameOf, diveFrameState, diveSubDocked } from '../modules/diveFrame/onBoat';
+import { diveReady, diveUrl } from '../modules/diveFrame/launch';
 import { CONFIG } from '../config';
 import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
@@ -444,6 +445,8 @@ export class App {
   private timberView: TimberView | null = null;
   private saleShown: string | null = null;
   private leavingForCamp = false;
+  /** Gone to the submersible game (the dive A-frame's DIVE): leaving, so not twice. */
+  private leavingForDive = false;
   /** On the way to the Shipyard (app/shipyardTrip.ts): the page is about to change. */
   private leavingForShipyard = false;
   private readonly timberPrompt = new HelmPrompt(118);
@@ -4056,6 +4059,8 @@ export class App {
         if (channel === 'dipstick' || channel === 'propulsion.oilCheck') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
         if (channel === 'sos') return value > 0 ? this.sendSos() : undefined;
+        // The dive A-frame's DIVE: into the submersible game (the app leaves the page; nothing to the boat).
+        if (tv.control === 'diveLaunch') return value > 0 ? this.goDive(tv.vesselId) : undefined;
         // A gear bracket (desktop): take the gear or hang it back. Local: no intent. In VR the
         // grip takes it.
         if (channel.startsWith('gear:')) {
@@ -5450,6 +5455,40 @@ export class App {
     this.overlay.notify('Going ashore to the timber camp...', 3);
     this.fade.style.opacity = '1';
     setTimeout(() => window.location.assign(outboundUrl(site, envelope)), CONFIG.voyage.timber.fadeS * 1000);
+  }
+
+  /**
+   * The dive A-frame's DIVE (modules/diveFrame/launch.ts; owner, Oct 2026): the sub afloat off
+   * her stern, the boat stopped over a wreck site: into the submersible game at that wreck.
+   * Alone, or hosting with no crew aboard, as for the timber camp. The game saved as it is (a
+   * Voyage's place and plan; the career), a handoff id issued (for the dive's results, once the
+   * submersible game sends them), the screen faded, and the page goes there; it comes back to
+   * this page. In the headset the VR session isn't ended: a browser that carries VR across
+   * pages keeps you in it, as for the timber camp.
+   */
+  private goDive(vesselId: string): void {
+    if (this.leavingForDive) return;
+    const v = this.world.vessels[vesselId];
+    if (!v) return;
+    const why = this.client ? 'Only the host can take the sub down' : !this.playingAlone() ? 'Only alone, or hosting with no crew aboard, for now' : null;
+    const ready = why ? { why } : diveReady(v, MODE === 'career' ? 'career' : VOYAGE_MAP_ID);
+    if ('why' in ready) {
+      this.overlay.notify(ready.why, 4);
+      return;
+    }
+    this.leavingForDive = true;
+    if (MODE === 'voyage') {
+      this.rememberT = Infinity;
+      this.rememberVoyagePlace(0);
+    } else this.career.tick(); // the career saved as it is
+    const session = newHandoffId();
+    issueId(session);
+    // Back to this page as it is (no one-off start or join parameters).
+    const back = new URL(location.href);
+    for (const k of ['mv', 'start', 'join', 'fit', 'host', 'together', 'fresh', 't']) back.searchParams.delete(k);
+    this.overlay.notify(`Diving on the ${ready.site.name}...`, 3);
+    this.fade.style.opacity = '1';
+    setTimeout(() => window.location.assign(diveUrl(ready.site, back.toString(), session)), CONFIG.modules.diveFrame.dive.fadeS * 1000);
   }
 
   /** The world's fixed boards worked like the menu: the boatyards' and the Shipyard signs (Voyage's one, the career's at every harbour). */

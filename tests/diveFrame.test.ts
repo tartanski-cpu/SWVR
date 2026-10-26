@@ -19,6 +19,9 @@ import { buildDesign, DESIGN_HULLS } from '../src/shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../src/shipyard/design';
 import { designToken, readDesign, shortCode } from '../src/shipyard/designDoc';
 import { startEngine } from './helpers/engine';
+import { DIVE_SITES, siteWorld } from '../src/dive/diveSites';
+import { diveReady, diveUrl } from '../src/modules/diveFrame/launch';
+import { placeVessel } from '../src/vessel/vesselControl';
 
 afterAll(() => useDesign(DEFAULT_DESIGN));
 
@@ -129,6 +132,37 @@ describe('the dive A-frame', { timeout: 60000 }, () => {
     expect(Math.abs(aboard)).toBeLessThan(0.01); // level, near enough (her lines carry the sub)
     expect(out - aboard).toBeGreaterThan(0.01); // hung out: by the stern (about 2 deg on the dive ship)
   });
+
+  it('DIVE: only with the sub afloat, the boat over a wreck site and stopped; the submersible game’s address for it', () => {
+    useDesign(dsv());
+    const { world, vesselId } = createWorld(new IdFactory(), 'design');
+    const v = world.vessels[vesselId];
+    stepWorld(world, [], DT);
+    const f = diveFrameOf(v)!;
+    const site = DIVE_SITES.find((s) => s.map === 'career')!;
+    const at = siteWorld(site)!;
+    const why = (map: string | null) => {
+      const r = diveReady(v, map);
+      return 'why' in r ? r.why : null;
+    };
+    // On her cradle: put her in the sea first.
+    placeVessel(v, at.x, 0, at.z, 0);
+    v.linearVelocity = [0, 0, 0];
+    expect(why('career')).toMatch(/Put the sub in the sea first/);
+    // Afloat over the site, stopped: ready, at this site.
+    Object.assign(diveFrameState(v)!, { luff: diveGeometry(f.config).outDeg, wire: 20 });
+    expect(diveReady(v, 'career')).toEqual({ site });
+    // Moving: stop her first. Away from the site: how far the nearest is. No sites here: said.
+    v.linearVelocity = [2, 0, 0];
+    expect(why('career')).toMatch(/Stop her over the wreck first/);
+    v.linearVelocity = [0, 0, 0];
+    placeVessel(v, at.x + 300, 0, at.z, 0);
+    expect(why('career')).toMatch(/Not over a wreck: the nearest, the .*, is \d+ m off/);
+    expect(why('nowhere')).toMatch(/no dive sites/);
+    // The address: the submersible game's own fields (its src/core/handoff.ts).
+    const u = new URL(diveUrl(site, 'https://tartanski-cpu.github.io/SWVR/career.html?boat=diveShip', 'abc123'));
+    expect(u.origin + u.pathname).toBe(CONFIG.modules.diveFrame.dive.url);
+    expect(Object.fromEntries(u.searchParams)).toEqual({ site: site.id, depth: String(site.depthM), sub: 'work3', tier: '3', crew: '1', return: 'https://tartanski-cpu.github.io/SWVR/career.html?boat=diveShip', session: 'abc123' });
+  });
 });
 
-void CONFIG;
