@@ -23,6 +23,10 @@ goods: [feed, building-materials, whisky]
 # game's cargo kinds (CONFIG.cargo.kinds): products ship out of here, needs are wanted here.
 # repairs: the yard's prices as a factor on the game's standard rate. Unlisted harbours take
 # part in every run.
+# The cargo berth (where a Voyage starts) on the North Pier's south-west side, open to the bay,
+# not in the corner of its arms where a bigger boat and the cargo stack have no room (owner).
+berthFacing:
+  oban: 225
 economy:
   oban: { repairs: { hull: 1, engine: 1 }, products: [Whisky cask, Canned fish], needs: [Building materials, Groceries] }
   kerrera-marina: { needs: [Groceries, Gas bottle] }

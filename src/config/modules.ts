@@ -17,6 +17,84 @@ export const MODULES_CONFIG = {
    * Modular boats: each module's own tunables (its defaults; a boat's recipe may override
    * them). docs/MODULAR_BOATS.md.
    */
+  /**
+   * An offshore wind farm's turbines (world/windFarm.ts, world/view/windFarmView.ts; owner,
+   * Oct 2026: crew transfer to wind farms). Our own design, sized as a modest older offshore
+   * turbine, all heights from the mean sea level (m):
+   *   pile      the monopile, `radius`, drawn from `from` (just under the water, where you'd see it) up
+   *   tp        the yellow transition piece over it, `radius`, from `from` up to the platform
+   *   platform  the deck round it at `y`, `radius` out, `thickness`, with a rail `rail` high
+   *   tower     tapering from `base` to `top` radius, up to the hub
+   *   hub       the rotor's centre's height; `blade` each blade's length; `nacelle` its box
+   *   landing   the boat landing, on the face out along the turbine's landingDeg: two upright
+   *             tubes `tube` in radius, their centres `halfSpacing` either side of the middle and
+   *             `out` m out from the transition piece, from `bottom` to `top`; a ladder between
+   *             them, rungs `rung` apart, on up the transition piece to the platform
+   *   rotor     turning from `cutIn` m/s of wind, `rpm` at `rated`, stopped (feathered) over `cutOut`
+   *   lights    red on the nacelle after dark, flashing every `flash` s (as the coast maps'
+   *             turbines); a yellow light on each platform (the marking of an offshore structure)
+   */
+  /**
+   * The TV (furniture kind 'tv'; modules/furniture/tv*.ts; owner, Oct 2026: "streaming of another browser
+   * tab into the TV screen. So only for desktop users, but the screen should be visible for
+   * all users"). A player on a desktop clicks a TV and picks a browser tab to show; the tab's
+   * picture (and its sound, if they tick "share tab audio") goes to every crew-mate over the
+   * game's own peer-to-peer link, as voice chat does (no server in between).
+   *   capture     what's asked of the browser: at most `width` x `height` pixels at `fps`
+   *               frames a second (a smaller picture costs the Quest less to decode and draw,
+   *               and the caster less upload: one copy goes to each crew-mate).
+   *   showWithin  m: the picture is drawn only from this near (farther, the screen is dark,
+   *               and the Quest uploads no video frames).
+   *   sound       its sound from the TV, in 3D (on the FM radio's volume slider): `gain`
+   *               (0..1), full within `nearFull` m, fading to nothing at `nearMax` m.
+   *   confirmS    s: started showing a tab, we wait this long for the world to say so before
+   *               taking it that someone else has the TV (it's theirs then: ours stops).
+   *   retryS      s: a call to a crew-mate that failed is tried again after this.
+   */
+  tv: {
+    capture: { width: 1280, height: 720, fps: 30 },
+    showWithin: 40,
+    sound: { gain: 0.8, nearFull: 2, nearMax: 14 },
+    confirmS: 3,
+    retryS: 5,
+  },
+
+  /**
+   * Crew transfer to the wind farm (transfer/transfer.ts; owner, Oct 2026). A job is called
+   * `firstAfter` s into the game, then every `every` s (a range) once the last is done: `techs`
+   * technicians (a range) for one turbine, waiting on the quay at `pickupPort`, at `pickup`
+   * (world x, z; the first, the others `spacing` m along the quay, facing `yawDeg`). A boat
+   * made fast in that port takes them aboard, one every `boardEvery` s. On a landing: her bow
+   * within `reach` m of its face (and `across` m beyond its tubes either side), moving under
+   * `maxSpeed` m/s, pushing at least `minPush` N; held `hold` s, the first steps across, then
+   * one every `perTech` s more. Each takes `cross` s to step over, and climbs at `climb` m/s.
+   */
+  transfer: {
+    firstAfter: 240,
+    every: [420, 780] as [number, number],
+    techs: [2, 3] as [number, number],
+    pickupPort: 'calder',
+    pickup: { x: 715.5, z: 640, spacing: 1.2, yawDeg: -90 },
+    boardEvery: 1.5,
+    landing: { reach: 0.9, across: 0.6, maxSpeed: 0.4, minPush: 2500, hold: 3, perTech: 2.5 },
+    cross: 1.5,
+    climb: 0.6,
+  },
+
+  windFarm: {
+    pile: { radius: 2.5, from: -6 },
+    tp: { radius: 2.7, from: -1 },
+    platform: { y: 13, radius: 5.5, thickness: 0.4, rail: 1.1 },
+    tower: { base: 2.1, top: 1.3 },
+    hub: 72,
+    blade: 42,
+    nacelle: { length: 10, width: 3.6, height: 3.8 },
+    landing: { out: 1.4, tube: 0.22, halfSpacing: 0.55, bottom: -3, top: 5, rung: 0.3 },
+    rotor: { cutIn: 3, rated: 12, cutOut: 25, rpm: 14 },
+    lights: { flash: 2, size: 1.4 },
+    colors: { pile: 0x3c4246, tp: 0xe8c020, grey: 0x8c9094, tower: 0xeef0f0 },
+  },
+
   modules: {
     /**
      * Drawing moving gear smoothly between simulation ticks (mechanisms/tickSmoother.ts; owner,
@@ -46,6 +124,13 @@ export const MODULES_CONFIG = {
       release: { strength: 0.4, ms: 25 },
       engrave: 'AHEAD ▲  ▼ ASTERN',
     },
+
+    /**
+     * control.twin-throttle (modules/twinThrottle; owner, Oct 2026): a lever for each engine of
+     * a twin worked separately (each as throttleLever above), `spacing` apart (m), and between
+     * their knobs a bright `grip` (`radius`, m; `colour`) that works both as one.
+     */
+    twinThrottle: { spacing: 0.16, grip: { radius: 0.019, colour: 0xffc21a } },
 
     /**
      * console.standard (modules/console): the helm console's dash, pedestals and group
@@ -144,6 +229,55 @@ export const MODULES_CONFIG = {
      */
     netDrum: { length: 1.3, flange: 0.5, core: 0.18, fullRadius: 0.44, axleHeight: 0.62, stand: 0.12, turnsPerNet: 5, colours: { frame: 0x2f6aa8, net: 0x2e5a3a, flange: 0x2f6aa8, motor: 0x30343a } },
     trawlWinches: { drumRadius: 0.12, drumWidth: 0.3, flange: 0.22, fullRadius: 0.2, axleHeight: 0.38, base: { width: 0.55, length: 0.5 }, turns: 30, colours: { frame: 0x2f6aa8, warp: 0x22262a, motor: 0x30343a } },
+
+    /**
+     * deck.dive-frame (modules/diveFrame; owner, Oct 2026: a dive support ship launching a
+     * small submersible off her stern, for the submersible game): a heavy A-frame over the
+     * transom (a launch and recovery system), an umbilical winch on its crosshead, a docking
+     * head under it that grips the submersible's lift point, and her cradle on deck forward of it.
+     *   legLength      the frame's legs, foot pin to crosshead (m)
+     *   footFromTransom, footInset  where its feet are pinned: forward of the transom, in from her side (m)
+     *   deckClear      the sub's tail this far forward of the transom on her cradle (m)
+     *   overClear      swung out, her bow this far aft of the transom (m): clear to lower
+     *   luffRateDeg    how fast the rams swing it (deg/s; about 20 s right across)
+     *   wireRate       how fast the winch hoists and lowers (m/s)
+     *   slack          how much more umbilical it pays out once she rests (on her cradle, or afloat) (m)
+     *   dockTol        the wire out no more than this (m): she's in the docking head, and the frame may swing
+     *   headDrop       the docking head below the crosshead (m)
+     *   frameKg        the frame, rams, winch and head (her lightship; the sub is a payload)
+     *   ram            the rams' deck lugs `forward` of the feet, pinned to the legs `at` of the way up
+     *   stand          the control stand, by the starboard foot: `forward` of it and `inboard`, its top `height` over the deck
+     *   cradle         her deck cradle's height (m)
+     *   sub            the submersible (drawn as the submersible game draws her, src/sub/exterior.ts
+     *                  there): `massKg` (a 10 t three-person work sub, as hers); her lift point
+     *                  `lift` above her axis and `liftZ` aft along it; her skids' undersides
+     *                  `bottom` below her axis; her bow `front` forward of the lift point and her
+     *                  tail `aft` aft of it; `halfWidth` her widest (the thruster ducts); afloat,
+     *                  her axis `floatAxis` under the water (her top fairing just out of it)
+     *   dive           the DIVE button (modules/diveFrame/launch.ts): with the sub afloat, over a
+     *                  wreck site (within CONFIG.dive.radius) and making under `maxSpeedKn`, it
+     *                  opens the submersible game at `url` with her `sub` id and `tier` (3: the
+     *                  three-seat work sub with her mini ROV), after `fadeS` s of fade
+     */
+    diveFrame: {
+      legLength: 6.5,
+      footFromTransom: 0.6,
+      footInset: 0.25,
+      deckClear: 0.3,
+      overClear: 0.4,
+      luffRateDeg: 4,
+      wireRate: 0.35,
+      slack: 1.5,
+      dockTol: 0.02,
+      headDrop: 0.45,
+      frameKg: 6500,
+      ram: { forward: 1.1, at: 0.38 },
+      stand: { forward: 0.6, inboard: 0.55, height: 1.05 },
+      cradle: { height: 0.35 },
+      sub: { massKg: 10_000, lift: 1.6, liftZ: 0.5, bottom: 1.46, front: 3.5, aft: 3.9, halfWidth: 1.45, floatAxis: -0.9 },
+      colours: { frame: 0xe8e8e2, head: 0x30343a, ram: 0xc8ccd0, cradle: 0x30343a, umbilical: 0xe0a020 },
+      dive: { url: 'https://tartanski-cpu.github.io/Submersible-World/', maxSpeedKn: 0.5, sub: 'work3', tier: 3, fadeS: 1.2 },
+    },
 
     /**
      * deck.crane (modules/deckCrane): a placeable hydraulic deck crane for cargo (owner),
@@ -281,6 +415,18 @@ export const MODULES_CONFIG = {
      * against quays and other boats.
      */
     pushFender: { knees: 2, kneeWidth: 0.6, kneeAt: 0.55, thickness: 0.32, chamfer: 0.08, inset: 0.06, clear: 0.05, kgPerM2: 140, across: 2, up: 3 },
+    /**
+     * hull.bow-fender (modules/bowFender; owner, Oct 2026: crew transfer to wind farms): a
+     * crew-transfer boat's bow fender, a block of black rubber round the top of her stem (or
+     * across the front of a catamaran's bridge deck), its plumb front `thickness` m forward of
+     * her stem at the deck, `width` m across (`catWidth` on a catamaran), from `above` m over
+     * her deck (her bulwark top) down `depth` m (not below her bridge deck's underside on a
+     * catamaran, nor `clear` over her DWL), its front corners chamfered by `chamfer`. It weighs
+     * `kgPerM3` a cubic metre of its outline (a moulded fender, its rubber round a hollow core: on
+     * the catamaran about a quarter of a tonne), and is probed on its face at
+     * `across` x `up` points (it grips as the tug's push knees do: CONFIG.contacts.guards.pushFender).
+     */
+    bowFender: { thickness: 0.4, width: 0.9, catWidth: 1.8, depth: 1.2, clear: 0.4, chamfer: 0.1, kgPerM3: 250, across: 3, up: 3, color: 0x1b1c1e },
 
     hullGuard: {
       strake: { radius: 0.07, drop: 0.06, kgPerM: 5, spacing: 0.6 },
@@ -371,15 +517,18 @@ export const MODULES_CONFIG = {
 
     /**
      * panel.helm-assist (owner, Oct 2026; modules/helmAssist): a small box by the breaker panel
-     * with three buttons, AUTO START, DOCK and AUTOPILOT. `width`, `height` (m), `pitch` between
-     * the buttons, `amps` with the master on (INSTRUMENTS circuit; it works only with it live).
-     * `gap`: how far aft of the breaker panel it hangs (m, between their edges).
-     * `autopilot` (vessel/autopilot.ts): it steers to hold her heading as a helmsman would, the
-     * wheel turned in proportion to how far she is off her heading (`helmPerDeg`, helm travel
-     * per degree off) less how fast she is already swinging back (`helmPerDegS`, per degree a
-     * second: so she doesn't overshoot), never more than `maxHelm` of the wheel's travel.
+     * with two buttons, AUTO START and DOCK. `width`, `height` (m), `pitch` between the buttons,
+     * `amps` with the master on (INSTRUMENTS circuit; it works only with it live). `gap`: how far
+     * aft of the breaker panel it hangs (m, between their edges).
+     * `autopilot` (vessel/autopilot.ts; the boat with the panel has one, its buttons on the
+     * console: owner, Oct 2026, "a separate control that goes on the main console"): it steers to
+     * hold her heading as a helmsman would, the wheel turned in proportion to how far she is off
+     * her heading (`helmPerDeg`, helm travel per degree off) less how fast she is already swinging
+     * back (`helmPerDegS`, per degree a second: so she doesn't overshoot), never more than
+     * `maxHelm` of the wheel's travel. Its PORT and STBD buttons move the heading it holds
+     * `stepDeg` degrees a press ("two buttons which add 5 degrees left and right").
      */
-    helmAssist: { width: 0.3, height: 0.14, pitch: 0.085, amps: 0.6, gap: 0.04, autopilot: { helmPerDeg: 0.04, helmPerDegS: 0.25, maxHelm: 0.5 } },
+    helmAssist: { width: 0.22, height: 0.14, pitch: 0.085, amps: 0.6, gap: 0.04, autopilot: { helmPerDeg: 0.04, helmPerDegS: 0.25, maxHelm: 0.5, stepDeg: 5 } },
 
     /** radio.vhf (M3c): the VHF set hung from the roof; how far its face tilts down toward you; its draw (A, RADIO circuit). */
     vhf: { tiltDeg: 35, amps: 1.5 },
@@ -420,8 +569,13 @@ export const MODULES_CONFIG = {
       bunk: { length: 1.95, depth: 0.75, lower: 0.3, upper: 1.1, cushion: 0.1, rail: 0.18, sitUp: 0.55, kg: 95 },
       mess: { length: 1.7, depth: 0.75, table: 0.74, bench: 0.45, seat: 0.45, back: 0.85, kg: 75 },
       shower: { length: 0.85, depth: 0.85, wall: 0.04, kg: 45 },
+      // A flat-screen TV on a wall bracket (modules/furniture/tvScreen.ts): `length` wide (a 32-inch screen), its
+      // case `depth` deep off the wall on the bracket, the screen `screenH` high with a `bezel`
+      // round it, its middle `centre` m over the floor (eye height seated, over a settee; lower
+      // under a low ceiling).
+      tv: { length: 0.76, depth: 0.1, screenH: 0.4, bezel: 0.015, centre: 1.35, kg: 8 },
       ceilingGap: 0.05,
-      colours: { joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30, curtain: 0x7fa8c0 },
+      colours: { tvCase: 0x16181b, tvOff: 0x0b0d10, joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30, curtain: 0x7fa8c0 },
     },
 
     /**
@@ -520,6 +674,8 @@ export const MODULES_CONFIG = {
         starterTorque: 120,
         starterMaxRpm: 400,
         crankTime: 0.8,
+        // In gear, dragged below this fraction of idle: she stalls (CONFIG.vessels.workboat.engine.stallFraction).
+        stallFraction: 0.3,
         startOnlyInNeutral: true,
         preheatTime: 0,
         preheatHotTime: 0,
@@ -644,6 +800,54 @@ export const MODULES_CONFIG = {
       steering: { maxAngleDeg: 26, rateDegPerS: 40, legArea: 0.14 },
       look: { strutLength: 0.45, strutChord: 0.6, strutWidth: 0.12, podLength: 1.25, podRadius: 0.14, propFwd: 0.62 },
       joystick: { maxAngleDeg: 50, rateDegPerS: 60, lever: 0.5, slip: 0.4, side: 1, surge: 1, twist: 2, turnRateDeg: 6, turnGain: 60 },
+    },
+
+    /**
+     * Azimuth drives (owner, Oct 2026: the harbour tug's ASD drives and their controls; the
+     * diesel's `azimuth`, modules/dieselInboard; the levers, modules/azimuthLevers). Each drive
+     * a Z-drive under her stern that turns right round on its upright axis and pushes the way
+     * it points (its propeller in a nozzle, pulling, forward of its leg).
+     *   slewDegPerS     how fast each drive turns to follow its lever (deg/s; real ones, about
+     *                   10 to 30 s for a full turn; tune by feel)
+     *   legArea         each leg's side area (m^2): a little rudder in the water past it
+     *   propFwd         the propeller this share of its diameter ahead of the leg, along its push
+     *   transitMaxDeg   TRANSIT: the wheel hard over swings both drives this far (deg), as rudders
+     *   driveRatio      the drive's own bevel gears (upper and lower), on top of her gearbox's
+     *                   ratio: a Z-drive's whole reduction is about 5 to 7 to 1, so a big slow
+     *                   propeller can take the engine's full power
+     *   look            the drive as drawn: the leg's width across and chord (m), the housing's
+     *                   radius as a share of the propeller's diameter, the nozzle's length (share)
+     *                   and its wall's thickness (m)
+     *   hullClear       the Shipyard hangs each drive low enough that the top of its nozzle clears
+     *                   her bottom by this (m), all along and across the nozzle
+     *   lever           each drive's twist-and-throttle lever (control.azimuth-lever), a real
+     *                   azimuth control's head (owner, Oct 2026, from photos): a drum across it
+     *                   (`drumRadius`, `drumWidth`, m) with a bar on two posts above it (`length`:
+     *                   the bar's height over the drum's axis, which it tilts about; `barRadius`),
+     *                   a white pointer the way it pushes; how far it tilts at full power (deg),
+     *                   the power below which it reads idle (`detent`, 0..1), how far it turns for
+     *                   a degree of the hand's twist (`twistGain`: a wrist turns about 90 deg
+     *                   comfortably, so a full turn round is a few grabs), its turntable's radius
+     *                   (m), colours (`handle` the head's black, `tip` its pointer, `port` /
+     *                   `stbd` the bands round the drum, `base` the housing)
+     *   console         where the Shipyard puts them (control.azimuth-lever ×2, the helm console's
+     *                   slots, from its centre): each lever `leverX` out from the wheel's middle
+     *                   (either side) and `leverZ` aft of the console top's aft face, on its own
+     *                   pedestal; TRANSIT on the starboard lever's pedestal ahead of it
+     *                   (`transitZ`); the port pedestal joysticks (searchlight, fire monitor)
+     *                   moved out `joystickShift` to port, clear; and the tug's wheel smaller,
+     *                   `wheelRadius` (m), so the levers sit close in for both hands
+     */
+    azimuth: {
+      slewDegPerS: 12,
+      legArea: 1.6,
+      propFwd: 0.4,
+      transitMaxDeg: 35,
+      driveRatio: 1.6,
+      hullClear: 0.15,
+      look: { legWidth: 0.24, legChord: 0.75, housing: 0.11, nozzleLength: 0.5, nozzleWall: 0.09, colour: 0x4a5560, nozzleColour: 0x30363c },
+      lever: { length: 0.1, maxTiltDeg: 35, detent: 0.07, twistGain: 1.5, turntableRadius: 0.065, drumRadius: 0.045, drumWidth: 0.11, barRadius: 0.012, colours: { port: 0xd03a2a, stbd: 0x2a9a4a, handle: 0x1b1e21, tip: 0xf2f2f2, base: 0x23282c } },
+      console: { leverX: 0.3, leverZ: 0.2, transitZ: -0.065, joystickShift: 0.2, wheelRadius: 0.13 },
     },
 
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */

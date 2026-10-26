@@ -26,7 +26,7 @@ import { CONFIG } from '../config';
  * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`. The last four dress
  * the wheelhouse inside (CONFIG.interiors and CONFIG.cabinFloors, chosen in the Shipyard).
  */
-export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed', 'facade', 'beamsLight', 'beamsDark'] as const;
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed', 'facade', 'beamsLight', 'beamsDark', 'topsides'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -381,6 +381,58 @@ const PAINTERS: Record<PaintName, () => (x: number, y: number) => Pixel> = {
       return 0.5 + row[y] + fleck[y * TILE + x];
     };
   },
+  /**
+   * A hull's topsides, weathered (owner, Oct 2026, from the texture study: "go ahead with the
+   * hull weathering"): the paint a little faded in soft patches, a band of grime along the
+   * waterline, a dirty line under the deck edge with rust runs down from it (fittings and
+   * scuppers), and a few scuffs from fenders low down. Unlike the other tiles this one stands
+   * the freeboard high: its rows run from the waterline (y 0) to the deck edge (y 63), and only
+   * its columns repeat, every `tileMetres.topsides` along her (vessel/view/hullMesh.ts puts the
+   * hull's coordinates to it), so the grime sits at the waterline of any hull. In colour: the
+   * rust is rusty, which multiplies to orange on a white hull and a dull dark streak on navy.
+   */
+  topsides: () => {
+    const r = rng(149);
+    const fade = noise(150, 16);
+    const fine = noise(151, 4);
+    const grimeX = noise(152, 8);
+    const w = CONFIG.pixelPaint.weathering;
+    const px: [number, number, number][] = Array.from({ length: TILE * TILE }, (_, i) => {
+      const x = i % TILE;
+      const y = Math.floor(i / TILE);
+      const g = 0.5 + w.fade * (fade(x, y) - 0.5) + 0.03 * (fine(x, y) - 0.5) + (r() - 0.5) * 0.015;
+      // The grime band: darkest on the waterline row, gone 5 to 9 rows up (uneven along her), a little brown.
+      const band = Math.max(0, 1 - y / (5 + 4 * grimeX(x, 0)));
+      const d = w.grime * band;
+      return [g - 0.85 * d, g - d, g - 1.3 * d];
+    });
+    // The dirt line under the deck edge.
+    for (let x = 0; x < TILE; x++) {
+      px[(TILE - 1) * TILE + x] = px[(TILE - 1) * TILE + x].map((c) => c - 0.06) as [number, number, number];
+      px[(TILE - 2) * TILE + x] = px[(TILE - 2) * TILE + x].map((c) => c - 0.02) as [number, number, number];
+    }
+    // Rust runs down from the deck edge, strongest at the top and thinning out.
+    for (let k = 0; k < w.runs; k++) {
+      const x0 = Math.floor(r() * TILE);
+      const len = 8 + Math.floor(r() * 32);
+      const wide = r() < 0.4 ? 2 : 1;
+      for (let i = 0; i < len; i++) {
+        const s = (1 - i / len) * (0.7 + 0.3 * r());
+        for (let dx = 0; dx < wide; dx++) {
+          const j = (TILE - 1 - i) * TILE + ((x0 + dx) % TILE);
+          px[j] = px[j].map((c, ch) => c + ([0.42, 0.3, 0.22][ch] - c) * s) as [number, number, number];
+        }
+      }
+    }
+    // Scuffs low down: short light streaks along her where the fenders rub.
+    for (let k = 0; k < 8; k++) {
+      const x0 = Math.floor(r() * TILE);
+      const y0 = 4 + Math.floor(r() * 10);
+      const len = 3 + Math.floor(r() * 5);
+      for (let i = 0; i < len; i++) px[y0 * TILE + ((x0 + i) % TILE)] = [0.56, 0.56, 0.56];
+    }
+    return (x, y) => px[y * TILE + x];
+  },
   facade: () => {
     const r = rng(139);
     const patch = noise(140, 16);
@@ -443,11 +495,23 @@ export function setPaintNight(darkness: number): void {
   uniforms.paintNight.value = Math.min(1, Math.max(0, (darkness - CONFIG.pixelPaint.windowsFrom) / (1 - CONFIG.pixelPaint.windowsFrom)));
 }
 
+/**
+ * How much a hull's weathering shows (the `topsides` tile): 0 as new (plain paint) .. 1 well
+ * used, the tile as drawn. A boat's own, on her hull's material (vessel/view/hullMesh.ts,
+ * from her livery: a Shipyard choice, new or used); the config's for a hull given none.
+ */
+export function setHullWeathering(material: THREE.Material, amount: number): void {
+  const u = (material.userData.paintWeathering ??= { value: 0 }) as { value: number };
+  u.value = Math.min(1, Math.max(0, amount));
+}
+
 /** Teaches a material to draw the tiles: reads each vertex's `paint` (tile) and `paintUv` (metres along the face). */
 export function withPixelPaint<M extends THREE.Material>(material: M): M {
   material.onBeforeCompile = (shader) => {
     uniforms.paintTiles.value = paintTexture();
     Object.assign(shader.uniforms, uniforms);
+    // Her own weathering (setHullWeathering), or the config's.
+    shader.uniforms.paintWeathering = (material.userData.paintWeathering ??= { value: CONFIG.pixelPaint.weathering.strength }) as { value: number };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float paint;\nattribute vec2 paintUv;\nvarying float vPaint;\nvarying vec2 vPaintUv;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaint = paint;\nvPaintUv = paintUv;');
@@ -458,6 +522,7 @@ export function withPixelPaint<M extends THREE.Material>(material: M): M {
 uniform highp sampler2DArray paintTiles;
 uniform float paintMetres[${PAINTS.length + 1}];
 uniform float paintStrength;
+uniform float paintWeathering;
 uniform float paintNight;
 uniform float paintLit;
 uniform vec3 paintGlow;
@@ -469,17 +534,23 @@ varying vec2 vPaintUv;`,
         `#include <color_fragment>
 {
   int layer = clamp(int(vPaint + 0.5), 0, ${PAINTS.length});
+  // The hull's weathering tile stands the freeboard high: its second coordinate is 0 at the
+  // waterline and 1 at the deck edge (hullMesh.ts), not metres, and below the waterline it
+  // fades out (the transom and a chine under water).
+  bool topsides = layer == ${paintIndex('topsides')};
   // Texel coordinates, and how fast they change across the screen (taken outside the branch).
-  vec2 px = vPaintUv / paintMetres[layer] * ${TILE}.0;
+  vec2 px = (topsides ? vec2(vPaintUv.x / paintMetres[layer], clamp(vPaintUv.y, 0.0, 1.0)) : vPaintUv / paintMetres[layer]) * ${TILE}.0;
+  float strength = topsides ? paintStrength * paintWeathering * smoothstep(-0.05, 0.02, vPaintUv.y) : paintStrength;
   vec2 dx = dFdx(px);
   vec2 dy = dFdy(px);
-  if (layer > 0 && paintStrength > 0.0) {
+  if (layer > 0 && strength > 0.0) {
     // Crisp pixels with their edges blended over about one screen pixel (no crawl in VR).
     vec2 fw = max(abs(dx) + abs(dy), vec2(1e-4));
     vec2 cell = floor(px + 0.5);
     vec2 p = cell + clamp((px - cell) / fw, -0.5, 0.5);
+    if (topsides) p.y = clamp(p.y, 0.5, ${TILE}.0 - 0.5); // the tile doesn't repeat up the hull
     vec4 t4 = textureGrad(paintTiles, vec3(p / ${TILE}.0, float(layer)), dx / ${TILE}.0, dy / ${TILE}.0);
-    diffuseColor.rgb *= mix(vec3(1.0), t4.rgb * 2.0, paintStrength);
+    diffuseColor.rgb *= mix(vec3(1.0), t4.rgb * 2.0, strength);
     // Glass (alpha below 1, the house fronts' panes): at night some windows glow, each
     // window (one repeat of the tile) lit or not by a hash of which one it is. Far off the
     // panes average into the wall and the glow fades with them.

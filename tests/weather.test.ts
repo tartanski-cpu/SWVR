@@ -28,7 +28,9 @@ function setup(preset?: WeatherPresetName) {
   return { world, env, v: world.vessels[vesselId], send, run };
 }
 
-describe('dynamic weather', () => {
+// Room for the long runs (the director and fog tests sail hours of weather: about 19 s and
+// 17 s here, twice that on GitHub's publishing machine, past the 20 s default).
+describe('dynamic weather', { timeout: 120000 }, () => {
   it('starts in the configured preset with a matching sea', () => {
     const { env } = setup();
     expect(env.weather!.preset).toBe(CONFIG.weather.startPreset);

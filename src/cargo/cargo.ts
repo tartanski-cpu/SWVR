@@ -35,13 +35,16 @@ import { hullPlan } from '../vessel/layout';
 import type { VesselState } from '../vessel/vesselState';
 import { anchorageOnly, PORTS, SLIPWAYS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
-import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
+import { deckSpot, onOpenDeck, overDeck, type DeckFootprint } from './deck';
 import { compensatedHook, craneStateOf, cranesOf, hookOnBoat } from './craneHook';
 import { hasUpgrade } from '../career/career';
 import { hydraulicsOn } from '../vessel/electrics';
 import { safeLoadAt } from '../modules/deckCrane';
 import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
+import { berthWithId } from '../world/berths';
+import type { BerthDef } from '../world/defs';
+import { isProjectBuoy, isProjectItem, layProjectBuoy, projectItemLost, projectItemName } from '../career/projects';
 
 export type CargoAt =
   /** Ashore (world frame): `pos` is the middle of its base. */
@@ -65,6 +68,8 @@ export interface CargoItem {
   pot?: PotContents;
   /** A fish box from the trawl: what's in it (the ground's species, FishingGroundDef). */
   species?: string;
+  /** A salvage crate from a dive (dive/diveReturn.ts): what's in it and what it fetches (£). */
+  salvage?: { name: string; value: number };
 }
 
 /** What's in a hauled pot (potting/potting.ts catchFor). */
@@ -91,6 +96,16 @@ export function kindOf(item: CargoItem) {
   return CONFIG.cargo.kinds[item.kind];
 }
 
+/** Crane cargo (CONFIG.cargo.crane): too heavy to carry, lifted only by a deck crane's hook. */
+export function craneOnly(item: CargoItem): boolean {
+  return isProjectBuoy(item) || CONFIG.cargo.crane.kinds.includes(kindOf(item)?.name ?? '');
+}
+
+/** A port's cargo berth (its quay, for crane cargo), or null (an anchorage, a beach). */
+export function cargoBerth(port: PortDef): BerthDef | null {
+  return port.cargo.berth ? (berthWithId(`${port.id}-cargo`) ?? null) : null;
+}
+
 /** Needs both hands to lift. */
 export function isHeavy(item: CargoItem): boolean {
   return item.mass > CONFIG.cargo.twoHandKg;
@@ -102,18 +117,61 @@ export function footprint(item: CargoItem): DeckFootprint {
   return { hx: sx / 2, hz: sz / 2 };
 }
 
-/** World position of slot `i` in a port's goods row (on the quay or beach). */
-export function stackPoint(port: PortDef, i: number): Vec3 {
+/** Which side of a port's goods row its further rows go (+1 / -1: the side with higher ground, away from the water). */
+const ROW_SIDE = new Map<string, number>();
+function rowSide(port: PortDef): number {
+  let side = ROW_SIDE.get(port.id);
+  if (side !== undefined) return side;
   const s = port.cargo;
   const yaw = (s.stackYawDeg * Math.PI) / 180;
-  const x = s.stackX + Math.sin(yaw) * i * CONFIG.cargo.stackSpacing;
-  const z = s.stackZ - Math.cos(yaw) * i * CONFIG.cargo.stackSpacing;
+  const gap = CONFIG.cargo.stackRowGap * 2;
+  const h = (k: number) => standingHeight(s.stackX + Math.cos(yaw) * gap * k, s.stackZ + Math.sin(yaw) * gap * k);
+  side = h(1) >= h(-1) ? 1 : -1;
+  ROW_SIDE.set(port.id, side);
+  return side;
+}
+
+/**
+ * World position of place `i` in a port's goods stack (on the quay or beach): rows of
+ * `stackRow` along the row's line, each further row `stackRowGap` back from the water.
+ */
+export function stackPoint(port: PortDef, i: number): Vec3 {
+  const c = CONFIG.cargo;
+  const s = port.cargo;
+  const yaw = (s.stackYawDeg * Math.PI) / 180;
+  const along = (i % c.stackRow) * c.stackSpacing;
+  const back = Math.floor(i / c.stackRow) * c.stackRowGap * rowSide(port);
+  const x = s.stackX + Math.sin(yaw) * along + Math.cos(yaw) * back;
+  const z = s.stackZ - Math.cos(yaw) * along + Math.sin(yaw) * back;
   return [x, standingHeight(x, z), z];
 }
 
-/** The port whose goods area (x, z) is in, if any. */
+/**
+ * World position of place `i` of a port's crane cargo (CONFIG.cargo.crane): along its cargo
+ * berth's quay edge, `edgeIn` in from it, `spacing` apart, centred on the berth. Null with
+ * no cargo berth.
+ */
+export function craneStackPoint(port: PortDef, i: number): Vec3 | null {
+  const b = cargoBerth(port);
+  if (!b) return null;
+  const c = CONFIG.cargo.crane;
+  const h = (b.headingDeg * Math.PI) / 180;
+  // From the berth's middle outward, either way in turn: 0, +1, -1, +2, -2 ...
+  const along = (i % 2 ? 1 : -1) * Math.ceil(i / 2) * c.spacing;
+  const inn = b.shoreDist + c.edgeIn;
+  const x = b.x + b.shoreX * inn + Math.sin(h) * along;
+  const z = b.z + b.shoreZ * inn - Math.cos(h) * along;
+  return [x, standingHeight(x, z), z];
+}
+
+/** The port whose goods area (x, z) is in, if any: by its goods stack, or along its cargo berth's quay (crane cargo). */
 export function portAtPoint(x: number, z: number): PortDef | null {
-  for (const p of PORTS) if (Math.hypot(x - p.cargo.stackX, z - p.cargo.stackZ) < CONFIG.cargo.deliveryRadius) return p;
+  const r = CONFIG.cargo.deliveryRadius;
+  for (const p of PORTS) if (Math.hypot(x - p.cargo.stackX, z - p.cargo.stackZ) < r) return p;
+  for (const p of PORTS) {
+    const b = cargoBerth(p);
+    if (b && Math.hypot(x - (b.x + b.shoreX * (b.shoreDist + CONFIG.cargo.crane.edgeIn)), z - (b.z + b.shoreZ * (b.shoreDist + CONFIG.cargo.crane.edgeIn))) < r) return p;
+  }
   return null;
 }
 
@@ -124,8 +182,30 @@ function potQuayAt(x: number, z: number): PortDef | null {
   return PORTS.reduce((a, b) => (Math.hypot(a.x - px, a.z - pz) <= Math.hypot(b.x - px, b.z - pz) ? a : b));
 }
 
-function waitingAt(world: WorldState, port: PortDef): CargoItem[] {
-  return Object.values(world.cargo).filter((c) => c.from !== 'pots' && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
+/**
+ * How many items wait at each port (port id -> count), hand or crane cargo, in one pass over
+ * the cargo (review, Oct 2026: counting port by port for every new item made filling the
+ * Clyde's 56 ports freeze the start for ~25 s).
+ */
+function waitingCounts(world: WorldState, crane: boolean): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const c of Object.values(world.cargo)) {
+    if (c.from === 'pots' || isProjectItem(c) || craneOnly(c) !== crane || !('ground' in c.at)) continue;
+    const p = portAtPoint(c.at.ground[0], c.at.ground[2]);
+    if (p) m.set(p.id, (m.get(p.id) ?? 0) + 1);
+  }
+  return m;
+}
+
+/** Items set down within `r` m of a point (to find a free place among them). */
+function groundNear(world: WorldState, x: number, z: number, r: number): Vec3[] {
+  const out: Vec3[] = [];
+  for (const c of Object.values(world.cargo)) if ('ground' in c.at && Math.abs(c.at.ground[0] - x) < r && Math.abs(c.at.ground[2] - z) < r) out.push(c.at.ground);
+  return out;
+}
+
+function waitingAt(world: WorldState, port: PortDef, crane = false): CargoItem[] {
+  return Object.values(world.cargo).filter((c) => c.from !== 'pots' && !isProjectItem(c) && craneOnly(c) === crane && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
 }
 
 export function aboard(world: WorldState, vesselId: EntityId): CargoItem[] {
@@ -139,10 +219,14 @@ export function carriedBy(world: WorldState, playerId: EntityId): CargoItem[] {
   return Object.values(world.cargo).filter((c) => 'carriedBy' in c.at && c.at.carriedBy === playerId);
 }
 
-/** Add one new item at the port with the fewest waiting (if any port has room). */
-export function spawnCargo(world: WorldState): CargoItem | null {
+/**
+ * Add one new item at the port with the fewest waiting (if any port has room). `tally`: the
+ * waiting counts, kept up to date by the caller while filling many (stockPorts).
+ */
+export function spawnCargo(world: WorldState, tally?: Map<string, number>): CargoItem | null {
   const cfg = CONFIG.cargo;
-  const counts = PORTS.map((p) => waitingAt(world, p).length);
+  const waiting = tally ?? waitingCounts(world, false);
+  const counts = PORTS.map((p) => waiting.get(p.id) ?? 0);
   const min = Math.min(...counts);
   if (min >= cfg.perPort) return null;
   const n = ++world.cargoSeq;
@@ -159,23 +243,91 @@ export function spawnCargo(world: WorldState): CargoItem | null {
   const takers = needing.length ? needing : others.filter((p) => !p.economy?.needs?.length);
   const pool = takers.length ? takers : others;
   const to = pool[Math.floor(hash01(n + 0.5) * pool.length)];
-  // First free place in the row (nothing within half a spacing of it).
-  const items = Object.values(world.cargo).filter((c) => 'ground' in c.at);
-  let pos = stackPoint(from, 0);
-  for (let i = 0; i < 40; i++) {
-    pos = stackPoint(from, i);
-    const p = pos;
-    if (!items.some((c) => 'ground' in c.at && Math.hypot(c.at.ground[0] - p[0], c.at.ground[2] - p[2]) < cfg.stackSpacing * 0.6)) break;
-  }
+  const pos = freeStackSpot(world, from);
   const yaw = (from.cargo.stackYawDeg * Math.PI) / 180 + (hash01(n + 0.75) - 0.5) * 0.3;
   const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw } };
   world.cargo[item.id] = item;
+  if (tally) {
+    const at = portAtPoint(pos[0], pos[2]);
+    if (at) tally.set(at.id, (tally.get(at.id) ?? 0) + 1);
+  }
   return item;
 }
 
-/** Fill every port up to its quota. */
+/**
+ * Add one crane cargo item (CONFIG.cargo.crane) at the cargo-berth port with the fewest
+ * waiting, bound for another, in the first free place along its berth's quay edge.
+ */
+export function spawnCraneCargo(world: WorldState, tally?: Map<string, number>): CargoItem | null {
+  const cfg = CONFIG.cargo;
+  const c = cfg.crane;
+  const quays = PORTS.filter((p) => cargoBerth(p));
+  if (quays.length < 2 || !c.kinds.length) return null;
+  const waiting = tally ?? waitingCounts(world, true);
+  const freeAt = (port: PortDef) => freeCraneSpot(world, port);
+  // The ports short of their crane cargo with room on the quay, the emptiest first.
+  const open = quays.map((p) => ({ p, n: waiting.get(p.id) ?? 0 })).filter((o) => o.n < c.perPort && freeAt(o.p));
+  if (!open.length) return null;
+  const min = Math.min(...open.map((o) => o.n));
+  const n = ++world.cargoSeq;
+  const candidates = open.filter((o) => o.n === min).map((o) => o.p);
+  const from = candidates[Math.floor(hash01(n) * candidates.length)];
+  const others = quays.filter((p) => p.id !== from.id);
+  const to = others[Math.floor(hash01(n + 0.5) * others.length)];
+  const kind = cfg.kinds.findIndex((k) => k.name === c.kinds[Math.floor(hash01(n + 0.25) * c.kinds.length)]);
+  const pos = freeAt(from);
+  if (!pos || kind < 0) return null;
+  const b = cargoBerth(from)!;
+  const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw: (b.headingDeg * Math.PI) / 180 } };
+  world.cargo[item.id] = item;
+  if (tally) {
+    const at = portAtPoint(pos[0], pos[2]);
+    if (at) tally.set(at.id, (tally.get(at.id) ?? 0) + 1);
+  }
+  return item;
+}
+
+/**
+ * The first free place in a port's goods row (nothing within half a spacing of it), among the
+ * items set down near its stack; the row's last place if none is free.
+ */
+export function freeStackSpot(world: WorldState, port: PortDef): Vec3 {
+  const cfg = CONFIG.cargo;
+  const first = stackPoint(port, 0);
+  const near = groundNear(world, first[0], first[2], 250);
+  let pos = first;
+  for (let i = 0; i < Math.max(40, cfg.perPort * 3); i++) {
+    pos = stackPoint(port, i);
+    const p = pos;
+    if (!near.some((g) => Math.hypot(g[0] - p[0], g[2] - p[2]) < cfg.stackSpacing * 0.6)) break;
+  }
+  return pos;
+}
+
+/** A free place along a port's cargo quay for crane cargo (clear of anything set down there), or null. */
+export function freeCraneSpot(world: WorldState, port: PortDef): Vec3 | null {
+  const c = CONFIG.cargo.crane;
+  const b = cargoBerth(port);
+  if (!b) return null;
+  const near = groundNear(world, b.x, b.z, 150);
+  for (let i = 0; i < c.perPort * 3; i++) {
+    const p = craneStackPoint(port, i);
+    if (p && p[1] > 0 && !near.some((g) => Math.hypot(g[0] - p[0], g[2] - p[2]) < c.spacing * 0.6)) return p;
+  }
+  return null;
+}
+
+/** Fill every port up to its quota: hand cargo at the goods stacks, crane cargo on the cargo quays. */
 export function stockPorts(world: WorldState): void {
-  while (spawnCargo(world)) {
+  // The counts taken once and kept up as items go down (not recounted per item).
+  // (Capped, in case an item set down isn't counted as at its port: never a hung start.)
+  const cap = PORTS.length * (CONFIG.cargo.perPort + CONFIG.cargo.crane.perPort) * 2 + 10;
+  const hand = waitingCounts(world, false);
+  for (let i = 0; i < cap && spawnCargo(world, hand); i++) {
+    /* keep going */
+  }
+  const crane = waitingCounts(world, true);
+  for (let i = 0; i < cap && spawnCraneCargo(world, crane); i++) {
     /* keep going */
   }
 }
@@ -188,18 +340,22 @@ export function stockPorts(world: WorldState): void {
 function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: string): void {
   // A pot isn't trade cargo: lost overboard, it's just a lost pot (no penalty, no new cargo).
   if (isPot(item)) return potLost(world, item);
+  // Nor a construction project's mark buoy: lost, another is put on the quay (career/projects.ts).
+  if (isProjectItem(item)) return projectItemLost(world, item);
   delete world.cargo[item.id];
   if (delivered) world.deliveries += 1;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
-  if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
+  if (delivered && item.salvage) earn(world, 'salvage', { base: item.salvage.value, port: at, text: `Salvage sold at ${portName(at)}: ${item.salvage.name}` });
+  else if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
   else if (delivered && item.to === 'any') earn(world, 'crate', { port: at, text: `Lost cargo brought in to ${portName(at)}` });
-  else if (delivered) earn(world, 'cargo', { port: item.to, from: item.from, text: `Cargo ${portName(item.from)} → ${portName(item.to)}` });
+  else if (delivered) earn(world, 'cargo', { port: item.to, from: item.from, what: kindOf(item)?.name, text: `Cargo ${portName(item.from)} → ${portName(item.to)}` });
   else {
     world.lost = (world.lost ?? 0) + 1;
     cargoLost(world, item.from);
   }
-  spawnCargo(world);
+  if (craneOnly(item)) spawnCraneCargo(world);
+  else spawnCargo(world);
 }
 
 /** The anchorage port whose bay the vessel is anchored in (anchor set, nearly stopped). */
@@ -251,6 +407,7 @@ export function takeBlocker(item: CargoItem): string | null {
   if ('carriedBy' in item.at) return 'Someone has it';
   if ('hook' in item.at) return 'It\'s on the crane hook';
   if ('vessel' in item.at && item.at.lashed) return 'Lashed down: undo the lashing first';
+  if (craneOnly(item)) return `${kindOf(item).name}, ${item.mass} kg: too heavy to carry. Lift it with a deck crane`;
   return null;
 }
 
@@ -414,16 +571,70 @@ export function stepCraneCargo(world: WorldState, dt: number): void {
   }
 }
 
+/**
+ * Why a HOOK press now wouldn't set her cranes' load down, in a few words for whoever pressed
+ * (the App shows it on their screen; owner, Oct 2026: "the button to drop them off didn't
+ * work", the buoy hanging over the side too high above the water), or null: it would (or
+ * there's no load). The same rules as setDown, read only. A project buoy at the water but off
+ * its spot is the office's to say (layProjectBuoy).
+ */
+export function hookNote(world: WorldState, v: VesselState): string | null {
+  for (const crane of cranesOf(v)) {
+    const s = craneStateOf(v, crane.path);
+    const item = s?.hooked ? world.cargo[s.hooked] : undefined;
+    const hook = item ? hookOnBoat(v, crane.path) : null;
+    if (!item || !hook) continue;
+    const base = hook.clone().setY(hook.y - kindOf(item).size[1]);
+    const m = (x: number) => `${Math.max(0.1, x).toFixed(1)} m`;
+    const spot = deckLanding(world, v, item, base);
+    if (spot !== undefined) {
+      if (!spot) return 'No room on deck there: move the hook over a clear part of the deck';
+      const gap = base.y - deckHeight(v.defId, spot.z);
+      if (gap > SET_DOWN_ABOVE) return `Lower it onto the deck: ${m(gap - SET_DOWN_ABOVE)} to go (hoist down)`;
+      if (gap < -SET_DOWN_BELOW) return 'Too low: hoist it up a little';
+      const full = placeBlocker(world, v, item);
+      if (full) return full;
+      continue;
+    }
+    const w = onWorld(v, base);
+    const g = standingHeight(w.x, w.z);
+    if (g > -0.3) {
+      if (w.y - g > SET_DOWN_ABOVE) return `Lower it to the ground: ${m(w.y - g - SET_DOWN_ABOVE)} to go (hoist down)`;
+      continue;
+    }
+    if (w.y > SET_DOWN_ABOVE) return `Lower it right down to the water first: ${m(w.y - SET_DOWN_ABOVE)} to go (hoist down)`;
+  }
+  return null;
+}
+
+/** How far from under the hook a load lowered over her deck may be set down, at the nearest clear spot (m). */
+const DECK_NUDGE = 1.2;
+
+/**
+ * Where on her deck a load lowered at `base` (her axes) goes: under the hook if it fits there,
+ * else the nearest clear spot within DECK_NUDGE (owner, Oct 2026: a 1.1 m buoy lowered over a
+ * small working deck, a little off a clear patch, was taken for over the side). Null: over
+ * her but no room near; undefined: not over her at all.
+ */
+function deckLanding(world: WorldState, v: VesselState, item: CargoItem, base: THREE.Vector3): { x: number; z: number } | null | undefined {
+  const f = footprint(item);
+  if (!overDeck(v.defId, base.x, base.z) && !onOpenDeck(v.defId, f, base.x, base.z)) return undefined;
+  const spot = deckSpot(v.defId, f, base.x, base.z, aboard(world, v.id).filter((o) => o.id !== item.id).map(deckDisc));
+  return spot && Math.hypot(spot.x - base.x, spot.z - base.z) <= DECK_NUDGE ? spot : null;
+}
+
 /** Set a hooked item down under the hook (`hook`: in her axes). False: it stays on the hook. */
 function setDown(world: WorldState, v: VesselState, item: CargoItem, hook: THREE.Vector3): boolean {
   const h = kindOf(item).size[1];
   const base = hook.clone().setY(hook.y - h);
-  // Her own deck.
-  if (onOpenDeck(v.defId, footprint(item), base.x, base.z)) {
-    const deckY = deckHeight(v.defId, base.z);
+  // Her own deck: under the hook, or the nearest clear spot to it.
+  const spot = deckLanding(world, v, item, base);
+  if (spot !== undefined) {
+    if (!spot) return false;
+    const deckY = deckHeight(v.defId, spot.z);
     const gap = base.y - deckY;
     if (gap > SET_DOWN_ABOVE || gap < -SET_DOWN_BELOW || placeBlocker(world, v, item)) return false;
-    item.at = { vessel: v.id, pos: [base.x, deckY, base.z], yaw: 0, vel: [0, 0], lashed: false };
+    item.at = { vessel: v.id, pos: [spot.x, deckY, spot.z], yaw: 0, vel: [0, 0], lashed: false };
     return true;
   }
   // Over the side: the quay or shore, or the sea.
@@ -436,6 +647,8 @@ function setDown(world: WorldState, v: VesselState, item: CargoItem, hook: THREE
     return true;
   }
   if (w.y > SET_DOWN_ABOVE) return false; // not down to the water yet
+  // A project's mark buoy: laid if it's at its spot, else it stays on the hook (career/projects.ts).
+  if (isProjectItem(item)) return layProjectBuoy(world, item, w.x, w.z);
   if (isPot(item)) shootPot(world, item, w.x, w.z);
   else retire(world, item, false);
   return true;
@@ -749,6 +962,9 @@ export function cargoLabel(item: CargoItem): string {
     if (p && (p.crab || p.lobster)) return `Lobster pot: ${catchText(p.crab, p.lobster)}: set it down on a harbour quay to sell`;
     return `Lobster pot ${item.mass} kg, baited: shoot it over the side on a potting ground`;
   }
+  if (isProjectBuoy(item)) return `${projectItemName(item)}, ${item.mass} kg: lift it with a deck crane and lower it into the sea at its spot (on your chartplotter)`;
+  if (isProjectItem(item)) return `${projectItemName(item)}, ${item.mass} kg: take it out and lie alongside her (on your chartplotter)`;
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
-  return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}${anchorageOnly(item.to) ? ` (${CONFIG.cargo.anchorageNote})` : ''}`;
+  if (item.salvage) return `Salvage: ${item.salvage.name} ${item.mass} kg (sells in any port)`;
+  return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}${craneOnly(item) ? ` (${CONFIG.cargo.crane.note})` : anchorageOnly(item.to) ? ` (${CONFIG.cargo.anchorageNote})` : ''}`;
 }

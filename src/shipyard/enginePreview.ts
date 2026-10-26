@@ -37,6 +37,11 @@ export interface Machinery {
   sterndrive?: boolean;
   /** A Kort nozzle round each propeller (design.nozzle; CONFIG.nozzle.look). */
   nozzle?: boolean;
+  /**
+   * Drawn as Z-drives (the harbour tug's, DesignHull.zDrives; in the game her azimuth drives,
+   * modules/dieselInboard `azimuth`): see zDrive.
+   */
+  zDrive?: boolean;
 }
 
 /** One engine and its gearbox (vessel/view/engineModels.ts), at its own size (ENGINES `size`). */
@@ -116,13 +121,18 @@ export function buildMachinery(m: Machinery): THREE.Group {
   const sh = m.shaft;
   const tilt = (sh.angleDeg * Math.PI) / 180;
   for (const s of m.twin ? [-1, 1] : [0]) {
-    const { holder, model: e } = placeEngine(m.engine, size, { x: s * sh.x, flangeY: sh.flangeY, flangeZ: sh.flangeZ, angleDeg: sh.angleDeg });
+    // (A Z-drive's engine lies level: its shaft runs level aft to the drive's top.)
+    const { holder, model: e } = placeEngine(m.engine, size, { x: s * sh.x, flangeY: sh.flangeY, flangeZ: sh.flangeZ, angleDeg: m.zDrive ? 0 : sh.angleDeg });
     if (!sh.fits) e.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) mesh.material = TOO_TALL;
     });
     out.add(holder);
     if (m.sterndrive) continue;
+    if (m.zDrive) {
+      zDrive(out, m, holder.position, s * (m.twin ? m.twinX : 0), sh.propY);
+      continue;
+    }
     // The shaft, straight from the flange to the propeller, out through her bottom.
     const from = holder.position.clone();
     const px = s * (m.twin ? m.twinX : 0);
@@ -163,6 +173,47 @@ export function buildMachinery(m: Machinery): THREE.Group {
     rudder.name = 'rudder';
   }
   return out;
+}
+
+/**
+ * A Z-drive (owner, Oct 2026: the harbour tug's nozzles "facing the direction of travel. So like
+ * a Z in between the shaft and the thing"; then: her engines "much lower and further back", the
+ * nozzles the right way round): from the engine's flange, low in her hull, a shaft aft to the
+ * drive's head just inside her bottom at her stern; an upright leg down through her bottom; and
+ * at its foot the nozzle, forward of the leg, with the propeller in it facing ahead (a pulling
+ * propeller, as on most azimuth drives), the lower gear housing running aft from its hub to the
+ * leg. No rudder: an azimuth drive steers by turning. Drawn only (the boat still has her
+ * stand-in shafts and nozzles: her real drives, with their controls, come later).
+ */
+function zDrive(out: THREE.Group, m: Machinery, flange: THREE.Vector3, px: number, propY: number): void {
+  const d = m.propD;
+  const grey = 0x4a5560;
+  // (Its leg half a propeller's diameter forward of where the stand-in's propeller acts, near her transom: under her stern, as a tug's drives are.)
+  const legZ = m.propZ - 0.5 * d;
+  // The drive's head: just inside her bottom over the leg.
+  const head = new THREE.Vector3(px, bottomAt(m.form, px, legZ) + 0.3, legZ);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, flange.distanceTo(head), 10), mat(STEEL, 0.7));
+  shaft.position.copy(flange).add(head).multiplyScalar(0.5);
+  shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), head.clone().sub(flange).normalize());
+  out.add(shaft);
+  // The upper gearbox (the shaft's turn down) and the leg (streamlined: narrow across, long fore and aft).
+  box(out, 0.5, 0.45, 0.6, px, head.y, legZ, grey);
+  box(out, 0.22, head.y - propY, 0.3 * d, px, (head.y + propY) / 2, legZ, grey);
+  // The nozzle and propeller forward of the leg; the housing from the hub aft to the leg, a short cone behind it.
+  const pz = legZ - 0.4 * d;
+  const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * d, 0.07 * d, legZ - pz + 0.15 * d, 12), mat(grey, 0.4));
+  housing.rotation.x = Math.PI / 2;
+  housing.position.set(px, propY, (pz + legZ + 0.15 * d) / 2);
+  out.add(housing);
+  const prop = buildPropeller(d);
+  prop.position.set(px, propY, pz);
+  prop.name = 'propeller';
+  out.add(prop);
+  if (m.nozzle) {
+    const nz = buildNozzle(d);
+    nz.position.set(px, propY, pz);
+    out.add(nz);
+  }
 }
 
 /** An engine that doesn't fit: tinted red. */

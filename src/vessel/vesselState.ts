@@ -9,6 +9,20 @@ import { vesselBuildToken } from './vesselDef';
 export interface VesselControls {
   /** Combined throttle/gear lever, -1 (full astern) .. 0 (neutral) .. +1 (full ahead). */
   lever: number;
+  /**
+   * Twin engines worked separately (the twin lever control; owner, Oct 2026): the starboard
+   * engine's lever, as `lever`. `lever` is then the port engine's. Unset: it follows `lever`.
+   */
+  lever2?: number;
+  /**
+   * Azimuth drives (modules/dieselInboard `azimuth`, the harbour tug's; owner, Oct 2026): the
+   * way each drive's lever points, the direction it asks its drive to push (deg, 0 ahead, + to
+   * starboard, round to +-180 astern); `lever` and `lever2` are then each drive's power (0..1).
+   * TRANSIT (1): the wheel swings both drives together instead, as rudders. Unset on other boats.
+   */
+  aziAngle?: number;
+  aziAngle2?: number;
+  aziTransit?: number;
   /** Helm (wheel) position, -1 (hard to port) .. +1 (hard to starboard). */
   helm: number;
   /** Navigation lights switch, 0 off / 1 on. */
@@ -45,6 +59,8 @@ export interface VesselControls {
   /** Diesel ignition: HEAT and START buttons, 1 while held (the key is in EngineState). */
   heat: number;
   start: number;
+  /** Twin engines worked separately: the starboard engine's START, 1 while held (`start` is then the port engine's). */
+  start2?: number;
   /** Windscreen wipers switch (0/1). */
   wipers: number;
   /** Chart table lamp switch (0/1; Deck lights breaker). */
@@ -93,6 +109,14 @@ export interface VesselControls {
   craneHook?: number;
   netOut?: number;
   netIn?: number;
+  /**
+   * The dive A-frame's hold-to-run buttons (modules/diveFrame), 1 while held: FRAME OUT / IN
+   * and WINCH UP / DOWN. Unset on a boat without one.
+   */
+  diveOut?: number;
+  diveIn?: number;
+  diveUp?: number;
+  diveDown?: number;
   /** RELEASE on the A-frame's box pressed (1 until the fishing tick has emptied the codend: fishing.ts clears it). */
   netRelease?: number;
   /**
@@ -212,6 +236,8 @@ export interface EngineState {
   glow: number;
   /** Quick start: keep cranking without START held until she catches. */
   autoCrank?: boolean;
+  /** Quick start of twin engines worked separately: the starboard engine waits for the port one to catch, then cranks (two starters at once pull the battery down too far to turn either). */
+  queued?: boolean;
   /** Lube oil in the sump, 0..1, and running time since the last dipstick check (s). */
   oil?: number;
   sinceCheck?: number;
@@ -219,6 +245,18 @@ export interface EngineState {
   wear?: number;
   /** How much of the propeller disc is under water, 0..1, this tick (the rudder reads it). */
   immersion?: number;
+  /**
+   * Twin engines worked separately (owner, Oct 2026: a twin lever control, a START for each):
+   * the starboard engine, running on its own (its revs, gear, governor, start-up). This one is
+   * then the port engine. Its key, oil, wear and coolant are the port engine's, mirrored each
+   * tick (one key, one dipstick and set of lamps for both: modules/dieselInboard).
+   */
+  stbd?: EngineState;
+  /**
+   * Azimuth drives (modules/dieselInboard `azimuth`): where this engine's drive points, the way
+   * it pushes (rad, 0 ahead, + to starboard, +-pi astern). Unset on other boats.
+   */
+  azimuth?: number;
 }
 
 /**
@@ -244,6 +282,10 @@ export interface VesselState {
   build?: string;
   /** The player she belongs to (multi-boat M3: launched by them, core/launch.ts); unset on the game's own boats. */
   owner?: EntityId;
+  /** Her owner's browser tab (PlayerState.clientId): a rejoin from it gets her back, whatever player number it's given. */
+  ownerClient?: string;
+  /** Her owner gone from the game since (world time, s): she waits CONFIG.net.crewBoatGraceS for them (core/launch.ts). */
+  ownerAwayAt?: number;
   /** How closely she's simulated this tick (multi-boat M4, core/lod.ts): by her distance to the nearest player. Set by the host. */
   lod?: 'near' | 'mid' | 'far';
   /** World position of the vessel origin (centreline, amidships, DWL). */
@@ -305,6 +347,8 @@ export interface VesselState {
   bilge?: number;
   /** Hull damage, 0 (sound) .. 1: it leaks into the bilge (vessel/wear.ts). */
   damage?: number;
+  /** World time until which knocks do her no damage: she's just come into the world, or been sent to a port (core/simulation.ts, CONFIG.wear.spawnGraceS). */
+  settleUntil?: number;
   /** The roving fender hung over the side by a deckhand (vessel/walkFender.ts); null or unset: none. */
   walkFender?: { side: -1 | 1; z: number; by?: string } | null;
 }

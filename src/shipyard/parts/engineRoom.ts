@@ -38,7 +38,14 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   if (d.pods && !outboardCount(d) && base.regime !== 'planing') warnings.push('Pod drives are for a planing hull (the landing craft, the gillnetter or the pilot boat): she has a shaft.');
   else if (d.pods && !outboardCount(d) && shaftOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no pod drives.`);
   const pods = !!d.pods && !outboardCount(d) && base.regime === 'planing' && !shaftOnly;
-  const twin = (!!d.twin || pods) && !singleOnly;
+  // A catamaran always has twin engines, one in each hull (her hulls are too slim for one on
+  // her centreline, and her tunnel is there).
+  // Too much power for a displacement hull (CONFIG.shipyard.maxKwPerTonne, on her lines'
+  // displacement): twin engines past it go in singly, if one is within it.
+  const maxKw = base.regime === 'displacement' ? CONFIG.shipyard.maxKwPerTonne * h.volume * 1.025 : Infinity;
+  const tooMuchForTwin = !!d.twin && !singleOnly && !outboardCount(d) && 2 * kw > maxKw && kw <= maxKw;
+  if (tooMuchForTwin) warnings.push(`Two ${eng.name.split(' (')[0]}s are too much for her: ${2 * kw} kW in a hull of ${Math.round(h.volume * 1.025)} t (she takes about ${Math.round(maxKw / 10) * 10} kW). She has one.`);
+  const twin = (!!d.twin || pods || !!base.catamaran) && !singleOnly && !tooMuchForTwin;
   // Stern drives (owner, Oct 2026; design.sternDrive): the engine against the transom, a
   // leg through it that swings to steer (CONFIG.modules.sternDrive). Not the slow tug
   // diesel (its big slow propeller wants a shaft); outboards, if chosen, instead.
@@ -51,12 +58,15 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const nozzle = !!d.nozzle && !sd && !pods && !outboardCount(d);
   const n = twin ? 2 : 1;
   const keelAft = st[0].polygon[2][1];
-  const draughtAft = -keelAft;
+  // (The harbour tug's stern is shallow, cut up for drive pods to hang under: her propellers
+  // reach down as her drives' would, DesignHull.propDepth, until her drives come.)
+  const draughtAft = Math.max(-keelAft, base.propDepth ?? 0);
   // The propeller: as big as her draught aft allows (tip clear below her keel by ~1/4 of
   // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
   // slower engine turns a bigger one for its power (a propeller's best diameter grows as its
   // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
-  const twinX = Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
+  // (A catamaran's: each under its own hull's keel, half her hull spacing out.)
+  const twinX = shape.catamaran ? Math.round((shape.catamaran.spacing / 2) * 100) / 100 : Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
   const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
   // Her shaft and the engine on it (machinery.ts): the shaft rises forward from the
   // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
@@ -105,11 +115,20 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const engineGroupKg = eng.kg * n * (1 + wc.machineryShare) + 2 * CONFIG.modules.batteryBank.massKg;
   const restKg = restKgZ.reduce((a, [m]) => a + m, 0);
   const balanceZ = (h.lcb * (restKg + engineGroupKg) - restKgZ.reduce((a, [m, z]) => a + m * z, 0)) / engineGroupKg;
-  const ceilingAt = (z: number) => (z >= front && z <= aft ? floorY : q.deckY(z));
+  // (The harbour tug's engine room rises into her deckhouse, as a ship's machinery casing:
+  // under it, her engines may stand up to its top. DesignHull.engineCasing.)
+  const casing = base.engineCasing && deckhouse ? deckhouse : null;
+  const ceilingAt = (z: number) => (casing && z >= casing.z0 && z <= casing.z1 ? casing.top : z >= front && z <= aft ? floorY : q.deckY(z));
   // (Pods: the engine level as a stern drive's, its gearbox end over the pod's axis.)
-  const shaft = sd || pods
-    ? sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
-    : layShaft(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
+  // (Z-drives, the harbour tug's (DesignHull.zDrives; owner, Oct 2026: "much lower and further
+  // back"): her engines level and as low as they clear her bottom, their gearbox ends
+  // `zDriveEngineAft` of her length forward of her transom, a level shaft aft from each to its
+  // drive; the propellers at the drives' feet, `propDepth` down.)
+  const shaft = base.zDrives
+    ? { ...sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, CONFIG.shipyard.harbourTug.zDriveEngineAft * lengthM), propY: -(base.propDepth ?? 0) + propD / 2 }
+    : sd || pods
+    ? sternDriveLine(shape, eng.size, twin ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
+    : layShaft(shape, eng.size, twin ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
   // A stern drive's legs: one behind each engine, through the transom; the top of each (its
   // gimbal housing) over the engine's output, its anti-ventilation plate level with her
   // bottom at the transom; its propeller a high-revving one, no bigger than `propMaxM`.
@@ -131,6 +150,25 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
         const z = rnd(shaft.flangeZ);
         const y = rnd(Math.max(...units.map((x) => bottomUnder(shape, x, z))));
         return { units, mount: { y, z }, strut: rnd(Math.max(pdc.look.strutLength, podPropD / 2 + 0.12)) };
+      })()
+    : null;
+  // The harbour tug's azimuth drives (DesignHull.zDrives; modules/dieselInboard `azimuth`):
+  // each drive's upright axis half a propeller's diameter forward of where the stand-in's
+  // propeller was (as the Engine step draws them, enginePreview.ts zDrive), its head just
+  // inside her bottom there, its propeller at the shaft's level `propDepth` down, or lower if
+  // need be so the top of its nozzle clears her bottom by `hullClear` all over the nozzle's
+  // footprint (as a real one hangs under her).
+  const zDriveSet = base.zDrives && twin
+    ? (() => {
+        const az = CONFIG.modules.azimuth;
+        const legZ = rnd(transom - 0.65 - 0.5 * propD);
+        const ring = propD / 2 + 0.01 + az.look.nozzleWall;
+        const mid = legZ - az.propFwd * propD;
+        const half = (az.look.nozzleLength * propD) / 2;
+        let lowest = Infinity;
+        for (const cx of [-shaft.x, shaft.x]) for (const dx of [-1, -0.5, 0, 0.5, 1]) for (const z of [mid - half, mid, mid + half]) lowest = Math.min(lowest, bottomUnder(shape, cx + dx * ring, z));
+        const propY = Math.min(shaft.propY ?? 0, lowest - az.hullClear - ring);
+        return { legZ, headY: rnd(Math.max(...[-shaft.x, shaft.x].map((x) => bottomUnder(shape, x, legZ))) + 0.3), propY: rnd(propY) };
       })()
     : null;
   // Outboards instead (owner, Oct 2026; design.outboards): 2 to 4 of the petrol V8s
@@ -191,10 +229,11 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const rudderArea = Math.round(0.07 * h.lwl * Math.max(0.3, draughtAft) * n * 100) / 100;
   // Her installed power (the outboards': each one's, times their count).
   const powerKw = nOb ? obc.engine.powerKw * nOb : kw * n;
-  const tankL = Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
+  // (A ship's tanks, where her type sets them: the harbour tug's, DesignHull.fuelL.)
+  const tankL = base.fuelL ?? Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
-  return { batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };
+  return { zDriveSet, batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };
 }
 export type MachineryPart = ReturnType<typeof machineryPart>;
 
@@ -261,9 +300,26 @@ export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPa
   // the hatch's own width; no wider than her hull inside at the floor plates (less a frame).
   // (In the cabin floor, inside the house's walls too: its walls stand on the floor's edge.)
   const roomHalf = Math.min(insideHalf(hs.z0, soleY), insideHalf(hs.z1, soleY)) - 0.05;
-  const span = twin && !outboards ? engX + engHalf + ehc.sideRoom : 0;
+  /**
+   * A catamaran's starboard hull inside at height y, at z: its inner and outer sides (her
+   * half-section there runs wet-deck corner, inner chine, keel, chine, deck edge).
+   */
+  const catInside = (z: number, y: number): [number, number] => {
+    const [corner, inChine, keel, chine, deck] = halfSection(shape, z);
+    const across = (a: [number, number], b: [number, number]) => (b[1] - a[1] > 1e-6 ? a[0] + ((b[0] - a[0]) * Math.max(0, Math.min(1, (y - a[1]) / (b[1] - a[1])))) : b[0]);
+    const xin = y <= inChine[1] ? across(keel, inChine) : across(inChine, corner);
+    const xout = y <= chine[1] ? across(keel, chine) : across(chine, deck);
+    return [xin, xout];
+  };
+  // (A catamaran: the space is in her starboard hull, over its engine, not across her tunnel.)
+  const span = twin && !outboards && !shape.catamaran ? engX + engHalf + ehc.sideRoom : 0;
   // (In the cabin floor, inside the house's walls too: across from its middle, `hx`.)
-  const [lo, hi] = hs.zone.floor ? [Math.max(-roomHalf, hx - (hw - wall) + 0.05), Math.min(roomHalf, hx + hw - wall - 0.05)] : [-roomHalf, roomHalf];
+  const catRoom = shape.catamaran ? [catInside(hs.z0, soleY), catInside(hs.z1, soleY)] : null;
+  const [lo, hi] = catRoom
+    ? [Math.max(catRoom[0][0], catRoom[1][0]) + 0.05, Math.min(catRoom[0][1], catRoom[1][1]) - 0.05]
+    : hs.zone.floor
+      ? [Math.max(-roomHalf, hx - (hw - wall) + 0.05), Math.min(roomHalf, hx + hw - wall - 0.05)]
+      : [-roomHalf, roomHalf];
   const sx0 = Math.max(lo, Math.min(hs.x0, -span));
   const sx1 = Math.min(hi, Math.max(hs.x1, span));
   const eh = {
@@ -294,14 +350,14 @@ export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPa
     { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, hatchTop, hatchZ] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: `${hatchIs}, over the engine` },
     { id: 'dipstick', type: 'deck.fitting', transform: { position: dip }, label: "Engine space, the engine's inboard side" },
     { id: 'oilCan', type: 'deck.fitting', transform: { position: [eh.x1 - 0.08, hatchTop - 0.3, eh.z1 - 0.15], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
-    // (Up to twin 750 kW diesels: 1500 kW.)
-    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 1500 }, label: 'Engine bed, on her shaft line' },
+    // (Up to the harbour tug's twin 1,850 kW diesels: 3700 kW.)
+    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 4000 }, label: 'Engine bed, on her shaft line' },
     { id: 'fuelTank', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'batteries', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], rnd(soleY), at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },
     { id: 'rudder', type: 'hull.rudder', transform: { position: rudderPos }, label: 'Rudder stock, under the transom' },
-    // (The trawl's net drum, winches and A-frame rams too, with trawl winches and no tow winch.)
-    ...(craneAt || winchAt || skiffAt || p.aFrame ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
+    // (The trawl's net drum, winches and A-frame rams too, with trawl winches and no tow winch; the dive A-frame's rams and winch.)
+    ...(craneAt || winchAt || skiffAt || p.aFrame || p.diveFrame ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
   ];
   return { engineSockets, dip, dipZ, eh, hatchIs, hatchTop, hatchZ, soleY, sx0, sx1 };
 }

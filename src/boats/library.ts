@@ -13,6 +13,7 @@ import { putVesselDef, registerVesselDefs, vesselBuildToken } from '../vessel/ve
 import { setBoatResolver } from '../core/launch';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Mount, type Recipe } from '../modular/recipe';
 import { A_FRAME } from '../modules/aFrame';
+import { DIVE_FRAME } from '../modules/diveFrame';
 import { ANCHOR_WINDLASS } from '../modules/anchorWindlass';
 import { BOAT_HOOK_RACK } from '../modules/boatHookRack';
 import { ROD_RACK } from '../modules/rodRack';
@@ -43,6 +44,9 @@ import { FUEL_TANK } from '../modules/fuelTank';
 import { HATCH_COVER } from '../modules/hatchCover';
 import { HULL_GUARD } from '../modules/hullGuard';
 import { PUSH_FENDER } from '../modules/pushFender';
+import { BOW_FENDER } from '../modules/bowFender';
+import { BOW_STAPLE } from '../modules/bowStaple';
+import { FENDERING } from '../modules/fendering';
 import { JOYSTICK } from '../modules/joystick';
 import { KEY_SWITCH } from '../modules/keySwitch';
 import { LIFE_RING_STATION } from '../modules/lifeRingStation';
@@ -61,6 +65,8 @@ import { STERN_ROLLER } from '../modules/sternRoller';
 import { SWIM_LADDER } from '../modules/swimLadder';
 import { TENDER_CRANE } from '../modules/tenderCrane';
 import { THROTTLE_LEVER } from '../modules/throttleLever';
+import { TWIN_THROTTLE } from '../modules/twinThrottle';
+import { AZIMUTH_LEVER } from '../modules/azimuthLevers';
 import { TILLER } from '../modules/tiller';
 import { TOGGLE } from '../modules/toggle';
 import { TOW_WINCH } from '../modules/towWinch';
@@ -89,7 +95,9 @@ import towTrawler from './tow-trawler.json';
 import towPontoon from './tow-pontoon.json';
 import towCoaster from './tow-coaster.json';
 import towCage from './tow-cage.json';
-import { BARGE_HULL, CAGE_HULL, COASTER_HULL, DERELICT_HULL, DORY_HULL, LOG_RAFT_HULL, PONTOON_HULL, TRAWLER_HULL, YACHT_HULL } from './towHulls';
+import towMonopile from './tow-monopile.json';
+import towTpBarge from './tow-tpBarge.json';
+import { BARGE_HULL, CAGE_HULL, COASTER_HULL, DERELICT_HULL, DORY_HULL, LOG_RAFT_HULL, MONOPILE_HULL, PONTOON_HULL, TP_BARGE_HULL, TRAWLER_HULL, YACHT_HULL } from './towHulls';
 import { WORKBOAT_HULL } from './workboatHull';
 import { HELM_ASSIST } from '../modules/helmAssist';
 import { HELM_JOYSTICK } from '../modules/helmJoystick';
@@ -101,7 +109,7 @@ import { NET_DRUM } from '../modules/netDrum';
 import { TRAWL_WINCHES } from '../modules/trawlWinches';
 import { FLEET } from './fleet';
 
-const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, RIB_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, CAGE_HULL, COASTER_HULL, LANDING_CRAFT_HULL, ALASKAN_38_HULL]);
+const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, RIB_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, CAGE_HULL, COASTER_HULL, MONOPILE_HULL, TP_BARGE_HULL, LANDING_CRAFT_HULL, ALASKAN_38_HULL]);
 
 /**
  * The Shipyard's designed boat (shipyard/build.ts): one at a time, the vessel type 'design',
@@ -153,12 +161,21 @@ export function boatType(token: string): string | null {
   if (BOAT_TYPES.has(id)) return id;
   const read = readDesign(token);
   if (!('design' in read)) return null;
-  const boat = buildDesign(read.design, shortCode(read.design) ?? 'custom', id);
-  BOAT_TYPES.set(id, { token: token.trim(), boat });
-  BOAT_HULLS.set(boat.hull.id, boat.hull);
-  RECIPES[id] = loadRecipe(boat.recipe);
-  putVesselDef(id, vesselDefFrom(id, RECIPES[id], LIBRARY), token.trim());
-  return id;
+  // A design the builder can't build (review, Oct 2026: one with dash screens placed by hand
+  // threw in the builder) is no boat: null, as an unreadable code is, never a dead page.
+  try {
+    const boat = buildDesign(read.design, shortCode(read.design) ?? 'custom', id);
+    BOAT_TYPES.set(id, { token: token.trim(), boat });
+    BOAT_HULLS.set(boat.hull.id, boat.hull);
+    RECIPES[id] = loadRecipe(boat.recipe);
+    putVesselDef(id, vesselDefFrom(id, RECIPES[id], LIBRARY), token.trim());
+    return id;
+  } catch (e) {
+    console.warn(`Shipyard design ${token.slice(0, 24)}: can't build her (${(e as Error).message})`);
+    BOAT_TYPES.delete(id);
+    delete RECIPES[id];
+    return null;
+  }
 }
 
 // A launch by token (core/launch.ts) builds her type here.
@@ -193,12 +210,12 @@ export function ensureBoatTypes(world: { vessels: Record<string, { defId: string
 }
 
 export const MODULES = createModuleLibrary([
-  CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
+  CONSOLE, WHEEL, THROTTLE_LEVER, TWIN_THROTTLE, AZIMUTH_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
   OVERHEAD_PANEL, FM_RADIO, BREAKER_PANEL, BATTERY_MASTER, BATTERY_SELECTOR,
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
   DIESEL_INBOARD, OUTBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
-  TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
-  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, TUBES, RIB_CONSOLE, FENDERS, HULL_GUARD, PUSH_FENDER, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
+  TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, DIVE_FRAME, TRAWL, ANCHOR_WINDLASS,
+  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, TUBES, RIB_CONSOLE, FENDERS, HULL_GUARD, PUSH_FENDER, BOW_FENDER, BOW_STAPLE, FENDERING, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
   ELECTRIC_OUTBOARD, ROD_RACK, HELM_ASSIST, PODS, HELM_JOYSTICK, EXHAUST_STACK, FURNITURE, REST_SPOT, FISH_HOLD, NET_DRUM, TRAWL_WINCHES,
   NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);
@@ -228,6 +245,8 @@ export const RECIPES: Record<string, Recipe> = {
   pontoon: loadRecipe(towPontoon),
   cage: loadRecipe(towCage),
   coaster: loadRecipe(towCoaster),
+  monopile: loadRecipe(towMonopile),
+  tpBarge: loadRecipe(towTpBarge),
   landingCraft: loadRecipe(landingCraft),
   alaskan38: loadRecipe(alaskan38),
   design: loadRecipe(designed.recipe),

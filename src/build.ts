@@ -19,6 +19,17 @@ declare const __BUILD__: string | undefined;
 export const APP_BUILD = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
 
 /**
+ * Is build `a` newer than build `b`? By the time each was built (the stamp ends
+ * "YYYY-MM-DD HH:MM"); false when either has none ('dev') or they're the same minute.
+ */
+export function isNewerBuild(a: string | undefined, b: string | undefined): boolean {
+  const at = (s: string | undefined) => s?.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2})$/)?.[1] ?? null;
+  const x = at(a);
+  const y = at(b);
+  return !!x && !!y && x > y;
+}
+
+/**
  * The address to load again, or null to stay: when the site's current build (`served`) is
  * another than ours and this load wasn't already a fresh one. A page that isn't a build
  * ('dev'), or a site that can't say, stays.

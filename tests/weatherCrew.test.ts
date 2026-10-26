@@ -39,7 +39,8 @@ function setup(preset: WeatherPresetName = 'Clear') {
   return { world, env, v, send, weather, run, duty };
 }
 
-describe('weather and the crew', { timeout: 30000 }, () => {
+// Room for the long runs (about 20 s here, twice that on GitHub's publishing machine).
+describe('weather and the crew', { timeout: 120000 }, () => {
   it('the shipping forecast is heard only with the radio on, and describes the next change', () => {
     const { world, env, v, send, run } = setup('Clear');
     const w = env.weather!;

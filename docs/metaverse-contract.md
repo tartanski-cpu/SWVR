@@ -3,9 +3,11 @@
 The owner's spec, 23 Oct 2026, section 2. The same file goes in both repositories (SWVR and BigTImberVR). Neither game imports code from the other: they only meet in the address bar, at two moments:
 
 - **Out:** Workboat World → Timber, when the player anchors in a marked bay and chooses to go ashore.
-- **Back:** Timber → Workboat World, when the player returns to the boat, with a barge of logs or without.
+- **Back:** Timber → Workboat World, when the player returns to the boat, with logs or without.
 
 Version 1 is single-player. In a multiplayer Voyage, the handoff happens only when you're alone (solo, or hosting with no crew aboard).
+
+**Changed by the owner (25 Oct 2026): the logs on the beach, no barge.** Coming back with logs, Workboat World lays them on the site's beach, at the beach delivery zone, side by side and each pointing out to sea. The player tows them off one at a time (a line on a log, pulled off the beach, towed across) and sells each to the timber merchant. Rafting them together is for later. Timber no longer shows a barge: the logs stay stacked in its staked area until the player goes back to the boat. The envelope is unchanged: `barge_ready` keeps its name (see below), so every version of either game still understands the other.
 
 **Changed by the owner (23 Oct 2026): no prompt.** Anchoring in the hotspot (anchor set, under 0.5 kn, inside the radius, 3 s) goes straight to Timber, on desktop and in VR. Coming back anchored in the bay doesn't send the player straight back: the anchor has to be weighed and let go again.
 
@@ -41,8 +43,8 @@ State crosses as one JSON envelope, base64url-encoded (no padding) from its comp
 | `site` | Workboat | Which hotspot triggered the handoff. Timber uses it to pick the scene. |
 | `return` | Workboat | Absolute URL Timber navigates back to, with `mv` appended (`&mv=...`; the URL already has a query). |
 | `boat`, `pos`, `time` | Workboat | Echoed back by Timber. Timber may use `time.hour` (0-24) for its own lighting. `pos` is WGS84 lat/lon and heading (degrees true). |
-| `status` | Timber | `none` or `barge_ready`. |
-| `cargo.logs` | Timber | Number of logs on the barge when `status` is `barge_ready`. Workboat carries up to 40 on one barge; more is capped at 40. |
+| `status` | Timber | `none`, or `barge_ready`: there are logs to collect. The name is the first version's, when they came on a barge; it stays so that every version of both games understands it. |
+| `cargo.logs` | Timber | Number of logs to collect when `status` is `barge_ready`. Workboat lays up to 40 on the beach; more is capped at 40. Timber sends at most 40 a trip and keeps the rest for the next. |
 
 ## Rules
 
@@ -56,13 +58,13 @@ State crosses as one JSON envelope, base64url-encoded (no padding) from its comp
 
 Coordinates are real-world WGS84, so the coast pipeline places them the same in both games.
 
-| Site id | Name | Hotspot centre (lat, lon) | Hotspot radius | Beach delivery zone (lat, lon) | Barge spawn (lat, lon) | Timber URL |
+| Site id | Name | Hotspot centre (lat, lon) | Hotspot radius | Beach delivery zone (lat, lon) | Barge spawn (lat, lon; unused since 25 Oct 2026) | Timber URL |
 |---|---|---|---|---|---|---|
 | `loch-timber-1` | Ardentrive, Kerrera | 56.4117° N, 5.50156° W | 60 m | 56.41237° N, 5.50156° W | 56.41178° N, 5.50078° W | https://tartanski-cpu.github.io/BigTImberVR/ |
 
 - The hotspot lies in about 5 m of water in Ardantrive Bay, with land to the north and west.
-- The beach is the head of the bay, about 75 m north of the hotspot's centre.
-- The barge spawn is in 4-5 m of water, about 70 m off the beach and 50 m east of the hotspot's centre, clear of where you'd anchor.
+- The beach is the head of the bay, about 75 m north of the hotspot's centre. Workboat World lays the logs there; Timber puts its staked area on its own dry ground nearest that point.
+- The barge spawn is in 4-5 m of water, about 70 m off the beach and 50 m east of the hotspot's centre, clear of where you'd anchor. Since the logs go on the beach it's no longer used; it stays in the table for a later barge or raft.
 
 Adding a second site later means adding one row here and one scene in Timber. In Workboat World it's one entry in `src/voyage/metaverse.ts` `SITES`, plus its map's geography in `MAP_GEO` if it's on a new map.
 
@@ -76,7 +78,8 @@ Workboat World publishes a page for making and reading envelopes, `tools/mv-enco
 ## In Workboat World (for reference)
 
 - `src/voyage/metaverse.ts`: the envelope, the site registry, and lat/lon to the map's metres (the coast pipeline's own projection).
-- `src/voyage/timber.ts`: the anchoring trigger, the log barge and the sale.
-- `src/voyage/timberView.ts`: the logs on deck and the bay's buoy.
+- `src/voyage/timber.ts`: the anchoring trigger, the logs laid on the beach (`logsFromCamp`) and their sale at the merchant (`stepTimberLogs`); a barge saved before 25 Oct 2026 still comes back and sells.
+- `src/salvage/salvage.ts`: the logs themselves (salvage logs marked `timber`: pulled off the beach and towed like washed-up timber).
+- `src/voyage/timberView.ts`: a barge's logs on deck, and the bay's buoy.
 - `src/app/App.ts`: the handoff out and the return.
 - Settings: `CONFIG.voyage.timber`.

@@ -61,6 +61,23 @@ export const SHIPYARD_CONFIG = {
      */
     shaftAngleMaxDeg: 15,
     /**
+     * The least stability (GM, m) she's let into the game with (review, 24 Oct 2026: slim,
+     * deep designs with GM below 0 turned turtle at the berth seconds after Play). Below it
+     * the Shipyard says she'd capsize and holds back Try her (page.ts); 0.15 m leaves a
+     * margin over upright for the game's sea and her crew moving about. Low stability (under
+     * `lowGM`) is still only a warning.
+     */
+    minGM: 0.15,
+    lowGM: 0.5,
+    /**
+     * The most power a displacement hull (the tug, the trawler) takes, kW per tonne of her
+     * lines' displacement (owner, Oct 2026: two 750 kW engines don't fit a small tug). Her
+     * speed is held by her length, not her power, so past this the power is spent making
+     * waves and turning a propeller too small for it; working tugs and trawlers carry about
+     * 8 to 18 kW a tonne. Twin engines past it go in singly (if one is within it).
+     */
+    maxKwPerTonne: 20,
+    /**
      * The engine hatch and the engine space under it (build.ts; owner, Oct 2026: the engine
      * goes where her shaft line puts it, not in a box under the wheelhouse). Metres:
      *   endRoom, sideRoom    the hatch past the engine's ends and its sides (room for the
@@ -174,6 +191,17 @@ export const SHIPYARD_CONFIG = {
      */
     sheer: { from: 0.4 },
     /**
+     * A straight stem (owner, Oct 2026: "a plumb bow should be straight down, then a nice
+     * radius at the bottom"; catalog.ts bowKeel): a stem raked up to `straightUpTo` deg (the
+     * plumb and the first step) is a straight line down from her stem head, rounded into her
+     * keel by a forefoot radius of `forefootRadius` x her stem's height (keel to stem head).
+     * A station at its foot and `radiusStations` between its ends, so it reads as a rounded
+     * forefoot, not a corner; few, as it's under water (owner: no need for a fine radius there).
+     * Each station is about 85 more triangles on her hull and a little more work for her
+     * physics. A more raked stem is curved all the way down (full forward, as before).
+     */
+    bow: { straightUpTo: 12.5, forefootRadius: 0.3, radiusStations: 1 },
+    /**
      * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's;
      * shipyard/parts/house.ts raisedForedeck): her deck stepped up forward of a break, a
      * vertical bulkhead across her, her sides and bulwarks stepping up with it. Reached as on a
@@ -188,6 +216,18 @@ export const SHIPYARD_CONFIG = {
      * off the ladders; the foredeck's crane and skiff go up on the raised deck
      * when it has room (owner, Oct 2026: they were on the deck below it).
      */
+    /**
+     * The handles on the 3D view (page.ts; owner, Oct 2026: "different colors of drag handles
+     * ... so you can see which ones you're dragging"): each its own colour, by the design
+     * choice it drags, with a dot of it beside its slider; `fallback` for one not listed.
+     * Pointed at or held, a handle grows and lightens `hotLift` of the way to white (it keeps
+     * its colour).
+     */
+    handles: {
+      colours: { length: '#f97316', bow: '#e879f9', beam: '#22d3ee', depth: '#a3e635', bulwark: '#8b7cf6', sheer: '#fde047', fcLength: '#ef4444', fcHeight: '#f5f5f5' } as Record<string, string>,
+      fallback: '#6aa8e6',
+      hotLift: 0.4,
+    },
     foredeck: { stepRise: 0.3, tread: 0.2, clear: 0.3, width: 0.6, fromSide: 0.3, rail: 0.9, landing: 0.6, gearReach: 0.08 },
     /**
      * A hull that shrinks below its base size (catalog.ts `shrinksTo`; owner, Oct 2026: "a
@@ -208,9 +248,37 @@ export const SHIPYARD_CONFIG = {
      * The window sills, one height all round (owner), above the wheelhouse floor (m):
      * `standard` (the dash top stands above it at the front), or `low`, below the console's
      * desk (0.9 m), with the console's upright panel taken off and its screens on stalks so
-     * you see down past them (owner).
+     * you see down past them (owner), or `high` (owner, Oct 2026: "a third option ... to have
+     * them higher ... standing up, you should be able to see through the windows"): level with
+     * the dash top (0.9 + 0.41 m), chest height, as a heavy-weather trawler's or tug's; a
+     * standing helmsman's eyes (about 1.6 m) are still well up in the glass.
      */
-    windowSills: { standard: 1.0, low: 0.75 },
+    windowSills: { standard: 1.0, low: 0.75, high: 1.3 },
+    /**
+     * Her hull's finish (owner, Oct 2026: "pre-configure a boat to look used or new";
+     * design.finish): how much the weathering tile shows on her topsides (render/pixelPaint.ts
+     * `topsides`: waterline grime, rust runs from the deck edge, faded paint), 0 plain paint ..
+     * 1 the tile as drawn. In the design's order: well used first (0, as every boat looked
+     * before the choice), then worked, then as new.
+     */
+    finish: [1, 0.5, 0],
+    /**
+     * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing
+     * heavier than the usual steel by `scantlings` (built heavy, for pushing ships), and her
+     * `ballastKg`, so she floats near her lines' 3.3 m draught: a real tug's 494 t is far more
+     * than the build counts (her heavy framing, machinery, tanks of water and stores), carried
+     * here as one weight `ballastAboveKeel` m above her keel, where it gives her a real tug's
+     * stability (GM about 2 m on her KM of 5.8 m), not all down in her bilge. Her fuel tanks
+     * `fuelL` litres, a ship's (about 60 m³), not the small boats' litre a kW. Her engines (on
+     * the Z-drives she's drawn with) level and low, their gearbox ends `zDriveEngineAft` of her
+     * length forward of her transom (owner, Oct 2026: "much lower and further back"). Her propellers reach `propDepth` m below her waterline, as her
+     * drive pods would hang under her shallow stern (her real pods reach 5.3 m), until the
+     * drives come: her stand-in shafts turn propellers of a tug's size, not her transom's.
+     */
+    // Her fendering (parts/fendering.ts): `fenderingKg` of rubber (belts, stern and bow
+    // cylinders, the bow's blocks: about 6 t on a 25 m tug); its contact points one to each
+    // `probeCell` m cell of its outer face.
+    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9 },
     /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
@@ -262,7 +330,17 @@ export const SHIPYARD_CONFIG = {
      * their tops. Her cooling water leaves by a hole `waterAbove` m over the waterline in her
      * side for each, abreast of her engines (CONFIG.effects.exhaust.water).
      */
-    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
+    exhaustStack: {
+      radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0,
+      /**
+       * Stacks standing on the deckhouse (design.stackMount; owner, Oct 2026: "the exhaust pipes in
+       * a kind of standalone box", round or square): each in a casing `casingHeight` m tall over
+       * the deckhouse top, `casingPad` m round its pipe, its outer face `fromSide` m in from the
+       * deckhouse's side, its ends kept `endClear` m in from the deckhouse's ends; the pipe
+       * standing `aboveCasing` m over the casing's top.
+       */
+      onDeckhouse: { casingHeight: 1.6, casingPad: 0.3, fromSide: 0.15, endClear: 0.15, aboveCasing: 1.4 },
+    },
     /** Old school instruments (design.oldSchool): the analogue gauges' price (GBP; the basic screens are 6,000, the advanced 18,000). */
     oldSchoolPrice: 4000,
     /** What each advanced touchscreen adds to her price (GBP; CS5: a big multifunction display, on top of the advanced package). */
@@ -270,7 +348,7 @@ export const SHIPYARD_CONFIG = {
     /** helm.screenLift: the dash screens and gauges raised this far up the (leaning) dash face (m), so the lower row's foot clears the ledge in front of it. */
     /** helm.minInside: the narrowest wheelhouse, inside (m; CS6: one at a short console). helm.faceSwitchOrder: on a console too short for its switch panel, the groups moved up onto the dash face, in this order, until the rest fit. */
     /** helm.lampsUpBelow: on a console shorter than this (m; the shortest before CS6), the warning lamps' row goes up onto the dash face, clear of the wheel's rim. */
-    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
+    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'AUTOPILOT', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
@@ -323,6 +401,12 @@ export const SHIPYARD_CONFIG = {
        *   hook.winchGap       her tow winch's usual place on a tug: this far forward of the
        *                       hook (m, drum to hook), the line off the drum aft through it.
        */
+      /**
+       * A tug that tows over her bow (the harbour tug): her towing staple `fromStem` m aft of
+       * her stem, its roller `overBulwark` m over her bulwark there; her winch from `winchFromStem`
+       * m aft of her stem (the first place it stands, facing forward).
+       */
+      bowStaple: { fromStem: 0.6, overBulwark: 0.15, winchFromStem: 3.0 },
       tug: { houseAftOfMidships: 0, hook: { aftOfMidships: 0.12, clearOfHouse: 0.6, height: 1.4, postRadius: 0.1, winchGap: 0.7 } },
       sideDoor: { width: 0.75, fromConsole: 0.35, buttonHeight: 1.1, sideDeck: 0.5 },
       ringFromCorner: 0.4,
@@ -333,8 +417,19 @@ export const SHIPYARD_CONFIG = {
        * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
        */
       midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000, diveFrame: 260_000 },
     },
+    /**
+     * The dive A-frame and its sub (design.diveFrame; parts/diveFrame.ts; modules/diveFrame):
+     * what she must have for it (owner: "placeable on any boat that's big enough"). Its legs
+     * `legClear` m clear of the sub each side; legs from the module's `legLength` up to `maxLeg`
+     * m if her bulwark needs them, the sub's skids `bulwarkClear` m over the transom's bulwark
+     * as she swings out; the sub no more than `maxShare` of her weight, and her GM at least
+     * `minGM` m with the sub hanging at the docking head; with her hung out over the stern, at least `minFreeboard` m of
+     * freeboard left at the transom (her sinkage and trim from her own waterplane). Its price
+     * (deckGear.price.diveFrame) is the frame and the sub together.
+     */
+    diveFrame: { legClear: 0.15, maxLeg: 9, bulwarkClear: 0.15, minFreeboard: 0.3, maxShare: 0.2, minGM: 0.5 },
     /**
      * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and
      * top weigh `kgPerM2` (welded aluminium plate and stiffening) and cost `pricePerM2`
@@ -351,8 +446,10 @@ export const SHIPYARD_CONFIG = {
      * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
      * (`pricePerKg`, GBP). The Furniture step opens with the section tool cut at a waterline
      * `planCut` (m) over the wheelhouse floor, seen from above (the roof and the top of the walls off).
+     * A TV on the wall keeps `tvCeiling` (m) under the ceiling, coming down to do so, and its
+     * screen's foot no lower than `tvLowest` over the floor (else it's left off).
      */
-    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25 },
+    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25, tvCeiling: 0.1, tvLowest: 0.8 },
     /**
      * The Shipyard's section tool (owner: "cut the ship through as you want"): her drawing cut by
      * a waterline (level), a buttock (fore and aft, upright) or a station (athwartships, upright)
@@ -386,6 +483,15 @@ export const SHIPYARD_CONFIG = {
      * propeller, and a good GM with a heavy codend coming up over the stern).
      */
     sternTrawler: { scantlings: 1.8, ballastKg: 60000 },
+    /**
+     * The fast catamaran's plating and framing, against the material's usual (a monohull's): two
+     * slim hulls carry far more plate for her length than one, but each is a small, short-
+     * spanned section, built lighter. 0.8 puts the 12.5 m cat at about 12.7 t light on twin
+     * 280 kW (13.5 t on the twin 400s she comes with), against about 11 to 13 t for real
+     * aluminium work cats of her length (15 to 18 t at 15 m, scaled;
+     * hull chat, Oct 2026). At 1 she came out about 14.5 t.
+     */
+    catamaran: { scantlings: 0.8 },
     fishHold: { engineGap: 0.15, aftClear: 0.75, minLength: 1.2, minDepth: 0.55, soleClear: 0.1, shaftClear: 0.15, frame: 0.06, hatch: { length: 0.9, width: 0.9, min: 0.6, coaming: 0.3, clear: 0.15, kg: 70 }, boxGap: 0.02, headGap: 0.05, kgPerM2: 18, pricePerM3: 1100 },
     deckhouse: {
       kgPerM2: 35,
@@ -400,7 +506,27 @@ export const SHIPYARD_CONFIG = {
        * `minFore` of top forward of the wheelhouse, or a strip beside it wide enough for the
        * ladder.
        */
-      walk: { margin: 0.25, railHeight: 0.9, postSpacing: 1.2, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
+      walk: {
+        margin: 0.25,
+        railHeight: 0.9,
+        postSpacing: 1.2,
+        railKgPerM: 4,
+        minFore: 0.6,
+        ladder: { width: 0.45, depth: 0.45, kg: 20 },
+        /**
+         * The stair across the aft face of a deckhouse run on aft of the wheelhouse (owner, Oct
+         * 2026: "a steep transverse stair" rather than a ladder; house.ts transverseStair): each
+         * step at most `rise` (m) up and `tread` across her (about 54 degrees), `width` out from
+         * the face; a `landing` that wide (across her) at its head; `kg` the stair and its rails.
+         */
+        stair: { rise: 0.3, tread: 0.22, width: 0.65, landing: 0.7, kg: 90 },
+      },
+      /**
+       * Run on aft of the wheelhouse (design.dhAft; owner, Oct 2026: the stern trawler's deck
+       * behind the bridge): it stops short of leaving less than this (m) of working deck
+       * forward of her transom.
+       */
+      aftDeck: 4,
       /**
        * A cabin below it (parametric boats P2c, design.foreCabin; owner): its sole sunk so there's
        * `headroom` (m) under the trunk's top, but no lower than leaves the sole `minHalf` wide each
@@ -464,6 +590,8 @@ export const SHIPYARD_CONFIG = {
      */
     /** The small tug's push fender (GBP), with its fixings. */
     pushFenderPrice: 4500,
+    /** A bow fender (design.bowFender, modules/bowFender): the moulded rubber block and its fitting (GBP). */
+    bowFenderPrice: 6000,
     protection: { fendersPrice: 450, strakePerM: 110, tyrePrice: 90, tyreFitting: 600, fenders: 3 },
   },
 };

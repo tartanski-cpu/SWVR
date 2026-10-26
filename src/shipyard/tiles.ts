@@ -134,6 +134,10 @@ export const ENGINE_ICONS = {
   // Exhaust stacks: raked aft, or straight up.
   stackRaked: svg('<path d="M8 28h32M17 28l4-14 6-6M25 28l4-14 6-6M26 6l3 3M34 6l3 3"/>'),
   stackStraight: svg('<path d="M8 28h32M18 28V6M24 28V6M28 28V6M34 28V6M17 6h8M27 6h8"/>'),
+  // Stacks standing on the deckhouse in casings (a deckhouse, a box on it, a pipe out of its top).
+  stackCasing: svg('<path d="M6 28h36M10 28V20h28v8M30 20v-8h6v8M33 12V4"/>'),
+  casingRound: svg('<ellipse cx="24" cy="8" rx="8" ry="3"/><path d="M16 8v18M32 8v18M16 26c0 2 16 2 16 0M24 8V2"/>'),
+  casingSquare: svg('<path d="M15 8h18v18H15zM24 8V2"/>'),
 };
 
 /**
@@ -179,10 +183,17 @@ export const HULL_ICONS = {
   pilot: svg('<path d="M3 16h36l7-4c-2 6-4 9-8 11H8zM8 23l-5-7M11 16V10h17l5 6"/>'),
   // The small tug: deep, a strong sheer up to her high square push bow, the house forward, a stack.
   tug: svg('<path d="M3 18h22c7 0 13-3 18-8v15H7zM7 25l-4-7M25 18V8h9v8M29 8V3M43 11v13"/>'),
+  // The stern trawler: a whaleback forward with the house on it, a long low working deck aft, the A-frame over her stern.
+  trawler: svg('<path d="M4 18h24l4-5h12l-3 11H7zM7 24l-3-6M30 13V6h8v7M4 18l2-8 4 8"/>'),
+  // The fast catamaran, seen from ahead: two slim hulls under a wide bridge deck, the house on it.
+  catamaran: svg('<path d="M5 13h38v4H5zM7 17l3 9h4l3-9M31 17l3 9h4l3-9M17 13V6h14v7"/>'),
   // Her sides from abeam, and what's on them.
   guardNone: svg('<path d="M4 9h40l-2 15H6z"/>'),
   guardFenders: svg('<path d="M4 9h40l-2 15H6zM13 9v4M24 9v4M35 9v4"/><rect x="11" y="13" width="4" height="8" rx="2"/><rect x="22" y="13" width="4" height="8" rx="2"/><rect x="33" y="13" width="4" height="8" rx="2"/>'),
   guardStrake: svg('<path d="M4 9h40l-2 15H6z"/><path d="M4.5 13h39" stroke-width="3.2"/>'),
+  // A bow fender: her bow in profile, a thick block of rubber on the stem.
+  bowFender: svg('<path d="M4 12h26l10 10H6z"/><path d="M30 8h7v8h-3z" fill="currentColor"/>'),
+  noBowFender: svg('<path d="M4 12h26l10 10H6z"/>'),
   guardTyres: svg('<path d="M4 9h40l-2 15H6z"/><circle cx="12" cy="15" r="3.5"/><circle cx="24" cy="15" r="3.5"/><circle cx="36" cy="15" r="3.5"/>'),
   guardBoth: svg('<path d="M4 9h40l-2 15H6zM18 9v6M30 9v6"/><path d="M4.5 12h39" stroke-width="3.2"/><rect x="16" y="15" width="4" height="7" rx="2"/><rect x="28" y="15" width="4" height="7" rx="2"/>'),
   // Her bulwark, with handrails on posts over it, or bare.
@@ -198,12 +209,16 @@ export const HOUSE_ICONS = {
   // Her front windows from above: flat across, or in three facets.
   flat: svg('<path d="M8 8h32v18H8zM8 8h32" stroke-width="2.4"/>'),
   facets: svg('<path d="M8 14l6-6h20l6 6v12H8z"/><path d="M8 14l6-6h20l6 6" stroke-width="2.4"/>'),
+  // Her aft windows from above (the front at the top): flat across, or in three facets.
+  aftFlat: svg('<path d="M8 8h32v18H8z"/><path d="M8 26h32" stroke-width="2.4"/>'),
+  aftFacets: svg('<path d="M8 8h32v12l-6 6H14l-6-6z"/><path d="M40 20l-6 6H14l-6-6" stroke-width="2.4"/>'),
   // From ahead: the sides upright, or raked out (wider at the top).
   upright: svg('<path d="M12 26V8h24v18M12 14h24M8 26h32"/>'),
   rakedOut: svg('<path d="M14 26L9 6h30l-5 20M11 13h26M8 26h32"/>'),
   // From the side: the window sill at the standard height, or low, below the console.
   sillStd: svg('<path d="M6 26V6h36v20zM6 15h36M10 15V9h28v6"/><path d="M12 26v-5h8v5"/>'),
   sillLow: svg('<path d="M6 26V6h36v20zM6 21h36M10 21V9h28v12"/><path d="M12 26v-8h8v8"/>'),
+  sillHigh: svg('<path d="M6 26V6h36v20zM6 12h36M10 12V9h28v3"/><path d="M12 26v-12h8v12"/>'),
   // Her helm from above: the console in the middle, to port or to starboard (bow up).
   consoleMid: svg('<path d="M10 4h28v24H10z"/><rect x="18" y="7" width="12" height="5" fill="currentColor"/>'),
   consolePort: svg('<path d="M10 4h28v24H10z"/><rect x="12" y="7" width="12" height="5" fill="currentColor"/>'),

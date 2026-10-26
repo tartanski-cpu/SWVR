@@ -13,7 +13,7 @@
  */
 import { CONFIG } from '../config';
 import type { GearKind } from '../modular/module';
-import { ENGINE_TYPES, SINGLE_ONLY_ENGINES, type ShipDesign } from './design';
+import { ENGINE_TYPES, ONE_TYPE_ENGINES, SINGLE_ONLY_ENGINES, type ShipDesign } from './design';
 
 /**
  * The game's jobs she can be wanted for (owner, Oct 2026: "do you want to do lobster missions?
@@ -127,10 +127,10 @@ export function bareHull(hull: number, hullDefaults: (hull: number) => Partial<S
   return { ...hullDefaults(hull), hull, deckCrane: 0, searchlight: 0, fireMonitor: 0 };
 }
 
-/** Every engine fit to try: each engine, single and (unless it only goes in singly) twin. */
+/** Every engine fit to try: each engine (not one only one type takes), single and (unless it only goes in singly) twin. */
 export function engineOptions(): Partial<ShipDesign>[] {
   const out: Partial<ShipDesign>[] = [];
-  for (let engine = 0; engine < ENGINE_TYPES; engine++) for (const twin of SINGLE_ONLY_ENGINES.includes(engine) ? [0] : [0, 1]) out.push({ engine, twin });
+  for (let engine = 0; engine < ENGINE_TYPES; engine++) if (!ONE_TYPE_ENGINES.includes(engine)) for (const twin of SINGLE_ONLY_ENGINES.includes(engine) ? [0] : [0, 1]) out.push({ engine, twin });
   return out;
 }
 

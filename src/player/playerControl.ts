@@ -3,6 +3,8 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { quaySpot } from '../world/startSpot';
+import { platformSpot } from '../world/windFarm';
+import { CONFIG } from '../config';
 import type { PlayerState } from './playerState';
 
 /** Put a player ashore on the quay by a berth (the start's by default; world/startSpot.ts), facing the water. */
@@ -25,10 +27,23 @@ export function applyPlayerIntent(world: WorldState, p: PlayerState, intent: Int
       const vessel = intent.ref ? world.vessels[intent.ref] : undefined;
       p.mode = 'walk';
       delete p.velocity;
+      // Across onto a wind turbine's platform from a boat on its landing (crew transfer: the gangway mark's "Step across").
+      if (intent.ref?.startsWith('turbine:')) {
+        const [f, t] = intent.ref.slice(8).split(':').map(Number);
+        const spot = platformSpot(f, t);
+        if (!spot) break;
+        p.aboardVesselId = null;
+        p.position = [spot.x, CONFIG.windFarm.platform.y, spot.z];
+        p.yaw = spot.yaw;
+        break;
+      }
       if (!vessel) {
-        // Ashore: onto the quay by the boat's berth when she's moored, else the start's.
+        // Ashore: onto the quay by the berth of the boat you're on when she's moored (the
+        // gangway mark: player/gangway.ts), else by your home boat's, else the start's.
+        const on = p.aboardVesselId ? world.vessels[p.aboardVesselId] : undefined;
         const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
-        placeAshore(p, home?.mooring.phase === 'moored' ? home.mooring.berthId : null);
+        const from = on?.mooring.phase === 'moored' ? on : home;
+        placeAshore(p, from?.mooring.phase === 'moored' ? from.mooring.berthId : null);
         break;
       }
       p.aboardVesselId = vessel.id;

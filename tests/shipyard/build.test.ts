@@ -22,8 +22,10 @@ const all = (pick: (steps: number) => number) => Object.fromEntries(FIELDS.map((
 
 describe('Shipyard: the boats it builds', () => {
   it('every base hull with every engine floats level on her lines, stable, with a valid recipe', () => {
+    // (Not the harbour tug, a one-off with her own engine fixed, nor her engine on another: tests/shipyard/harbourTug.test.ts.)
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
       for (let engine = 0; engine < ENGINES.length; engine++) {
+        if (DESIGN_HULLS[hull].fixed || (ENGINES[engine] as { only?: readonly number[] }).only) continue;
         const boat = useDesign({ ...DEFAULT_DESIGN, hull, engine });
         expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}/${engine}`).toEqual([]);
         const h = uprightHydrostatics(VESSEL_DEFS.design);
@@ -121,6 +123,8 @@ describe('Shipyard: the boats it builds', () => {
 
   it('the bow choice, a stem raked 0 (plumb) to 50 deg, each hull: more rake cuts away more forefoot, but only near the stem (not a push bow or a landing bow)', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      // (Not a one-off, the harbour tug: her bow is fixed.)
+      if (DESIGN_HULLS[hull].fixed) continue;
       const mass: number[] = [];
       const lwl: number[] = [];
       for (let bow = 0; bow < 5; bow++) {
@@ -197,8 +201,9 @@ describe('Shipyard: the boats it builds', () => {
   });
 
   it('every floor height, each hull: no step over 0.35 m from the deck at the door to the floor, and the walk area takes you in', () => {
+    // (Not a one-off, the harbour tug: her floor is fixed, her bridge up on her deckhouse.)
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
-      for (let floor = 0; floor < 8; floor++) {
+      for (let floor = 0; floor < (DESIGN_HULLS[hull].fixed ? 0 : 8); floor++) {
         useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...fromSteps({ floor }) });
         const def = VESSEL_DEFS.design;
         const wh = def.layout.wheelhouse!;
@@ -292,7 +297,7 @@ describe('Shipyard: the boats it builds', () => {
     // Every hull finds room for both poles on either deck, with or without a crane; only the
     // shortest aft decks can't take the aft crane and both poles too (and say so).
     for (const l of left) expect(l).toMatch(/^hull [01] crane 2 lamp 3 monitor 3: There's no room on her aft deck for the fire monitor's pole/);
-  });
+  }, 120000); // Room: about 14 s here, twice that on GitHub's publishing machine, past the 20 s default.
 
   it('a unit on the roof is worked from the helm; one on a pole has its own controls, and the helm\'s too with the advanced controls', () => {
     const helm = (d: Partial<ShipDesign>) => {

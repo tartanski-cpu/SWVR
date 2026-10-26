@@ -52,5 +52,6 @@ function raised(form: HullDefinition['form'], rise: number): HullDefinition['for
   }
   const up = (c: [number, number][]) => c.map(([t, v]) => [t, v + rise] as [number, number]);
   const dsg = form.design;
-  return { ...form, design: { ...dsg, keel: up(dsg.keel), sheer: up(dsg.sheer), ...(dsg.chineKeel ? { chineKeel: up(dsg.chineKeel) } : {}) } };
+  // (A catamaran's wet deck is measured from her DWL: it rises with her lines.)
+  return { ...form, design: { ...dsg, keel: up(dsg.keel), sheer: up(dsg.sheer), ...(dsg.chineKeel ? { chineKeel: up(dsg.chineKeel) } : {}), ...(dsg.catamaran ? { catamaran: { ...dsg.catamaran, tunnel: dsg.catamaran.tunnel + rise } } : {}) } };
 }

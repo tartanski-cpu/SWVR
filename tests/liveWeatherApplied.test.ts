@@ -1,8 +1,10 @@
 /**
  * A Voyage map's live weather applied (environment/weather.ts setLiveWeather; the map side's
- * fetch is tests/coastWeather.test.ts): the values in at once and held, the sea at the marine
- * model's height and kept there, not dragged back to the wind's; a debug preset gives the
- * game's own weather back; the line the players read.
+ * fetch is tests/coastWeather.test.ts): the values in at once, the sea at the marine model's
+ * height and kept there (not dragged back to the wind's) until the weather first changes; then
+ * the weather moves on as the game's own does (review, Oct 2026: held for the session, Voyage
+ * had no changing weather online); a debug preset gives the game's own weather back; the line
+ * the players read.
  */
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/world';
@@ -14,21 +16,27 @@ import { liveWeatherText } from '../src/voyage/liveWeather';
 import { seaScaleFor } from '../src/world/coastWeather';
 
 describe('live weather in the world', () => {
-  it('held for the session, the sea at the marine height (not the wind\'s), the director off', () => {
+  it('the starting point: the sea at the marine height (not the wind\'s) until the first change, then the weather moves on', () => {
     const { world } = createWorld(new IdFactory(), 'pilotBoat', { weather: true });
     const env = world.environment;
     // A light wind over an old swell: the wind alone would give a much smaller sea.
     const scale = seaScaleFor(1.6);
     setLiveWeather(env, { wind: 3, windFrom: 300, visibility: 15000, rain: 0, cloud: 0.8 }, 'Overcast', world.time, { text: 'x', credit: 'c' }, scale);
-    expect(env.weather!.fixed).toBe(true);
+    expect(env.weather!.fixed).toBe(false);
     expect(env.weather!.preset).toBe('Overcast');
+    const change = env.weather!.next.at;
+    expect(change).toBeGreaterThan(world.time + 60); // a while yet
     expect(significantWaveHeight(env.waves)).toBeCloseTo(1.6, 1);
     expect(scale).toBeGreaterThan(seaForWind(3) + 0.3);
-    // Ten minutes on: still that sea, still that wind, still that preset.
-    for (let i = 0; i < 600; i++) stepWorld(world, [], 1);
+    // Up to the first change: still that sea, still that wind, still that preset.
+    while (world.time < change - 2) stepWorld(world, [], 1);
     expect(env.seaScale).toBeCloseTo(scale, 3);
     expect(env.weather!.now.wind).toBeCloseTo(3, 3);
     expect(env.weather!.preset).toBe('Overcast');
+    // Then on, to the planned change (the director's), the sea following the wind from there.
+    for (let i = 0; i < 5; i++) stepWorld(world, [], 1);
+    if (env.weather!.next.preset !== 'Overcast' || env.weather!.preset !== 'Overcast') expect(env.weather!.seaHeld).toBeUndefined();
+    expect(env.weather!.live).toBeUndefined();
     // A debug preset: the game's own weather again, the sea following the wind.
     setWeatherPreset(env.weather!, 'Squall', world.time, true, env);
     expect(env.weather!.live).toBeUndefined();

@@ -34,6 +34,10 @@ const COASTER_LCB = 9.73;
 const TRAWLER_LCB = 3.26;
 const PONTOON_MASS = 123240;
 const PONTOON_LCB = 3.17;
+// A floated monopile (construction projects, Oct 2026): 190 t at 1.9 m draught, its hull's
+// volume under the DWL (its forward end fines in, so its LCB is a little aft: uprightHydrostatics).
+const MONOPILE_MASS = 190220;
+const MONOPILE_LCB = 3.16;
 /**
  * The landing craft's cabin floor (m, vessel axes): 0.19-0.23 m below the deck around the
  * cabin, so you step down into it for the headroom (2.2 m to the roof). Everything in her
@@ -175,6 +179,13 @@ export const VESSELS_CONFIG = {
         starterTorque: 700,
         starterMaxRpm: 160,
         crankTime: 1.6,
+        /**
+         * Stall: in gear, dragged below this fraction of idle by the propeller (a gearbox too
+         * high for her propeller, lugging past what she can pull), she stops, as a real diesel
+         * does; start her again in neutral. (Owner, Oct 2026: an engine sat "running" at 0 rpm
+         * in gear, its alternator still, and ran the battery flat.)
+         */
+        stallFraction: 0.3,
         /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
         startOnlyInNeutral: true,
         /**
@@ -1757,6 +1768,51 @@ export const VESSELS_CONFIG = {
      * offered to a tug (tow/tow.ts isTugClass); she passes her own heavy hawser (lineFactor
      * 3). Her mass is what the workboat can't shift in any useful time: a tug's pull is.
      */
+    /**
+     * A monopile foundation floated out to a wind farm site with its ends sealed
+     * (career/projects.ts, Tarran Rig's foundations; owner, Oct 2026: "towed out as cargo behind
+     * a tug"). 40 m of 5 m steel tube (the farm's pile, CONFIG.windFarm.pile), two-fifths
+     * under: drawn as the tube (tow/towLook.ts), floated on a hard-chine hull fitted inside its
+     * section (deck edge and chine on the circle). Long, low and bluff-ended: slow to steer and
+     * it yaws on the line. A tug's tow.
+     */
+    monopile: {
+      tow: { look: 'monopile' as const, name: 'a monopile foundation, floated out with its ends sealed', size: 'ship' as const, lineFactor: 3, needs: 'tug' as const, project: true },
+      hull: { length: 40, beamDeck: 4.14, beamChine: 3.47, keelY: -1.9, chineYAft: -1.2, chineYBow: -1.2, deckYAft: 2.0, deckYBow: 2.0, stations: 13, physicsStations: 7, deckParallel: 0.9, forefoot: { from: 0.95, rise: 0, stemDeg: 0 } },
+      mass: MONOPILE_MASS,
+      cg: [0, -0.6, MONOPILE_LCB] as [number, number, number],
+      gyradius: { roll: 1.7, pitch: 11.5, yaw: 11.5 },
+      addedMass: { surge: 0.05, sway: 0.6, heave: 0.8, roll: 0.2, pitch: 0.7, yaw: 0.5 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 400000, pitch: 3000000, yaw: 1500000 },
+      // Bluff, sealed ends either way: a big form factor, waves from low speed, the same astern.
+      resistance: { lwl: 39, formFactor: 1.4, waveA: 3, waveB: 2.5, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.2, y: -0.9 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.3, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 100, front: 12, center: [0, 1.2, 0] as [number, number, number] },
+      boardingSpot: [0, 2.0, 0] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    /**
+     * The transition pieces' barge (career/projects.ts, Tarran Rig's stage 4): the crane
+     * pontoon's hull and handling, two transition pieces standing upright on her deck, sea-
+     * fastened (drawn: tow/towLook.ts). A tug's tow, out to the jack-up.
+     */
+    tpBarge: {
+      tow: { look: 'tpBarge' as const, name: 'a barge with two transition pieces sea-fastened on her deck', size: 'large' as const, lineFactor: 2, needs: 'tug' as const, project: true },
+      hull: { length: 20, beamDeck: 8.0, beamChine: 7.9, keelY: -1.2, chineYAft: -1.1, chineYBow: -0.6, deckYAft: 0.9, deckYBow: 1.0, stations: 9, physicsStations: 5, deckParallel: 0.85 },
+      mass: PONTOON_MASS,
+      cg: [0, -0.2, PONTOON_LCB] as [number, number, number],
+      gyradius: { roll: 2.8, pitch: 5.0, yaw: 5.4 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 1430000, pitch: 750000, yaw: 375000 },
+      resistance: { lwl: 19.5, formFactor: 2.5, waveA: 4, waveB: 3.5, waveKnee: 0.15, waveCap: 0.3, asternFactor: 1.5, y: -0.5 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      // The two pieces standing 14 m over her deck catch the wind.
+      windage: { side: 90, front: 45, center: [0, 5, 0] as [number, number, number] },
+      boardingSpot: [0, 1.0, 4] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
     coaster: {
       tow: { look: 'coaster' as const, name: 'a loaded coaster with her engine dead', size: 'ship' as const, lineFactor: 3, needs: 'tug' as const },
       hull: { length: 58, beamDeck: 10.5, beamChine: 9.8, keelY: -3.4, chineYAft: -2.2, chineYBow: -0.4, deckYAft: 3.2, deckYBow: 4.6, stations: 15, physicsStations: 7, deckParallel: 0.6 },

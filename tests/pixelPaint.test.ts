@@ -79,3 +79,46 @@ describe('pixel painting', () => {
     expect(top.w[1] - top.w[0]).toBeCloseTo(6);
   });
 });
+
+describe('hull weathering', () => {
+  it("a hull's topsides wear the weathering tile, placed by the freeboard: 0 at the waterline, 1 at the deck edge", async () => {
+    const { VESSEL_DEFS } = await import('../src/vessel/vesselDef');
+    const { buildVesselMesh } = await import('../src/vessel/view/hullMesh');
+    const { hullPlan } = await import('../src/vessel/layout');
+    const def = VESSEL_DEFS.workboat;
+    const g = buildVesselMesh(def.hull, def.layout).geometry;
+    const paint = g.attributes.paint;
+    const pos = g.attributes.position;
+    const uv = g.attributes.paintUv;
+    const top = paintIndex('topsides');
+    const deckY = hullPlan({ hull: def.hull }).deckY;
+    let n = 0;
+    let atDeck = 0;
+    for (let i = 0; i < pos.count; i++) {
+      if (paint.getX(i) !== top) continue;
+      n++;
+      const y = pos.getY(i);
+      const z = pos.getZ(i);
+      // Up her: the height over the waterline as a fraction of the freeboard here.
+      expect(uv.getY(i)).toBeCloseTo(y / Math.max(0.3, deckY(z)), 5);
+      if (Math.abs(y - deckY(z)) < 1e-6) atDeck++;
+    }
+    expect(n).toBeGreaterThan(100); // her sides, transom and bow
+    expect(atDeck).toBeGreaterThan(10); // the deck edge, where the runs start
+    // The deck itself keeps its non-slip, in metres.
+    let deck = 0;
+    for (let i = 0; i < pos.count; i++) if (paint.getX(i) === paintIndex('nonSlip')) deck++;
+    expect(deck).toBeGreaterThan(10);
+  });
+
+  it('how used she looks is her livery\'s (0 as new .. 1 well used), on her hull\'s own material; the config\'s if she has none', async () => {
+    const { VESSEL_DEFS } = await import('../src/vessel/vesselDef');
+    const { buildVesselMesh } = await import('../src/vessel/view/hullMesh');
+    const { CONFIG } = await import('../src/config');
+    const def = VESSEL_DEFS.workboat;
+    const amount = (m: THREE.Mesh) => (m.material as THREE.Material).userData.paintWeathering.value as number;
+    expect(amount(buildVesselMesh(def.hull, def.layout, undefined, { weathering: 0 }))).toBe(0);
+    expect(amount(buildVesselMesh(def.hull, def.layout, undefined, { weathering: 0.4 }))).toBeCloseTo(0.4);
+    expect(amount(buildVesselMesh(def.hull, def.layout))).toBe(CONFIG.pixelPaint.weathering.strength);
+  });
+});

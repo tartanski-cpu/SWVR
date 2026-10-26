@@ -6,14 +6,61 @@
 import { CONFIG } from '../../config';
 import { strakeLine, tyreSpots } from '../../vessel/physics/guards';
 import { guardParts } from '../design';
+import { catamaranHandling } from '../../vessel/catamaran';
 import { atDWL, type BuildArgs, type V3 } from './common';
+import { fenderingFit } from './fendering';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart } from './house';
+
+/** Her bow's underside on her centreline at a station (y): her keel, or a catamaran's bridge deck between her hulls; null if nothing's there. */
+function centreBottom(poly: readonly (readonly [number, number])[]): number | null {
+  let low: number | null = null;
+  for (let i = 0; i < poly.length; i++) {
+    const [x0, y0] = poly[i];
+    const [x1, y1] = poly[(i + 1) % poly.length];
+    if ((x0 <= 0 && x1 >= 0) || (x0 >= 0 && x1 <= 0)) {
+      const y = x0 === x1 ? Math.min(y0, y1) : y0 + ((y1 - y0) * -x0) / (x1 - x0);
+      low = low === null ? y : Math.min(low, y);
+    }
+  }
+  return low;
+}
+
+/** Where a bow fender goes on her (modules/bowFender's config): see trimPart. */
+function bowFenderAt(st: readonly { z: number; polygon: [number, number][] }[], top: number, catamaran: boolean, rnd: (v: number) => number) {
+  const bf = CONFIG.modules.bowFender;
+  const stem = st[st.length - 1];
+  // Her bow's underside at each station from the stem aft (its foot can go no lower than at the stem).
+  const line = st
+    .slice()
+    .reverse()
+    .slice(0, 8)
+    .map((s) => ({ z: s.z, y: centreBottom(s.polygon) }))
+    .filter((s): s is { z: number; y: number } => s.y !== null);
+  const floor = Math.max(bf.clear, line[0]?.y ?? bf.clear);
+  const bottom = Math.max(top - bf.depth, catamaran ? floor : bf.clear);
+  // Its back: at each height from its foot to its top, how far aft her bow's underside is
+  // there (a raked stem's), or her stem's station (a plumb one, a catamaran's).
+  const zAt = (y: number) => {
+    for (let i = 1; i < line.length; i++) if (line[i].y <= y) return line[i - 1].z + ((line[i].z - line[i - 1].z) * (line[i - 1].y - y)) / Math.max(1e-6, line[i - 1].y - line[i].y);
+    return stem.z;
+  };
+  const ys = [0, 0.25, 0.5, 0.75, 1].map((k) => bottom + (top - bottom) * k);
+  const back = ys.map((y): [number, number] => [rnd(y), rnd(Math.max(stem.z, Math.min(stem.z + 3, zAt(y))) + 0.1)]);
+  return { halfWidth: rnd((catamaran ? bf.catWidth : bf.width) / 2), top: rnd(top), bottom: rnd(bottom), front: rnd(stem.z - bf.thickness), back };
+}
+
+/** A bow fender's volume (m³): its profile's area across its width. */
+function bowFenderVolume(c: { halfWidth: number; top: number; bottom: number; front: number; back: [number, number][] }): number {
+  let area = 0;
+  for (let i = 1; i < c.back.length; i++) area += (c.back[i][0] - c.back[i - 1][0]) * ((c.back[i][1] + c.back[i - 1][1]) / 2 - c.front);
+  return area * 2 * c.halfWidth;
+}
 
 /** She floats on her lines: her weight (as drawn, or as weighed), her centre of gravity, her hull protection's weight, inertia, damping, and how she rides at speed. */
 export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const { d, given, raise } = a;
-  const { base, bulwarkHeight, deckhouse, dhArea, dhc, floorY, headroom, level, q, rnd, shape, st, stem, transom, warnings } = p;
+  const { base, bulwarkHeight, deckhouse, dhArea, dhc, floorY, form, headroom, level, q, rnd, shape, st, stem, transom, warnings } = p;
   // ── Weight, CG, inertia, damping: she floats on her lines ──
   const h = atDWL(shape);
   const rho = CONFIG.ocean.density;
@@ -42,6 +89,13 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const guardKg = strakeM * hg.strake.kgPerM + 2 * tyres.length * hg.tyres.kgEach;
   const guardY = prot.side === 'strake' ? deckMid - hg.strake.drop : deckMid - hg.tyres.drop;
   if (guardKg > 0) cg[1] += (guardKg / mass) * (guardY - cg[1]);
+  // The harbour tug's fendering (DesignHull.fendering; parts/fendering.ts): her protection, her
+  // study's own, in place of the strake or tyres (her `guard` is fixed at none); heavy rubber
+  // high on her sides, designed in as the strake is.
+  const spec = base.fendering && form.kind === 'lofted' ? form.design.fendering : undefined;
+  const fendering = spec ? fenderingFit(shape, spec) : null;
+  const fenderingKg = fendering ? CONFIG.shipyard.harbourTug.fenderingKg : 0;
+  if (fendering) cg[1] += (fenderingKg / mass) * (fendering.y - cg[1]);
   // A tug's push knees on her square bow plate (modules/pushFender): from the bulwark top
   // down to just above where the plate's sides end (its chines), within `inset` of her
   // sides; designed in high at her bow, as the strake is.
@@ -54,16 +108,32 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
     const kg = pf.knees * pf.kneeWidth * (pushFender.top - pushFender.bottom) * pf.kgPerM2;
     cg[1] += (kg / mass) * ((pushFender.top + pushFender.bottom) / 2 - cg[1]);
   }
+  // A bow fender (design.bowFender; modules/bowFender; owner, Oct 2026: crew transfer to wind
+  // farms): a rubber block round the top of her stem (or across a catamaran's bridge deck
+  // front), its front plumb, `thickness` forward of her stem at the deck; from her bulwark top
+  // down `depth`, no lower than her bow's underside on the centreline there (a catamaran's
+  // bridge deck) nor `clear` over her DWL; its back along her bow down there. Not on a push
+  // bow (its knees do it). Designed in high at her bow, as the push knees are.
+  const bf = CONFIG.modules.bowFender;
+  const bowFender = d.bowFender && !base.pushBow ? bowFenderAt(st, q.deckY(stem) + bulwarkHeight, !!shape.catamaran, rnd) : null;
+  const bowFenderKg = bowFender ? Math.round(bowFenderVolume(bowFender) * bf.kgPerM3) : 0;
+  if (bowFender) cg[1] += (bowFenderKg / mass) * ((bowFender.top + bowFender.bottom) / 2 - cg[1]);
   const beamDeck = 2 * Math.max(...st.map((s) => s.halfBeamDeck));
   const lengthM = transom - stem;
-  const gyradius = { roll: 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
+  // A catamaran's handling (vessel/catamaran.ts): two slim hulls' resistance, and her roll
+  // inertia (her roll radius of gyration, and each hull's heave added mass acting half her
+  // hull spacing out) rather than a monohull's.
+  const cat = shape.catamaran ? catamaranHandling(shape, Math.round(h.lwl * 100) / 100, CONFIG.vessels.landingCraft.resistance.y) : null;
+  const gyradius = { roll: cat ? cat.rollGyradius : 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
   // Weighed (buildDesign), her centre of gravity is her parts': its height from the weights
   // below, her lines raised with it; along her it stays over her centre of buoyancy (level
   // trim: as her designer would trim her, with her tanks and ballast).
   if (given) cg[1] = Math.round((given.cgY + raise) * 1000) / 1000;
   const gm = h.kbY + h.iT / h.volume - cg[1];
-  if (gm < 0.5) warnings.push(`Her stability is low (GM ${gm.toFixed(2)} m): give her more beam or less depth.`);
-  const iRoll = mass * gyradius.roll ** 2 * 1.25; // with its added mass
+  // Under CONFIG.shipyard.minGM she'd capsize (she can't float upright): the page holds back Try her.
+  if (gm < CONFIG.shipyard.minGM) warnings.unshift(`She would capsize: she can't float upright (GM ${gm.toFixed(2)} m). Give her more beam or less depth before she goes in the water.`);
+  else if (gm < CONFIG.shipyard.lowGM) warnings.push(`Her stability is low (GM ${gm.toFixed(2)} m): give her more beam or less depth.`);
+  const iRoll = mass * gyradius.roll ** 2 * (1 + (cat ? cat.addedRoll : 0.25)); // with its added mass
   const rollCritical = 2 * Math.sqrt(iRoll * mass * g * Math.max(0.2, gm));
   const lc = CONFIG.vessels.landingCraft;
   const sizeK = (mass / lc.mass) * (lengthM / 10.2) ** 2;
@@ -83,10 +153,11 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const deadriseAft = deadrise(sy.deadriseAt);
   const deadriseMid = deadrise(0.5);
   const slam = Math.min(sy.slamMax, Math.max(sy.slamMin, Math.tan((sy.slamRefDeg * Math.PI) / 180) / Math.tan(Math.max(0.02, deadriseMid))));
-  const regime = base.regime === 'displacement' ? null : sy.regimes[base.regime];
+  // (A catamaran: no planing turn model; two slim hulls don't bank on a vee.)
+  const regime = base.regime === 'displacement' || cat ? null : sy.regimes[base.regime];
   const planing = regime ? { lean: Math.round((sy.leanBase + sy.leanPerSine * Math.sin(deadriseAft)) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
   const damping = { ...perArea, rollLift: sy.rollLift, verticalCd: Math.round(perArea.verticalCd * slam * 100) / 100, roll: Math.round(0.28 * rollCritical), pitch: Math.round(lc.damping.pitch * sizeK), yaw: Math.round(lc.damping.yaw * sizeK) };
 
-  return { beamDeck, cg, damping, deckMid, gm, guardKg, guardY, gyradius, h, hg, keelMid, lc, lengthM, mass, mid, pf, planing, prot, pushFender, rho, strakeM, tyres };
+  return { fendering, fenderingKg, beamDeck, bowFender, bowFenderKg, cat, cg, damping, deckMid, gm, guardKg, guardY, gyradius, h, hg, keelMid, lc, lengthM, mass, mid, pf, planing, prot, pushFender, rho, strakeM, tyres };
 }
 export type TrimPart = ReturnType<typeof trimPart>;

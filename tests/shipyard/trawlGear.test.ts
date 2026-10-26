@@ -60,6 +60,8 @@ describe('the trawl deck gear', () => {
 
   it('on every hull type: fitted with a recipe that holds, or left off saying why', () => {
     DESIGN_HULLS.forEach((t, i) => {
+      // (Not a one-off, the harbour tug: this choice is fixed on her.)
+      if (t.fixed) return;
       const d: ShipDesign = { ...DEFAULT_DESIGN, ...t.defaults, hull: i, aFrame: 1, netDrum: 1, trawlWinches: 1, fishHold: 1 };
       const b = buildDesign(d);
       if (!has(b, 'deck.net-drum')) expect(b.warnings.join(' ')).toMatch(/net drum/);

@@ -1,7 +1,7 @@
 /**
  * The Workboat x Timber handoff (voyage/metaverse.ts, voyage/timber.ts; docs/metaverse-contract.md):
  * the envelope, the site's place on the Oban map, ids consumed once, the hotspot prompt, the
- * log barge brought back on the line, and the sale.
+ * logs brought back laid on the beach, their sale, and a barge saved before that.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
@@ -151,45 +151,96 @@ describe('the timber run on the Oban map', () => {
     expect(watch.update(v, [s], 5)).toBeNull();
   });
 
-  it('back from the camp: a barge of logs on the line, heavier for her load; sold at Oban for logs x price', async () => {
-    const { w, v, sim, t, m, control } = await oban();
+  it('back from the camp: the logs laid on the beach, side by side, beached, pointing out to sea; kept till sold, and sold only at the merchant', async () => {
+    const { w, v, sim, t, m, terrain, control } = await oban();
     const s = m.SITES[0];
     const at = t.hotspotAt(s)!;
-    // Anchored at the far side of the hotspot: the barge comes in to where the line reaches.
-    control.placeVessel(v, at.x - 50, 0, at.z + 20, 0);
-    const id = t.bargeFromCamp(w, s, v, 20)!;
-    expect(w.tow!.lines[v.id].target).toBe(`v:${id}`);
-    expect(w.timber!.barges[id].logs).toBe(20);
-    const b = w.vessels[id];
-    expect(Math.hypot(b.position[0] - v.position[0], b.position[2] - v.position[2])).toBeLessThanOrEqual(CONFIG.voyage.timber.bargeOffM + 0.01);
-    const pay = await import('../src/cargo/cargo');
-    expect(pay.payloadOf(w, id)[0].mass).toBeCloseTo(20 * CONFIG.voyage.timber.logKg, 6);
-    // Floats on: a few seconds of sim with the logs aboard.
-    for (let i = 0; i < 60; i++) sim.stepWorld(w, [], 1 / 20);
-    expect(w.vessels[id]).toBeTruthy();
-    // The sale: alongside the merchant's quay, stopped.
+    control.placeVessel(v, at.x, 0, at.z, 0);
+    expect(t.logsFromCamp(w, s, 40)).toBe(40);
+    const logs = w.salvage!.logs;
+    expect(logs).toHaveLength(40);
+    const beach = m.worldOf('oban', s.beach.lat, s.beach.lon)!;
+    for (const l of logs) {
+      expect(l.timber).toBe(true);
+      expect(l.afloat).toBe(false);
+      const g = terrain.groundHeight(l.x, l.z);
+      expect(g).toBeGreaterThan(0.05);
+      expect(g).toBeLessThan(CONFIG.voyage.timber.beachMaxAboveM);
+      // Near the contract's beach point (40 logs at 1.2 m: within 25 m of it along the shore).
+      expect(Math.hypot(l.x - beach.x, l.z - beach.z)).toBeLessThan(40);
+    }
+    // Side by side, never on top of each other.
+    for (let a = 0; a < logs.length; a++) for (let b = a + 1; b < logs.length; b++) expect(Math.hypot(logs[a].x - logs[b].x, logs[a].z - logs[b].z)).toBeGreaterThan(1);
+    // More than a trip's worth is capped.
+    expect(t.logsFromCamp(w, s, 500)).toBeLessThanOrEqual(CONFIG.voyage.timber.maxLogs);
+    w.salvage!.logs = w.salvage!.logs.slice(0, 2);
+    // Left long after a washed-up log would go with the tide, with the boat far off: still there.
+    control.placeVessel(v, at.x + 3000, 0, at.z, 0);
+    w.time += CONFIG.salvage.expire + 100;
+    for (let i = 0; i < 20; i++) sim.stepWorld(w, [], 1 / 20);
+    expect(w.salvage!.logs).toHaveLength(2);
+    // One afloat and stopped by the merchant's quay: bought after the delivery time; the other,
+    // afloat by some other harbour, isn't.
     const berths = await import('../src/world/berths');
     const berth = berths.berthWithId('oban-cargo')!;
-    control.placeVessel(b, berth.x, 0, berth.z, berth.headingDeg);
-    control.placeVessel(v, berth.x + 30, 0, berth.z + 30, 0);
-    b.linearVelocity = [0, 0, 0];
-    v.linearVelocity = [0, 0, 0];
-    const offer = t.saleOffer(w, v, 'oban')!;
-    expect(offer.logs).toBe(20);
-    expect(offer.total).toBe(20 * CONFIG.voyage.timber.pricePerLog);
-    const before = w.career!.money;
-    expect(t.sellBarge(w, offer.bargeId, offer.merchant)).toBe(offer.total);
-    expect(w.career!.money).toBe(before + offer.total);
-    expect(w.vessels[id]).toBeUndefined();
-    expect(w.tow!.lines[v.id]).toBeUndefined();
-    expect(t.saleOffer(w, v, 'oban')).toBeNull();
+    const qx = berth.x + berth.shoreX * berth.shoreDist;
+    const qz = berth.z + berth.shoreZ * berth.shoreDist;
+    const [sold, kept] = w.salvage!.logs;
+    // A spot in the water off the quay, within the selling range.
+    let wx = qx;
+    let wz = qz;
+    for (let d = 1; d < 15 && terrain.groundHeight(wx, wz) > -1; d++) {
+      wx = qx - berth.shoreX * d;
+      wz = qz - berth.shoreZ * d;
+    }
+    Object.assign(sold, { x: wx, z: wz, vel: [0, 0] });
+    const ports = await import('../src/world/archipelago');
+    const other = ports.PORTS.find((p) => Math.hypot(p.x - qx, p.z - qz) > 1000 && terrain.groundHeight(p.x, p.z) < -2)!;
+    Object.assign(kept, { x: other.x, z: other.z, vel: [0, 0] });
+    const before = w.career?.money ?? 0;
+    for (let i = 0; i < (CONFIG.tow.deliverTime + 1) * 20; i++) sim.stepWorld(w, [], 1 / 20);
+    expect(w.salvage!.logs.map((l) => l.id)).toEqual([kept.id]);
+    // Paid the timber log's price (owner: £2,000 a log), with the harbour's factors.
+    expect(w.career!.money - before).toBeGreaterThanOrEqual(CONFIG.voyage.timber.logPrice);
+    expect(w.career!.ledger[0].text).toMatch(/Timber log sold/);
+  });
+
+  it('a log off the beach: the boat lies off in water deep enough, makes fast, and pulls it off under power', { timeout: 60000 }, async () => {
+    const { w, v, sim, t, m, terrain, control } = await oban();
+    const s = m.SITES[0];
+    t.logsFromCamp(w, s, 1);
+    const log = w.salvage!.logs[0];
+    // Off the beach, stern to it: out along the log (it points out to sea), as far as the line reaches.
+    const ux = Math.sin(log.yaw);
+    const uz = Math.cos(log.yaw);
+    const off = 26;
+    const bx = log.x + ux * off;
+    const bz = log.z + uz * off;
+    expect(terrain.groundHeight(bx, bz)).toBeLessThan(-1.5);
+    control.placeVessel(v, bx, 0, bz, (Math.atan2(ux, -uz) * 180) / Math.PI);
+    const send = (control: string, value = 1, ref?: string) => sim.stepWorld(w, [{ playerId: 'player-1', targetId: v.id, control, value, ref } as never], 1 / 60);
+    const run = (sec: number) => {
+      for (let i = 0; i < sec * 60; i++) sim.stepWorld(w, [], 1 / 60);
+    };
+    run(1);
+    send('towMake', 1, `l:${log.id}`);
+    const tow = await import('../src/tow/tow');
+    expect(tow.lineOf(w)?.target).toBe(`l:${log.id}`);
+    send('engineStartStop');
+    run(3);
+    send('lever', 0.6);
+    run(60);
+    expect(log.afloat).toBe(true);
+    expect(tow.lineOf(w)?.target).toBe(`l:${log.id}`);
   });
 
   it('kept with the save: where she lies, her load, and on the line again', async () => {
     const { w, v, t, m, control } = await oban();
     const at = t.hotspotAt(m.SITES[0])!;
     control.placeVessel(v, at.x, 0, at.z, 0);
-    t.bargeFromCamp(w, m.SITES[0], v, 30);
+    // A barge from before the logs went on the beach (25 Oct 2026), on the line.
+    const tow = await import('../src/tow/tow');
+    tow.makeFastNow(w, v.id, t.spawnLogBarge(w, at.x + 20, at.z, 0, 30));
     const saved = t.bargesToSave(w, v.id, () => 90);
     expect(saved).toHaveLength(1);
     expect(saved[0]).toMatchObject({ logs: 30, towed: true });
@@ -201,5 +252,12 @@ describe('the timber run on the Oban map', () => {
     const id = Object.keys(fresh.w.timber!.barges)[0];
     expect(fresh.w.tow!.lines[fresh.v.id].target).toBe(`v:${id}`);
     expect(t.parseBarges('garbage')).toEqual([]);
+    // The camp's logs on the beach, kept too.
+    t.logsFromCamp(w, m.SITES[0], 5);
+    const logs = t.parseTimberLogs(JSON.stringify([...t.timberLogsToSave(w), { x: 'no' }]));
+    expect(logs).toHaveLength(5);
+    fresh.t.restoreTimberLogs(fresh.w, logs);
+    expect(fresh.w.salvage!.logs.filter((l) => l.timber && !l.afloat)).toHaveLength(5);
+    expect(t.parseTimberLogs('garbage')).toEqual([]);
   });
 });

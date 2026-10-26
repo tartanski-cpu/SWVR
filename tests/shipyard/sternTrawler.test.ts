@@ -24,7 +24,8 @@ const has = (id: string) => RECIPES.design.modules.some((m) => m.module === id);
 
 describe('the stern trawler: a sixth hull type', () => {
   it('is in the lists; travels as a link or file, not the short code; the earlier types still code', () => {
-    expect(ST).toBe(HULL_TYPES - 1);
+    expect(ST).toBe(5);
+    expect(HULL_TYPES).toBeGreaterThan(ST);
     expect(TYPE_FACTS).toHaveLength(HULL_TYPES);
     expect(TYPE_FACTS[ST].goodFor).toContain('trawl');
     expect(shortCode(trawler())).toBeNull();
@@ -60,5 +61,10 @@ describe('the stern trawler: a sixth hull type', () => {
       expect(boat.warnings, `length step ${length}`).toEqual([]);
       expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
     }
+  });
+
+  it('carries no line-throwing gun (a tug’s tool; her 750 kW is shaft-only like the tug diesel, which gave her one by mistake, owner Oct 2026)', () => {
+    expect(useDesign(trawler()).hull.fittings?.stowage?.lineGun).toBeUndefined();
+    expect(useDesign(trawler({ engine: 3 })).hull.fittings?.stowage?.lineGun).toBeTruthy();
   });
 });

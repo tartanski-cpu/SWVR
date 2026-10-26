@@ -58,7 +58,8 @@ export interface PlayerPose {
   radio?: RadioPose | null;
 }
 
-export type ClientMessage = { t: 'hello'; name: string; build?: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp };
+/** `bye`: the crew-mate's page is leaving (Leave game, closed, reloaded): the host drops them at once, not waiting to notice. */
+export type ClientMessage = { t: 'hello'; name: string; build?: string; clientId?: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp } | { t: 'bye' };
 
 /**
  * The host's page is starting again in another boat (Debug > Start in, a Shipyard design, a
@@ -72,7 +73,12 @@ export interface RestartNotice {
   fit?: string;
 }
 
-export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState; chart?: ChartMarks } | { t: 'snapshot'; world: WorldState } | { t: 'chart'; op: ChartOp } | RestartNotice;
+/**
+ * `snapshot.paused`: the host's page is hidden (a background tab), its game stepping slowly
+ * (App). `end`: the host stopped hosting on purpose (Stop hosting): the game's over, nobody
+ * takes it over (a host who's simply gone says nothing: the crew notice the silence).
+ */
+export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState; chart?: ChartMarks } | { t: 'snapshot'; world: WorldState; paused?: boolean } | { t: 'chart'; op: ChartOp } | { t: 'end' } | RestartNotice;
 
 /** Snapshot / pose send rate (Hz). */
 export const NET_RATE = 20;

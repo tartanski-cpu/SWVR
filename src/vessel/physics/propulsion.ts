@@ -22,7 +22,7 @@ import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
 import type { VesselDef } from '../vesselDef';
 import type { EngineState, VesselState } from '../vesselState';
-import { derateRackCap } from './engineThermal';
+import { derateRackCap, fuelAndHeatStep } from './engineThermal';
 import { wearRackCapFor } from '../wear';
 
 type Workboat = typeof CONFIG.vessels.workboat;
@@ -93,21 +93,69 @@ export function leverDemand(def: EngineSpec, lever: number): { gear: -1 | 0 | 1;
  * running, it turns the key off. The real procedure is key on, wait for the GLOW lamp to go
  * out, START (ignitionStep).
  */
-export function toggleEngine(s: VesselState, def: EngineSpec): void {
+export function toggleEngine(s: VesselState, def: EngineSpec & { split?: boolean }): void {
   const e = s.engine;
+  // (Twin engines worked separately: both together, each from its own lever.)
+  const both = def.split ? [e, (e.stbd ??= starboardEngine(e))] : [e];
+  const levers = [s.controls.lever, s.controls.lever2 ?? s.controls.lever];
   if (e.phase === 'off') {
     if (!isPowered(s)) return; // no 12 V: the starter doesn't turn
     if (def.engine.startOnlyInNeutral && leverDemand(def, s.controls.lever).gear !== 0) return;
-    e.key = 1;
-    e.glow = preheatNeeded(s, def);
-    e.phase = 'cranking';
-    e.crank = 0;
-    e.autoCrank = true;
+    both.forEach((x, k) => {
+      if (k && def.engine.startOnlyInNeutral && leverDemand(def, levers[k]).gear !== 0) return;
+      if (k && x.phase !== 'off') return;
+      x.key = 1;
+      x.glow = preheatNeeded(s, def);
+      // (The starboard engine after the port one has caught: modules/dieselInboard.)
+      if (k) {
+        x.queued = true;
+        return;
+      }
+      x.phase = 'cranking';
+      x.crank = 0;
+      x.autoCrank = true;
+    });
   } else {
-    e.phase = 'off';
-    e.key = 0;
-    e.autoCrank = false;
+    for (const x of both) {
+      x.phase = 'off';
+      x.key = 0;
+      x.autoCrank = false;
+      x.queued = false;
+    }
   }
+}
+
+/**
+ * Twin engines worked separately (the twin lever control; owner, Oct 2026), one tick for both
+ * and their fuel: the port engine (`e`) from `inp`, the starboard engine (`e.stbd`, made the
+ * first time) from its own lever and START (`lever2`, `start2`) with the port engine's key,
+ * oil, wear and coolant (one key, one dipstick and set of lamps for both). The quick start's
+ * starboard engine cranks once the port one has caught (two starters at once pull the battery
+ * down too far). Each burns its own fuel from the one tank; the port engine alone heats the
+ * shared coolant. `speed2`: the starboard propeller's speed of advance, if not the port one's
+ * (azimuth drives, each pointing its own way). Returns each engine's thrust (N) and the fuel left (L).
+ */
+export function twinStep(e: EngineState, spec: DieselSpec, inp: DieselInputs, lever2: number, start2: number, speed: number, immersion: number, dt: number, speed2 = speed): { port: number; stbd: number; fuelL: number } {
+  const port = engineStep(e, spec, inp, speed, immersion, dt);
+  const s = (e.stbd ??= starboardEngine(e));
+  Object.assign(s, { key: e.key, coolantC: e.coolantC, oilC: e.oilC, coolingFault: e.coolingFault, oil: e.oil, wear: e.wear, fuelL: e.fuelL });
+  if (s.queued && e.phase !== 'cranking') {
+    s.queued = false;
+    if (e.phase === 'running' && s.phase === 'off' && s.key > 0) Object.assign(s, { phase: 'cranking', crank: 0, autoCrank: true });
+  }
+  const stbd = engineStep(s, spec, { ...inp, lever: lever2, start: start2 }, speed2, immersion, dt);
+  const afterPort = fuelAndHeatStep(e, spec, inp.fuelL, dt);
+  const portFlow = e.fuelFlowLph;
+  const heat = s.coolantC;
+  const fuelL = fuelAndHeatStep(s, spec, afterPort, dt);
+  s.coolantC = heat;
+  e.fuelFlowLph = portFlow + s.fuelFlowLph;
+  return { port, stbd, fuelL };
+}
+
+/** The starboard engine of a twin worked separately, made the first time: as the port one is, stopped. */
+export function starboardEngine(e: EngineState): EngineState {
+  return { ...e, stbd: undefined, phase: 'off', crank: 0, rpm: 0, rack: 0, gear: 0, shift: 0, fuelFlowLph: 0, glow: 0, autoCrank: false, queued: false };
 }
 
 /**
@@ -311,6 +359,14 @@ export function engineStep(e: EngineState, def: DieselSpec, inp: DieselInputs, s
       e.autoCrank = false;
       e.rack = 0.3; // fuel on: catches and runs up to idle
     }
+  }
+  // ── Stalling ── in gear and dragged far below idle by the propeller, she stops (no
+  // magic: a diesel can't keep turning there). Only in gear: running up from the starter in
+  // neutral is slow too, and fine.
+  // (An engine without its own figure, a recipe's from before it: the standard diesel's.)
+  if (e.phase === 'running' && e.gear !== 0 && e.rpm < (cfg.stallFraction ?? CONFIG.vessels.workboat.engine.stallFraction) * cfg.idleRpm) {
+    e.phase = 'off';
+    e.autoCrank = false;
   }
   if (e.phase === 'off' && e.rpm < 1) e.rpm = 0;
   return thrust;

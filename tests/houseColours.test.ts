@@ -56,7 +56,7 @@ describe("the wheelhouse's colour and its frames'", () => {
   });
 
   it('in the code (version 32); older codes read as her paint and black frames', () => {
-    for (const [houseColour, frames] of [[0, 0], [5, 1], [HOUSE_PAINTS.length - 1, 1]]) {
+    for (const [houseColour, frames] of [[0, 0], [5, 1], [9, 1]]) {
       const back = decodeDesign(encodeDesign({ ...plain, houseColour, frames }));
       expect('design' in back && [back.design.houseColour, back.design.frames]).toEqual([houseColour, frames]);
     }

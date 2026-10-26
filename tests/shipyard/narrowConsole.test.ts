@@ -91,6 +91,8 @@ describe('a narrow console', () => {
   it('the wheelhouse goes down to 1.2 m inside (it was 1.7), on any hull type: the Width slider goes down to 0.4 of the deck', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
       if (DESIGN_HULLS[hull].retired) continue;
+      // (Not a one-off, the harbour tug: this choice is fixed on her.)
+      if (DESIGN_HULLS[hull].fixed) continue;
       const b = buildDesign(type(hull, { length: 0, beam: 0, houseWidth: 0.4 }));
       const wh = b.hull.layout.wheelhouse!;
       const inside = 2 * (wh.halfWidth - wh.wall);

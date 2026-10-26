@@ -1,0 +1,7 @@
+{
+  "id": "vessel.monopile",
+  "version": 1,
+  "name": "Monopile (floated)",
+  "hull": "hull.monopile",
+  "modules": []
+}

@@ -46,7 +46,8 @@ import { recipePart } from './parts/recipe';
 import { weightsPart } from './parts/weights';
 import { atDWL, type BuildArgs } from './parts/common';
 import type { Material } from './parts/catalog';
-export { DESIGN_HULLS, ENGINES, FRAME_COLOURS, HOUSE_PAINTS, LIVERIES, ROOF_PAINTS, ROOF_TOPS, bowKeel, facetCentre, frontMullions, materialOf, sizeScale, withSheer, type DesignHull, type Material } from './parts/catalog';
+import { ENGINES, withFixed } from './parts/catalog';
+export { withFixed, DESIGN_HULLS, ENGINES, FRAME_COLOURS, HOUSE_PAINTS, LIVERIES, ROOF_PAINTS, ROOF_TOPS, bowKeel, facetCentre, frontMullions, materialOf, sizeScale, withSheer, type DesignHull, type Material } from './parts/catalog';
 
 /** The designed boat: her hull and recipe, her main figures, and anything to warn about. */
 export interface DesignedBoat {
@@ -72,6 +73,8 @@ export interface DesignedBoat {
   placed: Partial<Record<PlaceKey | FurnitureKey, { x: number; z: number; moved: boolean; onRoof?: boolean } | null>>;
   /** Why a piece placed by hand won't stand exactly where it was put, in a few words ("on her other gear or a ladder"): the Shipyard says it as you place it. */
   placeWhy: Partial<Record<PlaceKey | FurnitureKey, string>>;
+  /** Her deck as built, for the handles on the view: her bulwarks' height (m), and her raised foredeck's break (z, boat axes) and how much higher it is (m), or null. */
+  deck: { bulwarkM: number; foredeck: { z: number; raise: number } | null };
 }
 
 /**
@@ -83,10 +86,16 @@ export interface DesignedBoat {
  * `id`: her vessel type's id (her hull is `hull.<id>`, her recipe `vessel.<id>`): the
  * Shipyard's one-at-a-time 'design', or a fleet boat's own (boats/fleet.ts).
  */
-export function buildDesign(d: ShipDesign, code = 'design', id = 'design'): DesignedBoat {
+export function buildDesign(design: ShipDesign, code = 'design', id = 'design'): DesignedBoat {
+  // A one-off type's fixed choices kept to (the harbour tug's), whatever the design says; an
+  // engine only one type takes (ENGINES `only`: the harbour tug's 1850 kW) is the 750 kW on another.
+  const fixedD = withFixed(design);
+  const only = (ENGINES[fixedD.engine] as { only?: readonly number[] } | undefined)?.only;
+  const d = only && !only.includes(fixedD.hull) ? { ...fixedD, engine: 4 } : fixedD;
   const first = buildAt(d, code, 0, null, id);
   const { rise, sinks } = riseFor(hullFormOf(first.hull.form), first.weights.massKg);
   const boat = buildAt(d, code, rise, { massKg: first.weights.massKg, cgY: first.weights.cgY }, id);
+  if (d.engine !== fixedD.engine) boat.warnings.unshift(`The ${ENGINES[fixedD.engine].name.split(' (')[0]} is the harbour tug's own: she has the ${ENGINES[4].name.split(' (')[0]}.`);
   if (sinks) boat.warnings.unshift(`She's too heavy for her hull (${(first.weights.massKg / 1000).toFixed(1)} t): she'd float with her deck awash. Make her lighter (aluminium, a smaller engine, less gear) or bigger.`);
   else if (boat.figures.freeboardM < 0.3) boat.warnings.unshift(`She floats deep for her weight: ${Math.round(boat.figures.freeboardM * 100)} cm of freeboard amidships. Give her more depth (Hull) or make her lighter.`);
   return boat;

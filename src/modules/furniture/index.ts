@@ -13,6 +13,10 @@
  * only moving part: hinged on the doorway's side, a press on it opens or shuts it
  * ('furniture.headDoor'); like the wheelhouse doors it's drawn, not walked into (you pass
  * through it shut or open). Everything else is merged with her fixed parts.
+ *
+ * A TV (owner, Oct 2026) hangs on its wall on a bracket, its `height` its screen's middle over
+ * the floor; its screen is a control of its own (modules/furniture/tvScreen.ts: a browser tab shown on
+ * it). It stands nowhere you'd walk: no footprint.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
@@ -21,9 +25,10 @@ import type { GearFootprint, ModuleDefinition } from '../../modular/module';
 import { flatVertexColorMaterial, part } from '../../render/geometryUtils';
 import { Control, type Wiring } from '../../controls/Control';
 import type { VesselState } from '../../vessel/vesselState';
+import { TvScreen } from './tvScreen';
 
-export type FurnitureKind = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head' | 'bunk' | 'mess' | 'shower';
-export const FURNITURE_KINDS: readonly FurnitureKind[] = ['berth', 'settee', 'galley', 'seat', 'locker', 'head', 'bunk', 'mess', 'shower'];
+export type FurnitureKind = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head' | 'bunk' | 'mess' | 'shower' | 'tv';
+export const FURNITURE_KINDS: readonly FurnitureKind[] = ['berth', 'settee', 'galley', 'seat', 'locker', 'head', 'bunk', 'mess', 'shower', 'tv'];
 
 export interface FurnitureConfig {
   kind: FurnitureKind;
@@ -243,6 +248,14 @@ function pieceParts(c: FurnitureConfig): THREE.BufferGeometry[] {
       }
       break;
     }
+    case 'tv': {
+      // The case (its back `depth` off the wall on the bracket), the bracket's plate and arm.
+      const t = F.tv;
+      const half = t.screenH / 2 + t.bezel;
+      parts.push(box(-L, L, H - half, H + half, -D, -D + 0.035, C.tvCase));
+      parts.push(box(-0.12, 0.12, H - 0.1, H + 0.1, D - 0.012, D, C.tvCase), box(-0.025, 0.025, H - 0.025, H + 0.025, -D + 0.035, D - 0.012, C.steel));
+      break;
+    }
     case 'shower': {
       // A tray, three walls to the ceiling, a rose on the back wall, a rail and curtain across the front (half drawn).
       const w = F.shower.wall;
@@ -264,18 +277,20 @@ export const FURNITURE: ModuleDefinition<FurnitureConfig> = {
   defaults: { kind: 'locker', length: F.locker.length, depth: F.locker.depth, height: 1.9 },
   validateConfig: (c) => [
     ...(FURNITURE_KINDS.includes(c.kind) ? [] : [`a piece of furniture is a ${FURNITURE_KINDS.join(', ')}`]),
-    ...(c.length > 0.2 && c.depth > 0.2 && c.height > 0.3 ? [] : ['length and depth over 0.2 m, height over 0.3 m']),
+    // (A TV is thin: on its bracket, a hand's breadth off the wall.)
+    ...(c.length > 0.2 && c.depth > (c.kind === 'tv' ? 0.05 : 0.2) && c.height > 0.3 ? [] : ['length and depth over 0.2 m (a TV 0.05 m deep), height over 0.3 m']),
   ],
   physical: (c) => ({ size: [c.length, c.height, c.depth], massKg: F[c.kind].kg }),
   // Where you can't walk: the whole piece, or the head's walls and toilet (in at its door).
   // In its own axes, from its foot (base 0): the assembly puts them on the boat by its socket.
   footprints: (c): GearFootprint[] => {
+    if (c.kind === 'tv') return [];
     const top = c.kind === 'berth' ? F.berth.top + F.berth.cushion : c.kind === 'settee' ? F.settee.back : c.kind === 'galley' ? F.galley.top : c.kind === 'seat' ? F.seat.back : c.kind === 'bunk' ? F.bunk.upper + F.bunk.cushion + F.bunk.rail : c.kind === 'mess' ? F.mess.back : c.height;
     return solidPlan(c).map(([x0, x1, z0, z1]) => ({ x0, x1, z0, z1, base: 0, top }));
   },
   ports: { door: { dir: 'write', key: 'furniture.headDoor' } },
   view: {
-    build({ config: c, keys }) {
+    build({ config: c, keys, socket }) {
       const controls: Control[] = [];
       const movingParts: THREE.Object3D[] = [];
       if (c.kind === 'berth') {
@@ -284,6 +299,8 @@ export const FURNITURE: ModuleDefinition<FurnitureConfig> = {
       }
       // Two-high bunks: either one to lie down in.
       if (c.kind === 'bunk') controls.push(new BerthRest(c.length, c.depth, F.bunk.lower + F.bunk.cushion), new BerthRest(c.length, c.depth, F.bunk.upper + F.bunk.cushion));
+      // A TV's screen: a browser tab shown on it.
+      if (c.kind === 'tv') controls.push(new TvScreen(socket.id, c.length - 2 * F.tv.bezel, F.tv.screenH, c.height, -c.depth / 2));
       if (c.kind === 'head') {
         const [d0, d1] = doorway(c);
         const door = new HeadDoor(d1 - d0, 1.93, { channel: keys.door, read: (s) => busOf(s).num(keys.door) });

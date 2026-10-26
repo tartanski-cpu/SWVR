@@ -10,7 +10,64 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Career: Brannock Pier the deep-water berth; deep boats start there (25 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "We need a new deep water harbour on the career map. The new tugboat's got about 5.5 metres draft minimum. And we're going to have vessels with up to 10 ... Maybe just make Brannock Pier the deep water one, where by default bigger ships spawn in." Asked: keep the pier as it is (its 50 m T-head), and choose the start by draught.
+
+- **Measured first:** Brannock's T-head already has 35 to 37 m of water alongside (the island's slope), and 35 m along its seaward face; Calder Haven's basin is 4.5 m. So no dredging; nothing in `home.ts` changes.
+- **The start by draught** (`world/startSpot.ts` `startBerthFor`): in the career, a boat that can't lie anywhere in Calder Haven with her draught and `CONFIG.spawn.underKeel` (1 m) to spare starts at `CONFIG.start.deepPort` (`brannock`), at the first of its berths with room for her (the same check as a launched boat's berth: her length along the face, water under her whole hull); a ship too long for any of them lies at its cargo berth, overhanging the head, rather than aground in Calder. The player is put ashore beside her berth (on the pier). Every boat in the game today (the deepest, the coaster, 3.4 m) starts at Calder as before; Voyage maps are unchanged.
+- **Config key:** `CONFIG.start.deepPort` `'brannock'` (`src/config.ts`).
+- **Tests:** `tests/deepStart.test.ts`: every boat today still starts at Calder; the small tug drawn 5.5 m deep starts moored at Brannock's T-head in over 6.5 m of water, the player on the pier beside her; a 58 m ship drawing 10 m lies at Brannock (along its 136 m arm, where she fits) in over 11 m.
+- **Not checked:** in the game by eye (no boat that deep exists yet to start in); the first-voyage tutorial from Brannock (it was written for Calder's start: a deep boat's new career may want its own words).
+- **Shared changes:** `src/world/startSpot.ts` (`startBerthFor`), `src/core/world.ts` (the start uses it; the player ashore beside her berth), `src/config.ts` (`start.deepPort`): the main game's, small. README: the start and Brannock's depth.
+
+### Review fixes: real latitude and longitude, far hills merged less, passed chunks freed (24 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, after the main game chat's review (`docs/REVIEW_2026-10-24.md`): "Do the two map items and the lat/long".
+
+- **Real latitude and longitude on the Voyage maps.** The GPS (NAV display), the paper chart's scale and the radio's positions used the career archipelago's made-up origin on every map, so Syros read as Scotland. Each package now carries its box in degrees (`bbox`, from the request; the four maps re-packaged, nothing else in them changed), and `src/world/coastGeo.ts` inverts the pipeline's projection about the box's middle, both ways (the same sums as the Timber handoff's `metaverse.ts`, which the test checks against). `toLatLon` uses it whenever a coast map is loaded; a new `fromLatLon` does the reverse, and the paper chart draws its scale with it. The career islands keep their made-up origin (`CONFIG.nav`). In the game: Syros's quay reads 37.437° N 24.940° E (Ermoupoli), Rothesay 55.839° N 5.055° W, Oban bay 56.414° N 5.475° W.
+- **Far hills merged less** (`coastView.ts`). A big map merged its far chunks into one mesh again, and sent it to the graphics chip, each time a chunk crossed a line or the visibility drifted, up to twice a second. Now: the fog's reach is rounded up to 500 m steps (`coastFogStep`); a chunk keeps its coarse copy 300 m past its line (`coastHysteresis`); the chunks are re-sorted by distance only after 50 m of movement (`coastResort`); a merge only happens when a chunk must join (a hole otherwise), and then it takes in the chunks within 2 km of needing it too (`coastFarAhead`: the next row about to leave the coarse ring, the hills just beyond the fog), so one merge serves a whole row; chunks no longer needed stay in the mesh, under the nearer ground or in the fog, until they're over a quarter of it (`coastFarSlack`, at most every `coastFarTidy` 5 s). On a 30 km run down the Clyde in wandering visibility: 14 merges, down from 166 for the same run merging chunk by chunk.
+- **Passed chunks freed.** A chunk's coarse copy and its town's buildings stayed in memory once made, so a long Clyde voyage kept every one it had passed. Now they're freed beyond 1.5 times the distance they're drawn within (`coastDropFactor`; 9 km and 3 km) and made again on coming back. On the same run, at most 56 coarse copies at once.
+- **Config keys** (`src/config/map.ts`, `regions`): `coastFogStep` 500, `coastHysteresis` 300, `coastResort` 50, `coastFarAhead` 2000, `coastFarSlack` 0.25, `coastFarTidy` 5, `coastDropFactor` 1.5.
+- **Tests:** `tests/coastGeo.test.ts` (every map's weather point both ways; Syros in the Aegean; Oban as the handoff places it; north up, east right), `tests/coastViewBudget.test.ts` (the 30 km Clyde run: merges and meshes kept). `npm run test:map`, the typecheck and all of `npm test` (1484) pass. Headless: Syros, Clyde and Oban start without errors, their positions as above, the Clyde's far hills drawn.
+- **Not checked:** frame times on the Quest (the merges were a stutter there, not measurable here); the paper chart's scale by eye.
+- **Shared changes:** `src/nav/geo.ts` (`toLatLon` uses the coast map's grid when one is loaded; new `fromLatLon`) and `src/nav/paperChart.ts` (its scale through `fromLatLon`), the main game's. `src/world/coastRegion.ts`'s `CoastPackage` gains `bbox`. README: a line on real positions.
+
+### (From the modular-builder chat) A wind farm in the home region
+
+At the owner's word (24 Oct 2026, crew transfer to wind farms): `src/world/regions/home.ts` has a new `windFarms` list, the Holm Rig wind farm (three turbines south-east of Calder Holm, clear of the Calder Bank fishing ground). The data type is `WindFarmDef` in `src/world/defs.ts`, the collision `src/world/windFarm.ts`, the drawing `src/world/view/windFarmView.ts`. Details in `docs/progress/modules.md`.
+
+### Fix: /next/ failed to build: two long tests out of time on GitHub's machine (24 Oct 2026)
+
+Owner: "The work-in-progress build (branch next) failed its tests or its build this time."
+
+- **What failed** (publishing run 577, the `next` step): two long simulations ran past their time limits on GitHub's runner, which is about twice as slow as this machine. `tests/engine.test.ts`, "engine temperature" (37.6 s against 30 s; 20 s here), and `tests/shipyard/outboards.test.ts`, "outboards: cooling" (past the 20 s default; 12 s here). Nothing in the game was wrong: the same commit passes all its tests and builds here.
+- **Fixed:** those two test groups get room, 120 s and 90 s. The project-wide default (`vitest.config.ts`, 20 s) is unchanged. Every other long test checked against GitHub's times: all well within their limits (the trawler's 61 s of 120, the coast traffic's 35 s of 60).
+- **Shared changes:** `tests/engine.test.ts` (the main game's) and `tests/shipyard/outboards.test.ts` (the Shipyard's): a time limit each, nothing else. Both chats told.
+
+
+### Oban: the start (cargo) berth moved to the North Pier's south-west face (23 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "the default spawn at Oban pier is not very good because there's no room for the table or the cargo or even the boat. Could you move it to the ... south-west facing side of the pier?"
+
+- **Why it was cramped:** the package stage picks a harbour's cargo berth by room for a boat, fixed faces first, then nearest the harbour's middle. At Oban that put it in the inside corner of the North Pier's two arms: room for the workboat, but not for a bigger boat, and little deck behind it for the goods.
+- **Now** (`tools/coast/requests/oban.yaml`, `berthFacing: { oban: 225 }`; `tools/coast/src/package.ts`): a request can ask for a harbour's cargo berth on a face looking a given way, within `facingTolerance` 30°. The package stage takes the fixed face with the most such berths with room for a whole boat and puts the cargo berth at its middle, for room either side. At Oban that's the North Pier's south-west side, open to the bay: 4 berths in a row, the cargo berth the third, on a stone quay 77 m long and 10 m wide. The fuel berth stays where it was (the arm's north-west corner, 40 m off; the two are kept at least `namedApart` 30 m apart).
+- Voyage starts you at the cargo berth, so this is the new start for Oban and Lorn. Its id is the same (`oban-cargo`), so a saved spot there now puts you at the new place. Only Oban's port, berths, lamps and stack light moved in the game's file.
+- **More cargo:** the amounts (each port's waiting items, `CONFIG.cargo.perPort` 5; a contract's 2, 4 or 6) are the game's cargo rules, in the main game's settings, so they're handed to the main game chat. The new berth's deck has room for a much longer row of goods.
+- **Tests:** all 1,438 pass (the Voyage start tests: you're put ashore on the berth's own deck, the boat made fast).
+- **Checked headless:** Voyage → Oban and Lorn with `&start`: the boat moored along the south-west face, you on the quay beside the goods (drums) in front of the warehouses; from above, open water either side of her.
+- **Test steps (VR and desktop):** Voyage → Oban and Lorn (a fresh start: add `&start` to the address, or Menu → start again). You're on the North Pier's south-west side, the boat alongside with open water ahead and astern, the goods behind you on the wide quay.
+
+
 ### Landmarks and bridges: Connel Bridge and McCaig's Tower (23 Oct 2026)
+
+**Owner approved; merged into `next` (live there from build `ccf65c7`).**
 
 Owner: "I had the feeling that we missed a pass on the maps, specifically to add landmarks and bridges ... I would have expected a bridge at the Falls of Lora in the Oban map. And there's actually a very famous landmark in Oban, which is like a mini Colosseum."
 

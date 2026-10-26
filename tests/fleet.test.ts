@@ -20,11 +20,13 @@ const DT = 1 / 60;
 const of = (id: string) => FLEET.find((f) => f.id === id)!;
 
 describe('the fleet', () => {
-  it('one of each hull type still offered (but the stern trawler, not in the fleet yet), and the beginner boat on the fishing boat’s hull', () => {
+  it('one of each hull type still offered (but the stern trawler, the fast catamaran and the harbour tug, not in the fleet yet), the beginner boat on the fishing boat’s hull, and the dive support vessel on the stern trawler’s', () => {
     expect(FLEET.map((f) => f.id)).toEqual([...FLEET_IDS]);
-    const types = FLEET.filter((f) => f.id !== 'starterBoat').map((f) => f.design.hull).sort();
-    expect(types).toEqual(DESIGN_HULLS.map((h, i) => (h.retired || h.name.startsWith('Stern trawler') ? -1 : i)).filter((i) => i >= 0));
+    const types = FLEET.filter((f) => f.id !== 'starterBoat' && f.id !== 'diveShip').map((f) => f.design.hull).sort();
+    expect(types).toEqual(DESIGN_HULLS.map((h, i) => (h.retired || h.name.startsWith('Stern trawler') || h.catamaran || h.fixed ? -1 : i)).filter((i) => i >= 0));
     expect(of('starterBoat').design.hull).toBe(of('fishingBoat').design.hull);
+    expect(DESIGN_HULLS[of('diveShip').design.hull].name).toMatch(/^Stern trawler/);
+    expect(buildDesign(of('diveShip').design).recipe.modules.some((m) => m.module === 'deck.dive-frame')).toBe(true);
   });
 
   it('the fishing boat carries a rod rack; the pilot boat a rubbing strake and fenders (owner)', () => {

@@ -187,12 +187,17 @@ export function issueId(id: string, store: Store = localStorage): void {
  */
 export function consumeReturn(e: Envelope | null, store: Store = localStorage): Envelope | null {
   if (!e || e.from !== 'timber') return null;
+  return consumeIssued(e.id, store) ? e : null;
+}
+
+/** A handoff id counted: true if we issued it and it hadn't been counted (then it never can be again). Timber's and the dive's (dive/diveReturn.ts). */
+export function consumeIssued(id: string, store: Store = localStorage): boolean {
   const issued = readList(store, ISSUED_KEY);
   const consumed = readList(store, CONSUMED_KEY);
-  if (!issued.includes(e.id) || consumed.includes(e.id)) return null;
-  writeList(store, ISSUED_KEY, issued.filter((s) => s !== e.id));
-  writeList(store, CONSUMED_KEY, [...consumed, e.id]);
-  return e;
+  if (!issued.includes(id) || consumed.includes(id)) return false;
+  writeList(store, ISSUED_KEY, issued.filter((s) => s !== id));
+  writeList(store, CONSUMED_KEY, [...consumed, id]);
+  return true;
 }
 
 /**

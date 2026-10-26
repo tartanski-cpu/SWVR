@@ -28,6 +28,9 @@ import { addCoastChunk, coastHeight, coastTerrain, registerChunkedCoast, registe
 
 const T = {
   berthsPerPort: 10,
+  /** A berth faces the way a request asks (`berthFacing`) within this (deg); the cargo and fuel berths at least `namedApart` m apart. */
+  facingTolerance: 30,
+  namedApart: 30,
   /** A bridge's deck stands at least this high over the sea (m), whatever the ground at its ends. */
   bridgeMinDeck: 6,
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
@@ -250,8 +253,28 @@ harbours.forEach((h, n) => {
     warnings.push(`${h.id}: no berth with room for a boat (best blocked at ${blocked(pick[0])} points): not a port`);
     return;
   }
-  const cargo = pick[0];
-  const fuel = h.kind === 'harbour' && pick.length > 1 ? pick[1] : null;
+  let cargo = pick[0];
+  let fuel = h.kind === 'harbour' && pick.length > 1 ? pick[1] : null;
+  // The request can ask for the cargo berth on a face looking a given way (`berthFacing`:
+  // Oban's on the North Pier's south-west side, open to the bay, not in the corner of its
+  // arms): the fixed face with the most such berths with room for a whole boat, at its middle
+  // (room either side). The fuel berth stays as it would be, unless that's within `namedApart`.
+  const wanted = req.berthFacing?.[h.id];
+  if (wanted !== undefined) {
+    const facing = (b: Berth) => Math.abs(((((Math.atan2(-b.shoreX, b.shoreZ) * 180) / Math.PI - wanted) % 360) + 540) % 360 - 180) <= T.facingTolerance;
+    const ok = own.filter((b) => rank.get(b) === 0 && facing(b) && blockOf.get(b.source)?.kind !== 'pontoon');
+    const bySource = new Map<string, Berth[]>();
+    for (const b of ok) bySource.set(b.source, [...(bySource.get(b.source) ?? []), b]);
+    const run = [...bySource.values()].sort((a, b) => b.length - a.length)[0];
+    if (run) {
+      // Along the face (square to the way it looks), and its middle berth.
+      const ax = -run[0].shoreZ;
+      const az = run[0].shoreX;
+      run.sort((a, b) => a.x * ax + a.z * az - (b.x * ax + b.z * az));
+      cargo = run[Math.floor(run.length / 2)];
+      if (fuel) fuel = [pick[1], ...pick.slice(2), pick[0]].find((b) => b !== cargo && Math.hypot(b.x - cargo.x, b.z - cargo.z) >= T.namedApart) ?? null;
+    } else warnings.push(`${h.id}: no berth with room facing ${wanted}°: its cargo berth as before`);
+  }
   const stack = onDeck(cargo, 3);
   const pump = fuel ? onDeck(fuel, 1.2) : null;
   const ax = r1(pick.reduce((s, b) => s + b.x, 0) / pick.length);
@@ -517,6 +540,8 @@ const pkg = {
   /** Where the terrain is, relative to the game's public folder, and how terrain.bin is laid out. */
   terrain: req.chunked ? { dir: `regions/${req.id}/`, ...region.terrain } : { dir: `regions/${req.id}/`, ...region.terrain, chunks: region.chunks },
   box,
+  /** Its box in degrees (lon/lat min, max): the game's latitude and longitude on this map (world/coastGeo.ts) invert the pipeline's projection about its middle. */
+  bbox: req.bbox,
   /** The forest map (trees.ts), for the game's trees; absent if the trees stage hasn't run. */
   ...(existsSync(join(D.out, 'trees.json')) ? { trees: JSON.parse(readFileSync(join(D.out, 'trees.json'), 'utf8')) } : {}),
   /** The harbour boats' moorings and anchor spots and the theme's boat mix (boats.ts); absent if that stage hasn't run. */

@@ -12,20 +12,32 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `throttle.demand` | -1..1 | player sets; held: lever | module | `lever` | Throttle / gear lever: -1 full astern, 0 neutral, +1 full ahead. On an outboard boat, the twist-grip throttle 0..1 in the selected gear. |
+| `throttle.demand2` | -1..1 | player sets; held: lever2 | module |  | Twin engines worked separately: the starboard engine's throttle / gear lever (throttle.demand is then the port engine's). Reads as the port lever until it is moved. |
+
+## ignition
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `ignition.start2` | on / off | player sets | legacy |  | Twin engines worked separately: the starboard engine's START held (ignition.start is then the port engine's). |
+| `ignition.key` | on / off | player sets | legacy | `key` | Ignition key on / off. Off closes the fuel solenoid: a running diesel stops. |
+| `ignition.heat` | on / off | player sets | legacy | `heat` | HEAT button held: extra glow-plug heat (key on). The boats have no HEAT button now: the plugs preheat on their own with the key. |
+| `ignition.start` | on / off | player sets | legacy | `start` | START button held: the starter cranks (key on, lever in neutral). |
+
+## azimuth
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `azimuth.demand` | deg, -180 to 180 | player sets; held: lever | module |  | Azimuth drives: the way the port drive's lever points, the direction it asks the drive to push (0 ahead, + to starboard, +-180 astern). Its power is throttle.demand. |
+| `azimuth.demand2` | deg, -180 to 180 | player sets; held: lever2 | module |  | Azimuth drives: the way the starboard drive's lever points (as azimuth.demand). Its power is throttle.demand2. |
+| `azimuth.transit` | on / off | player sets | module |  | Azimuth drives: TRANSIT on. The wheel swings both drives together as rudders (the autopilot can steer her); each lever then sets only its engine's power, ahead while it's turned into its forward half, astern into its after half. |
+| `azimuth.angle` | deg | read only | module |  | Azimuth drives: where the port drive points, the way it pushes (0 ahead, + to starboard), following its lever at its steering rate. |
+| `azimuth.angle2` | deg | read only | module |  | Azimuth drives: where the starboard drive points (as azimuth.angle). |
 
 ## helm
 
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `helm.demand` | -1..1 | player sets; held: helm | legacy | `helm` | Wheel (or tiller) position: -1 hard to port, +1 hard to starboard. |
-
-## ignition
-
-| Key | Values | Use | Written by | Old names | What it is |
-|---|---|---|---|---|---|
-| `ignition.key` | on / off | player sets | legacy | `key` | Ignition key on / off. Off closes the fuel solenoid: a running diesel stops. |
-| `ignition.heat` | on / off | player sets | legacy | `heat` | HEAT button held: extra glow-plug heat (key on). The boats have no HEAT button now: the plugs preheat on their own with the key. |
-| `ignition.start` | on / off | player sets | legacy | `start` | START button held: the starter cranks (key on, lever in neutral). |
 
 ## outboard
 
@@ -132,6 +144,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `propulsion.state` | off / cranking / running | read only | module | `engine.phase` | The engine: off, cranking or running. |
 | `propulsion.rpm` | rpm | read only | module | `engine.rpm` | Engine (crankshaft) speed. |
+| `propulsion.state2` | off / cranking / running | read only | module |  | Twin engines worked separately: the starboard engine, off, cranking or running (propulsion.state is then the port engine). |
+| `propulsion.rpm2` | rpm | read only | module |  | Twin engines worked separately: the starboard engine's speed. |
 | `propulsion.load` | 0..1 | read only | module | `engine.rack` | Fuel rack position as set by the governor: the engine load. |
 | `propulsion.gear` | gear, -1 to 1, whole | read only | module | `engine.gear` | Gearbox engaged: -1 astern, 0 neutral, +1 ahead. |
 | `propulsion.thrust` | N | read only | module |  | Propeller (or outboard) thrust on the last tick. |
@@ -183,6 +197,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `autopilot.engage` | on / off | press | legacy |  | AUTOPILOT pressed: hold the heading she is on now, or let go. Turning the wheel lets go too. |
+| `autopilot.port` | on / off | press | legacy |  | PORT pressed on the autopilot: the heading it holds moves a few degrees to port (CONFIG.modules.helmAssist.autopilot.stepDeg). |
+| `autopilot.starboard` | on / off | press | legacy |  | STBD pressed on the autopilot: the heading it holds moves a few degrees to starboard. |
 | `autopilot.on` | on / off | read only | legacy |  | The autopilot is holding her heading. |
 | `autopilot.heading` | deg | read only | legacy |  | The heading the autopilot holds. |
 
@@ -255,6 +271,15 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `aFrame.luff` | 0..1 | read only | legacy |  | How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts). |
+
+## dive
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `dive.frameOut` | on / off | player sets | module |  | Dive A-frame FRAME OUT button held: swings the sub out over the stern (only with her up in the docking head). |
+| `dive.frameIn` | on / off | player sets | module |  | Dive A-frame FRAME IN button held: swings the sub in over her cradle (only with her up in the docking head). |
+| `dive.winchUp` | on / off | player sets | module |  | Dive A-frame WINCH UP button held: hoists the sub into the docking head. |
+| `dive.winchDown` | on / off | player sets | module |  | Dive A-frame WINCH DOWN button held: lowers the sub onto her cradle, or into the sea with the frame right out. |
 
 ## firePump
 

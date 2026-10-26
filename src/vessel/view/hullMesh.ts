@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
 import { frontMullions, houseFloorAt, houseFloorLow, housesOf, houseX, planHalfWidth, wingCurveY, type CabinBelow, type Livery } from '../vesselDef';
-import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
+import { flatVertexColorMaterial, mergeParts, paintLocal, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
-import { paintIndex, type PaintName } from '../../render/pixelPaint';
+import { paintIndex, setHullWeathering, type PaintName } from '../../render/pixelPaint';
 import type { HouseShape } from '../vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../deckhouse';
 import { houseFlare, type HouseFlare } from '../houseFlare';
@@ -40,7 +40,7 @@ export function paintOf(livery?: Livery): Paint {
   const fin = CONFIG.interiors[livery?.interior ?? 0] ?? CONFIG.interiors[0];
   const fl = CONFIG.cabinFloors[livery?.cabinFloor ?? 0] ?? CONFIG.cabinFloors[0];
   const paint: Paint = { ...COLORS, lining: fin.walls, ceiling: fin.ceiling, liningTile: fin.wallTile, ceilingTile: fin.ceilingTile, floorTile: fl.tile };
-  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined && k !== 'interior' && k !== 'cabinFloor') (paint as unknown as Record<string, number>)[k] = v;
+  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined && k !== 'interior' && k !== 'cabinFloor' && k !== 'weathering') (paint as unknown as Record<string, number>)[k] = v;
   if (fl.colour !== null) paint.floor = fl.colour;
   return paint;
 }
@@ -51,9 +51,16 @@ export function paintOf(livery?: Livery): Paint {
  * Everything static is merged into one vertex-coloured, flat-shaded mesh: one draw call.
  */
 export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number], livery?: Livery): THREE.Mesh {
-  const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout, exhaustOutlet, paintOf(livery))), flatVertexColorMaterial());
+  const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout, exhaustOutlet, paintOf(livery))), hullMaterial(livery));
   mesh.name = 'hull';
   return mesh;
+}
+
+/** The hull's material: the shared flat-shaded one, with her own weathering (the livery's, new or used; the config's if none). */
+function hullMaterial(livery?: Livery): THREE.MeshLambertMaterial {
+  const m = flatVertexColorMaterial();
+  setHullWeathering(m, livery?.weathering ?? CONFIG.pixelPaint.weathering.strength);
+  return m;
 }
 
 /**
@@ -65,7 +72,7 @@ export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOut
 export function buildVesselMeshParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number], livery?: Livery): { hull: THREE.Mesh; house: THREE.Mesh | null } {
   const at = { house: 0 };
   const parts = buildParts(form, layout, exhaustOutlet, paintOf(livery), at);
-  const mesh = (list: THREE.BufferGeometry[]) => new THREE.Mesh(mergeParts(list), flatVertexColorMaterial());
+  const mesh = (list: THREE.BufferGeometry[]) => new THREE.Mesh(mergeParts(list), hullMaterial(livery));
   const hull = mesh(parts.slice(0, at.house));
   hull.name = 'hull';
   const rest = parts.slice(at.house);
@@ -97,14 +104,22 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const e2 = new THREE.Vector3();
   const centroid = new THREE.Vector3();
 
-  /** Add triangle a-b-c, flipped if needed so its normal points away from `inside`. */
-  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName) => {
+  /**
+   * Add triangle a-b-c, flipped if needed so its normal points away from `inside`. `axisX`
+   * (a hull's side or bottom): away from her centreline (a demihull's, for a catamaran) at the
+   * triangle's own height instead, wherever the face leans out sideways. A point halfway down
+   * her side read a high panel in a fine, plumb bow as facing in, and it went missing.
+   */
+  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName, axisX?: number) => {
     e1.subVectors(b, a);
     e2.subVectors(d, a);
     n.crossVectors(e1, e2);
     if (n.lengthSq() < 1e-10) return; // degenerate (stem)
-    centroid.copy(a).add(b).add(d).divideScalar(3).sub(inside);
-    const verts = n.dot(centroid) >= 0 ? [a, b, d] : [a, d, b];
+    centroid.copy(a).add(b).add(d).divideScalar(3);
+    const out = axisX === undefined ? 0 : centroid.x - axisX;
+    const sideways = axisX !== undefined && Math.abs(n.x) > 0.05 * n.length() && Math.abs(out) > 1e-4;
+    const facesOut = sideways ? n.x * out > 0 : n.dot(centroid.sub(inside)) >= 0;
+    const verts = facesOut ? [a, b, d] : [a, d, b];
     c.set(color);
     for (const v of verts) {
       positions.push(v.x, v.y, v.z);
@@ -117,16 +132,23 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Each station's outline as drawn: her section (port deck, port chine, keel, starboard
   // chine, starboard deck), with a spray chine between each chine and deck edge where she
   // has one (drawn only; a station without it takes the midpoint, so the panels still join).
+  // A round bilge drawn as two chines (Station.bilge) in place of her polygon's chine, the
+  // hard-chine corner she floats on.
   const sprayed = st.some((s) => s.spray);
+  const bilged = st.some((s) => s.bilge);
   const outlines = st.map((s): [number, number][] => {
     const p = s.polygon;
+    if (bilged) {
+      const [[x1, y1], [x2, y2]] = s.bilge ?? [p[3], p[3]];
+      return [p[0], [-x2, y2], [-x1, y1], p[2], [x1, y1], [x2, y2], p[4]];
+    }
     if (!sprayed) return p;
     const [x, y] = s.spray ?? [(p[3][0] + p[4][0]) / 2, (p[3][1] + p[4][1]) / 2];
     return [p[0], [-x, y], p[1], p[2], p[3], [x, y], p[4]];
   });
   /** Outline points: deck edges first and last, the keel in the middle, chines `chine` in from each end. */
   const last = outlines[0].length - 1;
-  const chine = sprayed ? 2 : 1;
+  const chine = sprayed && !bilged ? 2 : 1;
   const P = (i: number, k: number) => new THREE.Vector3(outlines[i][k][0], outlines[i][k][1], st[i].z);
   const inside = (i: number) => {
     const poly = st[i].polygon;
@@ -141,6 +163,36 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const poly = st[i].polygon;
     if (k === 4) return new THREE.Vector3(0, poly[4][1] + 0.3, st[i].z);
     return new THREE.Vector3((k < 4 ? -1 : 1) * cat.spacing / 2, (poly[2][1] + poly[0][1]) / 2, st[i].z);
+  };
+  // Her paint line (Station.paintY; else her chine): her bottom's colour below it, her
+  // topsides' above, each face of her sides and bottom cut along it where it crosses, so it
+  // runs straight between her stations (owner, Oct 2026: "the line straight like the pilot
+  // boat"; a ship's boot top at her waterline, the harbour tug). Only where she has one.
+  const painted = st.some((s) => s.paintY !== undefined);
+  const paintLine = (j: number) => st[j].paintY ?? st[j].polygon[1][1];
+  /** Triangle a-b-d of her side or bottom between stations i and i+1, cut along her paint line. */
+  const paintedTri = (i: number, a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, ref: THREE.Vector3, axisX: number | undefined, paintOf: (c: number) => PaintName | undefined) => {
+    const z0 = st[i].z;
+    const z1 = st[Math.min(i + 1, st.length - 1)].z;
+    const line = (z: number) => (z1 === z0 ? paintLine(i) : paintLine(i) + ((paintLine(i + 1) - paintLine(i)) * (z - z0)) / (z1 - z0));
+    const v = [a, b, d];
+    const f = v.map((p) => p.y - line(p.z));
+    const up = f.map((x) => x > 1e-6);
+    const put = (p: THREE.Vector3, q: THREE.Vector3, r: THREE.Vector3, above: boolean) => {
+      const c = above ? col.topsides : col.bottom;
+      tri(p, q, r, ref, c, paintOf(c), axisX);
+    };
+    const n = up.filter(Boolean).length;
+    if (n === 0 || n === 3) return put(a, b, d, n === 3);
+    // The vertex on its own side of the line, and where the line cuts its two edges.
+    const lone = up.findIndex((u) => (n === 1 ? u : !u));
+    const [o1, o2] = [(lone + 1) % 3, (lone + 2) % 3];
+    const cut = (o: number) => v[lone].clone().lerp(v[o], f[lone] / (f[lone] - f[o]));
+    const c1 = cut(o1);
+    const c2 = cut(o2);
+    put(v[lone], c1, c2, up[lone]);
+    put(c1, v[o1], v[o2], !up[lone]);
+    put(c1, v[o2], c2, !up[lone]);
   };
   const topsideEdge = (k: number) => (cat ? [0, 3, 4, 5, 8].includes(k) : k < chine || k >= last - chine);
 
@@ -199,12 +251,31 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       const b0 = P(i, b);
       const a1 = P(i + 1, a);
       const b1 = P(i + 1, b);
-      // Non-slip paint on the deck; her topsides and bottom plain (owner: workboats are mostly
-      // GRP, or aluminium in big sheets: no plate seams).
-      const paint = color === col.deck && a === last ? 'nonSlip' : undefined;
+      // Non-slip paint on the deck; her topsides weathered (the `topsides` tile: grime, rust
+      // runs and faded paint, hullPaintUvs below) and her bottom plain (owner: workboats are
+      // mostly GRP, or aluminium in big sheets: no plate seams).
+      const paintOf = (c: number, k: number): PaintName | undefined => (c === col.deck && k === last ? 'nonSlip' : c === col.topsides ? 'topsides' : undefined);
       const ref = cat && a !== last ? insideEdge(i, a).add(insideEdge(i + 1, a)).multiplyScalar(0.5) : mid;
-      tri(a0, b0, b1, ref, color, paint);
-      tri(a0, b1, a1, ref, color, paint);
+      // Her sides and bottom face away from her centreline (a demihull's); the deck and a
+      // catamaran's wet deck by `ref`.
+      const axisX = a === last || (cat && a === 4) ? undefined : cat ? ((a < 4 ? -1 : 1) * cat.spacing) / 2 : 0;
+      const panel = (p0: THREE.Vector3, q0: THREE.Vector3, p1: THREE.Vector3, q1: THREE.Vector3, c: number) => {
+        tri(p0, q0, q1, ref, c, paintOf(c, a), axisX);
+        tri(p0, q1, p1, ref, c, paintOf(c, a), axisX);
+      };
+      // Cut along her paint line, where she has one (her deck and a catamaran's wet deck aside).
+      if (painted && axisX !== undefined) {
+        const [p0, q0, p1, q1] = !cat && a >= last / 2 ? [b0, a0, b1, a1] : [a0, b0, a1, b1];
+        paintedTri(i, p0, q0, q1, ref, axisX, (c) => paintOf(c, a));
+        paintedTri(i, p0, q1, p1, ref, axisX, (c) => paintOf(c, a));
+        continue;
+      }
+      // Each quad's diagonal mirrored side to side (owner, Oct 2026: a plumb stem looked raked
+      // from starboard): split the same way as port's, a starboard panel at a plumb stem (two of
+      // its corners on her centreline) would leave one triangle flat in the centreline plane,
+      // unseen from starboard, and her stem's edge the other triangle's slant.
+      if (!cat && a >= last / 2 && a !== last) panel(b0, a0, b1, a1, color);
+      else panel(a0, b0, a1, b1, color);
     }
   }
   // Transom (station 0) as a fan around its centre.
@@ -214,18 +285,21 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // leave the tunnel open, each demihull's transom and the bridge deck's plate across.
   const endPlate = (i: number, ref: THREE.Vector3) => {
     const tris = THREE.ShapeUtils.triangulateShape(outlines[i].map(([x, y]) => new THREE.Vector2(x, y)), []);
-    for (const [a, b, d] of tris) tri(P(i, a), P(i, b), P(i, d), ref, col.topsides);
+    for (const [a, b, d] of tris) tri(P(i, a), P(i, b), P(i, d), ref, col.topsides, 'topsides');
   };
   if (cat) endPlate(0, tIn);
-  else for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides);
+  else if (painted) for (let k = 0; k <= last; k++) paintedTri(0, tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, undefined, (c) => (c === col.topsides ? 'topsides' : undefined));
+  else for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides, 'topsides');
   // A square bow (a landing bow: the last station still has width) is closed the same way,
   // by a bow plate. (A catamaran's bow: the bridge deck's front, across her tunnel.)
+  // (A sharp bow whose stem head still has a little width, the deck's few centimetres across
+  // there, is closed the same way: else a slit shows up her stem head, head on: owner, Oct 2026.)
   const e = st.length - 1;
-  if (st[e].halfBeamDeck > SQUARE_BOW) {
+  if (st[e].halfBeamDeck > 1e-4) {
     const bIn = inside(e).add(new THREE.Vector3(0, 0, 1));
     const bC = new THREE.Vector3(0, (st[e].polygon[2][1] + st[e].polygon[0][1]) / 2, st[e].z);
     if (cat) endPlate(e, bIn);
-    else for (let k = 0; k <= last; k++) tri(bC, P(e, k), P(e, (k + 1) % (last + 1)), bIn, col.topsides);
+    else for (let k = 0; k <= last; k++) tri(bC, P(e, k), P(e, (k + 1) % (last + 1)), bIn, col.topsides, 'topsides');
   }
 
   const hull = new THREE.BufferGeometry();
@@ -233,6 +307,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   hull.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   hull.setAttribute('paint', new THREE.Float32BufferAttribute(paints, 1));
   hull.computeVertexNormals();
+  hullPaintUvs(hull, hullPlan({ hull: form }).deckY);
 
   const parts = [hull, ...buildDeckFittings(form, layout, col)];
   // The engine space under a deck hatch: as under one in the cabin floor (buildFloor).
@@ -271,7 +346,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const plan = hullPlan({ hull: form });
     // (A cabin below's companionway comes down through its top as well as the wheelhouse floor.)
     parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house, layout.cabin ? [layout.cabin.stair] : []));
-    if (layout.deckhouse.walk) parts.push(...deckhouseRail(layout.deckhouse, layout.wheelhouse?.halfWidth ?? 0, plan.deckY, col.rail));
+    if (layout.deckhouse.walk) parts.push(...deckhouseRail(layout.deckhouse, layout.wheelhouse?.halfWidth ?? 0, plan.deckY, col.rail, col.deck));
   }
   // A cabin below (P2c): under the deckhouse, or under a raised foredeck the wheelhouse stands on.
   if (layout.cabin) parts.push(...cabinParts(layout.cabin));
@@ -308,6 +383,35 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     }
   }
   return parts;
+}
+
+/**
+ * The hull's paint coordinates. Her topsides wear the weathering tile (pixelPaint `topsides`),
+ * which stands the freeboard high rather than repeating in metres, so its waterline grime and
+ * the rust runs from the deck edge fall where they should on any hull: along her in metres
+ * (across her on the transom and a bow plate), and up her as a fraction of the freeboard
+ * there, 0 at the design waterline (y = 0) and 1 at the deck edge (`deckY`). Below the
+ * waterline it goes negative and the shader fades it out. The deck keeps the usual
+ * projection (geometryUtils paintLocal).
+ */
+export function hullPaintUvs(hull: THREE.BufferGeometry, deckY: (z: number) => number): void {
+  paintLocal(hull);
+  const uv = hull.attributes.paintUv;
+  const pos = hull.attributes.position;
+  const paint = hull.attributes.paint;
+  const top = paintIndex('topsides');
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  for (let i = 0; i + 2 < pos.count; i += 3) {
+    if (paint.getX(i) !== top) continue;
+    a.fromBufferAttribute(pos, i);
+    b.fromBufferAttribute(pos, i + 1);
+    c.fromBufferAttribute(pos, i + 2);
+    const n = c.clone().sub(b).cross(a.clone().sub(b));
+    const sideways = Math.abs(n.x) >= Math.abs(n.z);
+    for (const [k, v] of [a, b, c].entries()) uv.setXY(i + k, sideways ? v.z : v.x, v.y / Math.max(0.3, deckY(v.z)));
+  }
 }
 
 /**
@@ -573,6 +677,43 @@ export function facetDz(wh: { halfWidth: number; shape?: HouseShape }): (x: numb
 }
 export const facetDepth = (wh: { shape?: HouseShape }): number => wh.shape?.facet?.depth ?? 0;
 
+/**
+ * Faceted aft windows' setback at `x` (m forward of the house's aft wall): 0 across the middle
+ * pane, growing to the facet's depth at the side walls (HouseShape.aftFacet); 0 everywhere for
+ * a flat aft wall.
+ */
+export function aftFacetDz(wh: { halfWidth: number; shape?: HouseShape }): (x: number) => number {
+  const f = wh.shape?.aftFacet;
+  if (!f) return () => 0;
+  const k = f.depth / (wh.halfWidth - f.centre);
+  return (x) => Math.max(0, Math.abs(x) - f.centre) * k;
+}
+
+/** Bring each vertex aft of `zone` forward by `dz` at its x: faceted aft windows' walls. */
+export function setForward(geoms: THREE.BufferGeometry[], dz: (x: number) => number, zone: number): void {
+  for (const g of geoms) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) if (p.getZ(i) > zone) p.setZ(i, p.getZ(i) - dz(p.getX(i)));
+  }
+}
+
+/**
+ * Faceted aft windows' floor or ceiling: its pieces ending at the aft wall's inside (`zEdge`)
+ * brought forward by the facets' setback at the side walls (x = +-`x1`), and the strip between
+ * filled out to the angled walls at `y0`..`y1` (pushed onto `out`).
+ */
+function aftFacetStrip(wh: { halfWidth: number; shape?: HouseShape }, geoms: THREE.BufferGeometry[], zEdge: number, x1: number, y0: number, y1: number, color: number, out: THREE.BufferGeometry[]): void {
+  const f = wh.shape?.aftFacet;
+  if (!f) return;
+  const d = aftFacetDz(wh)(x1);
+  for (const g of geoms) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) if (p.getZ(i) > zEdge - 0.005) p.setZ(i, p.getZ(i) - d);
+  }
+  const c = Math.min(f.centre, x1);
+  out.push(planSlab([[-x1, zEdge - d], [x1, zEdge - d], [c, zEdge], [-c, zEdge]], y0, y1, color));
+}
+
 /** Set each vertex (forward of `zone`, if given) back by `dz` at its x: a faceted front's walls, its console's wings. */
 export function setBack(geoms: THREE.BufferGeometry[], dz: (x: number) => number, zone = Infinity): void {
   for (const g of geoms) {
@@ -743,13 +884,19 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   }
 
   // Aft wall: panels either side of the doorway, the band open, and a lintel up to the roof.
+  // Faceted aft windows (aftFacet): each side in two, split at the facet's corner, a post there.
   const door = wh.doorWidth / 2;
   const roofAft = roofS + 0.02;
+  const ac = sh.aftFacet ? Math.max(sh.aftFacet.centre, door + JAMB) : 0;
   for (const s of [-1, 1]) {
-    const [p0, p1] = s > 0 ? [door, hw] : [-hw, -door];
-    parts.push(box(p0, p1, base, sideS - FW, zA - w, zA, H), fbox(p0, p1, sideS - FW, sideS, zA - w, zA));
-    parts.push(fbox(p0, p1, headS, headS + FW, zA - w, zA));
-    if (roofAft - (headS + FW) > 0.01) parts.push(box(p0, p1, headS + FW, roofAft, zA - w, zA, H));
+    const pieces: [number, number][] = ac ? [[door, ac], [ac, hw]] : [[door, hw]];
+    for (const [a, b] of pieces) {
+      const [p0, p1] = s > 0 ? [a, b] : [-b, -a];
+      parts.push(box(p0, p1, base, sideS - FW, zA - w, zA, H), fbox(p0, p1, sideS - FW, sideS, zA - w, zA));
+      parts.push(fbox(p0, p1, headS, headS + FW, zA - w, zA));
+      if (roofAft - (headS + FW) > 0.01) parts.push(box(p0, p1, headS + FW, roofAft, zA - w, zA, H));
+    }
+    if (ac) parts.push(fbox(s * ac - 0.04, s * ac + 0.04, sideS, headS, zA - w, zA));
     const jx = s > 0 ? door : -door - JAMB;
     parts.push(fbox(jx, jx + JAMB, sideS, headS, zA - w, zA));
   }
@@ -764,6 +911,9 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // the wall (zH): the zone reaches past that too, or the tops of its posts were left behind
   // and crossed the bottoms (owner).
   if (sh.facet) setBack(parts.slice(wallsFrom), facetDz(wh), Math.max(zF, zH) + w + 0.13);
+  // Faceted aft windows: everything at the aft wall (the side walls' aft ends, their posts)
+  // brought forward by aftFacetDz at its x, so the outer panes and the side walls meet on the angle.
+  if (sh.aftFacet) setForward(parts.slice(wallsFrom), aftFacetDz(wh), zA - w - 0.13);
   // The walls' inside faces: the lining (pixel painting, owner; the interior finish's).
   const centre = new THREE.Vector3(0, 0, mid);
   for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, col.liningTile, centre);
@@ -796,8 +946,11 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // With a lower saloon roof the wheelhouse's ends `ov` aft of the step, over the saloon's
   // (which starts inside the step's wall, its front hidden); each has its ceiling.
   const zRoofEnd = sr ? zStep + ov : zA + ov;
-  parts.push(chamferedSlab(hw + ov, zV, zRoofEnd, roofY, t, back, col.roof, sh.facet?.centre ?? 0, facetDz(wh)));
-  if (sr) parts.push(chamferedSlab(hw + ov, zStep - w, zA + ov, roofS, t, back, col.roof));
+  // (Faceted aft windows: the roof over them follows them too, the saloon's if it has its own.)
+  const aftC = sh.aftFacet?.centre ?? 0;
+  const aftDz = aftFacetDz(wh);
+  parts.push(chamferedSlab(hw + ov, zV, zRoofEnd, roofY, t, back, col.roof, sh.facet?.centre ?? 0, facetDz(wh), sr ? 0 : aftC, sr ? undefined : aftDz));
+  if (sr) parts.push(chamferedSlab(hw + ov, zStep - w, zA + ov, roofS, t, back, col.roof, 0, undefined, aftC, aftDz));
   // The eyebrow (owner): a panel on each roof's top set in from its edges in a second colour.
   if (col.roofTop !== undefined) {
     const k = CONFIG.shipyard.saloon.roofInset;
@@ -806,14 +959,19 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     const c = Math.min(sh.facet?.centre ?? 0, wi);
     const front = (x: number): [number, number] => [x, zV + back + k + dz(x)];
     const across = c > 0 ? [front(-wi), front(-c), front(c), front(wi)] : [front(-wi), front(wi)];
-    parts.push(planSlab([...across, [wi, zRoofEnd - k], [-wi, zRoofEnd - k]], roofY + t, roofY + t + 0.02, col.roofTop));
-    if (sr) parts.push(planSlab([[-wi, zRoofEnd + k], [wi, zRoofEnd + k], [wi, zA + ov - k], [-wi, zA + ov - k]], roofS + t, roofS + t + 0.02, col.roofTop));
+    // Its aft edge: square, or following faceted aft windows.
+    const ca = Math.min(aftC, wi);
+    const aftEdge = (zEnd: number): [number, number][] => (ca > 0 ? [[wi, zEnd - k - aftDz(wi)], [ca, zEnd - k], [-ca, zEnd - k], [-wi, zEnd - k - aftDz(wi)]] : [[wi, zEnd - k], [-wi, zEnd - k]]);
+    parts.push(planSlab([...across, ...(sr ? ([[wi, zRoofEnd - k], [-wi, zRoofEnd - k]] as [number, number][]) : aftEdge(zRoofEnd))], roofY + t, roofY + t + 0.02, col.roofTop));
+    if (sr) parts.push(planSlab([[-wi, zRoofEnd + k], [wi, zRoofEnd + k], ...aftEdge(zA + ov)], roofS + t, roofS + t + 0.02, col.roofTop));
   }
   const ceilFrom = parts.length;
   for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.ceiling, col.ceilingTile));
   // (Only its front: its aft end, at the step to a lower saloon roof or the aft wall, stays put.)
   if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zStep - w - 0.01);
   if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.ceiling, col.ceilingTile));
+  // Faceted aft windows: the ceiling at the aft wall (the saloon's, if it has its own roof) cut back to them.
+  if (sh.aftFacet) aftFacetStrip(wh, parts.slice(sr ? parts.length - 1 : ceilFrom), zA - w, hw - w, roofS - 0.012, roofS, col.ceiling, parts);
   // Raked out all round: the roof and the ceiling go out with the walls' tops.
   if (fl) applyFlare(parts.slice(roofFrom), fl);
   // A cockpit overhead (P2b): the aft roof carried on aft over the working deck (its edges
@@ -865,26 +1023,30 @@ function planSlab(pts: [number, number][], y0: number, y1: number, color: number
  * Faceted (`dz`, hullMesh facetDz; owner: the roof follows the three-facet windows): its
  * front in three across, square between -`centre` and `centre`, set back by `dz` outside.
  */
-function chamferedSlab(halfW: number, z0: number, z1: number, y0: number, t: number, back: number, color: number, centre = 0, dz: (x: number) => number = () => 0): THREE.BufferGeometry {
+function chamferedSlab(halfW: number, z0: number, z1: number, y0: number, t: number, back: number, color: number, centre = 0, dz: (x: number) => number = () => 0, aftCentre = 0, aftDz: (x: number) => number = () => 0): THREE.BufferGeometry {
   const y1 = y0 + t;
   const wt = halfW - back;
   const c = Math.min(centre, wt);
-  // The front edge, port to starboard, underneath and on top; then the aft corners.
+  // The front edge, port to starboard, underneath and on top; then the aft corners (faceted
+  // aft windows: the aft edge in three too, starboard to port, brought forward by `aftDz`).
   const B = [-halfW, -c, c, halfW].map((x) => [x, y0, z0 + dz(x)]);
   const T = [-wt, -c, c, wt].map((x) => [x, y1, z0 + back + dz(x)]);
-  const [Bsa, Bpa, Tsa, Tpa] = [[halfW, y0, z1], [-halfW, y0, z1], [wt, y1, z1], [-wt, y1, z1]];
+  const ca = Math.min(aftCentre, wt);
+  const Ba = (ca > 0 ? [halfW, ca, -ca, -halfW] : [halfW, -halfW]).map((x) => [x, y0, z1 - aftDz(x)]);
+  const Ta = (ca > 0 ? [halfW, ca, -ca, -halfW] : [halfW, -halfW]).map((x) => [Math.sign(x) * Math.min(Math.abs(x), wt), y1, z1 - aftDz(x)]);
+  const [Bsa, Bpa, Tsa, Tpa] = [Ba[0], Ba[Ba.length - 1], Ta[0], Ta[Ta.length - 1]];
   const v: number[] = [];
   // Each face's corners clockwise as seen from outside it (as buildDeckhouse's).
   const quad = (a: number[], b: number[], c: number[], d: number[]) => v.push(...a, ...c, ...b, ...a, ...d, ...c);
   const fan = (pts: number[][]) => {
     for (let i = 1; i + 1 < pts.length; i++) v.push(...pts[0], ...pts[i + 1], ...pts[i]);
   };
-  fan([...T, Tsa, Tpa]); // top
-  fan([B[0], Bpa, Bsa, B[3], B[2], B[1]]); // underside
+  fan([...T, ...Ta]); // top
+  fan([B[0], ...[...Ba].reverse(), B[3], B[2], B[1]]); // underside
   for (let i = 0; i < 3; i++) quad(B[i], B[i + 1], T[i + 1], T[i]); // the front chamfer, in three
   quad(Bsa, Tsa, T[3], B[3]); // starboard
   quad(B[0], T[0], Tpa, Bpa); // port
-  quad(Bsa, Bpa, Tpa, Tsa); // aft
+  for (let i = 0; i + 1 < Ba.length; i++) quad(Ba[i], Ba[i + 1], Ta[i + 1], Ta[i]); // aft (in three, faceted)
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
   g.computeVertexNormals();
@@ -963,7 +1125,7 @@ function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, colo
  * handles, rungs 0.3 m apart; up the aft face beside the house, or up the front (leaning with
  * a raked front). All bars, merged with the hull.
  */
-function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => number, color: number): THREE.BufferGeometry[] {
+function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => number, color: number, deckColor: number): THREE.BufferGeometry[] {
   const w = dh.walk!;
   const parts: THREE.BufferGeometry[] = [];
   const top = dh.top;
@@ -1008,12 +1170,37 @@ function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => nu
   // Across the front.
   const zf = w.z0 + inset;
   gap(-half(w.z0), half(w.z0), zf, lad.face === 'front');
-  // Across the aft ends of the strips beside the house.
+  // Across the aft ends of the strips beside the house (or, run on aft of it, right across).
   const za = dh.z1 - inset;
   const ha = half(dh.z1);
-  if (ha - hw > 0.2) {
+  if (dh.houseAft !== undefined) gap(-ha, ha, za, lad.face !== 'front');
+  else if (ha - hw > 0.2) {
     gap(-ha, -hw - 0.02, za, lad.face === 'aft' && lad.x < 0);
     gap(hw + 0.02, ha, za, lad.face === 'aft' && lad.x > 0);
+  }
+  // A stair across its aft face (DeckhouseWalk.stair): each tread a thin steel plate at its
+  // height, nothing under it (owner, Oct 2026: "just the steps themselves as if they were metal
+  // plates"), in the deck's colour, non-slip, against the face; railed along its open (aft) side from its foot up to the
+  // landing, and round the landing's aft edge and port end. (The face is its other side.)
+  if (w.stair) {
+    const [landing, ...treads] = w.stair;
+    const plate = 0.03;
+    for (const t of treads) parts.push(box(t.x0, t.x1, t.y - plate, t.y, t.z0, t.z1, deckColor, 'nonSlip'));
+    // (The landing: a plate too, from its edge out to the stair's width.)
+    parts.push(box(landing.x0, landing.x1, top - plate, top, dh.z1 + 0.02, landing.z1, deckColor, 'nonSlip'));
+    const zr = landing.z1 - 0.03;
+    const low = treads.length ? treads[treads.length - 1] : landing;
+    const xFoot = low.x1 - 0.03;
+    const yFoot = deckY(zr);
+    for (const k of [1, 0.5]) {
+      const th = k === 1 ? 0.045 : 0.035;
+      // Down the stair, parallel to its pitch line; then the landing's aft edge and port end.
+      parts.push(bar(V(landing.x1, top + h * k, zr), V(xFoot, yFoot + h * k, zr), th, th, color));
+      parts.push(bar(V(landing.x0 + 0.03, top + h * k, zr), V(landing.x1, top + h * k, zr), th, th, color));
+      parts.push(bar(V(landing.x0 + 0.03, top + h * k, dh.z1 + 0.02), V(landing.x0 + 0.03, top + h * k, zr), th, th, color));
+    }
+    for (const [x, y] of [[xFoot, yFoot], [landing.x1, top], [landing.x0 + 0.03, top]]) parts.push(bar(V(x, y, zr), V(x, y + h, zr), 0.04, 0.04, color));
+    return parts;
   }
   // The ladder.
   const sx = lad.width / 2 - 0.04;
@@ -1084,6 +1271,7 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
   const levels = wh.levels ?? [];
   const lowest = houseFloorLow(wh) - 0.1;
   const fz1 = levels.length ? Math.min(...levels.map((lv) => lv.z0)) : wh.aft - w;
+  const floorFrom = parts.length;
   for (const lv of levels) parts.push(box(fx0, fx1, lowest, lv.y, Math.max(lv.z0, fz0), Math.min(lv.z1, wh.aft - w), col.floor, col.floorTile));
   if (levels.length && wh.floorY - 0.1 > lowest + 0.005) parts.push(box(fx0, fx1, lowest, wh.floorY - 0.1, fz1 - 0.05, fz1, col.floor));
   const fy0 = wh.floorY - 0.1;
@@ -1100,6 +1288,11 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
     parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor, col.floorTile));
     parts.push(...engineSpaceParts(eh, wh.floorY, fy0));
   } else parts.push(...boxWithHoles(fx0, fx1, fy0, wh.floorY, fz0, fz1, wh.floorHoles ?? [], col.floor, col.floorTile));
+  // Faceted aft windows: the floor at the aft wall cut back to them.
+  if (wh.shape?.aftFacet) {
+    const yA = houseFloorAt(wh, wh.aft - w - 0.01);
+    aftFacetStrip(wh, parts.slice(floorFrom), wh.aft - w, fx1, yA - 0.1, yA, col.floor, parts);
+  }
 }
 
 /**

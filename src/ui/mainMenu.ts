@@ -16,18 +16,23 @@ export interface MenuHost {
   /** Game hours per real second. */
   timeScale(): number;
   setTimeScale(hoursPerSecond: number): void;
-  /** Sea state as a scale (0 calm, 1 moderate, ...) and its significant wave height (m). */
-  seaScale(): number;
-  setSeaScale(scale: number): void;
+  /** The sea's significant wave height (m), and the biggest the game makes. */
   waveHeight(): number;
-  /** Weather: one-line status, the preset now, force one, and the debug switches. */
+  maxWaveHeight(): number;
+  /** Weather: one-line status, and the debug switches. */
   weatherStatus(): string;
-  weatherPreset(): string;
-  setWeather(preset: string): void;
-  weatherFixed(): boolean;
-  setWeatherFixed(on: boolean): void;
   weatherFast(): boolean;
   setWeatherFast(on: boolean): void;
+  /** Debug weather by hand: 'manual', or the weather running itself ('live' on a Voyage map with live weather, else 'own'). */
+  weatherMode(): 'live' | 'own' | 'manual';
+  /** Set one of the hand-set weather's values (0 wind m/s, 1 from deg, 2 rain 0..1, 3 wave height m): the weather goes manual. */
+  setWeatherManual(which: number, value: number): void;
+  /** Back from manual: live weather (asked for afresh), or the game's own. */
+  setWeatherAuto(): void;
+  /** The wind now (m/s), where it's from (deg), the rain (0..1). */
+  windNow(): number;
+  windFromNow(): number;
+  rainNow(): number;
   /** Rain streak quality (a local setting) and the debug bilge flood. */
   rainQuality(): string;
   setRainQuality(q: string): void;
@@ -135,6 +140,9 @@ export interface MenuHost {
   towNear(kind: string): void;
   towCall(): void;
   towEnd(): void;
+  /** Crew transfer (debug): a job now; the boat 40 m off its turbine's landing. */
+  transferCall(): void;
+  transferPlace(): void;
   /**
    * The career (Office tab): balance, reputation by port, the ledger; the harbour office's
    * job board where she lies (offers by index), the contract on; upgrades (by index).
@@ -152,12 +160,26 @@ export interface MenuHost {
   upgradeText(i: number): string;
   upgradeStatus(i: number): string;
   buyUpgrade(i: number): void;
-  debugCash(): void;
+  /** Debug money: £5000 and reputation; or `amount` alone. */
+  debugCash(amount?: number): void;
+  /** Office > Projects (career/projects.ts): the project under way or offered, what to press, the stage's jobs; debug: the stage done. */
+  projectTitle(): string;
+  projectAction(): string;
+  projectAccept(): void;
+  projectLine(i: number): string;
+  /** Debug: the project back to the start of the stage before. */
+  debugProjectBack(): void;
+  /** The project under way in short: line 0 its stage and jobs left, line 1 the next job ('' none). */
+  projectSummary(i: number): string;
+  debugProjectStage(): void;
   /** Phase 2: the hull and engine (0 'hull', 1 'engine'): state and cost, why not, mend it. */
   repairText(i: number): string;
   repairStatus(i: number): string;
   repair(i: number): void;
   debugDamage(): void;
+  /** The yard's door into the Shipyard (app/shipyardTrip.ts): why it won't open now ('' if it will), and through it. */
+  shipyardStatus(): string;
+  openShipyard(): void;
   /**
    * Phase 3: career save slots (1..3; host / solo), a new career in the slot (press twice),
    * the first voyage (skip / restart), the crew aboard.
@@ -283,10 +305,14 @@ export interface MenuHost {
   cameraNote(): string;
   hostGame(): void;
   leaveGame(): void;
+  /** The world on this page is a friend's (left their game, or they were lost): Back to your own game shows. */
+  borrowed(): boolean;
   /** Office > Your boats (shipyard/takeHer.ts): the favourites' page and the code being typed. */
   shipyardCodes(): ShipyardCodes;
   /** Restart the game in a Shipyard boat by her code; or back in the game's start boat (the beginner boat). */
   takeDesign(code: string): void;
+  /** What Take her does for this code: in the career, buy her at a boatyard or a sea trial away from one. */
+  takeLabel(code: string): string;
   workboatAgain(): void;
   /** What she is now: "the workboat", or a Shipyard boat's name or code. */
   boatNow(): string;
@@ -327,6 +353,20 @@ export interface MainMenu {
   header: MenuRow[];
   pages: MenuPage[];
 }
+
+/** The weather sliders' stops (Debug > World > Weather): wind in knots, rain, significant wave height (m). */
+const KN = 0.514444;
+const WIND_KN = [0, 5, 10, 15, 20, 25, 30, 40, 50];
+const RAIN = [
+  { name: 'none', v: 0 },
+  { name: 'drizzle', v: 0.15 },
+  { name: 'light', v: 0.3 },
+  { name: 'moderate', v: 0.5 },
+  { name: 'heavy', v: 0.75 },
+  { name: 'torrent', v: 1 },
+];
+const WAVES_M = [0, 0.5, 1, 1.5, 2, 3, 4, 5];
+const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 export function mainMenu(h: MenuHost): MainMenu {
   const choice = <T>(label: string, value: T, get: () => T, set: (v: T) => void) => ({
@@ -511,6 +551,11 @@ export function mainMenu(h: MenuHost): MainMenu {
         { label: '', buttons: [{ text: 'Add-ons, upgrades, repairs: the boatyard on the Calder Haven quay', weight: 3 }] },
         { heading: 'Contract' },
         { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+        // The construction project under way, alongside the contract (owner: what's next, and
+        // what else is on); each job's state is on the Projects page.
+        { heading: 'Project' },
+        { label: '', buttons: [{ text: () => h.projectSummary(0) || 'None under way (see the Projects page)', weight: 3 }] },
+        { label: '', buttons: [{ text: () => h.projectSummary(1), weight: 3 }] },
         { heading: 'Job board' },
         { label: '', buttons: [{ text: () => h.officeName() }] },
         ...[0, 1].map(
@@ -530,6 +575,18 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: () => (h.tutorialText().endsWith('done') ? 'Again' : 'Skip'), press: () => (h.tutorialText().endsWith('done') ? h.tutorialRestart() : h.tutorialSkip()) },
           ],
         },
+      ],
+    },
+    {
+      // Construction projects (career/projects.ts; owner, Oct 2026): a chain of jobs that builds
+      // something new, Tarran Rig wind farm the first. Its marks and lines are on the plotter.
+      name: 'Projects',
+      rows: [
+        { heading: 'Construction project' },
+        { label: '', buttons: [{ text: () => h.projectTitle(), weight: 3 }, { text: () => h.projectAction(), active: () => h.projectAction() === 'Take it on', press: () => h.projectAccept(), weight: 1.1 }] },
+        { heading: 'This stage' },
+        ...[0, 1, 2, 3, 4].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.projectLine(i), weight: 3 }] })),
+        { label: '', buttons: [{ text: 'Survey lines and buoy spots are on the chartplotter, in magenta. Buoys: lift them off the quay with a deck crane, lower them into the sea at their spot.', weight: 3 }] },
       ],
     },
     {
@@ -572,6 +629,8 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => (solo() ? '' : h.netRole() === 'host' ? 'Stop hosting' : 'Leave game'), press: () => h.leaveGame() },
       ],
     },
+    // Still in a friend's world with nobody else (multiplayer study #11): the way home.
+    { label: '', buttons: [{ text: () => (solo() && h.borrowed() ? 'Back to your own game' : ''), press: () => h.leaveGame() }] },
     {
       label: 'Or join: code',
       buttons: [
@@ -732,26 +791,46 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: '+10′', press: () => h.shiftTime(10 / 60) },
           ],
         },
+        // Weather by hand (owner, Oct 2026: off live weather, to test big waves and strong
+        // winds; "a wind slider, rain slider and wave height slider"). Each row of stops is a
+        // slider: press a stop (it and those below it light); the readout above says where it is.
+        // Pressing any of them makes the weather manual; Live / Game's own gives it back.
         { heading: 'Weather' },
         {
           label: '',
-          buttons: Object.keys(CONFIG.weather.presets).map((name) => ({ text: name, active: () => h.weatherPreset() === name, press: () => h.setWeather(name) })),
-        },
-        {
-          label: 'Director',
           buttons: [
-            { text: () => (h.weatherFixed() ? 'Fixed weather' : 'Changing'), active: () => h.weatherFixed(), press: () => h.setWeatherFixed(!h.weatherFixed()) },
+            { text: () => (MODE === 'voyage' ? 'Live weather' : "Game's own"), active: () => h.weatherMode() !== 'manual', press: () => h.setWeatherAuto(), weight: 1.4 },
+            { text: 'Manual', active: () => h.weatherMode() === 'manual', press: () => h.setWeatherManual(0, h.windNow()), weight: 1.1 },
             { text: 'Fast ×10', active: () => h.weatherFast(), press: () => h.setWeatherFast(!h.weatherFast()) },
           ],
         },
-        { heading: 'Sea (the wind takes it back)' },
-        { label: '', buttons: CONFIG.ocean.seaStates.map((st) => choice(st.name, st.scale, () => h.seaScale(), (v) => h.setSeaScale(v))) },
         {
-          label: 'Wave height',
+          label: '',
           buttons: [
-            { text: '−', press: () => h.setSeaScale(h.seaScale() - CONFIG.ocean.seaScaleStep) },
-            { text: () => `Hs ${h.waveHeight().toFixed(1)} m`, weight: 1.6 },
-            { text: '+', press: () => h.setSeaScale(h.seaScale() + CONFIG.ocean.seaScaleStep) },
+            {
+              text: () => `Now: wind ${Math.round(h.windNow() / KN)} kn from ${COMPASS[Math.round(h.windFromNow() / 45) % 8]} · rain ${RAIN.reduce((best, r) => (Math.abs(r.v - h.rainNow()) < Math.abs(best.v - h.rainNow()) ? r : best)).name} · waves Hs ${h.waveHeight().toFixed(1)} m`,
+              weight: 3,
+            },
+          ],
+        },
+        {
+          label: 'Wind (kn)',
+          buttons: WIND_KN.map((kn) => ({ text: String(kn), active: () => h.windNow() / KN >= kn - 0.5, press: () => h.setWeatherManual(0, kn * KN) })),
+        },
+        {
+          label: 'From',
+          buttons: COMPASS.map((d, i) => ({ text: d, active: () => Math.round(h.windFromNow() / 45) % 8 === i, press: () => h.setWeatherManual(1, i * 45) })),
+        },
+        {
+          label: 'Rain',
+          buttons: RAIN.map((r) => ({ text: r.name, active: () => h.rainNow() >= r.v - 0.02, press: () => h.setWeatherManual(2, r.v) })),
+        },
+        {
+          label: 'Waves Hs (m)',
+          buttons: [
+            ...WAVES_M.map((m) => ({ text: String(m), active: () => h.waveHeight() >= m - 0.05, press: () => h.setWeatherManual(3, m) })),
+            // The game's biggest sea (CONFIG.ocean.maxSeaScale, Hs about 6 m).
+            { text: 'max', active: () => h.waveHeight() >= h.maxWaveHeight() - 0.05, press: () => h.setWeatherManual(3, h.maxWaveHeight()) },
           ],
         },
         // Short, steep seas in enclosed water, long ones in the open (docs/FETCH_SEAS.md): off
@@ -861,6 +940,14 @@ export function mainMenu(h: MenuHost): MainMenu {
           ],
         },
         {
+          // Crew transfer to the wind farm (transfer/transfer.ts): a job now, the boat off its landing.
+          label: 'Wind farm',
+          buttons: [
+            { text: 'Call job', press: () => h.transferCall() },
+            { text: 'To its landing', press: () => h.transferPlace() },
+          ],
+        },
+        {
           label: 'Potting',
           buttons: [
             { text: 'Pots aboard', press: () => h.potsAboard() },
@@ -894,7 +981,8 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
           ],
         },
-        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }] },
+        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }, { text: '+£50,000', press: () => h.debugCash(50000) }] },
+        { label: 'Project', buttons: [{ text: 'Stage done', press: () => h.debugProjectStage() }, { text: 'Stage back', press: () => h.debugProjectBack() }] },
       ],
     },
     {
@@ -973,7 +1061,7 @@ function yourBoats(h: MenuHost): MenuRow[] {
     label: '',
     buttons: [
       { text: () => c().favouriteAt(i)?.name ?? (i === 0 ? 'None saved: in the Shipyard, or Boat > Save her' : ''), weight: 3.2 },
-      { text: () => (c().favouriteAt(i) ? 'Take her' : ''), press: () => c().favouriteAt(i) && h.takeDesign(c().favouriteAt(i)!.code) },
+      { text: () => (c().favouriteAt(i) ? h.takeLabel(c().favouriteAt(i)!.code) : ''), press: () => c().favouriteAt(i) && h.takeDesign(c().favouriteAt(i)!.code) },
     ],
   });
   const key = (ch: string) => ({ text: ch, press: () => c().type(ch) });
@@ -1000,7 +1088,7 @@ function yourBoats(h: MenuHost): MenuRow[] {
       label: 'Code',
       buttons: [
         { text: () => groupCode(c().code) || '_', weight: 3.2 },
-        { text: () => (c().check().ok ? 'Take her' : ''), active: () => c().check().ok, press: () => c().check().ok && h.takeDesign(c().code) },
+        { text: () => (c().check().ok ? h.takeLabel(c().code) : ''), active: () => c().check().ok, press: () => c().check().ok && h.takeDesign(c().code) },
       ],
     },
     { label: '', buttons: [{ text: () => c().check().text }] },

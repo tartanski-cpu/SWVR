@@ -40,7 +40,7 @@ describe('pinned equipment', () => {
   });
 
   it('every piece on the list can be placed; older pins’ ids still read', () => {
-    expect(EQUIPMENT.map((e) => e.id)).toEqual(['fireMonitor', 'searchlight', 'deckCrane', 'towWinch', 'sternRoller', 'aFrame', 'netDrum', 'trawlWinches', 'rodRack', 'lifeRing', 'sideDoor', 'anchor', 'skiff']);
+    expect(EQUIPMENT.map((e) => e.id)).toEqual(['fireMonitor', 'searchlight', 'deckCrane', 'towWinch', 'sternRoller', 'aFrame', 'netDrum', 'trawlWinches', 'diveFrame', 'rodRack', 'lifeRing', 'sideDoor', 'anchor', 'skiff']);
     // Furniture has its own step (furnishing.ts), not a pin's.
     expect(equipmentOf('galley')).toBeUndefined();
     expect(equipmentOf('towPost')!.id).toBe('sternRoller');

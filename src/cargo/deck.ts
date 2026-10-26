@@ -39,6 +39,15 @@ function openPoint(defId: string, x: number, z: number): boolean {
   return true;
 }
 
+/**
+ * Is (x, z) over her at all (inside her deck's outline, bulwarks, house and gear included)?
+ * A crane's load there is set down on her deck, never "over the side".
+ */
+export function overDeck(defId: string, x: number, z: number): boolean {
+  const plan = planOf(defId);
+  return z >= plan.stem && z <= plan.transom && Math.abs(x) <= plan.halfBeam(z);
+}
+
 /** Does an item of this footprint fit at (x, z)? */
 export function onOpenDeck(defId: string, f: DeckFootprint, x: number, z: number): boolean {
   const r = Math.max(f.hx, f.hz);

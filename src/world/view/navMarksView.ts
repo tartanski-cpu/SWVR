@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { surfaceHeight, type PreparedWave } from '../../ocean/waves';
-import { MARKS, type MarkKind } from '../archipelago';
+import { MARKS, type MarkDef, type MarkKind } from '../archipelago';
 import { LIGHT_CHARACTERS, lightOn } from '../navMarks';
 
 import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
@@ -46,6 +46,12 @@ const SHAPES: Record<MarkKind, () => THREE.BufferGeometry> = {
   E: () => pillar(BLACK, YELLOW, BLACK, [cone(3.05, false), cone(3.45, true)]),
   // West: yellow, black band, yellow; cones point to point.
   W: () => pillar(YELLOW, BLACK, YELLOW, [cone(3.05, true), cone(3.45, false)]),
+  // Special (a met buoy): yellow all over, a yellow X topmark.
+  special: () =>
+    pillar(YELLOW, YELLOW, YELLOW, [
+      part(new THREE.BoxGeometry(0.5, 0.08, 0.08).rotateZ(Math.PI / 4).translate(0, 3.25, 0), YELLOW),
+      part(new THREE.BoxGeometry(0.5, 0.08, 0.08).rotateZ(-Math.PI / 4).translate(0, 3.25, 0), YELLOW),
+    ]),
   // Isolated danger: black with a red band, two black balls.
   isolated: () => pillar(BLACK, RED, BLACK, [ball(3.0), ball(3.42)]),
   // Port hand: a red can, can topmark.
@@ -67,8 +73,8 @@ const SHAPES: Record<MarkKind, () => THREE.BufferGeometry> = {
     ]),
 };
 /** The lamp's height above the waterline, per shape. */
-const LAMP_Y: Record<MarkKind, number> = { N: 4.0, S: 4.0, E: 4.0, W: 4.0, isolated: 4.0, port: 2.65, stbd: 2.95 };
-const LAMP_COLOR = { white: 0xfff4d8, red: 0xff3020, green: 0x30ff60 };
+const LAMP_Y: Record<MarkKind, number> = { N: 4.0, S: 4.0, E: 4.0, W: 4.0, isolated: 4.0, port: 2.65, stbd: 2.95, special: 4.0 };
+const LAMP_COLOR = { white: 0xfff4d8, red: 0xff3020, green: 0x30ff60, yellow: 0xffd040 };
 
 export class NavMarksView {
   readonly root = new THREE.Group();
@@ -82,13 +88,20 @@ export class NavMarksView {
   private readonly q = new THREE.Quaternion();
   private readonly e = new THREE.Euler();
   private readonly v = new THREE.Vector3();
+  /** Each mark's last height on the waves (NaN: not yet), and the frame count for taking turns. */
+  private heights = new Float32Array(0);
+  private frame = 0;
   private readonly one = new THREE.Vector3(1, 1, 1);
 
-  constructor() {
+  /**
+   * @param marks  the buoys to draw: the map's (MARKS), or any others (a construction site's
+   *               marks as they're laid: career/projectView.ts makes a view of its own for them)
+   */
+  constructor(private readonly marks: readonly MarkDef[] = MARKS) {
     this.root.name = 'navMarks';
     const mat = flatVertexColorMaterial();
     const byKind = new Map<MarkKind, number[]>();
-    MARKS.forEach((mk, i) => byKind.set(mk.kind, [...(byKind.get(mk.kind) ?? []), i]));
+    this.marks.forEach((mk, i) => byKind.set(mk.kind, [...(byKind.get(mk.kind) ?? []), i]));
     for (const [kind, marks] of byKind) {
       const mesh = new THREE.InstancedMesh(SHAPES[kind](), mat, marks.length);
       mesh.name = `buoys:${kind}`;
@@ -96,11 +109,11 @@ export class NavMarksView {
       this.meshes.set(kind, { mesh, marks });
       this.root.add(mesh);
     }
-    const n = MARKS.length;
+    const n = this.marks.length;
     this.lampPos = new THREE.BufferAttribute(new Float32Array(n * 3), 3);
     this.base = new Float32Array(n * 3);
     const c = new THREE.Color();
-    MARKS.forEach((mk, i) => {
+    this.marks.forEach((mk, i) => {
       c.set(LAMP_COLOR[LIGHT_CHARACTERS[mk.kind].color]);
       this.base.set([c.r, c.g, c.b], i * 3);
     });
@@ -119,14 +132,23 @@ export class NavMarksView {
    * @param waves    the sea as drawn this frame
    * @param time     seconds (the lights' rhythm)
    * @param darkness 0 (noon) .. 1 (night)
+   * @param viewer   where the viewer is: near marks are set on the waves every frame, farther
+   *                 ones in turns (CONFIG.navMarks.wavesEvery; review, Oct 2026: every mark on
+   *                 the map was sampled every frame, 97 on the Clyde)
    */
-  update(waves: readonly PreparedWave[], time: number, darkness: number): void {
+  update(waves: readonly PreparedWave[], time: number, darkness: number, viewer?: { x: number; z: number }): void {
     const pos = this.lampPos.array as Float32Array;
     const col = this.lampCol.array as Float32Array;
+    if (this.heights.length !== this.marks.length) this.heights = new Float32Array(this.marks.length).fill(NaN);
+    const frame = ++this.frame;
+    const w = CONFIG.navMarks.wavesEvery;
     for (const [kind, { mesh, marks }] of this.meshes) {
       marks.forEach((idx, k) => {
-        const mk = MARKS[idx];
-        const y = surfaceHeight(waves, mk.x, mk.z) - 0.25;
+        const mk = this.marks[idx];
+        const d = viewer ? Math.hypot(mk.x - viewer.x, mk.z - viewer.z) : 0;
+        const every = d < w.nearM ? 1 : d < w.midM ? w.mid : w.far;
+        if (Number.isNaN(this.heights[idx]) || (frame + idx) % every === 0) this.heights[idx] = surfaceHeight(waves, mk.x, mk.z, CONFIG.ocean.sceneryIterations) - 0.25;
+        const y = this.heights[idx];
         // A gentle rock with the swell, each buoy out of step with the others.
         const ph = idx * 1.7;
         this.e.set(0.06 * Math.sin(time * 0.9 + ph), 0, 0.06 * Math.sin(time * 0.75 + ph * 1.3));
@@ -135,7 +157,9 @@ export class NavMarksView {
         mesh.setMatrixAt(k, this.m);
         // The lamp at the top, flashing its character (staggered a little per buoy).
         this.v.set(0, LAMP_Y[kind], 0).applyQuaternion(this.q);
-        pos.set([mk.x + this.v.x, y + this.v.y, mk.z + this.v.z], idx * 3);
+        pos[idx * 3] = mk.x + this.v.x;
+        pos[idx * 3 + 1] = y + this.v.y;
+        pos[idx * 3 + 2] = mk.z + this.v.z;
         const on = lightOn(LIGHT_CHARACTERS[kind].pattern, time, idx * 0.37);
         for (let j = 0; j < 3; j++) col[idx * 3 + j] = on ? this.base[idx * 3 + j] : 0;
       });

@@ -34,10 +34,11 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
+import { TickSmoother } from '../../mechanisms/tickSmoother';
 import type { ModuleDefinition } from '../../modular/module';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
-import { engineStep, rudderForceAt, steeringStep, type DieselInputs, type RudderSpec } from '../../vessel/physics/propulsion';
+import { engineStep, rudderForceAt, steeringStep, twinStep, type DieselInputs, type RudderSpec } from '../../vessel/physics/propulsion';
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
 import type { EngineState } from '../../vessel/vesselState';
@@ -75,6 +76,13 @@ export interface OutboardConfig {
    * Its physics is an outboard's (the leg swings to steer; the engine is the inboard package's).
    */
   sterndrive?: boolean;
+  /**
+   * Twin stern drives worked separately (the twin lever control; owner, Oct 2026): a lever and
+   * a START for each engine, the starboard one with a state of its own (EngineState.stbd), the
+   * port leg driven by the port engine and the starboard leg by the starboard one, as twin
+   * shaft engines are (modules/dieselInboard). Two units only.
+   */
+  split?: boolean;
   installed?: { model: number; size: [number, number, number]; xs: number[]; flangeY: number; flangeZ: number; angleDeg: number };
 }
 
@@ -125,6 +133,7 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
   },
   validateConfig: (c) => [
     ...(c.units.length >= 1 && c.units.length <= 4 ? [] : ['1 to 4 outboards']),
+    ...(!c.split || c.units.length === 2 ? [] : ['worked separately (split): two units only']),
     ...(c.propeller.diameter > 0 ? [] : ['the propeller needs a diameter']),
     ...(c.steering.maxAngleDeg > 0 ? [] : ['the outboards need to swing (maxAngleDeg > 0)']),
     ...(c.voice === undefined || c.voice in CONFIG.engineVoices ? [] : [`no engine voice '${c.voice}' (${Object.keys(CONFIG.engineVoices).join(', ')})`]),
@@ -137,6 +146,11 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
     powered: { dir: 'read', key: 'electrical.powered' },
     volts: { dir: 'read', key: 'electrical.busVoltage', required: false },
     helm: { dir: 'read', key: 'helm.demand' },
+    // Twin stern drives worked separately: the starboard engine's lever and START, its state and revs.
+    throttle2: { dir: 'read', key: 'throttle.demand2', required: false },
+    start2: { dir: 'read', key: 'ignition.start2', required: false },
+    state2: { dir: 'write', key: 'propulsion.state2', required: false },
+    rpm2: { dir: 'write', key: 'propulsion.rpm2', required: false },
     fuel: { dir: 'write', key: 'fuel.litres' },
     thrust: { dir: 'write', key: 'propulsion.thrust' },
     immersion: { dir: 'write', key: 'propulsion.immersion' },
@@ -158,7 +172,7 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
   gear: (raw) => {
     const c = placed(raw);
     return {
-      diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, units: c.units, ...(c.units.length >= 2 ? { twin: true, twinX: Math.max(...c.units.map(Math.abs)) } : {}) },
+      diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, units: c.units, ...(c.units.length >= 2 ? { twin: true, twinX: Math.max(...c.units.map(Math.abs)) } : {}), ...(c.split ? { split: true } : {}) },
       // The RUDDER screen shows the units' swing.
       rudder: legSpec(c).rudder,
     };
@@ -168,6 +182,9 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
   power: (c) => [
     { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * clamp(io.num('rpm') / c.engine.idleRpm, 0, 1) : 0) },
     { role: 'load', amps: (io) => (io.get('state') === 'cranking' ? c.starterAmps : 0) },
+    // (The starboard engine's, worked separately.)
+    { role: 'source', amps: (io) => (io.has('state2') && io.get('state2') === 'running' ? c.alternatorAmps * clamp(io.num('rpm2') / c.engine.idleRpm, 0, 1) : 0) },
+    { role: 'load', amps: (io) => (io.has('state2') && io.get('state2') === 'cranking' ? c.starterAmps : 0) },
   ],
   sim: {
     init: () => {
@@ -207,23 +224,34 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
       };
       // Each unit's speed of advance: the water's along its own heading.
       const along = -flow.z * Math.cos(d) - flow.x * Math.sin(d);
-      const thrust = engineStep(e, c, inputs, along, wet, dt);
-      io.set('thrust', thrust);
-      io.set('immersion', wet);
-      const left = fuelAndHeatStep(e, c, fuelL, dt);
-      // The other units burn as much.
-      const n = c.units.length;
-      io.set('fuel', Math.max(0, fuelL - n * (fuelL - left)));
-      e.fuelFlowLph *= n;
+      // Each unit's thrust: the one engine's for all, or (worked separately: twinStep) the port
+      // leg the port engine's and the starboard leg the starboard engine's.
+      let thrustOf: (x: number) => number;
+      if (c.split) {
+        const t = twinStep(e, c, inputs, io.has('throttle2') ? io.num('throttle2') : inputs.lever, io.num('start2'), along, wet, dt);
+        thrustOf = (x) => (x > 0 ? t.stbd : t.port);
+        io.set('thrust', (t.port + t.stbd) / 2);
+        io.set('immersion', wet);
+        io.set('fuel', t.fuelL);
+      } else {
+        const thrust = engineStep(e, c, inputs, along, wet, dt);
+        thrustOf = () => thrust;
+        io.set('thrust', thrust);
+        io.set('immersion', wet);
+        const left = fuelAndHeatStep(e, c, fuelL, dt);
+        // The other units burn as much.
+        const n = c.units.length;
+        io.set('fuel', Math.max(0, fuelL - n * (fuelL - left)));
+        e.fuelFlowLph *= n;
+      }
       // Each unit: its net thrust T(1 - t) along its heading (forward and to port when the
       // propellers swing to starboard), from its propeller where the swing has carried it;
       // and its lower unit's lift from the water past it.
-      const fx = -Math.sin(d) * thrust * (1 - p.thrustDeduction);
-      const fz = -Math.cos(d) * thrust * (1 - p.thrustDeduction);
       rudderForceAt(d, legSpec(c), flow.x, flow.z, 0, lift);
       for (const x of c.units) {
+        const t = thrustOf(x);
         const at: [number, number, number] = [x + Math.sin(d) * c.look.propAft, g.propY, g.pivotZ + Math.cos(d) * c.look.propAft];
-        port.addForce(at, fx + lift.x * wet, 0, fz + lift.z * wet);
+        port.addForce(at, -Math.sin(d) * t * (1 - p.thrustDeduction) + lift.x * wet, 0, -Math.cos(d) * t * (1 - p.thrustDeduction) + lift.z * wet);
       }
     },
     tick({ config: c }, s, dt) {
@@ -256,6 +284,7 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
       const one = new THREE.Vector3(1, 1, 1);
       const up = new THREE.Vector3(0, 1, 0);
       let last = NaN;
+      const swing = new TickSmoother([20]);
       const place = (deg: number) => {
         q.setFromAxisAngle(up, (deg * Math.PI) / 180);
         c.units.forEach((x, i) => mesh.setMatrixAt(i, m.compose(new THREE.Vector3(x, c.mount.y, g.pivotZ), q, one)));
@@ -269,8 +298,9 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
         // (And the water stop for her lazarette, the engine space her oil checks are in.)
         movingParts: [mesh, ...waterStop(hull.engineSpace)],
         controls: [],
-        update: (read) => {
-          const deg = read.num(keys.swing);
+        update: (read, _s, dt) => {
+          // (Their swing drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
+          const deg = swing.update([read.num(keys.swing)], dt)[0];
           if (Math.abs(deg - last) > 0.05) place(deg);
         },
         dispose: () => unit.dispose(),

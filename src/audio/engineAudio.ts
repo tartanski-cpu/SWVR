@@ -378,12 +378,17 @@ export class EngineAudio {
     // unrelated sources add in power). The second runs a slowly wandering share off the
     // first's revs (CONFIG.engineTwinDrift), so their beats drift in and out of step: the drone.
     // (Three or four outboards: two voices still, each as loud as half of them together: +1.8 / +3 dB.)
+    // Twin engines worked separately (a lever and a START each, EngineState.stbd): the second
+    // sound is the starboard engine's own, its revs, load and starter, so each is heard
+    // starting, stopping and throttling on its own.
     const each = ((level * CONFIG.engineTwinLevel) / Math.SQRT2) * Math.sqrt(Math.max(2, this.count) / 2);
     const dr = CONFIG.engineTwinDrift;
     const t = this.ctx!.currentTime;
     const drift = dr.share * (0.6 * Math.sin((2 * Math.PI * t) / dr.periodsS[0]) + 0.4 * Math.sin((2 * Math.PI * t) / dr.periodsS[1]));
+    const s = e.stbd;
+    const input2 = s ? { rpm: s.rpm, load: s.rack, ratedRpm: this.ratedRpm, running: s.phase === 'running', cranking: s.phase === 'cranking', submerged } : input;
     this.sound.set(input, each, lp);
-    this.sound2.set({ ...input, rpm: e.rpm * (1 + drift) }, each, lp);
+    this.sound2.set({ ...input2, rpm: input2.rpm * (1 + drift) }, each, lp);
   }
 }
 

@@ -9,6 +9,7 @@ import { createPlayerState } from '../player/playerState';
 import { placeAshore } from '../player/playerControl';
 import { dropVessel, placeVessel } from '../vessel/vesselControl';
 import { BERTHS } from '../world/archipelago';
+import { berthWithId } from '../world/berths';
 import { berthPose, shoreSide } from '../vessel/physics/mooring';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
@@ -26,7 +27,9 @@ import { createSalvageState, type SalvageState } from '../salvage/salvage';
 import { createFishingState, type FishingState } from '../fishing/fishing';
 import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
-import { startBerthId } from '../world/startSpot';
+import { createTransferState, type TransferState } from '../transfer/transfer';
+import type { TvState } from '../modules/furniture/tvState';
+import { startBerthFor } from '../world/startSpot';
 import type { BerthDef } from '../world/defs';
 import type { VoyagePlan } from '../voyage/plan';
 
@@ -87,12 +90,23 @@ export interface WorldState {
   salvage?: SalvageState;
   /** Lobster and crab potting: pots in the water (potting/potting.ts). Absent = off. */
   potting?: PottingState;
+  /** Crew transfer to the wind farm: the job, the technicians, boats on the landings (transfer/transfer.ts). */
+  transfer?: TransferState;
+  /** Who is showing a browser tab on which TV (modules/furniture/tvState.ts); made at the first. */
+  tv?: TvState;
   /** The fuel pumps' hoses: where each nozzle is (fuel/fuelHose.ts). Made when first used. */
   fuel?: FuelState;
   /** Fishing: the trawl and the catch (fishing/fishing.ts). */
   fishing?: FishingState;
   /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */
   career?: CareerState;
+  /**
+   * Voyage mode (owner, Oct 2026: "untangle anything to do with career mode and the voyage
+   * mode"): the jobs, the calls, the cargo all go on, but nothing is tracked. No money in or
+   * out, no reputation or contracts (career.ts earn/spend), every career upgrade fitted
+   * (hasUpgrade), no hull damage or engine wear (simulation.ts), no duty board.
+   */
+  voyage?: boolean;
   /** Voyage: the log barges brought back from the timber camp (voyage/timber.ts). */
   timber?: TimberState;
   /**
@@ -129,7 +143,7 @@ export function createWorld(
   /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
   /** tows / fires: towing and fire calls come by themselves (the game). */
   /** harbour: she starts moored in Calder Haven and you on the quay (the game); else at sea at her spawn (tests). */
-  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean; logs?: boolean; harbour?: boolean } = {},
+  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean; logs?: boolean; harbour?: boolean; voyage?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
@@ -141,7 +155,8 @@ export function createWorld(
   const crane = opts.tender ? gearOf({ defId: vesselDefId }, 'tenderCrane') : null;
   const tender = crane ? createVesselState(ids.next('vessel'), crane.tenderDefId) : null;
   const player = createPlayerState(localPlayerId, 'Player 1');
-  placeAshore(player);
+  // Ashore beside her berth (Calder's quay, or Brannock's pier for a deep boat: startSpot.ts).
+  placeAshore(player, opts.harbour ? vessel.mooring.berthId : null);
   const world: WorldState = {
     tick: 0,
     time: 0,
@@ -160,6 +175,8 @@ export function createWorld(
     tow: createTowState(!!opts.tows),
     fire: createFireState(!!opts.fires),
     salvage: createSalvageState(!!opts.logs),
+    // Crew transfer jobs: called by themselves in the game (with the logs), raised by hand in tests.
+    transfer: createTransferState(!!opts.logs && !opts.voyage),
     fishing: createFishingState(),
     career: createCareer(),
   };
@@ -176,16 +193,18 @@ export function createWorld(
   // The tender starts in her cradle on the ship's foredeck.
   if (tender) stowTender(world, tender, vesselId);
   stockPorts(world);
+  if (opts.voyage) world.voyage = true;
   return { world, localPlayerId, vesselId };
 }
 
 /**
- * The game's start: lying alongside her berth (CONFIG.start in the career, the map's own in
- * Voyage mode; world/startSpot.ts), bow along the berth, afloat at her waterline, her mooring
+ * The game's start: lying alongside her berth (CONFIG.start in the career, or its deep-water
+ * port for a boat too deep for Calder; the map's own in Voyage mode; world/startSpot.ts), bow along the berth, afloat at her waterline, her mooring
  * lines already fast (moored).
  */
 function mooredAtStart(v: VesselState): void {
-  const b = BERTHS.find((x) => x.id === startBerthId());
+  const id = startBerthFor(v.defId);
+  const b = BERTHS.find((x) => x.id === id) ?? berthWithId(id);
   if (!b) return dropVessel(v);
   moorAtBerth(v, b);
 }

@@ -92,6 +92,7 @@ Headless browser checks: Chromium is pre-installed for Playwright. Launch it wit
 - `README.md`: for players. Controls, features, how to play.
 - `docs/MULTIPLAYER.md`, `docs/TESTING_NEW_BOATS.md`: topic guides.
 - `ideas.md`: the owner's feature ideas list. It may lag behind; `PROGRESS.md` wins.
+- **Release notes** (owner, 26 Oct 2026: "release notes like this form from now on"): a published page in the form of https://claude.ai/artifact/88WruzhXWjxsseUUCnEehX (Wreck ROV's): a masthead with play links, an "at a glance" grid, a dated log of entries (a rail with the part of the work, its days and its trade; a heading, a short summary, bullets, captioned development screenshots), then Try it, Known limits and Coming next. The latest is https://claude.ai/artifact/KrMAcPXRf47XEgd87APdnC. Keep the same notes as text in `docs/RELEASE_NOTES_<date>.md`.
 
 ## Direction (see PROGRESS.md, "Direction: one engine, three games")
 

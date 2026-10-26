@@ -3,11 +3,14 @@
  * `drawDistance` of the viewer, re-picked every `refresh` s (CONFIG.harbourBoats; farther on
  * a desktop). One instanced mesh per design (harbourBoatKit.ts), so a harbour is a draw call
  * or a few, plus one for the mooring buoys and one for the anchor lights.
- *   - Each frame each boat shown is posed (swung to the wind) and set on the waves: within
+ *   - Each boat shown is posed (swung to the wind) and set on the waves: within
  *     `bobDistance` from three wave samples (rise, pitch and roll, as the traffic's ships),
- *     beyond from one (rise and fall only).
- *   - A moored boat's buoy floats where it is; an anchored boat shows her all-round white
- *     anchor light at the masthead in the dark.
+ *     beyond from one (rise and fall only). Within `everyFrame` every frame; out to
+ *     `bobDistance` every 2nd, beyond every `farEvery`th, taking turns, the last pose held in
+ *     between (her swing to the wind is worked out every frame: it's cheap). The scenery's
+ *     cheaper wave samples (CONFIG.ocean.sceneryIterations).
+ *   - A moored boat's buoy floats at her own height (a few metres off: no sample of its own);
+ *     an anchored boat shows her all-round white anchor light at the masthead in the dark.
  *   - One alongside where a vessel lies (a saved game in her berth) isn't drawn.
  */
 import * as THREE from 'three';
@@ -45,6 +48,12 @@ export class HarbourBoatsView {
   private readonly col = new THREE.Color();
   /** How many boats are drawn now (the perf panel, tests). */
   count = 0;
+  /** Each shown boat's last wave pose (height, pitch, roll), by its place in `shown`; NaN: not posed yet. */
+  private wy = new Float32Array(0);
+  private wp = new Float32Array(0);
+  private wr = new Float32Array(0);
+  private frame = 0;
+  private readonly counts = new Map<HarbourBoatKind, number>(KINDS.map((k) => [k, 0]));
 
   constructor() {
     this.root.name = 'harbour-boats';
@@ -91,35 +100,59 @@ export class HarbourBoatsView {
     }
     near.sort((a, b) => a.d - b.d);
     this.shown = near.slice(0, c.maxShown).map((n) => n.b);
+    // A new set: every boat posed afresh on the next frame.
+    const n = this.shown.length;
+    if (this.wy.length < n) {
+      this.wy = new Float32Array(n * 2);
+      this.wp = new Float32Array(n * 2);
+      this.wr = new Float32Array(n * 2);
+    }
+    this.wy.fill(NaN);
   }
 
   update(world: WorldState, waves: readonly PreparedWave[], darkness: number, viewer: { x: number; z: number }): void {
     this.pick(world, viewer.x, viewer.z, performance.now());
     const c = boatSettings();
     const { from, speed } = boatWind(world);
-    const counts = new Map<HarbourBoatKind, number>(KINDS.map((k) => [k, 0]));
+    const counts = this.counts;
+    for (const k of KINDS) counts.set(k, 0);
     let buoys = 0;
     let lights = 0;
     const lp = this.lights.geometry.attributes.position as THREE.BufferAttribute;
     const bob2 = c.bobDistance * c.bobDistance;
-    for (const b of this.shown) {
+    const near2 = c.everyFrame * c.everyFrame;
+    const it = CONFIG.ocean.sceneryIterations;
+    const frame = ++this.frame;
+    for (let n = 0; n < this.shown.length; n++) {
+      const b = this.shown[n];
       const k = c.kinds[b.kind];
       const s = harbourBoatPose(b, from, speed, this.pose);
       const fx = Math.sin(s.heading);
       const fz = -Math.cos(s.heading);
-      const h = surfaceHeight(waves, s.x, s.z);
-      let pitch = 0;
-      let roll = 0;
-      let y = h;
-      if ((s.x - viewer.x) ** 2 + (s.z - viewer.z) ** 2 < bob2) {
-        const L = k.length;
-        const bow = surfaceHeight(waves, s.x + fx * L * 0.4, s.z + fz * L * 0.4);
-        const stern = surfaceHeight(waves, s.x - fx * L * 0.4, s.z - fz * L * 0.4);
-        const side = surfaceHeight(waves, s.x - fz * k.beam * 0.5, s.z + fx * k.beam * 0.5);
-        y = (h * 2 + bow + stern) / 4;
-        pitch = Math.atan2(bow - stern, L * 0.8);
-        roll = Math.atan2(side - h, k.beam * 0.5) * 0.6;
+      const d2 = (s.x - viewer.x) ** 2 + (s.z - viewer.z) ** 2;
+      // Her turn to be set on the waves again (always, the first time).
+      const every = d2 < near2 ? 1 : d2 < bob2 ? 2 : c.farEvery;
+      if (Number.isNaN(this.wy[n]) || (frame + n) % every === 0) {
+        const h = surfaceHeight(waves, s.x, s.z, it);
+        let pitch = 0;
+        let roll = 0;
+        let y = h;
+        if (d2 < bob2) {
+          const L = k.length;
+          const bow = surfaceHeight(waves, s.x + fx * L * 0.4, s.z + fz * L * 0.4, it);
+          const stern = surfaceHeight(waves, s.x - fx * L * 0.4, s.z - fz * L * 0.4, it);
+          const side = surfaceHeight(waves, s.x - fz * k.beam * 0.5, s.z + fx * k.beam * 0.5, it);
+          y = (h * 2 + bow + stern) / 4;
+          pitch = Math.atan2(bow - stern, L * 0.8);
+          roll = Math.atan2(side - h, k.beam * 0.5) * 0.6;
+        }
+        this.wy[n] = y;
+        this.wp[n] = pitch;
+        this.wr[n] = roll;
       }
+      const y = this.wy[n];
+      const pitch = this.wp[n];
+      const roll = this.wr[n];
       const mesh = this.meshes.get(b.kind)!;
       const i = counts.get(b.kind)!;
       counts.set(b.kind, i + 1);
@@ -128,7 +161,7 @@ export class HarbourBoatsView {
       mesh.setColorAt(i, this.col.setHex(b.colour));
       if (b.how === 'moored') {
         this.q.identity();
-        this.buoys.setMatrixAt(buoys++, this.m.compose(this.p.set(b.x, surfaceHeight(waves, b.x, b.z) + 0.1, b.z), this.q, this.one));
+        this.buoys.setMatrixAt(buoys++, this.m.compose(this.p.set(b.x, y + 0.1, b.z), this.q, this.one));
       } else if (b.how === 'anchored' && darkness > 0.35) {
         lp.setXYZ(lights++, s.x - fx * k.length * 0.14, y + mastheadHeight(b.kind), s.z - fz * k.length * 0.14);
       }

@@ -5,9 +5,19 @@ import { fitPaint, flatVertexColorMaterial, mergeParts, part } from '../render/g
 import { kindOf, portById, type CargoItem } from './cargo';
 import { hasUpgrade } from '../career/career';
 import { hookOnBoat } from './craneHook';
+import { TickSmoother } from '../mechanisms/tickSmoother';
 import { bootGeometry, crabGeometry, floorSlot, lobsterGeometry, smallFishGeometry, starfishGeometry } from '../potting/catchGeometry';
+import { isProjectItem } from '../career/projects';
 
-const MAX = 48;
+/** A hooked load's drawn position jumps (m), not followed: a reset, a fresh snapshot. A lift's step onto the hook (CONFIG.modules.deckCrane.hookReach, 0.6 m) is followed. */
+const HOOK_SNAP = 1.5;
+
+/**
+ * Items drawn of each shape at most (one instanced draw each). Goods waiting ashore are drawn
+ * only within CONFIG.cargo.drawRange of you: every port keeps a dozen or more (more cargo,
+ * Oct 2026), and taken in the world's order the far ports' filled the meshes before yours.
+ */
+const MAX = 128;
 const MAX_ANIMALS = 96;
 const STRAP = 0xe8641c;
 
@@ -132,6 +142,10 @@ export class CargoView {
   private readonly m = new THREE.Matrix4();
   private readonly p = new THREE.Vector3();
   private readonly q = new THREE.Quaternion();
+  private readonly prev = new THREE.Vector3();
+  /** Each load on a crane hook's smoothing (its hook in her axes), and where each item was last drawn (world). */
+  private readonly hooked = new Map<string, TickSmoother>();
+  private readonly drawnAt = new Map<string, THREE.Vector3>();
   private readonly qYaw = new THREE.Quaternion();
   private readonly scale = new THREE.Vector3();
   private readonly color = new THREE.Color();
@@ -202,7 +216,8 @@ export class CargoView {
    * @param carried     where items in hands are (local hands, or remote avatars' hands)
    * @param hovered     id of the item a hand or the reticle is on (drawn brighter)
    */
-  update(world: WorldState, vesselRoots: Map<string, THREE.Object3D>, carried: CarriedPose, hovered: string | null): void {
+  update(world: WorldState, vesselRoots: Map<string, THREE.Object3D>, carried: CarriedPose, hovered: string | null, viewer?: THREE.Vector3, dt = 1 / 60): void {
+    const range = CONFIG.cargo.drawRange;
     let nb = 0;
     let nk = 0;
     let nd = 0;
@@ -213,11 +228,13 @@ export class CargoView {
     // With the ice machine the catch goes on ice (the boxes on deck show it as soon as it's bought).
     const iced = hasUpgrade(world, 'ice');
     const fishMesh = iced ? this.icedBoxes : this.fishBoxes;
+    const hooked = new Set<string>();
     for (const c of Object.values(world.cargo)) {
       const kind = kindOf(c);
       const [sx, sy, sz] = kind.size;
       let root: THREE.Object3D | null = null;
       if ('ground' in c.at) {
+        if (viewer && Math.hypot(c.at.ground[0] - viewer.x, c.at.ground[2] - viewer.z) > range) continue;
         this.p.fromArray(c.at.ground);
         this.q.setFromAxisAngle(this.up, c.at.yaw);
       } else if ('vessel' in c.at) {
@@ -231,6 +248,19 @@ export class CargoView {
         root = vesselRoots.get(c.at.hook) ?? null;
         const hook = v && root ? hookOnBoat(v, c.at.crane, this.p) : null;
         if (!hook || !root) continue;
+        // Drawn smoothly between the ticks, as the crane draws its hook (mechanisms/tickSmoother.ts;
+        // owner, Oct 2026: the crane smooth but its load jerking): in her axes, so her own
+        // motion is the app's. Just hooked, it starts where it was drawn and comes up onto the
+        // hook (a lift's last half metre) instead of jumping.
+        let sm = this.hooked.get(c.id);
+        if (!sm) {
+          sm = new TickSmoother([HOOK_SNAP, HOOK_SNAP, HOOK_SNAP]);
+          this.hooked.set(c.id, sm);
+          const was = this.drawnAt.get(c.id);
+          if (was) sm.update(root.worldToLocal(this.prev.copy(was)).setY(this.prev.y + sy).toArray(), 0);
+        }
+        hook.fromArray(sm.update([hook.x, hook.y, hook.z], dt));
+        hooked.add(c.id);
         root.localToWorld(hook.setY(hook.y - sy));
         root.getWorldQuaternion(this.q);
       } else {
@@ -239,6 +269,7 @@ export class CargoView {
         this.p.copy(pose.pos);
         this.q.copy(pose.quat);
       }
+      (this.drawnAt.get(c.id) ?? this.drawnAt.set(c.id, new THREE.Vector3()).get(c.id)!).copy(this.p);
       const fishBox = c.from === 'trawl';
       const pot = kind.shape === 'pot';
       const drum = kind.shape === 'drum';
@@ -261,7 +292,8 @@ export class CargoView {
         this.m.compose(this.p, this.q, this.scale.set(sx, sy, sz));
         im.setMatrixAt(i, this.m);
         // Cargo fished out of the sea (bound for 'any' harbour) stays rescue orange.
-        this.color.set(c.to === 'any' ? 0xff6a10 : (portById(c.to)?.cargo.color ?? 0x888888));
+        // A construction project's mark buoy: buoy yellow.
+        this.color.set(c.to === 'any' ? 0xff6a10 : isProjectItem(c) ? 0xf0c418 : (portById(c.to)?.cargo.color ?? 0x888888));
         if (c.id === hovered) this.color.offsetHSL(0, 0, 0.18);
         im.setColorAt(i, this.color);
       }
@@ -285,6 +317,9 @@ export class CargoView {
         }
       }
     }
+    // Loads off the hook (or gone) lose their smoothing; items gone, where they were drawn.
+    for (const id of this.hooked.keys()) if (!hooked.has(id)) this.hooked.delete(id);
+    for (const id of this.drawnAt.keys()) if (!world.cargo[id]) this.drawnAt.delete(id);
     this.boxes.count = Math.min(nb, MAX);
     this.sacks.count = Math.min(nk, MAX);
     this.drums.count = Math.min(nd, MAX);

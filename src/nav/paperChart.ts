@@ -12,13 +12,15 @@
  * Text sizes are in "chart points" `u` (1 = 1/1280 of the chart's width, ~0.5 mm on the
  * table): sized to be read from standing height on desktop without leaning in.
  */
-import { CONFIG } from '../config';
-import { CURRENTS, FARMS, LIGHTS, MARKS, MAX_DEPTH, PLACES, PORTS, SKYLINE, WRECKS, type MarkKind } from '../world/archipelago';
+import { CURRENTS, FARMS, LIGHTS, MARKS, MAX_DEPTH, PLACES, PORTS, SKYLINE, WIND_FARMS, WRECKS, type MarkKind } from '../world/archipelago';
 import { slackTimes } from '../world/currents';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
-import { toLatLon } from './geo';
+import { fromLatLon, toLatLon } from './geo';
 import { sheetById, type ChartSheet } from './chartSheets';
+import { siteWorld, sitesOn } from '../dive/diveSites';
+import { foundNames } from '../dive/diveReturn';
+import { MODE, VOYAGE_MAP_ID } from '../mode';
 
 export interface PaperChart {
   canvas: HTMLCanvasElement;
@@ -121,9 +123,10 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
   const border = 12 * u;
   const tl = toLatLon(b.x0, b.z0);
   const br = toLatLon(b.x1, b.z1);
-  const midLat = ((tl.lat + br.lat) / 2) * (Math.PI / 180);
-  const latZ = (lat: number) => pz((CONFIG.nav.originLat - lat) * 1852 * 60);
-  const lonX = (lon: number) => px((lon - CONFIG.nav.originLon) * 1852 * 60 * Math.cos(midLat));
+  const midLat = (tl.lat + br.lat) / 2;
+  const midLon = (tl.lon + br.lon) / 2;
+  const latZ = (lat: number) => pz(fromLatLon(lat, midLon).z);
+  const lonX = (lon: number) => px(fromLatLon(midLat, lon).x);
   const half = sheet.gridMinutes / 60;
   g.strokeStyle = 'rgba(40, 60, 80, 0.45)';
   g.lineWidth = 1.2 * u;
@@ -223,6 +226,31 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
     g.stroke();
     label(`Wk ${w.name}`, x - 40 * u, y + 24 * u, `italic ${15 * u}px Georgia, serif`, INK);
   }
+  // Dive sites (dive/diveSites.ts: the submersible game's wrecks) not drawn above: the same
+  // wreck mark, with the depth over her, as a chart gives a wreck of known depth.
+  for (const site of sitesOn(MODE === 'career' ? 'career' : VOYAGE_MAP_ID)) {
+    const at = siteWorld(site);
+    if (!at || WRECKS.some((w) => w.name === site.scenery)) continue;
+    const x = px(at.x);
+    const y = pz(at.z);
+    g.strokeStyle = INK;
+    g.lineWidth = 1.5 * u;
+    g.setLineDash([3 * u, 4 * u]);
+    g.beginPath();
+    g.arc(x, y, 11 * u, 0, Math.PI * 2);
+    g.stroke();
+    g.setLineDash([]);
+    g.beginPath();
+    g.moveTo(x - 8 * u, y);
+    g.lineTo(x + 8 * u, y);
+    for (const dx of [-4, 0, 4]) {
+      g.moveTo(x + dx * u, y - 3.5 * u);
+      g.lineTo(x + dx * u, y + 3.5 * u);
+    }
+    g.stroke();
+    const named = foundNames()[site.id];
+    label(`Wk ${named ? `${named} ` : ''}${site.depthM} m`, x - 40 * u, y + 22 * u, `italic ${14 * u}px Georgia, serif`, INK);
+  }
   // Fish farms (a coast map's, C2): the lease's outline in a magenta pecked line, as a chart
   // draws a marine farm, with what it is; its corner marks are the region's lights.
   for (const f of FARMS) {
@@ -275,6 +303,27 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
     // Churches and the smaller towers on the detail sheets only (they'd crowd the overview).
     if (sheet.textScale < 1 && (s.kind === 'church' || s.kind === 'monument')) continue;
     label(s.name && s.kind === 'castle' ? s.name.replace(/ Castle$/, ' Cas') : ABBR[s.kind] ?? '', x + 10 * u, y - 8 * u, `italic ${12 * u}px Georgia, serif`, INK);
+  }
+  // Offshore wind farms (world/windFarm.ts): each turbine its three-bladed sign and its number,
+  // the farm named once, its platforms' light (Fl Y 5s, as an offshore structure's marking).
+  for (const f of WIND_FARMS) {
+    f.turbines.forEach((t, i) => {
+      const x = px(t.x);
+      const y = pz(t.z);
+      g.strokeStyle = INK;
+      g.lineWidth = 1.6 * u;
+      g.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = -Math.PI / 2 + (k * 2 * Math.PI) / 3;
+        g.moveTo(x, y);
+        g.lineTo(x + Math.cos(a) * 7 * u, y + Math.sin(a) * 7 * u);
+      }
+      g.stroke();
+      label(`${i + 1}`, x + 11 * u, y - 7 * u, `italic ${12 * u}px Georgia, serif`, INK);
+    });
+    const mx = f.turbines.reduce((a, t) => a + t.x, 0) / f.turbines.length;
+    const mz = f.turbines.reduce((a, t) => a + t.z, 0) / f.turbines.length;
+    label(f.name, px(mx), pz(mz) + 26 * u, `italic ${13 * u}px Georgia, serif`, INK);
   }
   // Buoys: a small pillar (can, cone) in the mark's colours with its topmark, the light's
   // magenta flare and its character (as charted).
@@ -440,7 +489,7 @@ function drawMark(g: CanvasRenderingContext2D, kind: MarkKind, x: number, y: num
   const B = INK;
   const R = '#b8281c';
   const G = '#1f7a36';
-  const [top, bottom] = kind === 'N' ? [B, Y] : kind === 'S' ? [Y, B] : kind === 'E' ? [B, B] : kind === 'W' ? [Y, Y] : kind === 'isolated' ? [B, B] : kind === 'port' ? [R, R] : [G, G];
+  const [top, bottom] = kind === 'N' ? [B, Y] : kind === 'S' ? [Y, B] : kind === 'E' ? [B, B] : kind === 'W' || kind === 'special' ? [Y, Y] : kind === 'isolated' ? [B, B] : kind === 'port' ? [R, R] : [G, G];
   const band = kind === 'E' ? Y : kind === 'W' ? B : kind === 'isolated' ? R : null;
   // The body: a short slanted pillar on the position circle.
   g.save();
@@ -480,6 +529,17 @@ function drawMark(g: CanvasRenderingContext2D, kind: MarkKind, x: number, y: num
   else if (kind === 'W') (cone(t0, true), cone(t0 - 9 * u, false));
   else if (kind === 'stbd') cone(t0, true);
   else if (kind === 'port') g.fillRect(-4 * u, t0 - 4 * u, 8 * u, 8 * u);
+  else if (kind === 'special') {
+    // A yellow X (the met buoy's topmark).
+    g.strokeStyle = Y;
+    g.lineWidth = 2.2 * u;
+    g.beginPath();
+    g.moveTo(-4 * u, t0 - 4 * u);
+    g.lineTo(4 * u, t0 + 4 * u);
+    g.moveTo(4 * u, t0 - 4 * u);
+    g.lineTo(-4 * u, t0 + 4 * u);
+    g.stroke();
+  }
   else for (const cy of [t0, t0 - 9 * u]) (g.beginPath(), g.arc(0, cy, 3.5 * u, 0, Math.PI * 2), g.fill());
   g.restore();
   // The light: a magenta flare off the top, and its character beside it.

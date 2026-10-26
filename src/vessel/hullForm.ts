@@ -72,6 +72,20 @@ export interface Station {
    */
   spray?: [number, number];
   /**
+   * Her paint line's height here, where it's under her chine (a Shipyard bow whose chine is
+   * dragged up the stem: hulls/loft.ts paintKeel): her bottom paint stops here, her topsides'
+   * colour above it. Drawn only.
+   */
+  paintY?: number;
+  /**
+   * A round bilge drawn as two chines (hulls/loft.ts SectionShape.bilge; the harbour tug):
+   * its lower and upper points, starboard [half-breadth, height] each. Drawn only: her
+   * polygon's chine is one point on her side line below the bilge's upper point, placed so
+   * her section keeps the bilge's area (bilgeChine): she floats on her true waterline breadth
+   * and her lines' volume, five points a station as every hull.
+   */
+  bilge?: [[number, number], [number, number]];
+  /**
    * A catamaran's station (a hull-study design with `catamaran`; owner, Oct 2026: the fast
    * work cat). Her polygon is the whole section across both demihulls, ten points: port outer
    * deck edge, port outer chine, port keel, port inner chine, the wet deck's port corner (where
@@ -210,6 +224,7 @@ function catamaranForm(d: HullDesign, cat: { spacing: number; tunnel: number }):
       halfBeamChine: o + bC,
       halfBeamDeck: o + bD,
       demihull: { offset: o, halfBeamChine: bC, halfBeamDeck: bD },
+      ...(s.paintY !== undefined ? { paintY: s.paintY } : {}),
     };
   });
   const first = stations[0].polygon;
@@ -226,6 +241,40 @@ function catamaranForm(d: HullDesign, cat: { spacing: number; tunnel: number }):
     stations: stations.length,
   };
   return { params, stations, catamaran: { ...cat } };
+}
+
+/**
+ * A round bilge's chine for her physics (port side, x <= 0): on her side line, from the
+ * bilge's upper point down towards her deck edge's opposite way, as far as keeps her section's
+ * area what the drawn bilge gives (keel, lower point, upper point, deck edge): her waterline
+ * breadth her side's, her volume her lines'. No further than where her side line meets her
+ * bottom line (keel to the lower point), the hard-chine corner the bilge rounds off.
+ */
+type Pt = { x: number; y: number };
+function bilgeChine(keel: Pt, lo: Pt, hi: Pt, deck: Pt): Pt {
+  // Area of a half-section from the centreline at the keel, through `pts`, back up the centreline.
+  const area = (pts: Pt[]) => {
+    const ring = [{ x: 0, y: keel.y }, ...pts, { x: 0, y: deck.y }];
+    let a = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const p = ring[i];
+      const q = ring[(i + 1) % ring.length];
+      a += p.x * q.y - q.x * p.y;
+    }
+    return a / 2;
+  };
+  const target = area([lo, hi, deck]);
+  // Along her side line below the upper point: C(s) = hi + s (hi - deck).
+  const at = (s: number) => ({ x: hi.x + s * (hi.x - deck.x), y: hi.y + s * (hi.y - deck.y) });
+  // Where it meets her bottom line (the corner): the most it may go.
+  const [bx, by] = [lo.x - keel.x, lo.y - keel.y];
+  const [dx, dy] = [hi.x - deck.x, hi.y - deck.y];
+  const den = dx * by - dy * bx;
+  const sMax = Math.abs(den) > 1e-9 ? Math.max(0, ((keel.x - hi.x) * by - (keel.y - hi.y) * bx) / den) : 0;
+  const a0 = area([at(0), deck]);
+  const a1 = area([at(1), deck]);
+  const s = Math.abs(a1 - a0) > 1e-12 ? Math.min(sMax, Math.max(0, (target - a0) / (a1 - a0))) : 0;
+  return at(s);
 }
 
 /**
@@ -252,10 +301,14 @@ export function hullFormFromDesign(d: HullDesign): HullForm {
   // so the deck's ends are at +-length/2, as the game has it (origin amidships).
   const zs = stationZs(sections);
   const stations: Station[] = sections.map((s, i) => {
-    // Keel, chine(s) bottom-up, deck edge: with two chines the upper one is the spray chine.
-    const [keel, chine] = s.pts;
+    // Keel, chine(s) bottom-up, deck edge: with two chines the upper one is the spray chine
+    // (or, a round bilge, the bilge's two corners).
+    const [keel, lower] = s.pts;
     const deck = s.pts[s.pts.length - 1];
-    const spray = s.pts.length === 4 ? s.pts[2] : undefined;
+    const roundBilge = d.section.bilge && s.pts.length === 4;
+    const spray = s.pts.length === 4 && !roundBilge ? s.pts[2] : undefined;
+    const chine = roundBilge ? bilgeChine(keel, lower, s.pts[2], deck) : lower;
+    const bilge: [[number, number], [number, number]] | undefined = roundBilge ? [[Math.abs(lower.x), lower.y], [Math.abs(s.pts[2].x), s.pts[2].y]] : undefined;
     const bC = Math.abs(chine.x);
     const bD = Math.max(0.03, Math.abs(deck.x));
     const dz = i === 0 ? zs[0] - zs[1] : i === sections.length - 1 ? zs[i - 1] - zs[i] : (zs[i - 1] - zs[i + 1]) / 2;
@@ -272,6 +325,8 @@ export function hullFormFromDesign(d: HullDesign): HullForm {
       halfBeamChine: bC,
       halfBeamDeck: bD,
       ...(spray ? { spray: [Math.abs(spray.x), spray.y] as [number, number] } : {}),
+      ...(bilge ? { bilge } : {}),
+      ...(s.paintY !== undefined ? { paintY: s.paintY } : {}),
     };
   });
   const first = stations[0].polygon;

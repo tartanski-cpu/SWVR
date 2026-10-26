@@ -13,7 +13,7 @@
  */
 import { ALPHABET } from './design';
 import { isDocToken, readDesign, sameDesign } from './designDoc';
-import { addFavourite, cleanName, readFavourites, writeFavourites, type Favourite, type Store } from './favourites';
+import { addFavourite, cleanName, FAVOURITES_KEY, readFavourites, writeFavourites, type Favourite, type Store } from './favourites';
 import { DESIGN_HULLS } from './build';
 
 /** Longest code the keypad takes (characters): today's are 17-20, more with gear placed by hand. */
@@ -67,10 +67,29 @@ export class ShipyardCodes {
     return checkCode(this.code, this.pasted);
   }
 
-  constructor(private readonly store: () => Store | null) {}
+  constructor(private readonly store: () => Store | null) {
+    // The Shipyard (in another tab) saved or took off a favourite: the browser says so here.
+    if (typeof window !== 'undefined')
+      window.addEventListener('storage', (e) => {
+        if (e.key === FAVOURITES_KEY || e.key === null) this.forget();
+      });
+  }
 
+  /**
+   * The favourites saved in this browser, kept from the last read (each read parses every
+   * favourite and her picture, and the Your boats board asks every frame). Read again only when
+   * they may have changed (owner, Oct 2026: "reading them when you walk up to the board"): as
+   * you come up to the board (forget), when one is saved here, and when the Shipyard in another
+   * tab changes them.
+   */
   favourites(): Favourite[] {
-    return readFavourites(this.store());
+    this.cached ??= readFavourites(this.store());
+    return this.cached;
+  }
+  private cached: Favourite[] | null = null;
+  /** Read them afresh next time (one was just saved here, or you've come up to the board). */
+  forget(): void {
+    this.cached = null;
   }
 
   /** The favourite at row `i` of the page shown, if any. */
@@ -107,9 +126,11 @@ export class ShipyardCodes {
    * hand): her design code, a name, a line of her figures, no picture. Says what it did.
    */
   saveBoat(code: string, name: string, summary: string, now = Date.now()): string {
-    const list = this.favourites();
+    // (Read afresh, not the once-a-second copy: nothing saved meanwhile is lost.)
+    const list = readFavourites(this.store());
     const r = saveBoatFavourite(list, code, name, summary, now);
     if (!r.list) return r.text;
+    this.forget();
     return writeFavourites(this.store(), r.list) ? r.text : 'This browser won’t save (private window, or storage switched off)';
   }
 

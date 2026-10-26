@@ -13,6 +13,7 @@
  * design needs a handful of numbers per curve, not an offsets table.
  */
 import * as THREE from 'three';
+import type { TugFendering } from './fendering';
 
 /** Control points [t, value], t from 0 (transom) to 1 (stem), in any order. */
 export type Curve = [number, number][];
@@ -29,6 +30,12 @@ export interface SectionShape {
   chine2Height?: Curve;
   /** Round bilge: how many corner-cutting passes to soften the chines (0 = hard chine). */
   round?: number;
+  /**
+   * The two chines are a round bilge's, not a spray chine (a round-bilge ship drawn with hard
+   * chines: the harbour tug). The game draws both, and floats her on one chine on her side
+   * line that keeps each section's area (vessel/hullForm.ts bilgeChine).
+   */
+  bilge?: boolean;
   /**
    * Flare: the topsides lean out so the deck edge is this much wider than it would be with
    * vertical sides from the chine (fraction of the chine half-breadth); negative is tumblehome.
@@ -82,6 +89,20 @@ export interface HullDesign {
    */
   chineKeel?: Curve;
   /**
+   * The keel line her paint line is measured from, where her chines are dragged up the stem
+   * with her forefoot (owner, Oct 2026: the line between topsides and bottom paint straight,
+   * as the pilot boat's): her bottom paint up to where her chine would run on that uncut keel,
+   * her topsides' colour above it, though the chine itself sweeps up. Drawn only.
+   */
+  paintKeel?: Curve;
+  /**
+   * Her bottom paint up to this height over her DWL in the game's drawing (m): a ship's boot
+   * top, at her waterline, not her chine (the harbour tug: her bilge is under water).
+   */
+  bootTop?: number;
+  /** A harbour tug's fendering (hulls/fendering.ts): drawn on her hull as the game builds it. */
+  fendering?: TugFendering;
+  /**
    * Rake: how far the section leans fore-aft per metre of height above the keel (dz/dy).
    * Negative at the stem leans it forward; positive at the transom leans the transom aft.
    */
@@ -91,6 +112,8 @@ export interface HullDesign {
   bulwark: Curve;
   /** Number of stations lofted. */
   stations?: number;
+  /** More stations, where her shape needs them (t, 0 transom .. 1 stem): round a forefoot radius (Shipyard, catalog.ts bowKeel). */
+  extraStations?: number[];
   wheelhouse?: WheelhouseDesign;
   /** More deckhouse blocks (a lower deckhouse under a wheelhouse, an engine casing, a tower). */
   houses?: WheelhouseDesign[];
@@ -128,6 +151,8 @@ export interface Section {
   /** Keel .. deck edge, port side. */
   pts: THREE.Vector3[];
   bulwark: number;
+  /** Her paint line's height here (design.paintKeel), where it's under her chine. */
+  paintY?: number;
 }
 
 export interface LoftedHull {
@@ -200,6 +225,8 @@ export function loft(d: HullDesign): LoftedHull {
   const ts: number[] = [];
   for (let i = 0; i < n; i++) ts.push(i / (n - 1));
   if (d.forecastle) ts.push(d.forecastle.from - 1e-4, d.forecastle.from);
+  // Extra stations (a forefoot radius), unless one already stands within 5 cm.
+  for (const t of d.extraStations ?? []) if (ts.every((u) => Math.abs(u - t) * L > 0.05)) ts.push(t);
   ts.sort((a, b) => a - b);
   for (const t of ts) {
     const z = L / 2 - t * L;
@@ -239,7 +266,16 @@ export function loft(d: HullDesign): LoftedHull {
     const shaped = s.round ? soften(prof, s.round) : prof;
     const rake = curveAt(d.rake, t);
     const pts = shaped.map(([x, y]) => new THREE.Vector3(-x, y, z + rake * (y - keelY)));
-    sections.push({ t, z, keelY, deckY, halfBeam: hb, pts, bulwark: Math.max(0, curveAt(d.bulwark, t)) });
+    // Her paint line: her lowest chine's height, measured from the uncut keel (paintKeel).
+    let paintY: number | undefined;
+    if (d.bootTop !== undefined) paintY = Math.min(d.bootTop, deckY);
+    else if (d.paintKeel) {
+      const pRef = curveAt(d.paintKeel, t);
+      const frac = Math.min(curveAt(s.chineHeight, t), s.chine2Height ? curveAt(s.chine2Height, t) : Infinity);
+      paintY = pRef + frac * Math.max(0.05, drawnDeckY - pRef);
+    }
+    const lowChine = prof[1][1];
+    sections.push({ t, z, keelY, deckY, halfBeam: hb, pts, bulwark: Math.max(0, curveAt(d.bulwark, t)), ...(paintY !== undefined && (d.bootTop !== undefined || paintY < lowChine - 1e-4) ? { paintY } : {}) });
   }
   return { design: d, sections };
 }
