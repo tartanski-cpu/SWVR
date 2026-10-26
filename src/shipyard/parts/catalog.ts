@@ -147,6 +147,10 @@ export interface DesignHull {
    * and swing a big propeller (her propeller's size is bounded by her draught aft).
    */
   ballastKg?: number;
+  /** Where her ballast's weight is, above her keel amidships (m; 0.15, low in her bilge, unless her type says). */
+  ballastAboveKeel?: number;
+  /** Her fuel tanks (litres), where her type sets them (a ship's, the harbour tug's); else about a litre a kW. */
+  fuelL?: number;
   /**
    * Her size range grows beyond the usual (owner, Oct 2026: the landing craft's layout
    * "can actually extend to fairly big... proportionally in all directions"): the length
@@ -161,6 +165,31 @@ export interface DesignHull {
    * at step 8; her beam and depth shrink with it (CONFIG.shipyard.shrink).
    */
   shrinksTo?: number;
+  /**
+   * A one-off (owner, Oct 2026: the harbour tug, "a fixed hull and ... all the parts of the
+   * wheelhouse fixed, so basically predefined"): these choices are hers and stay so (withFixed:
+   * the page hides their controls, the build keeps to them). What's left is the player's:
+   * colours, the wheelhouse inside and its instruments, the deck gear she takes.
+   */
+  fixed?: Partial<ShipDesign>;
+  /** Her study's fendering (hulls/fendering.ts: the harbour tug's) is her hull protection: drawn on her, with its contacts. */
+  fendering?: boolean;
+  /**
+   * How deep below her waterline her propellers may reach (m), where her stern is cut up
+   * shallower (the harbour tug's, for drive pods that hang under it): her propeller's size
+   * is bounded by it instead of her draught at the transom.
+   */
+  propDepth?: number;
+  /** Her engine room rises into her deckhouse (a ship's machinery casing: the harbour tug's): her engines may stand up to its top where they're under it. */
+  engineCasing?: boolean;
+  /** She tows over her bow (the harbour tug): her tow winch on the foredeck facing forward, her tow point at the stem (a bow staple). */
+  towsOverBow?: boolean;
+}
+
+/** A design with her one-off type's fixed choices (DesignHull.fixed) kept to. */
+export function withFixed<D extends Pick<ShipDesign, 'hull'>>(d: D): D {
+  const fixed = DESIGN_HULLS[d.hull]?.fixed;
+  return fixed ? { ...d, ...fixed } : d;
 }
 
 /** What a hull and its houses are built of (CONFIG.shipyard.materials). */
@@ -296,6 +325,69 @@ export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: nu
 export const TUG_HULL = 4;
 /** The slow-revving tug diesel (its index in ENGINES): a boat with it is a tug, whatever her hull (the line-throwing gun). */
 export const TUG_DIESEL = 3;
+/** The harbour tug (DESIGN_HULLS), and her own engine (ENGINES: only she takes it). */
+export const HARBOUR_TUG = 7;
+export const HARBOUR_TUG_DIESEL = 5;
+
+/**
+ * The harbour tug's fixed choices (owner, Oct 2026, from photographs of a 25 m ASD tug): a
+ * deckhouse about 2.4 m high over the middle third of her length, a little forward of
+ * amidships, side decks either side of it and its top walked with rails; the wheelhouse on
+ * it as a raised bridge, windows all round raked out, a deep roof; exhaust stacks at its aft
+ * corners; her tow winch on the foredeck facing forward (she tows over her bow); a low
+ * working deck aft. Her hull as drawn (each size slider at x1), steel, her fendering her
+ * protection, the 1,850 kW diesels as a stand-in for her drives. None of the trawl, dive or
+ * landing gear, no outboards or stern drives, no stern roller (her tow point is her bow); her
+ * propellers in Kort nozzles, as her drives' are.
+ */
+const HARBOUR_TUG_FIXED: Partial<ShipDesign> = {
+  ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 6, bow: 0, visor: 1, lowerFront: 0, engine: 5, twin: 1 }),
+  housePos: 0.55,
+  houseLength: 4.4,
+  houseWidth: 0.8,
+  headroom: 2.2,
+  floor: 0,
+  windowRake: 10,
+  roofThickness: 0.3,
+  roofEdge: 45,
+  dhLength: 2.0,
+  dhHeight: 2.4,
+  dhWidth: 0.8,
+  dhRake: 0,
+  dhNarrow: 0,
+  dhWalk: 1,
+  dhAft: 2.0,
+  saloon: 0,
+  saloonFloor: 0,
+  saloonRoof: 0,
+  sheer: 0,
+  fcLength: 0,
+  facets: 0,
+  aftFacets: 0,
+  flare: 1,
+  sills: 0,
+  houseX: 20,
+  overhead: 0,
+  stackStyle: 0,
+  material: 1,
+  guard: 0,
+  rails: 0,
+  bowFender: 0,
+  outboards: 0,
+  sternDrive: 0,
+  pods: 0,
+  // (Her propellers in nozzles, as an azimuth drive's are: a tug's bollard pull.)
+  nozzle: 1,
+  sternRoller: 0,
+  aFrame: 0,
+  netDrum: 0,
+  trawlWinches: 0,
+  fishHold: 0,
+  diveFrame: 0,
+  foreCabin: 0,
+  towWinch: 1,
+  winchAt: 0,
+};
 
 export const DESIGN_HULLS: DesignHull[] = [
   {
@@ -436,6 +528,32 @@ export const DESIGN_HULLS: DesignHull[] = [
     // A bow fender as she comes (owner, Oct 2026: the usual crew-transfer boat is a catamaran).
     defaults: { ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 1, bow: 0, housePos: 12, houseLength: 5, houseWidth: 5, headroom: 3, floor: 3, visor: 1, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 0 }), bowFender: 1 },
   },
+  {
+    // The harbour tug (owner, Oct 2026: "this ship hull is basically a one-off. It doesn't
+    // need to be parametric"): the hull study's `harbourTug` as she is (the hull modifications
+    // chat's lines: an azimuth stern drive tug of a real 25 m tug's size and type), her
+    // superstructure fixed (HARBOUR_TUG_FIXED). Not in the design code: a link or file.
+    name: 'Harbour tug: 25 m steel, a one-off: her hull, deckhouse and bridge are fixed',
+    material: 'steel',
+    scantlings: CONFIG.shipyard.harbourTug.scantlings,
+    ballastKg: CONFIG.shipyard.harbourTug.ballastKg,
+    ballastAboveKeel: CONFIG.shipyard.harbourTug.ballastAboveKeel,
+    fuelL: CONFIG.shipyard.harbourTug.fuelL,
+    // As drawn: no scaling, no bow choice (her sliders are fixed at x1).
+    form: () => ({ kind: 'lofted', design: scaledStudy(study('harbourTug'), 1, 1, 1, null, false, 0) }),
+    regime: 'displacement',
+    ramp: false,
+    exhaustStacks: true,
+    fendering: true,
+    towsOverBow: true,
+    propDepth: CONFIG.shipyard.harbourTug.propDepth,
+    engineCasing: true,
+    cockpit: 6.0,
+    foredeck: 4.0,
+    fixed: HARBOUR_TUG_FIXED,
+    // Her colours as drawn: dark blue-grey topsides, a white house, a red roof.
+    defaults: { ...HARBOUR_TUG_FIXED, paint: 2, houseColour: 1, roofPaint: 6, lifeRing: 1 },
+  },
 ];
 
 /**
@@ -467,6 +585,10 @@ export const ENGINES = [
   // the tug diesel's revs, with bigger cylinders; it turns the biggest propeller, for a stern
   // trawler towing her net or a big tug. Shaft only, as the tug diesel.
   { name: '750 kW medium-speed diesel (big straight six, 1000 rpm)', kw: 750, kg: 4800, voice: 'inlineSix' as const, rackRise: 0.9, ratedRpm: 1000, idleRpm: 420, propMaxM: 1.9, pricePerKw: 180, size: [3.3, 1.15, 1.7] as const, about: 'The biggest, for a trawler or a big tug: a medium-speed straight six turning the biggest, slowest propeller, for a hard pull on a net or a tow. Heavy and tall: it wants a long, deep hull.' },
+  // The harbour tug's (owner, Oct 2026: her real power, 2 x 1850 kW, until her azimuth drives
+  // come): a big high-power diesel of her size, on a shaft for now, turning a propeller as big
+  // as her draught aft allows. Heavy and long: only she has the room for it.
+  { name: '1850 kW harbour tug diesel (V16, 1600 rpm)', kw: 1850, kg: 8500, voice: 'v8' as const, rackRise: 1.2, ratedRpm: 1600, idleRpm: 600, propMaxM: 2.4, pricePerKw: 200, size: [4.4, 1.7, 2.1] as const, only: [HARBOUR_TUG] as readonly number[], about: 'The harbour tug’s: a big high-power diesel for her bollard pull. A stand-in on a shaft until her azimuth drives come.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */

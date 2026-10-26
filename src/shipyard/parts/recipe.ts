@@ -24,7 +24,7 @@ import type { HoldPart } from './hold';
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
   const { code, d, id } = a;
-  const { towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowFender, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
+  const { fendering, bowStaple, towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowFender, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
   const recipe = structuredClone(landingCraftRecipe) as unknown as Recipe;
   recipe.id = `vessel.${id}`;
@@ -657,6 +657,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // The working deck gear (version 10), and a hydraulic pump for whatever needs one.
   if (winchAt) recipe.modules.push({ socket: 'towWinch', module: 'deck.tow-winch' });
   // A tug's tow point is her towing hook near amidships (deckGear.ts towHook), not the roller.
+  // A tug towing over her bow: her staple at the stem is her tow point (deckGear.ts bowStaple).
+  if (bowStaple) recipe.modules.push({ socket: 'bowStaple', module: 'deck.bow-staple', config: { height: bowStaple.height, halfGap: 0.25 } });
   if (sternRoller) recipe.modules.push({ socket: 'sternRoller', module: 'deck.stern-roller', ...(towHook ? { config: { hook: towHook } } : {}) });
   if (aFrame) recipe.modules.push({ socket: 'aFrame', module: 'deck.a-frame' }, { socket: 'trawl', module: 'fishing.trawl' });
   // The dive A-frame and its sub (design.diveFrame): where it stands on her, and its legs.
@@ -682,6 +684,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
   if (pushFender) recipe.modules.push({ socket: 'pushFender', module: 'hull.push-fender', config: pushFender });
   if (bowFender) recipe.modules.push({ socket: 'bowFender', module: 'hull.bow-fender', config: bowFender });
+  // The harbour tug's fendering: its mesh and points worked out from her lines (trim.ts, parts/fendering.ts).
+  if (fendering) recipe.modules.push({ socket: 'fendering', module: 'hull.fendering', config: { positions: fendering.positions, probes: fendering.probes } });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
   // Her furniture (P5), each piece on its place.
   recipe.modules.push(...p.furnitureMounts);

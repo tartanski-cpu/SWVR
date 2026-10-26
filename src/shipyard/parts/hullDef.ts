@@ -24,7 +24,7 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 /** Her hull definition: the exhaust stacks, every socket (the places her modules go), her rescue places, what she can carry, her handling, windage and fittings. */
 export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart) {
   const { code, d, id } = a;
-  const { F, aft, at, batteriesKg, hx, beamDeck, bowFender, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, sideDoor, st, stem, transom, twin, tyres, wall, weighed, wheelhouseSockets } = p;
+  const { fendering, F, aft, at, batteriesKg, hx, beamDeck, bowFender, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, sideDoor, st, stem, transom, twin, tyres, wall, weighed, wheelhouseSockets } = p;
   // A tug's dry exhaust stacks (owner, Oct 2026; CONFIG.shipyard.exhaustStack; the stern
   // trawler's too: a hull type with `exhaustStacks`): one per
   // engine, each in an aft corner of the wheelhouse (starboard; a twin's second to port), from
@@ -87,6 +87,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     ...(stack ? [{ id: 'exhaustStack', type: 'deck.fitting' as const, transform: { position: [stack.pipes[0].x, stack.floor, stack.pipes[0].z] as V3 }, label: 'The wheelhouse\'s aft corners: her exhaust stacks' }] : []),
     ...(bowFender ? [{ id: 'bowFender', type: 'hull.side' as const, transform: { position: [0, bowFender.bottom, bowFender.front] as V3 }, label: 'Her bow: the bow fender' }] : []),
     ...(pushFender ? [{ id: 'pushFender', type: 'hull.side' as const, transform: { position: [0, pushFender.bottom, pushFender.z] as V3 }, label: 'Her square bow: the push fender' }] : []),
+    ...(fendering ? [{ id: 'fendering', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: 'Her sides, stern and bow: the fendering' }] : []),
     ...(prot.side ? [{ id: 'hullGuard', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: prot.side === 'strake' ? 'Her sheer, all round: the rubbing strake' : 'Her sides: the tyres' }] : []),
     ...engineSockets,
     ...wheelhouseSockets,

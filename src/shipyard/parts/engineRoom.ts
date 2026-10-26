@@ -58,7 +58,9 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const nozzle = !!d.nozzle && !sd && !pods && !outboardCount(d);
   const n = twin ? 2 : 1;
   const keelAft = st[0].polygon[2][1];
-  const draughtAft = -keelAft;
+  // (The harbour tug's stern is shallow, cut up for drive pods to hang under: her propellers
+  // reach down as her drives' would, DesignHull.propDepth, until her drives come.)
+  const draughtAft = Math.max(-keelAft, base.propDepth ?? 0);
   // The propeller: as big as her draught aft allows (tip clear below her keel by ~1/4 of
   // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
   // slower engine turns a bigger one for its power (a propeller's best diameter grows as its
@@ -113,7 +115,10 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const engineGroupKg = eng.kg * n * (1 + wc.machineryShare) + 2 * CONFIG.modules.batteryBank.massKg;
   const restKg = restKgZ.reduce((a, [m]) => a + m, 0);
   const balanceZ = (h.lcb * (restKg + engineGroupKg) - restKgZ.reduce((a, [m, z]) => a + m * z, 0)) / engineGroupKg;
-  const ceilingAt = (z: number) => (z >= front && z <= aft ? floorY : q.deckY(z));
+  // (The harbour tug's engine room rises into her deckhouse, as a ship's machinery casing:
+  // under it, her engines may stand up to its top. DesignHull.engineCasing.)
+  const casing = base.engineCasing && deckhouse ? deckhouse : null;
+  const ceilingAt = (z: number) => (casing && z >= casing.z0 && z <= casing.z1 ? casing.top : z >= front && z <= aft ? floorY : q.deckY(z));
   // (Pods: the engine level as a stern drive's, its gearbox end over the pod's axis.)
   const shaft = sd || pods
     ? sternDriveLine(shape, eng.size, twin ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
@@ -199,7 +204,8 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const rudderArea = Math.round(0.07 * h.lwl * Math.max(0.3, draughtAft) * n * 100) / 100;
   // Her installed power (the outboards': each one's, times their count).
   const powerKw = nOb ? obc.engine.powerKw * nOb : kw * n;
-  const tankL = Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
+  // (A ship's tanks, where her type sets them: the harbour tug's, DesignHull.fuelL.)
+  const tankL = base.fuelL ?? Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
   return { batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };
@@ -319,8 +325,8 @@ export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPa
     { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, hatchTop, hatchZ] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: `${hatchIs}, over the engine` },
     { id: 'dipstick', type: 'deck.fitting', transform: { position: dip }, label: "Engine space, the engine's inboard side" },
     { id: 'oilCan', type: 'deck.fitting', transform: { position: [eh.x1 - 0.08, hatchTop - 0.3, eh.z1 - 0.15], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
-    // (Up to twin 750 kW diesels: 1500 kW.)
-    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 1500 }, label: 'Engine bed, on her shaft line' },
+    // (Up to the harbour tug's twin 1,850 kW diesels: 3700 kW.)
+    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 4000 }, label: 'Engine bed, on her shaft line' },
     { id: 'fuelTank', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'batteries', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], rnd(soleY), at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },

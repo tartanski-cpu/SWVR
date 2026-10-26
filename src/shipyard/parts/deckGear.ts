@@ -9,7 +9,7 @@ import { deckhouseHalfWidth } from '../../vessel/deckhouse';
 import { PLACE_GRID, placeOf, type PlaceKey } from '../design';
 import type { Socket } from '../../modular/socket';
 import type { BuildArgs, V3 } from './common';
-import { TUG_HULL } from './catalog';
+import { DESIGN_HULLS, TUG_HULL } from './catalog';
 import { diveFrameFit } from './diveFrame';
 import type { DesignedBoat } from '../build';
 import type { HullPart } from './hull';
@@ -246,6 +246,20 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     if (!towHook) warnings.push('There\'s no room on her deck for a towing hook aft of the wheelhouse: she tows from the stern roller.');
   }
   if (wantWinch && !winchAt && tugWinchZ !== null) winchAt = [0, q.deckY(tugWinchZ), tugWinchZ];
+  // A tug that tows over her bow (DesignHull.towsOverBow: the harbour tug, owner, Oct 2026):
+  // her towline leads forward through a staple on her stem (modules/bowStaple), her tow
+  // point; her winch on the foredeck behind it, facing forward, as far forward as it stands
+  // (clear of the staple, room aft of it to stand at its buttons).
+  const overBow = !!DESIGN_HULLS[a.d.hull]?.towsOverBow;
+  const bowStaple = overBow ? { z: r2(stem + dg.bowStaple.fromStem), height: r2(q.bulwarkTop(stem + dg.bowStaple.fromStem) - q.deckY(stem + dg.bowStaple.fromStem) + dg.bowStaple.overBulwark) } : null;
+  if (overBow && wantWinch && !winchAt) {
+    for (let z = stem + dg.bowStaple.winchFromStem; z < front - 1; z += 0.1) {
+      if (!standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 2)))) continue;
+      winchAt = [0, q.deckY(z), r2(z)];
+      winchFace = 2;
+      break;
+    }
+  }
   if (wantWinch && !winchAt) {
     // Its usual place: on the centreline just forward of the transom, room forward of it to
     // stand at its buttons, clear of the house's door.
@@ -256,7 +270,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   if (winchAt) taken.push(...winchShape.map((r) => placeRect(r, winchAt![0], winchAt![2], winchFace)));
   // A tow winch with nothing to tow from (review, 24 Oct 2026): the tow point is the stern
   // roller's (modules/sternRoller: its towing hook too, on a tug). Without it she never takes a tow.
-  if (winchAt && d.towWinch && !sternRoller) warnings.push(`Her tow winch has no tow point to tow from: fit the stern roller (Deck gear) for her to take a tow${d.aFrame ? ' (the A-frame’s trawl works without it)' : ''}.`);
+  if (winchAt && d.towWinch && !sternRoller && !bowStaple) warnings.push(`Her tow winch has no tow point to tow from: fit the stern roller (Deck gear) for her to take a tow${d.aFrame ? ' (the A-frame’s trawl works without it)' : ''}.`);
   const aFrame = !!d.aFrame && (!!winchAt || !!trawlWinchesAt);
 
   // The deck crane: its socket where its column stands, so the crane module keeps it there
@@ -509,6 +523,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
         ] as Socket[])
       : []),
     // The working deck gear (version 10).
+    ...(bowStaple ? [{ id: 'bowStaple', type: 'deck.equipment' as const, transform: { position: [0, q.deckY(bowStaple.z), bowStaple.z] as V3 }, label: 'Her bow: the towing staple' }] : []),
     ...(winchAt ? [{ id: 'towWinch', type: 'deck.equipment' as const, transform: { position: winchAt, ...(winchFace ? { rotationDeg: [0, -90 * winchFace, 0] as V3 } : {}) }, label: `${deckWords(winchAt)}: the tow winch` }] : []),
     ...(sternRoller ? [{ id: 'sternRoller', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, centreline: the notch in the bulwark' }] : []),
     ...(diveFrame ? [{ id: 'diveFrame', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, across the quarters: the dive A-frame, its sub on her cradle forward of it' }] : []),
@@ -532,7 +547,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
     ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
   ];
-  return { towHook, deckSockets, diveFrame, aFrame, netDrumAt: aFrame ? netDrumAt : null, trawlWinchesAt: aFrame ? trawlWinchesAt : null, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, placeWhy, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
+  return { bowStaple, towHook, deckSockets, diveFrame, aFrame, netDrumAt: aFrame ? netDrumAt : null, trawlWinchesAt: aFrame ? trawlWinchesAt : null, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, placeWhy, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
 }
 export type DeckGearPart = ReturnType<typeof deckGearPart>;
 

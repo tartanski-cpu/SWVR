@@ -28,6 +28,8 @@ export const ENGINE_LOOKS = [
   { kind: 'v8', block: 0x7d8792 },
   { kind: 'bigSix', block: 0x4f8a6c },
   { kind: 'bigSix', block: 0x8c5a3c },
+  // The harbour tug's 1850 kW V16 (Shipyard ENGINES): drawn as a V engine, its length its own.
+  { kind: 'v8', block: 0x3f5f7a },
 ] as const;
 
 const mats = new Map<number, THREE.MeshStandardMaterial>();

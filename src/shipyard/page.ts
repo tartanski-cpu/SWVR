@@ -40,7 +40,7 @@ import { alongAxis, HANDLES, nearestStep, type HandleDef, type V3 as HV3 } from 
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
-import { buildDesign, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
+import { buildDesign, withFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
 import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
@@ -646,7 +646,7 @@ function section(title: string): HTMLElement {
   el.className = 'step';
   el.dataset.step = name.toLowerCase();
   el.dataset.title = name;
-  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}`;
+  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}<p class="oneOffNote meta" hidden>She’s a one-off: her hull, deckhouse, bridge and stacks are fixed. Her colours, the wheelhouse inside and her deck gear are yours to choose.</p>`;
   const guide = el.querySelector<HTMLElement>('.guide');
   if (guide && STEP_MORE[name]) aboutHeading(guide, STEP_MORE[name], true);
   stepBody.insertBefore(el, handoverStep);
@@ -1028,8 +1028,8 @@ section('5. Engine');
 // As pictures (owner, Oct 2026: "too much text ... more pictorial"; tiles.ts): each choice a
 // drawing, its name and one line, the full description behind its ⓘ button.
 {
-  const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug, ENGINE_ICONS.medium];
-  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six'];
+  const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug, ENGINE_ICONS.medium, ENGINE_ICONS.v8big];
+  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six', 'tug V16'];
   pickTiles(
     controls,
     'engine',
@@ -1181,8 +1181,65 @@ paintRow('roofPaint', 'Colour', ROOF_PAINTS, 'hull');
 // The roof's top (owner: the eyebrow): one colour, or a panel in a second colour set in from its edges.
 paintRow('roofTop', 'Top panel', ROOF_TOPS, 'roof');
 
-/** Show the design in the controls. */
+/** Show the design in the controls (and, on a one-off, her fixed choices' controls hidden). */
 function syncControls(): void {
+  showControls();
+  lockOneOff();
+}
+/**
+ * A one-off (DesignHull.fixed: the harbour tug; owner, Oct 2026: "the wheelhouse, I think the
+ * funnel stacks, the deck house, all that kind of stuff should be predefined and fixed"): each
+ * control of a fixed choice hidden (its row, or its grid of tiles), a heading left with nothing
+ * under it hidden too, and a line at the top of each step saying she's a one-off.
+ */
+function lockOneOff(): void {
+  const fixed = DESIGN_HULLS[design.hull]?.fixed ?? {};
+  const isFixed = (k: string | undefined) => !!k && k in fixed;
+  document.querySelectorAll<HTMLElement>('.oneOffHidden').forEach((el) => el.classList.remove('oneOffHidden'));
+  const box = (el: HTMLElement): HTMLElement[] => {
+    const row = el.closest<HTMLElement>('.row');
+    if (row) return [row];
+    const tiles = el.closest<HTMLElement>('.tiles');
+    if (!tiles) return [el.closest<HTMLElement>('.tile') ?? el];
+    // A grid of tiles: hidden when every tile in it is a fixed choice's, with its heading and its ⓘ box.
+    const all = [...tiles.querySelectorAll<HTMLElement>('[data-key]')].every((t) => isFixed(t.dataset.key));
+    if (!all) return [el.closest<HTMLElement>('.tile') ?? el];
+    const head = tiles.previousElementSibling as HTMLElement | null;
+    return [tiles, ...(head?.classList.contains('tilesHead') ? [head] : []), ...(tiles.nextElementSibling?.classList.contains('tileInfo') ? [tiles.nextElementSibling as HTMLElement] : [])];
+  };
+  document.querySelectorAll<HTMLElement>('#stepBody [data-key]').forEach((el) => {
+    if (isFixed(el.dataset.key)) for (const b of box(el)) b.classList.add('oneOffHidden');
+  });
+  // A box whose every child is hidden (a grid's wrapper round its heading, tiles and ⓘ box), hidden too.
+  const gone = (el: Element) => el.classList.contains('oneOffHidden') || (el as HTMLElement).hidden || el.classList.contains('tileInfo') || el.classList.contains('tilesHead');
+  for (let changed = true; changed; ) {
+    changed = false;
+    document.querySelectorAll<HTMLElement>('#stepBody .oneOffHidden').forEach((el) => {
+      const up = el.parentElement;
+      if (!up || up.classList.contains('step') || up.id === 'stepBody' || up.classList.contains('oneOffHidden')) return;
+      if ([...up.children].every(gone)) {
+        up.classList.add('oneOffHidden');
+        changed = true;
+      }
+    });
+  }
+  // A heading with nothing left under it before the next.
+  document.querySelectorAll<HTMLElement>('#stepBody .step h2').forEach((h) => {
+    let el = h.nextElementSibling as HTMLElement | null;
+    let any = false;
+    for (; el && el.tagName !== 'H2'; el = el.nextElementSibling as HTMLElement | null) if (!el.classList.contains('oneOffHidden') && el.style.display !== 'none' && !el.classList.contains('tileInfo')) any = true;
+    h.classList.toggle('oneOffHidden', !any && Object.keys(fixed).length > 0);
+  });
+  document.querySelectorAll<HTMLElement>('.oneOffNote').forEach((n) => (n.hidden = !Object.keys(fixed).length));
+  // An engine only some types take (ENGINES `only`: the harbour tug's): its tile on those only.
+  document.querySelectorAll<HTMLElement>('[data-key=engine][data-i]').forEach((el) => {
+    const only = (ENGINES[Number(el.dataset.i)] as { only?: readonly number[] }).only;
+    el.classList.toggle('oneOffHidden', !!only && !only.includes(design.hull));
+  });
+  // (Sizing her for the deck cargo changes her length and beam: not a one-off's.)
+  document.getElementById('sizeDeck')?.classList.toggle('oneOffHidden', 'length' in fixed);
+}
+function showControls(): void {
   syncDhWidth();
   // The Paint step's '=' swatches show the colour they follow; each row names the one chosen.
   document.querySelectorAll<HTMLElement>('.swatch[data-like]').forEach((el) => (el.style.background = hex(PAINT_LIKE[el.dataset.like!](design))));
@@ -1673,13 +1730,17 @@ function runTrial(): void {
 /** A choice changed: rebuild and redraw her, then re-run her trials. */
 function change(patch: Partial<ShipDesign>, by: 'me' | Person | null = 'me'): void {
   const before = matchKey(design);
+  // A new hull type may be a very different size (the 9 m landing craft to the 25 m harbour tug): look at all of her again.
+  const newType = patch.hull !== undefined && patch.hull !== design.hull;
   if (by === 'me') share(patch);
   else if (by) flash(patch, by);
-  design = { ...design, ...patch };
+  // (A one-off type's fixed choices stay hers: DesignHull.fixed.)
+  design = withFixed({ ...design, ...patch });
   saveSessionCopy();
   boat = useDesign(design);
   syncControls();
   drawBoat();
+  if (newType) setView('Bow ¾');
   showFigures();
   showCode();
   if (matchKey(design) !== before || !trial) runTrial();
@@ -2461,7 +2522,8 @@ function showHandles(): void {
   for (const row of document.querySelectorAll<HTMLElement>('.row.handled')) row.classList.remove('handled');
   if (placing || tool || live) return;
   for (const def of HANDLES) {
-    if (def.step !== shownStep || (def.applies && !def.applies(design))) continue;
+    // (Not on a one-off's fixed choices: DesignHull.fixed.)
+    if (def.step !== shownStep || (def.applies && !def.applies(design)) || def.key in (DESIGN_HULLS[design.hull]?.fixed ?? {})) continue;
     const mesh = new THREE.Mesh(handleGeo, new THREE.MeshBasicMaterial({ color: handleColour(def), depthTest: false, transparent: true, opacity: 0.95 }));
     mesh.renderOrder = 12;
     const at = def.anchor(boat);
@@ -2838,7 +2900,10 @@ function showOnHer(): void {
   if (!menu) return;
   menu.innerHTML = '';
   for (const g of GEAR_GROUPS) {
-    const items = g.items.map((id) => equipmentOf(id)!).filter(Boolean);
+    // (Not a one-off's fixed gear, the harbour tug's bow winch, stern roller and the rest: DesignHull.fixed.)
+    const fixed = DESIGN_HULLS[design.hull]?.fixed ?? {};
+    const items = g.items.map((id) => equipmentOf(id)!).filter((eq) => eq && !(eq.field in fixed));
+    if (!items.length) continue;
     const on = items.filter((eq) => fitted(eq, design)).length;
     const det = document.createElement('details');
     det.className = 'gearGroup';

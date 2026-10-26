@@ -118,6 +118,17 @@ export const TYPE_FACTS: TypeFacts[] = [
     maxPots: 104,
     fits: [fit(0, 1, 17.6, 85, 2.82, 250_000), fit(1, 1, 24.4, 123, 4.61, 281_000), fit(2, 1, 29.7, 152, 5.65, 310_000), fit(3, 1, 31.6, 142, 5.61, 367_000)],
   },
+  {
+    // The harbour tug (a one-off: her hull, her superstructure and her engines fixed, so one fit;
+    // measured 26 Oct 2026, her stand-in shafts in nozzles until her azimuth drives come).
+    what: 'A one-off harbour tug: 25 m of steel, a raised bridge on a deckhouse, heavy fendering all round; she tows over her bow and pushes ships.',
+    goodFor: ['towing', 'fire'],
+    crates: 334,
+    pots: 211,
+    maxCrates: 334,
+    maxPots: 211,
+    fits: [fit(5, 1, 11.8, 903, 30.8, 1_408_000)],
+  },
 ];
 
 export interface TypeLine {

@@ -263,6 +263,21 @@ export const SHIPYARD_CONFIG = {
      */
     finish: [1, 0.5, 0],
     /**
+     * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing
+     * heavier than the usual steel by `scantlings` (built heavy, for pushing ships), and her
+     * `ballastKg`, so she floats near her lines' 3.3 m draught: a real tug's 494 t is far more
+     * than the build counts (her heavy framing, machinery, tanks of water and stores), carried
+     * here as one weight `ballastAboveKeel` m above her keel, where it gives her a real tug's
+     * stability (GM about 2 m on her KM of 5.8 m), not all down in her bilge. Her fuel tanks
+     * `fuelL` litres, a ship's (about 60 m³), not the small boats' litre a kW. Her propellers reach `propDepth` m below her waterline, as her
+     * drive pods would hang under her shallow stern (her real pods reach 5.3 m), until the
+     * drives come: her stand-in shafts turn propellers of a tug's size, not her transom's.
+     */
+    // Her fendering (parts/fendering.ts): `fenderingKg` of rubber (belts, stern and bow
+    // cylinders, the bow's blocks: about 6 t on a 25 m tug); its contact points one to each
+    // `probeCell` m cell of its outer face.
+    harbourTug: { scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9 },
+    /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
      * placed by it, go aft until each part rising above the sill (the dash, or the low-sill
@@ -374,6 +389,12 @@ export const SHIPYARD_CONFIG = {
        *   hook.winchGap       her tow winch's usual place on a tug: this far forward of the
        *                       hook (m, drum to hook), the line off the drum aft through it.
        */
+      /**
+       * A tug that tows over her bow (the harbour tug): her towing staple `fromStem` m aft of
+       * her stem, its roller `overBulwark` m over her bulwark there; her winch from `winchFromStem`
+       * m aft of her stem (the first place it stands, facing forward).
+       */
+      bowStaple: { fromStem: 0.6, overBulwark: 0.15, winchFromStem: 3.0 },
       tug: { houseAftOfMidships: 0, hook: { aftOfMidships: 0.12, clearOfHouse: 0.6, height: 1.4, postRadius: 0.1, winchGap: 0.7 } },
       sideDoor: { width: 0.75, fromConsole: 0.35, buttonHeight: 1.1, sideDeck: 0.5 },
       ringFromCorner: 0.4,

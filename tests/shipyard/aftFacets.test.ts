@@ -19,6 +19,8 @@ describe('faceted aft windows', () => {
   it('every hull type: faceted as the front is, and everything inside the house stays inside the angled corners', () => {
     for (const [hull, t] of DESIGN_HULLS.entries()) {
       if (t.retired) continue;
+      // (Not a one-off, the harbour tug: this choice is fixed on her.)
+      if (t.fixed) continue;
       for (const more of [{}, { twin: 1, sideDoor: 1 }, { saloon: 6, controls: 1 }]) {
         let d = typeOf(hull, more);
         useDesign(d);

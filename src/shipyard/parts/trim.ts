@@ -8,6 +8,7 @@ import { strakeLine, tyreSpots } from '../../vessel/physics/guards';
 import { guardParts } from '../design';
 import { catamaranHandling } from '../../vessel/catamaran';
 import { atDWL, type BuildArgs, type V3 } from './common';
+import { fenderingFit } from './fendering';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart } from './house';
 
@@ -59,7 +60,7 @@ function bowFenderVolume(c: { halfWidth: number; top: number; bottom: number; fr
 /** She floats on her lines: her weight (as drawn, or as weighed), her centre of gravity, her hull protection's weight, inertia, damping, and how she rides at speed. */
 export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const { d, given, raise } = a;
-  const { base, bulwarkHeight, deckhouse, dhArea, dhc, floorY, headroom, level, q, rnd, shape, st, stem, transom, warnings } = p;
+  const { base, bulwarkHeight, deckhouse, dhArea, dhc, floorY, form, headroom, level, q, rnd, shape, st, stem, transom, warnings } = p;
   // ── Weight, CG, inertia, damping: she floats on her lines ──
   const h = atDWL(shape);
   const rho = CONFIG.ocean.density;
@@ -88,6 +89,13 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const guardKg = strakeM * hg.strake.kgPerM + 2 * tyres.length * hg.tyres.kgEach;
   const guardY = prot.side === 'strake' ? deckMid - hg.strake.drop : deckMid - hg.tyres.drop;
   if (guardKg > 0) cg[1] += (guardKg / mass) * (guardY - cg[1]);
+  // The harbour tug's fendering (DesignHull.fendering; parts/fendering.ts): her protection, her
+  // study's own, in place of the strake or tyres (her `guard` is fixed at none); heavy rubber
+  // high on her sides, designed in as the strake is.
+  const spec = base.fendering && form.kind === 'lofted' ? form.design.fendering : undefined;
+  const fendering = spec ? fenderingFit(shape, spec) : null;
+  const fenderingKg = fendering ? CONFIG.shipyard.harbourTug.fenderingKg : 0;
+  if (fendering) cg[1] += (fenderingKg / mass) * (fendering.y - cg[1]);
   // A tug's push knees on her square bow plate (modules/pushFender): from the bulwark top
   // down to just above where the plate's sides end (its chines), within `inset` of her
   // sides; designed in high at her bow, as the strake is.
@@ -150,6 +158,6 @@ export function trimPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart) {
   const planing = regime ? { lean: Math.round((sy.leanBase + sy.leanPerSine * Math.sin(deadriseAft)) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
   const damping = { ...perArea, rollLift: sy.rollLift, verticalCd: Math.round(perArea.verticalCd * slam * 100) / 100, roll: Math.round(0.28 * rollCritical), pitch: Math.round(lc.damping.pitch * sizeK), yaw: Math.round(lc.damping.yaw * sizeK) };
 
-  return { beamDeck, bowFender, bowFenderKg, cat, cg, damping, deckMid, gm, guardKg, guardY, gyradius, h, hg, keelMid, lc, lengthM, mass, mid, pf, planing, prot, pushFender, rho, strakeM, tyres };
+  return { fendering, fenderingKg, beamDeck, bowFender, bowFenderKg, cat, cg, damping, deckMid, gm, guardKg, guardY, gyradius, h, hg, keelMid, lc, lengthM, mass, mid, pf, planing, prot, pushFender, rho, strakeM, tyres };
 }
 export type TrimPart = ReturnType<typeof trimPart>;

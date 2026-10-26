@@ -15,6 +15,7 @@ describe('the brief', () => {
     expect(b.hull).toBeNull();
     expect(b.gmM).toBeGreaterThan(0);
     // Four engines, single and twin (the tug diesel too, since the owner asked for more power for the tugs).
+    // (Not the harbour tug's own engine: only she takes it.)
     expect(engineOptions()).toHaveLength(10);
   });
 
