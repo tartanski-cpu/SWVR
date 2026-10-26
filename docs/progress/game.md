@@ -10,6 +10,13 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fix: a hidden host steps 20 times a second; the tug's gearbox fixed (26 Oct 2026)
+
+Owner: joined a desktop host's game on the Quest, aboard the tug, "the simulation rate ... like 1 frames per second"; and building the tug "takes forever ... trying to work out its gearbox", so she couldn't be saved on the Quest; "it's a fixed gearbox".
+- **The hidden host.** One step a second is what the crew get from a host whose tab is in the background (minimised, another tab): since batch 1 it keeps going from a timer, and a background tab's timers run about once a second. Now its steps come from a worker's clock (`net/hiddenClock.worker.ts`), which a background tab doesn't slow: `net.hiddenStepS` 1 → 0.05 (20 a second, the rate snapshots go out), the time since stepped in whole ticks with the rest carried. Checked headless (told it was hidden): 19.7 steps a second from the worker, back to the drawn frames when shown. Not checked with a really hidden tab (headless tabs can't be), nor on the Quest. If the host's tab wasn't hidden, this wasn't the cause: the crew page's own work measured light (each snapshot about 6 ms to read on this computer), so it'd want a look on the Quest.
+- **The tug's gearbox** (Shipyard files, the owner's ask here; written up in `docs/progress/shipyard.md`): fixed at step 14, never matched; and any boat's code is ready to save once her gearbox is matched, the sea trials (27.8 s for the tug on this computer) carrying on behind.
+- **Shared changes:** none (the Shipyard's own files, logged there).
+
 ### Multiplayer batch 4: playing together in separate boats, and smaller snapshots (26 Oct 2026)
 
 Owner: "go ahead with multiplayer batch 4" (the study's last batch: #3, #7, #15, #27, #25, #33, #31, #35).

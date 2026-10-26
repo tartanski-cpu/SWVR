@@ -2897,11 +2897,12 @@ export const CONFIG = {
    * The heartbeat the other way (multiplayer study #1): a host not heard from for
    * `hostSilentS` s is "not responding", for `hostLostS` s lost (the takeover's wait starts,
    * `takeoverDelayS`: long enough for a host's page to reload, even a Quest's). A host whose
-   * page is hidden keeps its game going, a step every `hiddenStepS` s (a background tab's
-   * timers run about once a second). A host whose link to the game finder drops reconnects,
+   * page is hidden keeps its game going, stepped every `hiddenStepS` s from a worker's clock
+   * (a background tab's own timers run only about once a second: the crew saw one step a
+   * second; owner, 26 Oct 2026). A host whose link to the game finder drops reconnects,
    * `finderRetryS` (first, most) apart, doubling.
    */
-  net: { crewBoatGraceS: 120, hostWorldKeepS: 180, reloadNoticeS: 1.5, joinTimeoutS: 20, joinLoadS: 60, linkTries: 5, crewHoldS: 3, crewSilentS: 12, hostSilentS: 4, hostLostS: 10, hiddenStepS: 1, finderRetryS: [2, 30] as [number, number], olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 5, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 25 },
+  net: { crewBoatGraceS: 120, hostWorldKeepS: 180, reloadNoticeS: 1.5, joinTimeoutS: 20, joinLoadS: 60, linkTries: 5, crewHoldS: 3, crewSilentS: 12, hostSilentS: 4, hostLostS: 10, hiddenStepS: 0.05, finderRetryS: [2, 30] as [number, number], olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 5, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 25 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's

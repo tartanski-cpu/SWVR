@@ -12,7 +12,12 @@ self.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; match: boole
   const { id, match } = e.data;
   let design = e.data.design;
   try {
-    if (match) design = { ...design, gear: matchGear(design).gear };
+    // Her gearbox first, sent back at once (her code is ready to save), then the longer trials
+    // (owner, Oct 2026: on the Quest a big boat's code waited minutes for both).
+    if (match) {
+      design = { ...design, gear: matchGear(design).gear };
+      self.postMessage({ id, design, matched: true });
+    }
     useDesign(design);
     const trials = runSeaTrials('design');
     self.postMessage({ id, design, trials });

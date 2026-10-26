@@ -358,6 +358,10 @@ const HARBOUR_TUG_FIXED: Partial<ShipDesign> = {
   pods: 0,
   // (Her propellers in nozzles, as an azimuth drive's are: a tug's bollard pull.)
   nozzle: 1,
+  // Her gearbox fixed too (owner, 26 Oct 2026: "it's a fixed gearbox"): the step the yard's
+  // trial matched to her twin 1,850 kW and nozzled propellers (shipyard/trial.ts matchGear),
+  // never matched again (it took minutes on the Quest, and her code waited for it).
+  gear: 14,
   aFrame: 0,
   netDrum: 0,
   trawlWinches: 0,

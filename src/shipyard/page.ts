@@ -1735,7 +1735,7 @@ function showCode(): void {
 const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
 let trialId = 0;
 let trialTimer = 0;
-worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: SeaTrialResults; error?: string }>) => {
+worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: SeaTrialResults; error?: string; matched?: boolean }>) => {
   if (e.data.id !== trialId) return; // the design changed since: a newer trial is coming
   if (e.data.error) {
     $('status').textContent = `The trial failed: ${e.data.error}`;
@@ -1745,6 +1745,13 @@ worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: S
   design = { ...design, gear: e.data.design.gear };
   matchedFor = matchKey(design);
   boat = useDesign(design);
+  // Matched, the trials still to come: her code's ready (she can be saved) meanwhile.
+  if (e.data.matched) {
+    $('status').textContent = 'Gearbox matched: running her trials...';
+    showFigures();
+    showCode();
+    return;
+  }
   trial = e.data.trials ?? null;
   trialFor = matchKey(design);
   $('status').textContent = 'Calm water, flat out, hard over, crash stop: the game’s own physics.';
@@ -1755,6 +1762,8 @@ worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: S
 function runTrial(): void {
   clearTimeout(trialTimer);
   const id = ++trialId;
+  // A one-off with her gearbox fixed (the harbour tug's) is never matched: ready as she is.
+  if (DESIGN_HULLS[design.hull].fixed?.gear !== undefined) matchedFor = matchKey(design);
   const match = matchedFor !== matchKey(design);
   $('status').textContent = match ? 'Matching her propeller and running her trials...' : 'Running her trials...';
   trialTimer = window.setTimeout(() => worker.postMessage({ id, design, match }), 500);
@@ -3435,8 +3444,8 @@ const searchWorker = new Worker(new URL('./worker.ts', import.meta.url), { type:
 let searchRun = 0;
 function trialOf(d: ShipDesign, id: number): Promise<SeaTrialResults | null> {
   return new Promise((resolve) => {
-    const on = (e: MessageEvent<{ id: number; trials?: SeaTrialResults }>) => {
-      if (e.data.id !== id) return;
+    const on = (e: MessageEvent<{ id: number; trials?: SeaTrialResults; matched?: boolean }>) => {
+      if (e.data.id !== id || e.data.matched) return; // (her gearbox matched: the trials still to come)
       searchWorker.removeEventListener('message', on);
       resolve(e.data.trials ?? null);
     };
@@ -3989,8 +3998,8 @@ function showCompare(): void {
   const results: Record<string, SeaTrialResults | undefined> = {};
   const bars = () => showBars(A, a.boat, a.room, results.a, B, b.boat, b.room, results.b);
   bars();
-  cmpWorker.onmessage = (e: MessageEvent<{ id: number; trials?: SeaTrialResults }>) => {
-    if (Math.floor(e.data.id / 10) !== run) return;
+  cmpWorker.onmessage = (e: MessageEvent<{ id: number; trials?: SeaTrialResults; matched?: boolean }>) => {
+    if (Math.floor(e.data.id / 10) !== run || e.data.matched) return; // (her gearbox matched: the trials still to come)
     results[e.data.id % 10 === 1 ? 'a' : 'b'] = e.data.trials;
     bars();
   };

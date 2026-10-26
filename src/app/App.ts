@@ -3692,7 +3692,7 @@ export class App {
   /** Hosting: the game's connection (its link to the game finder: the menu's status). */
   private hostTransport: PeerHostTransport | null = null;
   /** Hosting with the page hidden: the slow step's timer, and when it last ran (ms). */
-  private hiddenTimer: ReturnType<typeof setInterval> | null = null;
+  private hiddenTimer: ReturnType<typeof setInterval> | 'worker' | null = null;
   private hiddenAt = 0;
 
   /**
@@ -3708,27 +3708,57 @@ export class App {
     if (hidden && this.host && !this.hiddenTimer) {
       this.host.paused = true;
       this.hiddenAt = performance.now();
-      this.hiddenTimer = setInterval(() => this.stepHidden(), CONFIG.net.hiddenStepS * 1000);
+      this.hiddenAcc = 0;
+      this.hiddenTimer = this.startHiddenClock();
     } else if (!hidden && this.hiddenTimer) {
-      clearInterval(this.hiddenTimer);
-      this.hiddenTimer = null;
+      this.stopHiddenClock();
       if (this.host) this.host.paused = false;
     }
+  }
+
+  /** The hidden host's worker clock (net/hiddenClock.worker.ts), made once. */
+  private hiddenClock: Worker | null = null;
+  /** Ticks' worth of time not stepped yet (s), carried to the next. */
+  private hiddenAcc = 0;
+
+  /**
+   * Hidden while hosting: stepped `hiddenStepS` apart by a worker's clock, which a background
+   * tab doesn't slow; where workers can't be made, the page's own timer (about once a second).
+   */
+  private startHiddenClock(): ReturnType<typeof setInterval> | 'worker' {
+    const ms = CONFIG.net.hiddenStepS * 1000;
+    try {
+      this.hiddenClock ??= new Worker(new URL('../net/hiddenClock.worker.ts', import.meta.url), { type: 'module' });
+      this.hiddenClock.onmessage = () => this.stepHidden();
+      this.hiddenClock.postMessage(ms);
+      return 'worker';
+    } catch {
+      return setInterval(() => this.stepHidden(), ms);
+    }
+  }
+
+  private stopHiddenClock(): void {
+    if (this.hiddenTimer !== null && this.hiddenTimer !== 'worker') clearInterval(this.hiddenTimer);
+    this.hiddenClock?.postMessage(0);
+    this.hiddenTimer = null;
   }
 
   /** Hidden while hosting: the game stepped on by the time since (up to two seconds' worth), and the crew sent it. */
   private stepHidden(): void {
     if (!this.host || document.visibilityState !== 'hidden') {
-      if (this.hiddenTimer) clearInterval(this.hiddenTimer);
-      this.hiddenTimer = null;
+      this.stopHiddenClock();
       return;
     }
     const now = performance.now();
-    const ticks = Math.min(Math.round(((now - this.hiddenAt) / 1000) * CONFIG.sim.tickRate), 2 * CONFIG.sim.tickRate);
+    const since = Math.min((now - this.hiddenAt) / 1000, 2);
     this.hiddenAt = now;
+    // Whole ticks of the time since (the rest carried on), as the drawn frames step it.
+    this.hiddenAcc += since * CONFIG.sim.tickRate;
+    const ticks = Math.floor(this.hiddenAcc);
+    this.hiddenAcc -= ticks;
     for (const i of this.host.takeIntents()) this.intents.push(i);
     for (let k = 0; k < ticks; k++) stepWorld(this.world, k === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
-    this.host.tick(1);
+    this.host.tick(since);
   }
   /** The heartbeat's notice given (the host gone quiet), so it's said once. */
   private hostQuiet = false;

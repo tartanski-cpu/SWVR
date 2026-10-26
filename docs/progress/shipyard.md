@@ -14,6 +14,13 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the main game chat) The harbour tug's gearbox fixed; a code ready once matched (26 Oct 2026)
+
+Owner, in the main game chat: on the Quest the harbour tug "takes forever" working out her gearbox, so she can't be saved; "it's a fixed gearbox". Measured on this computer: matching her gearbox 4.8 s, then her sea trials 27.8 s, and her code wasn't ready (no saving) until both were done.
+- `parts/catalog.ts`: `gear: 14` in `HARBOUR_TUG_FIXED` (the step the trial matched to her twin 1,850 kW in nozzles); `page.ts runTrial` never matches a type whose fixed choices set the gear.
+- `worker.ts` posts the matched gearbox at once (`matched: true`), then the trials; `page.ts` takes it as the code ready (save, Try her together) while the trials run on; the search and compare workers wait for the trials as before.
+- Checked: `npm run test:shipyard` (387 pass); headless, the tug in the Shipyard says "Running her trials..." from the start (no matching) and can be saved meanwhile. Not checked on the Quest.
+
 ### Exhaust stacks as a part of their own: on the deckhouse, moved along it, round or square casings (approved by the owner 26 Oct 2026; on next)
 
 Owner, 26 Oct 2026: "the Fair Play reference tag has the exhaust pipes in a kind of standalone box ... split these exhaust pipes out as something that you can control. So in a bigger ship, we can make the wheelhouse smaller. And then I'd like to be able to move the twin exhaust pipes forward and aft on this deck house and choose whether they've got like a circular or a square kind of box around them"; then "Do the Funnel stack part next".
