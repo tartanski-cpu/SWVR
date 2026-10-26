@@ -32,6 +32,15 @@ export interface RegionRequest {
   economy?: Record<string, { products?: string[]; needs?: string[]; repairs?: { hull: number; engine: number } }>;
   /** A harbour's cargo berth on a face looking this way (deg, the bearing out from the face), by harbour id (package.ts). */
   berthFacing?: Record<string, number>;
+  /**
+   * Where the map marks every private jetty as a pier (Finland: each summer cottage has one):
+   * a pier with no name of its own (no marina, harbour or ferry terminal by it, no name on the
+   * pier, not a quay, short) is drawn and solid, but not a port, with no boats on moorings and
+   * only the buildings right by it (harbours.ts, package.ts, boats.ts).
+   */
+  privateJetties?: boolean;
+  /** Potting grounds no closer together than this (m): a sea of charted rocks (the Archipelago Sea) would give one at every one (package.ts). */
+  pottingApart?: number;
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

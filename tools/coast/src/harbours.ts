@@ -87,6 +87,8 @@ const T = {
   clusterGap: 250,
   /** Buildings this close to a harbour piece are built (m); smaller footprints are skipped (m²). */
   buildingReach: 400,
+  /** ...and this close to a private jetty's (the request's `privateJetties`): the cottage by it, not the whole shore (m). */
+  privateReach: 80,
   /** The house kit: full detail (chimneys, doors, signs) within this of a harbour piece (m), plain blocks beyond. */
   fullReach: 200,
   /** Terraces this close to a harbour piece are its painted front (m). */
@@ -494,6 +496,8 @@ interface Harbour {
   berths: number;
   fetch: number;
   role?: string;
+  /** A private jetty (the request's `privateJetties`): drawn, not a port. */
+  private?: boolean;
 }
 const items = [
   // (A sparse outline as one piece where its box was, in its place in the list: it groups with
@@ -558,7 +562,9 @@ for (const list of clusters.values()) {
   const at = nb.length ? nb : [{ x: cx, z: cz }];
   const f = at.reduce((s, b) => s + fetch(b.x, b.z), 0) / at.length;
   const id = slug(name);
-  harbours.push({ id, name, kind: isHarbour ? 'harbour' : 'pier', x: r1(cx), z: r1(cz), pieces: [...new Set(sources)], berths: nb.length, fetch: Math.round(f) });
+  // A private jetty: nothing names it but the nearest place, and it isn't a quay or a long pier.
+  const unnamed = !marina && !named?.name && !terminalName;
+  harbours.push({ id, name, kind: isHarbour ? 'harbour' : 'pier', x: r1(cx), z: r1(cz), pieces: [...new Set(sources)], berths: nb.length, fetch: Math.round(f), ...(req.privateJetties && unnamed && !isHarbour ? { private: true } : {}) });
 }
 // Unique ids.
 const seenIds = new Map<string, number>();
@@ -571,7 +577,7 @@ for (const h of harbours) {
 // ── Spine roles ──
 const spine = req.spine ?? {};
 const byName = (v: string) => harbours.find((h) => h.name.toLowerCase() === v.toLowerCase() || h.id === v);
-const usable = harbours.filter((h) => h.berths > 0);
+const usable = harbours.filter((h) => h.berths > 0 && !h.private);
 const assign = (role: string, pick: () => Harbour | undefined) => {
   const v = spine[role];
   if (!v || typeof v !== 'string') return;
@@ -612,7 +618,9 @@ if (namedAnchorage) {
 if (!harbours.some((h) => h.role === 'harbour.sheltered') && spine['harbour.sheltered']) warnings.push('no sheltered harbour found');
 
 // ── Buildings near the harbours ──
-const pieces = [...blocks.map((b) => [b.x, b.z]), ...slipways.map((s) => [s.x, s.z])];
+// Each piece with how far round it buildings are built (a private jetty's: only the cottage by it).
+const privatePieces = new Set(harbours.filter((h) => h.private).flatMap((h) => h.pieces));
+const pieces = [...blocks.map((b) => [b.x, b.z, privatePieces.has(b.source) ? T.privateReach : T.buildingReach]), ...slipways.map((s) => [s.x, s.z, privatePieces.has(s.source) ? T.privateReach : T.buildingReach])];
 const hash = (s: string) => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
@@ -696,8 +704,7 @@ for (const [id, w] of Object.entries(osm.ways)) {
   if (p.length < 4) continue;
   const c = p.reduce(([sx, sz], [x, z]) => [sx + x / p.length, sz + z / p.length], [0, 0]);
   if (!inBox(c[0], c[1])) continue;
-  const toPiece = Math.min(...pieces.map(([x, z]) => Math.hypot(x - c[0], z - c[1])));
-  if (toPiece >= T.buildingReach) {
+  if (!pieces.some(([x, z, reach]) => Math.hypot(x - c[0], z - c[1]) < reach)) {
     skippedFar++;
     continue;
   }

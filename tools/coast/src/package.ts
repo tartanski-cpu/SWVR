@@ -161,9 +161,10 @@ for (const b of hb.blocks) blockOf.set(b.source, blockOf.get(b.source) ?? b);
 const buildings = hb.buildings.map(({ source: _s, base: _b, tagged: _t, ...b }: Record<string, unknown>) => b);
 
 // ── Ports ──
-type HB = { id: string; name: string; kind: string; x: number; z: number; berths: number; fetch: number; role?: string };
+type HB = { id: string; name: string; kind: string; x: number; z: number; berths: number; fetch: number; role?: string; private?: boolean };
 type Berth = { id: string; source: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number; shoreDist: number; deckY: number; deckW?: number };
-const harbours = (hb.harbours as HB[]).filter((h) => h.berths > 0 || h.kind === 'anchorage');
+// (A private jetty, the request's `privateJetties`, is drawn but isn't a port.)
+const harbours = (hb.harbours as HB[]).filter((h) => (h.berths > 0 || h.kind === 'anchorage') && !h.private);
 const near = (h: HB, b: Berth) => Math.hypot(b.x - h.x, b.z - h.z);
 const ports: object[] = [];
 const berths: object[] = [];
@@ -504,7 +505,7 @@ for (const sp of req.fish ?? []) {
   fishingGrounds.push({ name: `${sp[0].toUpperCase()}${sp.slice(1)} ground`, x: best.x, z: best.z, radius: T.groundRadius, richness: 1.1, species: sp });
 }
 // Potting grounds: round the skerries, in rocky water of the right depth.
-const pottingGrounds = (nav.hazards as { name: string; kind: string; x: number; z: number }[])
+const potAll = (nav.hazards as { name: string; kind: string; x: number; z: number }[])
   .filter((hz) => interior(hz.x, hz.z, 500))
   .map((hz, i) => {
     let at = { x: hz.x, z: hz.z };
@@ -519,6 +520,9 @@ const pottingGrounds = (nav.hazards as { name: string; kind: string; x: number; 
     }
     return { id: `${req.id}-pots-${i + 1}`, name: hz.name ? `${hz.name}` : `Skerry ${i + 1}`, x: at.x, z: at.z, radius: 60, quality: 0.8 };
   });
+// Thinned to `pottingApart` m where the request asks (in the order the chart lists them).
+const pottingGrounds: typeof potAll = [];
+for (const g of potAll) if (!req.pottingApart || pottingGrounds.every((o) => Math.hypot(o.x - g.x, o.z - g.z) >= req.pottingApart!)) pottingGrounds.push(g);
 
 // Landmarks: the highest named summit; the tallest lighthouse.
 const peaks = Object.entries(osm.nodeTags as Record<string, Record<string, string>>)

@@ -16,3 +16,8 @@ spine:
 weatherProfile: baltic
 fish: [herring, cod]
 goods: [building-materials, groceries, feed]
+# Every summer cottage here has its jetty, and the map marks each one: those with no name of
+# their own are drawn but aren't ports (common.ts privateJetties).
+privateJetties: true
+# A sea of charted rocks: creel grounds no closer together than this (m).
+pottingApart: 1200
