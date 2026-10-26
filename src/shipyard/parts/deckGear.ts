@@ -10,6 +10,7 @@ import { PLACE_GRID, placeOf, type PlaceKey } from '../design';
 import type { Socket } from '../../modular/socket';
 import type { BuildArgs, V3 } from './common';
 import { TUG_HULL } from './catalog';
+import { diveFrameFit } from './diveFrame';
 import type { DesignedBoat } from '../build';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
@@ -19,7 +20,6 @@ import type { PlacesPart } from './places';
 
 /** Her deck gear, each piece where it stands, clear of what's already placed: the winch, the A-frame, the deck crane, the skiff and its crane, the searchlight and fire monitor, the fender basket, the anchor. */
 export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart) {
-  const { d } = a;
   const { aft, at, bowCleat, bowRamp, cg, cleat, deckMid, deckhouse, foreEndAt, foredeck, front, gyradius, hw, hx, layout, mass, midCleat, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, sternCleat, transom, warnings, wl } = p;
   // ── Hull definition ──
   const weighed = { massKg: mass, cg, inertia: inertiaFromGyradius(mass, gyradius) };
@@ -55,9 +55,24 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const oneLevel = (r: { z0: number; z1: number }) => breakZ === null || onRaised(r) || r.z0 >= breakZ - fdc.gearReach;
   const raisedAhead = breakZ !== null && breakZ < foreEndAt;
 
+  // 0. The dive A-frame and its sub (design.diveFrame; parts/diveFrame.ts), first: it takes her
+  // transom (no trawl A-frame or stern roller with it) and her aft deck for the sub's cradle.
+  const dhAftEnd = deckhouse?.houseAft !== undefined ? deckhouse.z1 + (deckhouse.walk?.ladder.depth ?? 0) + 0.1 : aft;
+  const diveFit = a.d.diveFrame
+    ? diveFrameFit({ q, transom, bulwarkHeight: p.bulwarkHeight, aftEnd: Math.max(aft + 0.7, dhAftEnd + 0.3), oneLevel, stations: p.shape.stations, volume: p.h.volume, massKg: mass, kgY: cg[1], gm: p.gm })
+    : null;
+  if (diveFit && 'why' in diveFit) warnings.push(`There's no room for the dive A-frame: ${diveFit.why}. Left off.`);
+  const diveFrame = diveFit && !('why' in diveFit) ? diveFit : null;
+  if (diveFrame) {
+    const off = [a.d.aFrame ? 'the trawl A-frame' : '', a.d.sternRoller ? 'the stern roller' : ''].filter(Boolean);
+    if (off.length) warnings.push(`The dive A-frame takes her transom: ${off.join(' and ')} left off.`);
+  }
+  const d = diveFrame ? { ...a.d, aFrame: 0, sternRoller: 0, netDrum: 0, trawlWinches: 0 } : a.d;
+
   // 1. The stern gear.
   const sternRoller = !!d.sternRoller;
   if (sternRoller) taken.push({ x0: -0.3, x1: 0.3, z0: transom - 0.3, z1: transom }); // the roller in the transom bulwark
+  if (diveFrame) taken.push(...diveFrame.rects); // the sub on her cradle, the frame's feet and stand
   for (const t of layout.deckSteps ?? []) taken.push({ x0: t.x0 - 0.1, x1: t.x1 + 0.1, z0: t.z0 - 0.1, z1: t.z1 + 0.1 }); // the ladders up to a raised foredeck
   // (The A-frame's warps lead off the tow winch, unless she has trawl winches of her own.)
   const wantWinch = !!(d.towWinch || (d.aFrame && !d.trawlWinches));
@@ -496,6 +511,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     // The working deck gear (version 10).
     ...(winchAt ? [{ id: 'towWinch', type: 'deck.equipment' as const, transform: { position: winchAt, ...(winchFace ? { rotationDeg: [0, -90 * winchFace, 0] as V3 } : {}) }, label: `${deckWords(winchAt)}: the tow winch` }] : []),
     ...(sternRoller ? [{ id: 'sternRoller', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, centreline: the notch in the bulwark' }] : []),
+    ...(diveFrame ? [{ id: 'diveFrame', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, across the quarters: the dive A-frame, its sub on her cradle forward of it' }] : []),
     ...(aFrame
       ? [
           { id: 'aFrame', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, across the quarters: the A-frame' },
@@ -516,7 +532,7 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
     ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
   ];
-  return { towHook, deckSockets, aFrame, netDrumAt: aFrame ? netDrumAt : null, trawlWinchesAt: aFrame ? trawlWinchesAt : null, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, placeWhy, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
+  return { towHook, deckSockets, diveFrame, aFrame, netDrumAt: aFrame ? netDrumAt : null, trawlWinchesAt: aFrame ? trawlWinchesAt : null, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, placeWhy, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
 }
 export type DeckGearPart = ReturnType<typeof deckGearPart>;
 

@@ -1,14 +1,15 @@
 /**
  * Module panel.helm-assist (owner, Oct 2026): a small box on the wheelhouse wall beside the
- * breaker panel, with three push buttons:
+ * breaker panel, with two push buttons:
  *   - AUTO START (green): the whole start-up in one press, master and breakers on and the
  *     engine started ('helmAssist.autoStart');
- *   - DOCK (blue): the menu's Dock / Cast off ('helmAssist.dock');
- *   - AUTOPILOT (amber, lit while engaged): hold the heading she's on now, or let go
- *     ('autopilot.engage'). Turning the wheel lets it go too.
- * What they do is vessel/autopilot.ts's. It gives the boat an autopilot (gear 'autopilot',
+ *   - DOCK (blue): the menu's Dock / Cast off ('helmAssist.dock').
+ * What they do is vessel/autopilot.ts's. It also gives the boat an autopilot (gear 'autopilot',
  * its steering CONFIG.modules.helmAssist.autopilot), which works only with the INSTRUMENTS
- * circuit live.
+ * circuit live. The autopilot's own buttons are on the console (owner, Oct 2026: "a separate
+ * control that goes on the main console"): plain push buttons in an AUTOPILOT group, AUTO
+ * ('autopilot.engage') and PORT / STBD 5 degrees ('autopilot.port', 'autopilot.starboard'),
+ * put there by the Shipyard (shipyard/parts/recipe.ts).
  *
  * Draw calls: the box is merged with the boat's fixed parts; the engraving is one mesh drawn
  * once; the button caps are the boat's shared button caps.
@@ -17,17 +18,14 @@ import * as THREE from 'three';
 import { panelLit } from '../../controls/panelLighting';
 import { Button } from '../../controls/Button';
 import { CONFIG } from '../../config';
-import { busOf } from '../../modular/bus';
 import type { ModuleDefinition } from '../../modular/module';
 import { part } from '../../render/geometryUtils';
-import type { VesselState } from '../../vessel/vesselState';
 
 export type HelmAssistConfig = typeof CONFIG.modules.helmAssist;
 
 const BUTTONS = [
   { id: 'autoStart', port: 'start', engrave: 'AUTO START', label: 'AUTO START: master, breakers and engine, in one press', colour: 0x3aa04a },
   { id: 'autoDock', port: 'dock', engrave: 'DOCK', label: 'DOCK: lines ashore at the berth in range, or cast off', colour: 0x2f6fd0 },
-  { id: 'autopilot', port: 'engage', engrave: 'AUTOPILOT', label: 'AUTOPILOT: hold this heading (press again, or turn the wheel, to let go)', colour: 0xe0a020 },
 ] as const;
 
 export const HELM_ASSIST: ModuleDefinition<HelmAssistConfig> = {
@@ -39,7 +37,6 @@ export const HELM_ASSIST: ModuleDefinition<HelmAssistConfig> = {
   ports: {
     start: { dir: 'write', key: 'helmAssist.autoStart' },
     dock: { dir: 'write', key: 'helmAssist.dock' },
-    engage: { dir: 'write', key: 'autopilot.engage' },
   },
   provides: () => [{ gear: 'autopilot' }],
   gear: (c) => ({ autopilot: c.autopilot }),
@@ -49,11 +46,10 @@ export const HELM_ASSIST: ModuleDefinition<HelmAssistConfig> = {
       const W = c.width;
       const H = c.height;
       const body = part(new THREE.BoxGeometry(W, H, 0.06).translate(0, 0, -0.03), 0x2a2f33);
-      const xs = BUTTONS.map((_, i) => (i - 1) * c.pitch);
+      const xs = BUTTONS.map((_, i) => (i - (BUTTONS.length - 1) / 2) * c.pitch);
       const buttonY = -0.012;
       const controls = BUTTONS.map((b, i) => {
-        const lit = b.id === 'autopilot' ? (s: VesselState) => !!busOf(s).get('autopilot.on') : undefined;
-        const button = new Button(b.id, keys[b.port], b.label, 'pulse', b.colour, lit);
+        const button = new Button(b.id, keys[b.port], b.label, 'pulse', b.colour);
         button.root.position.set(xs[i], buttonY, 0);
         button.root.rotation.x = Math.PI / 2; // its cap out of the panel's face
         share(button.cap, 'buttonCap');

@@ -9,6 +9,11 @@ import { vesselBuildToken } from './vesselDef';
 export interface VesselControls {
   /** Combined throttle/gear lever, -1 (full astern) .. 0 (neutral) .. +1 (full ahead). */
   lever: number;
+  /**
+   * Twin engines worked separately (the twin lever control; owner, Oct 2026): the starboard
+   * engine's lever, as `lever`. `lever` is then the port engine's. Unset: it follows `lever`.
+   */
+  lever2?: number;
   /** Helm (wheel) position, -1 (hard to port) .. +1 (hard to starboard). */
   helm: number;
   /** Navigation lights switch, 0 off / 1 on. */
@@ -45,6 +50,8 @@ export interface VesselControls {
   /** Diesel ignition: HEAT and START buttons, 1 while held (the key is in EngineState). */
   heat: number;
   start: number;
+  /** Twin engines worked separately: the starboard engine's START, 1 while held (`start` is then the port engine's). */
+  start2?: number;
   /** Windscreen wipers switch (0/1). */
   wipers: number;
   /** Chart table lamp switch (0/1; Deck lights breaker). */
@@ -93,6 +100,14 @@ export interface VesselControls {
   craneHook?: number;
   netOut?: number;
   netIn?: number;
+  /**
+   * The dive A-frame's hold-to-run buttons (modules/diveFrame), 1 while held: FRAME OUT / IN
+   * and WINCH UP / DOWN. Unset on a boat without one.
+   */
+  diveOut?: number;
+  diveIn?: number;
+  diveUp?: number;
+  diveDown?: number;
   /** RELEASE on the A-frame's box pressed (1 until the fishing tick has emptied the codend: fishing.ts clears it). */
   netRelease?: number;
   /**
@@ -212,6 +227,8 @@ export interface EngineState {
   glow: number;
   /** Quick start: keep cranking without START held until she catches. */
   autoCrank?: boolean;
+  /** Quick start of twin engines worked separately: the starboard engine waits for the port one to catch, then cranks (two starters at once pull the battery down too far to turn either). */
+  queued?: boolean;
   /** Lube oil in the sump, 0..1, and running time since the last dipstick check (s). */
   oil?: number;
   sinceCheck?: number;
@@ -219,6 +236,13 @@ export interface EngineState {
   wear?: number;
   /** How much of the propeller disc is under water, 0..1, this tick (the rudder reads it). */
   immersion?: number;
+  /**
+   * Twin engines worked separately (owner, Oct 2026: a twin lever control, a START for each):
+   * the starboard engine, running on its own (its revs, gear, governor, start-up). This one is
+   * then the port engine. Its key, oil, wear and coolant are the port engine's, mirrored each
+   * tick (one key, one dipstick and set of lamps for both: modules/dieselInboard).
+   */
+  stbd?: EngineState;
 }
 
 /**

@@ -10,6 +10,219 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) A dive support vessel: the dive A-frame and the submersible
+
+The new module `deck.dive-frame` (docs/progress/modules.md): an A-frame over the stern that hoists the submersible game's sub off her cradle, swings her out and lowers her until she floats. Shared changes here:
+- `core/simulation.ts`: the sub's weight moved from her cradle as a payload (`modules/diveFrame/onBoat.ts` `diveSubPayload`).
+- `modular/busKeys.ts`, `vessel/vesselState.ts`: four hold-to-run keys, `dive.frameOut`, `dive.frameIn`, `dive.winchUp`, `dive.winchDown` (only on a boat with the frame, so the goldens are unchanged).
+- `boats/library.ts`, `boats/fleet.ts`, `vessel/vesselDef.ts` (`VESSEL_IDS`): a new fleet boat, `diveShip`, the **Dive support vessel** (in the boat lists).
+- `app/App.ts` `hydraulicsHint`: says why the frame or the winch holds (no pressure; the sub not in the docking head; the frame not right in or out).
+- For the dive itself (stage 4, not built): the submersible game reads plain address fields (`?site=…&depth=…&sub=…&return=…`, its `src/core/handoff.ts`), not the coded `mv` envelope in `docs/dive-contract.md`.
+
+### (From the modular-builder chat) Twin engines heard one each
+
+`audio/engineAudio.ts` `EngineAudio.update`: a twin's second engine sound now follows the starboard engine (`EngineState.stbd`) when the engines are worked separately, not the port engine's (its start and throttle were silent). `app/App.ts` `updateBoatVoices`: other players' split twins heard by the harder-working engine (still one voice). Test `tests/twinEngineSound.test.ts`.
+
+### A load on the crane hook drawn as smoothly as the crane (25 Oct 2026)
+
+Owner: the crane is smooth now, but lifting cargo from the side, it jerks. The crane's view draws its boom and hook smoothed between the simulation's ticks (mechanisms/tickSmoother.ts), but the load under the hook was drawn straight from the latest tick (cargo/cargoView.ts), so at 60 ticks drawn at 90 frames it stood still one frame in three under a gliding hook. Now each hooked load's hook point (in her axes, so the boat's own motion stays the app's) goes through a TickSmoother of its own, the same as the crane's; just hooked, it starts where the load was drawn and comes up onto the hook (the lift's last half metre) rather than jumping; a jump past `HOOK_SNAP` 1.5 m (a reset, a snapshot) is drawn at once. Test: tests/craneLoadSmooth.test.ts (the crane slewing at 60 ticks drawn at 90 frames: the load moves every frame, evenly; on the old code a frame stands still). All of `npm test`: 1583 passing. Not checked on the Quest.
+
+### (From the modular-builder chat) Diesels stall; twin lever keys
+
+`vessel/physics/propulsion.ts` `engineStep`: in gear and below `stallFraction` of idle (`CONFIG.vessels.workboat.engine.stallFraction` 0.3, the fallback for engines without one; `modules.outboard.engine.stallFraction`), a running engine stalls (phase off). Before, it could sit 'running' at 0 rpm in gear with no alternator charge and flatten the battery (owner's twin trawler). `core/keybindings.ts` + `app/App.ts`: on a twin worked separately, holding the wheel with the mouse, E/D and R/F work the port and starboard levers (`twinLeverKeys`); E, F and R don't do their usual jobs then. See `docs/progress/modules.md`.
+
+### Fix: Step ashore put you at the start harbour from a quay with no named berth (25 Oct 2026)
+
+Owner: moored at Wemyss Bay (the Clyde), the gangway mark's Step ashore took him to another harbour (Rothesay, the map's start). A boat can make fast along any quay face (world/berths.ts `allBerths`: the regions' named berths and one per bollard pair on every seaward face), but the spot ashore was looked up among the named berths only (world/startSpot.ts `quaySpot`, `BERTHS`), so a face berth fell back to the start's quay. Now it's looked up among all of them (`berthWithId`). Test: tests/gangway.test.ts, 1 new (fails on the old code). All of `npm test`: 1578 passing.
+- **Shared changes:** world/startSpot.ts (`quaySpot` finds any berth).
+
+### Dive sites: wrecks for the submersible game (25 Oct 2026)
+
+Owner: a submersible launched off a dive support ship will go into its own game to search wrecks with an ROV; this game needs the areas where the wrecks are, like the potting and fishing grounds, some shallow, some deep, some by places of interest; the missions later. Chosen with the owner: both maps, 6-8 sites.
+
+- **Eight sites** (`src/dive/diveSites.ts` `DIVE_SITES`): five on the Oban map by latitude and longitude (real coast, real depths: Selene 12 m off Dunstaffnage, Sound Spirit 13 m off north Kerrera, Morven Lass 28 m off Slatrach Bay, the Gylen wreck 40 m under Gylen Castle, the Lorn Trader 54 m north-west of Maiden Island, the map's deepest water, about 55 m), three in the career archipelago by its metres (the Margaret Ann 8 m, the wreck already there; Ellen Rose 27 m off Brannock; Sgarbh 40 m north of Eilean Garbh, the islands' deepest). Bands: shallow under 20 m, mid to under 40, deep 40 and more (the islands go no deeper). Invented wrecks at real places. Picked by sampling the seabed round the maps' named capes, islets and bays.
+- **On the charts:** the chartplotter draws each as a dashed pale blue ring `CONFIG.dive.radius` 50 m round it, the wreck mark, her name and depth; the paper chart a wreck mark with her depth (the Margaret Ann is already there as a wreck).
+- **The contract, a draft:** `docs/dive-contract.md`, the site table (ids, positions, depths, the wrecks) and a proposed launch and return in Timber's envelope, with the open questions for the Submersible World chat. This chat couldn't attach the Submersible-World repository (the session's permissions refused it), so it's written from this side only.
+- **Tests:** tests/diveSites.test.ts (3: ids and bands, every band on both maps; each career and Oban site at its charted depth on the ground within a few metres, clear of the potting grounds). Headless: the plotter by the Sound Spirit (Oban) and the Ellen Rose (career).
+
+### (From the modular-builder chat) The console screens tidied (owner's list)
+
+`controls/instruments.ts`: the speed screen is the log (`logKnots`: speed through the water, ground speed less `addCurrent` at her position), without the anchor line (`paintAnchor` removed: the anchor has its own screen); the heading screen without the rate of turn (`rateOfTurn` kept, unused on screen); the ENGINE screen without the coolant temperature (on the engine monitor). The round LOG dial reads through the water too. SOG stays on the NAV panel. See `docs/progress/modules.md`.
+
+### Deck crane: HOOK says why it won't let go (25 Oct 2026)
+
+Owner: laying the cardinals, the buoys over the side at their circles, "the button to drop them off didn't work". The crane sets a load down in the sea only once its foot is within `SET_DOWN_ABOVE` 0.8 m of the water (cargo.ts setDown), and a press above that did nothing and said nothing. Now a HOOK press with a load it won't set down shows, to whoever pressed, why: "Lower it right down to the water first: 2.3 m to go (hoist down)", or onto the deck / the ground, or "No room on deck there" (`hookNote`, cargo/cargo.ts, read only, the same rules as setDown; shown by App on the press, so crew see it too). A project buoy lowered at the water but not wanted now (not this stage's) is answered by the office instead of silence (projects.ts `layProjectBuoy`); off its spot was already said. The mechanics themselves were sound: the crane reaches well below the water with its wire run out. Test: tests/projects.test.ts (the crane-laying test now presses too high first: told, still on the hook). All of `npm test`: 1566 passing. Not checked in a running game.
+
+### (From the modular-builder chat) Twin engines worked separately
+
+A twin's starboard engine now has a state of its own (`VesselState.engine.stbd`, made by `starboardEngine`, `vessel/physics/propulsion.ts`), with its own lever and START (`controls.lever2`, `controls.start2`; bus keys `throttle.demand2`, `ignition.start2`, `propulsion.state2`, `propulsion.rpm2`). `toggleEngine` starts both (the starboard one `queued` until the port one catches) and stops both; the 'lever' intent (keys, gamepad, menus) sets both levers once they've been split. `controls/Lever.ts` takes a label and can be worked by another handle (`follow`, `heldBy`). The ENGINE screen (`controls/instruments.ts`) shows both engines when there are two. `app/interiorDetail.ts` keeps the new levers visible through the windows. Only on the diesel module's `twin.split` (twin shaft engines in Shipyard designs). See `docs/progress/modules.md`.
+
+### Multiplayer: an out-of-date host updates itself; no frozen avatars (25 Oct 2026)
+
+Owner: friends joined a hosted career but were "in separate sessions"; then his son's avatar appeared frozen in the host's game, and his son, entering VR, was on his own; tried again, four or five frozen avatars. What happened: on a day of many pushes the host's page was older than the one his son opened from the link. The son's page refused the older host (it reloaded once, still different, and played alone: "the host reloads the page"), and each try left a figure in the host's world, because the host only dropped a crew-mate when their link said it had closed, which a page that goes away often never does.
+
+- **The host updates itself.** Builds compared by their stamp's time (`isNewerBuild`, src/build.ts). A crew-mate newer than the host: the host's page reloads past the cache (`?fresh`), hosting the same game code again, the crew following (App `onOtherBuild` → `restartPage`), once (a page still behind after that says to reload by hand). A host older than the crew page: the crew page waits `net.olderHostRetryS` 6 s and joins again, retrying as "sent in together", instead of reloading or playing alone.
+- **Crew who go are dropped.** A crew page says `bye` when it leaves the game, closes or reloads (`pagehide`; protocol.ts `ClientMessage`), and the host drops them at once; the link gets a moment (0.25 s) to send it before it's destroyed. A crew-mate not heard from for `net.crewSilentS` 20 s is taken out of the host's world (their carried things dropped, controls let go) and put back as they were if heard from again (net/hostSession.ts).
+- **Checked:** tests/net.test.ts (2 new: the goodbye, the quiet crew-mate gone and back) and tests/build.test.ts (1 new); all of `npm test` 1566 passing. In a locally built copy (the dev server skips the version check), two headless browsers through the real PeerJS broker: a host stamped older than the crew's page updated itself and the crew joined it (2 players); the crew page reloaded three times with the host still seeing 2 players, and closed, the host was back to 1 within 4 s. Not checked: on the Quest, and three players.
+- **Also looked at:** the first report (friends in a Shipyard boat): a host on a sea trial whose trial ends restarts with the crew following, which works; the version mismatch is the likely cause there too.
+
+### Debug: a project stage back (25 Oct 2026)
+
+Owner: an option in the debug menu to go back a stage. Debug → Missions → **Project** is now a row of its own: **Stage done** (as before) and **Stage back**: the project to the start of the stage before (the first: its start again), as if every stage before it had been done and nothing since. What those stages built stands (driven piles, pieces on, turbines up, the survey run, the marks), nothing is paid again, and what was about from the stage left (its items on the quay or aboard, a tow, the fitters' transfer, a ship sent for the works) is cleared away (`careerProjectBack`, career/projects.ts `setStage`). Test: tests/projects.test.ts, 1 new.
+
+### Projects: what's next, on the Jobs page and the duty board (25 Oct 2026)
+
+Owner: where do I see what to do next in the project, and whether I've another mission on at the same time? It was only on Office > Projects. Now `projectBoardLines` (career/projects.ts) gives it in two short lines (the stage, its jobs left; the next job, and that a stage's jobs go in any order), shown on Office > **Jobs** under the contract (a Project heading; "None under way" otherwise) and on the **duty board** under the contract line, in orange (duties/dutyBoardView.ts; words and counts only, so the board still redraws only when it changes). The beginner boat has no duty board (nor chartplotter: basic controls), so the Jobs page is the one every boat has. Test: tests/projects.test.ts, 1 new; the board drawn headless with the project at stage 5.
+
+### (From the modular-builder chat) The Your boats board reads the favourites as you walk up, not every second (25 Oct 2026)
+
+Owner, after the 2 fps fix: "It still doesn't sound very efficient to read it every second. Is it not a case of reading them when you walk up to the board?" The favourites (`ShipyardCodes.favourites`, `src/shipyard/takeHer.ts`) are now kept from the last read with no time limit, and read again only when they may have changed: as you come up to a Your boats board (`ShipyardDoor.onOpen`, set by `ShipyardDoor.boats`: `src/ui/shipyardDoor.ts`), when one is saved in the game (`saveBoat`, as before), and when the Shipyard in another tab saves or removes one (the browser's `storage` event for `swvr.shipyard.favourites`). The prices stay remembered as before. Test: `tests/shipyardTrip.test.ts` (one read over 200 frames; once more walking up to the board, kept while it's up; away and back, once more). Not checked by hand: the Shipyard in another tab saving one while the game is open (the browser's own event).
+
+### Fix: 2 fps standing by the Your boats board, with favourites saved (25 Oct 2026)
+
+Owner: the career at about 2 fps on the Quest, and desktop Chrome barely moving; Edge fine. The cause: the **Your boats** board (beside every Shipyard sign, since 25 Oct, 6fa7b0f), shown whenever you're near one (you start a career beside one), works out its page every frame. For each of its four rows that meant reading every favourite back from storage (their pictures too) and, for the "Buy her (£…)" label, **building both your boat and the favourite from scratch** to price them: about 100 ms a frame on a desktop with eight favourites, several times that on the Quest. Edge had no favourites saved, nor had the test browser, so neither showed it. Now `designPrice` (app/shipyardTrip.ts) remembers each code's price (up to 64; a code always builds the same boat), and `ShipyardCodes.favourites()` (shipyard/takeHer.ts) reads the list at most once a second (afresh after saving one in the game). Measured in a headless browser with eight favourites: about 96 ms of work a frame before, under 1 ms after. The menu's Office > Your boats page had the same cost while open and is fixed by the same. Tests: tests/shipyardTrip.test.ts, 2 new. All of `npm test`: 1561 passing.
+- **Shared changes:** none (`src/shipyard/takeHer.ts` is the Shipyard area's file, but this is its in-game Your boats list: a small cache, nothing else changed in it).
+
+### Debug: +£50,000 (25 Oct 2026)
+
+Owner: a +50k on the money in the debug menu, to have enough to test with. Debug → Missions → Career → **+£50,000**, beside +£5000, rep (`careerDebugCash` with value 50000: that much money alone, no reputation). Test: tests/projects.test.ts, 1 new.
+
+### Debug: "Project: stage done" takes the project first, and says what it did (25 Oct 2026)
+
+Owner: pressed Project: stage done after spawning in, and nothing happened. It only worked with a project under way (taken at the Calder Haven office), and said nothing otherwise. Now, with none under way, the first press takes the first project not yet done, from anywhere (`careerProjectStage`, career/projects.ts); each press after finishes the stage. A message says which (app/careerSession.ts `debugProjectStage`), or that every stage built so far is done. Test: tests/projects.test.ts, 1 new.
+
+### Front page: "Continue your career" when there's one saved (25 Oct 2026)
+
+Owner: the Career tile says "Start a career" even with a career saved; should it say continue? It carries on the slot last played, so now it says so: **Continue your career**, with a line under it giving the slot and balance and where to start a new one (Menu → Office → Career). A small script in `index.html` reads the same keys as app/careerSession.ts (`swvr.fleetCareerSlot`, `swvr.fleetCareer.N`); no save (or no storage): "Start a career" as before. Checked headless, with and without a save. No config keys, no tests touch it.
+
+### Construction projects, step 4: the turbines and guard duty (25 Oct 2026)
+
+Owner: "go to stage 5". Stage 5 of Tarran Rig, as in the approved plan: the installation ship puts the turbines up in the background while you guard the works and run the fitters out.
+
+- **Installation ship** (`installAt`, career/projectView.ts `installerGeometry`): a set piece like the jack-up, bigger (80 x 36 m hull on four legs, the crane's boom raised over the hub), standing north of the turbine she's on. Each turbine takes `erectS` 240 s of work: the tower rises, the nacelle is lowered on from `nacelleAt` 0.4, the rotor from `rotorAt` 0.65. Turbines that are up are drawn still (one blade hanging down, clear of her boom) in the project's merged mesh; they turn once commissioned (stage 6). Settings: `CONFIG.career.projectInstall`.
+- **Guard duty** (job kind `guard`, `stepGuard`): her work goes on only while a players' boat is within `standBy` 900 m of her and no ship is within `zone` 400 m. While guarded, a ship is sent for the works every `every` 50-110 s, one at a time (traffic.ts `spawnShipFor`: from `from` 1700 m on a clear approach, straight at her; `Ship.bound` marks her). A guard boat within `hail` 300 m: she's called on the VHF and alters 70 deg away (whichever side passes further off). Into the zone: a strike, she's turned away by the installation ship, and the guard job pays `strike` £600 less (never under `minPay` £600). The radio says when the guard comes and goes, and each lift. Settings: `CONFIG.career.projectGuard`.
+- **Fitters** (job kind `transfer`, `stepFitters`): once a turbine is up, a crew transfer to it (three fitters on the usual crew-transfer quay), through the transfer system: the project's turbines become a wind farm once all their transition pieces are on (world/windFarm.ts `setProjectFarm` / `allFarms`, after the map's own), so the landings, the platforms underfoot, the gangway mark and the technicians' figures all work there. `TransferJob.project` marks the project's: the project pays it (not the transfer as well).
+- **Plotter:** the zone (red, dashed), the stand-by ring (faint), the installation ship, the ships bound for the works (red, named), turbines that are up (white).
+- **Saved:** `erected`, and guard duty's `warned` / `strikes`; a turbine going up when the session ends reads back as up.
+- **Debug:** Project: stage done puts both turbines up and the fitters across.
+- **Tests:** tests/projects.test.ts, 5 new (the lifting rules and strikes, ships sent for the works, the guard pay and the fitters' transfer on the new farm, the save, the debug button). All of `npm test`: 1557 passing. Headless screenshots of a turbine going up and of the second one's rotor going on.
+- **Not checked:** a whole guard duty played through in real time; the fitters' transfer driven by hand onto the new landings (the landing check is the same code as Holm Rig's, on the new farm).
+- **Shared changes:** world/windFarm.ts (`setProjectFarm`, `allFarms`: the wind farm list a project can add to; `inTower`, `platformAt`, `platformSpot` use it); world/view/windFarmView.ts (`nacelleGeometry`, `rotorGeometry` exported).
+
+### Construction projects, step 3: the transition pieces (25 Oct 2026)
+
+Owner: "Go to stage 4."
+
+- **Stage 4, Transition pieces** (bonus £2000; `CONFIG.career.projects`): two jobs. **Transition pieces to the jack-up** (£2500): a new tug's tow, the **transition pieces' barge** (`CONFIG.vessels.tpBarge`: the crane pontoon's hull and handling, two transition pieces standing upright on grillages with sea-fastening struts, drawn with Holm Rig's own transition piece: `world/view/windFarmView.ts transitionPieceParts`, now split out of the turbine's parts), out at the laydown like the monopiles, handed over within `projectTow.toJackUpRadius` (50 m) of the jack-up wherever she stands. Then she lifts the pieces onto the driven foundations one at a time, `projectTow.fitS` (90 s) each (`fitting`, then `fitted`): drawn lowered from 12 m onto the foundation, then standing with its platform and landing. **Bolts and grout for the jack-up** (£900): a **supply** job, four loads of `Building materials` (hand cargo) on the Calder goods row; brought alongside the jack-up (within 45 m, under 0.5 m/s, 6 s: `CONFIG.career.projectSupply`), her crane takes what's aboard (`supplied` counts them; paid when all four are).
+- A tow job without a `turbine` is for the jack-up (the barge); a `supply` job is new. Project hand cargo is ordinary hand cargo (only the mark buoys are crane only: `isProjectBuoy`); lost, another is put on the quay.
+- The **jack-up** now stays on site through stage 4: at a piece being lifted on, else the next to have one, else (supplies still wanted) the last turbine; gone when the pieces are on and her supplies aboard.
+- **Solid:** a turbine base with its piece on takes Holm Rig's blocks (`windFarmBlocks`: the piece up to the platform, and the boat landing's face), so a crew boat can push on its landing.
+- Saved: a piece being lifted on when the session ends reads back as on; supplies taken stay counted. **Chartplotter:** the barge ("TP barge"), the ring round the jack-up for the barge and the supplies, foundations yellow once their piece is on. **Debug:** Project: stage done fits both pieces.
+- **Shared changes:** `src/world/view/windFarmView.ts` (`transitionPieceParts` exported), `src/config/vessels.ts` (`tpBarge`), `src/vessel/vesselDef.ts`, `src/boats/towHulls.ts`, `src/boats/library.ts`, `src/boats/tow-tpBarge.json`.
+- Tests: `tests/projects.test.ts` (the barge out, handed over at the jack-up, the pieces on one by one with the landing solid, the jack-up staying for the supplies and gone after; a supply run in two trips, paid at the last; saved mid-way). Headless (career): the barge with its two pieces, a piece being lowered under the jack-up's hook, a turbine base standing with its platform and landing. Not checked: a full tow and supply run by hand, VR.
+
+### Construction projects, step 2: the foundations (monopile tows and the jack-up) (25 Oct 2026)
+
+Owner: "go ahead with step 2, the monopile tow".
+
+- **Stage 3, Foundations** (bonus £2000; `CONFIG.career.projects`): two jobs, **Monopile 1 to turbine 1** and **2 to turbine 2**, £1800 each. One at a time: a monopile comes out to the **laydown** (`CONFIG.career.projectTow.laydown`: (370, 745), south-west of Calder Haven's mouth, lying north-south, clear of the fairway) and is held there on its moorings (its position pinned) until a towline is made fast; from then on it's free (`ProjectProgress.released`). Stopped within 30 m of its turbine at under 0.4 m/s for 8 s (`handover`), the jack-up takes it: the lines cast off, the tow gone from the water, the job paid, and the pile **driven** over `driveS` (120 s) in the background (`driving`), then a **foundation** (`driven`). The next monopile comes out once the jack-up's free. A pile being driven when a session ends counts as driven on the next load (`parseCareer`).
+- **The monopile** (`CONFIG.vessels.monopile`, `tow/towLook.ts`): a new tow kind, a 40 m x 5 m steel tube (the farm's pile radius) floated with its ends sealed: 190 t at 1.9 m draught, drawn as the tube with orange bulkhead caps, yellow bands, lifting trunnions and a towing bridle to its eye; floated on a hard-chine hull fitted inside its section (deck edge and chine on the circle, the generator's fining forward end inside the tube). LCB from `uprightHydrostatics` so she floats level; her centre of gravity set low enough for the sea-trials rule (GM over 0.35 m, a righting arm out to 60°). A tug's tow (`needs: 'tug'`, the 3x hawser) and a project's (`TowLook.project`): never a random call or a debug size pick.
+- **Only a tug tows it** (owner: "the tug should do the tows ... if they're over a certain size"): `towTargets` leaves a project's tug tow out for a boat that isn't tug class (`isTugClass`: the tug diesel or the heavy towing post). Ships (the coaster) stay open to any boats together, as before (multi-boat towing).
+- **The jack-up** (`career/projectView.ts`, `CONFIG.career.projectJackUp`): a set piece, no physics: a yellow hull 40 x 30 m standing 14 m up on four square legs banded red and white at the top, the accommodation block and helideck on its north side, the crane on its south side with its boom set to put the hook over the turbine. It stands 55 m north of the turbine it's working on, moving to the next as the piles go in; gone when they're all in. One merged mesh, one draw call. The pile being driven: a tube scaled from pitched (top +14 m) down to driven (+4 m); the foundations, one merged mesh.
+- **Solid:** the game can now add blocks to the collision beside the map's (`world/geography.ts setExtraBlocks`: a short list walked after the map's grid, nothing allocated per probe; solid and standable, but no berths, nothing to climb onto). The project's (`projectBlocks`, kept in step by `syncProjectBlocks` on the host's tick and the crew's frames): each foundation and the pile being driven, the jack-up's four legs, and the laid buoys (small and fendered: a boat leaning on one is nudged off).
+- **Chartplotter:** each monopile where it lies (a magenta bar, "Pile 1"), its hand-over ring at the turbine, the foundations as grey discs. **Menu:** the jobs say where the pile is (at the laydown, in tow and how far to go, handed over and how far driven).
+- **Debug:** Project: stage done also clears and drives the monopiles.
+- **Shared changes:** `src/world/geography.ts` (`setExtraBlocks`), `src/config/vessels.ts` (`monopile`), `src/vessel/vesselDef.ts` (the tow kind, `TowLook.project`), `src/boats/towHulls.ts`, `src/boats/library.ts`, `src/boats/tow-monopile.json`.
+- Tests: `tests/projects.test.ts` (the laydown and its moorings, one pile at a time, only a tug can make fast; hand-over pays and starts the drive, the jack-up there, the foundation solid when driven, the next pile out and the jack-up moved; saved mid-drive reads back driven), `tests/monopileTow.test.ts` (floats level at 190 t, stable; the small tug tows it at a few knots, line held, upright), `tests/tow.test.ts` (project tows left out of the size list). Headless (career): the monopile at the laydown, the jack-up on site, the pile pitched and part-driven under its hook, the foundation standing. Not checked: a whole tow by hand, VR.
+
+### Timber logs £2,000 each (25 Oct 2026)
+
+Owner: "the base price of a log should be 2,000, and eventually when we get really big ones, that could be up to 10,000."
+
+- `CONFIG.voyage.timber.logPrice` 2000: a timber camp log sold at the merchant (`stepTimberLogs`), and each log of a saved barge (`saleOffer`, `sellBarge`, `saleText`).
+- It's still paid through `earn('log')`, so the harbour's reputation bonus and buyer factor apply on top, and it counts toward a log contract. For that, `career.ts` `EarnOpts.base` lets a job give its own base pay.
+- Washed-up salvage in the career keeps `CONFIG.career.pay.log` £180: £2,000 there would swamp the career's other jobs (£50-500). Owner to say if those should rise too.
+- Up to £10,000 for big logs needs the camp to send each log's size in the handoff (it sends a count): later, with bigger trees.
+- Tests: `tests/metaverse.test.ts` (a sale pays at least `logPrice`). Typecheck clean, all tests pass. **Shared changes:** none.
+
+### Construction projects, step 1: the system, Tarran Rig's survey and marks (25 Oct 2026)
+
+Owner, approving the plan: "keep the existing wind turbine farm ... we're going to build another one as the first project. It can be smaller, like 2 turbines ... The tug should do the tows ... if they're over a certain size, and ... any kind of boat that's got a big enough deck crane could do the buoy laying ... big ships' jobs happening in the background."
+
+- **The project system** (`src/career/projects.ts`): a project is offered at a harbour office (Office > **Projects**), one at a time; it runs in stages, each a handful of jobs done in any order by any of the players' boats. Each job pays when done, each stage its bonus when its last job is, the project its bonus at the end. Progress is the career's (`CareerState.project`, `projectsDone`), saved with it (`serializeCareer` / `parseCareer`, an addition: older saves read as before). Voyage has none. Multiplayer: it's the host's career, in the snapshot like the rest of the world.
+- **The first project, Tarran Rig wind farm** (`CONFIG.career.projects`): two turbines in 40 m of open water about 1.1 km north of Calder Haven, at (350, −420) and (600, −420), landings facing south; clear of Holm Rig, the fishing grounds and the other marks (checked against the seabed). Offered at Calder, no reputation needed.
+  - **Stage 1, Survey the site** (bonus £800): three survey lines east-west across the site, £450 each, and the met buoy, £600.
+  - **Stage 2, Mark the site** (bonus £1000): a north, east, south and west cardinal boxing the zone, £600 each.
+  - Stages 3-6 (foundations with the floated monopile tow and the jack-up, transition pieces, the turbines, commissioning) are the next steps; until then the project waits after stage 2 ("the next stage is being planned").
+- **Survey lines:** a line counts where a boat runs along it (either way, within ±25°), within 30 m of it, at 2.5-6.5 kn; it's cut into 13 stretches, and it's done when all are run (`CONFIG.career.projectSurvey`).
+- **Mark buoys:** each waits on the office's quay as crane cargo (a new kind, `Mark buoy`, 420 kg, buoy yellow), so only a boat with a deck crane big enough lifts it. Lowered into the sea within 25 m of its spot (`CONFIG.career.projectBuoy.radius`) it's laid and paid; anywhere else it stays on the hook and the office says how far off it is; lost overboard, another is put on the quay. Laid, it's a lit mark like the map's (`career/projectView.ts`: the sea-mark view, now able to draw any list of marks).
+- **A special mark** for the met buoy: yellow, a yellow X topmark, Fl(5)Y 20s (IALA), in the mark kinds, the lights, the 3D marks and the paper chart's symbol.
+- **On the chartplotter:** the site's turbine positions (dashed rings), the stage's survey lines in dashed magenta with the stretches run in green, and each buoy's spot (a magenta ring its radius wide, named) until it's laid, then a mark.
+- **Debug:** Debug > Missions > Career > **Project: stage done** finishes the stage's jobs (paid as usual).
+- **Shared changes:** `src/world/defs.ts` (`MarkKind` gains `special`), `src/world/navMarks.ts` (its light), `src/world/view/navMarksView.ts` (its shape; the view takes a list of marks), `src/nav/paperChart.ts` (its symbol), `src/core/simulation.ts` (`stepProjects`), `src/config.ts`.
+- Tests: `tests/projects.test.ts` (offered at Calder only; a survey line counts only along it, close, at survey speed, and pays when run; a buoy waits on the quay, laid only at its spot, replaced when lost; stage bonuses and the next stage; saved and read back; a real deck crane lowering the buoy from its hook at the spot lays it). `tests/menu.test.ts` stubs. Headless (career): offered and taken from the menu, the met buoy yellow on Calder's quay, both stages finished by the debug button (£6,150 paid), the north cardinal laid and lit on station.
+
+### Timber logs pay the game's log price (25 Oct 2026)
+
+Owner: keep the price for logs that's already in the game, not £12.
+
+- A timber camp log sold at the merchant is now paid as a washed-up salvage log is (`voyage/timber.ts` `stepTimberLogs`, through `career.ts` `earn('log')`): `CONFIG.career.pay.log` £180, with the harbour's reputation bonus and its buyer factor, and it counts toward a log contract there.
+- A barge saved before the logs went on the beach sells at the same price a log (`saleOffer`, `sellBarge`, `saleText`).
+- `CONFIG.voyage.timber.pricePerLog` (£12) is gone.
+- Tests: `tests/metaverse.test.ts` (the sale pays at least half the log price and posts "Timber log sold"). Typecheck clean, all tests pass. Not checked: by hand or in VR.
+
+### (From the modular-builder chat) A TV that shows a browser tab
+
+`world.tv` (who is showing a tab on which TV) with the `tvCast` intent and its tick in `core/simulation.ts`; `App.ts` works the TV's press (`pressTv`) and its frame update (`updateTv`); `net/voice.ts` leaves calls marked `{ tv }` to the TV (`modules/furniture/tvCast.ts`), which sends the picture player to player over the same PeerJS link; the mixer's FM slider is now "FM radio & TV". See `docs/progress/modules.md`.
+
+### The timber camp's logs on the beach, not a barge (25 Oct 2026)
+
+Owner: "dragging the logs down to the shore is fine, but they should spawn not as a barge in the boat game. They should spawn as logs on the beach, because we already have that mechanism." One tow per log is fine; the owner will set up rafting from this side later.
+
+- **Back from the camp with logs** (`voyage/timber.ts` `logsFromCamp`), they're laid on the site's beach (the contract's beach point, the head of Ardantrive Bay):
+  - side by side, `voyage.timber.beachSpacingM` 1.2 m apart along the shore, each pointing out to sea (toward the hotspot);
+  - its middle where the ground going down to the water is first under `beachMaxAboveM` 0.5 m (beached, not afloat);
+  - up to `maxLogs` 40.
+- **They are the log salvage's logs** (`salvage/salvage.ts`), marked `timber`, with their own `mass` (`logKg` 170, from `logMass`, also used by the towline in `tow.ts`):
+  - put a line on one (the hook, or Make fast), ease ahead, and it slides off the beach and floats;
+  - they never go with the tide;
+  - only the timber merchant buys them (`stepTimberLogs`, stepped after the salvage in `core/simulation.ts`): afloat and slow (`tow.deliverSpeed`) within `sellRangeM` 15 m (plus half the log) of the merchant's quay for `tow.deliverTime`, then the line comes off, `pricePerLog` £12 is paid, and the radio says how many are left.
+  - A log on the line says "tow it to the timber merchant's quay" in the status line.
+- **Kept with the Voyage save** under their own key, `swvr.voyage.timberlogs.<map>` (`timberLogsToSave`, `parseTimberLogs`, `restoreTimberLogs`), so the live game's saves aren't touched.
+- **The barge:**
+  - `bargeFromCamp` and `voyage.timber.bargeOffM` are gone.
+  - A barge saved before this still comes back, tows and sells as before.
+  - The envelope is unchanged: Timber still sends `barge_ready`, which now means "logs to collect", so the live game (still making barges) and this one both understand every Timber.
+- **The log drawing** (`salvage/logView.ts`): room for 64 logs, up from 6 (with 6, most of a camp's logs would have been invisible). The camp's logs are drawn at their own 0.3 m across (`voyage.timber.logDiameter`), not the 0.6 m washed-up trunk.
+- `docs/metaverse-contract.md` (the same file in Big Timber, which no longer shows a barge either), README's timber run.
+- **Tests** (`tests/metaverse.test.ts`):
+  - 40 logs laid, all beached just above the water near the beach point, none on another;
+  - still there after the salvage's expiry time with the boat far off;
+  - one afloat by the merchant's quay sold for £12, one by another harbour not;
+  - a log pulled off the beach by the pilot boat under power, from water deep enough 26 m off;
+  - the logs kept with the save;
+  - a barge saved before still restored on the line.
+- **Checked:** typecheck; all tests. Headless (Oban, a return envelope with 20 logs): 20 logs on the beach at the head of the bay, seen from the wheelhouse 50 m off as a row at the water's edge.
+- **Not checked:** towing one across to Oban by hand; VR.
+- **Shared changes:** `src/core/simulation.ts` (one line: `stepTimberLogs` after `stepSalvage`), `docs/metaverse-contract.md`.
+
+### Your boats on a board on the quay (25 Oct 2026)
+
+Owner (from the backlog): "The favourites screen as a board on the quayside. Your saved boats would be on a board ashore, worked like the boatyard board and the Shipyard sign: pick one and take her out."
+
+- **A Your boats board beside every Shipyard sign** (`ui/shipyardDoor.ts`: `ShipyardDoor.boats`, its rows `boatsBoardRows`): in the career at every harbour, to the left of the sign; in Voyage on the planning table's other side from the sign. It shows the boat you're in, your Shipyard favourites saved in this browser five to a page with ◀ ▶, and beside each the same button as Office > Your boats (`takeDesign`, `takeLabel`): in the career a 5-minute sea trial, or at a boatyard "Buy her (£…)"; in Voyage, take her. The game starts again in her, as from the menu.
+- `ShipyardDoor` is now the quay sign for both (its constructor takes the rows; `ShipyardDoor.shipyard`, `ShipyardDoor.boats`; a `side` offset along the sign's right). Settings: `CONFIG.voyage.boatsBoard` { width 1.2 m, besideM 0.3 m }; height, range and reach are the Shipyard sign's.
+- Office > Your boats stays, with the code keypad (the board has no keypad: favourites only).
+- Tests: `tests/shipyardSign.test.ts` (the board lists the favourites a page at a time, its button takes the one pressed). Typecheck clean, all tests pass. Headless (career, Calder, two favourites saved): the board stands left of the Shipyard sign with both boats; at the yard their buttons read "Not enough money" on a new career (the buy price), as in the menu. Not checked: Voyage by eye, VR.
+
+### Held controls stay held in VR; W/S on the wheel with the mouse (24 Oct 2026)
+
+Owner: "revert the fix you put in for the VR wheel and throttle controls. When I grab them, I want to be locked onto them. Doesn't matter if I move my body away from them. And ... if you're on mouse and keyboard and you grab the wheel, that you can use the W and S keys for the throttle instead of the cursor keys."
+
+- **The breakaway is gone** (it was the review's fix, Oct 2026): a held lever, wheel, joystick or gear selector is held for as long as the grip is, however far your body moves. With it go the rules it brought: while a hand holds a control, the sticks walk and turn you again and the free hand pulls you along again. Removed: `CONFIG.interaction.breakaway`, `InteractionSystem.holdingAny`, `Control.carried` (only the breakaway read them) and the breakaway test.
+- **W and S work the throttle while the mouse holds the wheel**, not only in helm mode (H) as before: `App.handleDebugDriving` takes W/S when `interaction.desktopHeld` is the wheel. Walking was already off while the mouse holds a control, so W/S were free. The neutral detent is as at the helm: S stops at neutral; let go and press again for astern.
+- Checked: typecheck, all tests. Headless (career, beginner boat): W with hands free walks, the throttle stays at 0; holding the wheel, W took it to 0.45 ahead and S back to neutral, where it stopped. Not checked: VR (the breakaway's removal is a straight revert to how it was before).
+
 ### The bow fender at the yard (24 Oct 2026)
 
 Owner: "we've now got crew transfer in the missions in career mode, but I need to build a new boat for that. Maybe a quick way to test it is just to add it to the upgrades", then "Go ahead with the bow fender on the yard upgrades".

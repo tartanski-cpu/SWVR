@@ -92,7 +92,10 @@ export class PeerClientTransport implements ClientTransport {
   }
 
   close(): void {
-    this.peer.destroy();
+    // A moment for anything just sent (the goodbye) to get out before the link goes; a page
+    // being closed may not get the moment (the host then notices the silence: hostSession.ts).
+    const peer = this.peer;
+    setTimeout(() => peer.destroy(), 250);
   }
 }
 

@@ -3,13 +3,18 @@ import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { groundHeight } from '../world/terrain';
+import { CONFIG } from '../config';
 
-const MAX = 6;
+/** Instances: washed-up logs (`salvage.max`, a few) and the timber camp's (up to `voyage.timber.maxLogs`), with room to spare. */
+const MAX = 64;
+/** The model's thickness (m): the timber camp's thinner logs are scaled down to theirs. */
+const MODEL_D = 0.6;
 
 /**
  * The salvage logs (salvage.ts): a bark-brown trunk with paler cut ends, one instanced
  * mesh (one draw call). On the beach it lies on the sand; afloat it rides low in the water,
- * rolling a little with the swell. Each log's length scales a 1 m model.
+ * rolling a little with the swell. Each log's length scales a 1 m model; the timber camp's
+ * logs (voyage/timber.ts) are thinner, `voyage.timber.logDiameter` across.
  */
 export class LogView {
   readonly root = new THREE.Group();
@@ -41,11 +46,12 @@ export class LogView {
     for (let i = 0; i < this.mesh.count; i++) {
       const l = logs[i];
       const sea = surfaceHeight(waves, l.x, l.z);
-      const y = l.afloat ? sea - 0.12 : Math.max(groundHeight(l.x, l.z), sea - 0.1) + 0.28;
+      const k = l.timber ? CONFIG.voyage.timber.logDiameter / MODEL_D : 1;
+      const y = l.afloat ? sea - 0.12 * k : Math.max(groundHeight(l.x, l.z), sea - 0.1) + 0.28 * k;
       const roll = l.afloat ? 0.15 * Math.sin(t * 0.9 + i) : 0;
       this.p.set(l.x, y, l.z);
       this.q.setFromEuler(this.e.set(0, l.yaw, roll));
-      this.mesh.setMatrixAt(i, this.m.compose(this.p, this.q, this.s.set(1, 1, l.len)));
+      this.mesh.setMatrixAt(i, this.m.compose(this.p, this.q, this.s.set(k, k, l.len)));
     }
     this.mesh.instanceMatrix.needsUpdate = true;
   }

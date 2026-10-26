@@ -42,7 +42,7 @@ import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
 import { buildDesign, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -58,7 +58,7 @@ import type { GearKind } from '../modular/module';
 import { aboutHeading, CONTROL_ICONS, ENGINE_ICONS, floorIcon, HOUSE_ICONS, HULL_ICONS, liningIcon, pickTiles, toggleTiles, type Tile } from './tiles';
 import { GEAR_ABOUT, GEAR_GROUPS, GEAR_ICONS, gearKind } from './gearMenu';
 import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment } from './pinGear';
-import { FURNITURE_MENU, nextSlot, placedOf, removeFurniture, slotOf } from './furnishing';
+import { FURNITURE_MENU, nextSlot, placedOf, removeFurniture, slotOf, turnSeat } from './furnishing';
 import { furnitureName, furnitureSocketId } from './parts/furniture';
 import { SheetEditor } from './sheetEditor';
 import { holdSlots, type FishHoldConfig } from '../modules/fishHold';
@@ -1125,7 +1125,7 @@ section('6. Controls');
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
 optionTiles('helmAssist', 'Helm assist', [
   { icon: CONTROL_ICONS.noAssist, name: 'None', info: 'No helm assist panel.' },
-  { icon: CONTROL_ICONS.assist, name: 'Assist', sub: 'autopilot, dock', info: 'A helm assist panel: an autopilot, docking help and an automatic engine start.' },
+  { icon: CONTROL_ICONS.assist, name: 'Assist', sub: 'autopilot, dock', info: 'An autopilot on the console (AUTO holds her heading; PORT 5° and STBD 5° alter it), and a helm assist panel by the breakers: docking help and an automatic engine start.' },
 ]).dataset.when = 'controls';
 // Her console laid out by hand (dynamic console sockets CS3): in a panel under the view (showConsoleEditor).
 group('Console layout', 'Under the view, her console from the helm: drag a screen or a switch group to where you want it. Your first move pins everything where it stands; Automatic puts it all back to the rules. Placed by hand, she travels as a link or file, not a code.');
@@ -2915,7 +2915,7 @@ function showFurniture(): void {
     const add = button(acts, on.length ? 'Add another' : 'Add', `Then click on her where it goes`, () => next && furnitureTool(next), true);
     if (!next) {
       add.disabled = true;
-      add.title = kind === 'head' ? 'One head a boat' : 'Four is the most of a piece';
+      add.title = kind === 'head' ? 'One head a boat' : `${FURNITURE_SLOTS[kind].length} is the most of a piece`;
     }
     if (placing?.target.kind === 'furniture' && placing.target.key === next) add.classList.add('on');
     const list = card.querySelector('.furnList')!;
@@ -2927,6 +2927,8 @@ function showFurniture(): void {
       const ra = row.querySelector('.gearActs')!;
       const mv = button(ra, 'Move', 'Then click on her where it goes instead', () => furnitureTool(key));
       if (placing?.target.kind === 'furniture' && placing.target.key === key) mv.classList.add('on');
+      // A seat turns (owner, Oct 2026: "those seats to be rotatable"): 45 degrees clockwise a press.
+      if (kind === 'seat') button(ra, 'Turn', 'Turn it 45° clockwise (seen from above)', () => change(turnSeat(key, design)));
       button(ra, 'Take off', 'Take it off her (the ones after it move up a number)', () => change(removeFurniture(key, design)));
       list.appendChild(row);
     }

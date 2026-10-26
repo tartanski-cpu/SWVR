@@ -27,6 +27,7 @@ export const GEAR_GROUPS: GearGroup[] = [
   { name: 'Towing', items: ['towWinch', 'sternRoller'] },
   { name: 'Fishing', items: ['aFrame', 'netDrum', 'trawlWinches', 'rodRack'] },
   { name: 'Cargo', items: ['deckCrane'] },
+  { name: 'Diving', items: ['diveFrame'] },
   { name: 'Her fittings', items: ['anchor', 'sideDoor'] },
 ];
 
@@ -43,6 +44,7 @@ export const GEAR_ABOUT: Record<string, string> = {
   netDrum: 'The net wound on a big hydraulic drum forward of the A-frame: it comes off as you shoot and winds back on as you haul. Needs the A-frame.',
   trawlWinches: 'A pair of winches at the deck edges for the trawl warps, leading aft to the A-frame\'s blocks: she needs no tow winch to trawl. Needs the A-frame.',
   deckCrane: 'A small crane for lifting cargo on and off her deck.',
+  diveFrame: 'A heavy A-frame over the transom and a three-person work submersible on her cradle forward of it: hoist her into the docking head, swing her out over the stern and lower her into the sea. Only for a big boat (about 50 t or more, with some 8 m of clear deck aft): she is 10 t. Takes her transom: no trawl A-frame or stern roller with it.',
   anchor: 'An anchor and its windlass, to hold her in one place. Every boat should have one.',
   sideDoor: 'A sliding door in the wheelhouse’s port wall, out to the side deck.',
   berth: 'A bunk with its cushion, against a wall: in the wheelhouse, the saloon or the cabin below.',
@@ -54,6 +56,7 @@ export const GEAR_ABOUT: Record<string, string> = {
   bunk: 'Two berths one over the other, for the crew: a lee rail on the upper one, rungs up to it. Needs headroom to sit up in the top bunk.',
   mess: 'A table against a wall with a bench at each end: where the crew eat. Put it by the galley.',
   shower: 'A shower stall with a curtain, to the ceiling.',
+  tv: 'A flat-screen TV on a wall bracket. In the game, on a desktop, click it to show one of your browser tabs on it (a video, a map): everyone aboard sees it.',
 };
 
 /** How it goes on her (above). */
@@ -78,6 +81,8 @@ export const GEAR_ICONS: Record<string, string> = {
   mess: svg('<path d="M8 11h8M12 11v8M3 6v13M3 15h4v4M21 6v13M21 15h-4v4"/>'),
   // The stall, its rose and the curtain.
   shower: svg('<path d="M5 3v18M19 3v18M5 21h14M9 5h4v2M11 7v1M9.5 10l-.5 1.5M12 10v1.5M14.5 10l.5 1.5M5 4h8"/>'),
+  // The screen on its bracket, a play mark on it.
+  tv: svg('<rect x="3" y="5" width="18" height="11" rx="1"/><path d="M10.5 8.5v4l3.5-2zM12 16v3M8 20h8"/>'),
   // The ring, its shank and stock, the curved arms with their flukes.
   anchor: svg('<circle cx="12" cy="4.5" r="2"/><path d="M12 6.5V20.5M8.5 9.5h7M5 13.5c0 4 3 7 7 7s7-3 7-7M3.5 15l1.5-1.5 1.5 1.5M17.5 15l1.5-1.5 1.5 1.5"/>'),
   // The ring and its four bands of tape.
@@ -102,6 +107,8 @@ export const GEAR_ICONS: Record<string, string> = {
   // Two winch drums at the deck edges, their warps leading aft to a block.
   trawlWinches: svg('<circle cx="5" cy="15" r="2.5"/><circle cx="19" cy="15" r="2.5"/><path d="M5 12.5L11 4M19 12.5L13 4M10 4h4M2.5 20h5M16.5 20h5"/>'),
   aFrame: svg('<path d="M5 21L12 3l7 18M8.2 13h7.6M12 3v7M9.5 10h5l-1 8.5h-3zM10 13h4M10.4 15.8h3.2M11 10l-.5 8.5M13 10l.5 8.5"/>'),
+  // The A-frame over the stern, the sub hanging under it at the waterline.
+  diveFrame: svg('<path d="M4 21L9 3h6l5 18M9 3h6M12 3v4.5M7 12.5h10a3 3 0 0 1-3 3.5h-4a3 3 0 0 1-3-3.5zM10.5 10.5h3v2M2 19.5h4M18 19.5h4"/>'),
   // A door with its window and handle.
   sideDoor: svg('<rect x="6.5" y="3" width="11" height="18" rx="1"/><rect x="8.5" y="5" width="7" height="5" rx=".5"/><path d="M14.5 13.5h1.2"/>'),
 };

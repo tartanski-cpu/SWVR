@@ -8,6 +8,8 @@ import { placeAshore } from '../player/playerControl';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { releaseHolds } from '../vessel/vesselControl';
 import { dropCarried } from '../cargo/cargo';
+import { CONFIG } from '../config';
+import type { PlayerState } from '../player/playerState';
 import { NET_RATE, type ClientMessage, type HostMessage } from './protocol';
 import type { HostTransport, Link } from './transport';
 import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
@@ -17,9 +19,16 @@ import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
  * queued into it (stamped with the sender's player id - a client can't act as someone else),
  * clients' poses are written into their PlayerState, and the whole world is broadcast to
  * every client NET_RATE times a second.
+ *
+ * A crew-mate who goes (Leave game, the page closed or reloaded) says `bye` and is dropped at
+ * once. A page that couldn't say it (closed abruptly, the headset taken off and its browser
+ * stopped) often leaves its link looking open, so a crew-mate the host hasn't heard from for
+ * CONFIG.net.crewSilentS is taken out of the world (no frozen avatar left standing; owner, Oct
+ * 2026: five of them after a crew-mate's page tried again and again), and put back as they
+ * were if they're heard from again.
  */
 export class HostSession {
-  private readonly peers = new Map<string, { link: Link; playerId: EntityId }>();
+  private readonly peers = new Map<string, { link: Link; playerId: EntityId; silent: number; away?: PlayerState }>();
   private pending: Intent[] = [];
   private sinceSend = 0;
   /** The host's chart marks (the App's copy): a joiner gets them, ops are applied to them. */
@@ -59,12 +68,19 @@ export class HostSession {
       const ours = this.world.build?.app;
       if (msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
       this.world.players[playerId] = p;
-      this.peers.set(link.id, { link, playerId });
+      this.peers.set(link.id, { link, playerId, silent: 0 });
       this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });
       return;
     }
     const peer = this.peers.get(link.id);
     if (!peer) return;
+    if (msg.t === 'bye') return this.drop(link);
+    // Heard from: back in the world if they'd gone quiet.
+    peer.silent = 0;
+    if (peer.away) {
+      this.world.players[peer.playerId] = peer.away;
+      delete peer.away;
+    }
     if (msg.t === 'intents') {
       for (const i of msg.intents) {
         // Players may only act as themselves; player-targeted intents (boarding) are theirs alone.
@@ -127,8 +143,18 @@ export class HostSession {
     for (const { link } of this.peers.values()) this.send(link, msg);
   }
 
-  /** Call every frame: broadcasts a snapshot NET_RATE times a second. */
+  /** Call every frame: broadcasts a snapshot NET_RATE times a second; crew-mates gone quiet are taken out. */
   tick(dt: number): void {
+    for (const peer of this.peers.values()) {
+      peer.silent += dt;
+      if (peer.away || peer.silent < CONFIG.net.crewSilentS) continue;
+      const p = this.world.players[peer.playerId];
+      if (!p) continue;
+      dropCarried(this.world, peer.playerId);
+      for (const v of Object.values(this.world.vessels)) releaseHolds(v, peer.playerId);
+      peer.away = p;
+      delete this.world.players[peer.playerId];
+    }
     this.sinceSend += dt;
     if (this.sinceSend < 1 / NET_RATE) return;
     this.sinceSend = 0;

@@ -138,9 +138,11 @@ export class CoastTerrainView {
   triangles = 0;
   /** The chunks drawn far, as one mesh; which they are (their indices), and when it was last merged (ms). */
   private farMesh: THREE.Mesh | null = null;
-  private farKey = '';
   private farSet = new Set<number>();
   private farAt = -Infinity;
+  /** The chunks by distance from where the viewer was when last sorted (CONFIG.regions.coastResort). */
+  private order: { ch: CoastTerrainView['chunks'][number]; d: number }[] = [];
+  private sortedAt = { x: Infinity, z: Infinity };
   /** The region's harbour kit in squares (worldView), each shown near the viewer only. */
   private structures: { x: number; z: number; mesh: THREE.Mesh }[] = [];
   private structureHalf = 0;
@@ -206,9 +208,18 @@ export class CoastTerrainView {
     const c = CONFIG.regions;
     let built = 0;
     let tris = 0;
-    const order = this.chunks
-      .map((ch) => ({ ch, d: Math.hypot(Math.max(ch.x0 - x, 0, x - ch.x1), Math.max(ch.z0 - z, 0, z - ch.z1)) }))
-      .sort((a, b) => a.d - b.d);
+    // Sorted again only once the viewer has moved a little (a few metres don't change which
+    // ring a 2 km chunk is in).
+    if (Math.hypot(x - this.sortedAt.x, z - this.sortedAt.z) > c.coastResort) {
+      this.order = this.chunks
+        .map((ch) => ({ ch, d: Math.hypot(Math.max(ch.x0 - x, 0, x - ch.x1), Math.max(ch.z0 - z, 0, z - ch.z1)) }))
+        .sort((a, b) => a.d - b.d);
+      this.sortedAt = { x, z };
+    }
+    const order = this.order;
+    // The fog's reach, in steps, rounded up (nothing in sight left out).
+    const fog = Number.isFinite(fogFar) ? Math.ceil(fogFar / c.coastFogStep) * c.coastFogStep : Infinity;
+    const hyst = c.coastHysteresis;
     const grid = (ch: (typeof this.chunks)[number], cell: number, overlap: number, drop: number, name: string) =>
       toMesh(gridArrays(ch.x0 - overlap, ch.z0 - overlap, ch.x1 + overlap, ch.z1 + overlap, cell, -0.5, drop), this.mat, name);
     // The very coarse copy of every chunk (the whole region at least roughly), several a
@@ -220,7 +231,9 @@ export class CoastTerrainView {
       ch.far = gridArrays(ch.x0 - c.coastFarCell, ch.z0 - c.coastFarCell, ch.x1 + c.coastFarCell, ch.z1 + c.coastFarCell, c.coastFarCell, -0.5, c.coastCoarseDrop * 2);
       farBuilt++;
     }
+    // Those that must be in the far mesh now, and those a merge takes in (coastFarAhead).
     const farList: (typeof this.chunks)[number][] = [];
+    const farWant: (typeof this.chunks)[number][] = [];
     for (const { ch, d } of order) {
       // A chunked region's chunk that has been dropped: its full mesh goes with it.
       if (ch.fine && !this.t.piece && !this.t.pieces.has(ch.k)) {
@@ -238,7 +251,14 @@ export class CoastTerrainView {
         }
       }
       if (!ch.fine) full = false;
-      const mid = !full && d < c.coastMidDistance;
+      // Coarse within coastMidDistance; one already drawn coarse stays so a little past it.
+      const mid = !full && d < c.coastMidDistance + (ch.mid?.visible ? hyst : 0);
+      if (ch.mid && !mid && d > c.coastMidDistance * c.coastDropFactor) {
+        // Well past it: freed, made again on coming back.
+        this.root.remove(ch.mid);
+        ch.mid.geometry.dispose();
+        ch.mid = null;
+      }
       if (mid && !ch.mid && built < maxBuilds) {
         ch.mid = grid(ch, c.coastCoarseCell, c.coastCoarseOverlap, c.coastCoarseDrop, 'coast-coarse');
         this.root.add(ch.mid);
@@ -249,7 +269,8 @@ export class CoastTerrainView {
       if (ch.mid) ch.mid.visible = showMid;
       // Past where the fog is total (the clearest day's haze, or today's visibility) a far
       // chunk can't be seen: left out (a big map is mostly beyond it).
-      if (ch.far && !full && !showMid && d < fogFar) farList.push(ch);
+      if (ch.far && !full && !showMid && d < fog) farList.push(ch);
+      if (ch.far && ((!full && !showMid && d < fog) || (d > c.coastMidDistance - c.coastFarAhead && d < fog + c.coastFarAhead))) farWant.push(ch);
       tris += full ? ch.count : showMid ? count(ch.mid!) : 0;
       // The buildings, near only.
       const town = d < c.coastBuildingDistance && ch.buildings.length > 0;
@@ -260,33 +281,40 @@ export class CoastTerrainView {
         this.root.add(ch.town);
         built++;
       }
+      if (ch.town && !town && d > c.coastBuildingDistance * c.coastDropFactor) {
+        // Well past it: freed (the material is shared), made again on coming back.
+        this.root.remove(ch.town);
+        ch.town.geometry.dispose();
+        ch.town = null;
+      }
       if (ch.town) {
         ch.town.visible = town;
         if (town) tris += count(ch.town);
       }
     }
-    // The far chunks, merged again when the set of them has changed. A chunk joining it (no
-    // longer drawn mid) is merged at once, or there'd be a hole where it is; one leaving it
-    // (now drawn mid or full, which sit higher) can wait coastFarRebuild s, as can the first
-    // fill while the far copies are still being made, so it isn't merged every frame.
-    const key = farList.map((ch) => ch.k).join(',');
+    // The far chunks, merged again only when they must be. A chunk joining them (no longer
+    // drawn coarse, or the fog lifting) is merged at once, or there'd be a hole where it is
+    // (while the far copies are still being made, at most every coastFarRebuild s). One
+    // leaving them (now drawn nearer, which sits higher and hides it, or gone into the fog)
+    // stays in the mesh, until they're more than coastFarSlack of it (every coastFarTidy s at most).
     const now = performance.now();
     const joins = farList.some((ch) => !this.farSet.has(ch.k));
-    if (key !== this.farKey && ((joins && farBuilt === 0) || now - this.farAt > c.coastFarRebuild * 1000)) {
-      this.farKey = key;
-      this.farSet = new Set(farList.map((ch) => ch.k));
+    const stale = this.farSet.size - farWant.filter((ch) => this.farSet.has(ch.k)).length;
+    const tidy = stale > 0 && stale > this.farSet.size * c.coastFarSlack && now - this.farAt > c.coastFarTidy * 1000;
+    if ((joins && (farBuilt === 0 || now - this.farAt > c.coastFarRebuild * 1000)) || tidy) {
+      this.farSet = new Set(farWant.map((ch) => ch.k));
       this.farAt = now;
       if (this.farMesh) {
         this.root.remove(this.farMesh);
         this.farMesh.geometry.dispose();
         this.farMesh = null;
       }
-      const n = farList.reduce((t, ch) => t + ch.far!.position.length, 0);
+      const n = farWant.reduce((t, ch) => t + ch.far!.position.length, 0);
       if (n) {
         const position = new Float32Array(n);
         const color = new Float32Array(n);
         let at = 0;
-        for (const ch of farList) {
+        for (const ch of farWant) {
           position.set(ch.far!.position, at);
           color.set(ch.far!.color, at);
           at += ch.far!.position.length;

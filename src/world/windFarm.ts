@@ -16,6 +16,25 @@ import { CONFIG } from '../config';
 import type { BlockDef, WindFarmDef } from './defs';
 import { WIND_FARMS } from './archipelago';
 
+/**
+ * A construction project's wind farm (career/projects.ts sets it once its transition pieces
+ * are on, on the host's tick and the crew's frames): listed after the map's own (allFarms), so
+ * its index is WIND_FARMS.length. Its platforms are walked and its landings used for crew
+ * transfer like any farm's; its drawing and collision are the project's own.
+ */
+let projectFarm: WindFarmDef | null = null;
+let farmsWith: WindFarmDef[] | null = null;
+export function setProjectFarm(f: WindFarmDef | null): void {
+  projectFarm = f;
+  farmsWith = null;
+}
+
+/** Every wind farm: the map's (WIND_FARMS), then a project's if it has one standing. */
+export function allFarms(): readonly WindFarmDef[] {
+  if (!projectFarm) return WIND_FARMS;
+  return (farmsWith ??= [...WIND_FARMS, projectFarm]);
+}
+
 /** A turbine's landing direction: the unit vector (world x east, z south) its landing faces out along. */
 export function landingAxis(landingDeg: number): { ax: number; az: number } {
   const a = (landingDeg * Math.PI) / 180;
@@ -62,15 +81,16 @@ export function platformFloor(x: number, z: number): number | null {
 /** Is (x, z) inside a turbine's tower (and the transition piece under it): never ground to stand on. */
 export function inTower(x: number, z: number): boolean {
   const r = CONFIG.windFarm.tower.base + 0.25;
-  return WIND_FARMS.some((f) => f.turbines.some((t) => Math.hypot(x - t.x, z - t.z) <= r));
+  return allFarms().some((f) => f.turbines.some((t) => Math.hypot(x - t.x, z - t.z) <= r));
 }
 
 /** Which turbine's platform (x, z) is on ("farm:turbine"), or null. */
 export function platformAt(x: number, z: number): string | null {
   const c = CONFIG.windFarm;
-  for (let f = 0; f < WIND_FARMS.length; f++)
-    for (let i = 0; i < WIND_FARMS[f].turbines.length; i++) {
-      const t = WIND_FARMS[f].turbines[i];
+  const farms = allFarms();
+  for (let f = 0; f < farms.length; f++)
+    for (let i = 0; i < farms[f].turbines.length; i++) {
+      const t = farms[f].turbines[i];
       const d = Math.hypot(x - t.x, z - t.z);
       if (d > c.tower.base + 0.25 && d < c.platform.radius - 0.3) return `${f}:${i}`;
     }
@@ -79,7 +99,7 @@ export function platformAt(x: number, z: number): string | null {
 
 /** Where you step onto a turbine's platform: at the ladder's head, facing the tower (world x, z, yaw as a player's, rad). */
 export function platformSpot(farm: number, turbine: number): { x: number; z: number; yaw: number } | null {
-  const t = WIND_FARMS[farm]?.turbines[turbine];
+  const t = allFarms()[farm]?.turbines[turbine];
   if (!t) return null;
   const c = CONFIG.windFarm;
   const { ax, az } = landingAxis(t.landingDeg);

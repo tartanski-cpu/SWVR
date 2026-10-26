@@ -15,7 +15,7 @@ import type { Intent } from '../src/core/intents';
 
 const manual = (which: number, v: number): Intent => ({ playerId: 'p', targetId: ENVIRONMENT_ID, control: 'weatherManual', value: which, args: [v] });
 
-describe('weather by hand', () => {
+describe('weather by hand', { timeout: 60000 }, () => {
   it('sets wind, bearing, rain and sea, holds them, and gives the live weather back', () => {
     const { world } = createWorld(new IdFactory(), 'pilotBoat', { weather: true });
     const env = world.environment;

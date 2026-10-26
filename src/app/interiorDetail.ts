@@ -19,7 +19,7 @@ import { houseFloorLow, houseRoofAt, houseX, type WheelhouseDef } from '../vesse
  * holding a light: switching a light's visibility recompiles every lit material (a hitch),
  * and the cabin lamp lights the wheelhouse seen through the windows.
  */
-const KEEP = new Set(['control:lever', 'binoculars', 'chartPlotter', 'radio']);
+const KEEP = new Set(['control:lever', 'control:lever2', 'control:leverBoth', 'binoculars', 'chartPlotter', 'radio']);
 
 /**
  * Is it, or does it hold, one of the KEEP parts, or any hand gear (`gear:` + its kind: the

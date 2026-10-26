@@ -160,7 +160,18 @@ export interface MenuHost {
   upgradeText(i: number): string;
   upgradeStatus(i: number): string;
   buyUpgrade(i: number): void;
-  debugCash(): void;
+  /** Debug money: £5000 and reputation; or `amount` alone. */
+  debugCash(amount?: number): void;
+  /** Office > Projects (career/projects.ts): the project under way or offered, what to press, the stage's jobs; debug: the stage done. */
+  projectTitle(): string;
+  projectAction(): string;
+  projectAccept(): void;
+  projectLine(i: number): string;
+  /** Debug: the project back to the start of the stage before. */
+  debugProjectBack(): void;
+  /** The project under way in short: line 0 its stage and jobs left, line 1 the next job ('' none). */
+  projectSummary(i: number): string;
+  debugProjectStage(): void;
   /** Phase 2: the hull and engine (0 'hull', 1 'engine'): state and cost, why not, mend it. */
   repairText(i: number): string;
   repairStatus(i: number): string;
@@ -538,6 +549,11 @@ export function mainMenu(h: MenuHost): MainMenu {
         { label: '', buttons: [{ text: 'Add-ons, upgrades, repairs: the boatyard on the Calder Haven quay', weight: 3 }] },
         { heading: 'Contract' },
         { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+        // The construction project under way, alongside the contract (owner: what's next, and
+        // what else is on); each job's state is on the Projects page.
+        { heading: 'Project' },
+        { label: '', buttons: [{ text: () => h.projectSummary(0) || 'None under way (see the Projects page)', weight: 3 }] },
+        { label: '', buttons: [{ text: () => h.projectSummary(1), weight: 3 }] },
         { heading: 'Job board' },
         { label: '', buttons: [{ text: () => h.officeName() }] },
         ...[0, 1].map(
@@ -557,6 +573,18 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: () => (h.tutorialText().endsWith('done') ? 'Again' : 'Skip'), press: () => (h.tutorialText().endsWith('done') ? h.tutorialRestart() : h.tutorialSkip()) },
           ],
         },
+      ],
+    },
+    {
+      // Construction projects (career/projects.ts; owner, Oct 2026): a chain of jobs that builds
+      // something new, Tarran Rig wind farm the first. Its marks and lines are on the plotter.
+      name: 'Projects',
+      rows: [
+        { heading: 'Construction project' },
+        { label: '', buttons: [{ text: () => h.projectTitle(), weight: 3 }, { text: () => h.projectAction(), active: () => h.projectAction() === 'Take it on', press: () => h.projectAccept(), weight: 1.1 }] },
+        { heading: 'This stage' },
+        ...[0, 1, 2, 3, 4].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.projectLine(i), weight: 3 }] })),
+        { label: '', buttons: [{ text: 'Survey lines and buoy spots are on the chartplotter, in magenta. Buoys: lift them off the quay with a deck crane, lower them into the sea at their spot.', weight: 3 }] },
       ],
     },
     {
@@ -949,7 +977,8 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
           ],
         },
-        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }] },
+        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }, { text: '+£50,000', press: () => h.debugCash(50000) }] },
+        { label: 'Project', buttons: [{ text: 'Stage done', press: () => h.debugProjectStage() }, { text: 'Stage back', press: () => h.debugProjectBack() }] },
       ],
     },
     {

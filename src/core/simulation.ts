@@ -39,11 +39,15 @@ import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/pot
 import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
+import { stepTimberLogs } from '../voyage/timber';
 import { applyTransferIntent, isTransferIntent, stepTransfer } from '../transfer/transfer';
+import { applyTvIntent, isTvIntent, stepTv } from '../modules/furniture/tvState';
 import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
 import { holdPayload, stepHold } from '../fishing/fishHold';
+import { diveSubPayload } from '../modules/diveFrame/onBoat';
 import { stepRodSale } from '../fishing/rod';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
+import { stepProjects } from '../career/projects';
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
@@ -107,6 +111,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyTowIntent(world, intent);
     } else if (isTransferIntent(intent.control)) {
       applyTransferIntent(world, intent);
+    } else if (isTvIntent(intent.control)) {
+      applyTvIntent(world, intent);
     } else if (isPlanIntent(intent.control)) {
       applyPlanIntent(world, intent);
     } else if (isTutorialIntent(intent.control)) {
@@ -198,6 +204,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     payload.push(...holdPayload(vessel));
     // (And a codend full of fish hanging from her A-frame: fishing.ts.)
     payload.push(...codendPayload(world, vessel.id));
+    // (And a dive A-frame's submersible, on her cradle or hanging over the stern: modules/diveFrame.)
+    payload.push(...diveSubPayload(vessel));
     // Water in the bilge is weight low in the hull (vessel/wear.ts).
     if (vessel.bilge) payload.push({ mass: vessel.bilge * CONFIG.wear.bilgeMassFull, pos: new THREE.Vector3(0, VESSEL_DEFS[vessel.defId].hull.params.keelY + 0.35, 0) });
     const deckBefore = deckVelocitiesBefore(world, vessel);
@@ -246,10 +254,13 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepFuelHoses(world);
   stepFire(world, dt);
   stepSalvage(world, dt);
+  stepTimberLogs(world, dt);
   stepTransfer(world, dt);
+  stepTv(world);
   stepFishing(world, dt);
   stepHold(world);
   stepCareer(world);
+  stepProjects(world, dt);
   stepTutorial(world);
   world.tick += 1;
   world.time = world.tick * dt;

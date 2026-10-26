@@ -23,6 +23,30 @@ Owner, 25 Oct 2026: "when you start a new session, and you just say, you don't g
 - README: scratch boats and 💾 Save.
 - **Shared changes:** none.
 
+### (From the modular-builder chat) The dive A-frame and its submersible on any boat big enough
+
+Owner: a dive support vessel for the submersible game, the A-frame and sub "placeable on any boat that's big enough". New design field `diveFrame` (link or file only, not in the code); Deck gear → a new **Diving** group (`gearMenu.ts`, `pinGear.ts`, fitted at the transom). `parts/diveFrame.ts` (new) says where it stands or why not: stern wide enough, about 7.9 m of clear level deck aft of the house, the sub (10 t) no more than a fifth of her weight, GM 0.5 m with the sub lifted, 0.3 m freeboard at the transom with her hung out (trim from her own waterplane), legs lengthened for a high bulwark. As they come, only the stern trawler passes. `parts/deckGear.ts` places it first: it takes the transom (the trawl A-frame, net drum, trawl winches and stern roller left off, with a warning) and its cradle is kept clear of other gear. The frame and the sub are designed into her weights (`parts/weights.ts`, `parts/hullDef.ts` lightship, as the crane is), with the hydraulic pump (`parts/engineRoom.ts`, `parts/recipe.ts`) and the price (£260,000). Settings `CONFIG.shipyard.diveFrame`, `deckGear.price.diveFrame`. Tests: `tests/diveFrame.test.ts`; the menu, pin and code tests updated. Details in docs/progress/modules.md.
+
+### (From the modular-builder chat) Twin stern drives get the twin lever control
+
+`parts/recipe.ts`: two stern-drive legs are worked separately too (the outboard module's `split`), with the twin lever control and START P / START S, as twin shafts. Twin outboards keep one lever. See `docs/progress/modules.md`.
+
+### (From the modular-builder chat) Twin shaft engines get the twin lever control
+
+`parts/recipe.ts`: a twin with shaft engines (not pods, stern drives or outboards) has its diesel's `twin.split` set, the console's `throttle` socket gets `control.twin-throttle`, the START becomes START P and a second, START S (`start2`, bound to `ignition.start2`), joins the ENGINE group (`BASIC_KEEP` too). See `docs/progress/modules.md`.
+
+### (From the modular-builder chat) The autopilot's own group on the console
+
+With the helm assist (`design.helmAssist`), three console push buttons `apPort`, `apOn`, `apStbd` (PORT 5°, AUTO, STBD 5°) in an AUTOPILOT switch group, starboard side, nearest the wheel (`parts/recipe.ts`); `PANEL_SLOTS.AUTOPILOT` (`panelAutopilot`, not in the code); `CONFIG.shipyard.helm.faceSwitchOrder` takes it after DECK. The panel grid's reported starts (`cc.panelGrid.runs[].start`) are now nudged apart when the rules close the switches up tighter than a cell, so pinning a crowded console where it stands keeps every group. The Assist tile's words changed. See `docs/progress/modules.md`.
+
+### (From the modular-builder chat) A TV on the wall
+
+Furniture kind `tv` (`tvAt`, `tvAt2`; not in the code): on the nearest wall at seated eye height, over low furniture but clear of doorways and tall pieces (`parts/furniture.ts`, `CONFIG.shipyard.furniture.tvCeiling` / `tvLowest`); menu entry, icon and about text (`furnishing.ts`, `gearMenu.ts`), ghost height (`placing.ts`); the Add button's limit says each piece's own count (`page.ts`). Also: "moved along the wall to fit" now counts only movement along the wall, not being put back against it. See `docs/progress/modules.md`.
+
+### (From the modular-builder chat) Twelve seats, each turnable
+
+For the crew-transfer catamaran's rows of seats: `design.ts` has seat fields `seatAt5`..`seatAt12` and a facing per seat (`seatFace`..`seatFace12`, 0-7 in 45 degree steps; `SEAT_FACES`, `seatYawDeg`), none in the code; `furnishing.ts` adds `turnSeat` and moves facings up with the seats in `removeFurniture`; `parts/furniture.ts` turns a seat's footprint and socket by its facing; `page.ts` has a Turn button on seat rows. See `docs/progress/modules.md`.
+
 ### Her finish: as new, worked or well used (approved by the owner 24 Oct 2026; on next)
 
 Owner (to the main game chat, Oct 2026): "these weathering and rusted texture should be an option in the shipyard, so you can pre-configure a boat to look used or new"; to this chat, 24 Oct 2026: "yes, go ahead with the weathering option". The game side (the `topsides` weathering tile, `Livery.weathering`) is the main game chat's, merged from next.

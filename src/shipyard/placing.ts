@@ -61,7 +61,7 @@ export function whereIs(boat: DesignedBoat, t: Target): { at: [number, number, n
 export function ghostSize(t: Target, onRoof = false): [number, number, number] {
   if (t.kind === 'furniture') {
     const f = CONFIG.modules.furniture[slotOf(t.key).kind] as { length: number; depth: number };
-    const tall: Record<string, number> = { locker: 2, head: 2, shower: 2, bunk: 1.4, galley: 0.9, seat: 1.05, settee: 0.85, mess: 0.85, berth: 0.55 };
+    const tall: Record<string, number> = { locker: 2, head: 2, shower: 2, bunk: 1.4, galley: 0.9, seat: 1.05, settee: 0.85, mess: 0.85, berth: 0.55, tv: 1.75 };
     return [f.length, tall[slotOf(t.key).kind] ?? 0.8, f.depth];
   }
   const sizes: Record<string, [number, number, number]> = {

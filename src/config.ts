@@ -8,6 +8,28 @@ import { MAP_CONFIG } from './config/map';
  */
 export type WeatherPresetName = 'Clear' | 'Overcast' | 'Fog' | 'Rain' | 'Squall';
 
+/** A construction project (CONFIG.career.projects; career/projects.ts). */
+export interface ProjectDef {
+  id: string;
+  name: string;
+  /** The harbour office that offers it, and whose quay its buoys wait on. */
+  port: string;
+  minRep: number;
+  desc: string;
+  bonus: number;
+  /** Where the turbines go (world x, z; the landing's bearing): the later stages build them. */
+  turbines: { x: number; z: number; landingDeg: number }[];
+  stages: { name: string; bonus: number; jobs: ProjectJobDef[] }[];
+}
+/** A job in a project's stage: a survey line run, or a mark buoy laid (see CONFIG.career.projects). */
+export type ProjectJobDef =
+  | { id: string; kind: 'survey'; name: string; from: [number, number]; to: [number, number]; pay: number }
+  | { id: string; kind: 'buoy'; name: string; mark: 'N' | 'E' | 'S' | 'W' | 'special'; at: [number, number]; pay: number }
+  | { id: string; kind: 'tow'; name: string; tow: string; turbine?: number; pay: number }
+  | { id: string; kind: 'supply'; name: string; cargo: string; count: number; pay: number }
+  | { id: string; kind: 'guard'; name: string; pay: number }
+  | { id: string; kind: 'transfer'; name: string; turbine: number; techs: number; pay: number };
+
 /** A career upgrade, bought at the yard (CONFIG.career.upgrades). */
 export interface CareerUpgrade {
   id: string;
@@ -675,6 +697,13 @@ export const CONFIG = {
    *             carry to fit it (the deck crane's motion compensation). `fit`: equipment a new
    *             career's workboat hasn't got until it's bought (CareerUpgrade).
    */
+  /**
+   * Dive sites (src/dive/diveSites.ts: wrecks for the submersible game, on the career map and
+   * the Oban map): each drawn on the chartplotter as a ring `radius` m round its middle, with
+   * the chart's wreck mark, its name and its depth; on the paper chart as a wreck mark and
+   * its depth.
+   */
+  dive: { radius: 50 },
   career: {
     /**
      * A sea trial (owner, Oct 2026: "a sea trial is time limited to 5 mins"): a Shipyard design
@@ -757,6 +786,135 @@ export const CONFIG = {
       { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, needs: 'fishing.trawl', needsName: 'the trawl gear', desc: 'Iced fish fetch 30 % more' },
       { id: 'craneComp', name: 'Crane motion compensation', price: 3500, minRep: 15, needs: 'deck.crane', needsName: 'a deck crane', desc: 'The deck crane holds its hook steady as she rolls, pitches and heaves' },
     ] as CareerUpgrade[],
+    /**
+     * Construction projects (owner, Oct 2026: "build another [wind farm] as the first project
+     * ... 2 turbines or something, to prove the system"; career/projects.ts). A project is a
+     * chain of stages offered at a harbour office; each stage is a handful of jobs, each paid
+     * when done, the stage's `bonus` when the last is; the project's when the last stage is.
+     * Its progress is saved with the career. Jobs:
+     *   survey  run the line from `from` to `to` (world x, z), either way, at survey speed: every
+     *           stretch of it (`projectSurvey.segments`) covered within `projectSurvey.width` m
+     *           of it, heading along it (±`headingDeg`), at `speedKn` (min, max).
+     *   buoy    a mark buoy (crane cargo on the office's quay) lifted out and lowered into the
+     *           sea within `projectBuoy.radius` m of its spot `at`: it's laid there, a lit mark.
+     *   tow     a floated monopile (a tug's tow, CONFIG.vessels.monopile) waiting at the laydown
+     *           (`projectTow.laydown`), towed out and handed over at its turbine (`turbine`, an
+     *           index into `turbines`) to the jack-up, which drives it in the background
+     *           (`projectTow.driveS`). One at a time: the next comes out once the last is driven.
+     *           Without a `turbine` it's for the jack-up itself (the transition pieces' barge):
+     *           handed over alongside her, and she lifts each piece onto its foundation in turn
+     *           (`projectTow.fitS` each).
+     *   supply  `count` loads of `cargo` (hand cargo) on the office's quay, carried out and
+     *           brought alongside the jack-up (`projectSupply`): her crane takes them aboard.
+     *   guard   guard duty while the installation ship puts the turbines up (`projectInstall`):
+     *           her work goes on only while a players' boat stands by the works, and stops
+     *           while a ship is inside the zone. Ships are sent through now and then; meet one
+     *           and she's called on the VHF and turns away. Paid when the last turbine's up,
+     *           less `projectGuard.strike` for each ship that got into the zone.
+     *   transfer  `techs` fitters for turbine `turbine` (once it's up), on the crew-transfer
+     *           quay (CONFIG.transfer), put across onto its landing as a wind farm transfer.
+     * Positions: Tarran Rig, two turbines in 40 m of open water about 1.1 km north of Calder
+     * Haven, clear of Holm Rig and the fishing grounds; its zone boxed by four cardinals.
+     * Stage 6 (commissioning) comes in a later step.
+     */
+    projects: [
+      {
+        id: 'tarranRig',
+        name: 'Tarran Rig wind farm',
+        port: 'calder',
+        minRep: 0,
+        desc: 'A new two-turbine wind farm north of Calder Haven: survey the site, then mark it out',
+        /** Paid when the whole project is done (later steps add its last stages). */
+        bonus: 5000,
+        turbines: [
+          { x: 350, z: -420, landingDeg: 180 },
+          { x: 600, z: -420, landingDeg: 180 },
+        ],
+        stages: [
+          {
+            name: 'Survey the site',
+            bonus: 800,
+            jobs: [
+              { id: 'line1', kind: 'survey', name: 'Survey line 1 (north)', from: [150, -520], to: [800, -520], pay: 450 },
+              { id: 'line2', kind: 'survey', name: 'Survey line 2 (middle)', from: [150, -420], to: [800, -420], pay: 450 },
+              { id: 'line3', kind: 'survey', name: 'Survey line 3 (south)', from: [150, -320], to: [800, -320], pay: 450 },
+              { id: 'met', kind: 'buoy', name: 'Met buoy', mark: 'special', at: [700, -560], pay: 600 },
+            ],
+          },
+          {
+            name: 'Mark the site',
+            bonus: 1000,
+            jobs: [
+              { id: 'cardN', kind: 'buoy', name: 'North cardinal', mark: 'N', at: [475, -640], pay: 600 },
+              { id: 'cardE', kind: 'buoy', name: 'East cardinal', mark: 'E', at: [820, -420], pay: 600 },
+              { id: 'cardS', kind: 'buoy', name: 'South cardinal', mark: 'S', at: [475, -200], pay: 600 },
+              { id: 'cardW', kind: 'buoy', name: 'West cardinal', mark: 'W', at: [130, -420], pay: 600 },
+            ],
+          },
+          {
+            name: 'Foundations',
+            bonus: 2000,
+            jobs: [
+              { id: 'mono1', kind: 'tow', name: 'Monopile 1 to turbine 1', tow: 'monopile', turbine: 0, pay: 1800 },
+              { id: 'mono2', kind: 'tow', name: 'Monopile 2 to turbine 2', tow: 'monopile', turbine: 1, pay: 1800 },
+            ],
+          },
+          {
+            name: 'Transition pieces',
+            bonus: 2000,
+            jobs: [
+              { id: 'tps', kind: 'tow', name: 'Transition pieces to the jack-up', tow: 'tpBarge', pay: 2500 },
+              { id: 'supply1', kind: 'supply', name: 'Bolts and grout for the jack-up', cargo: 'Building materials', count: 4, pay: 900 },
+            ],
+          },
+          {
+            name: 'Turbines',
+            bonus: 3000,
+            jobs: [
+              { id: 'guard', kind: 'guard', name: 'Guard the works', pay: 3000 },
+              { id: 'fit1', kind: 'transfer', name: 'Fitters to turbine 1', turbine: 0, techs: 3, pay: 700 },
+              { id: 'fit2', kind: 'transfer', name: 'Fitters to turbine 2', turbine: 1, techs: 3, pay: 700 },
+            ],
+          },
+        ],
+      },
+    ] as ProjectDef[],
+    /** Survey lines (see `projects`): stretches a line is cut into, how far off it counts (m), heading off it (deg), speed (kn). */
+    projectSurvey: { segments: 13, width: 30, headingDeg: 25, speedKn: [2.5, 6.5] as [number, number] },
+    /** Mark buoys (see `projects`): how near its spot it must go in to be laid (m), and its cargo kind (CONFIG.cargo.kinds). */
+    projectBuoy: { radius: 25, kind: 'Mark buoy' },
+    /**
+     * Monopile tows (see `projects`). `laydown`: where each waits, held on its moorings until a
+     * tug makes fast (world x, z; its heading, deg: lying north-south, south-west of Calder Haven's
+     * mouth, clear of the fairway). Hand-over: within `handover.radius` m of its turbine, under
+     * `handover.speed` m/s for `handover.holdS` s; then the jack-up drives it, `driveS` s.
+     */
+    projectTow: { laydown: { x: 370, z: 745, headingDeg: 0 }, handover: { radius: 30, speed: 0.4, holdS: 8 }, driveS: 120, fitS: 90, toJackUpRadius: 50 },
+    /** Supplies for the jack-up (see `projects`): alongside her within `radius` m of her middle, under `speed` m/s for `holdS` s, and her crane takes what's aboard. */
+    projectSupply: { radius: 45, speed: 0.5, holdS: 6 },
+    /**
+     * The jack-up that drives the piles (career/projectView.ts draws it; a set piece, no physics:
+     * its legs are solid blocks). It stands `offsetM` north of the turbine it's working on, its
+     * hull `hull` (length x width x depth, m) with its bottom `hullY` above the sea, on four
+     * legs `legHalf` m half-width at `legSpacing` (across, along) between centres.
+     */
+    projectJackUp: { offsetM: 55, hull: [40, 30, 4] as [number, number, number], hullY: 14, legHalf: 1.2, legSpacing: [30, 22] as [number, number] },
+    /**
+     * The installation ship that puts the turbines up (a set piece like the jack-up, bigger:
+     * career/projectView.ts). She stands `offsetM` north of the turbine she's on, her hull
+     * `hull` (length x width x depth, m) `hullY` above the sea on legs at `legSpacing`. Each
+     * turbine takes `erectS` s of work, in three lifts: the tower, then the nacelle (from
+     * `nacelleAt` of the way), then the rotor (from `rotorAt`).
+     */
+    projectInstall: { offsetM: 60, hull: [80, 36, 6] as [number, number, number], hullY: 16, legHalf: 1.8, legSpacing: [64, 28] as [number, number], erectS: 240, nacelleAt: 0.4, rotorAt: 0.65 },
+    /**
+     * Guard duty (see `projects`). The work goes on while a players' boat is within `standBy` m
+     * of the installation ship, and stops while a ship is within `zone` m of her. A ship is
+     * sent for the works every `every` s (a range; one at a time), starting `from` m off;
+     * come within `hail` m of her and she's called on the VHF and alters away. Each that gets
+     * into the zone costs `strike` of the guard job's pay (it never pays under `minPay`).
+     */
+    projectGuard: { standBy: 900, zone: 400, every: [50, 110] as [number, number], from: 1700, hail: 300, strike: 600, minPay: 600 },
   },
 
   /**
@@ -1011,6 +1169,8 @@ export const CONFIG = {
       { name: 'Pallet of blocks', mass: 420, size: [1.1, 0.75, 1.1] as [number, number, number], shape: 'box' as const, slots: 4 },
       { name: 'Engine block', mass: 380, size: [1.0, 0.8, 0.8] as [number, number, number], shape: 'box' as const, slots: 3 },
       { name: 'Chain basket', mass: 450, size: [0.95, 0.7, 0.95] as [number, number, number], shape: 'drum' as const, slots: 3 },
+      // A construction project's mark buoy (career/projects.ts), on its float: crane only, never trade cargo.
+      { name: 'Mark buoy', mass: 420, size: [1.1, 1.5, 1.1] as [number, number, number], shape: 'drum' as const, slots: 4 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,
@@ -2189,14 +2349,6 @@ export const CONFIG = {
   interaction: {
     /** Direct grab: hand within this distance of a lever knob / the wheel rim (m). */
     grabRadius: 0.12,
-    /**
-     * Breakaway (review, Oct 2026): a held control (lever, wheel, joystick, gear selector) is let
-     * go, with a firm buzz, once the hand is this far from it (m), e.g. as you jump off or are
-     * thrown from her, so she isn't left at full throttle. While a hand holds one, the sticks
-     * don't walk or turn you, and the free hand doesn't pull you along: moving the body moves
-     * the held hand, which would drag the control with it.
-     */
-    breakaway: 0.25,
     /** Direct press: controller tip within this distance of a button / switch (m). */
     touchRadius: 0.06,
     /**
@@ -2419,31 +2571,46 @@ export const CONFIG = {
      */
     shipyardSign: { width: 0.9, besideM: 0.9, up: 1.5, range: 25, reach: 4 },
     /**
+     * The Your boats board (ui/shipyardDoor.ts ShipyardDoor.boats; owner, Oct 2026): your
+     * Shipyard favourites on a board on the quay, beside every Shipyard sign (in Voyage on the
+     * planning table's other side). Its width (m), and the gap between it and the sign (m);
+     * its height, range and reach are the sign's.
+     */
+    boatsBoard: { width: 1.2, besideM: 0.3 },
+    /**
      * The timber run (owner's spec, 23 Oct 2026: Workboat World x Timber; voyage/timber.ts,
      * voyage/metaverse.ts, docs/metaverse-contract.md). Anchor in a marked bay, go ashore to
-     * the Timber game, come back to a barge of logs on your line, sell them at the merchant.
+     * the Timber game, come back to find your logs on the beach (owner, 25 Oct 2026: no
+     * barge), tow them off one at a time and sell them at the merchant.
      *   holdS, maxSpeedKn   the prompt comes up once the anchor is set, she's slower than
      *                       this and inside the site's radius, for this long
      *   keepIds             handoff ids kept in the browser's lists (issued, consumed)
      *   fadeS               the fade to black before the page goes to the camp, and back in
-     *   maxLogs             a barge's load at most. Timber's barge is full at 20 but logs
-     *                       delivered after that travel too (its spec), so up to 40, four
-     *                       tiers; more than that (an edited address) is capped here, as a
-     *                       barge with hundreds of logs aboard would sink
+     *   maxLogs             logs brought back at once (Timber sends at most this a trip and
+     *                       keeps the rest), laid on the beach; also a saved barge's load at
+     *                       most, four tiers (a barge with hundreds aboard would sink)
      *   logsPerTier         logs in each tier of the stack on deck (tiers at 10, 20, 30, 40)
-     *   logKg, logLength, logDiameter   one log: 3 m of 0.3 m softwood, about 170 kg green.
+     *   logKg, logLength, logDiameter   one log: 3 m of 0.3 m softwood, about 170 kg green
+     *                       (a log on the beach is towed as that mass: salvage.ts logMass).
      *                       A full barge's 40 (6.8 t) puts her about 0.25 m deeper, which she
      *                       has freeboard for (her deck is 0.5 m up), and over half again her
      *                       own 10.5 t to tow and stop
-     *   bargeOffM           a barge brought back lies at the site's spawn point, or this far
-     *                       off the boat toward it if the spawn is further (the line has to
-     *                       reach: the tow winch's longest is 60 m)
+     *   beachSpacingM, beachMaxAboveM   the camp's logs laid on the beach (owner, 25 Oct 2026:
+     *                       no barge): side by side `beachSpacingM` apart along the shore, each
+     *                       pointing out to sea, its middle where the beach is first under
+     *                       `beachMaxAboveM` above the water going down to it; up to `maxLogs`
      *   merchants           where logs are bought: a harbour berth on a map. Oban's North Pier
      *                       berth: Ardantrive Bay is 2 km across the sound, a 10-20 minute tow
-     *   pricePerLog         paid per log: Timber's full barge (20) £240, about a cargo run
-     *   sellRangeM, sellMaxSpeedKn   the sale is offered with the barge within this of the
-     *                       merchant's quay (plus her half-length, `bargeHalfLengthM`) and the
-     *                       boat slower than this
+     *   logPrice            paid per log, before the harbour's reputation and buyer factors
+     *                       (owner, 25 Oct 2026: a log's base price is £2,000, "and eventually
+     *                       when we get really big ones, that could be up to 10,000": that needs
+     *                       the camp to send each log's size, later). The beach's logs and a
+     *                       saved barge's alike. (Washed-up salvage keeps CONFIG.career.pay.log.)
+     *   sellRangeM          a log afloat within this of the merchant's quay (plus half its
+     *                       length), slower than CONFIG.tow.deliverSpeed for
+     *                       CONFIG.tow.deliverTime s, is bought; a saved barge's sale is
+     *                       offered within this (plus her half-length, `bargeHalfLengthM`)
+     *   sellMaxSpeedKn      with the boat slower than this
      */
     timber: {
       holdS: 3,
@@ -2455,9 +2622,10 @@ export const CONFIG = {
       logKg: 170,
       logLength: 3,
       logDiameter: 0.3,
-      bargeOffM: 45,
+      beachSpacingM: 1.2,
+      beachMaxAboveM: 0.5,
       merchants: [{ mapId: 'oban', berthId: 'oban-cargo', name: 'the Oban timber merchant' }],
-      pricePerLog: 12,
+      logPrice: 2000,
       sellRangeM: 15,
       sellMaxSpeedKn: 0.6,
       bargeHalfLengthM: 4.5,
@@ -2474,6 +2642,8 @@ export const CONFIG = {
     berthId: 'calder-cargo',
     quay: { x: 713, z: 661.5, yawDeg: 90 },
     quayBack: 2,
+    /** A boat too deep for Calder Haven (4.5 m: her draught and `spawn.underKeel` to spare) starts at this port's first berth with room for her instead: Brannock Pier, deep water at its T-head (world/startSpot.ts startBerthFor). */
+    deepPort: 'brannock',
   },
 
   /**
@@ -2681,8 +2851,12 @@ export const CONFIG = {
    * the game itself, so the message is out before its page closes.
    * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
    * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
+   * A crew-mate the host hasn't heard from for `crewSilentS` s is taken out of its world (put
+   * back if heard from again; net/hostSession.ts): a page gone without saying leaves no frozen
+   * avatar. A crew page whose host is an older build waits for the host's page to update
+   * itself (App `onOtherBuild`) and tries again, `olderHostRetryS` s, then as "sent in together".
    */
-  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 12 },
+  net: { crewSilentS: 20, olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 12 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's

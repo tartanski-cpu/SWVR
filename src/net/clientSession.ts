@@ -49,6 +49,7 @@ export class ClientSession {
   }
 
   private receive(msg: HostMessage): void {
+    if (this.status === 'closed') return; // (left: the link's last moments)
     if (msg.t === 'welcome') {
       this.playerId = msg.playerId;
       this.status = 'connected';
@@ -110,6 +111,8 @@ export class ClientSession {
   }
 
   close(): void {
+    // Goodbye first, so the host drops us now (a closing page's link often never says it's gone).
+    if (this.status === 'connected') this.transport.send({ t: 'bye' });
     this.status = 'closed';
     this.transport.close();
   }

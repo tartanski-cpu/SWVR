@@ -18,12 +18,35 @@ interface PreparedBlock {
   reach: number;
 }
 
-const PREPARED: PreparedBlock[] = BLOCKS.map((def) => {
+function prepare(def: BlockDef): PreparedBlock {
   const a = (def.yawDeg * Math.PI) / 180;
   return { def, ax: Math.sin(a), az: -Math.cos(a), reach: Math.hypot(def.halfLength, def.halfWidth) };
-});
+}
+const PREPARED: PreparedBlock[] = BLOCKS.map(prepare);
 /** The blocks by where they are, for the point queries below (a coast map has hundreds). */
 const NEAR = new GridIndex(PREPARED, (b) => [b.def.x - b.reach, b.def.z - b.reach, b.def.x + b.reach, b.def.z + b.reach]);
+
+/**
+ * Blocks that come and go as the game runs, beside the map's (a construction project's
+ * foundations, the jack-up's legs, the buoys laid: career/projects.ts projectBlocks). A
+ * handful, checked one by one. Solid like the others (blockContact, blockTop), but no berths
+ * and nothing to climb out onto (nearestBlockEdge).
+ */
+let EXTRA: PreparedBlock[] = [];
+/** The blocks the game has added now (replacing the last set). */
+export function setExtraBlocks(defs: readonly BlockDef[]): void {
+  EXTRA = defs.map(prepare);
+}
+/**
+ * The map's blocks near (x, z), then the game's added ones: the two lists in turn, kept in
+ * one reused pair (these queries run for every hull point every tick: nothing allocated).
+ */
+const LISTS: (readonly PreparedBlock[])[] = [[], []];
+function near(x: number, z: number): (readonly PreparedBlock[])[] {
+  LISTS[0] = NEAR.at(x, z);
+  LISTS[1] = EXTRA;
+  return LISTS;
+}
 
 export interface BlockHit {
   /** Penetration depth (m) and outward unit normal (world) of the nearest face. */
@@ -41,26 +64,30 @@ export interface BlockHit {
 export function blockContact(x: number, y: number, z: number, out: BlockHit): boolean {
   let found = false;
   out.depth = Infinity;
-  for (const b of NEAR.at(x, z)) {
-    const d = b.def;
-    const dx = x - d.x;
-    const dz = z - d.z;
-    if (dx * dx + dz * dz > b.reach * b.reach || y > d.top || y < BLOCK_BOTTOM) continue;
-    const l = dx * b.ax + dz * b.az; // along
-    const w = -dx * b.az + dz * b.ax; // across (+ = to the right of the axis)
-    const pl = d.halfLength - Math.abs(l);
-    const pw = d.halfWidth - Math.abs(w);
-    if (pl <= 0 || pw <= 0) continue;
-    const pt = d.top - y;
-    found = true;
-    if (pt < pw && pt < pl) {
-      if (pt < out.depth) Object.assign(out, { depth: pt, nx: 0, ny: 1, nz: 0, fendered: false });
-    } else if (pw < pl) {
-      const s = Math.sign(w) || 1;
-      if (pw < out.depth) Object.assign(out, { depth: pw, nx: -b.az * s, ny: 0, nz: b.ax * s, fendered: d.fendered });
-    } else {
-      const s = Math.sign(l) || 1;
-      if (pl < out.depth) Object.assign(out, { depth: pl, nx: b.ax * s, ny: 0, nz: b.az * s, fendered: d.fendered });
+  const lists = near(x, z);
+  for (let li = 0; li < 2; li++) {
+    for (let bi = 0; bi < lists[li].length; bi++) {
+      const b = lists[li][bi];
+      const d = b.def;
+      const dx = x - d.x;
+      const dz = z - d.z;
+      if (dx * dx + dz * dz > b.reach * b.reach || y > d.top || y < BLOCK_BOTTOM) continue;
+      const l = dx * b.ax + dz * b.az; // along
+      const w = -dx * b.az + dz * b.ax; // across (+ = to the right of the axis)
+      const pl = d.halfLength - Math.abs(l);
+      const pw = d.halfWidth - Math.abs(w);
+      if (pl <= 0 || pw <= 0) continue;
+      const pt = d.top - y;
+      found = true;
+      if (pt < pw && pt < pl) {
+        if (pt < out.depth) Object.assign(out, { depth: pt, nx: 0, ny: 1, nz: 0, fendered: false });
+      } else if (pw < pl) {
+        const s = Math.sign(w) || 1;
+        if (pw < out.depth) Object.assign(out, { depth: pw, nx: -b.az * s, ny: 0, nz: b.ax * s, fendered: d.fendered });
+      } else {
+        const s = Math.sign(l) || 1;
+        if (pl < out.depth) Object.assign(out, { depth: pl, nx: b.ax * s, ny: 0, nz: b.az * s, fendered: d.fendered });
+      }
     }
   }
   return found;
@@ -69,6 +96,12 @@ export function blockContact(x: number, y: number, z: number, out: BlockHit): bo
 /** Is any quay or pier within `r` m (in plan) of world (x, z)? A cheap check before probing many points against them. */
 export function blockNear(x: number, z: number, r: number): boolean {
   for (const b of PREPARED) {
+    const dx = x - b.def.x;
+    const dz = z - b.def.z;
+    const reach = b.reach + r;
+    if (dx * dx + dz * dz <= reach * reach) return true;
+  }
+  for (const b of EXTRA) {
     const dx = x - b.def.x;
     const dz = z - b.def.z;
     const reach = b.reach + r;
@@ -110,12 +143,16 @@ export function standingHeight(x: number, z: number): number {
  */
 export function blockTop(x: number, z: number): number | null {
   let top: number | null = null;
-  for (const b of NEAR.at(x, z)) {
-    const dx = x - b.def.x;
-    const dz = z - b.def.z;
-    const l = dx * b.ax + dz * b.az;
-    const w = -dx * b.az + dz * b.ax;
-    if (Math.abs(l) <= b.def.halfLength && Math.abs(w) <= b.def.halfWidth && (top === null || b.def.top > top)) top = b.def.top;
+  const lists = near(x, z);
+  for (let li = 0; li < 2; li++) {
+    for (let bi = 0; bi < lists[li].length; bi++) {
+      const b = lists[li][bi];
+      const dx = x - b.def.x;
+      const dz = z - b.def.z;
+      const l = dx * b.ax + dz * b.az;
+      const w = -dx * b.az + dz * b.ax;
+      if (Math.abs(l) <= b.def.halfLength && Math.abs(w) <= b.def.halfWidth && (top === null || b.def.top > top)) top = b.def.top;
+    }
   }
   return top;
 }

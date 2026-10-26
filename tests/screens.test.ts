@@ -65,3 +65,31 @@ describe('rate of turn', () => {
     }
   });
 });
+
+describe('the log reads speed through the water (owner, Oct 2026)', () => {
+  it('drifting with the tide in a race: moving over the ground, nothing on the log; stemming it, the log reads more than the ground speed', async () => {
+    const { logKnots } = await import('../src/controls/instruments');
+    const { CURRENTS } = await import('../src/world/archipelago');
+    const { addCurrent, setRaceClock } = await import('../src/world/currents');
+    const zone = CURRENTS[0];
+    setRaceClock(12, 'peak');
+    const c = { x: 0, z: 0 };
+    addCurrent(zone.x, zone.z, c);
+    expect(Math.hypot(c.x, c.z)).toBeGreaterThan(0.3);
+    const { world, vesselId } = createWorld(new IdFactory(), 'workboat');
+    const v = world.vessels[vesselId];
+    v.position = [zone.x, 0, zone.z];
+    // Carried by the tide: over the ground at its speed, through the water nothing.
+    v.linearVelocity = [c.x, 0, c.z];
+    expect(logKnots(v)).toBeCloseTo(0, 6);
+    // Against it at 2 m/s over the ground: 2 m/s plus the current's through the water.
+    const u = Math.hypot(c.x, c.z);
+    v.linearVelocity = [(-c.x / u) * 2, 0, (-c.z / u) * 2];
+    expect(logKnots(v)).toBeCloseTo((2 + u) * 1.943844, 6);
+    // Out of every race: the log and the ground speed agree.
+    v.position = [99999, 0, 99999];
+    v.linearVelocity = [1, 0, 0];
+    expect(logKnots(v)).toBeCloseTo(1.943844, 6);
+    setRaceClock(12);
+  });
+});

@@ -4,6 +4,7 @@
  * what the parts after it need.
  */
 import { CONFIG } from '../../config';
+import { cradleAxis } from '../../modules/diveFrame';
 import { overheadM2, type BuildArgs } from './common';
 import type { DesignedBoat } from '../build';
 import type { HullPart } from './hull';
@@ -44,6 +45,9 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     ...(p.netDrumAt ? [[wc.gear.netDrum, p.netDrumAt[2]] as [number, number]] : []),
     ...(p.trawlWinchesAt ? [[wc.gear.trawlWinches, p.trawlWinchesAt.z] as [number, number]] : []),
   ];
+  // The dive A-frame (its rams, winch and docking head) and the sub on her cradle: designed into her lines.
+  const df = p.diveFrame;
+  const dfc = CONFIG.modules.diveFrame;
   const gearKg = gearAt.reduce((a, [m]) => a + m, 0);
   const gearKgZ = gearAt.reduce((a, [m, z]) => a + m * z, 0);
   // (A bow fender counts with the push knees: both are rubber pushed against things at her bow.)
@@ -61,6 +65,8 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     { name: outboards ? 'Bracket, rigging and tanks' : sd ? 'Stern drive legs, tanks, exhaust' : pods ? 'Pod drives, tanks, exhaust' : 'Shafting, propeller, rudder, tanks, exhaust', kg: sd ? sdc.legKg * n + machineKg * wc.machineryShare * 0.4 : pods ? pdc.legKg * n + machineKg * wc.machineryShare * 0.4 : machineKg * wc.machineryShare, y: outboards ? deckMid : pods ? podSet!.mount.y : machineY, z: outboards ? machineZ : sd ? transom : pods ? podSet!.mount.z : (machineZ + transom) / 2 },
     { name: 'Batteries', kg: batteriesKg, y: at.engineSpace[1], z: at.engineSpace[2] },
     { name: 'Deck crane', kg: craneAt ? cr.massKg : 0, y: craneAt ? craneAt[1] + cr.columnHeight / 2 : deckMid, z: craneAt ? craneAt[2] : 0 },
+    { name: 'Dive A-frame, rams, winch and docking head', kg: df ? dfc.frameKg : 0, y: df ? df.place.deck + df.legLength / 2 : deckMid, z: df ? df.place.transom - dfc.footFromTransom : 0 },
+    { name: 'Submersible on her cradle', kg: df ? dfc.sub.massKg : 0, y: df ? cradleAxis({ ...dfc, legLength: df.legLength, at: df.place })[1] : deckMid, z: df ? cradleAxis({ ...dfc, legLength: df.legLength, at: df.place })[2] : 0 },
     { name: 'Deck gear', kg: gearKg, y: deckMid + 0.5, z: gearKg > 0 ? gearKgZ / gearKg : 0 },
     { name: 'Hull protection', kg: guardKg + pushKg, y: guardKg + pushKg > 0 ? (guardKg * guardY + (bowAt ? pushKg * bowAt.y : 0)) / (guardKg + pushKg) : deckMid, z: guardKg + pushKg > 0 ? (guardKg * ((stem + transom) / 2) + (bowAt ? pushKg * bowAt.z : 0)) / (guardKg + pushKg) : 0 },
     { name: 'Furniture', kg: p.furnitureKg, y: floorY + 0.4, z: (front + aft) / 2 },
@@ -88,7 +94,7 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Cockpit overhead|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg + p.furnitureKg * CONFIG.shipyard.furniture.pricePerKg + p.holdPrice;
 
   const gp = dg.price;
-  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? (d.rescueBoat ? gp.rescueBoat : gp.skiff) : 0) + (p.netDrumAt ? gp.netDrum : 0) + (p.trawlWinchesAt ? gp.trawlWinches : 0);
+  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? (d.rescueBoat ? gp.rescueBoat : gp.skiff) : 0) + (p.netDrumAt ? gp.netDrum : 0) + (p.trawlWinchesAt ? gp.trawlWinches : 0) + (p.diveFrame ? gp.diveFrame : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (bowFender ? CONFIG.shipyard.bowFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
   const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 + Math.min(2, d.touch ?? 0) * CONFIG.shipyard.touchPrice : d.oldSchool ? CONFIG.shipyard.oldSchoolPrice : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {

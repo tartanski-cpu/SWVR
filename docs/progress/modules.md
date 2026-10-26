@@ -32,6 +32,11 @@ The owner, 24 Oct 2026, from this chat's research into what real workboats carry
    - *In the game:* vehicles as deck cargo, driven or winched up the ramp and lashed down; maybe drivable ashore at the far end. Perhaps a livestock pen.
    - *Builds on:* the landing craft and her ramp, deck cargo and lashing, the islands' ports.
    - *New:* vehicle models as cargo; a vehicle you drive would be a new physics body (the owner's OK needed).
+5. **Hold position: a full dynamic positioning (DP) system.** (Owner, 26 Oct 2026, with the dive support vessel: "something for the backlog, like a full DPS system".)
+   - *Real:* a dive support ship holds herself over a spot, and on a heading, with her engines, rudders and thrusters worked together by a computer from her GPS, compass and wind sensor, so the sub or divers can work under her.
+   - *In the game:* a HOLD button on the helm assist panel: she stays over the spot where it's pressed (within a few metres) and on her heading, against wind and tide, until you take the controls back. Wanted over a dive site for the submersible's launch and recovery.
+   - *Builds on:* the helm assist panel (autopilot, dock), the engines, rudders, pod drives and their joystick.
+   - *New:* the holding logic (a controller over where she is and which way she's heading); maybe a bow thruster module for boats without pods. No new physics bodies.
 
 Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, liferaft and float-free beacon, line-throwing gun, salvage pump, fishing gear (jigging, longline, sorting table), diving gear, signals, oil-spill boom, science davit and ROV, galley and bunk extras.
 
@@ -39,6 +44,15 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **The dive support vessel: launch and recover the sub** (this log). Start in the **Dive support vessel** (Voyage: the boat list; or the debug menu). Start the engine, DECK HYD on. At the stand by the starboard foot of the A-frame (stand forward of it, facing aft): WINCH UP until the sub is in the docking head, FRAME OUT until she's out over the stern (feel her trim by the stern), WINCH DOWN until she floats. Then back: WINCH UP, FRAME IN, WINCH DOWN onto her cradle. Try FRAME OUT with her on her cradle (it says why not). Shipyard: Deck gear → Diving on other hulls, and read why it won't go.
+- [ ] **Twin engines heard one each** (this log). A twin worked separately (the catamaran, or your twin trawler): key on, START P, then START S: each start is heard. Then one lever ahead at a time: you hear that engine rise alone; stop one and it falls silent while the other runs.
+- [ ] **Twin engines: E/D and R/F, and engines that stall** (this log). Desktop, a twin, holding the wheel with the mouse: E/D the port lever, R/F the starboard; W/S both. Put a twin in gear with a lever and check the revs hold. If you can, send the code of the twin trawler that stalled.
+- [ ] **The console screens tidied** (this log). Speed screen: LOG (speed through the water), no anchor line; heading: no rate of turn; ENGINE: no temperature. In a tidal race the LOG and the NAV panel's SOG should differ.
+- [ ] **Twin stern drives: a lever and a START each** (this log). Shipyard: a boat with Stern drives and Twin; in the game, each leg follows its own lever (one ahead, one astern spins her).
+- [ ] **Twin engine control, a lever and a START each** (this log). In the catamaran (or the pilot boat): key on, START P, then START S. VR: grab one knob, then the other, then the yellow grip between them (both come together). One ahead and one astern: she turns on the spot. Desktop: drag a knob, drag the grip; W/S moves both. Is the grip easy to find and grab? Does START P hide behind the levers from the helm?
+- [ ] **The autopilot on the console: AUTO, PORT 5°, STBD 5°** (this log). In the pilot boat (or any fleet boat but the beginner boat): steam out, press **AUTO** on the console (starboard of the wheel), then tap **STBD 5°** a few times: she should come round 5° a tap and hold the new heading. Is it in a good place on the console (the throttle lever stands in front of PORT 5° from the helm)? The wall panel now has only AUTO START and DOCK.
+- [ ] **A TV on the wall, showing a browser tab** (this log). Shipyard, Furniture: **TV on the wall**, put it on a wall (over a settee). Game, on a desktop: click the TV, pick a tab playing a video (tick "share tab audio"): it shows on the TV, sound from the TV. Click again to stop; also try the browser's **Stop sharing** bar. With a crew-mate (best: one in the Quest): they see and hear it. Is the TV's height right, and does it look odd hung in front of the windows?
+- [ ] **Rows of seats, turnable; technicians sit in them.** Shipyard, Furniture: on the catamaran with a saloon, add six or more seats in rows across the cabin; **Turn** some to face aft. Game: take a crew-transfer job; the technicians sit in those seats, facing the way they face.
 - [ ] **Crew transfer, stop 2: the job** (this log). In the catamaran in the career: **Tests → Wind farm → Call job** (or wait for the VHF call). Make fast in Calder Haven: the three technicians come aboard into her cabin. Steam to their turbine (ringed T2 on the chartplotter, numbered on the paper chart), nose onto its landing and hold her with a little throttle: three seconds, then they step across one by one and climb to the platform; then it pays. Try the wrong turbine, and backing off half way. Step across yourself with the **Step across** mark, walk round the platform, and **Step aboard** back. Is three seconds' hold right? Are they paid enough?
 - [ ] **Crew transfer, stop 1: the bow fender and the Holm Rig wind farm** (this log). Shipyard: the catamaran shows her bow fender (Deck gear step, Bow view); any other type but the tug can add one (Hull step, Hull protection). In the game, in the catamaran: steam out of Calder Haven, round Calder Holm to the south-east, to the three turbines. Look at one close up (the landing's tubes and ladder). Nose her slowly onto the landing's two tubes, then hold her there with a little throttle ahead: she should stay put, not slide off sideways, with no damage. Try it in a small sea too. At night, the red lights on the nacelles flash together and a yellow one burns on each platform.
 - [ ] **The deckhouse's steep transverse stair** (this log). On the trawler with the deckhouse run aft (as in the next item): walk out of the aft door onto its top, to the landing at the middle of its aft edge, and walk down the stair to starboard and back up (it's walked as a smooth slope now, on desktop and in VR). Does it feel right, steep but easy to walk? Is the handrail where you'd reach for it?
@@ -55,6 +69,145 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### A dive support vessel: the dive A-frame and the submersible (done; on next, in your test round)
+
+Owner, 25 Oct 2026: "We need to create a dive support vessel to support the diving game ... a larger crane that has the ROV ... launches from the A-frame at the back"; then: "the A-frame is fine, and it's a small submersible. You can actually take the 3D model from the other repo ... placeable on any boat that's big enough ... It might only fit on the big [trawler] just now. And regarding hold position, that's something for the backlog, like a full DPS system." Stages 1 to 3 of the plan agreed; stage 4 (the dive itself, the handover to the submersible game) waits for the main game chat.
+
+**The module, `deck.dive-frame`** (`src/modules/diveFrame/`), a launch and recovery system as on a real dive support ship:
+- **The sub:** the submersible game's three-person work sub, drawn as that game draws her (its `src/sub/exterior.ts`, `layout.ts` and thruster positions, ported to `submersible.ts`): yellow fairing and tail cone, the dome and the two side ports (dark glass from outside), the hatch fairing, frame posts and light bar, skids, sample basket, stowed arms, the thruster ducts, and a lift padeye on top. 10 t, about 7.4 m long with her tail cone, 2.9 m over her thrusters. One merged mesh.
+- **The A-frame:** a heavy frame over the transom, its feet pinned on the quarters, swung by two hydraulic rams from in over her cradle (about 34° forward) to out over the stern (about 44° aft, her bow clear of the transom). An umbilical winch on the crosshead, and the docking head hanging plumb under it, which grips the sub's lift point.
+- **Her cradle** on deck forward of the frame, under her skids.
+- **The control stand** by the starboard foot, worked standing forward of it facing aft (frame and sub in view): FRAME OUT / FRAME IN and WINCH UP / WINCH DOWN, hold to run. Hydraulic: the engine running and DECK HYD on, like the crane.
+- **The sequence:** WINCH UP lifts her off her cradle into the docking head; FRAME OUT swings her out over the stern; WINCH DOWN lowers her until she floats. Recovery is the same backwards.
+- **Interlocks, as on a real one:** the frame swings only with the sub home in the docking head; the winch lowers only with the frame right in (onto her cradle) or right out (into the sea), never with her over the transom. The game says why when a button does nothing.
+- **Her weight:** designed into the boat on her cradle (she floats level on her lines with it). Hung out over the stern, the difference is a payload: her weight off the cradle and where she hangs, so the boat trims by the stern (about 2° on the dive ship). Afloat, her weight comes off the boat.
+- **Drawn:** home in the docking head she's held rigid; on wire out she hangs plumb under the head, whatever the boat's trim and heel, and floats at the sea's mean level, level, the umbilical slack. (The view has no waves: in a swell she sits at the mean surface.) Drawn smoothly between ticks.
+- **Draw calls:** five (frame, docking head, sub, umbilical, the rams instanced); cradle, lugs and stand merged with the boat. The dive ship in harbour: 30 draws in the headless view.
+- **Settings:** `CONFIG.modules.diveFrame` (`legLength`, `footFromTransom`, `footInset`, `deckClear`, `overClear`, `luffRateDeg`, `wireRate`, `slack`, `dockTol`, `headDrop`, `frameKg`, `ram`, `stand`, `cradle`, `sub`, `colours`).
+
+**The Shipyard: placeable on any boat big enough** (`design.diveFrame`, Deck gear → Diving; `src/shipyard/parts/diveFrame.ts`). It goes on any hull that passes, and says why not in a few words:
+- her stern wide enough for the sub to pass between the legs;
+- her aft deck clear and on one level for the sub's cradle (about 7.9 m forward of the transom, aft of the wheelhouse);
+- the sub no more than a fifth of her weight (so 50 t or more);
+- her GM still 0.5 m with the sub lifted to the docking head;
+- 0.3 m of freeboard left at the transom with the sub hung out over the stern (her trim from her own waterplane, worked from her stations);
+- legs lengthened (up to 9 m) if her bulwark is too high to swing the sub over.
+- As each hull comes, only the **stern trawler** passes (the small tug, lengthened and with her house forward, does too). The others are told why: no deck aft (the gillnetter, workboat, pilot boat, tug, catamaran), or too small (the pilot boat or catamaran with the deck made: 12 to 25 t).
+- It takes her transom: the trawl A-frame (with its net drum and winches) and the stern roller are left off with it, and said. Its cradle takes its deck from her cargo room. Frame and sub £260,000. Not in the short code: she travels as a link or file.
+- Settings: `CONFIG.shipyard.diveFrame` (`legClear`, `maxLeg`, `bulwarkClear`, `minFreeboard`, `maxShare`, `minGM`), the price `deckGear.price.diveFrame`.
+
+**The fleet: a dive support vessel** (`diveShip`, `src/boats/fleet/diveShip.json`): the stern trawler's hull without her trawl gear or fish hold, the dive A-frame and sub, searchlight, two life rings, helm assist, navy blue. 147 t, GM 1.8 m; floats level. In the boat lists (Voyage spawn, home boat, launch).
+
+- **Tests:** `tests/diveFrame.test.ts` (which hulls it fits and why not; the launch and recovery and their interlocks and payload; she floats level, and trims by the stern hung out); the fleet test; the Shipyard's menu, pin and code tests; `docs/BUS_KEYS.md` regenerated.
+- **Checked:** typecheck, all tests, the build. Headless screenshots in the game (on her cradle, hoisted, mid-swing, out, afloat, the stand and its labels) and in the Shipyard (the dive ship on the Deck gear step; the pilot boat's warning). Not checked: VR feel of the stand's buttons, and the motion in a seaway.
+- **Still to come (stage 4, with the main game chat):** at a dive site, nearly stopped, with the sub in the water, a DIVE button to open the submersible game at that wreck. Note for it: the submersible game reads plain address fields (`?site=…&depth=…&sub=…&return=…`, its `src/core/handoff.ts`), not the coded `mv` envelope `docs/dive-contract.md` proposes.
+- **Shared changes:** `src/core/simulation.ts` (the sub's payload), `src/modular/busKeys.ts` and `src/vessel/vesselState.ts` (the four `dive.*` keys, only on a boat with the frame), `src/boats/library.ts` and `src/boats/fleet.ts` (the module and the fleet boat), `src/vessel/vesselDef.ts` (`diveShip` in `VESSEL_IDS`), `src/app/App.ts` (the hints); the Shipyard's `design.ts`, `parts/deckGear.ts`, `parts/recipe.ts`, `parts/weights.ts`, `parts/hullDef.ts`, `parts/engineRoom.ts`, `gearMenu.ts`, `pinGear.ts`, `src/config/shipyard.ts`. Noted in the game and Shipyard logs.
+
+### Twin engines heard one each: starter, revs and stopping (done; on next, in your test round)
+
+Owner, on the twin trawler: "one of the engines doesn't have sounds ... when you do the key on and start button, it doesn't make any sounds. And then when you throttle up or down one of the engines, it doesn't make any sounds."
+
+A twin already had two engine sounds, but both followed the port engine: the second only ran a touch off its revs for the drone. With the engines worked separately, the starboard engine starting, stalling or throttling was never heard. Now the second sound follows the starboard engine's own state (`EngineState.stbd`: its revs, load, cranking, running), so START S cranks audibly, and each lever is heard on its own engine. The drone (`CONFIG.engineTwinDrift`) still rides on top. Other players' boats keep one voice each (the Quest's audio budget): a twin worked separately is heard by whichever engine is working harder, and cranking while either cranks.
+
+- No new settings. Test: `tests/twinEngineSound.test.ts`.
+- **Shared changes:** `audio/engineAudio.ts` (`EngineAudio.update`), `app/App.ts` (the heard boats' engine numbers): the main game's files, noted in its log.
+
+### Twin engines: what went wrong on your twin trawler, and a lever each on the keys (done; on next, in your test round)
+
+You tried a twin engine trawler: moving the starboard throttle ahead dropped its revs to 0; the port one astern stopped the engine; restarting, the glow plugs took a long time, and only changing the battery fixed it.
+
+- **What happened.** I could make that happen in the simulation, and it isn't the twin control: the same boat with one engine, and the code from before the twin control, do the same. The stern trawler's slow 1000 rpm diesel turns a 1.9 m propeller through a gearbox the Shipyard fits in her sea trial ("matching her propeller"). With a gearbox far too high for her (a design taken to sea before it was fitted, or with the fitting lost), the propeller wants many times the torque the engine has: in gear the revs fall to 0. And the engine then sat "running" at 0 rpm: no diesel does that. At 0 rpm her alternator gave nothing, so the battery ran down, and with it flat the fuel solenoids closed (the engine stopped) and the glow plugs dragged on, until a new battery. With the gearbox the Shipyard fits, your steps all behave: the starboard engine ahead at 635 rpm, the port one astern at 541 rpm, back to idle in neutral, the battery charging throughout.
+- **The fix: a diesel stalls.** In gear and dragged below 30 % of her idle (`CONFIG.vessels.workboat.engine.stallFraction`; the outboards' `stallFraction` too), she stalls and stops, as a real one does: back to neutral and START her again. Only in gear, so an engine running up from the starter is never stopped. A crash stop or a heavy tow still sags her revs without stopping her.
+- I couldn't see how your trawler got its gearbox so high: the Shipyard's play button waits for the fitting. If you can send me her code (or link), I'll check her.
+- **A lever each on the keys** (your ask): on a twin worked separately, holding the wheel with the mouse, E / D move the port lever ahead / astern and R / F the starboard one, each stopping at neutral on the way through as W / S do; W / S still move both. While you hold the wheel on a twin, E, F and R aren't their usual keys (engine start, take the helm, the debug drop). At the helm with F (not holding the wheel) the keys are as before, since F there leaves the helm.
+
+Tests: `tests/twinEngines.test.ts` (the stern trawler on a gearbox far too high: in gear she stalls and stops, the other engine runs on; in neutral she starts again). Not checked by hand: the keys (they need a real mouse on the wheel).
+
+**Shared changes:** `src/vessel/physics/propulsion.ts` (the stall), `src/config/vessels.ts` (`engine.stallFraction`), `src/core/keybindings.ts` (`portAhead`, `portAstern`, `stbdAhead`, `stbdAstern`), `src/app/App.ts` (the twin keys holding the wheel; E, F, R not their own then).
+
+### The console screens tidied: the log, no rate of turn, no doubled readings (done; on next, in your test round)
+
+You went through the pilot boat's screens and listed what isn't useful. On every boat's console screens:
+
+- **Heading screen:** the rate of turn is gone (its flicker between P and S told nothing). Course over ground stays.
+- **ENGINE screen:** the coolant temperature is gone (it's on the ENGINE MONITOR); the fuel burn (L/h) stays, as you said.
+- **Speed screen:** now the **log**, speed through the water (SPEED LOG): her speed over the ground less the tidal current where she is (the same current the hull feels in the physics; `logKnots`, `src/controls/instruments.ts`). Speed over the ground stays on the overhead NAV panel. The old school round LOG gauge reads through the water too.
+- **Speed screen:** the ANCHOR UP / DOWN line is gone (the anchor has its own screen now).
+
+Tests: `tests/screens.test.ts` (carried by the tide in a race: moving over the ground, 0 on the log; stemming it, the log reads the ground speed plus the current; out of the races they agree). Checked in the headless game on the pilot boat's dash.
+
+**Shared changes:** `src/controls/instruments.ts` (the main game's: the speed, heading and engine screens, the round LOG gauge).
+
+### Twin stern drives get the twin engine control too (done; on next, in your test round)
+
+The second stop of the twin engine control: a Shipyard boat with twin stern drives now has a lever and a START for each engine, as twin shaft engines do. The port leg is driven by the port engine and the starboard leg by the starboard one, each from its own lever, while the wheel still swings both legs together. One ahead and one astern spins her. Twin outboards keep one lever (your choice).
+
+The twin-engine stepping is now one shared piece (`twinStep`, `src/vessel/physics/propulsion.ts`), used by both the shaft engines' module and the stern drives' (`src/modules/outboard`, its `split`). The Shipyard sets it for two stern-drive legs (`parts/recipe.ts`). Tests: `tests/twinEngines.test.ts` (fitted to twin stern drives, not to twin outboards; a START each; one leg astern and one ahead turns her to port).
+
+**Shared changes:** `src/vessel/physics/propulsion.ts` (`twinStep`).
+
+### A twin engine control: a lever and a START for each engine (done; on next, in your test round)
+
+You asked for a twin engine control for the catamaran: each engine's lever grabbed on its own, and a really obvious place to grab both. Then fitted to the boats with two engines, with a START each (your choice), the "both" handle bringing the levers together (your choice), and every twin but outboards (your choice; twin stern drives are the next stop).
+
+- **Each engine on its own now.** Until today a twin's two engines ran in lockstep from one lever: one engine worked out, both propellers given its thrust. Now, on twin shaft engines, the starboard engine has a state of its own (`engine.stbd`): its own revs, gear, governor and start-up, from its own lever and START, and its thrust on its own side. So one ahead and one astern turns her on the spot, as a real twin-screw boat does. One key, one dipstick, one set of warning lamps and one coolant gauge serve both: the starboard engine's oil, wear and coolant are the port engine's. The tank is shared, each engine burning its own fuel.
+- **The control** (`control.twin-throttle`, `src/modules/twinThrottle/`): two levers, 16 cm apart (`CONFIG.modules.twinThrottle.spacing`), each the single lever as before (grab, neutral notch, haptic clicks, desktop drag), labelled PORT and STBD. Between the knobs a bright yellow grip (`grip.radius`, `grip.colour`): with the levers together it reads as one wide handle, knob, grip, knob. Grab it and both levers come to where it is (halfway between them) and move as one; grab one knob to split them again. From the helm in VR a hand between the knobs takes the grip, a hand on a knob that lever. The keys (W/S) and the gamepad move both.
+- **A START each:** START P and START S in the ENGINE group with the key. Two starters at once pull the battery down too far to turn either, as in real life, so start one, then the other. The quick start (AUTO START, the debug start) does that for you: port first, then starboard once it has caught.
+- **The ENGINE screen** shows a line for each engine: P and S, revs and gear (ENGINES).
+- **The Shipyard** fits it to every twin with shaft engines (the catamaran, the pilot boat, any design with Twin chosen). Pod drives keep their own throttle and joystick; single engines keep the single lever; twin stern drives get it next; outboards keep one lever (your choice).
+- Not yet: the engine sound is still one engine's (the port one's revs).
+
+Config: `CONFIG.modules.twinThrottle` (`spacing`, `grip`). Bus keys: `throttle.demand2`, `ignition.start2`, `propulsion.state2`, `propulsion.rpm2` (`docs/BUS_KEYS.md`). Tests: `tests/twinEngines.test.ts` (the Shipyard fits it; a START each; one ahead and one astern turns her, together she goes straight; the quick start starts both, the key stops both; the knobs and the grip). Checked in the headless game: both started, split ahead and astern, the screen's two lines, her turning on the engines alone.
+
+**Shared changes:** `src/vessel/vesselState.ts` (`lever2`, `start2`, `engine.stbd`, `queued`), `src/vessel/physics/propulsion.ts` (`toggleEngine` starts both, `starboardEngine`), `src/vessel/vesselControl.ts` (the 'lever' intent works both levers; `lever2` holdable), `src/modular/busKeys.ts` and `module.ts` (the keys; the diesel gear's `split`), `src/controls/Lever.ts` (a label of its own; worked by another handle), `src/controls/instruments.ts` (the ENGINE screen's two lines), `src/app/interiorDetail.ts` (the new levers seen through the windows), `src/boats/library.ts` (registered); in the Shipyard, `parts/recipe.ts` (fitted to twin shafts, START P / START S).
+
+### The Your boats board: favourites read as you walk up to it (done; on next)
+
+Your question after the lag: the main game chat's fix read the favourites once a second; now they're read when you walk up to the board, when you save one in the game, or when the Shipyard in another tab changes them, and kept otherwise. Details in `docs/progress/game.md`. **Shared changes:** `src/ui/shipyardDoor.ts` (`onOpen`), `src/shipyard/takeHer.ts` (the favourites kept), `tests/shipyardTrip.test.ts`.
+
+### The autopilot moved to the console, with PORT 5° and STBD 5° (done; on next, in your test round)
+
+You asked for the autopilot to come off the helm assist panel on the wall and become a control on the main console, still switched on and off by one button, with two more buttons that alter course 5 degrees left and right.
+
+- **On the console:** an amber **AUTOPILOT** group of three push buttons, starboard of the wheel (nearest it of the starboard groups): **PORT 5°**, **AUTO** (lit while it's on) and **STBD 5°**. AUTO works as before: it holds the heading she's on, turning the wheel itself, and lets go when you press it again, turn the wheel yourself, or lose the INSTR breaker. While it's on, each tap of PORT 5° or STBD 5° moves the heading it holds 5° that way (`CONFIG.modules.helmAssist.autopilot.stepDeg`), round through north; she comes round with the same steering as before. With it off, they do nothing.
+- **The wall panel** keeps AUTO START and DOCK, and is narrower (`CONFIG.modules.helmAssist.width` 0.22 m).
+- **In the Shipyard** it comes with the same choice as before (Controls step, Helm assist: Assist), so every boat that had the autopilot keeps it, the fleet's included. The console layout editor shows the new group, and it can be dragged like the others; on a console too short for its switches it goes up onto the dash face after DECK (`faceSwitchOrder`).
+- **A fix on the way:** on a crowded console the rules close the switches up tighter than the hand-placement grid, and the grid positions they reported could overlap, so the console layout editor's "pin where it stands" moved some groups. They're now nudged apart along the row when it has room (`shipyard/parts/recipe.ts`).
+- **Worth knowing:** on the fleet's boats the throttle lever stands in front of PORT 5° as you look from the helm (the button is on the panel just forward of the lever's base). If it's awkward in VR, drag the group in the console layout, or say and I'll change the rule.
+- The bus keys are `autopilot.engage` (AUTO), and the new `autopilot.port` and `autopilot.starboard`.
+
+Tests: `tests/helmAssist.test.ts` (the group of three, bound and lit, not on the panel; 5° a press, she follows, round through north, nothing when off). Checked in the headless Shipyard: the group on the pilot boat's console, and in the console layout editor.
+
+**Shared changes:** `src/vessel/autopilot.ts` (`nudgeAutopilot`), `src/modular/busKeys.ts` (the two keys); in the Shipyard: `design.ts` (`PANEL_SLOTS.AUTOPILOT`: `panelAutopilot`, a console field, not in the code), `parts/recipe.ts` (the buttons and their group; the panel grid's starts nudged apart), `page.ts` (the Assist tile's words), `config/shipyard.ts` (`faceSwitchOrder`).
+
+### A TV on the wall that shows a browser tab (done; on next, in your test round)
+
+You asked for a TV, put on any wall in the Furniture step, that shows another browser tab: only desktop players can start it, but everyone sees it.
+
+- **The Shipyard:** **TV on the wall** in the Furniture step, up to two. It goes against the wall nearest its pin (port, starboard or the saloon's aft wall), its screen's middle at seated eye height (`CONFIG.modules.furniture.tv.centre`, 1.35 m), lower under a low ceiling (it keeps `CONFIG.shipyard.furniture.tvCeiling` below it; its foot no lower than `tvLowest`, else it's left off). It hangs over the low furniture (a settee, a berth, the chart table), but never over a doorway, the exhaust stack, a piece that goes to the ceiling (head, shower, locker, bunks) or the other TV. Nothing to walk round: it has no footprint. A 32-inch screen, 8 kg.
+- **In the game:** click the TV on a desktop: the browser's own picker opens (the game's own tab is left out of it); pick a tab. Its picture shows on the TV, kept to its shape (dark bars where it doesn't fill), and its sound (if "share tab audio" is ticked) comes from the TV in 3D, on the **FM radio & TV** volume slider. Click again, or the browser's **Stop sharing** bar, to stop. In VR a press says to start it from a desktop: the Quest's browser can't pick a tab.
+- **For everyone:** the world only records who is showing a tab on which TV (`world.tv`, an intent `tvCast`), so every crew-mate knows. The picture itself goes from the player showing it straight to each crew-mate, as a video call over the same peer-to-peer link voice chat uses, with no server in between. A crew-mate who clicks the TV takes it over with their own tab. When the player showing it leaves, it goes dark.
+- **Cost:** one draw call per TV (its screen; the case and bracket are merged with her other fixed parts). The picture is capped at 1280 x 720 and 30 frames a second (`CONFIG.tv.capture`), drawn only within `CONFIG.tv.showWithin` (40 m) and only while in view (a texture off screen isn't uploaded to the GPU), which matters on the Quest. The player showing it uploads one copy per crew-mate.
+- **Worth knowing:** paid streaming services (Netflix and the like) usually show black: the browser protects their video. And on a wheelhouse wall the TV hangs in front of the windows; real boats hang them on a bulkhead or under the deckhead. Say if you'd rather it came down from the ceiling.
+
+Config: `CONFIG.tv` (`capture`, `showWithin`, `sound`, `confirmS`, `retryS`), `CONFIG.modules.furniture.tv` and its colours `tvCase` / `tvOff`, `CONFIG.shipyard.furniture.tvCeiling` / `tvLowest`. Files: `src/modules/furniture/tvScreen.ts` (the screen, a press), `tvCast.ts` (the picture between players), `tvState.ts` (who's showing what), the `tv` kind in `src/modules/furniture/index.ts`. Tests: `tests/tv.test.ts`.
+
+Checked in the headless browser: a second tab with moving colour bars, picked automatically, shows on the catamaran's TV over the settee; and in a two-browser game through the real PeerJS broker, the crew-mate's TV shows the host's tab. Not checked: the sound (the test browser has none), and stopping it (stopping a captured tab crashes the headless test browser itself, even on a blank page without the game, so that needs your desktop).
+
+**Shared changes:** `src/core/world.ts` (`world.tv`) and `src/core/simulation.ts` (its intent and tick), `src/app/App.ts` (the TV's press and its frame update), `src/net/voice.ts` (leaves the TV's calls alone), `src/audio/mixer.ts` (the slider is "FM radio & TV"); in the Shipyard: `design.ts` (`tvAt`, `tvAt2`), `furnishing.ts`, `gearMenu.ts`, `placing.ts`, `page.ts`, `parts/furniture.ts` (the TV's place; and "moved along the wall to fit" now counts only moving along the wall, not being put back against it).
+
+### Rows of seats that turn, for the crew-transfer catamaran (done; on next, in your test round)
+
+You asked to seat the technicians in the Furniture step's seats, set out in rows across the wheelhouse "like a bus", and turnable. The seats could already stand free anywhere on the floor (in a narrow wheelhouse the helm and doorway clearances push them aside, as you said, which is right); what held a bus back was the limit of four.
+
+- **Twelve seats** (the other pieces stay at four; one head). Seats 5 to 12 are new design fields, like the first four not in the 10-character code (a boat with furniture travels as a link or file).
+- **Turn:** each seat has a facing, 0 to 7 in 45 degree steps clockwise seen from above (forward, forward-starboard, starboard, ... ). Its row in the Shipyard has a **Turn** button beside Move and Take off, and its label says which way it faces. A turned seat's footprint is turned too when it's fitted (a 45 degree seat takes a slightly bigger square), so seats in rows still don't overlap. Taking a seat off moves the ones after it up a number, each keeping its facing.
+- **The technicians sit in them:** boarding at Calder Haven, each takes the next free furniture seat (in the order you placed them), sitting on its cushion and facing as it does. With no furniture seats (or more technicians than seats) they take the deck seats as before.
+
+Files: `src/shipyard/design.ts` (seat fields to 12, `SEAT_FACES`, `seatYawDeg`), `src/shipyard/furnishing.ts` (`turnSeat`, facings follow the seats when one is taken off), `src/shipyard/parts/furniture.ts` (turned footprint, the yaw, the label), `src/shipyard/page.ts` (Turn button), `src/transfer/transfer.ts` and `transferView.ts` (the seats and their facing). Tests: `tests/shipyard/seatRows.test.ts`. No new config keys.
+
+**Shared changes:** the Shipyard's files above (noted in `docs/progress/shipyard.md`).
 
 ### Crew transfer to wind farms, stop 2: technicians, the job, stepping across, the chart (done; on next, in your test round)
 

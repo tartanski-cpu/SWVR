@@ -1,0 +1,7 @@
+{
+  "id": "vessel.tpBarge",
+  "version": 1,
+  "name": "Barge (transition pieces)",
+  "hull": "hull.tp-barge",
+  "modules": []
+}

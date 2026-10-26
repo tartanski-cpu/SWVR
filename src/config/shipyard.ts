@@ -321,7 +321,7 @@ export const SHIPYARD_CONFIG = {
     /** helm.screenLift: the dash screens and gauges raised this far up the (leaning) dash face (m), so the lower row's foot clears the ledge in front of it. */
     /** helm.minInside: the narrowest wheelhouse, inside (m; CS6: one at a short console). helm.faceSwitchOrder: on a console too short for its switch panel, the groups moved up onto the dash face, in this order, until the rest fit. */
     /** helm.lampsUpBelow: on a console shorter than this (m; the shortest before CS6), the warning lamps' row goes up onto the dash face, clear of the wheel's rim. */
-    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
+    helm: { maxConsole: 2.2, minInside: 1.2, lampsUpBelow: 1.58, faceSwitchOrder: ['DECK', 'AUTOPILOT', 'SEARCH', 'LIGHTS', 'ENGINE'] as string[], screenLift: 0.03, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, centreClear: 0.03, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
@@ -384,8 +384,19 @@ export const SHIPYARD_CONFIG = {
        * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
        */
       midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000, diveFrame: 260_000 },
     },
+    /**
+     * The dive A-frame and its sub (design.diveFrame; parts/diveFrame.ts; modules/diveFrame):
+     * what she must have for it (owner: "placeable on any boat that's big enough"). Its legs
+     * `legClear` m clear of the sub each side; legs from the module's `legLength` up to `maxLeg`
+     * m if her bulwark needs them, the sub's skids `bulwarkClear` m over the transom's bulwark
+     * as she swings out; the sub no more than `maxShare` of her weight, and her GM at least
+     * `minGM` m with the sub hanging at the docking head; with her hung out over the stern, at least `minFreeboard` m of
+     * freeboard left at the transom (her sinkage and trim from her own waterplane). Its price
+     * (deckGear.price.diveFrame) is the frame and the sub together.
+     */
+    diveFrame: { legClear: 0.15, maxLeg: 9, bulwarkClear: 0.15, minFreeboard: 0.3, maxShare: 0.2, minGM: 0.5 },
     /**
      * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and
      * top weigh `kgPerM2` (welded aluminium plate and stiffening) and cost `pricePerM2`
@@ -402,8 +413,10 @@ export const SHIPYARD_CONFIG = {
      * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
      * (`pricePerKg`, GBP). The Furniture step opens with the section tool cut at a waterline
      * `planCut` (m) over the wheelhouse floor, seen from above (the roof and the top of the walls off).
+     * A TV on the wall keeps `tvCeiling` (m) under the ceiling, coming down to do so, and its
+     * screen's foot no lower than `tvLowest` over the floor (else it's left off).
      */
-    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25 },
+    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25, tvCeiling: 0.1, tvLowest: 0.8 },
     /**
      * The Shipyard's section tool (owner: "cut the ship through as you want"): her drawing cut by
      * a waterline (level), a buttock (fore and aft, upright) or a station (athwartships, upright)

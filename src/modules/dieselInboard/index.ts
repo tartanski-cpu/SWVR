@@ -23,7 +23,7 @@ import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
 import type { ModuleDefinition } from '../../modular/module';
 import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
-import { engineStep, type DieselInputs } from '../../vessel/physics/propulsion';
+import { engineStep, twinStep, type DieselInputs } from '../../vessel/physics/propulsion';
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
 import { engineParts, oilShelfParts, waterStop } from '../../vessel/view/engineLook';
@@ -55,10 +55,12 @@ export interface DieselInboardConfig {
    * the propellers `x` m either side of the centreline (the `propeller.position` x is then
    * ignored) and counter-rotating, so their prop walk cancels. Worked from one lever and one
    * key, they run in lockstep: one engine's revs and thrust are worked out, and each shaft
-   * gives that thrust; fuel, mass and power are doubled. (Separate levers, twin-screw
-   * manoeuvring, need an engine state each: modular boats 6d.)
+   * gives that thrust; fuel, mass and power are doubled. `split` (the twin lever control;
+   * owner, Oct 2026): worked separately instead, a lever and a START each, the starboard
+   * engine with a state of its own (EngineState.stbd): each gives its own thrust on its own
+   * side, so different thrusts turn her (twin-screw manoeuvring).
    */
-  twin?: { x: number };
+  twin?: { x: number; split?: boolean };
   /** How it sounds (CONFIG.engineVoices); unset, the workboat's straight six. */
   voice?: keyof typeof CONFIG.engineVoices;
   /**
@@ -96,6 +98,11 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     // The GLOW lamp is wired with the glow plugs: lit while they draw.
     glowLamp: { dir: 'read', key: 'lamp.glow', required: false },
     start: { dir: 'read', key: 'ignition.start' },
+    // Twin engines worked separately: the starboard engine's lever and START, its state and revs.
+    throttle2: { dir: 'read', key: 'throttle.demand2', required: false },
+    start2: { dir: 'read', key: 'ignition.start2', required: false },
+    state2: { dir: 'write', key: 'propulsion.state2', required: false },
+    rpm2: { dir: 'write', key: 'propulsion.rpm2', required: false },
     powered: { dir: 'read', key: 'electrical.powered' },
     volts: { dir: 'read', key: 'electrical.busVoltage', required: false },
     fuel: { dir: 'write', key: 'fuel.litres' },
@@ -109,7 +116,7 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   },
   needs: () => [{ fuel: 'diesel' }],
   provides: () => [{ power: 'pto' }, { gear: 'diesel' }],
-  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, ...(c.nozzle ? { nozzle: true } : {}), ...(c.twin ? { twin: true, twinX: c.twin.x } : {}) } }),
+  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, ...(c.nozzle ? { nozzle: true } : {}), ...(c.twin ? { twin: true, twinX: c.twin.x, ...(c.twin.split ? { split: true } : {}) } : {}) } }),
   // Its mass at its bed (the socket): it's part of the boat's mass, CG and inertia (M6).
   physical: (c) => ({ powerKw: c.engine.powerKw * (c.twin ? 2 : 1), massKg: c.massKg * (c.twin ? 2 : 1) }),
   power: (c) => [
@@ -117,6 +124,9 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * clamp(io.num('rpm') / c.engine.idleRpm, 0, 1) : 0) },
     // The starter and the glow plugs are on the master alone.
     { role: 'load', amps: (io) => (io.get('state') === 'cranking' ? c.starterAmps : 0) },
+    // (The starboard engine's alternator and starter, worked separately.)
+    { role: 'source', amps: (io) => (io.has('state2') && io.get('state2') === 'running' ? c.alternatorAmps * clamp(io.num('rpm2') / c.engine.idleRpm, 0, 1) : 0) },
+    { role: 'load', amps: (io) => (io.has('state2') && io.get('state2') === 'cranking' ? c.starterAmps : 0) },
     { role: 'load', amps: (io) => (io.has('glowLamp') && io.get('glowLamp') === 'on' ? c.glowAmps : 0) },
   ],
   sim: {
@@ -139,12 +149,25 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
         starterFactor: io.has('volts') ? clamp((io.num('volts') - 9) / 2.5, 0, 1) : 1,
         fuelL,
       };
+      const p = c.propeller;
+      if (c.twin?.split) {
+        // Worked separately: each engine from its own lever and START (twinStep), each thrust
+        // T(1 - t) along its own shaft (forward is -z), on its own side: more thrust on one
+        // side turns her away from it. Counter-rotating: no walk.
+        const t = twinStep(e, c, inputs, io.has('throttle2') ? io.num('throttle2') : inputs.lever, io.num('start2'), -flow.z, wet, dt);
+        // The rudders see the two propellers' wash: as one, the mean.
+        io.set('thrust', (t.port + t.stbd) / 2);
+        io.set('immersion', wet);
+        io.set('fuel', t.fuelL);
+        port.addForce([-c.twin.x, p.position[1], p.position[2]], 0, 0, -t.port * (1 - p.thrustDeduction));
+        port.addForce([c.twin.x, p.position[1], p.position[2]], 0, 0, -t.stbd * (1 - p.thrustDeduction));
+        return;
+      }
       const thrust = engineStep(e, c, inputs, -flow.z, wet, dt);
       // One shaft's thrust (the rudder sees one propeller's wash: twin rudders, each behind its own).
       io.set('thrust', thrust);
       io.set('immersion', wet);
       const left = fuelAndHeatStep(e, c, fuelL, dt);
-      const p = c.propeller;
       if (c.twin) {
         // The other engine burns as much.
         io.set('fuel', Math.max(0, left - (fuelL - left)));
@@ -181,3 +204,4 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     },
   },
 };
+

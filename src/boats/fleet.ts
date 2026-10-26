@@ -28,6 +28,10 @@
  *                never; at an anchorage you swim the goods ashore). The yard adds the
  *                searchlight and fire monitor to her design (CONFIG.career.upgrades `design`;
  *                library.ts setStarterKit).
+ *   diveShip     the dive support vessel (owner, Oct 2026: for the submersible game): the
+ *                stern trawler's hull without her trawl gear, the dive A-frame over her
+ *                transom and the three-person work sub on her cradle (modules/diveFrame),
+ *                searchlight, two life rings, navy blue;
  * Each but the beginner boat has the helm assist panel (autopilot, dock, auto start).
  * (Their ids live on in saves and multiplayer: never rename.)
  */
@@ -38,6 +42,7 @@ import fishingBoat from './fleet/fishingBoat.json';
 import pilotBoat from './fleet/pilotBoat.json';
 import smallTug from './fleet/smallTug.json';
 import starterBoat from './fleet/starterBoat.json';
+import diveShip from './fleet/diveShip.json';
 
 export interface FleetBoat {
   /** Her vessel type's id. */
@@ -47,7 +52,7 @@ export interface FleetBoat {
   design: ShipDesign;
 }
 
-const FILES = { lander, fishingBoat, pilotBoat, smallTug, starterBoat };
+const FILES = { lander, fishingBoat, pilotBoat, smallTug, starterBoat, diveShip };
 
 export const FLEET: FleetBoat[] = Object.entries(FILES).map(([id, file]) => {
   const read = readDoc(file);
@@ -57,4 +62,4 @@ export const FLEET: FleetBoat[] = Object.entries(FILES).map(([id, file]) => {
 });
 
 /** The fleet's vessel type ids. */
-export const FLEET_IDS = ['lander', 'fishingBoat', 'pilotBoat', 'smallTug', 'starterBoat'] as const;
+export const FLEET_IDS = ['lander', 'fishingBoat', 'pilotBoat', 'smallTug', 'starterBoat', 'diveShip'] as const;

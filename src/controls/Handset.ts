@@ -42,8 +42,6 @@ export class Handset extends Control {
     return this.toLocal(world).distanceTo(this.body.position);
   }
 
-  override readonly carried = true;
-
   grabStart(p: Pointer): void {
     this.held = true;
     this.pickUp();

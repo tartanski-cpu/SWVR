@@ -9,6 +9,7 @@ import { createPlayerState } from '../player/playerState';
 import { placeAshore } from '../player/playerControl';
 import { dropVessel, placeVessel } from '../vessel/vesselControl';
 import { BERTHS } from '../world/archipelago';
+import { berthWithId } from '../world/berths';
 import { berthPose, shoreSide } from '../vessel/physics/mooring';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
@@ -27,7 +28,8 @@ import { createFishingState, type FishingState } from '../fishing/fishing';
 import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
 import { createTransferState, type TransferState } from '../transfer/transfer';
-import { startBerthId } from '../world/startSpot';
+import type { TvState } from '../modules/furniture/tvState';
+import { startBerthFor } from '../world/startSpot';
 import type { BerthDef } from '../world/defs';
 import type { VoyagePlan } from '../voyage/plan';
 
@@ -90,6 +92,8 @@ export interface WorldState {
   potting?: PottingState;
   /** Crew transfer to the wind farm: the job, the technicians, boats on the landings (transfer/transfer.ts). */
   transfer?: TransferState;
+  /** Who is showing a browser tab on which TV (modules/furniture/tvState.ts); made at the first. */
+  tv?: TvState;
   /** The fuel pumps' hoses: where each nozzle is (fuel/fuelHose.ts). Made when first used. */
   fuel?: FuelState;
   /** Fishing: the trawl and the catch (fishing/fishing.ts). */
@@ -151,7 +155,8 @@ export function createWorld(
   const crane = opts.tender ? gearOf({ defId: vesselDefId }, 'tenderCrane') : null;
   const tender = crane ? createVesselState(ids.next('vessel'), crane.tenderDefId) : null;
   const player = createPlayerState(localPlayerId, 'Player 1');
-  placeAshore(player);
+  // Ashore beside her berth (Calder's quay, or Brannock's pier for a deep boat: startSpot.ts).
+  placeAshore(player, opts.harbour ? vessel.mooring.berthId : null);
   const world: WorldState = {
     tick: 0,
     time: 0,
@@ -193,12 +198,13 @@ export function createWorld(
 }
 
 /**
- * The game's start: lying alongside her berth (CONFIG.start in the career, the map's own in
- * Voyage mode; world/startSpot.ts), bow along the berth, afloat at her waterline, her mooring
+ * The game's start: lying alongside her berth (CONFIG.start in the career, or its deep-water
+ * port for a boat too deep for Calder; the map's own in Voyage mode; world/startSpot.ts), bow along the berth, afloat at her waterline, her mooring
  * lines already fast (moored).
  */
 function mooredAtStart(v: VesselState): void {
-  const b = BERTHS.find((x) => x.id === startBerthId());
+  const id = startBerthFor(v.defId);
+  const b = BERTHS.find((x) => x.id === id) ?? berthWithId(id);
   if (!b) return dropVessel(v);
   moorAtBerth(v, b);
 }

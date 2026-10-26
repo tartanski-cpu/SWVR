@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { surfaceHeight, type PreparedWave } from '../../ocean/waves';
-import { MARKS, type MarkKind } from '../archipelago';
+import { MARKS, type MarkDef, type MarkKind } from '../archipelago';
 import { LIGHT_CHARACTERS, lightOn } from '../navMarks';
 
 import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
@@ -46,6 +46,12 @@ const SHAPES: Record<MarkKind, () => THREE.BufferGeometry> = {
   E: () => pillar(BLACK, YELLOW, BLACK, [cone(3.05, false), cone(3.45, true)]),
   // West: yellow, black band, yellow; cones point to point.
   W: () => pillar(YELLOW, BLACK, YELLOW, [cone(3.05, true), cone(3.45, false)]),
+  // Special (a met buoy): yellow all over, a yellow X topmark.
+  special: () =>
+    pillar(YELLOW, YELLOW, YELLOW, [
+      part(new THREE.BoxGeometry(0.5, 0.08, 0.08).rotateZ(Math.PI / 4).translate(0, 3.25, 0), YELLOW),
+      part(new THREE.BoxGeometry(0.5, 0.08, 0.08).rotateZ(-Math.PI / 4).translate(0, 3.25, 0), YELLOW),
+    ]),
   // Isolated danger: black with a red band, two black balls.
   isolated: () => pillar(BLACK, RED, BLACK, [ball(3.0), ball(3.42)]),
   // Port hand: a red can, can topmark.
@@ -67,8 +73,8 @@ const SHAPES: Record<MarkKind, () => THREE.BufferGeometry> = {
     ]),
 };
 /** The lamp's height above the waterline, per shape. */
-const LAMP_Y: Record<MarkKind, number> = { N: 4.0, S: 4.0, E: 4.0, W: 4.0, isolated: 4.0, port: 2.65, stbd: 2.95 };
-const LAMP_COLOR = { white: 0xfff4d8, red: 0xff3020, green: 0x30ff60 };
+const LAMP_Y: Record<MarkKind, number> = { N: 4.0, S: 4.0, E: 4.0, W: 4.0, isolated: 4.0, port: 2.65, stbd: 2.95, special: 4.0 };
+const LAMP_COLOR = { white: 0xfff4d8, red: 0xff3020, green: 0x30ff60, yellow: 0xffd040 };
 
 export class NavMarksView {
   readonly root = new THREE.Group();
@@ -87,11 +93,15 @@ export class NavMarksView {
   private frame = 0;
   private readonly one = new THREE.Vector3(1, 1, 1);
 
-  constructor() {
+  /**
+   * @param marks  the buoys to draw: the map's (MARKS), or any others (a construction site's
+   *               marks as they're laid: career/projectView.ts makes a view of its own for them)
+   */
+  constructor(private readonly marks: readonly MarkDef[] = MARKS) {
     this.root.name = 'navMarks';
     const mat = flatVertexColorMaterial();
     const byKind = new Map<MarkKind, number[]>();
-    MARKS.forEach((mk, i) => byKind.set(mk.kind, [...(byKind.get(mk.kind) ?? []), i]));
+    this.marks.forEach((mk, i) => byKind.set(mk.kind, [...(byKind.get(mk.kind) ?? []), i]));
     for (const [kind, marks] of byKind) {
       const mesh = new THREE.InstancedMesh(SHAPES[kind](), mat, marks.length);
       mesh.name = `buoys:${kind}`;
@@ -99,11 +109,11 @@ export class NavMarksView {
       this.meshes.set(kind, { mesh, marks });
       this.root.add(mesh);
     }
-    const n = MARKS.length;
+    const n = this.marks.length;
     this.lampPos = new THREE.BufferAttribute(new Float32Array(n * 3), 3);
     this.base = new Float32Array(n * 3);
     const c = new THREE.Color();
-    MARKS.forEach((mk, i) => {
+    this.marks.forEach((mk, i) => {
       c.set(LAMP_COLOR[LIGHT_CHARACTERS[mk.kind].color]);
       this.base.set([c.r, c.g, c.b], i * 3);
     });
@@ -129,12 +139,12 @@ export class NavMarksView {
   update(waves: readonly PreparedWave[], time: number, darkness: number, viewer?: { x: number; z: number }): void {
     const pos = this.lampPos.array as Float32Array;
     const col = this.lampCol.array as Float32Array;
-    if (this.heights.length !== MARKS.length) this.heights = new Float32Array(MARKS.length).fill(NaN);
+    if (this.heights.length !== this.marks.length) this.heights = new Float32Array(this.marks.length).fill(NaN);
     const frame = ++this.frame;
     const w = CONFIG.navMarks.wavesEvery;
     for (const [kind, { mesh, marks }] of this.meshes) {
       marks.forEach((idx, k) => {
-        const mk = MARKS[idx];
+        const mk = this.marks[idx];
         const d = viewer ? Math.hypot(mk.x - viewer.x, mk.z - viewer.z) : 0;
         const every = d < w.nearM ? 1 : d < w.midM ? w.mid : w.far;
         if (Number.isNaN(this.heights[idx]) || (frame + idx) % every === 0) this.heights[idx] = surfaceHeight(waves, mk.x, mk.z, CONFIG.ocean.sceneryIterations) - 0.25;

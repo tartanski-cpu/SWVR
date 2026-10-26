@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { FLEET, FLEET_IDS } from '../boats/fleet';
+import { diveGeometry } from '../modules/diveFrame';
+import { diveFrameOf, diveFrameState, diveSubDocked } from '../modules/diveFrame/onBoat';
 import { CONFIG } from '../config';
 import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
@@ -10,6 +12,7 @@ import { createWorld, type WorldState } from '../core/world';
 import { randomLook } from '../net/avatarOutfits';
 import { updatePanelLighting } from '../controls/panelLighting';
 import { NavMarksView } from '../world/view/navMarksView';
+import { ProjectView } from '../career/projectView';
 import { HelpPanel } from '../debug/helpPanel';
 import { DebugOverlay } from '../debug/overlay';
 import { EnvironmentView } from '../environment/environmentView';
@@ -83,7 +86,7 @@ import { setPaintNight } from '../render/pixelPaint';
 import { treeLevel } from '../world/view/treesView';
 import { MAX_SHELTERS } from '../world/shelter';
 import type { ShelterDef } from '../world/defs';
-import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
+import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, hookNote, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
@@ -96,6 +99,7 @@ import { GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padL
 import { HelmPrompt } from '../ui/helmPrompt';
 import { YardBoard } from '../ui/yardBoard';
 import { careerShipyardSpots, ShipyardDoor } from '../ui/shipyardDoor';
+import { Wheel } from '../controls/Wheel';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { fallHarm, fireExposure, stepHealth, wakeNow } from '../player/health';
@@ -181,14 +185,17 @@ import { electedHost } from '../net/takeover';
 import { PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
 import type Peer from 'peerjs';
 import { VoiceChat, type VoiceSpeaker } from '../net/voice';
-import { APP_BUILD } from '../build';
+import { canShowTab, TvCast } from '../modules/furniture/tvCast';
+import { TvScreen } from '../modules/furniture/tvScreen';
+import { tvKey } from '../modules/furniture/tvState';
+import { APP_BUILD, isNewerBuild } from '../build';
 import { RadioHandset } from '../player/radioHandset';
 import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
 import { fuelTankL } from '../vessel/fuelTank';
 import { consumeReturn, issueId, newHandoffId, outboundUrl, takeEnvelope, type Envelope, type MetaverseSite } from '../voyage/metaverse';
-import { bargeFromCamp, bargesKey, bargesToSave, HotspotWatch, merchantsOn, parseBarges, positionFor, restoreBarges, saleOffer, saleText, sellBarge, sitesOn, hotspotAt } from '../voyage/timber';
+import { bargesKey, bargesToSave, HotspotWatch, logsFromCamp, merchantsOn, parseBarges, parseTimberLogs, positionFor, restoreBarges, restoreTimberLogs, saleOffer, saleText, sellBarge, sitesOn, hotspotAt, timberLogsKey, timberLogsToSave } from '../voyage/timber';
 import { TimberView } from '../voyage/timberView';
 
 /**
@@ -421,6 +428,8 @@ export class App {
   private planTable: PlanTable | null = null;
   /** Voyage mode: the sign into the Shipyard beside the planning table (ui/shipyardDoor.ts). */
   private shipyardDoor: ShipyardDoor | null = null;
+  /** Voyage mode: the Your boats board on the planning table's other side. */
+  private boatsBoard: ShipyardDoor | null = null;
   /** The career: a sign into the Shipyard on the quay at every harbour (ui/shipyardDoor.ts careerShipyardSpots). */
   private shipyardSigns: ShipyardDoor[] = [];
   private planSaved = -1;
@@ -471,6 +480,8 @@ export class App {
   private showRegionMap = false;
   /** The hazard buoys, riding the swell with their lights (owner request). */
   private readonly navMarks = new NavMarksView();
+  /** A construction project's marks as they're laid (career/projectView.ts). */
+  private readonly projectView = new ProjectView();
   private readonly cargoView = new CargoView();
   private readonly cargoHands = new CargoHands();
   /** Our laser pointer (others see it in our pose; laserPointer.ts). */
@@ -702,6 +713,10 @@ export class App {
   private hostPeerId = '';
   /** Voice with the crew (net/voice.ts), while in a game with others. */
   private voice: VoiceChat | null = null;
+  /** Browser tabs shown on the boats' TVs (modules/furniture/tvCast.ts): ours, and what the crew send. */
+  private readonly tvCast = new TvCast(() => this.sound.engine.context ?? null);
+  /** Every TV in the scene, by its name in the world (filled each frame). */
+  private readonly tvScreens = new Map<string, TvScreen>();
   /** Your microphone off (Crew menu); kept across games. */
   private voiceMuted = false;
   /** The handheld VHF on your chest (player/radioHandset.ts). */
@@ -795,12 +810,13 @@ export class App {
     // Only the yards whose port is in this world (the coast region test leaves the Sounds out).
     this.yardBoards = CONFIG.boatyards.filter((y) => PORTS.some((p) => p.id === y.port)).map((y) => new YardBoard(host, y));
     // The career's Shipyard signs, one on the quay at every harbour (Voyage's stands by the planning table: setupPlan).
-    if (MODE === 'career') this.shipyardSigns = careerShipyardSpots().map((at) => new ShipyardDoor(host, at));
+    // ...and beside each, the Your boats board (your Shipyard favourites).
+    if (MODE === 'career') this.shipyardSigns = careerShipyardSpots().flatMap((at) => [ShipyardDoor.shipyard(host, at), ShipyardDoor.boats(host, at)]);
     this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine));
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.projectView.root, this.cargoView.root);
     this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root, this.skylineView.root, this.windFarmView.root, this.transferView.root);
     // A test (owner): an outside model, the dirt bike, on the Calder Haven quay by where you
     // start, only with `?bike` in the address (public/models/mx_gold_dirt.glb: the owner's
@@ -947,6 +963,7 @@ export class App {
     this.updateSceneViews(dt, renderTime, darkness);
     this.updateBoardsAndSaves(dt);
     this.updateCrewViews(dt, inXR, darkness);
+    this.updateTv();
     this.updateHullSounds(dt, slam, lap);
     this.menu.refresh();
     this.host?.tick(dt);
@@ -1292,6 +1309,7 @@ export class App {
     }
     this.worldView.lights.update(renderTime, darkness, this.focus, this.environment.visibility);
     this.navMarks.update(this.renderWaves, renderTime, darkness, this.focus);
+    this.projectView.update(this.world, this.renderWaves, renderTime, darkness, this.focus);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
@@ -1363,6 +1381,40 @@ export class App {
   }
 
   /**
+   * A TV pressed (modules/furniture/tv*.ts): on a desktop, the browser's picker for a tab to show on it, and
+   * the world told (everyone's TV then shows it); pressed again, ours stops. In VR there's no
+   * tab to pick: it says so.
+   */
+  private pressTv(vesselId: string, socketId: string): void {
+    const key = tvKey(vesselId, socketId);
+    if (this.tvCast.showing === key) {
+      this.tvCast.stop();
+      return this.pushIntentTo(vesselId, 'tvCast', 0, socketId);
+    }
+    if (this.renderer.xr.isPresenting || !canShowTab()) return this.overlay.notify('Show a browser tab on the TV from a desktop browser: here you can watch it', 4);
+    // The browser's own stop button (its "Stop sharing" bar): the TV goes dark for everyone.
+    this.tvCast.onStopped = (k) => this.pushIntentTo(k.slice(0, k.indexOf('/')), 'tvCast', 0, k.slice(k.indexOf('/') + 1));
+    // The picker needs the mouse back.
+    if (document.pointerLockElement) document.exitPointerLock();
+    void this.tvCast.start(key).then((ok) => {
+      if (ok) this.pushIntentTo(vesselId, 'tvCast', 1, socketId);
+    });
+  }
+
+  /** Each frame: every TV shows its tab (ours, a crew-mate's) or goes dark (modules/furniture/tvCast.ts). */
+  private updateTv(): void {
+    const tvs = this.tvScreens;
+    tvs.clear();
+    for (const [id, b] of this.boats) for (const c of b.controls) if (c instanceof TvScreen) tvs.set(tvKey(id, c.socketId), c);
+    const casts = this.world.tv?.casts ?? {};
+    if (!tvs.size && !this.tvCast.showing) return;
+    const inGame = !!this.host || this.client?.status === 'connected';
+    this.tvCast.attach(inGame ? this.netPeer : null);
+    const crew = inGame ? Object.values(this.world.players).flatMap((p) => (p.id !== this.localPlayerId && p.peerId ? [{ peerId: p.peerId }] : [])) : [];
+    this.tvCast.update(casts, this.localPlayerId, crew, tvs, this.focus);
+  }
+
+  /**
    * Voice with the crew (net/voice.ts): started once we're in a game with others and the
    * sound is on, stopped when we're back to solo. Each frame, every crew-mate's head (world)
    * and radio talk button, for how we hear them.
@@ -1411,7 +1463,7 @@ export class App {
     }
     // Your torch has its own pool on the water.
     this.ocean.setTorch(this.gear[1].light);
-    this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered, this.focus);
+    this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered, this.focus, dt);
     const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
     if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
     this.desktopHand.update(this.camera, deskHand, dt);
@@ -1488,7 +1540,8 @@ export class App {
     if (k.actionPressed('toggleHelp')) this.help.toggle();
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
-    if (k.actionPressed('dropVessel')) this.pushVesselIntent('debugDrop', 0);
+    // (On a twin worked separately, holding the wheel, R is the starboard lever: twinLeverKeys.)
+    if (k.actionPressed('dropVessel') && !this.twinLeverKeys()) this.pushVesselIntent('debugDrop', 0);
     // (The recording camera flies on its own keys: none of the body's or the boat's here.)
     if (k.actionPressed('flyMode') && !cam) this.desktop.toggleFly();
     if (k.actionPressed('lash') && !this.renderer.xr.isPresenting && !cam) {
@@ -1497,7 +1550,7 @@ export class App {
       this.cargoHands.desktopLash(this.cargoCtx(), this.tmpRay);
     }
     if (!cam) this.handleDebugDriving(dt);
-    if (k.actionPressed('engine') && !cam) this.requestEngineStartStop();
+    if (k.actionPressed('engine') && !cam && !this.twinLeverKeys()) this.requestEngineStartStop();
     if (this.boardOnStart) {
       this.boardOnStart = false;
       if (!this.world.players[this.localPlayerId]?.aboardVesselId) this.toggleBoardTo(true);
@@ -1541,10 +1594,12 @@ export class App {
     const cfg = CONFIG.debugDriving;
     // A game controller at the helm: the bumpers work the throttle, the left stick the wheel.
     const pad = this.atHelm && this.pad.state.connected ? this.pad.state : null;
-    // At the helm, W and S work the throttle too (owner, Oct 2026: the arrow keys were awkward;
-    // you steer with the wheel itself). Walking is off at the helm, so W/S are free there.
+    // At the helm, or holding the wheel with the mouse, W and S work the throttle too (owner,
+    // Oct 2026: "if you're on mouse and keyboard and you grab the wheel, you can use the W and S
+    // keys for the throttle"; the arrow keys were awkward). Walking is off then, so W/S are free.
     // (Not while they steer a clicked control, the searchlight or pod joystick: review, Oct 2026.)
-    const ws = this.atHelm && !this.craneRemote && !this.interaction?.steering ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
+    const onWheel = this.interaction?.desktopHeld instanceof Wheel;
+    const ws = (this.atHelm || onWheel) && !this.craneRemote && !this.interaction?.steering ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
     const leverIn = clamp((k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + ws + (pad ? padLever(pad) : 0), -1, 1);
     const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
@@ -1568,10 +1623,42 @@ export class App {
     if (stick.helm !== null && helmIn === 0) helm = stick.helm;
     if (k.actionPressed('helmMidships')) helm = 0;
     this.driveTo(id, lever, helm, leverIn !== 0);
+    // Twin engines worked separately, holding the wheel (owner, Oct 2026): E / D the port lever,
+    // R / F the starboard one, each at the keys' rate and stopping at neutral on the way through.
+    if (this.twinLeverKeys()) {
+      const levers = [v.controls.lever, v.controls.lever2 ?? v.controls.lever];
+      (['throttle.demand', 'throttle.demand2'] as const).forEach((key, i) => {
+        const input = (k.action(i ? 'stbdAhead' : 'portAhead') ? 1 : 0) - (k.action(i ? 'stbdAstern' : 'portAstern') ? 1 : 0);
+        if (input === 0) {
+          this.twinLatched[i] = false;
+          return;
+        }
+        if (this.twinLatched[i]) return;
+        const cur = levers[i];
+        let next = clamp(cur + input * cfg.leverRate * dt, -1, 1);
+        if (Math.sign(next) !== Math.sign(cur) && cur !== 0) {
+          next = 0;
+          this.twinLatched[i] = true;
+        }
+        this.pushIntentTo(id, key, next);
+      });
+    }
   }
 
   /** The keys' lever stopped at neutral on the way through: it stays there until the key is let go. */
   private neutralLatched = false;
+  /** The same for each lever of a twin worked separately (port, starboard). */
+  private readonly twinLatched = [false, false];
+
+  /**
+   * Holding the wheel with the mouse on a twin worked separately: E / D and R / F work a lever
+   * each (W / S both), so E, F and R aren't their own keys then (owner, Oct 2026).
+   */
+  private twinLeverKeys(): boolean {
+    if (!(this.interaction?.desktopHeld instanceof Wheel)) return false;
+    const v = this.world.vessels[this.drivenVesselId()];
+    return !!v && !!gearOf(v, 'diesel')?.split;
+  }
 
   /** Her throttle as one signed command, -1 astern .. 1 ahead (an outboard's: gear x twist grip). */
   private signedLever(v: VesselState): number {
@@ -2199,8 +2286,7 @@ export class App {
     if (inXR) {
       for (const h of ['left', 'right'] as const) {
         // (Not a hand pointing or giving the finger: it stays where you hold it.)
-        // (Nor while the other hand holds a control: pulling the body along drags it.)
-        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h] && !this.gestures.gesturing(h) && !this.interaction?.holdingAny()) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
+        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h] && !this.gestures.gesturing(h)) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
       }
     }
     let desktopDelta: { x: number; y: number; z: number } | null = null;
@@ -2220,9 +2306,7 @@ export class App {
       desktopDelta = { x: (x * c + z * s) * speedScale, y, z: (-x * s + z * c) * speedScale };
     }
     // A stick making a hand gesture (its grip held on a free hand) doesn't walk or turn.
-    // Nor while a hand holds a control (CONFIG.interaction.breakaway): the body would drag it.
-    const holding = inXR && !!this.interaction?.holdingAny();
-    const [lx, ly] = this.gestures.ownsStick('left') || holding ? [0, 0] : this.xrInput.hands.left.stick;
+    const [lx, ly] = this.gestures.ownsStick('left') ? [0, 0] : this.xrInput.hands.left.stick;
     // Run (on foot): push the stick right to the edge - it ramps from walk to run over the
     // last fifth of its travel, so it doesn't lurch. (A stick click is already "board".)
     const push = Math.min(1, Math.max(0, (Math.hypot(lx, ly) - 0.8) / 0.2));
@@ -2235,7 +2319,7 @@ export class App {
       headForward: this.headFwd,
       grabbing,
       moveStick: inXR ? [lx * speedScale * run, -ly * speedScale * run] : [0, 0],
-      turnStick: inXR && !this.gestures.ownsStick('right') && !holding ? this.xrInput.hands.right.stick[0] : 0,
+      turnStick: inXR && !this.gestures.ownsStick('right') ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
       fly,
       // The desktop's fly camera (J): the body stays at its height, whatever is under the camera.
@@ -2355,9 +2439,21 @@ export class App {
    * (the crane, the tow winch and the net drum need the engine running and DECK HYD on).
    */
   private hydraulicsHint(channel: string): void {
-    const machine = channel === 'crane' ? 'The crane' : ['winchHeave', 'winchPayOut', 'winch.heaveIn', 'winch.payOut'].includes(channel) ? 'The tow winch' : ['netOut', 'netIn', 'net.payOut', 'net.haul'].includes(channel) || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
+    const machine = channel.startsWith('dive.') ? 'The dive A-frame' : channel === 'crane' ? 'The crane' : ['winchHeave', 'winchPayOut', 'winch.heaveIn', 'winch.payOut'].includes(channel) ? 'The tow winch' : ['netOut', 'netIn', 'net.payOut', 'net.haul'].includes(channel) || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
     const v = this.world.vessels[this.testVesselId];
-    if (!machine || !v || hydraulicsOn(v)) return;
+    if (!machine || !v) return;
+    // The dive A-frame's interlocks (modules/diveFrame): say why it holds.
+    if (hydraulicsOn(v) && channel.startsWith('dive.')) {
+      const f = diveFrameOf(v);
+      const s = diveFrameState(v);
+      if (!f || !s) return;
+      const g = diveGeometry(f.config);
+      const atEnd = s.luff <= g.inDeg + 0.3 || s.luff >= g.outDeg - 0.3;
+      if ((channel === 'dive.frameOut' || channel === 'dive.frameIn') && !diveSubDocked(v)) this.overlay.notify('The frame only swings with the sub up in the docking head: WINCH UP first', 3);
+      else if (channel === 'dive.winchDown' && !atEnd) this.overlay.notify('The winch only lowers with the frame right in (onto her cradle) or right out (into the sea)', 3);
+      return;
+    }
+    if (hydraulicsOn(v)) return;
     const why = v.engine.phase !== 'running' ? 'start the engine' : 'switch the DECK HYD breaker on';
     this.overlay.notify(`${machine} is hydraulic: ${why} (DECK HYD breaker by the helm)`, 3);
   }
@@ -3139,8 +3235,22 @@ export class App {
         this.overlay.notify(`Hosting: game code ${code} (the page's address carries it: share the link)`, 5);
         // A crew-mate on a newer page than ours: they can't stay, and only we can put it right.
         this.host.onOtherBuild = (name, theirs) => {
-          this.netMessage = `${name}'s page is another build (${theirs}; yours ${APP_BUILD}): reload this page (Ctrl+F5) and host again`;
-          this.overlay.notify(this.netMessage, 10);
+          // Theirs newer: this page is behind (open since before the last update). Update it,
+          // hosting the same code again, the crew following (owner, Oct 2026: a crew-mate's
+          // newer page couldn't join and played alone). Theirs older: their page reloads itself.
+          // (Once: a page that came up still behind, the site's cache lagging, says so instead.)
+          const ours = this.world.build?.app ?? APP_BUILD; // (our page's: the stamp the crew see)
+          if (isNewerBuild(theirs, ours) && !START_FRESH) {
+            const url = new URL(location.href);
+            url.searchParams.set('fresh', '1');
+            url.searchParams.set('t', String(Date.now()));
+            this.overlay.notify(`${name} has a newer version of the game: updating this page, hosting game ${code} again (in VR: enter VR again)`, 8);
+            return this.restartPage(url);
+          }
+          this.netMessage = isNewerBuild(theirs, ours)
+            ? `${name}'s page is a newer build (${theirs}; yours ${ours}) and this page couldn't update: reload it (Ctrl+F5) and host again`
+            : `${name}'s page is another build (${theirs}; yours ${ours}): it reloads to catch up`;
+          this.overlay.notify(this.netMessage, 6);
         };
       },
       (e: { type?: string }) => {
@@ -3443,6 +3553,19 @@ export class App {
     }
     const theirs = world.build?.app;
     if (!theirs || theirs === APP_BUILD || theirs === 'dev' || APP_BUILD === 'dev') return true;
+    if (isNewerBuild(APP_BUILD, theirs)) {
+      // The host's page is the older one: reloading ours can't help. Its page updates itself
+      // when it sees ours (onOtherBuild) and hosts the same code again: wait and join it then.
+      const code = this.joinCode;
+      this.netMessage = 'The host\'s game is an older version: it is updating itself, joining again in a moment...';
+      this.overlay.notify(this.netMessage, 6);
+      this.leaveGame();
+      this.joinCode = code;
+      showGameOnAddress(code);
+      this.togetherTries = CONFIG.net.togetherTries;
+      setTimeout(() => this.joinGame(), CONFIG.net.olderHostRetryS * 1000);
+      return false;
+    }
     if (START_FRESH) {
       this.netMessage = `The host's game is another version (${theirs}; yours ${APP_BUILD}): the host reloads the page`;
       this.leaveGame();
@@ -3775,10 +3898,12 @@ export class App {
         voice: diesel?.voice ?? 'inlineSix',
         ratedRpm: diesel?.engine.ratedRpm ?? 1800,
         twin: !!diesel?.twin,
-        rpm: v.engine.rpm,
-        load: v.engine.rack,
-        running: v.engine.phase === 'running',
-        cranking: v.engine.phase === 'cranking',
+        // One voice for her (the Quest's audio thread): a twin worked separately is heard by
+        // whichever engine is working harder, and starting while either cranks.
+        rpm: Math.max(v.engine.rpm, v.engine.stbd?.rpm ?? 0),
+        load: Math.max(v.engine.rack, v.engine.stbd?.rack ?? 0),
+        running: v.engine.phase === 'running' || v.engine.stbd?.phase === 'running',
+        cranking: v.engine.phase === 'cranking' || v.engine.stbd?.phase === 'cranking',
         horn: v.controls.horn > 0 && isPowered(v),
       });
     }
@@ -3886,6 +4011,8 @@ export class App {
     } catch {
       // No storage: an empty board, no count.
     }
+    // Crew: the page closing or reloading says goodbye, so the host drops us now (HostSession).
+    window.addEventListener('pagehide', () => this.client?.close());
     // Started again to build the host's boat: join their game again.
     if (START_JOIN) {
       this.joinCode = START_JOIN;
@@ -3914,6 +4041,15 @@ export class App {
       (channel, value) => {
         // A berth: lie down in it, or get up (yours, not the boat's: nothing goes to her).
         if (channel === 'berthRest' || channel.endsWith(':berthRest')) return this.toggleRest();
+        // A TV: show one of your browser tabs on it, or stop yours.
+        const tv = this.routeChannel(channel);
+        if (tv.control.startsWith('tvCast.')) return this.pressTv(tv.vesselId, tv.control.slice('tvCast.'.length));
+        // A deck crane's HOOK with a load that it won't set down here: say why (too high, no room).
+        if (tv.control.endsWith('crane.hook') && value > 0) {
+          const v = this.world.vessels[tv.vesselId];
+          const note = v ? hookNote(this.world, v) : null;
+          if (note) this.overlay.notify(note, 3);
+        }
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
@@ -3992,7 +4128,7 @@ export class App {
     this.helmDist = spot ? Math.hypot(p.position[0] - spot[0], p.position[2] - spot[2]) : Infinity;
     const near = !!spot && !inXR && !cam && (p.mode ?? 'walk') === 'walk' && this.helmDist < CONFIG.gamepad.helmReach && !(this.craneNear && this.craneNearDist < this.helmDist);
     if (this.atHelm && !near) this.atHelm = false;
-    const toggle = (this.keyboard.actionPressed('helm') && !this.interaction?.steering) || !!pad?.pressed[PAD.a];
+    const toggle = (this.keyboard.actionPressed('helm') && !this.interaction?.steering && !this.twinLeverKeys()) || !!pad?.pressed[PAD.a];
     if (toggle && near && v) {
       this.atHelm = !this.atHelm;
       this.helmCam.reset();
@@ -5092,8 +5228,9 @@ export class App {
     });
     this.scene.add(this.planTable.root);
     this.interaction?.addControls(this.planTable.controls);
-    this.shipyardDoor = new ShipyardDoor(this.menuHost());
-    this.scene.add(this.shipyardDoor.menu.rayLine);
+    this.shipyardDoor = ShipyardDoor.shipyard(this.menuHost());
+    this.boatsBoard = ShipyardDoor.boats(this.menuHost());
+    this.scene.add(this.shipyardDoor.menu.rayLine, this.boatsBoard.menu.rayLine);
   }
 
   /**
@@ -5111,6 +5248,7 @@ export class App {
     }
     if (this.planTable && this.focus.distanceTo(this.planTable.root.position) < 250) this.planTable.update(this.world);
     if (this.planTable && this.shipyardDoor) this.shipyardDoor.update(this.planTable.root, this.focus);
+    if (this.planTable && this.boatsBoard) this.boatsBoard.update(this.planTable.root, this.focus);
     if (plan?.note && plan.note.t !== this.planNoteT) {
       if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);
       this.planNoteT = plan.note.t;
@@ -5133,9 +5271,10 @@ export class App {
     this.rememberT = 0;
     const v = this.world.vessels[this.testVesselId];
     if (v) rememberPlace(VOYAGE_MAP_ID, placeOf(this.world, v, this.localPlayerId));
-    // The timber run's barges (voyage/timber.ts). Not the money: Voyage's money is this session's only.
+    // The timber run's logs on the beach and barges (voyage/timber.ts). Not the money: Voyage's money is this session's only.
     try {
       localStorage.setItem(bargesKey(VOYAGE_MAP_ID), JSON.stringify(bargesToSave(this.world, this.testVesselId, headingOf)));
+      localStorage.setItem(timberLogsKey(VOYAGE_MAP_ID), JSON.stringify(timberLogsToSave(this.world)));
     } catch {
       // Not saved.
     }
@@ -5153,8 +5292,8 @@ export class App {
   }
 
   /**
-   * Voyage: the timber run set up (voyage/timber.ts). The barges saved for this map
-   * back, and if we're back from the camp with a barge, it at the site's spawn on our line;
+   * Voyage: the timber run set up (voyage/timber.ts). The logs and barges saved for this map
+   * back, and if we're back from the camp with logs, they're laid on the site's beach;
    * the bay's buoy and the merchant on the chart; the screen faded in if we came back.
    */
   private setupTimber(back: Envelope | null): void {
@@ -5171,15 +5310,20 @@ export class App {
     if (back) setTimeout(() => (this.fade.style.opacity = '0'), 400);
     const v = this.world.vessels[this.testVesselId];
     try {
-      if (!START_PARAMS.has('start')) restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
+      if (!START_PARAMS.has('start')) {
+        restoreBarges(this.world, parseBarges(localStorage.getItem(bargesKey(VOYAGE_MAP_ID))), v);
+        restoreTimberLogs(this.world, parseTimberLogs(localStorage.getItem(timberLogsKey(VOYAGE_MAP_ID))));
+      }
     } catch {
       // Storage blocked: none.
     }
     const site = back && this.timberSites.find((s) => s.id === back.site);
     if (back && site && v) {
-      if (back.status === 'barge_ready' && back.cargo.logs > 0 && bargeFromCamp(this.world, site, v, back.cargo.logs)) {
+      // `barge_ready` (the contract's first name for it): logs to collect, laid on the beach.
+      const laid = back.status === 'barge_ready' && back.cargo.logs > 0 ? logsFromCamp(this.world, site, back.cargo.logs) : 0;
+      if (laid) {
         const m = merchantsOn(VOYAGE_MAP_ID)[0];
-        this.timberNote = `Back aboard from the timber camp: a barge of ${back.cargo.logs} logs on your towline.${m ? ` Tow her to ${m.name} to sell.` : ''}`;
+        this.timberNote = `Back aboard from the timber camp: ${laid} ${laid === 1 ? 'log' : 'logs'} on the beach at the head of the bay (LOG on the plotter). Put a line on one, pull it off and tow it${m ? ` to ${m.name}` : ''} to sell.`;
       } else this.timberNote = 'Back aboard from the timber camp.';
       this.rememberT = Infinity;
       this.rememberVoyagePlace(0);
@@ -5311,8 +5455,9 @@ export class App {
   /** The world's fixed boards worked like the menu: the boatyards' and the Shipyard signs (Voyage's one, the career's at every harbour). */
   private boardMenus(): WristMenu[] {
     // One list, kept (asked for several times a frame), made again only if the boards change.
-    const n = this.yardBoards.length + this.shipyardSigns.length + (this.shipyardDoor ? 1 : 0);
-    if (this.boardMenuList.length !== n) this.boardMenuList = [...this.yardBoards.map((b) => b.menu), ...this.shipyardSigns.map((s) => s.menu), ...(this.shipyardDoor ? [this.shipyardDoor.menu] : [])];
+    const solo = [this.shipyardDoor, this.boatsBoard].filter((b): b is ShipyardDoor => !!b);
+    const n = this.yardBoards.length + this.shipyardSigns.length + solo.length;
+    if (this.boardMenuList.length !== n) this.boardMenuList = [...this.yardBoards.map((b) => b.menu), ...this.shipyardSigns.map((s) => s.menu), ...solo.map((s) => s.menu)];
     return this.boardMenuList;
   }
   private boardMenuList: WristMenu[] = [];
