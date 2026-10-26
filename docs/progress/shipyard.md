@@ -10,6 +10,10 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The dive A-frame and its submersible on any boat big enough
+
+Owner: a dive support vessel for the submersible game, the A-frame and sub "placeable on any boat that's big enough". New design field `diveFrame` (link or file only, not in the code); Deck gear → a new **Diving** group (`gearMenu.ts`, `pinGear.ts`, fitted at the transom). `parts/diveFrame.ts` (new) says where it stands or why not: stern wide enough, about 7.9 m of clear level deck aft of the house, the sub (10 t) no more than a fifth of her weight, GM 0.5 m with the sub lifted, 0.3 m freeboard at the transom with her hung out (trim from her own waterplane), legs lengthened for a high bulwark. As they come, only the stern trawler passes. `parts/deckGear.ts` places it first: it takes the transom (the trawl A-frame, net drum, trawl winches and stern roller left off, with a warning) and its cradle is kept clear of other gear. The frame and the sub are designed into her weights (`parts/weights.ts`, `parts/hullDef.ts` lightship, as the crane is), with the hydraulic pump (`parts/engineRoom.ts`, `parts/recipe.ts`) and the price (£260,000). Settings `CONFIG.shipyard.diveFrame`, `deckGear.price.diveFrame`. Tests: `tests/diveFrame.test.ts`; the menu, pin and code tests updated. Details in docs/progress/modules.md.
+
 ### (From the modular-builder chat) Twin stern drives get the twin lever control
 
 `parts/recipe.ts`: two stern-drive legs are worked separately too (the outboard module's `split`), with the twin lever control and START P / START S, as twin shafts. Twin outboards keep one lever. See `docs/progress/modules.md`.

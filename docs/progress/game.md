@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) A dive support vessel: the dive A-frame and the submersible
+
+The new module `deck.dive-frame` (docs/progress/modules.md): an A-frame over the stern that hoists the submersible game's sub off her cradle, swings her out and lowers her until she floats. Shared changes here:
+- `core/simulation.ts`: the sub's weight moved from her cradle as a payload (`modules/diveFrame/onBoat.ts` `diveSubPayload`).
+- `modular/busKeys.ts`, `vessel/vesselState.ts`: four hold-to-run keys, `dive.frameOut`, `dive.frameIn`, `dive.winchUp`, `dive.winchDown` (only on a boat with the frame, so the goldens are unchanged).
+- `boats/library.ts`, `boats/fleet.ts`, `vessel/vesselDef.ts` (`VESSEL_IDS`): a new fleet boat, `diveShip`, the **Dive support vessel** (in the boat lists).
+- `app/App.ts` `hydraulicsHint`: says why the frame or the winch holds (no pressure; the sub not in the docking head; the frame not right in or out).
+- For the dive itself (stage 4, not built): the submersible game reads plain address fields (`?site=…&depth=…&sub=…&return=…`, its `src/core/handoff.ts`), not the coded `mv` envelope in `docs/dive-contract.md`.
+
 ### (From the modular-builder chat) Twin engines heard one each
 
 `audio/engineAudio.ts` `EngineAudio.update`: a twin's second engine sound now follows the starboard engine (`EngineState.stbd`) when the engines are worked separately, not the port engine's (its start and throttle were silent). `app/App.ts` `updateBoatVoices`: other players' split twins heard by the harder-working engine (still one voice). Test `tests/twinEngineSound.test.ts`.

@@ -231,6 +231,50 @@ export const MODULES_CONFIG = {
     trawlWinches: { drumRadius: 0.12, drumWidth: 0.3, flange: 0.22, fullRadius: 0.2, axleHeight: 0.38, base: { width: 0.55, length: 0.5 }, turns: 30, colours: { frame: 0x2f6aa8, warp: 0x22262a, motor: 0x30343a } },
 
     /**
+     * deck.dive-frame (modules/diveFrame; owner, Oct 2026: a dive support ship launching a
+     * small submersible off her stern, for the submersible game): a heavy A-frame over the
+     * transom (a launch and recovery system), an umbilical winch on its crosshead, a docking
+     * head under it that grips the submersible's lift point, and her cradle on deck forward of it.
+     *   legLength      the frame's legs, foot pin to crosshead (m)
+     *   footFromTransom, footInset  where its feet are pinned: forward of the transom, in from her side (m)
+     *   deckClear      the sub's tail this far forward of the transom on her cradle (m)
+     *   overClear      swung out, her bow this far aft of the transom (m): clear to lower
+     *   luffRateDeg    how fast the rams swing it (deg/s; about 20 s right across)
+     *   wireRate       how fast the winch hoists and lowers (m/s)
+     *   slack          how much more umbilical it pays out once she rests (on her cradle, or afloat) (m)
+     *   dockTol        the wire out no more than this (m): she's in the docking head, and the frame may swing
+     *   headDrop       the docking head below the crosshead (m)
+     *   frameKg        the frame, rams, winch and head (her lightship; the sub is a payload)
+     *   ram            the rams' deck lugs `forward` of the feet, pinned to the legs `at` of the way up
+     *   stand          the control stand, by the starboard foot: `forward` of it and `inboard`, its top `height` over the deck
+     *   cradle         her deck cradle's height (m)
+     *   sub            the submersible (drawn as the submersible game draws her, src/sub/exterior.ts
+     *                  there): `massKg` (a 10 t three-person work sub, as hers); her lift point
+     *                  `lift` above her axis and `liftZ` aft along it; her skids' undersides
+     *                  `bottom` below her axis; her bow `front` forward of the lift point and her
+     *                  tail `aft` aft of it; `halfWidth` her widest (the thruster ducts); afloat,
+     *                  her axis `floatAxis` under the water (her top fairing just out of it)
+     */
+    diveFrame: {
+      legLength: 6.5,
+      footFromTransom: 0.6,
+      footInset: 0.25,
+      deckClear: 0.3,
+      overClear: 0.4,
+      luffRateDeg: 4,
+      wireRate: 0.35,
+      slack: 1.5,
+      dockTol: 0.02,
+      headDrop: 0.45,
+      frameKg: 6500,
+      ram: { forward: 1.1, at: 0.38 },
+      stand: { forward: 0.6, inboard: 0.55, height: 1.05 },
+      cradle: { height: 0.35 },
+      sub: { massKg: 10_000, lift: 1.6, liftZ: 0.5, bottom: 1.46, front: 3.5, aft: 3.9, halfWidth: 1.45, floatAxis: -0.9 },
+      colours: { frame: 0xe8e8e2, head: 0x30343a, ram: 0xc8ccd0, cradle: 0x30343a, umbilical: 0xe0a020 },
+    },
+
+    /**
      * deck.crane (modules/deckCrane): a placeable hydraulic deck crane for cargo (owner),
      * independent of the skiff's crane. A column that slews on a plinth, a boom that luffs
      * from its head, a wire and hook hanging from the boom's tip. Worked from a control post

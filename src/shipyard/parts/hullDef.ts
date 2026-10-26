@@ -8,6 +8,7 @@ import { halfSection } from '../machinery';
 import { CONFIG } from '../../config';
 import type { HullDefinition } from '../../modular/hull';
 import { lightshipOf } from '../../modular/massProperties';
+import { cradleAxis } from '../../modules/diveFrame';
 import type { Socket } from '../../modular/socket';
 import { displacementResistance } from '../../vessel/displacementHull';
 import { BREAKERS } from '../../vessel/vesselState';
@@ -128,6 +129,13 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
       // floats on her lines and upright with it (her hull and ballast lighter by its weight,
       // and trimmed against it: a crane at the starboard edge, her ballast a little to port).
       ...(craneAt ? [{ massKg: cr.massKg, at: [craneAt[0], craneAt[1] + cr.columnHeight / 2, craneAt[2]] as V3 }] : []),
+      // The dive A-frame and its sub on her cradle (modules/diveFrame weighs them itself), the same way.
+      ...(p.diveFrame
+        ? [
+            { massKg: CONFIG.modules.diveFrame.frameKg, at: [0, p.diveFrame.place.deck + p.diveFrame.legLength / 2, p.diveFrame.place.transom - CONFIG.modules.diveFrame.footFromTransom] as V3 },
+            { massKg: CONFIG.modules.diveFrame.sub.massKg, at: cradleAxis({ ...CONFIG.modules.diveFrame, legLength: p.diveFrame.legLength, at: p.diveFrame.place }) },
+          ]
+        : []),
     ]),
     // (A catamaran: her roll added inertia and her resistance are two slim hulls': trim.ts `cat`.)
     addedMass: p.cat ? { ...lc.addedMass, roll: Math.round(p.cat.addedRoll * 1000) / 1000 } : lc.addedMass,

@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { FLEET, FLEET_IDS } from '../boats/fleet';
+import { diveGeometry } from '../modules/diveFrame';
+import { diveFrameOf, diveFrameState, diveSubDocked } from '../modules/diveFrame/onBoat';
 import { CONFIG } from '../config';
 import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
@@ -2437,9 +2439,21 @@ export class App {
    * (the crane, the tow winch and the net drum need the engine running and DECK HYD on).
    */
   private hydraulicsHint(channel: string): void {
-    const machine = channel === 'crane' ? 'The crane' : ['winchHeave', 'winchPayOut', 'winch.heaveIn', 'winch.payOut'].includes(channel) ? 'The tow winch' : ['netOut', 'netIn', 'net.payOut', 'net.haul'].includes(channel) || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
+    const machine = channel.startsWith('dive.') ? 'The dive A-frame' : channel === 'crane' ? 'The crane' : ['winchHeave', 'winchPayOut', 'winch.heaveIn', 'winch.payOut'].includes(channel) ? 'The tow winch' : ['netOut', 'netIn', 'net.payOut', 'net.haul'].includes(channel) || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
     const v = this.world.vessels[this.testVesselId];
-    if (!machine || !v || hydraulicsOn(v)) return;
+    if (!machine || !v) return;
+    // The dive A-frame's interlocks (modules/diveFrame): say why it holds.
+    if (hydraulicsOn(v) && channel.startsWith('dive.')) {
+      const f = diveFrameOf(v);
+      const s = diveFrameState(v);
+      if (!f || !s) return;
+      const g = diveGeometry(f.config);
+      const atEnd = s.luff <= g.inDeg + 0.3 || s.luff >= g.outDeg - 0.3;
+      if ((channel === 'dive.frameOut' || channel === 'dive.frameIn') && !diveSubDocked(v)) this.overlay.notify('The frame only swings with the sub up in the docking head: WINCH UP first', 3);
+      else if (channel === 'dive.winchDown' && !atEnd) this.overlay.notify('The winch only lowers with the frame right in (onto her cradle) or right out (into the sea)', 3);
+      return;
+    }
+    if (hydraulicsOn(v)) return;
     const why = v.engine.phase !== 'running' ? 'start the engine' : 'switch the DECK HYD breaker on';
     this.overlay.notify(`${machine} is hydraulic: ${why} (DECK HYD breaker by the helm)`, 3);
   }

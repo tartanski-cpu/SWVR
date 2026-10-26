@@ -216,6 +216,12 @@ function craneKey(spec: BusKeySpec, unset?: { field: keyof VesselControls; value
     },
   };
 }
+/** A dive A-frame key (modules/diveFrame): there only on a boat with one. */
+const hasDiveFrame = (s: VesselState) => !!s.modules && Object.values(s.modules).some((e) => e.id === 'deck.dive-frame');
+function diveKey(spec: BusKeySpec): BusKeySpec {
+  const get = spec.bind.get;
+  return { ...spec, bind: { ...spec.bind, get: (s) => (hasDiveFrame(s) ? get(s) : undefined) } };
+}
 const mon = CONFIG.vessels.workboat.fireMonitor;
 
 export const BUS_KEYS = {
@@ -414,6 +420,11 @@ export const BUS_KEYS = {
   'trawl.warpOut': state('number', (s) => s.trawlGear?.warp ?? 0, "How far the trawl's warps are paid out, 0 (in) .. 1 (fishing): what the trawl winches' drums show (fishing.ts).", { unit: '0..1' }),
   'trawl.netOnDrum': state('number', (s) => s.trawlGear?.net ?? 1, 'How much of the trawl net is wound on its drum, 0 .. 1 (all of it, stowed): what the net drum shows (fishing.ts).', { unit: '0..1' }),
   'aFrame.luff': state('number', (s) => s.aFrameLuff ?? 0, 'How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts).', { unit: '0..1' }),
+  // The dive A-frame (modules/diveFrame): its stand's hold-to-run buttons.
+  'dive.frameOut': diveKey(control('diveOut', 'Dive A-frame FRAME OUT button held: swings the sub out over the stern (only with her up in the docking head).', { writer: 'module' })),
+  'dive.frameIn': diveKey(control('diveIn', 'Dive A-frame FRAME IN button held: swings the sub in over her cradle (only with her up in the docking head).', { writer: 'module' })),
+  'dive.winchUp': diveKey(control('diveUp', 'Dive A-frame WINCH UP button held: hoists the sub into the docking head.', { writer: 'module' })),
+  'dive.winchDown': diveKey(control('diveDown', 'Dive A-frame WINCH DOWN button held: lowers the sub onto her cradle, or into the sea with the frame right out.', { writer: 'module' })),
   'firePump.on': control('firePump', 'FIRE PUMP switch.', { aliases: ['firePump'] }),
   'monitor.pan': setting('monPan', [-mon.panLimitDeg, mon.panLimitDeg], 'deg', 'Fire monitor pan, + to starboard.', { hold: 'monPan', aliases: ['monPan'] }),
   'monitor.tilt': setting('monTilt', [mon.tiltMinDeg, mon.tiltMaxDeg], 'deg', 'Fire monitor elevation.', { hold: 'monPan', aliases: ['monTilt'], default: 20 }),

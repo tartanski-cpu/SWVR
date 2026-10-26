@@ -384,8 +384,19 @@ export const SHIPYARD_CONFIG = {
        * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
        */
       midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000, diveFrame: 260_000 },
     },
+    /**
+     * The dive A-frame and its sub (design.diveFrame; parts/diveFrame.ts; modules/diveFrame):
+     * what she must have for it (owner: "placeable on any boat that's big enough"). Its legs
+     * `legClear` m clear of the sub each side; legs from the module's `legLength` up to `maxLeg`
+     * m if her bulwark needs them, the sub's skids `bulwarkClear` m over the transom's bulwark
+     * as she swings out; the sub no more than `maxShare` of her weight, and her GM at least
+     * `minGM` m with the sub hanging at the docking head; with her hung out over the stern, at least `minFreeboard` m of
+     * freeboard left at the transom (her sinkage and trim from her own waterplane). Its price
+     * (deckGear.price.diveFrame) is the frame and the sub together.
+     */
+    diveFrame: { legClear: 0.15, maxLeg: 9, bulwarkClear: 0.15, minFreeboard: 0.3, maxShare: 0.2, minGM: 0.5 },
     /**
      * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and
      * top weigh `kgPerM2` (welded aluminium plate and stiffening) and cost `pricePerM2`

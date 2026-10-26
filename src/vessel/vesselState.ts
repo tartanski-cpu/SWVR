@@ -100,6 +100,14 @@ export interface VesselControls {
   craneHook?: number;
   netOut?: number;
   netIn?: number;
+  /**
+   * The dive A-frame's hold-to-run buttons (modules/diveFrame), 1 while held: FRAME OUT / IN
+   * and WINCH UP / DOWN. Unset on a boat without one.
+   */
+  diveOut?: number;
+  diveIn?: number;
+  diveUp?: number;
+  diveDown?: number;
   /** RELEASE on the A-frame's box pressed (1 until the fishing tick has emptied the codend: fishing.ts clears it). */
   netRelease?: number;
   /**
