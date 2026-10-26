@@ -6,7 +6,7 @@ import { createWorld } from '../src/core/world';
 import { ClientSession } from '../src/net/clientSession';
 import { HostSession } from '../src/net/hostSession';
 import type { PlayerPose } from '../src/net/protocol';
-import { LoopbackHost } from '../src/net/transport';
+import { LoopbackHost, plainNetError } from '../src/net/transport';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -187,5 +187,15 @@ describe('multiplayer (loopback)', () => {
     expect(world.players['player-2']).toBeDefined();
     client.close();
     expect(world.players['player-2']).toBeUndefined();
+  });
+});
+
+describe('plain error words (multiplayer study #20)', () => {
+  it('says what went wrong in plain words, and keeps the words the game acts on', () => {
+    expect(plainNetError('peer-unavailable')).toBe('No game with that code');
+    expect(plainNetError('server-error')).toMatch(/game finder/);
+    expect(plainNetError('network')).toMatch(/game finder/);
+    expect(plainNetError('Negotiation of connection to swvr-room-12345 failed.')).toMatch(/Wi-Fi or a phone hotspot/);
+    expect(plainNetError('The host left')).toBe('The host left');
   });
 });

@@ -236,6 +236,11 @@ export class MenuPanel {
     return false;
   }
 
+  /** The tab shown now (its name). */
+  get pageName(): string {
+    return this.pages[this.page]?.name ?? '';
+  }
+
   /** Switch to the named tab, and section (for code and tests; players press the tabs). */
   showPage(name: string, section?: string): void {
     const i = this.pages.findIndex((p) => p.name === name);

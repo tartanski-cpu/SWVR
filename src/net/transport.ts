@@ -9,6 +9,21 @@ import { CONFIG } from '../config';
 /** The game finder's errors that are only its own connection's (the players' links carry on). */
 const FINDER_ERRORS = ['network', 'server-error', 'socket-error', 'socket-closed', 'disconnected'];
 
+/**
+ * The game finder's and the browser's error words in plain sentences (multiplayer study #20:
+ * the menu said "server-error", "network" or "Negotiation of connection to swvr-room-... failed").
+ * The words the game itself acts on ('No game with that code', 'The host left') pass as they are.
+ */
+export function plainNetError(raw: string): string {
+  if (raw === 'peer-unavailable') return 'No game with that code';
+  if (FINDER_ERRORS.includes(raw) || /network|server|socket/i.test(raw)) return "Can't reach the game finder: check the internet and try again in a minute";
+  if (raw === 'unavailable-id') return 'That game code is in use';
+  if (raw === 'browser-incompatible') return "This browser can't make game links: try another (Chrome, Edge, the Quest's)";
+  if (/negotiation|webrtc|ice/i.test(raw)) return 'Found the host, but your networks block a direct link: try home Wi-Fi or a phone hotspot';
+  if (/^[a-z-]+$/.test(raw)) return `Couldn't connect to the game (${raw})`;
+  return raw;
+}
+
 export interface Link {
   readonly id: string;
   send(msg: unknown): void;
@@ -116,26 +131,32 @@ export class PeerClientTransport implements ClientTransport {
   onClose: (reason: string) => void = () => {};
   readonly peer: Peer;
   private conn: DataConnection | null = null;
+  /** How far the join has got (multiplayer study #8): reaching the game finder, looking for the host, linked (the world coming). */
+  stage: 'finding' | 'linking' | 'loading' = 'finding';
 
   constructor(code: string, peerId = peerIdForRoom(code)) {
     this.peer = new Peer();
     this.peer.on('open', () => {
+      this.stage = 'linking';
       // Binary (the default, binarypack): it cuts a message into 16 KB pieces and joins them
       // again. The 'json' channel sends each message whole and throws it away past 16 KB
       // (owner, Oct 2026: a host with a career, potting and the regions in her world sent a
       // welcome over that, and nobody could join; the crew sat at "connecting" with no error).
       const conn = this.peer.connect(peerId, { reliable: true, serialization: 'binary' });
       this.conn = conn;
-      conn.on('open', () => this.onOpen());
+      conn.on('open', () => {
+        this.stage = 'loading';
+        this.onOpen();
+      });
       conn.on('data', (d) => this.onMessage(d));
       conn.on('close', () => this.onClose('The host left'));
-      conn.on('error', (e) => this.onClose(String(e)));
+      conn.on('error', (e) => this.onClose(plainNetError(String(e))));
     });
     // In the game (the link to the host open), the game finder's own trouble is ignored and
     // its connection quietly made again: the game goes on over the link (multiplayer study #9).
     this.peer.on('error', (e) => {
       if (this.conn?.open && FINDER_ERRORS.includes(e.type)) return this.refind();
-      this.onClose(e.type === 'peer-unavailable' ? 'No game with that code' : e.type === 'network' ? 'Lost the connection to the game' : String(e.type ?? e));
+      this.onClose(plainNetError(String(e.type ?? e)));
     });
     this.peer.on('disconnected', () => {
       if (this.conn?.open) this.refind();

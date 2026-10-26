@@ -59,7 +59,7 @@ export interface PlayerPose {
 }
 
 /** `bye`: the crew-mate's page is leaving (Leave game, closed, reloaded): the host drops them at once, not waiting to notice. */
-export type ClientMessage = { t: 'hello'; name: string; build?: string; clientId?: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp } | { t: 'bye' };
+export type ClientMessage = { t: 'hello'; name: string; build?: string; clientId?: string; site?: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp } | { t: 'bye' };
 
 /**
  * The host's page is starting again in another boat (Debug > Start in, a Shipyard design, a

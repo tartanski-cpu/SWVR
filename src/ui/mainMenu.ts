@@ -307,6 +307,9 @@ export interface MenuHost {
   leaveGame(): void;
   /** The world on this page is a friend's (left their game, or they were lost): Back to your own game shows. */
   borrowed(): boolean;
+  /** Trying to get into a game, or waiting to try again: Stop waiting gives up. */
+  waiting(): boolean;
+  stopWaiting(): void;
   /** Office > Your boats (shipyard/takeHer.ts): the favourites' page and the code being typed. */
   shipyardCodes(): ShipyardCodes;
   /** Restart the game in a Shipyard boat by her code; or back in the game's start boat (the beginner boat). */
@@ -631,6 +634,8 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
     // Still in a friend's world with nobody else (multiplayer study #11): the way home.
     { label: '', buttons: [{ text: () => (solo() && h.borrowed() ? 'Back to your own game' : ''), press: () => h.leaveGame() }] },
+    // A join that's waiting (a game link, the host away, Try her together): give up (study #23).
+    { label: '', buttons: [{ text: () => (h.waiting() ? 'Stop waiting' : ''), press: () => h.stopWaiting() }] },
     {
       label: 'Or join: code',
       buttons: [

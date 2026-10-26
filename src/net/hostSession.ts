@@ -100,7 +100,9 @@ export class HostSession {
       } else placeAshore(p);
       p.peerId = link.id; // for voice (net/voice.ts): who to call
       const ours = this.world.build?.app;
-      if (msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
+      // (A crew page from another address, the live game and /next/, is sent to ours instead: App.)
+      const sameSite = !msg.site || !this.world.build?.site || msg.site === this.world.build.site;
+      if (sameSite && msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
       this.world.players[playerId] = p;
       this.peers.set(link.id, { link, playerId, heardAt: this.now(), ...(cid ? { clientId: cid } : {}) });
       this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });

@@ -44,9 +44,11 @@ export class ClientSession {
     build?: string,
     /** This browser tab's own id: joining again, it replaces its old self on the host. */
     clientId?: string,
+    /** This page's address (its folder: /SWVR/ or /SWVR/next/): another one's build is no reason for the host to update. */
+    site?: string,
   ) {
     this.heardAt = now();
-    transport.onOpen = () => transport.send({ t: 'hello', name, ...(build ? { build } : {}), ...(clientId ? { clientId } : {}) });
+    transport.onOpen = () => transport.send({ t: 'hello', name, ...(build ? { build } : {}), ...(clientId ? { clientId } : {}), ...(site ? { site } : {}) });
     transport.onMessage = (m) => this.receive(m as HostMessage);
     transport.onClose = (reason) => {
       if (this.status === 'closed') return;
