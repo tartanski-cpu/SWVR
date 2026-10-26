@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FLEET, FLEET_IDS } from '../boats/fleet';
 import { diveGeometry } from '../modules/diveFrame';
 import { diveFrameOf, diveFrameState, diveSubDocked } from '../modules/diveFrame/onBoat';
+import { diveReady, diveUrl } from '../modules/diveFrame/launch';
 import { CONFIG } from '../config';
 import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
@@ -33,6 +34,7 @@ import { fetchLiveWeather } from '../world/coastWeather';
 import { liveWeatherText } from '../voyage/liveWeather';
 import { setShortSeasOff, updateWindSea, windSeaText } from '../ocean/windSea';
 import { voyageMap } from '../world/maps';
+import { takeWorld } from '../net/takeWorld';
 import { gustZone } from '../environment/gusts';
 import { RainView } from '../environment/rainView';
 import { ChartTableView } from '../vessel/view/chartTable';
@@ -130,7 +132,7 @@ import { LogView } from '../salvage/logView';
 import { CareerSession, forgetCareerDesign, savedCareer } from './careerSession';
 import { cranePosts, REMOTE_CODES, REMOTE_REACH, remoteInput, type CranePost } from './craneRemote';
 import { equipmentWithout, KIT_BOATS, money, socketsWithout, spend, yardAt } from '../career/career';
-import { backUrl, isSeaTrial, refitCost, refitReturn, shipyardUrl } from './shipyardTrip';
+import { backUrl, isSeaTrial, isTryOut, refitCost, refitReturn, shipyardUrl } from './shipyardTrip';
 import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
@@ -182,7 +184,7 @@ import { HostSession } from '../net/hostSession';
 import { ClientSession } from '../net/clientSession';
 import type { RestartNotice } from '../net/protocol';
 import { electedHost } from '../net/takeover';
-import { PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
+import { plainNetError, PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
 import type Peer from 'peerjs';
 import { VoiceChat, type VoiceSpeaker } from '../net/voice';
 import { canShowTab, TvCast } from '../modules/furniture/tvCast';
@@ -194,6 +196,8 @@ import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
 import { fuelTankL } from '../vessel/fuelTank';
+import { applyDiveReturn, consumeDiveReturn, foundNames, takeDiveReturn, type DiveReturn } from '../dive/diveReturn';
+import { siteLabel } from '../dive/diveSites';
 import { consumeReturn, issueId, newHandoffId, outboundUrl, takeEnvelope, type Envelope, type MetaverseSite } from '../voyage/metaverse';
 import { bargesKey, bargesToSave, HotspotWatch, logsFromCamp, merchantsOn, parseBarges, parseTimberLogs, positionFor, restoreBarges, restoreTimberLogs, saleOffer, saleText, sellBarge, sitesOn, hotspotAt, timberLogsKey, timberLogsToSave } from '../voyage/timber';
 import { TimberView } from '../voyage/timberView';
@@ -270,6 +274,8 @@ let startDesignCode: string | null = null;
  * a paid refit coming back). Nothing is saved; after the trial's time she's back in her own boat.
  */
 let seaTrial = false;
+/** A try-out together (shipyardTrip.ts isTryOut): no clock, nothing saved. */
+let tryOut = false;
 
 function startBoat(): string | undefined {
   // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts); else, in the
@@ -278,6 +284,7 @@ function startBoat(): string | undefined {
   const careerDesign = MODE === 'career' && !params.has('design') && !params.has('boat') && !params.has('join') ? (savedCareer()?.design ?? null) : null;
   const code = params.get('design') ?? careerDesign;
   seaTrial = isSeaTrial(MODE, location.search, savedCareer()?.design);
+  tryOut = isTryOut(MODE, location.search, savedCareer()?.design);
   if (code) {
     // Her own vessel type, keyed by her token (multi-boat M1: boats/library.ts boatType).
     const id = boatType(code);
@@ -289,7 +296,7 @@ function startBoat(): string | undefined {
     const error = 'error' in read ? read.error : "the Shipyard can't build her";
     console.warn(`Shipyard code ${code.slice(0, 40)}: ${error}`);
     designCodeError = error;
-    seaTrial = false; // she isn't there: no trial
+    seaTrial = tryOut = false; // she isn't there: no trial
     // The career's own refit won't build: forget it, so the career loads (in the beginner boat).
     if (careerDesign) {
       forgetCareerDesign();
@@ -346,6 +353,22 @@ function tabHosts(code: string): boolean {
     return false;
   }
 }
+/**
+ * The host's world kept over its own reload (multiplayer study #29: a reload, or catching up
+ * with a newer build, started the game again from the career's last save, and every crew
+ * boat, tow and load out there was gone): written as the page goes, read back within
+ * CONFIG.net.hostWorldKeepS when it hosts the same code again. In this tab only.
+ */
+const HOST_WORLD_KEY = 'swvr.hostWorld';
+interface KeptHostWorld {
+  code: string;
+  t: number;
+  /** Our own player in it. */
+  me: EntityId;
+  /** A friend's career, hosted on (takeOver): still not saved here. */
+  borrowed: boolean;
+  world: WorldState;
+}
 function rememberHosting(code: string | null): void {
   try {
     if (code) sessionStorage.setItem(HOSTING_KEY, code);
@@ -354,12 +377,73 @@ function rememberHosting(code: string | null): void {
     // No storage: a reload of the host's tab joins its own old code instead (and finds nothing).
   }
 }
+/**
+ * This browser tab's id for multiplayer (kept across its reloads, not shared with another
+ * tab): sent with each join, so the host replaces the tab's old self (a reload, a dropped
+ * link) instead of keeping a frozen copy (multiplayer study #1).
+ */
+function tabClientId(): string {
+  try {
+    let id = sessionStorage.getItem('swvr.netClientId');
+    if (!id) sessionStorage.setItem('swvr.netClientId', (id = Math.random().toString(36).slice(2, 12)));
+    return id;
+  } catch {
+    return '';
+  }
+}
 /** A camera held flipped (player/cameraHold.ts `back`): a half turn about the hand's up, so it faces the holder. */
 const FLIPPED = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 /** The grab camera in a VR hand: tilted forward from the grip's axis (CONFIG.camera.holdPitchDeg). */
 const HOLD_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (CONFIG.camera.holdPitchDeg * Math.PI) / 180);
 
 /** The game code on the address (shareable), or none. */
+/**
+ * Our own page, before joining took us anywhere (multiplayer study #22, #26): a join can reload
+ * this tab into the host's map, mode or boat, and Leave game came back to theirs (on Oban
+ * instead of your own map, or in the host's Shipyard boat as a "sea trial" of your career).
+ * Kept in the tab when a join starts; Leave game goes back to it. A page opened as itself
+ * (no join on its address) forgets it.
+ */
+const OWN_PAGE_KEY = 'swvr.ownPage';
+/** The keys that type a game code on the Crew tab (App typeCodeKeys): their usual jobs wait. */
+const CODE_KEYS = [...Array.from({ length: 10 }, (_, d) => [`Digit${d}`, `Numpad${d}`]).flat(), 'Backspace', 'Enter', 'NumpadEnter'];
+/** This page's address, its folder (/SWVR/ the game, /SWVR/next/ the test build, a preview's). */
+const SITE = location.pathname.replace(/[^/]*$/, '');
+/** Parameters that belong to a game joined or hosted, never to your own page. */
+const GAME_PARAMS = ['join', 'host', 'together', 'game', 'fresh', 't', 'refitFrom', 'mv'];
+function rememberOwnPage(): void {
+  try {
+    if (sessionStorage.getItem(OWN_PAGE_KEY)) return;
+    const url = new URL(location.href);
+    for (const k of GAME_PARAMS) url.searchParams.delete(k);
+    sessionStorage.setItem(OWN_PAGE_KEY, url.toString());
+  } catch {
+    // No storage: Leave game falls back to this page without the game's parameters.
+  }
+}
+/** Where Leave game goes: our own page as it was, else this one without the game's parameters (and, if it followed a host, their boat). */
+function ownPageUrl(): URL {
+  try {
+    const kept = sessionStorage.getItem(OWN_PAGE_KEY);
+    sessionStorage.removeItem(OWN_PAGE_KEY);
+    if (kept) return new URL(kept);
+  } catch {
+    // Not kept.
+  }
+  const url = new URL(location.href);
+  const followed = START_PARAMS.has('join') || START_PARAMS.has('together');
+  for (const k of [...GAME_PARAMS, ...(followed ? ['design', 'boat', 'fit'] : [])]) url.searchParams.delete(k);
+  return url;
+}
+// This page opened as itself: any page kept from an earlier join in this tab is stale.
+if (!['join', 'together', 'host', 'game'].some((k) => START_PARAMS.has(k))) {
+  try {
+    sessionStorage.removeItem(OWN_PAGE_KEY);
+  } catch {
+    // No storage.
+  }
+}
+
 function showGameOnAddress(code: string | null): void {
   const url = new URL(location.href);
   if (code) url.searchParams.set('game', code);
@@ -444,6 +528,8 @@ export class App {
   private timberView: TimberView | null = null;
   private saleShown: string | null = null;
   private leavingForCamp = false;
+  /** Gone to the submersible game (the dive A-frame's DIVE): leaving, so not twice. */
+  private leavingForDive = false;
   /** On the way to the Shipyard (app/shipyardTrip.ts): the page is about to change. */
   private leavingForShipyard = false;
   private readonly timberPrompt = new HelmPrompt(118);
@@ -775,10 +861,14 @@ export class App {
     // Sent to crew with the boat, so a crew-mate on an older page knows (not part of her build).
     this.world.build.app = APP_BUILD;
     if (VOYAGE_MAP_ID) this.world.build.map = VOYAGE_MAP_ID;
+    this.world.build.mode = MODE;
+    this.world.build.site = SITE;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
     this.startVesselId = created.vesselId;
+    // Back from a dive (dive/diveReturn.ts)? Its envelope off the address before Timber's look.
+    const diveBack = this.takeDiveBack();
     // Back from the timber camp? The envelope off the address first, then her place, then the barge.
     const handoff = MODE === 'voyage' ? this.takeHandoff() : null;
     this.restoreVoyagePlace();
@@ -844,6 +934,8 @@ export class App {
     this.scene.add(this.handGearView.root, this.camPreview.screen, this.rodView.root, this.lineGunView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
+    // After the career is back (setupBridge), so the dive's pay goes into it.
+    if (diveBack) this.landDive(diveBack);
 
     setupXR(this.renderer, this.camera);
     window.addEventListener('resize', () => this.onResize());
@@ -859,6 +951,13 @@ export class App {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       const text = e.clipboardData?.getData('text') ?? '';
+      // On the Crew tab, a game code or a game link (…?game=12345) fills the join box (study #34).
+      const game = this.typingCode() ? (/[?&]game=(\d{5})/.exec(text)?.[1] ?? /^\s*(\d{5})\s*$/.exec(text)?.[1]) : undefined;
+      if (game) {
+        this.joinCode = game;
+        this.netMessage = '';
+        return;
+      }
       if (this.shipyardCodes.paste(text)) this.overlay.notify('Shipyard code pasted: Menu > Office > Your boats > Take her', 5);
     });
     this.renderer.xr.addEventListener('sessionstart', unlock);
@@ -967,6 +1066,9 @@ export class App {
     this.updateHullSounds(dt, slam, lap);
     this.menu.refresh();
     this.host?.tick(dt);
+    this.heartbeat();
+    this.noticeCrew();
+    this.typeCodeKeys();
     const t2 = performance.now();
 
     // The helm's outside views (a controller's Y): the camera put where they want it, last.
@@ -1011,7 +1113,25 @@ export class App {
     );
     this.keyboard.endFrame();
     // The keys a keyboard-steered control's buttons use do only that while it's steered.
-    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : [...(this.interaction?.steeringCodes ?? []), ...(this.craneRemote ? REMOTE_CODES : [])]);
+    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : [...(this.interaction?.steeringCodes ?? []), ...(this.craneRemote ? REMOTE_CODES : []), ...(this.typingCode() ? CODE_KEYS : [])]);
+  }
+
+  /** Desktop, the Crew tab open on your own: the number keys type the game code (study #34). */
+  private typingCode(): boolean {
+    return !this.renderer.xr.isPresenting && this.menu.isOpen && this.menu.pageName === 'Crew' && !this.host && !this.client;
+  }
+
+  /** The game code from the keyboard: digits (either row), Backspace, Enter to join. */
+  private typeCodeKeys(): void {
+    if (!this.typingCode()) return;
+    const k = this.keyboard;
+    for (let d = 0; d <= 9; d++)
+      if ((k.wasPressed(`Digit${d}`) || k.wasPressed(`Numpad${d}`)) && this.joinCode.length < 5) {
+        this.joinCode += String(d);
+        this.netMessage = '';
+      }
+    if (k.wasPressed('Backspace')) this.joinCode = this.joinCode.slice(0, -1);
+    if ((k.wasPressed('Enter') || k.wasPressed('NumpadEnter')) && this.joinCode.length === 5) this.joinGame();
   }
 
   /** Fixed sim ticks (alone or hosting), or the host's snapshots (client); returns the render time. */
@@ -2872,7 +2992,10 @@ export class App {
         // boat instead of replacing her, and a crew-mate joining was put aboard the empty
         // one): she replaces your boat, where you are. The page starts again in her, as the
         // Office's Take her does (a host's crew follow); the place on the map is kept.
-        if (!this.client) {
+        // With crew aboard (multiplayer study #12), or in a friend's world, she's put in the
+        // world beside the game's boat, as a crew-mate's is, instead of starting the page again.
+        const crewAboard = (this.host?.playerCount ?? 1) > 1;
+        if (!this.client && !crewAboard && !this.worldBorrowed && !this.borrowedCareer) {
           const url = FLEET.some((f) => f.id === ref) ? restartIn(ref) : restartInDesign(ref);
           url.searchParams.delete('start');
           this.rememberVoyagePlace(Infinity);
@@ -2972,11 +3095,22 @@ export class App {
         if (this.camMode.on && hold) return `In ${this.world.players[hold.by]?.name ?? 'a crew-mate'}'s hand`;
         return this.camMode.on ? 'Mouse aims · W A S D fly · Space / C up, down · Shift fast · wheel zooms' : 'Fly a camera to film the others (record the screen)';
       },
-      hostGame: () => this.hostGame(),
+      hostGame: () => {
+        // A friend's world (their career, played on here, never saved): say so before hosting it.
+        if ((this.worldBorrowed || this.borrowedCareer) && performance.now() - this.hostBorrowedAskedAt > 6000) {
+          this.hostBorrowedAskedAt = performance.now();
+          this.overlay.notify("This is your friend's game, not yours: hosting plays it on, never saved here. Press again to host it, or Back to your own game", 6);
+          return;
+        }
+        this.hostGame();
+      },
+      borrowed: () => this.worldBorrowed || this.borrowedCareer,
+      waiting: () => this.waiting(),
+      stopWaiting: () => this.stopWaiting(),
       leaveGame: () => {
         this.netMessage = '';
         const borrowed = this.worldBorrowed;
-        this.leaveGame();
+        this.leaveGame(true);
         // The next game is typed afresh (owner: the old code was still in the box to delete).
         this.joinCode = '';
         this.mutedCrew.clear();
@@ -2984,8 +3118,7 @@ export class App {
         // has them; the world on the page is still the host's.
         if (borrowed) {
           this.overlay.notify('Left the game: back to your own (in VR: enter VR again once it has loaded)', 4);
-          const url = new URL(location.href);
-          for (const k of ['join', 'host', 'together', 'fresh', 't']) url.searchParams.delete(k);
+          const url = ownPageUrl();
           setTimeout(() => location.replace(url.toString()), 1500);
         }
       },
@@ -3062,8 +3195,7 @@ export class App {
       ensureBoatTypes(snap);
       // All of it (the pots and the fuel hoses too: they were missed when listed one by
       // one), but our own body, which is ours.
-      const w = this.world as unknown as Record<string, unknown>;
-      for (const [k, val] of Object.entries(snap)) if (k !== 'players') w[k] = val;
+      takeWorld(this.world, snap);
       this.world.players = { ...snap.players, [this.localPlayerId]: me };
     }
     this.syncVesselViews();
@@ -3172,6 +3304,8 @@ export class App {
   /** Leaving for another boat (the page about to start again): no more restarts meanwhile. */
   private restarting = false;
 
+  /** Starting again in the same boat (catching up with a newer build): the world goes with us (keepHostWorld). */
+  private restartKeepsWorld = false;
   /**
    * Send this page to `url`: a fresh start in another boat (Debug > Start in, a Shipyard
    * design, a yard refit). Hosting (owner, Oct 2026: changing boat broke the game for the
@@ -3185,8 +3319,11 @@ export class App {
       this.overlay.notify("You're aboard the host's boat: only the host can change her (Leave game first to go your own way)", 5);
       return;
     }
+    // (A page catching up with a newer build keeps its world: keepHostWorld.)
+    if (!url.searchParams.has('fresh') && this.borrowedBlocks()) return;
     if (this.host) {
       this.restarting = true;
+      this.restartKeepsWorld = url.searchParams.has('fresh');
       const p = url.searchParams;
       url.searchParams.set('host', this.hostCode);
       this.host.broadcast({ t: 'restart', ...(p.has('boat') ? { boat: p.get('boat')! } : {}), ...(p.has('design') ? { design: p.get('design')! } : {}), ...(p.has('fit') ? { fit: p.get('fit')! } : {}) });
@@ -3205,6 +3342,7 @@ export class App {
   private followRestart(notice: RestartNotice): void {
     if (this.restarting) return;
     this.restarting = true;
+    rememberOwnPage();
     const url = new URL(location.href);
     for (const k of ['design', 'boat', 'fit', 'join', 'host', 'fresh', 't']) url.searchParams.delete(k);
     if (notice.design) url.searchParams.set('design', notice.design);
@@ -3225,6 +3363,8 @@ export class App {
       () => {
         this.hostStarting = false;
         this.host = new HostSession(this.world, this.ids, transport, code);
+        this.hostTransport = transport;
+        this.rehostCode = null;
         this.host.marks = this.marks;
         this.netPeer = transport.peer;
         this.hostPeerId = peerIdForRoom(code);
@@ -3257,16 +3397,32 @@ export class App {
         this.hostStarting = false;
         transport.close();
         const why = e?.type ?? 'network';
+        // Our own game's code (a reload, a takeover, Try her together) is taken: someone's
+        // hosting it already (a crew-mate took it over while we were away): join them as crew
+        // (multiplayer study #10). If nobody turns out to be there (our own old registration,
+        // just after a crash), hosting it is tried again (connectClient's onClosed).
+        const ours = code === START_HOST || code === START_GAME || this.borrowedCareer || this.rehostCode === code;
+        if (why === 'unavailable-id' && ours && !this.client) {
+          this.rehostCode = code;
+          this.joinCode = code;
+          this.togetherTries = CONFIG.net.togetherTries;
+          this.netMessage = `Someone is already hosting game ${code}: joining as crew`;
+          this.overlay.notify(this.netMessage, 5);
+          return this.joinGame();
+        }
         // The broker can be slow, down for a moment, or still hold a room we had before (a page
         // closed without saying): try again a few times. "Try her together" needs its room (the
         // others are waiting in it); a menu host can take any code.
+        // Each wait longer than the last (study #20: it gave up within ten seconds); our own
+        // game's code kept.
         if (tries > 1) {
-          this.netMessage = `Couldn't host (${why}): trying again...`;
+          this.netMessage = `Couldn't host: ${plainNetError(why)}. Trying again...`;
           this.overlay.notify(this.netMessage, 4);
-          setTimeout(() => this.hostGame(code === START_HOST || why === 'unavailable-id' ? code : randomRoomCode(), tries - 1), CONFIG.net.hostRetryS * 1000);
+          const wait = CONFIG.net.hostRetryS * (CONFIG.net.hostTries - tries + 1);
+          setTimeout(() => this.hostGame(ours || why === 'unavailable-id' ? code : randomRoomCode(), tries - 1), wait * 1000);
           return;
         }
-        this.netMessage = `Couldn't host (${why}). Check the connection, then Menu > Crew > Host a game`;
+        this.netMessage = why === 'unavailable-id' ? `Game ${code} is taken: Menu > Crew > Host a game for a new one` : `Couldn't open a game: ${plainNetError(why)}. Then Menu > Crew > Host a game`;
         this.overlay.notify(this.netMessage, 8);
       },
     );
@@ -3280,6 +3436,7 @@ export class App {
       return;
     }
     const transport = new PeerClientTransport(this.joinCode);
+    this.joinTransport = transport;
     this.connectClient(transport);
     this.netPeer = transport.peer;
     // Sent in together: an attempt that hasn't got in after a while (the host's page was still
@@ -3289,8 +3446,12 @@ export class App {
       setTimeout(() => {
         if (this.client === client && client.status !== 'connected') this.retryTogether(client);
       }, CONFIG.net.togetherConnectS * 1000);
-    }
+    } else if (client) this.watchJoin(client, transport, performance.now());
   }
+  /** The last join's link (its stage, for the menu's status). */
+  private joinTransport: PeerClientTransport | null = null;
+  /** Waiting on a game from a link (`?game=`) rather than one we were in or sent to (#23: its give-up words). */
+  private waitingOnLink = false;
 
   /** Sent in together and not in yet: drop this attempt and try again shortly (or give up when out of tries). */
   private retryTogether(client: ClientSession): void {
@@ -3298,13 +3459,58 @@ export class App {
     client.close();
     this.toSolo();
     if (this.togetherTries <= 0) {
-      this.netMessage = 'Couldn\'t find the host\'s game: ask them for the game code (menu, Crew)';
+      // (An old link, a bookmark, the host's own game opened in a new tab: nobody's there.)
+      this.netMessage = this.waitingOnLink ? `Game ${this.joinCode} isn't open: host your own game or join another (menu, Crew)` : "Couldn't find the host's game: ask them for the game code (menu, Crew)";
+      this.waitingOnLink = false;
       showGameOnAddress(null);
       return;
     }
     this.togetherTries--;
     this.netMessage = 'Waiting for the host to open the game...';
-    setTimeout(() => this.joinGame(), CONFIG.net.togetherRetryS * 1000);
+    this.later(() => this.joinGame(), CONFIG.net.togetherRetryS);
+  }
+
+  /** Bumped by Stop waiting: a retry or takeover scheduled before it doesn't happen. */
+  private waitEpoch = 0;
+  /** `fn` in `s` seconds, unless Stop waiting is pressed before then. */
+  private later(fn: () => void, s: number): void {
+    const epoch = this.waitEpoch;
+    setTimeout(() => {
+      if (epoch === this.waitEpoch) fn();
+    }, s * 1000);
+  }
+
+  /** Trying to get into a game (joining, or waiting to try again): Stop waiting shows. */
+  private waiting(): boolean {
+    return !this.host && ((this.client !== null && this.client.status !== 'connected') || (!this.client && this.togetherTries > 0 && !this.inSharedGame && this.joinCode.length === 5));
+  }
+
+  /** Stop waiting (multiplayer study #23): no more tries, no takeover; on your own. */
+  private stopWaiting(): void {
+    this.waitEpoch++;
+    this.togetherTries = 0;
+    const c = this.client;
+    this.client = null;
+    c?.close();
+    this.inSharedGame = false;
+    showGameOnAddress(null);
+    this.toSolo();
+    this.netMessage = 'Stopped waiting: host your own game or join another';
+  }
+
+  /**
+   * A join that never gets in (multiplayer study #8: "Joining 12345..." for ever: the host's
+   * headset asleep, the game finder slow, two networks that can't link): given up after
+   * CONFIG.net.joinTimeoutS, or joinLoadS once the world has started coming (a big career
+   * world takes a while on a slow line).
+   */
+  private watchJoin(client: ClientSession, transport: PeerClientTransport, from: number): void {
+    setTimeout(() => {
+      if (this.client !== client || client.status !== 'connecting') return;
+      const s = (performance.now() - from) / 1000;
+      if (transport.stage === 'loading' && s < CONFIG.net.joinLoadS) return this.watchJoin(client, transport, from);
+      client.lose(`No answer from game ${this.joinCode}. Is the host's game open and their headset on? Try again`);
+    }, CONFIG.net.joinTimeoutS * 1000);
   }
 
   /** The crew, for the menu. */
@@ -3396,7 +3602,7 @@ export class App {
 
   /** Become a client over `transport` (PeerJS, or the in-memory loopback in tests). */
   private connectClient(transport: ClientTransport): void {
-    const client = new ClientSession(transport, userSettings.playerName, undefined, APP_BUILD);
+    const client = new ClientSession(transport, userSettings.playerName, undefined, APP_BUILD, tabClientId() || undefined, SITE);
     this.client = client;
     this.netMessage = '';
     client.onChart = (op) => applyChartOp(this.marks, op);
@@ -3404,10 +3610,13 @@ export class App {
       if (this.client === client) this.followRestart(n);
     };
     client.onWelcome = (playerId, world, chart) => {
-      // The host's chart: their marks replace ours while we're aboard their boat.
-      this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
+      // The host in the other game or on another map (multiplayer study #6): this page goes there.
+      if (!this.samePageAsHost(world)) return;
       // The host's page is another version: reload this one, fresh, once (it may be the old one).
       if (!this.sameVersionAsHost(world)) return;
+      // The host's chart: their marks replace ours while we're aboard their boat. (Only once
+      // we're staying: a page refusing the game kept them over our own saved ones, study #24.)
+      this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
       // The host's boats this page hasn't got: built from their tokens (multi-boat M1).
       ensureBoatTypes(world);
       // The host's boats become ours to draw (multi-boat M5: no restart to become the host's
@@ -3417,6 +3626,7 @@ export class App {
       this.movePlayer(playerId);
       this.adoptHostWorld(world);
       this.togetherTries = 0; // in: no more retries if this game ends
+      this.waitingOnLink = false;
       this.inSharedGame = true;
       showGameOnAddress(this.joinCode);
       this.overlay.notify('Joined: you are aboard the host\'s world', 3);
@@ -3435,13 +3645,135 @@ export class App {
         const heir = electedHost(this.world, peerIdForRoom(code));
         if (heir?.id === this.localPlayerId) {
           this.overlay.notify(`Lost the host: if they're not back in ${CONFIG.net.takeoverDelayS} s, you host the game on (code ${code})`, 5);
-          setTimeout(() => this.takeOver(code), CONFIG.net.takeoverDelayS * 1000);
+          this.later(() => this.takeOver(code), CONFIG.net.takeoverDelayS);
         } else this.overlay.notify(`Lost the host: waiting for ${heir?.name ?? 'the game'} to come back or take over...`, 4);
         return this.retryTogether(client);
       }
+      // Our own game's code taken by a crew-mate's takeover (we came back to it): no game
+      // there after all (it was our own old registration): host it again after all.
+      if (this.rehostCode === this.joinCode && reason === 'No game with that code' && client.status !== 'connected') {
+        this.client = null;
+        this.toSolo();
+        return this.hostGame(this.rehostCode, 1);
+      }
+      // A game link with nobody there, out of tries (study #23): said plainly, the address cleared.
+      if (this.waitingOnLink && client.status !== 'connected') {
+        this.waitingOnLink = false;
+        this.netMessage = `Game ${this.joinCode} isn't open: host your own game or join another (menu, Crew)`;
+        showGameOnAddress(null);
+        return this.toSolo();
+      }
+      if (reason === 'The host ended the game') this.overlay.notify('The host ended the game: you carry on alone', 5);
       this.netMessage = reason;
       this.toSolo();
     };
+  }
+
+  /** A code this page hosted (a reload, a takeover) found taken: joined as crew, hosted again if nobody's there. */
+  private rehostCode: string | null = null;
+  /** Hosting: the game's connection (its link to the game finder: the menu's status). */
+  private hostTransport: PeerHostTransport | null = null;
+  /** Hosting with the page hidden: the slow step's timer, and when it last ran (ms). */
+  private hiddenTimer: ReturnType<typeof setInterval> | null = null;
+  private hiddenAt = 0;
+
+  /**
+   * The page hidden or shown (multiplayer study #21). A hidden page isn't drawn, and the game
+   * steps only as it draws, so a host's background tab froze everyone's world. Hidden while
+   * hosting, the game goes on from a timer (a background tab's run about once a second): the
+   * time since, stepped, and a snapshot out, marked paused so the crew are told why things
+   * are slow. Shown again, the drawing takes over. (A headset asleep stops everything; the
+   * crew's heartbeat notices that.)
+   */
+  private onVisibility(): void {
+    const hidden = document.visibilityState === 'hidden';
+    if (hidden && this.host && !this.hiddenTimer) {
+      this.host.paused = true;
+      this.hiddenAt = performance.now();
+      this.hiddenTimer = setInterval(() => this.stepHidden(), CONFIG.net.hiddenStepS * 1000);
+    } else if (!hidden && this.hiddenTimer) {
+      clearInterval(this.hiddenTimer);
+      this.hiddenTimer = null;
+      if (this.host) this.host.paused = false;
+    }
+  }
+
+  /** Hidden while hosting: the game stepped on by the time since (up to two seconds' worth), and the crew sent it. */
+  private stepHidden(): void {
+    if (!this.host || document.visibilityState !== 'hidden') {
+      if (this.hiddenTimer) clearInterval(this.hiddenTimer);
+      this.hiddenTimer = null;
+      return;
+    }
+    const now = performance.now();
+    const ticks = Math.min(Math.round(((now - this.hiddenAt) / 1000) * CONFIG.sim.tickRate), 2 * CONFIG.sim.tickRate);
+    this.hiddenAt = now;
+    for (const i of this.host.takeIntents()) this.intents.push(i);
+    for (let k = 0; k < ticks; k++) stepWorld(this.world, k === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+    this.host.tick(1);
+  }
+  /** The heartbeat's notice given (the host gone quiet), so it's said once. */
+  private hostQuiet = false;
+
+  /** Who was in the game at the last look (noticeCrew), by player id; null while not in one. */
+  private crewSeen: Map<EntityId, string> | null = null;
+
+  /**
+   * "Anna came aboard (3 aboard)", "Anna left the game" (multiplayer study #18: the crew list
+   * changed without a word). Quiet while joining, starting again or taking over: the first look
+   * at a game only notes who's there.
+   */
+  private noticeCrew(): void {
+    const inGame = !!this.host || this.client?.status === 'connected';
+    if (!inGame || this.restarting) {
+      this.crewSeen = null;
+      return;
+    }
+    const now = new Map(Object.values(this.world.players).map((p) => [p.id, p.name] as const));
+    const seen = this.crewSeen;
+    this.crewSeen = now;
+    if (!seen) return;
+    const came = [...now].filter(([id]) => !seen.has(id) && id !== this.localPlayerId).map(([, n]) => n);
+    const went = [...seen].filter(([id]) => !now.has(id) && id !== this.localPlayerId).map(([, n]) => n);
+    if (came.length) this.overlay.notify(`${came.join(', ')} came aboard (${now.size} aboard)`, 4);
+    if (went.length) this.overlay.notify(`${went.join(', ')} left the game`, 4);
+  }
+
+  /**
+   * Each frame, as crew: the host's silence (multiplayer study #1). A host whose page dies or
+   * whose headset sleeps says nothing, and its link can look open for minutes: past
+   * `hostSilentS` the crew are told it isn't responding (or, its snapshots said so, that its
+   * page is in the background), past `hostLostS` it's lost, as if its link had closed: the
+   * wait for it, then the takeover (net/takeover.ts).
+   */
+  private heartbeat(): void {
+    const c = this.client;
+    if (!c || c.status !== 'connected') {
+      this.hostQuiet = false;
+      return;
+    }
+    const quiet = c.silentS();
+    if (quiet >= CONFIG.net.hostLostS) {
+      this.hostQuiet = false;
+      return c.lose('The host left');
+    }
+    if (quiet >= CONFIG.net.hostSilentS && !this.hostQuiet) {
+      this.hostQuiet = true;
+      this.overlay.notify(c.hostPaused ? "The host's game is in the background: waiting for them..." : 'Host not responding...', 4);
+    } else if (quiet < 1) this.hostQuiet = false;
+  }
+
+  /** When Host a game was first pressed on a friend's world (pressed again within 6 s, it hosts). */
+  private hostBorrowedAskedAt = -1e9;
+  /**
+   * Playing on a friend's career (multiplayer study #16; owner, 26 Oct 2026: block boat
+   * changes): a new boat or a refit starts the page again, which would leave their career and
+   * put this browser's own in its place. Says so, and returns true, when that's the case.
+   */
+  private borrowedBlocks(): boolean {
+    if (!this.worldBorrowed && !this.borrowedCareer) return false;
+    this.overlay.notify("This is your friend's career: boats and refits change in your own game (Menu → Crew → Back to your own game, or Leave game)", 6);
+    return true;
   }
 
   /** Joining from "Try her together": tries left while the host's game isn't open yet. */
@@ -3460,7 +3792,7 @@ export class App {
 
   /** May this page save its world into this browser's storage? Not as crew, nor with a world from a host. */
   private savesHere(): boolean {
-    return !this.client && !this.borrowedCareer && !this.worldBorrowed && !seaTrial;
+    return !this.client && !this.borrowedCareer && !this.worldBorrowed && !seaTrial && !tryOut;
   }
 
   /** A sea trial: when it started (world time), and the warnings given. */
@@ -3517,9 +3849,14 @@ export class App {
    * code (the world is ours since toSolo; the crew rejoin by their retries). The career in it
    * is theirs: it carries on but is never saved into our slots.
    */
-  private takeOver(code: string): void {
+  private takeOver(code: string, waits = 3): void {
     if (this.host || this.hostStarting || this.restarting) return;
     if (this.client?.status === 'connected' || this.inSharedGame) return; // the host came back
+    // A join under way (the host may just have come back): let it finish first (multiplayer study #10).
+    if (this.client?.status === 'connecting' && waits > 0) {
+      this.later(() => this.takeOver(code, waits - 1), CONFIG.net.togetherConnectS);
+      return;
+    }
     if (this.client) {
       const c = this.client;
       this.client = null;
@@ -3542,15 +3879,6 @@ export class App {
    * Returns false if we're leaving for that.
    */
   private sameVersionAsHost(world: WorldState): boolean {
-    // Voyage mode: the host's map (the address's `?map=`): reload into it.
-    if (MODE === 'voyage' && world.build?.map && world.build.map !== VOYAGE_MAP_ID) {
-      const url = new URL(location.href);
-      url.searchParams.set('map', world.build.map);
-      url.searchParams.set('join', this.joinCode);
-      this.leaveGame();
-      location.replace(url.toString());
-      return false;
-    }
     const theirs = world.build?.app;
     if (!theirs || theirs === APP_BUILD || theirs === 'dev' || APP_BUILD === 'dev') return true;
     if (isNewerBuild(APP_BUILD, theirs)) {
@@ -3563,7 +3891,7 @@ export class App {
       this.joinCode = code;
       showGameOnAddress(code);
       this.togetherTries = CONFIG.net.togetherTries;
-      setTimeout(() => this.joinGame(), CONFIG.net.olderHostRetryS * 1000);
+      this.later(() => this.joinGame(), CONFIG.net.olderHostRetryS);
       return false;
     }
     if (START_FRESH) {
@@ -3575,9 +3903,42 @@ export class App {
     url.searchParams.set('join', this.joinCode);
     url.searchParams.set('fresh', '1');
     url.searchParams.set('t', String(Date.now()));
-    this.leaveGame();
-    location.replace(url.toString());
+    this.reloadToJoin(url, "This page is an older version than the host's: updating it, then joining");
     return false;
+  }
+
+  /**
+   * A crew-mate's first check on the host's welcome (multiplayer study #6): is the host in the
+   * same game (career or Voyage) and, in Voyage, on the same map? If not, this page goes to
+   * theirs with the code, and joins from there. Returns false if we're leaving for that.
+   */
+  private samePageAsHost(world: WorldState): boolean {
+    const mode = world.build?.mode ?? (world.build?.map ? 'voyage' : 'career');
+    const map = mode === 'voyage' ? (world.build?.map ?? 'oban') : null;
+    // The host on another address (study #30: the live game and /next/ can't play together,
+    // and reloading couldn't fix it): to theirs.
+    const site = world.build?.site && world.build.site !== SITE ? world.build.site : null;
+    if (mode === MODE && map === VOYAGE_MAP_ID && !site) return true;
+    const url = new URL((site ?? SITE) + (mode === 'voyage' ? 'voyage.html' : 'career.html'), location.origin);
+    if (map) url.searchParams.set('map', map);
+    url.searchParams.set('join', this.joinCode);
+    const where = site ? `playing at ${location.origin}${site}` : map ? `in Voyage: ${voyageMap(map)?.name ?? map}` : 'in their career';
+    this.reloadToJoin(url, `The host is ${where}: loading it and joining`);
+    return false;
+  }
+
+  /**
+   * Leave for `url` to join from there (another map, mode or version), saying so first
+   * (multiplayer study #22: the page went without a word, and VR with it), our own page kept
+   * for Leave game.
+   */
+  private reloadToJoin(url: URL, why: string): void {
+    rememberOwnPage();
+    this.netMessage = `${why}...`;
+    this.overlay.notify(`${why} (in VR: enter VR again once it has loaded)`, 5);
+    this.leaveGame();
+    this.restarting = true; // nothing saved from here (savesHere), no more notices
+    setTimeout(() => location.replace(url.toString()), CONFIG.net.reloadNoticeS * 1000);
   }
 
   /** Our boat's slipway state when last looked ('' off a slip): the notes as it changes. */
@@ -3642,6 +4003,69 @@ export class App {
     this.worldBorrowed = true;
     const me = this.world.players[this.localPlayerId];
     const myVessel = me?.aboardVesselId;
+    const rewire = this.replaceWorld(world, me);
+    // Aboard the boat the host is on (her own, or one she's stepped aboard), else the game's
+    // own: a page's own start boat has the same id as the host's, so it's always boarded anew.
+    const hostPeer = this.joinCode.length === 5 ? peerIdForRoom(this.joinCode) : '';
+    const host = Object.values(world.players).find((p) => p.peerId && p.peerId === hostPeer);
+    const hostBoat = host?.aboardVesselId && playerBoats(world).some((v) => v.id === host.aboardVesselId) ? world.vessels[host.aboardVesselId] : undefined;
+    // Back in a game where a boat of ours waited (the host put us aboard her: core/launch.ts): her.
+    const waited = world.players[this.localPlayerId]?.aboardVesselId;
+    const ours = waited && world.vessels[waited]?.owner === this.localPlayerId ? world.vessels[waited] : undefined;
+    const target = ours ?? hostBoat ?? (world.homeVesselId ? world.vessels[world.homeVesselId] : undefined);
+    if (me && target && (rewire || myVessel !== target.id || !myVessel)) {
+      this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: target.id });
+    }
+  }
+
+  /** As the page goes while hosting: the world kept for this tab's reload (HOST_WORLD_KEY). */
+  private keepHostWorld(): void {
+    try {
+      if (!this.host || (this.restarting && !this.restartKeepsWorld)) return sessionStorage.removeItem(HOST_WORLD_KEY);
+      const kept: KeptHostWorld = { code: this.host.code, t: Date.now(), me: this.localPlayerId, borrowed: this.borrowedCareer, world: this.world };
+      sessionStorage.setItem(HOST_WORLD_KEY, JSON.stringify(kept));
+    } catch {
+      // Too big, or no storage: the reload starts from the career's save, as before.
+    }
+  }
+
+  /**
+   * Hosting `code` again after this tab's reload: the world it had, if kept (keepHostWorld)
+   * within CONFIG.net.hostWorldKeepS and in the same boat. The crew aren't in it (they come
+   * back by their retries; their boats wait for them, core/launch.ts); we're where we were.
+   */
+  private restoreHostWorld(code: string): void {
+    let kept: KeptHostWorld | null = null;
+    try {
+      kept = JSON.parse(sessionStorage.getItem(HOST_WORLD_KEY) ?? 'null') as KeptHostWorld | null;
+      sessionStorage.removeItem(HOST_WORLD_KEY);
+    } catch {
+      return;
+    }
+    if (!kept || kept.code !== code || !(Date.now() - kept.t < CONFIG.net.hostWorldKeepS * 1000)) return;
+    const w = kept.world;
+    const was = w.players?.[kept.me];
+    if (!was || w.homeVesselId !== this.world.homeVesselId || w.vessels[w.homeVesselId!]?.defId !== this.world.vessels[this.world.homeVesselId!]?.defId) return;
+    // Ours under our new id: us, what we carried, the boat we'd launched.
+    const id = this.localPlayerId;
+    for (const c of Object.values(w.cargo)) if ('carriedBy' in c.at && c.at.carriedBy === kept.me) c.at = { carriedBy: id };
+    for (const v of Object.values(w.vessels)) {
+      if (v.owner === kept.me) v.owner = id;
+      releaseHolds(v);
+    }
+    const me = { ...was, id };
+    this.replaceWorld(w, me);
+    this.world.players = { [id]: me };
+    if (kept.borrowed) this.borrowedCareer = true;
+    this.overlay.notify('Hosting again: the game as you left it, the crew coming back', 5);
+  }
+
+  /**
+   * Another world on this page (the host's, or our own kept over a reload): its state in place
+   * of ours (players: ours, `me`, with theirs), views rebuilt for vessels that changed type.
+   * Returns whether our own boat was rebuilt (and so boarded anew).
+   */
+  private replaceWorld(world: WorldState, me: PlayerState | undefined): boolean {
     let rewire = false;
     for (const v of Object.values(world.vessels)) {
       const view = this.vesselViews.get(v.id);
@@ -3650,8 +4074,7 @@ export class App {
       this.dropVesselView(v.id);
       if (v.id === this.testVesselId) rewire = true;
     }
-    const w = this.world as unknown as Record<string, unknown>;
-    for (const [k, val] of Object.entries(world)) if (k !== 'players') w[k] = val;
+    takeWorld(this.world, world);
     this.world.players = { ...world.players, ...(me ? { [this.localPlayerId]: me } : {}) };
     this.syncVesselViews();
     if (rewire) {
@@ -3661,15 +4084,7 @@ export class App {
       this.mountOnHomeBoat();
       this.wireHomeBoat();
     }
-    // Aboard the boat the host is on (her own, or one she's stepped aboard), else the game's
-    // own: a page's own start boat has the same id as the host's, so it's always boarded anew.
-    const hostPeer = this.joinCode.length === 5 ? peerIdForRoom(this.joinCode) : '';
-    const host = Object.values(world.players).find((p) => p.peerId && p.peerId === hostPeer);
-    const hostBoat = host?.aboardVesselId && playerBoats(world).some((v) => v.id === host.aboardVesselId) ? world.vessels[host.aboardVesselId] : undefined;
-    const target = hostBoat ?? (world.homeVesselId ? world.vessels[world.homeVesselId] : undefined);
-    if (me && target && (rewire || myVessel !== target.id || !myVessel)) {
-      this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: target.id });
-    }
+    return rewire;
   }
 
   /** A vessel's views taken out of the scene (she's gone, or she's being rebuilt as another type). */
@@ -3689,16 +4104,19 @@ export class App {
   }
 
   /** Stop hosting, or leave the game we joined; play on alone from where things are. */
-  private leaveGame(): void {
+  /** @param end the player chose to leave (Stop hosting, Leave game): as host, the crew are told the game's over. */
+  private leaveGame(end = false): void {
+    this.rehostCode = null;
     if (!this.restarting) {
       rememberHosting(null);
       showGameOnAddress(null);
       this.inSharedGame = false;
     }
     if (this.host) {
-      this.host.close();
+      this.host.close(end && !this.restarting);
       this.host = null;
     }
+    this.hostTransport = null;
     if (this.client) {
       const c = this.client;
       this.client = null;
@@ -3722,6 +4140,12 @@ export class App {
     }
     // What we carried was ours under the host's id: it stays in our hands under our own.
     for (const c of carriedBy(this.world, this.localPlayerId)) c.at = { carriedBy: this.soloPlayerId };
+    // And the boat we'd launched (multiplayer study #5): ours still, not one left waiting for us.
+    for (const v of Object.values(this.world.vessels))
+      if (v.owner === this.localPlayerId) {
+        v.owner = this.soloPlayerId;
+        delete v.ownerAwayAt;
+      }
     // The local simulation carries on from the last snapshot. Nobody else is here now,
     // and our own holds were under the id the host gave us: start with free hands.
     for (const v of Object.values(this.world.vessels)) releaseHolds(v);
@@ -3741,9 +4165,18 @@ export class App {
     if (this.netMessage) return this.netMessage;
     if (this.host) {
       const n = this.host.playerCount;
+      // (The game finder's link down: crew aboard play on, new crew can't find the game.)
+      const finder = this.hostTransport?.finder;
+      if (finder === 'reconnecting') return `Hosting, code ${this.host.code}: ${n} aboard · reconnecting (new crew can't join yet)`;
+      if (finder === 'taken') return `Hosting, code ${this.host.code}: ${n} aboard · another page took the code: new crew can't join (host a new game)`;
       return `Hosting, code ${this.host.code}: ${n} aboard`;
     }
-    if (this.client) return this.client.status === 'connected' ? `In game ${this.joinCode}` : `Joining ${this.joinCode}...`;
+    if (this.client) {
+      if (this.client.status === 'connected') return `In game ${this.joinCode}`;
+      // How far it's got (study #8): which step a join that hangs is stuck on.
+      const stage = this.joinTransport?.stage;
+      return `Joining ${this.joinCode}: ${stage === 'loading' ? 'linked, the world is coming' : stage === 'linking' ? 'looking for the host' : 'reaching the game finder'}...`;
+    }
     return 'Playing alone';
   }
 
@@ -3951,7 +4384,9 @@ export class App {
     }
     if (mine && mine.id !== this.ownedSeen) {
       this.ownedSeen = mine.id;
-      if (me.aboardVesselId !== mine.id && this.boats.has(mine.id)) {
+      // Back from a reload or a dropped link: she waited, and the host put us aboard her.
+      if (me.aboardVesselId === mine.id && this.client) this.overlay.notify(`${this.boatLabel(mine.defId)} waited for you: you're back aboard`, 4);
+      else if (me.aboardVesselId !== mine.id && this.boats.has(mine.id)) {
         this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: mine.id });
         this.overlay.notify(`${this.boatLabel(mine.defId)} is yours: ${mine.mooring.phase === 'moored' ? 'moored at the quay' : 'at anchor off the harbour'}`, 4);
       }
@@ -4013,6 +4448,10 @@ export class App {
     }
     // Crew: the page closing or reloading says goodbye, so the host drops us now (HostSession).
     window.addEventListener('pagehide', () => this.client?.close());
+    // Host: the world kept for this tab's reload (not when she's starting again in another boat).
+    window.addEventListener('pagehide', () => this.keepHostWorld());
+    // Host: a hidden page keeps the game going (onVisibility).
+    document.addEventListener('visibilitychange', () => this.onVisibility());
     // Started again to build the host's boat: join their game again.
     if (START_JOIN) {
       this.joinCode = START_JOIN;
@@ -4023,14 +4462,24 @@ export class App {
       this.togetherTries = CONFIG.net.togetherTries;
       setTimeout(() => this.joinGame(), 500);
     } else if (START_HOST) {
-      // Pressed "Try her together": host in the room the others were sent to.
-      setTimeout(() => this.hostGame(START_HOST), 300);
+      // Pressed "Try her together": host in the room the others were sent to (or this page
+      // caught up with a newer build: its world back first).
+      setTimeout(() => {
+        this.restoreHostWorld(START_HOST);
+        this.hostGame(START_HOST);
+      }, 300);
     } else if (START_GAME) {
       // The address carries a game: this tab hosted it (reloaded), or a friend's link: join it.
-      if (tabHosts(START_GAME)) setTimeout(() => this.hostGame(START_GAME), 300);
+      if (tabHosts(START_GAME))
+        setTimeout(() => {
+          this.restoreHostWorld(START_GAME);
+          this.hostGame(START_GAME);
+        }, 300);
       else {
         this.joinCode = START_GAME;
-        this.togetherTries = CONFIG.net.togetherTries;
+        // A link to a game: tried a few times (study #23: an old one waited minutes for nobody).
+        this.togetherTries = CONFIG.net.linkTries;
+        this.waitingOnLink = true;
         setTimeout(() => this.joinGame(), 500);
       }
     }
@@ -4056,6 +4505,8 @@ export class App {
         if (channel === 'dipstick' || channel === 'propulsion.oilCheck') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
         if (channel === 'sos') return value > 0 ? this.sendSos() : undefined;
+        // The dive A-frame's DIVE: into the submersible game (the app leaves the page; nothing to the boat).
+        if (tv.control === 'diveLaunch') return value > 0 ? this.goDive(tv.vesselId) : undefined;
         // A gear bracket (desktop): take the gear or hang it back. Local: no intent. In VR the
         // grip takes it.
         if (channel.startsWith('gear:')) {
@@ -5281,6 +5732,32 @@ export class App {
   }
 
   /**
+   * Back from the submersible game (dive/diveReturn.ts; Submersible World's M9): its envelope
+   * taken off the address at once (a refresh never replays it), counted once by the handoff id
+   * issued at the launch. Career or Voyage.
+   */
+  private takeDiveBack(): DiveReturn | null {
+    const { back, clean } = takeDiveReturn(location.href);
+    if (clean) history.replaceState(history.state, '', clean);
+    return consumeDiveReturn(back);
+  }
+
+  /** The dive's results aboard: the crates on deck, the pay, the sub afloat astern; saved as it is now. */
+  private landDive(back: DiveReturn): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    const text = applyDiveReturn(this.world, v, back);
+    // Once the app is up: the word to the skipper, and the game saved with the dive's results in it.
+    setTimeout(() => {
+      this.overlay.notify(text, 14);
+      if (MODE === 'voyage') {
+        this.rememberT = Infinity;
+        this.rememberVoyagePlace(0);
+      } else this.career.tick();
+    }, 1500);
+  }
+
+  /**
    * Voyage: the handoff envelope (`mv`) taken off the address at once, so a refresh never
    * replays it (voyage/metaverse.ts), and checked: from the timber camp, with an id we issued
    * and haven't consumed. Anything else: nothing comes of it.
@@ -5452,6 +5929,40 @@ export class App {
     setTimeout(() => window.location.assign(outboundUrl(site, envelope)), CONFIG.voyage.timber.fadeS * 1000);
   }
 
+  /**
+   * The dive A-frame's DIVE (modules/diveFrame/launch.ts; owner, Oct 2026): the sub afloat off
+   * her stern, the boat stopped over a wreck site: into the submersible game at that wreck.
+   * Alone, or hosting with no crew aboard, as for the timber camp. The game saved as it is (a
+   * Voyage's place and plan; the career), a handoff id issued (for the dive's results, once the
+   * submersible game sends them), the screen faded, and the page goes there; it comes back to
+   * this page. In the headset the VR session isn't ended: a browser that carries VR across
+   * pages keeps you in it, as for the timber camp.
+   */
+  private goDive(vesselId: string): void {
+    if (this.leavingForDive) return;
+    const v = this.world.vessels[vesselId];
+    if (!v) return;
+    const why = this.client ? 'Only the host can take the sub down' : !this.playingAlone() ? 'Only alone, or hosting with no crew aboard, for now' : null;
+    const ready = why ? { why } : diveReady(v, MODE === 'career' ? 'career' : VOYAGE_MAP_ID);
+    if ('why' in ready) {
+      this.overlay.notify(ready.why, 4);
+      return;
+    }
+    this.leavingForDive = true;
+    if (MODE === 'voyage') {
+      this.rememberT = Infinity;
+      this.rememberVoyagePlace(0);
+    } else this.career.tick(); // the career saved as it is
+    const session = newHandoffId();
+    issueId(session);
+    // Back to this page as it is (no one-off start or join parameters).
+    const back = new URL(location.href);
+    for (const k of ['mv', 'start', 'join', 'fit', 'host', 'together', 'fresh', 't']) back.searchParams.delete(k);
+    this.overlay.notify(`Diving on ${siteLabel(ready.site, foundNames())}...`, 3);
+    this.fade.style.opacity = '1';
+    setTimeout(() => window.location.assign(diveUrl(ready.site, back.toString(), session)), CONFIG.modules.diveFrame.dive.fadeS * 1000);
+  }
+
   /** The world's fixed boards worked like the menu: the boatyards' and the Shipyard signs (Voyage's one, the career's at every harbour). */
   private boardMenus(): WristMenu[] {
     // One list, kept (asked for several times a frame), made again only if the boards change.
@@ -5470,6 +5981,8 @@ export class App {
   private shipyardBlocker(): string | null {
     if (this.client) return "Only the host can take the boat to the Shipyard";
     if (seaTrial) return 'Not on a sea trial: in your own boat';
+    if (tryOut) return 'Not on a try-out together: in your own boat';
+    if (this.worldBorrowed || this.borrowedCareer) return "Not in a friend's career: in your own game";
     if (!this.playingAlone()) return 'Only alone, or hosting with no crew aboard';
     const v = this.world.vessels[this.testVesselId];
     if (!v || !designCodeOf(v.defId)) return "She isn't a Shipyard design";

@@ -19,6 +19,7 @@ import { groundHeight } from '../world/terrain';
 import { fromLatLon, toLatLon } from './geo';
 import { sheetById, type ChartSheet } from './chartSheets';
 import { siteWorld, sitesOn } from '../dive/diveSites';
+import { foundNames } from '../dive/diveReturn';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 
 export interface PaperChart {
@@ -229,7 +230,7 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
   // wreck mark, with the depth over her, as a chart gives a wreck of known depth.
   for (const site of sitesOn(MODE === 'career' ? 'career' : VOYAGE_MAP_ID)) {
     const at = siteWorld(site);
-    if (!at || WRECKS.some((w) => w.name === site.name)) continue;
+    if (!at || WRECKS.some((w) => w.name === site.scenery)) continue;
     const x = px(at.x);
     const y = pz(at.z);
     g.strokeStyle = INK;
@@ -247,7 +248,8 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
       g.lineTo(x + dx * u, y + 3.5 * u);
     }
     g.stroke();
-    label(`Wk ${site.name} ${site.depthM} m`, x - 40 * u, y + 22 * u, `italic ${14 * u}px Georgia, serif`, INK);
+    const named = foundNames()[site.id];
+    label(`Wk ${named ? `${named} ` : ''}${site.depthM} m`, x - 40 * u, y + 22 * u, `italic ${14 * u}px Georgia, serif`, INK);
   }
   // Fish farms (a coast map's, C2): the lease's outline in a magenta pecked line, as a chart
   // draws a marine farm, with what it is; its corner marks are the region's lights.

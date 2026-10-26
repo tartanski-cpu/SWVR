@@ -77,7 +77,9 @@ describe('construction projects', { timeout: 30000 }, () => {
     const { world, send } = taken();
     expect(projectBoardLines(world)).toEqual([`Project: Tarran Rig, stage 1 of ${def.stages.length}: Survey the site, 4 of 4 jobs left`, 'Next: Survey line 1 (north) (any order: Menu > Office > Projects)']);
     for (let i = 0; i < def.stages.length; i++) send('careerProjectStage');
-    expect(projectBoardLines(world)[0]).toBe(`Project: Tarran Rig, stages 1-${def.stages.length} done`);
+    // Every stage done (debug): commissioned at once, so it's finished: nothing under way.
+    expect(world.career!.projectsDone).toContain(def.id);
+    expect(projectBoardLines(world)).toEqual([]);
     expect(projectBoardLines(setup().world)).toEqual([]);
   });
 
@@ -513,3 +515,68 @@ describe('construction projects: the turbines', { timeout: 60000 }, () => {
     expect(installAt(world)).toBeNull();
   });
 });
+
+describe('construction projects: commissioning, and the farm finished', { timeout: 60000 }, () => {
+  function atCommissioning() {
+    const s = taken();
+    for (let i = 0; i < 5; i++) s.send('careerProjectStage');
+    const a = activeProject(s.world)!;
+    expect(a.def.stages[a.p.stage].name).toBe('Commissioning');
+    return s;
+  }
+  const [comm1, comm2] = def.stages[5].jobs;
+  const crewUp = (world: WorldState) => {
+    stepProjects(world, DT); // the crew called
+    const tj = world.transfer!.job!;
+    for (const t of tj.techs) t.phase = 'platform';
+    stepWorld(world, [], DT); // all up: the job done
+  };
+
+  it('a commissioning crew up: the turbine commissioned a while later, turning; both: the project done, its bonus paid, the farm standing for good', async () => {
+    const { world } = atCommissioning();
+    if (comm1.kind !== 'transfer' || comm2.kind !== 'transfer') throw new Error('no transfers');
+    const p = activeProject(world)!.p;
+    crewUp(world);
+    expect(p.done).toContain(comm1.id);
+    expect(p.commissioning?.['0']).toBeDefined();
+    expect(foundations(world)[0].turning).toBe(false);
+    p.commissioning!['0'] -= CONFIG.career.projectCommission.s;
+    stepProjects(world, DT);
+    expect(p.commissioned).toEqual([0]);
+    expect(foundations(world).map((f) => f.turning)).toEqual([true, false]);
+    // The second: then the whole project's done.
+    crewUp(world);
+    expect(p.done).toContain(comm2.id);
+    const money0 = world.career!.money;
+    p.commissioning!['1'] -= CONFIG.career.projectCommission.s;
+    stepProjects(world, DT);
+    expect(world.career!.project).toBeUndefined();
+    expect(world.career!.projectsDone).toContain(def.id);
+    expect(world.career!.money).toBe(money0 + def.bonus);
+    // The farm stands: both turbines up and turning, solid, a farm for crew transfer.
+    expect(foundations(world).map((f) => [f.erect, f.turning])).toEqual([[1, true], [1, true]]);
+    const { projectBlocks } = await import('../src/career/projects');
+    expect(projectBlocks(world).length).toBeGreaterThan(0);
+    // Its marks stay laid round it.
+    expect(laidMarks(world).map((m) => m.kind).sort()).toEqual(['E', 'N', 'S', 'W', 'special']);
+    const { allFarms } = await import('../src/world/windFarm');
+    const { WIND_FARMS } = await import('../src/world/archipelago');
+    expect(allFarms()).toHaveLength(WIND_FARMS.length + 1);
+    // And it's not offered again.
+    expect(projectOffered(world)).toBeNull();
+    // Saved and read back: still done, still standing.
+    const back = parseCareer(serializeCareer(world.career!))!;
+    expect(back.projectsDone).toContain(def.id);
+    expect(back.project).toBeUndefined();
+  });
+
+  it('saved mid-way, a turbine being commissioned reads back as commissioned', () => {
+    const { world } = atCommissioning();
+    const p = activeProject(world)!.p;
+    p.commissioning = { '1': world.time };
+    p.commissioned = [0];
+    const back = parseCareer(serializeCareer(world.career!))!;
+    expect(back.project!.commissioned).toEqual([0, 1]);
+  });
+});
+

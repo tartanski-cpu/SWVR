@@ -249,7 +249,7 @@ export class CareerSession {
         const next = CONFIG.career.projects.find((d) => !(w().career?.projectsDone ?? []).includes(d.id));
         if (!a && !next) h.notify('Debug: no project left to start', 3);
         else if (!a) h.notify(`Debug: ${next!.name} taken. Press again to finish its stage 1; Office → Projects shows it`, 5);
-        else if (!a.jobs.length) h.notify(`Debug: ${a.def.name}: every stage built so far is done (stage ${a.p.stage + 1} comes in a later update)`, 5);
+        else if (!a.jobs.length) h.notify(`Debug: ${a.def.name}: every stage is done; it finishes as its turbines are commissioned`, 5);
         else h.notify(`Debug: ${a.def.name}: stage ${a.p.stage + 1}, ${a.def.stages[a.p.stage].name.toLowerCase()}, done`, 4);
         h.pushEnv('careerProjectStage', 1);
       },

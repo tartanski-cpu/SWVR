@@ -12,14 +12,15 @@ import { houseFloorLow, houseRoofAt, houseX, type WheelhouseDef } from '../vesse
  * keep their world matrices, so pointing at a switch through a window still works.
  */
 /**
- * Never hidden: the throttle lever (it reads through the windows), the binoculars (carried
+ * Never hidden: the throttle lever (it reads through the windows), the wheel (on its own the
+ * big one never was; the harbour tug's small one, between her azimuth levers, would be), the binoculars (carried
  * about, they'd vanish in your hand on deck), the chartplotter and the VHF (their lit
  * screens read through the windows; they were never hidden while their brackets made them
  * big, and since M3c the brackets are merged into the boat's fixed parts). Nor anything
  * holding a light: switching a light's visibility recompiles every lit material (a hitch),
  * and the cabin lamp lights the wheelhouse seen through the windows.
  */
-const KEEP = new Set(['control:lever', 'control:lever2', 'control:leverBoth', 'binoculars', 'chartPlotter', 'radio']);
+const KEEP = new Set(['control:lever', 'control:lever2', 'control:leverBoth', 'control:wheel', 'binoculars', 'chartPlotter', 'radio']);
 
 /**
  * Is it, or does it hold, one of the KEEP parts, or any hand gear (`gear:` + its kind: the

@@ -53,6 +53,11 @@ export class WristMenu {
     return this.root.visible || this.flatOpen;
   }
 
+  /** The tab it's on (its name). */
+  get pageName(): string {
+    return this.panel.pageName;
+  }
+
   /** Open flat on the page (desktop; not in 3D). */
   get isFlat(): boolean {
     return this.flatOpen;

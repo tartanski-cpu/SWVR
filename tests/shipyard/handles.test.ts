@@ -49,6 +49,8 @@ describe('handles', () => {
     const along = (p: V3, axis: V3) => p[0] * axis[0] + p[1] * axis[1] + p[2] * axis[2];
     for (const [hull, t] of DESIGN_HULLS.entries()) {
       if (t.retired) continue;
+      // (Not a one-off, the harbour tug: her hull is fixed, the page shows her no handles.)
+      if (t.fixed) continue;
       const base: ShipDesign = { ...DEFAULT_DESIGN, ...t.defaults, hull, fcLength: t.raisedForedeck ? 4 : 0 };
       for (const h of HANDLES.filter((x) => x.step === 'hull')) {
         if (h.applies && !h.applies(base)) continue;

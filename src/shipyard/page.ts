@@ -40,9 +40,9 @@ import { alongAxis, HANDLES, nearestStep, type HandleDef, type V3 as HV3 } from 
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
-import { buildDesign, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
+import { buildDesign, withFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -361,12 +361,13 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const rudder = cfg('rudder')?.rudder?.position as [number, number, number] | undefined;
   // A stern drive: its engines only (the legs are its module's, shown at Engine too).
   const sd = !!cfg('sternDrive') || !!cfg('pods');
-  if (!bed || (!sd && (!prop || !rudder))) return null;
+  // (Azimuth drives have no rudder: the Z-drives are drawn from her propellers' place.)
+  if (!bed || (!sd && (!prop || (!rudder && !engine?.azimuth)))) return null;
   // (Pod drives are always twin.)
   const twin = (!!design.twin || !!cfg('pods')) && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;
   const fit = boat.shaft;
-  const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd, nozzle: !!engine?.nozzle });
+  const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd, nozzle: !!engine?.nozzle, zDrive: !!DESIGN_HULLS[design.hull].zDrives });
   g.name = 'machinery';
   const name = ENGINES[design.engine].name.split(' (')[0];
   const tag = nameTag(fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
@@ -646,7 +647,7 @@ function section(title: string): HTMLElement {
   el.className = 'step';
   el.dataset.step = name.toLowerCase();
   el.dataset.title = name;
-  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}`;
+  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}<p class="oneOffNote meta" hidden>Her hull is a one-off, fixed as she’s drawn, and so are her fendering and her engines. Her wheelhouse and deckhouse, her colours, the inside and her deck gear are yours to choose.</p>`;
   const guide = el.querySelector<HTMLElement>('.guide');
   if (guide && STEP_MORE[name]) aboutHeading(guide, STEP_MORE[name], true);
   stepBody.insertBefore(el, handoverStep);
@@ -755,7 +756,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -1028,8 +1029,8 @@ section('5. Engine');
 // As pictures (owner, Oct 2026: "too much text ... more pictorial"; tiles.ts): each choice a
 // drawing, its name and one line, the full description behind its ⓘ button.
 {
-  const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug, ENGINE_ICONS.medium];
-  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six'];
+  const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug, ENGINE_ICONS.medium, ENGINE_ICONS.v8big];
+  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six', 'tug V16'];
   pickTiles(
     controls,
     'engine',
@@ -1068,6 +1069,38 @@ toggleTiles(
     'Exhaust stacks',
   );
   controls.appendChild(wrap);
+  // Where they stand (owner, Oct 2026): up through the wheelhouse, or on the deckhouse in casings of their own, moved along it.
+  labels.stackMount ??= 'Stacks stand';
+  optionNames.stackMount = [...STACK_MOUNTS];
+  const mount = document.createElement('div');
+  mount.dataset.when = 'stackMountChoice';
+  pickTiles(
+    mount,
+    'stackMount',
+    [
+      { icon: ENGINE_ICONS.stackRaked, name: 'Through the wheelhouse', info: 'Up through the wheelhouse’s aft corners, boxed in where they pass through it.' },
+      { icon: ENGINE_ICONS.stackCasing, name: 'On the deckhouse', info: 'Standing on the deckhouse, each in a casing of its own out near its sides, clear of the wheelhouse: you choose where along it, and a round or a square casing.' },
+    ],
+    (i) => change({ stackMount: i }),
+    'Stacks stand',
+  );
+  controls.appendChild(mount);
+  slider('stackPos', 'Along the deckhouse', (v) => (v === 0 ? 'at its aft end' : v === STACK_POS_STEPS - 1 ? 'at its front' : `${Math.round((v / (STACK_POS_STEPS - 1)) * 100)} % forward`)).dataset.when = 'stacksOnDeckhouse';
+  labels.stackCasing ??= 'Stack casings';
+  optionNames.stackCasing = [...STACK_CASINGS];
+  const casing = document.createElement('div');
+  casing.dataset.when = 'stacksOnDeckhouse';
+  pickTiles(
+    casing,
+    'stackCasing',
+    [
+      { icon: ENGINE_ICONS.casingRound, name: 'Round', info: 'Each stack in a round casing.' },
+      { icon: ENGINE_ICONS.casingSquare, name: 'Square', info: 'Each stack in a square casing, a box round it.' },
+    ],
+    (i) => change({ stackCasing: i }),
+    'Casings',
+  );
+  controls.appendChild(casing);
 }
 // Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
 {
@@ -1181,8 +1214,65 @@ paintRow('roofPaint', 'Colour', ROOF_PAINTS, 'hull');
 // The roof's top (owner: the eyebrow): one colour, or a panel in a second colour set in from its edges.
 paintRow('roofTop', 'Top panel', ROOF_TOPS, 'roof');
 
-/** Show the design in the controls. */
+/** Show the design in the controls (and, on a one-off, her fixed choices' controls hidden). */
 function syncControls(): void {
+  showControls();
+  lockOneOff();
+}
+/**
+ * A one-off (DesignHull.fixed: the harbour tug; owner, Oct 2026: "the wheelhouse, I think the
+ * funnel stacks, the deck house, all that kind of stuff should be predefined and fixed"): each
+ * control of a fixed choice hidden (its row, or its grid of tiles), a heading left with nothing
+ * under it hidden too, and a line at the top of each step saying she's a one-off.
+ */
+function lockOneOff(): void {
+  const fixed = DESIGN_HULLS[design.hull]?.fixed ?? {};
+  const isFixed = (k: string | undefined) => !!k && k in fixed;
+  document.querySelectorAll<HTMLElement>('.oneOffHidden').forEach((el) => el.classList.remove('oneOffHidden'));
+  const box = (el: HTMLElement): HTMLElement[] => {
+    const row = el.closest<HTMLElement>('.row');
+    if (row) return [row];
+    const tiles = el.closest<HTMLElement>('.tiles');
+    if (!tiles) return [el.closest<HTMLElement>('.tile') ?? el];
+    // A grid of tiles: hidden when every tile in it is a fixed choice's, with its heading and its ⓘ box.
+    const all = [...tiles.querySelectorAll<HTMLElement>('[data-key]')].every((t) => isFixed(t.dataset.key));
+    if (!all) return [el.closest<HTMLElement>('.tile') ?? el];
+    const head = tiles.previousElementSibling as HTMLElement | null;
+    return [tiles, ...(head?.classList.contains('tilesHead') ? [head] : []), ...(tiles.nextElementSibling?.classList.contains('tileInfo') ? [tiles.nextElementSibling as HTMLElement] : [])];
+  };
+  document.querySelectorAll<HTMLElement>('#stepBody [data-key]').forEach((el) => {
+    if (isFixed(el.dataset.key)) for (const b of box(el)) b.classList.add('oneOffHidden');
+  });
+  // A box whose every child is hidden (a grid's wrapper round its heading, tiles and ⓘ box), hidden too.
+  const gone = (el: Element) => el.classList.contains('oneOffHidden') || (el as HTMLElement).hidden || el.classList.contains('tileInfo') || el.classList.contains('tilesHead');
+  for (let changed = true; changed; ) {
+    changed = false;
+    document.querySelectorAll<HTMLElement>('#stepBody .oneOffHidden').forEach((el) => {
+      const up = el.parentElement;
+      if (!up || up.classList.contains('step') || up.id === 'stepBody' || up.classList.contains('oneOffHidden')) return;
+      if ([...up.children].every(gone)) {
+        up.classList.add('oneOffHidden');
+        changed = true;
+      }
+    });
+  }
+  // A heading with nothing left under it before the next.
+  document.querySelectorAll<HTMLElement>('#stepBody .step h2').forEach((h) => {
+    let el = h.nextElementSibling as HTMLElement | null;
+    let any = false;
+    for (; el && el.tagName !== 'H2'; el = el.nextElementSibling as HTMLElement | null) if (!el.classList.contains('oneOffHidden') && el.style.display !== 'none' && !el.classList.contains('tileInfo')) any = true;
+    h.classList.toggle('oneOffHidden', !any && Object.keys(fixed).length > 0);
+  });
+  document.querySelectorAll<HTMLElement>('.oneOffNote').forEach((n) => (n.hidden = !Object.keys(fixed).length));
+  // An engine only some types take (ENGINES `only`: the harbour tug's): its tile on those only.
+  document.querySelectorAll<HTMLElement>('[data-key=engine][data-i]').forEach((el) => {
+    const only = (ENGINES[Number(el.dataset.i)] as { only?: readonly number[] }).only;
+    el.classList.toggle('oneOffHidden', !!only && !only.includes(design.hull));
+  });
+  // (Sizing her for the deck cargo changes her length and beam: not a one-off's.)
+  document.getElementById('sizeDeck')?.classList.toggle('oneOffHidden', 'length' in fixed);
+}
+function showControls(): void {
   syncDhWidth();
   // The Paint step's '=' swatches show the colour they follow; each row names the one chosen.
   document.querySelectorAll<HTMLElement>('.swatch[data-like]').forEach((el) => (el.style.background = hex(PAINT_LIKE[el.dataset.like!](design))));
@@ -1673,13 +1763,17 @@ function runTrial(): void {
 /** A choice changed: rebuild and redraw her, then re-run her trials. */
 function change(patch: Partial<ShipDesign>, by: 'me' | Person | null = 'me'): void {
   const before = matchKey(design);
+  // A new hull type may be a very different size (the 9 m landing craft to the 25 m harbour tug): look at all of her again.
+  const newType = patch.hull !== undefined && patch.hull !== design.hull;
   if (by === 'me') share(patch);
   else if (by) flash(patch, by);
-  design = { ...design, ...patch };
+  // (A one-off type's fixed choices stay hers: DesignHull.fixed.)
+  design = withFixed({ ...design, ...patch });
   saveSessionCopy();
   boat = useDesign(design);
   syncControls();
   drawBoat();
+  if (newType) setView('Bow ¾');
   showFigures();
   showCode();
   if (matchKey(design) !== before || !trial) runTrial();
@@ -1904,8 +1998,8 @@ function saveSessionCopy(): void {
     } catch {
       /* storage full or off: the session still works, it just isn't kept here */
     }
-    // On your own with a project open, the project saves itself too.
-    if (!sessionId && tabHasProject()) autosaveProject();
+    // On your own with a saved project open, the project saves itself too (a scratch boat isn't kept).
+    if (!sessionId && tabHasProject() && currentProject()) autosaveProject();
   }, 800);
 }
 function myName(): string {
@@ -2461,7 +2555,8 @@ function showHandles(): void {
   for (const row of document.querySelectorAll<HTMLElement>('.row.handled')) row.classList.remove('handled');
   if (placing || tool || live) return;
   for (const def of HANDLES) {
-    if (def.step !== shownStep || (def.applies && !def.applies(design))) continue;
+    // (Not on a one-off's fixed choices: DesignHull.fixed.)
+    if (def.step !== shownStep || (def.applies && !def.applies(design)) || def.key in (DESIGN_HULLS[design.hull]?.fixed ?? {})) continue;
     const mesh = new THREE.Mesh(handleGeo, new THREE.MeshBasicMaterial({ color: handleColour(def), depthTest: false, transparent: true, opacity: 0.95 }));
     mesh.renderOrder = 12;
     const at = def.anchor(boat);
@@ -2838,7 +2933,10 @@ function showOnHer(): void {
   if (!menu) return;
   menu.innerHTML = '';
   for (const g of GEAR_GROUPS) {
-    const items = g.items.map((id) => equipmentOf(id)!).filter(Boolean);
+    // (Not a one-off's fixed gear, the harbour tug's bow winch, stern roller and the rest: DesignHull.fixed.)
+    const fixed = DESIGN_HULLS[design.hull]?.fixed ?? {};
+    const items = g.items.map((id) => equipmentOf(id)!).filter((eq) => eq && !(eq.field in fixed));
+    if (!items.length) continue;
     const on = items.filter((eq) => fitted(eq, design)).length;
     const det = document.createElement('details');
     det.className = 'gearGroup';
@@ -3453,7 +3551,9 @@ function switchProject(doc: YardDoc, name: string): void {
     msg.textContent = 'You’re designing together: leave the session first (👥), then start a new design or open another.';
     return;
   }
-  if (!isBlank(side().doc())) {
+  if (!isBlank(side().doc()) && !currentProject()) {
+    if (!confirm('This scratch boat isn’t saved: leave her? (Press 💾 Save first to keep her.)')) return;
+  } else if (!isBlank(side().doc())) {
     const kept = saveProject();
     if (!kept) {
       msg.textContent = 'This browser won’t save (storage full or switched off), so this work would be lost: delete an old project, or copy her code first.';
@@ -3498,6 +3598,23 @@ $('projectsBtn').onclick = () => {
   if (!$('projectsPop').hidden) showProjects();
 };
 $('projClose').onclick = () => closeProject();
+/** A scratch boat (no project) to a project, by her name (asked for if she has none): she then saves herself as you work. */
+function saveScratch(): void {
+  if (sessionId) return;
+  const n = (brief.name ?? '').trim() || prompt('Her name, for the project:', defaultName())?.trim();
+  if (!n) return;
+  if (n !== brief.name) setBrief({ name: n });
+  const kept = saveProject();
+  $('projState').textContent = kept ? `“${kept}”, saved as you work` : 'This browser won’t save (storage full or switched off): delete an old project, or copy her code.';
+  showSaved();
+}
+$('saveBtn').onclick = saveScratch;
+/** The 💾 Save button (only on a scratch boat, on your own) and the Projects box's line on this work. */
+function showSaved(): void {
+  const scratch = !sessionId && !currentProject();
+  $('saveBtn').hidden = !scratch;
+  $('projState').textContent = scratch ? 'A scratch boat: not saved. Press 💾 Save to keep her as a project.' : currentProject() ? `“${currentProject()}”, saved as you work` : $('projState').textContent;
+}
 
 /** Does this tab have a project open (see OPEN_KEY)? */
 function tabHasProject(): boolean {
@@ -3522,7 +3639,8 @@ function keepWorkLeftOnTable(): void {
   const store = storage();
   const doc = readDocCopy('solo');
   try {
-    if (doc && !isBlank(doc)) {
+    // (A scratch boat, no project, isn't kept: owner, Oct 2026.)
+    if (doc && !isBlank(doc) && currentProject()) {
       const d = doc.variants[0].design;
       const summary = `${DESIGN_HULLS[d.hull]?.name.split(':')[0].trim() ?? 'A boat'}${doc.variants.length > 1 ? ` · ${doc.variants.length - 1} variant${doc.variants.length > 2 ? 's' : ''}` : ''}`;
       writeProjects(store, keepLeftWork(readProjects(store), doc, currentProject(), Date.now(), summary));
@@ -3548,7 +3666,9 @@ function closeProject(): void {
     return;
   }
   clearTimeout(saveTimer);
-  if (!saveProject()) {
+  if (!currentProject()) {
+    if (!isBlank(side().doc()) && !confirm('This scratch boat isn’t saved: close her and lose her? (Press 💾 Save first to keep her.)')) return;
+  } else if (!saveProject()) {
     if (!confirm('This browser won’t save (storage full or switched off), so this work would be lost. Close it anyway?')) return;
   }
   try {
@@ -3573,9 +3693,17 @@ function showStartScreen(): void {
     markProjectOpen();
     pop.hidden = true;
     const n = name.value.trim();
+    // Named, she's a project from the start; unnamed, a scratch boat, kept by nobody until 💾 Save (owner, Oct 2026).
+    try {
+      localStorage.removeItem(PROJECT_KEY);
+    } catch {
+      /* nothing to clear */
+    }
     if (n) setBrief({ name: n });
     goStep(0);
+    if (n) saveProject();
     saveSessionCopy();
+    showSaved();
   };
   $('startNew').onclick = go;
   name.onkeydown = (e) => {
@@ -3968,6 +4096,7 @@ function look(eye: [number, number, number], at: [number, number, number]): void
   orbit.update();
 }
 if (showStart) showStartScreen();
+showSaved();
 /** For scripted checks: where a point on her (boat axes) is on the page (client pixels). */
 function toScreen(p: [number, number, number]): [number, number] {
   const v = new THREE.Vector3(...p).project(viewCam());

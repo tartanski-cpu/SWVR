@@ -6,7 +6,7 @@ import { createWorld } from '../src/core/world';
 import { ClientSession } from '../src/net/clientSession';
 import { HostSession } from '../src/net/hostSession';
 import type { PlayerPose } from '../src/net/protocol';
-import { LoopbackHost } from '../src/net/transport';
+import { LoopbackHost, plainNetError } from '../src/net/transport';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -15,8 +15,8 @@ async function setup() {
   const { world, localPlayerId, vesselId } = createWorld(ids);
   world.environment.waves = [];
   const loop = new LoopbackHost();
-  const host = new HostSession(world, ids, loop, '12345');
   let clock = 0;
+  const host = new HostSession(world, ids, loop, '12345', () => clock);
   const client = new ClientSession(loop.client(), 'Guest', () => clock);
   await flush();
   return { world, host, client, localPlayerId, vesselId, setClock: (t: number) => (clock = t) };
@@ -107,15 +107,79 @@ describe('multiplayer (loopback)', () => {
   });
 
   it('a crew-mate gone quiet (a page closed without saying) is taken out of the world, and back as they were when heard from', async () => {
-    const { world, host, client } = await setup();
+    const { world, host, client, setClock } = await setup();
     client.sendPose(pose(null));
     const before = structuredClone(world.players['player-2']);
-    host.tick(CONFIG.net.crewSilentS - 1);
+    setClock(CONFIG.net.crewSilentS - 1);
+    host.tick(0.1);
     expect(world.players['player-2']).toBeDefined();
-    host.tick(2);
+    setClock(CONFIG.net.crewSilentS + 1);
+    host.tick(0.1);
     expect(world.players['player-2']).toBeUndefined(); // no frozen avatar
+    expect(host.playerCount).toBe(1); // nor counted aboard
     client.sendPose(pose(null));
     expect(world.players['player-2']).toEqual(before);
+  });
+
+  it('a crew-mate quiet for a moment lets go of what they held; a tab joining again replaces its old self', async () => {
+    const { world, host, vesselId, setClock } = await setup();
+    world.vessels[vesselId].holds.helm = 'player-2';
+    setClock(CONFIG.net.crewHoldS + 0.1);
+    host.tick(0.1);
+    expect(world.vessels[vesselId].holds.helm).toBeUndefined(); // the wheel's free for the others
+    expect(world.players['player-2']).toBeDefined(); // still aboard, for now
+    // The same tab joins again (a reload): one of them, not two.
+    const ids = new IdFactory();
+    const w2 = createWorld(ids).world;
+    const loop = new LoopbackHost();
+    const h2 = new HostSession(w2, ids, loop, '12345');
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-a');
+    await flush();
+    expect(Object.keys(w2.players)).toHaveLength(2);
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-a');
+    await flush();
+    expect(Object.keys(w2.players)).toHaveLength(2);
+    expect(h2.playerCount).toBe(2);
+    // Another tab is another player.
+    new ClientSession(loop.client(), 'Mate', undefined, undefined, 'tab-b');
+    await flush();
+    expect(h2.playerCount).toBe(3);
+  });
+
+  it('two of the same name are told apart; a crew-mate back from the same tab is put aboard the boat that waited', async () => {
+    const ids = new IdFactory();
+    const { world: w } = createWorld(ids);
+    const loop = new LoopbackHost();
+    new HostSession(w, ids, loop, '12345');
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-a');
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-b');
+    await flush();
+    expect(Object.values(w.players).map((p) => p.name).sort()).toEqual(['Bosun', 'Bosun 2', w.players['player-1'].name].sort());
+    // A boat of tab-a's, left waiting (its player gone, the world kept).
+    const a = Object.values(w.players).find((p) => p.clientId === 'tab-a')!;
+    w.vessels.mine = { ...w.vessels[w.homeVesselId!], id: 'mine', owner: 'player-9', ownerClient: 'tab-a', ownerAwayAt: 0 };
+    delete w.players[a.id];
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-a');
+    await flush();
+    const back = Object.values(w.players).find((p) => p.clientId === 'tab-a')!;
+    expect(w.vessels.mine.owner).toBe(back.id);
+    expect(back.aboardVesselId).toBe('mine');
+  });
+
+  it('the host stopping on purpose ends the game for the crew (no takeover); a host quiet or in the background is noticed', async () => {
+    const { host, client, setClock } = await setup();
+    // Heard from at each snapshot; quiet since then.
+    setClock(10);
+    expect(client.silentS()).toBe(10);
+    host.paused = true;
+    host.tick(1);
+    expect(client.silentS()).toBe(0);
+    expect(client.hostPaused).toBe(true);
+    let why = '';
+    client.onClosed = (r) => (why = r);
+    host.close(true);
+    expect(why).toBe('The host ended the game');
+    expect(client.status).toBe('closed');
   });
 
   it('a player who leaves is removed from the world', async () => {
@@ -123,5 +187,15 @@ describe('multiplayer (loopback)', () => {
     expect(world.players['player-2']).toBeDefined();
     client.close();
     expect(world.players['player-2']).toBeUndefined();
+  });
+});
+
+describe('plain error words (multiplayer study #20)', () => {
+  it('says what went wrong in plain words, and keeps the words the game acts on', () => {
+    expect(plainNetError('peer-unavailable')).toBe('No game with that code');
+    expect(plainNetError('server-error')).toMatch(/game finder/);
+    expect(plainNetError('network')).toMatch(/game finder/);
+    expect(plainNetError('Negotiation of connection to swvr-room-12345 failed.')).toMatch(/Wi-Fi or a phone hotspot/);
+    expect(plainNetError('The host left')).toBe('The host left');
   });
 });

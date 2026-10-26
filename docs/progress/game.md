@@ -10,6 +10,90 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Multiplayer batch 3: joining the right game, clearly (26 Oct 2026)
+
+Owner: "go ahead with multiplayer batch 3" (the study's third batch: #6, #22, #24, #13, #4, #26, #8, #20, #23, #30, #34, #19, #32).
+
+- **#6 The host's game, map and address.** The host's world says its mode and folder (`world.build.mode`, `site`, beside `map`). The crew page checks them first on the welcome (`samePageAsHost`): in the other game, on another Voyage map, or on the other address (#30: the live game and /next/), it goes to the host's page with the code and joins from there. The host doesn't take a crew page from another address as "a newer build" (the hello's `site`).
+- **#22 A notice before each reload** ("The host is in Voyage: Tayvallich and Loch Sween: loading it and joining", the version one too), `net.reloadNoticeS` 1.5 s before it goes. **Leave game goes back to your own page** as it was before the join (kept in the tab, `swvr.ownPage`): your mode, your map, your own boat.
+- **#26** That also drops the host's boat from the address: no "sea trial" of the host's Shipyard boat in your career after following them.
+- **#24** The host's chart is taken only after those checks: a refused join no longer leaves the host's pencil marks in your saved chart.
+- **#4 Try her together** is a try-out (`isTryOut`, shipyardTrip.ts): no five-minute sea-trial clock (it restarted everyone in the beginner boat), nothing saved to the career. The same for a page following its host into a boat its career hasn't paid for. (My call, open to change: the try-out isn't saved as your career boat; buy her at a yard for that.)
+- **#13** The crew page takes the host's world whole (`net/takeWorld.ts`, at the welcome and each snapshot): parts of its own the host hasn't got (its own Voyage plan, its pots) go.
+- **#8 Joins give up:** after `net.joinTimeoutS` 20 s with no answer (`joinLoadS` 60 s once the world has started coming), "No answer from game 12345. Is the host's game open and their headset on? Try again". The Crew tab says the stage: reaching the game finder, looking for the host, linked (the world coming).
+- **#20 Plain error words** (`plainNetError`, net/transport.ts): "Can't reach the game finder: check the internet…", "Found the host, but your networks block a direct link: try home Wi-Fi or a phone hotspot". Hosting tries 5 times (`net.hostTries`), each wait longer, keeping its own game's code.
+- **#23 Old links:** a game link (`?game=`) is tried `net.linkTries` 5 times (not 20), then "Game 99998 isn't open: host your own game or join another", the address cleared. **Stop waiting** on the Crew tab gives up any join or wait (no retry or takeover after it).
+- **#34 Desktop:** with the Crew tab open (on your own), the number keys (both rows) type the code, Backspace, Enter joins; pasting a code or a game link fills the box. The 9 and 0 keys' motion coupling waits meanwhile.
+- **#19** `npm run crewcheck` reads the join box before the leave's reload, and checks the crew's boat now waits (batch 2): all 27 pass.
+- **#32 Docs:** README (no "last code remembered", no restart into the host's boat) and MULTIPLAYER.md (the free relay, the measured snapshot sizes, joining) corrected.
+- **Shared changes:** `src/core/world.ts` (`build.mode`, `build.site`).
+- **Tests:** tests/takeWorld.test.ts (new), tests/net.test.ts (plain error words), tests/shipyardTrip.test.ts (try-outs), tests/menu.test.ts (hooks).
+- **Checked live, two and three browsers through the real game finder:** a Career page joining a Voyage Tayvallich host is told, goes there, joins, and Leave game takes it back to career.html; an old link gives up in about 55 s with the address cleared; crewcheck 27 of 27. **Not checked:** the live game and /next/ together (needs both published), the join time limit against a real sleeping headset, desktop typing by hand, the Quest.
+
+### Multiplayer batch 2: nobody loses their stuff (26 Oct 2026)
+
+Owner: "go ahead with batch 2" (the multiplayer study's second batch: #5, #11, #16, #12, #28, #29, #17, #18), with two answers: a crew-mate's boat **waits 2 minutes**; on a borrowed career, **block boat changes**.
+
+- **#5 Crew boats wait.** A launched boat whose player has gone waits `net.crewBoatGraceS` 120 s (`VesselState.ownerAwayAt`), with her tow and cargo, then goes. Back from the same browser tab (`ownerClient`, the hello's `clientId`, now kept on `PlayerState.clientId`), the player gets her again under their new number and is put aboard her ("…waited for you: you're back aboard") (`core/launch.ts` `stepLaunched`, `reclaimBoats`; HostSession hello). A new crew-mate's number is one no player or waiting boat has, so a stranger never inherits one. Going solo keeps your own launched boat yours.
+- **#28 A boat taken away** (handed back, replaced, her owner long gone) sets her cargo down on the game harbour's goods row, casts off her lines, lets go her controls and puts anyone aboard onto the game's boat (`removeBoat`). Launching again keeps the old boat if the new one finds no room.
+- **#12 The host launches with crew aboard:** she's put beside the game's boat, as a crew-mate's is, instead of the page starting again (and in a friend's world).
+- **#29 A host's reload keeps the world:** as the hosting page goes, its world is kept in the tab (`swvr.hostWorld`, sessionStorage); hosting the same code again within `net.hostWorldKeepS` 180 s, in the same boat, it carries on from there (the crew rejoin; their boats wait). Also when the page updates itself for a newer crew page. Not when changing boat.
+- **#16 A borrowed career:** boat changes, refits, the Shipyard and a launch that would start the page again are blocked with a message while the world is a friend's (`borrowedBlocks`).
+- **#11 Back to your own game** on the Crew tab when you're alone in a friend's world; Host a game there asks you to press again.
+- **#17 Names:** the random first name is saved (it changed on every reload); the host gives a second "Bosun" " 2".
+- **#18 Notices:** "X came aboard (n aboard)", "X left the game", on every page in the game.
+- **Shared changes:** `src/core/launch.ts` (the wait, `removeBoat`, `reclaimBoats`), `src/vessel/vesselState.ts` (`ownerClient`, `ownerAwayAt`).
+- **Tests:** tests/launch.test.ts (the wait, the reclaim, cargo to the quay; 2 new, 1 changed), tests/net.test.ts (names told apart, put aboard the boat that waited; 1 new).
+### Multiplayer batch 1: noticing who's gone (26 Oct 2026)
+
+Owner: "go ahead with the multiplayer batch 1" (the multiplayer study's first batch: #21, #10, #1, #2, #9, #14).
+
+- **#1 Heartbeat both ways.** Crew: a host not heard from for `net.hostSilentS` 4 s is "not responding" (or, its snapshots say so, "in the background"), for `net.hostLostS` 10 s lost, as if its link had closed: the wait, then the takeover (ClientSession `silentS`, `lose`; App `heartbeat`). Host: a crew-mate quiet for `net.crewHoldS` 3 s lets go of what they held; after `net.crewSilentS` (now 12 s) is taken out of the world (back as they were if heard from), and no longer counted aboard. The silence is timed by the real clock, not the frames (a slow frame rate mustn't slow it). A tab joining again (its `clientId`, kept in the tab's sessionStorage) replaces its old self at once.
+- **#2 Stop hosting ends the game:** the host's `end` message; the crew are told "The host ended the game" and carry on alone; nobody takes over. (A host whose page simply goes says nothing: the heartbeat.)
+- **#10 A returning host joins:** a page re-hosting a code of its own (a reload, a takeover, Try her together) that finds it taken joins it as crew, and hosts it again if nobody turns out to be there. A takeover waits for a join under way to finish. `net.takeoverDelayS` 12 → 25 s (time for a Quest to reload).
+- **#21 A hidden host keeps the game going:** stepped from a timer (`net.hiddenStepS` 1 s; a background tab's timers), snapshots marked paused so the crew are told why.
+- **#9 Crew ride out game-finder blips** (PeerClientTransport: its errors ignored while the link to the host is open, and reconnected). **#14 The host reconnects** to the game finder, waiting longer each time (`net.finderRetryS`); the menu says "reconnecting (new crew can't join yet)", or that another page took the code.
+- **Checked:** tests/net.test.ts (3 new). Two browsers through the real PeerJS broker: Stop hosting (the crew told, no takeover after 35 s); a crew page gone silent (its hold on the wheel freed by 5 s, taken out by 15 s); a host gone silent (the crew notice by 14 s and start rejoining). Not checked: the hidden tab (a headless browser can't hide one), the game finder dropping, on the Quest.
+
+### Fix: a crane's load lowered over her own deck goes on her deck (26 Oct 2026)
+
+Owner: since the HOOK message, a cardinal buoy can't be set down on the cargo deck: "not close enough to the water". The message was only saying what the crane had always done: a load set down over her deck needed its whole footprint on clear deck right under the hook (all four corners: a 1.1 m buoy on a small working deck seldom fits exactly), and anywhere else was taken for "over the side", so it wanted the water. Now a load lowered anywhere over her (`overDeck`, cargo/deck.ts: inside her deck's outline) goes on her deck, under the hook or at the nearest clear spot within `DECK_NUDGE` 1.2 m (`deckLanding`, cargo/cargo.ts); with no room near, it stays on the hook and HOOK says "No room on deck there: move the hook over a clear part of the deck"; it's never over the sea. A full deck (payload, slots) says so too. Test: tests/craneDeckSetDown.test.ts (a crane boat, the hook over her deck just off a clear patch: the buoy goes on deck; the old code gave "Lower it right down to the water first").
+
+### Back from the submersible game: salvage crates on deck, the survey and the story paid (26 Oct 2026)
+
+The owner (to the submersible game's chat, which built this, its milestone M9): do both sides of the way back, and merge it to `next` for the round trip; and make the charted wrecks generic, so the submersible game's procedural engine makes them up.
+
+- **The return** (`src/dive/diveReturn.ts`, new; `docs/dive-contract.md` "The return", the same file in both repositories): the submersible game, on recovery, goes back to the `return` address with one JSON envelope in `mv` (base64url, as Timber's): `from: "submersible"`, the handoff id, the site, `items` (kind, class, name, kg in water), `survey` (coverage, gained, named, now), `story` (clues, solved, now, first time). Read and bounded (`decodeDiveReturn`), taken off the address before Timber's look (`takeDiveReturn`), counted once by the id issued at DIVE (`consumeDiveReturn`, through the issued/consumed lists shared with Timber), in the career and in Voyage.
+- **What came up:** a **salvage crate** on the dive ship's deck per find (cargo kind `Salvage`, as heavy as the find out of the water, `CONFIG.dive.airFactor`; real deadweight; orange, as lost cargo is). Sold at its price (`CONFIG.dive.prices`, by kind) once she's been stopped in any port for `sellAfterS` (30 s, so you see them aboard first), or carried ashore by hand.
+- **Paid on coming back:** the survey (£25 a point of coverage gained this dive, £600 for naming her) and her story (£800 for the cause of loss, +£1,200 first time) (`CONFIG.dive.fees`). New job kinds `salvage` and `dive` (career.ts), at the price given.
+- **The sub:** still over the site (a Voyage comes back where she was), afloat astern with the frame out, to recover by hand. Elsewhere (the career comes back in port: it doesn't save her place) on her cradle.
+- **Generic wrecks** (owner): `src/dive/diveSites.ts` drops each wreck's name, kind, size and note; a site has `near` (where, in words) and the charts say "Wreck, 27 m" until a dive names her (`foundNames`, `swvr.dive.names`); `siteLabel` for notices ("Diving on the wreck off Brannock"). The Calder Haven site keeps `scenery: 'Margaret Ann'`, so the paper chart marks the visible wreck there once.
+- **Shared changes:** `voyage/metaverse.ts` (`consumeIssued`, the id check split out of `consumeReturn`); `cargo/cargo.ts` (`CargoItem.salvage`, its label, paid when carried ashore); `career/career.ts` (job kinds `salvage`, `dive`; `stepCareer` sells salvage); `config.ts` (`dive.prices`, `fees`, `airFactor`, `maxItems`, `sellBelowMS`, `sellAfterS`; the `Salvage` cargo kind, after the trade kinds); `nav/chartPlotter.ts`, `nav/paperChart.ts` (labels); `modules/diveFrame/launch.ts` (the "nearest" notice); `app/App.ts` (`takeDiveBack`, `landDive`, after the career is restored); `docs/dive-contract.md`; README "Dive sites and the submersible".
+- **Tests:** `tests/diveReturn.test.ts` (new): the envelope read, bounded, Timber's left alone; counted once, only with an issued id; the crates on deck (names, weights), the fees, the sub afloat over the site and on her cradle away from it, her name for the charts; selling: not at sea, not at once, then each crate in port; no site named or described. `npm test`: 278 files, 1622 tests pass (after merging `next`); typecheck clean.
+- **Checked in headless Chromium, the round trip with both games served locally:** career and Voyage (Oban): the dive ship over a site, sub afloat, DIVE → the submersible game at that site with the return address and session → recovered there with an anchor and a bottle and the cause found → back here: the crates aboard (Voyage) or sold in Calder Haven after the wait (career), the fees in the ledger, the notice, the sub afloat astern in Voyage. **Not checked:** VR; a picture of the crates on deck (the headless player was ashore); the live addresses (the local servers stood in).
+### Construction projects, step 5: commissioning, and Tarran Rig finished (26 Oct 2026)
+
+Owner: "go to stage 6". The plan's last stage: commissioning crews out by crew transfer; the turbines light and turn; the project done with its bonus.
+
+- **Stage 6, Commissioning** (bonus £2,000): `comm1`, `comm2`, crew transfers of two engineers each (`ProjectJobDef` transfer with `commission: true`), £800 each, through the transfer system as the fitters were. Their crew up: the turbine is commissioned `projectCommission.s` 90 s later (`commissioning`, then `commissioned`, saved; one being commissioned reads back as done), the radio says so.
+- **Turning:** a commissioned turbine is drawn by a WindFarmView of its own inside ProjectView (into the wind, rotor turning, lit at night: the map farms' own drawing), made again as each is commissioned; ProjectView no longer draws its still parts.
+- **Finished:** the last stage done and every turbine commissioned, the project's done (`completeProject`): its `bonus` £5,000 and double the contract reputation, moved to `CareerState.projectsDone`, `project` cleared. Its farm stands for good (`builtProject`): `foundations` gives it every turbine up and turning, so it's drawn, solid (`projectBlocks`), a crew-transfer farm (`setProjectFarm`), on the plotter (now every farm via `allFarms()`, which also rings a transfer job's turbine on the project's farm), and its marks stay laid (`laidMarks`), on the plotter too.
+- **Board and menu:** after the last stage, "every stage done: commissioning, n of 2 turbines generating"; the debug Stage done on the last stage commissions at once, so the project finishes.
+- **Tests:** tests/projects.test.ts, 2 new (the crews up, commissioning, then the project done: bonus, projectsDone, the farm standing, solid, its marks, not offered again, saved; a turbine being commissioned saved), 1 changed. Headless: the finished farm by day and night (rotors turning, lights on as Holm Rig's).
+- **Shared changes:** none beyond the main game's files (the plotter's farm list now `allFarms()`).
+
+### (From the modular-builder chat) The harbour tug's azimuth drives and levers
+
+The harbour tug's two azimuth stern drives and their twist-and-throttle levers (full write-up: `docs/progress/modules.md`). What moved in shared and game files:
+- `src/vessel/physics/propulsion.ts`: `twinStep` takes each engine's own speed of advance (`speed2`, default the same), unchanged for every other boat.
+- `src/vessel/vesselState.ts`: `aziAngle`, `aziAngle2`, `aziTransit` in the controls; `azimuth` (each drive's heading) in the engine's state.
+- `src/controls/instruments.ts`: the ENGINE screen draws each drive's heading dial when she has them.
+- `src/app/interiorDetail.ts`: `control:wheel` added to the parts never hidden from outside the wheelhouse (the tug's small 0.13 m wheel fell under the 0.3 m small-part size and vanished through the windows).
+
+### (From the modular-builder chat) DIVE: the dive support ship opens the submersible game
+
+The dive A-frame's red DIVE (docs/progress/modules.md): with the sub afloat, stopped over a dive site's ring, it saves the game and opens the submersible game at that wreck by the address it reads (`?site=&depth=&sub=&tier=&crew=&return=&session=`). Shared changes: `app/App.ts` (`goDive`, and the DIVE press in the controls' handler); `docs/dive-contract.md` (the launch as built, replacing the proposed `mv` envelope for the way out; the return still to agree, the submersible game's M9). The session id goes in the same issued-ids store as the timber camp's (`swvr.mv.issued`).
+
 ### (From the modular-builder chat) A dive support vessel: the dive A-frame and the submersible
 
 The new module `deck.dive-frame` (docs/progress/modules.md): an A-frame over the stern that hoists the submersible game's sub off her cradle, swings her out and lowers her until she floats. Shared changes here:

@@ -14,6 +14,15 @@ export interface VesselControls {
    * engine's lever, as `lever`. `lever` is then the port engine's. Unset: it follows `lever`.
    */
   lever2?: number;
+  /**
+   * Azimuth drives (modules/dieselInboard `azimuth`, the harbour tug's; owner, Oct 2026): the
+   * way each drive's lever points, the direction it asks its drive to push (deg, 0 ahead, + to
+   * starboard, round to +-180 astern); `lever` and `lever2` are then each drive's power (0..1).
+   * TRANSIT (1): the wheel swings both drives together instead, as rudders. Unset on other boats.
+   */
+  aziAngle?: number;
+  aziAngle2?: number;
+  aziTransit?: number;
   /** Helm (wheel) position, -1 (hard to port) .. +1 (hard to starboard). */
   helm: number;
   /** Navigation lights switch, 0 off / 1 on. */
@@ -243,6 +252,11 @@ export interface EngineState {
    * tick (one key, one dipstick and set of lamps for both: modules/dieselInboard).
    */
   stbd?: EngineState;
+  /**
+   * Azimuth drives (modules/dieselInboard `azimuth`): where this engine's drive points, the way
+   * it pushes (rad, 0 ahead, + to starboard, +-pi astern). Unset on other boats.
+   */
+  azimuth?: number;
 }
 
 /**
@@ -268,6 +282,10 @@ export interface VesselState {
   build?: string;
   /** The player she belongs to (multi-boat M3: launched by them, core/launch.ts); unset on the game's own boats. */
   owner?: EntityId;
+  /** Her owner's browser tab (PlayerState.clientId): a rejoin from it gets her back, whatever player number it's given. */
+  ownerClient?: string;
+  /** Her owner gone from the game since (world time, s): she waits CONFIG.net.crewBoatGraceS for them (core/launch.ts). */
+  ownerAwayAt?: number;
   /** How closely she's simulated this tick (multi-boat M4, core/lod.ts): by her distance to the nearest player. Set by the host. */
   lod?: 'near' | 'mid' | 'far';
   /** World position of the vessel origin (centreline, amidships, DWL). */

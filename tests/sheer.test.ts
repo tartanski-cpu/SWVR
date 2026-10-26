@@ -34,6 +34,8 @@ describe('more sheer', () => {
     const steps = 6;
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
       if (DESIGN_HULLS[hull].retired) continue;
+      // (Not a one-off, the harbour tug: this choice is fixed on her.)
+      if (DESIGN_HULLS[hull].fixed) continue;
       const d: ShipDesign = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull };
       const stationsOf = (x: ShipDesign) => {
         useDesign(x);

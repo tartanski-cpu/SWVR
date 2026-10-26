@@ -254,6 +254,10 @@ export const MODULES_CONFIG = {
      *                  `bottom` below her axis; her bow `front` forward of the lift point and her
      *                  tail `aft` aft of it; `halfWidth` her widest (the thruster ducts); afloat,
      *                  her axis `floatAxis` under the water (her top fairing just out of it)
+     *   dive           the DIVE button (modules/diveFrame/launch.ts): with the sub afloat, over a
+     *                  wreck site (within CONFIG.dive.radius) and making under `maxSpeedKn`, it
+     *                  opens the submersible game at `url` with her `sub` id and `tier` (3: the
+     *                  three-seat work sub with her mini ROV), after `fadeS` s of fade
      */
     diveFrame: {
       legLength: 6.5,
@@ -272,6 +276,7 @@ export const MODULES_CONFIG = {
       cradle: { height: 0.35 },
       sub: { massKg: 10_000, lift: 1.6, liftZ: 0.5, bottom: 1.46, front: 3.5, aft: 3.9, halfWidth: 1.45, floatAxis: -0.9 },
       colours: { frame: 0xe8e8e2, head: 0x30343a, ram: 0xc8ccd0, cradle: 0x30343a, umbilical: 0xe0a020 },
+      dive: { url: 'https://tartanski-cpu.github.io/Submersible-World/', maxSpeedKn: 0.5, sub: 'work3', tier: 3, fadeS: 1.2 },
     },
 
     /**
@@ -795,6 +800,54 @@ export const MODULES_CONFIG = {
       steering: { maxAngleDeg: 26, rateDegPerS: 40, legArea: 0.14 },
       look: { strutLength: 0.45, strutChord: 0.6, strutWidth: 0.12, podLength: 1.25, podRadius: 0.14, propFwd: 0.62 },
       joystick: { maxAngleDeg: 50, rateDegPerS: 60, lever: 0.5, slip: 0.4, side: 1, surge: 1, twist: 2, turnRateDeg: 6, turnGain: 60 },
+    },
+
+    /**
+     * Azimuth drives (owner, Oct 2026: the harbour tug's ASD drives and their controls; the
+     * diesel's `azimuth`, modules/dieselInboard; the levers, modules/azimuthLevers). Each drive
+     * a Z-drive under her stern that turns right round on its upright axis and pushes the way
+     * it points (its propeller in a nozzle, pulling, forward of its leg).
+     *   slewDegPerS     how fast each drive turns to follow its lever (deg/s; real ones, about
+     *                   10 to 30 s for a full turn; tune by feel)
+     *   legArea         each leg's side area (m^2): a little rudder in the water past it
+     *   propFwd         the propeller this share of its diameter ahead of the leg, along its push
+     *   transitMaxDeg   TRANSIT: the wheel hard over swings both drives this far (deg), as rudders
+     *   driveRatio      the drive's own bevel gears (upper and lower), on top of her gearbox's
+     *                   ratio: a Z-drive's whole reduction is about 5 to 7 to 1, so a big slow
+     *                   propeller can take the engine's full power
+     *   look            the drive as drawn: the leg's width across and chord (m), the housing's
+     *                   radius as a share of the propeller's diameter, the nozzle's length (share)
+     *                   and its wall's thickness (m)
+     *   hullClear       the Shipyard hangs each drive low enough that the top of its nozzle clears
+     *                   her bottom by this (m), all along and across the nozzle
+     *   lever           each drive's twist-and-throttle lever (control.azimuth-lever), a real
+     *                   azimuth control's head (owner, Oct 2026, from photos): a drum across it
+     *                   (`drumRadius`, `drumWidth`, m) with a bar on two posts above it (`length`:
+     *                   the bar's height over the drum's axis, which it tilts about; `barRadius`),
+     *                   a white pointer the way it pushes; how far it tilts at full power (deg),
+     *                   the power below which it reads idle (`detent`, 0..1), how far it turns for
+     *                   a degree of the hand's twist (`twistGain`: a wrist turns about 90 deg
+     *                   comfortably, so a full turn round is a few grabs), its turntable's radius
+     *                   (m), colours (`handle` the head's black, `tip` its pointer, `port` /
+     *                   `stbd` the bands round the drum, `base` the housing)
+     *   console         where the Shipyard puts them (control.azimuth-lever ×2, the helm console's
+     *                   slots, from its centre): each lever `leverX` out from the wheel's middle
+     *                   (either side) and `leverZ` aft of the console top's aft face, on its own
+     *                   pedestal; TRANSIT on the starboard lever's pedestal ahead of it
+     *                   (`transitZ`); the port pedestal joysticks (searchlight, fire monitor)
+     *                   moved out `joystickShift` to port, clear; and the tug's wheel smaller,
+     *                   `wheelRadius` (m), so the levers sit close in for both hands
+     */
+    azimuth: {
+      slewDegPerS: 12,
+      legArea: 1.6,
+      propFwd: 0.4,
+      transitMaxDeg: 35,
+      driveRatio: 1.6,
+      hullClear: 0.15,
+      look: { legWidth: 0.24, legChord: 0.75, housing: 0.11, nozzleLength: 0.5, nozzleWall: 0.09, colour: 0x4a5560, nozzleColour: 0x30363c },
+      lever: { length: 0.1, maxTiltDeg: 35, detent: 0.07, twistGain: 1.5, turntableRadius: 0.065, drumRadius: 0.045, drumWidth: 0.11, barRadius: 0.012, colours: { port: 0xd03a2a, stbd: 0x2a9a4a, handle: 0x1b1e21, tip: 0xf2f2f2, base: 0x23282c } },
+      console: { leverX: 0.3, leverZ: 0.2, transitZ: -0.065, joystickShift: 0.2, wheelRadius: 0.13 },
     },
 
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */

@@ -399,6 +399,16 @@ const paintRpm: Painter = (g, s) => {
       big(g, gearOf2(x), 488, y, 26, colourOf2(x));
     });
     text(g, `${e.fuelFlowLph.toFixed(1)} L/h`, 488, 122, DIM, TEXT_PX, 'right');
+    if (diesel.azimuth) {
+      // Azimuth drives (the harbour tug's): a dial each, port then starboard, seen from above,
+      // her bow up: the arrow where the drive points (the way it pushes), the ring where its
+      // lever asks it to (they part while it turns), TRANSIT when the wheel has them.
+      const asks = [s.controls.aziAngle ?? 0, s.controls.aziAngle2 ?? s.controls.aziAngle ?? 0];
+      const levers = [s.controls.lever, s.controls.lever2 ?? s.controls.lever];
+      [e, e.stbd].forEach((x, k) => azimuthDial(g, k ? 370 : 142, 192, ((x.azimuth ?? 0) * 180) / Math.PI, (levers[k] ?? 0) < 0 ? asks[k] + 180 : asks[k], k ? GREEN : RED));
+      if (s.controls.aziTransit) text(g, 'TRANSIT', 256, 196, AMBER, SMALL_PX, 'center');
+      return;
+    }
   } else {
   title(g, 'ENGINE');
   // Revs in figures (in tens, like a real tacho), gear and engine state beside them.
@@ -1045,11 +1055,52 @@ const paintClock: Painter = (g, _s, _def, env) => {
   g.fillText(hhmm(env), 128, 70);
 };
 
+/** An azimuth drive's dial (centre x, y): her bow up, the drive's arrow (deg, + to starboard), its lever's ring. */
+function azimuthDial(g: CanvasRenderingContext2D, cx: number, cy: number, deg: number, askDeg: number, colour: string): void {
+  const r = 52;
+  g.strokeStyle = DIM;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.stroke();
+  // Ticks every 45 deg, longer ahead.
+  for (let d = 0; d < 360; d += 45) {
+    const a = (d * Math.PI) / 180;
+    const k = d === 0 ? 14 : 7;
+    g.beginPath();
+    g.moveTo(cx + Math.sin(a) * r, cy - Math.cos(a) * r);
+    g.lineTo(cx + Math.sin(a) * (r - k), cy - Math.cos(a) * (r - k));
+    g.stroke();
+  }
+  // The lever's ask: a hollow ring on the rim.
+  const q = (askDeg * Math.PI) / 180;
+  g.strokeStyle = '#ffe6b0';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.arc(cx + Math.sin(q) * r, cy - Math.cos(q) * r, 8, 0, Math.PI * 2);
+  g.stroke();
+  // The drive: an arrow from the middle the way it pushes.
+  const a = (deg * Math.PI) / 180;
+  const tip = [cx + Math.sin(a) * (r - 6), cy - Math.cos(a) * (r - 6)];
+  g.strokeStyle = colour;
+  g.lineWidth = 6;
+  g.beginPath();
+  g.moveTo(cx - Math.sin(a) * 18, cy + Math.cos(a) * 18);
+  g.lineTo(tip[0], tip[1]);
+  g.stroke();
+  g.fillStyle = colour;
+  g.beginPath();
+  g.moveTo(tip[0] + Math.sin(a) * 6, tip[1] - Math.cos(a) * 6);
+  g.lineTo(tip[0] + Math.cos(a) * 9 - Math.sin(a) * 8, tip[1] + Math.sin(a) * 9 + Math.cos(a) * 8);
+  g.lineTo(tip[0] - Math.cos(a) * 9 - Math.sin(a) * 8, tip[1] - Math.sin(a) * 9 + Math.cos(a) * 8);
+  g.fill();
+}
+
 /** The screens there are, for the screen module (modules/screen) to pick from. */
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
   heading: { paint: paintHeading, key: (s) => [Math.round(headingDeg(s)), knots(s) > 0.3 ? Math.round(cogDeg(s)) : -1].join('|') },
-  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, s.engine.stbd ? `${Math.round(s.engine.stbd.rpm / 10)}${s.engine.stbd.phase}${s.engine.stbd.gear}` : '', Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
+  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, s.engine.stbd ? `${Math.round(s.engine.stbd.rpm / 10)}${s.engine.stbd.phase}${s.engine.stbd.gear}` : '', s.engine.azimuth === undefined ? '' : `${Math.round((s.engine.azimuth * 180) / Math.PI)},${Math.round(((s.engine.stbd?.azimuth ?? 0) * 180) / Math.PI)},${Math.round(s.controls.aziAngle ?? 0)},${Math.round(s.controls.aziAngle2 ?? 0)},${s.controls.aziTransit ?? 0},${Math.sign(s.controls.lever)},${Math.sign(s.controls.lever2 ?? 0)}`, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },

@@ -49,8 +49,9 @@ describe('hull protection: codes', () => {
 
 describe('hull protection: what each puts on her', () => {
   it('every hull takes every choice: a valid recipe, level on her lines, no warnings', () => {
+    // (Not a one-off, the harbour tug: her fendering is her protection, fixed: tests/shipyard/harbourTug.test.ts.)
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
-      for (let guard = 0; guard < GUARDS.length; guard++) {
+      for (let guard = 0; guard < (DESIGN_HULLS[hull].fixed ? 0 : GUARDS.length); guard++) {
         const boat = useDesign({ ...BASE, hull, ...DESIGN_HULLS[hull].defaults, guard });
         expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}/${guard}`).toEqual([]);
         expect(boat.warnings, `${hull}/${guard}`).toEqual([]);

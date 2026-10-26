@@ -36,6 +36,8 @@ export const HULL_ROLES: (HullRoles | null)[] = [
   { main: ['Trawling'], light: ['Cargo', 'Towing'] },
   // The fast catamaran (owner, Oct 2026): a wide, steady working platform, fast.
   { main: ['Cargo', 'Fire', 'Exploring'], light: [] },
+  // The harbour tug (owner, Oct 2026): a one-off, for towing and pushing ships.
+  { main: ['Heavy towing'], light: ['Fire'] },
 ];
 
 export interface HullCard {

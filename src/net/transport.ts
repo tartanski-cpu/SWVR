@@ -4,6 +4,25 @@
  * introduces the peers). Loopback* connect host and clients in memory, for tests.
  */
 import Peer, { type DataConnection } from 'peerjs';
+import { CONFIG } from '../config';
+
+/** The game finder's errors that are only its own connection's (the players' links carry on). */
+const FINDER_ERRORS = ['network', 'server-error', 'socket-error', 'socket-closed', 'disconnected'];
+
+/**
+ * The game finder's and the browser's error words in plain sentences (multiplayer study #20:
+ * the menu said "server-error", "network" or "Negotiation of connection to swvr-room-... failed").
+ * The words the game itself acts on ('No game with that code', 'The host left') pass as they are.
+ */
+export function plainNetError(raw: string): string {
+  if (raw === 'peer-unavailable') return 'No game with that code';
+  if (FINDER_ERRORS.includes(raw) || /network|server|socket/i.test(raw)) return "Can't reach the game finder: check the internet and try again in a minute";
+  if (raw === 'unavailable-id') return 'That game code is in use';
+  if (raw === 'browser-incompatible') return "This browser can't make game links: try another (Chrome, Edge, the Quest's)";
+  if (/negotiation|webrtc|ice/i.test(raw)) return 'Found the host, but your networks block a direct link: try home Wi-Fi or a phone hotspot';
+  if (/^[a-z-]+$/.test(raw)) return `Couldn't connect to the game (${raw})`;
+  return raw;
+}
 
 export interface Link {
   readonly id: string;
@@ -33,20 +52,44 @@ export function randomRoomCode(): string {
   return String(Math.floor(10000 + Math.random() * 90000));
 }
 
-/** Host side over PeerJS. `ready` resolves once the room code is registered. */
+/**
+ * Host side over PeerJS. `ready` resolves once the room code is registered. Its link to the
+ * game finder (the PeerJS server: only it lets new crew find the game) can drop on a Wi-Fi
+ * blip or a headset's sleep while the crew's own links carry on; it's reconnected, keeping
+ * the code, waiting longer between each try (multiplayer study #14). `finder` says how it
+ * stands: 'ok', 'reconnecting' (new crew can't join yet), or 'taken' (another page has the
+ * code meanwhile).
+ */
 export class PeerHostTransport implements HostTransport {
   onConnect: (link: Link) => void = () => {};
   onMessage: (link: Link, msg: unknown) => void = () => {};
   onDisconnect: (link: Link) => void = () => {};
   readonly ready: Promise<void>;
   readonly peer: Peer;
+  finder: 'ok' | 'reconnecting' | 'taken' = 'ok';
+  private opened = false;
+  private retryS = CONFIG.net.finderRetryS[0];
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** `peerId`: the id to register (default: the game's room id for `code`; the Shipyard has its own). */
   constructor(code: string, peerId = peerIdForRoom(code)) {
     this.peer = new Peer(peerId);
     this.ready = new Promise((resolve, reject) => {
-      this.peer.on('open', () => resolve());
-      this.peer.on('error', (e) => reject(e));
+      this.peer.on('open', () => {
+        this.opened = true;
+        this.finder = 'ok';
+        this.retryS = CONFIG.net.finderRetryS[0];
+        resolve();
+      });
+      this.peer.on('error', (e) => {
+        if (!this.opened) return reject(e);
+        // Open once already: the finder's trouble, not the game's.
+        if (e.type === 'unavailable-id') this.finder = 'taken';
+        else if (FINDER_ERRORS.includes(e.type)) this.reconnectSoon();
+      });
+    });
+    this.peer.on('disconnected', () => {
+      if (this.opened) this.reconnectSoon();
     });
     this.peer.on('connection', (conn: DataConnection) => {
       const link: Link = { id: conn.peer, send: (m) => conn.open && conn.send(m), close: () => conn.close() };
@@ -57,8 +100,27 @@ export class PeerHostTransport implements HostTransport {
     });
   }
 
+  /** Back to the game finder after a while, each wait longer (to `finderRetryS[1]`). */
+  private reconnectSoon(): void {
+    if (this.peer.destroyed || this.retryTimer || this.finder === 'taken') return;
+    this.finder = 'reconnecting';
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      if (this.peer.destroyed || !this.peer.disconnected) return;
+      this.retryS = Math.min(CONFIG.net.finderRetryS[1], this.retryS * 2);
+      this.peer.reconnect();
+      // (Still down a moment later: try again, later.)
+      setTimeout(() => {
+        if (!this.peer.destroyed && this.peer.disconnected) this.reconnectSoon();
+      }, 5000);
+    }, this.retryS * 1000);
+  }
+
   close(): void {
-    this.peer.destroy();
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    // A moment for anything just sent (the end of the game) to get out before the room closes.
+    const peer = this.peer;
+    setTimeout(() => peer.destroy(), 250);
   }
 }
 
@@ -69,22 +131,43 @@ export class PeerClientTransport implements ClientTransport {
   onClose: (reason: string) => void = () => {};
   readonly peer: Peer;
   private conn: DataConnection | null = null;
+  /** How far the join has got (multiplayer study #8): reaching the game finder, looking for the host, linked (the world coming). */
+  stage: 'finding' | 'linking' | 'loading' = 'finding';
 
   constructor(code: string, peerId = peerIdForRoom(code)) {
     this.peer = new Peer();
     this.peer.on('open', () => {
+      this.stage = 'linking';
       // Binary (the default, binarypack): it cuts a message into 16 KB pieces and joins them
       // again. The 'json' channel sends each message whole and throws it away past 16 KB
       // (owner, Oct 2026: a host with a career, potting and the regions in her world sent a
       // welcome over that, and nobody could join; the crew sat at "connecting" with no error).
       const conn = this.peer.connect(peerId, { reliable: true, serialization: 'binary' });
       this.conn = conn;
-      conn.on('open', () => this.onOpen());
+      conn.on('open', () => {
+        this.stage = 'loading';
+        this.onOpen();
+      });
       conn.on('data', (d) => this.onMessage(d));
       conn.on('close', () => this.onClose('The host left'));
-      conn.on('error', (e) => this.onClose(String(e)));
+      conn.on('error', (e) => this.onClose(plainNetError(String(e))));
     });
-    this.peer.on('error', (e) => this.onClose(e.type === 'peer-unavailable' ? 'No game with that code' : String(e.type ?? e)));
+    // In the game (the link to the host open), the game finder's own trouble is ignored and
+    // its connection quietly made again: the game goes on over the link (multiplayer study #9).
+    this.peer.on('error', (e) => {
+      if (this.conn?.open && FINDER_ERRORS.includes(e.type)) return this.refind();
+      this.onClose(plainNetError(String(e.type ?? e)));
+    });
+    this.peer.on('disconnected', () => {
+      if (this.conn?.open) this.refind();
+    });
+  }
+
+  /** Back to the game finder in a moment, if the page is still here and still off it. */
+  private refind(): void {
+    setTimeout(() => {
+      if (!this.peer.destroyed && this.peer.disconnected) this.peer.reconnect();
+    }, CONFIG.net.finderRetryS[0] * 1000);
   }
 
   send(msg: unknown): void {

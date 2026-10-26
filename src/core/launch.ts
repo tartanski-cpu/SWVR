@@ -5,9 +5,13 @@
  * harbour (where the home boat lies): moored at a free berth her length fits
  * (world/slots.ts), lines fast; or, when no face has room, anchored off (the owner: the
  * biggest boats go to anchor). She belongs to that player (`VesselState.owner`): launching
- * again replaces her, `withdrawBoat` hands her back, and when her player leaves the game she
- * goes with them (the owner's rule). The player's own page boards her when she appears
- * (App.ts): bodies are each page's own.
+ * again replaces her, `withdrawBoat` hands her back. When her player leaves the game she waits
+ * CONFIG.net.crewBoatGraceS for them (owner, 26 Oct 2026: two minutes, so a reload or a
+ * dropped link doesn't lose her, her tow or her cargo), and is theirs again if they rejoin from
+ * the same browser tab (`ownerClient`: `reclaimBoats`); after that she goes. A boat taken out
+ * of the world (`removeBoat`) sets her cargo down on the harbour's goods row, casts off her
+ * lines and puts anyone aboard onto the game's own boat. The player's own page boards her when
+ * she appears (App.ts): bodies are each page's own.
  */
 import { CONFIG } from '../config';
 import { PORTS } from '../world/archipelago';
@@ -21,6 +25,9 @@ import { createVesselState, type VesselState } from '../vessel/vesselState';
 import type { EntityId } from './ids';
 import type { Intent } from './intents';
 import { homeVessel, moorAtBerth, type WorldState } from './world';
+import { freeStackSpot } from '../cargo/cargo';
+import { castOffKey, vesselKey } from '../tow/tow';
+import { releaseHolds } from '../vessel/vesselControl';
 
 /** Turns a design token into a vessel type id (boats/library.ts boatType registers itself here: core code can't import the library). */
 let resolveToken: (token: string) => string | null = () => null;
@@ -150,14 +157,25 @@ export function launchBoat(world: WorldState, playerId: EntityId, ref: string): 
   if (!defId) return { error: 'no such boat' };
   const port = gameHarbour(world);
   if (!port) return { error: 'no harbour here' };
+  // Her old boat out of the way while the new one finds a place (her berth may be the one),
+  // and only taken away for good once the new one has one: no room, and she keeps the old.
   const old = ownedBoat(world, playerId);
   if (old) delete world.vessels[old.id];
   const n = (world.launched = (world.launched ?? 0) + 1);
   const v = createVesselState(`boat-${playerId}-${n}`, defId);
   v.owner = playerId;
+  const cid = world.players[playerId]?.clientId;
+  if (cid) v.ownerClient = cid;
   // At the harbour's free berth, else at anchor off it, else off the home boat herself.
   const how = berthOrAnchor(world, v, port);
-  if (!how) return { error: 'no room at the harbour or its anchorage' };
+  if (!how) {
+    if (old) world.vessels[old.id] = old;
+    return { error: 'no room at the harbour or its anchorage' };
+  }
+  if (old) {
+    world.vessels[old.id] = old;
+    removeBoat(world, old);
+  }
   world.vessels[v.id] = v;
   return { vessel: v, how };
 }
@@ -165,8 +183,48 @@ export function launchBoat(world: WorldState, playerId: EntityId, ref: string): 
 export function withdrawBoat(world: WorldState, playerId: EntityId): boolean {
   const v = ownedBoat(world, playerId);
   if (!v) return false;
-  delete world.vessels[v.id];
+  removeBoat(world, v);
   return true;
+}
+
+/**
+ * A player's boat taken out of the world (handed back, replaced, her player long gone; the
+ * multiplayer study #28: her crates went with her, never counted): what she carries set down
+ * on the game harbour's goods row, to be picked up again; her lines cast off (a tow, a painter);
+ * her controls let go; anyone aboard put aboard the game's own boat.
+ */
+export function removeBoat(world: WorldState, v: VesselState): void {
+  const port = gameHarbour(world);
+  for (const c of Object.values(world.cargo)) {
+    if (!('vessel' in c.at && c.at.vessel === v.id) && !('hook' in c.at && c.at.hook === v.id)) continue;
+    if (port) c.at = { ground: freeStackSpot(world, port), yaw: 0 };
+    else delete world.cargo[c.id];
+  }
+  castOffKey(world, vesselKey(v.id));
+  releaseHolds(v);
+  const home = homeVessel(world);
+  for (const p of Object.values(world.players))
+    if (p.aboardVesselId === v.id && home && home.id !== v.id) {
+      p.aboardVesselId = home.id;
+      p.position = [...VESSEL_DEFS[home.defId].boardingSpot];
+    }
+  delete world.vessels[v.id];
+}
+
+/**
+ * A crew-mate back from the same browser tab (`clientId`) under a new player number: the boats
+ * they left waiting are theirs again (her owner and her grace cleared). Returns the first.
+ */
+export function reclaimBoats(world: WorldState, playerId: EntityId, clientId: string | undefined): VesselState | undefined {
+  if (!clientId) return undefined;
+  let first: VesselState | undefined;
+  for (const v of Object.values(world.vessels)) {
+    if (v.ownerClient !== clientId || (v.owner && world.players[v.owner] && v.owner !== playerId)) continue;
+    v.owner = playerId;
+    delete v.ownerAwayAt;
+    first ??= v;
+  }
+  return first;
 }
 
 export const isLaunchIntent = (control: string): boolean => control === 'launchBoat' || control === 'withdrawBoat';
@@ -176,7 +234,15 @@ export function applyLaunchIntent(world: WorldState, intent: Intent): void {
   else if (intent.control === 'withdrawBoat') withdrawBoat(world, intent.playerId);
 }
 
-/** A boat whose player has left the game goes with them. */
+/** A boat whose player has left the game waits for them CONFIG.net.crewBoatGraceS, then goes (removeBoat). */
 export function stepLaunched(world: WorldState): void {
-  for (const v of Object.values(world.vessels)) if (v.owner && !world.players[v.owner]) delete world.vessels[v.id];
+  for (const v of Object.values(world.vessels)) {
+    if (!v.owner) continue;
+    if (world.players[v.owner]) {
+      if (v.ownerAwayAt !== undefined) delete v.ownerAwayAt;
+      continue;
+    }
+    v.ownerAwayAt ??= world.time;
+    if (world.time - v.ownerAwayAt >= CONFIG.net.crewBoatGraceS) removeBoat(world, v);
+  }
 }

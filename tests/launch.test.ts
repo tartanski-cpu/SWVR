@@ -102,7 +102,7 @@ describe('launching your own boat (multi-boat M3)', { timeout: 90000 }, () => {
     expect(m.launch.ownedBoat(world, 'player-2')).toBeUndefined();
   });
 
-  it('two players get two different berths; a player who leaves takes her boat with them', () => {
+  it('two players get two different berths; a player who leaves takes her boat with them, after a wait', () => {
     const { world, localPlayerId, send } = game();
     world.players['player-3'] = m.player.createPlayerState('player-3', 'Mate');
     send('player-2', 'launchBoat', 'pilotBoat');
@@ -116,8 +116,44 @@ describe('launching your own boat (multi-boat M3)', { timeout: 90000 }, () => {
     expect(h.mooring.phase === 'moored' || h.anchor.phase === 'set').toBe(true);
     delete world.players['player-3'];
     m.sim.stepWorld(world, [], DT);
+    // She waits for them (owner, 26 Oct 2026: two minutes), then goes.
+    expect(world.vessels[b.id]?.ownerAwayAt).toBeCloseTo(world.time, 0);
+    world.time += m.config.CONFIG.net.crewBoatGraceS + 1;
+    m.sim.stepWorld(world, [], DT);
     expect(world.vessels[b.id]).toBeUndefined();
     expect(world.vessels[a.id]).toBeTruthy();
+  });
+
+  it('back from the same tab under a new number: the boat that waited is theirs again', () => {
+    const { world, send } = game();
+    world.players['player-2'].clientId = 'tab-a';
+    send('player-2', 'launchBoat', 'pilotBoat');
+    const v = m.launch.ownedBoat(world, 'player-2')!;
+    expect(v.ownerClient).toBe('tab-a');
+    delete world.players['player-2'];
+    for (let i = 0; i < 20; i++) m.sim.stepWorld(world, [], DT);
+    expect(world.vessels[v.id]).toBeTruthy();
+    world.players['player-4'] = m.player.createPlayerState('player-4', 'Bosun');
+    expect(m.launch.reclaimBoats(world, 'player-4', 'tab-b')).toBeUndefined(); // another tab: not theirs
+    expect(m.launch.reclaimBoats(world, 'player-4', 'tab-a')?.id).toBe(v.id);
+    m.sim.stepWorld(world, [], DT);
+    expect(v.owner).toBe('player-4');
+    expect(v.ownerAwayAt).toBeUndefined();
+    world.time += m.config.CONFIG.net.crewBoatGraceS + 1;
+    m.sim.stepWorld(world, [], DT);
+    expect(world.vessels[v.id]).toBeTruthy();
+  });
+
+  it('a boat taken away sets her cargo down on the quay and puts anyone aboard onto the game boat', () => {
+    const { world, vesselId, send } = game();
+    send('player-2', 'launchBoat', 'pilotBoat');
+    const v = m.launch.ownedBoat(world, 'player-2')!;
+    world.cargo.c1 = { id: 'c1', kind: 0, mass: 40, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [0, 1, 0], yaw: 0, vel: [0, 0], lashed: true } };
+    world.players['player-2'].aboardVesselId = v.id;
+    expect(m.launch.withdrawBoat(world, 'player-2')).toBe(true);
+    expect(world.vessels[v.id]).toBeUndefined();
+    expect('ground' in world.cargo.c1.at).toBe(true);
+    expect(world.players['player-2'].aboardVesselId).toBe(vesselId);
   });
 
   it('no face with room for her: she lies at anchor off the harbour, in deep water, clear of the others', () => {

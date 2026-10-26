@@ -46,7 +46,12 @@ const KEY = 'swvr.settings.v1';
 /** Before v1 only the coupling was stored, under its own key. */
 const LEGACY_COUPLING_KEY = 'swvr.motionCoupling.v2';
 
+/** Was a name saved in this browser before this load? (Not: the one picked at random is kept below.) */
+let nameSaved = false;
 export const userSettings: UserSettings = load();
+// The name picked at random kept from now on (multiplayer study #17: a new one on every
+// reload, so the crew saw "Cook" go and "Bosun" come back in the same headset).
+if (!nameSaved) saveUserSettings();
 
 function load(): UserSettings {
   const s: UserSettings = {
@@ -70,7 +75,10 @@ function load(): UserSettings {
       if (typeof saved.desktopCoupling === 'number' && Number.isFinite(saved.desktopCoupling)) s.desktopCoupling = saved.desktopCoupling;
       if (typeof saved.smoothWalk === 'boolean') s.smoothWalk = saved.smoothWalk;
       if (typeof saved.snapTurnDeg === 'number' && saved.snapTurnDeg > 0) s.snapTurnDeg = saved.snapTurnDeg;
-      if (typeof saved.playerName === 'string' && saved.playerName) s.playerName = saved.playerName.slice(0, 24);
+      if (typeof saved.playerName === 'string' && saved.playerName) {
+        s.playerName = saved.playerName.slice(0, 24);
+        nameSaved = true;
+      }
       if (typeof saved.hookAutoExtend === 'boolean') s.hookAutoExtend = saved.hookAutoExtend;
       if (typeof saved.debugMenu === 'boolean') s.debugMenu = saved.debugMenu;
       if (typeof saved.potting === 'boolean') s.potting = saved.potting;

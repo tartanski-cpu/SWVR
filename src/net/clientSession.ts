@@ -15,7 +15,9 @@ interface Snapshot {
  * The joining player's side: says hello, receives its player id and the host's snapshots,
  * and keeps a short buffer of them to render ~INTERP_DELAY in the past, interpolated.
  * It also estimates the host's clock (snapshot time vs local receive time, smoothed), so
- * the waves - a function of world time - are drawn in step with the host.
+ * the waves - a function of world time - are drawn in step with the host. It notes when the
+ * host was last heard from (`silentS`: the App's heartbeat, a host gone without a word) and
+ * whether its page is in the background (`hostPaused`).
  */
 export class ClientSession {
   status: 'connecting' | 'connected' | 'closed' = 'connecting';
@@ -30,6 +32,9 @@ export class ClientSession {
   onClosed: (reason: string) => void = () => {};
   /** The host's page is starting again in another boat: build her and join again (App). */
   onRestart: (notice: RestartNotice) => void = () => {};
+  /** When the host was last heard from (s, `now`), and whether its page says it's in the background. */
+  private heardAt: number;
+  hostPaused = false;
 
   constructor(
     private readonly transport: ClientTransport,
@@ -37,8 +42,13 @@ export class ClientSession {
     private readonly now: () => number = () => performance.now() / 1000,
     /** This page's build (build.ts APP_BUILD), so the host can tell if it's behind us. */
     build?: string,
+    /** This browser tab's own id: joining again, it replaces its old self on the host. */
+    clientId?: string,
+    /** This page's address (its folder: /SWVR/ or /SWVR/next/): another one's build is no reason for the host to update. */
+    site?: string,
   ) {
-    transport.onOpen = () => transport.send({ t: 'hello', name, ...(build ? { build } : {}) });
+    this.heardAt = now();
+    transport.onOpen = () => transport.send({ t: 'hello', name, ...(build ? { build } : {}), ...(clientId ? { clientId } : {}), ...(site ? { site } : {}) });
     transport.onMessage = (m) => this.receive(m as HostMessage);
     transport.onClose = (reason) => {
       if (this.status === 'closed') return;
@@ -50,12 +60,15 @@ export class ClientSession {
 
   private receive(msg: HostMessage): void {
     if (this.status === 'closed') return; // (left: the link's last moments)
+    this.heardAt = this.now();
+    if (msg.t === 'end') return this.lose('The host ended the game');
     if (msg.t === 'welcome') {
       this.playerId = msg.playerId;
       this.status = 'connected';
       this.push(msg.world);
       this.onWelcome(msg.playerId, msg.world, msg.chart);
     } else if (msg.t === 'snapshot') {
+      this.hostPaused = msg.paused === true;
       this.push(msg.world);
     } else if (msg.t === 'chart') {
       this.onChart(msg.op);
@@ -108,6 +121,20 @@ export class ClientSession {
 
   sendPose(pose: PlayerPose): void {
     if (this.status === 'connected') this.transport.send({ t: 'pose', pose });
+  }
+
+  /** Seconds since the host was last heard from. */
+  silentS(): number {
+    return this.now() - this.heardAt;
+  }
+
+  /** The game's over for us (the host ended it, or went silent): closed, and said why. */
+  lose(reason: string): void {
+    if (this.status === 'closed') return;
+    this.status = 'closed';
+    this.closeReason = reason;
+    this.transport.close();
+    this.onClosed(reason);
   }
 
   close(): void {

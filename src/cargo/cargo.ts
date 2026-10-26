@@ -35,7 +35,7 @@ import { hullPlan } from '../vessel/layout';
 import type { VesselState } from '../vessel/vesselState';
 import { anchorageOnly, PORTS, SLIPWAYS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
-import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
+import { deckSpot, onOpenDeck, overDeck, type DeckFootprint } from './deck';
 import { compensatedHook, craneStateOf, cranesOf, hookOnBoat } from './craneHook';
 import { hasUpgrade } from '../career/career';
 import { hydraulicsOn } from '../vessel/electrics';
@@ -68,6 +68,8 @@ export interface CargoItem {
   pot?: PotContents;
   /** A fish box from the trawl: what's in it (the ground's species, FishingGroundDef). */
   species?: string;
+  /** A salvage crate from a dive (dive/diveReturn.ts): what's in it and what it fetches (£). */
+  salvage?: { name: string; value: number };
 }
 
 /** What's in a hauled pot (potting/potting.ts catchFor). */
@@ -344,7 +346,8 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: str
   if (delivered) world.deliveries += 1;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
-  if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
+  if (delivered && item.salvage) earn(world, 'salvage', { base: item.salvage.value, port: at, text: `Salvage sold at ${portName(at)}: ${item.salvage.name}` });
+  else if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
   else if (delivered && item.to === 'any') earn(world, 'crate', { port: at, text: `Lost cargo brought in to ${portName(at)}` });
   else if (delivered) earn(world, 'cargo', { port: item.to, from: item.from, what: kindOf(item)?.name, text: `Cargo ${portName(item.from)} → ${portName(item.to)}` });
   else {
@@ -583,10 +586,14 @@ export function hookNote(world: WorldState, v: VesselState): string | null {
     if (!item || !hook) continue;
     const base = hook.clone().setY(hook.y - kindOf(item).size[1]);
     const m = (x: number) => `${Math.max(0.1, x).toFixed(1)} m`;
-    if (onOpenDeck(v.defId, footprint(item), base.x, base.z)) {
-      const gap = base.y - deckHeight(v.defId, base.z);
+    const spot = deckLanding(world, v, item, base);
+    if (spot !== undefined) {
+      if (!spot) return 'No room on deck there: move the hook over a clear part of the deck';
+      const gap = base.y - deckHeight(v.defId, spot.z);
       if (gap > SET_DOWN_ABOVE) return `Lower it onto the deck: ${m(gap - SET_DOWN_ABOVE)} to go (hoist down)`;
-      if (gap < -SET_DOWN_BELOW || placeBlocker(world, v, item)) return 'No room on deck there: move the hook to a clear spot';
+      if (gap < -SET_DOWN_BELOW) return 'Too low: hoist it up a little';
+      const full = placeBlocker(world, v, item);
+      if (full) return full;
       continue;
     }
     const w = onWorld(v, base);
@@ -600,16 +607,34 @@ export function hookNote(world: WorldState, v: VesselState): string | null {
   return null;
 }
 
+/** How far from under the hook a load lowered over her deck may be set down, at the nearest clear spot (m). */
+const DECK_NUDGE = 1.2;
+
+/**
+ * Where on her deck a load lowered at `base` (her axes) goes: under the hook if it fits there,
+ * else the nearest clear spot within DECK_NUDGE (owner, Oct 2026: a 1.1 m buoy lowered over a
+ * small working deck, a little off a clear patch, was taken for over the side). Null: over
+ * her but no room near; undefined: not over her at all.
+ */
+function deckLanding(world: WorldState, v: VesselState, item: CargoItem, base: THREE.Vector3): { x: number; z: number } | null | undefined {
+  const f = footprint(item);
+  if (!overDeck(v.defId, base.x, base.z) && !onOpenDeck(v.defId, f, base.x, base.z)) return undefined;
+  const spot = deckSpot(v.defId, f, base.x, base.z, aboard(world, v.id).filter((o) => o.id !== item.id).map(deckDisc));
+  return spot && Math.hypot(spot.x - base.x, spot.z - base.z) <= DECK_NUDGE ? spot : null;
+}
+
 /** Set a hooked item down under the hook (`hook`: in her axes). False: it stays on the hook. */
 function setDown(world: WorldState, v: VesselState, item: CargoItem, hook: THREE.Vector3): boolean {
   const h = kindOf(item).size[1];
   const base = hook.clone().setY(hook.y - h);
-  // Her own deck.
-  if (onOpenDeck(v.defId, footprint(item), base.x, base.z)) {
-    const deckY = deckHeight(v.defId, base.z);
+  // Her own deck: under the hook, or the nearest clear spot to it.
+  const spot = deckLanding(world, v, item, base);
+  if (spot !== undefined) {
+    if (!spot) return false;
+    const deckY = deckHeight(v.defId, spot.z);
     const gap = base.y - deckY;
     if (gap > SET_DOWN_ABOVE || gap < -SET_DOWN_BELOW || placeBlocker(world, v, item)) return false;
-    item.at = { vessel: v.id, pos: [base.x, deckY, base.z], yaw: 0, vel: [0, 0], lashed: false };
+    item.at = { vessel: v.id, pos: [spot.x, deckY, spot.z], yaw: 0, vel: [0, 0], lashed: false };
     return true;
   }
   // Over the side: the quay or shore, or the sea.
@@ -940,5 +965,6 @@ export function cargoLabel(item: CargoItem): string {
   if (isProjectBuoy(item)) return `${projectItemName(item)}, ${item.mass} kg: lift it with a deck crane and lower it into the sea at its spot (on your chartplotter)`;
   if (isProjectItem(item)) return `${projectItemName(item)}, ${item.mass} kg: take it out and lie alongside her (on your chartplotter)`;
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
+  if (item.salvage) return `Salvage: ${item.salvage.name} ${item.mass} kg (sells in any port)`;
   return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}${craneOnly(item) ? ` (${CONFIG.cargo.crane.note})` : anchorageOnly(item.to) ? ` (${CONFIG.cargo.anchorageNote})` : ''}`;
 }

@@ -68,6 +68,8 @@ describe('the fish hold', () => {
 
   it('on every hull type: fitted, or left off saying why', () => {
     DESIGN_HULLS.forEach((t, i) => {
+      // (Not a one-off, the harbour tug: this choice is fixed on her.)
+      if (t.fixed) return;
       const b = buildDesign({ ...DEFAULT_DESIGN, ...t.defaults, hull: i, fishHold: 1 });
       if (b.hull.layout.fishHold) expect(b.recipe.modules.some((m) => m.module === 'hold.fish')).toBe(true);
       else expect(b.warnings.join(' ')).toMatch(/No fish hold: /);

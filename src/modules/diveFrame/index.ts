@@ -181,7 +181,7 @@ export const DIVE_FRAME: ModuleDefinition<DiveFrameConfig, DiveFrameState> = {
   },
   view: {
     frame: 'boat',
-    build({ config: c, keys, share }) {
+    build({ config: c, keys, share, path }) {
       const g = diveGeometry(c);
       const col = c.colours;
       const fixed: THREE.BufferGeometry[] = [];
@@ -260,7 +260,15 @@ export const DIVE_FRAME: ModuleDefinition<DiveFrameConfig, DiveFrameState> = {
         [down, 1, 0, 'WINCH DOWN'],
       ];
       for (const [b, c0, r] of places) b.root.position.set(...at(c0, r));
-      for (const b of [out, inn, up, down]) share(b.cap, 'deckButtonCap');
+      // DIVE (stage 4: modules/diveFrame/launch.ts), between the columns, red, lit while the sub
+      // is afloat: opens the submersible game at the wreck she's over. The app's to do (it
+      // leaves the page), so its channel goes to no key of the boat's.
+      const dive = new Button('diveLaunch', 'diveLaunch', 'DIVE: into the submersible (the sub afloat, the boat stopped over a wreck site)', 'pulse', 0xd03020, (v) => {
+        const s = v.modules?.[path]?.s as DiveFrameState | undefined;
+        return !!s && subAt(c, s).on === 'afloat';
+      });
+      dive.root.position.set(...at(0, 0.5));
+      for (const b of [out, inn, up, down, dive]) share(b.cap, 'deckButtonCap');
 
       const smooth = new TickSmoother([3, 0.5]);
       let shown = '';
@@ -309,9 +317,9 @@ export const DIVE_FRAME: ModuleDefinition<DiveFrameConfig, DiveFrameState> = {
       return {
         staticParts: fixed,
         movingParts: [pivot, head, rams, sub, umbilical],
-        controls: [out, inn, up, down],
+        controls: [out, inn, up, down, dive],
         // (Read facing aft, toward the frame and the sub: the operator stands forward of the stand.)
-        labels: places.map(([, c0, r, text]) => ({ text, at: at(c0, r), yaw: Math.PI, size: [0.13, 0.02] as const })),
+        labels: [...places.map(([, c0, r, text]) => ({ text, at: at(c0, r), yaw: Math.PI, size: [0.13, 0.02] as const })), { text: 'DIVE', at: at(0, 0.5), yaw: Math.PI, size: [0.08, 0.02] as const }],
         update: (_read, state, dt) => {
           // (Drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
           const raw = state ?? init;

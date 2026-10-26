@@ -18,7 +18,7 @@
  *   5. plan      the crew presses a stop onto the planning table's chart from her page (its
  *                chart control, as a click does): the host's plan has it, named, and both
  *                pages' tables show it; the host's next press shows on the crew's page;
- *   6. leave     the crew leaves: her boat goes with her, and her join box is empty.
+ *   6. leave     the crew leaves: her boat waits for her (two minutes), and her join box is empty.
  *
  * Not a unit test: it needs the dev server running (npm run dev) and Chromium with Playwright
  * (pre-installed in the cloud work containers; elsewhere set PLAYWRIGHT to its index.mjs).
@@ -237,12 +237,15 @@ try {
 
   // ── 6. Leave ──
   await B.evaluate(() => window.app.menuHost().leaveGame());
-  await B.waitForTimeout(3000);
-  for (let i = 0; i < 3; i++) await hostStep();
-  const after = await A.evaluate((crewId) => ({ players: Object.keys(window.app.world.players).length, boat: Object.values(window.app.world.vessels).some((v) => v.owner === crewId) }), crewId);
-  check('the crew leaves: the host sees one player, and her boat went with her', after.players === 1 && !after.boat, JSON.stringify(after));
+  // The join box read at once: leaving goes back to her own page 1.5 s later (a reload),
+  // and a read after that found the page gone ("Execution context was destroyed").
   const box = await B.evaluate(() => window.app.menuHost().joinCode());
   check("the crew's join box is empty for the next game", box === '', JSON.stringify(box));
+  await B.waitForTimeout(3000);
+  for (let i = 0; i < 3; i++) await hostStep();
+  // Her boat waits for her (CONFIG.net.crewBoatGraceS, multiplayer batch 2), then goes.
+  const after = await A.evaluate((crewId) => ({ players: Object.keys(window.app.world.players).length, waiting: Object.values(window.app.world.vessels).some((v) => v.owner === crewId && v.ownerAwayAt !== undefined) }), crewId);
+  check('the crew leaves: the host sees one player, and her boat waits for her', after.players === 1 && after.waiting, JSON.stringify(after));
 } catch (e) {
   check('ran to the end', false, String(e).split('\n')[0]);
 }
