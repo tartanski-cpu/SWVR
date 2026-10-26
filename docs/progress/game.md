@@ -10,6 +10,20 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Multiplayer batch 2: nobody loses their stuff (26 Oct 2026)
+
+Owner: "go ahead with batch 2" (the multiplayer study's second batch: #5, #11, #16, #12, #28, #29, #17, #18), with two answers: a crew-mate's boat **waits 2 minutes**; on a borrowed career, **block boat changes**.
+
+- **#5 Crew boats wait.** A launched boat whose player has gone waits `net.crewBoatGraceS` 120 s (`VesselState.ownerAwayAt`), with her tow and cargo, then goes. Back from the same browser tab (`ownerClient`, the hello's `clientId`, now kept on `PlayerState.clientId`), the player gets her again under their new number and is put aboard her ("…waited for you: you're back aboard") (`core/launch.ts` `stepLaunched`, `reclaimBoats`; HostSession hello). A new crew-mate's number is one no player or waiting boat has, so a stranger never inherits one. Going solo keeps your own launched boat yours.
+- **#28 A boat taken away** (handed back, replaced, her owner long gone) sets her cargo down on the game harbour's goods row, casts off her lines, lets go her controls and puts anyone aboard onto the game's boat (`removeBoat`). Launching again keeps the old boat if the new one finds no room.
+- **#12 The host launches with crew aboard:** she's put beside the game's boat, as a crew-mate's is, instead of the page starting again (and in a friend's world).
+- **#29 A host's reload keeps the world:** as the hosting page goes, its world is kept in the tab (`swvr.hostWorld`, sessionStorage); hosting the same code again within `net.hostWorldKeepS` 180 s, in the same boat, it carries on from there (the crew rejoin; their boats wait). Also when the page updates itself for a newer crew page. Not when changing boat.
+- **#16 A borrowed career:** boat changes, refits, the Shipyard and a launch that would start the page again are blocked with a message while the world is a friend's (`borrowedBlocks`).
+- **#11 Back to your own game** on the Crew tab when you're alone in a friend's world; Host a game there asks you to press again.
+- **#17 Names:** the random first name is saved (it changed on every reload); the host gives a second "Bosun" " 2".
+- **#18 Notices:** "X came aboard (n aboard)", "X left the game", on every page in the game.
+- **Shared changes:** `src/core/launch.ts` (the wait, `removeBoat`, `reclaimBoats`), `src/vessel/vesselState.ts` (`ownerClient`, `ownerAwayAt`).
+- **Tests:** tests/launch.test.ts (the wait, the reclaim, cargo to the quay; 2 new, 1 changed), tests/net.test.ts (names told apart, put aboard the boat that waited; 1 new).
 ### Multiplayer batch 1: noticing who's gone (26 Oct 2026)
 
 Owner: "go ahead with the multiplayer batch 1" (the multiplayer study's first batch: #21, #10, #1, #2, #9, #14).

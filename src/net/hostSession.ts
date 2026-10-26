@@ -1,6 +1,7 @@
 import type { IdFactory, EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
+import { reclaimBoats } from '../core/launch';
 import { createPlayerState } from '../player/playerState';
 import { randomLook } from './avatarOutfits';
 import { HAND_POSES } from '../player/handGesture';
@@ -61,6 +62,17 @@ export class HostSession {
     return n;
   }
 
+  /**
+   * A name nobody else in the game has (multiplayer study #17: two "Skipper"s on the crew list
+   * and the notices can't be told apart): the second gets " 2", the third " 3".
+   */
+  private uniqueName(wanted: string, playerId: EntityId): string {
+    const base = wanted.slice(0, 21);
+    const taken = new Set(Object.values(this.world.players).filter((o) => o.id !== playerId).map((o) => o.name));
+    if (!taken.has(wanted.slice(0, 24))) return wanted.slice(0, 24);
+    for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`)) return `${base} ${n}`;
+  }
+
   private receive(link: Link, msg: ClientMessage): void {
     if (msg.t === 'hello') {
       if (this.peers.has(link.id)) return;
@@ -72,11 +84,15 @@ export class HostSession {
             this.drop(old.link);
             old.link.close();
           }
-      const playerId = this.ids.next('player');
-      const p = createPlayerState(playerId, (msg.name || `Player ${this.peers.size + 2}`).slice(0, 24));
+      // A number nobody has, nor any boat left waiting (a world kept or taken over has its own).
+      let playerId = this.ids.next('player');
+      while (playerId in this.world.players || Object.values(this.world.vessels).some((v) => v.owner === playerId)) playerId = this.ids.next('player');
+      const p = createPlayerState(playerId, this.uniqueName(msg.name || `Player ${this.peers.size + 2}`, playerId));
       p.look = randomLook(); // a random set of working clothes (net/avatarOutfits.ts)
-      // Crew join aboard the workboat (wherever she is), at her boarding spot.
-      const boat = homeVessel(this.world);
+      if (cid) p.clientId = cid;
+      // Crew join aboard the workboat (wherever she is), at her boarding spot; back from the
+      // same tab, aboard their own boat if she waited for them (core/launch.ts).
+      const boat = reclaimBoats(this.world, playerId, cid) ?? homeVessel(this.world);
       if (boat) {
         p.aboardVesselId = boat.id;
         p.position = [...VESSEL_DEFS[boat.defId].boardingSpot];
@@ -114,7 +130,7 @@ export class HostSession {
       const p = this.world.players[peer.playerId];
       if (!p) return;
       const pose = msg.pose;
-      if (typeof pose.name === 'string' && pose.name) p.name = pose.name.slice(0, 24);
+      if (typeof pose.name === 'string' && pose.name) p.name = this.uniqueName(pose.name, p.id);
       p.aboardVesselId = pose.aboardVesselId && this.world.vessels[pose.aboardVesselId] ? pose.aboardVesselId : null;
       p.position = pose.position;
       p.yaw = pose.yaw;

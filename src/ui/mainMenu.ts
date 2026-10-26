@@ -305,6 +305,8 @@ export interface MenuHost {
   cameraNote(): string;
   hostGame(): void;
   leaveGame(): void;
+  /** The world on this page is a friend's (left their game, or they were lost): Back to your own game shows. */
+  borrowed(): boolean;
   /** Office > Your boats (shipyard/takeHer.ts): the favourites' page and the code being typed. */
   shipyardCodes(): ShipyardCodes;
   /** Restart the game in a Shipyard boat by her code; or back in the game's start boat (the beginner boat). */
@@ -627,6 +629,8 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => (solo() ? '' : h.netRole() === 'host' ? 'Stop hosting' : 'Leave game'), press: () => h.leaveGame() },
       ],
     },
+    // Still in a friend's world with nobody else (multiplayer study #11): the way home.
+    { label: '', buttons: [{ text: () => (solo() && h.borrowed() ? 'Back to your own game' : ''), press: () => h.leaveGame() }] },
     {
       label: 'Or join: code',
       buttons: [

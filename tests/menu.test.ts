@@ -236,6 +236,7 @@ function fakeHost() {
     cameraNote: () => 'Fly a camera',
     hostGame: () => calls.push('host'),
     leaveGame: () => calls.push('leave'),
+    borrowed: () => false,
     shipyardCodes: () => yard,
     takeDesign: (code) => calls.push(`take ${code}`),
     workboatAgain: () => calls.push('workboat'),

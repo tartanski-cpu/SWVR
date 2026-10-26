@@ -282,6 +282,10 @@ export interface VesselState {
   build?: string;
   /** The player she belongs to (multi-boat M3: launched by them, core/launch.ts); unset on the game's own boats. */
   owner?: EntityId;
+  /** Her owner's browser tab (PlayerState.clientId): a rejoin from it gets her back, whatever player number it's given. */
+  ownerClient?: string;
+  /** Her owner gone from the game since (world time, s): she waits CONFIG.net.crewBoatGraceS for them (core/launch.ts). */
+  ownerAwayAt?: number;
   /** How closely she's simulated this tick (multi-boat M4, core/lod.ts): by her distance to the nearest player. Set by the host. */
   lod?: 'near' | 'mid' | 'far';
   /** World position of the vessel origin (centreline, amidships, DWL). */
