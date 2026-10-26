@@ -2,7 +2,7 @@
 
 **Covers:** everything on the test build since the 23 October notes (Friday afternoon), from every chat's work, up to Monday 26 October.
 
-**What's where:** all of this is on the test build at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) is still Friday's; it moves on when the owner says. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
+**What's where:** all of this is on the test build (76e5529) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) is still Friday's; it moves on when the owner says. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
 
 A page with screenshots of the same is published alongside these notes.
 
@@ -15,6 +15,7 @@ A page with screenshots of the same is published alongside these notes.
 - **Your boats on the quay:** a Shipyard sign at every career harbour and a board of your favourites beside it. Career boats are bought at the yard, after a five-minute sea trial.
 - **Weather and sea:** set the weather by hand (wind, rain, waves up to about 6 m), and short, steep seas in enclosed water.
 - **Twin engines** worked separately, each with its own lever and START.
+- **Playing together, made sturdy:** four batches of multiplayer fixes. Dropouts are noticed in seconds, nobody loses their boat or cargo, you're taken to the right game, each boat has her own rescue gear, and what the host sends is 15 to 50 times smaller.
 - **Fixes:** the game no longer drops to a few frames a second beside the boats board, multiplayer copes with a host whose page is out of date, and Step ashore puts you beside your boat.
 
 ## Career
@@ -75,9 +76,29 @@ A page with screenshots of the same is published alongside these notes.
 
 ## Playing together
 
-- **An out-of-date host updates itself.** On a day of updates, a crew-mate with a newer page now makes the host's page reload and host the same game again, the crew following, instead of being turned away.
-- **No frozen figures:** a crew-mate who leaves, reloads or closes the page is taken out of the host's world at once, and one whose page stops answering after a short while.
-- (Coming next, being checked: the rest of the "noticing who's gone" batch: a host's background tab keeps the game running, Stop hosting ends the game for the crew, and the game rides out short connection blips.)
+A study of everything that went wrong playing together turned into four batches of fixes, all on the test build.
+
+**1. Noticing who's gone**
+- A crew-mate or host whose page goes quiet (a headset asleep, a Wi-Fi drop) is noticed within seconds: their hands let go of the wheel, and the crew are told. A lost host is taken over as before.
+- Stop hosting ends the game cleanly for the crew, with no takeover. A host's background tab keeps the game running, and the crew are told it's in the background.
+- Short drops of the connection to the game finder are ridden out. A crew page newer than the host's makes the host's page update itself and host the same game again.
+
+**2. Nobody loses their stuff**
+- A crew-mate's own boat waits two minutes, with her tow and her cargo, if they drop out or reload; back from the same tab, they're put aboard her again. After that her cargo goes on the harbour's goods row.
+- The host can launch a boat with crew aboard (she goes beside the game's boat; nobody's page restarts), and a host's reload carries on with the game as it was.
+- On a friend's career after taking over, boat changes and refits are blocked; Crew → Back to your own game takes you home. The name first picked for you is kept, two of the same name are told apart ("Bosun 2"), and everyone is told when someone comes aboard or leaves.
+
+**3. Joining the right game, clearly**
+- A crew-mate on the other game (Career or Voyage), another Voyage map, or the other address (the live game or the test build) is told, taken to the host's, and joins from there. Leave game goes back to their own page as it was.
+- Joining says how far it has got, gives up after 20 seconds with a reason, and says what went wrong in plain words. An old game link gives up in about a minute; Stop waiting gives up at once.
+- On desktop the code can be typed on the number keys or pasted. Try her together from the Shipyard has no five-minute clock now.
+
+**4. Separate boats, and much less traffic**
+- The host sends only what changed, packed once for all the crew, instead of the whole world to each crew-mate 20 times a second. Measured live: career 37 KB → 2.2 KB a time, the Clyde 156 KB → 3.2 KB (about 3 MB/s of upload per crew-mate before, about 60 KB/s now). Not yet measured on a Quest.
+- Each boat has her own life ring and boat hook: thrown from her own stern, the survivor aboard her and landed from her. Rescue, tow and fire calls come to the boat with the most crew aboard.
+- Voice connects whichever of you switches it on first, and the Crew tab says who has it off. A control someone holds names them ("Wheel (Bosun has it)"); taking the headset off lets go of whatever you held. Only the skipper buys gear fitted aboard, and whoever brings a log barge to the merchant can sell it.
+
+**Not checked yet:** all four batches were checked with two and three headless browsers through the real game finder, not on the Quest; voice in either order, and letting go on taking the headset off, need a try there.
 
 ## Fixes
 
@@ -88,3 +109,22 @@ A page with screenshots of the same is published alongside these notes.
 ## Debug
 
 - Project: **Stage done** (takes the project if none is under way) and **Stage back**; **+£50,000**.
+
+## Try it
+
+- Menu → Office → Projects at Calder Haven takes Tarran Rig. To jump ahead, show the Debug tab (Settings → Game) and use Missions → Project → Stage done or Stage back; +£50,000 is there too.
+- The harbour tug and the catamaran are in the Shipyard's hull types; the dive support vessel starts with `career.html?boat=diveShip`.
+- Wreck sites: Oban (Voyage) round Kerrera and Maiden Island; in the career west of Calder Haven and off Brannock.
+- Playing together: Menu → Crew → Host a game, and send the address (it carries the code) or read the code out; a friend opens it or types the code. Try it across Career and Voyage, a reload, and each in your own boat.
+
+## Known limits
+
+- The beginner boat has no chartplotter or duty board: the project's lines and rings need a boat with a plotter, and what's next is on the Jobs page.
+- The live game is still Friday's: none of this is there yet.
+- The TV needs a desktop player to share a tab; VR players see it but can't start it.
+- Multiplayer was checked with two and three headless browsers through the real game finder, not yet on the Quest: voice in either order, and letting go on taking the headset off, need a try there.
+
+## Coming next
+
+- Multiplayer on the Quest: the owner's test of the four batches with friends, and the snapshot cost measured on the headset.
+- Moving the test build to the live game, when the owner says it's good.

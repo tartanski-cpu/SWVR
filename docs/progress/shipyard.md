@@ -14,6 +14,12 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the main game chat) A code ready once her gearbox is matched (26 Oct 2026)
+
+Owner, in the main game chat: the harbour tug took forever on the Quest before she could be saved. The tug's fixed gearbox is the entry below (this chat's, merged here); on top of it, for every boat:
+- `worker.ts` posts the matched gearbox at once (`matched: true`), then runs the sea trials; `page.ts` takes it as her code ready (save, Play, link) while the trials run on (the tug's took 27.8 s on this computer). The search and compare workers wait for the trials as before.
+- Checked: `npm run test:shipyard`; headless, the tug says "Running her trials..." from the start and can be saved meanwhile. Not checked on the Quest.
+
 ### Service liveries: police, fire, rescue, coastguard (approved by the owner 26 Oct 2026; on next)
 
 Owner, 26 Oct 2026: "I'd like to add some liveries for the pilot boat and the fast, what's it called, landing craft, probably police, fire, and rescue. And Coast Guard."
