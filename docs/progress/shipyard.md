@@ -14,6 +14,14 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fix: the harbour tug's gearbox fixed with her drives, so her link is ready at once (preview/shipyard)
+
+Owner, 26 Oct 2026 (in VR): "it won't resolve the gearbox. So it doesn't give me a code, so it doesn't let me load it in the game. And on this boat, because it's a fixed design, there should be a fixed engine configuration and a fixed propulsion, so there shouldn't be any resolving of the gearbox."
+
+- **Why:** the page matched her gearbox by trial in the background (a few seconds on a desktop, far longer for a 480 t boat on the Quest), and her link, Play and 💾 Save all waited for it.
+- **Now:** her gearbox step is one of her fixed choices (`HARBOUR_TUG_FIXED.gear` = `CONFIG.shipyard.harbourTug.gear`, 14: the step the trial matched for her twin 1850 kW on her azimuth drives, about 12 kn flat out at rated revs). The page (`matched()`) and its trial worker never match a gearbox fixed with her type (`gearFixed`, catalog.ts): her link, Play and Save are ready as soon as she's drawn. Her figures say "fixed with her drives". Her sea trials still run in the background for the figures.
+- Tests: harbourTugYard.test.ts (her gear fixed whatever the design says). The typecheck and the Shipyard tests pass.
+
 ### Exhaust stacks as a part of their own: on the deckhouse, moved along it, round or square casings (approved by the owner 26 Oct 2026; on next)
 
 Owner, 26 Oct 2026: "the Fair Play reference tag has the exhaust pipes in a kind of standalone box ... split these exhaust pipes out as something that you can control. So in a bigger ship, we can make the wheelhouse smaller. And then I'd like to be able to move the twin exhaust pipes forward and aft on this deck house and choose whether they've got like a circular or a square kind of box around them"; then "Do the Funnel stack part next".

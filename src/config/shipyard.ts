@@ -278,7 +278,14 @@ export const SHIPYARD_CONFIG = {
     // Her fendering (parts/fendering.ts): `fenderingKg` of rubber (belts, stern and bow
     // cylinders, the bow's blocks: about 6 t on a 25 m tug); its contact points one to each
     // `probeCell` m cell of its outer face.
-    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9 },
+    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9,
+      /**
+       * Her gearbox step (design.gear, 0..15), fixed (owner, 26 Oct 2026: "a fixed engine
+       * configuration and a fixed propulsion, so there shouldn't be any resolving of the
+       * gearbox"): the step the yard's trial matched for her twin 1850 kW and azimuth drives
+       * (about 12 kn flat out, the engines at their rated revs). Never matched again by the page.
+       */
+      gear: 14 },
     /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
