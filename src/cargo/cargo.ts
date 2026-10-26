@@ -68,6 +68,8 @@ export interface CargoItem {
   pot?: PotContents;
   /** A fish box from the trawl: what's in it (the ground's species, FishingGroundDef). */
   species?: string;
+  /** A salvage crate from a dive (dive/diveReturn.ts): what's in it and what it fetches (£). */
+  salvage?: { name: string; value: number };
 }
 
 /** What's in a hauled pot (potting/potting.ts catchFor). */
@@ -344,7 +346,8 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: str
   if (delivered) world.deliveries += 1;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
-  if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
+  if (delivered && item.salvage) earn(world, 'salvage', { base: item.salvage.value, port: at, text: `Salvage sold at ${portName(at)}: ${item.salvage.name}` });
+  else if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
   else if (delivered && item.to === 'any') earn(world, 'crate', { port: at, text: `Lost cargo brought in to ${portName(at)}` });
   else if (delivered) earn(world, 'cargo', { port: item.to, from: item.from, what: kindOf(item)?.name, text: `Cargo ${portName(item.from)} → ${portName(item.to)}` });
   else {
@@ -962,5 +965,6 @@ export function cargoLabel(item: CargoItem): string {
   if (isProjectBuoy(item)) return `${projectItemName(item)}, ${item.mass} kg: lift it with a deck crane and lower it into the sea at its spot (on your chartplotter)`;
   if (isProjectItem(item)) return `${projectItemName(item)}, ${item.mass} kg: take it out and lie alongside her (on your chartplotter)`;
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
+  if (item.salvage) return `Salvage: ${item.salvage.name} ${item.mass} kg (sells in any port)`;
   return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}${craneOnly(item) ? ` (${CONFIG.cargo.crane.note})` : anchorageOnly(item.to) ? ` (${CONFIG.cargo.anchorageNote})` : ''}`;
 }

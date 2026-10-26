@@ -703,7 +703,24 @@ export const CONFIG = {
    * the chart's wreck mark, its name and its depth; on the paper chart as a wreck mark and
    * its depth.
    */
-  dive: { radius: 50 },
+  dive: {
+    radius: 50,
+    /**
+     * Back from a dive (dive/diveReturn.ts, docs/dive-contract.md; Submersible World's M9): what
+     * the finds fetch (£, by the submersible game's kind, else its class), each in a salvage
+     * crate on deck, sold in any port; the survey and the story paid on coming back aboard:
+     * so much a point of coverage gained, for naming the wreck, for finding how she was lost
+     * (and more if right at the first filing). `airFactor`: a find's weight out of the water
+     * over its weight in water (about 1.15 for iron and brass). A return carries at most
+     * `maxItems` finds. Salvage on deck sells once she's been stopped (under `sellBelowMS`) in port for `sellAfterS` s.
+     */
+    prices: { bottle: 30, plate: 40, lantern: 220, porthole: 650, binnacle: 1800, safe: 2500, crate: 700, anchor: 2600, engine: 1500, small: 40, medium: 600, heavy: 1500 },
+    fees: { perCoveragePoint: 25, identified: 600, finding: 800, firstTime: 1200 },
+    airFactor: 1.15,
+    maxItems: 30,
+    sellBelowMS: 0.4,
+    sellAfterS: 30,
+  },
   career: {
     /**
      * A sea trial (owner, Oct 2026: "a sea trial is time limited to 5 mins"): a Shipyard design
@@ -1184,6 +1201,8 @@ export const CONFIG = {
       { name: 'Chain basket', mass: 450, size: [0.95, 0.7, 0.95] as [number, number, number], shape: 'drum' as const, slots: 3 },
       // A construction project's mark buoy (career/projects.ts), on its float: crane only, never trade cargo.
       { name: 'Mark buoy', mass: 420, size: [1.1, 1.5, 1.1] as [number, number, number], shape: 'drum' as const, slots: 4 },
+      // A salvage crate from a dive (dive/diveReturn.ts): its own mass (the find's), from 40 kg.
+      { name: 'Salvage', mass: 40, size: [0.8, 0.55, 0.7] as [number, number, number], shape: 'box' as const, slots: 2 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,

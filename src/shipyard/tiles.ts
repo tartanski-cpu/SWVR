@@ -134,6 +134,10 @@ export const ENGINE_ICONS = {
   // Exhaust stacks: raked aft, or straight up.
   stackRaked: svg('<path d="M8 28h32M17 28l4-14 6-6M25 28l4-14 6-6M26 6l3 3M34 6l3 3"/>'),
   stackStraight: svg('<path d="M8 28h32M18 28V6M24 28V6M28 28V6M34 28V6M17 6h8M27 6h8"/>'),
+  // Stacks standing on the deckhouse in casings (a deckhouse, a box on it, a pipe out of its top).
+  stackCasing: svg('<path d="M6 28h36M10 28V20h28v8M30 20v-8h6v8M33 12V4"/>'),
+  casingRound: svg('<ellipse cx="24" cy="8" rx="8" ry="3"/><path d="M16 8v18M32 8v18M16 26c0 2 16 2 16 0M24 8V2"/>'),
+  casingSquare: svg('<path d="M15 8h18v18H15zM24 8V2"/>'),
 };
 
 /**

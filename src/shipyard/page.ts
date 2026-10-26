@@ -42,7 +42,7 @@ import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
 import { buildDesign, withFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -756,7 +756,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -1069,6 +1069,38 @@ toggleTiles(
     'Exhaust stacks',
   );
   controls.appendChild(wrap);
+  // Where they stand (owner, Oct 2026): up through the wheelhouse, or on the deckhouse in casings of their own, moved along it.
+  labels.stackMount ??= 'Stacks stand';
+  optionNames.stackMount = [...STACK_MOUNTS];
+  const mount = document.createElement('div');
+  mount.dataset.when = 'stackMountChoice';
+  pickTiles(
+    mount,
+    'stackMount',
+    [
+      { icon: ENGINE_ICONS.stackRaked, name: 'Through the wheelhouse', info: 'Up through the wheelhouse’s aft corners, boxed in where they pass through it.' },
+      { icon: ENGINE_ICONS.stackCasing, name: 'On the deckhouse', info: 'Standing on the deckhouse, each in a casing of its own out near its sides, clear of the wheelhouse: you choose where along it, and a round or a square casing.' },
+    ],
+    (i) => change({ stackMount: i }),
+    'Stacks stand',
+  );
+  controls.appendChild(mount);
+  slider('stackPos', 'Along the deckhouse', (v) => (v === 0 ? 'at its aft end' : v === STACK_POS_STEPS - 1 ? 'at its front' : `${Math.round((v / (STACK_POS_STEPS - 1)) * 100)} % forward`)).dataset.when = 'stacksOnDeckhouse';
+  labels.stackCasing ??= 'Stack casings';
+  optionNames.stackCasing = [...STACK_CASINGS];
+  const casing = document.createElement('div');
+  casing.dataset.when = 'stacksOnDeckhouse';
+  pickTiles(
+    casing,
+    'stackCasing',
+    [
+      { icon: ENGINE_ICONS.casingRound, name: 'Round', info: 'Each stack in a round casing.' },
+      { icon: ENGINE_ICONS.casingSquare, name: 'Square', info: 'Each stack in a square casing, a box round it.' },
+    ],
+    (i) => change({ stackCasing: i }),
+    'Casings',
+  );
+  controls.appendChild(casing);
 }
 // Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
 {

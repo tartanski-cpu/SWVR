@@ -10,10 +10,22 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Lined up for later (owner's asks, not started)
 
-- **Exhaust stacks as their own part** (owner, 26 Oct 2026, from the Fairplay reference: "the exhaust pipes in a kind of standalone box ... split these exhaust pipes out as something that you can control. So in a bigger ship, we can make the wheelhouse smaller. And then I'd like to be able to move the twin exhaust pipes forward and aft on this deck house and choose whether they've got like a circular or a square kind of box around them"). Today a tug's stacks go up through the wheelhouse's aft corners, boxed in white where they pass through it. To come: the twin stacks a part of their own, placed fore and aft along the deckhouse (not tied to the wheelhouse), with a round or a square casing round them.
-- **The harbour tug's azimuth drives and their controls** (owner: later).
+- (Nothing waiting.)
 
 ## Changes
+
+### Exhaust stacks as a part of their own: on the deckhouse, moved along it, round or square casings (approved by the owner 26 Oct 2026; on next)
+
+Owner, 26 Oct 2026: "the Fair Play reference tag has the exhaust pipes in a kind of standalone box ... split these exhaust pipes out as something that you can control. So in a bigger ship, we can make the wheelhouse smaller. And then I'd like to be able to move the twin exhaust pipes forward and aft on this deck house and choose whether they've got like a circular or a square kind of box around them"; then "Do the Funnel stack part next".
+
+- **New choices** on the Engine step, under Exhaust stacks, on a boat with stacks (the small tug, the stern trawler, the harbour tug) and a deckhouse: **Stacks stand** through the wheelhouse (as before) or **on the deckhouse** (design `stackMount`); then **Along the deckhouse**, its aft end to its front (`stackPos`, 21 steps, `STACK_POS_STEPS`), and **Casings** round or square (`stackCasing`). Not in the short code: such a boat travels as a link or file.
+- **On the deckhouse** (hullDef.ts; `CONFIG.shipyard.exhaustStack.onDeckhouse`): each pipe (one per engine) up from her engine space through the deckhouse, then in a casing of its own `casingHeight` 1.6 m tall over its top, `casingPad` 0.3 m round the pipe, its outer face `fromSide` 0.15 m in from the deckhouse's side, `endClear` 0.15 m in from its ends; the pipe `aboveCasing` 1.4 m over the casing, raked or straight as chosen. Kept out of the wheelhouse's plan: where it would stand in it, moved to the nearer end of the wheelhouse along the deckhouse (saying so). With no deckhouse, or no room on it, they go up through the wheelhouse (saying so). The casing is solid to walk round on a walked deckhouse top.
+- **The module** (modules/exhaustStack, `fitting.exhaust-stack`): a config `outer` (shape, half-width, top): the casing drawn over the deckhouse and the pipe out of its top; the smoke from the pipe's top as before (`stackOutlet`). Still one mesh for the stacks (no new draw calls).
+- **The harbour tug** starts with hers on the deckhouse's aft end in square casings, as the reference tug's.
+- Tests: tests/shipyard/stacksOnDeckhouse.test.ts (the tug's at the aft end in square casings, the pipes out of their tops; moved forward, round, never in the wheelhouse; through the wheelhouse when chosen or with no deckhouse, saying so; a link or file). designDoc.test.ts: the three fields not in the code. The full `npm test` (1626 tests, after merging next with the azimuth drives) and the typecheck pass.
+- Checked in the browser: the tug with square casings aft, round ones halfway, square ones forward, and back through the wheelhouse; the Engine step's new controls.
+- README: the stacks' choices; the harbour tug's.
+- **Shared changes:** src/modules/exhaustStack/index.ts (the casing on a deckhouse; a stack without `outer` is drawn as before).
 
 ### (From the modular-builder chat) The harbour tug gets her azimuth drives
 
@@ -22,13 +34,14 @@ Her stand-in shafts and rudders are replaced by two azimuth stern drives with a 
 - `parts/recipe.ts`: on her, the engine's `azimuth` and the drives' own gear ratio (`driveRatio` 1.6 on her gearbox's), no rudder module, and the helm's layout: a `control.azimuth-lever` each side of the wheel (slots `throttle` and `throttle2`), TRANSIT (`aziTransit`), the port joysticks moved out, the wheel smaller.
 - `page.ts`: the machinery summary accepts a boat with drives and no rudder. `enginePreview.ts`: a comment.
 - Her numbers, gearbox matched: 12.05 kn, 48 t bollard pull (was 31 t on the shafts). 60 t, a real tug's, would need bigger propellers.
+
 ### The harbour tug: her wheelhouse and deckhouse the player's; her towing gear a choice (approved by the owner 26 Oct 2026; on next)
 
 Owner, 26 Oct 2026: "just looking at the predefined wheelhouse you've given me, it doesn't really match the wheelhouse in the pictures, which is much kind of more narrow, tall. Maybe it's good if you in the shipyard give me the control of the wheelhouse and deckhouse as parametric parts. The other thing that's missing is the tugboat towing equipment isn't there as an option."
 
 - **Her house is the player's** again: catalog.ts `HARBOUR_TUG_FIXED` now holds only her hull (size, bulwarks, bow, sheer, no raised foredeck or cabin below), steel, her fendering, her engines and nozzles, and the gear that doesn't suit her (trawl, dive, outboards, stern drives, pods). Her wheelhouse, deckhouse, windows, saloon, stacks' style and deck gear start from `HARBOUR_TUG_HOUSE` and move like any boat's. She starts with a narrower, taller bridge (owner: "more narrow, tall"): 3.8 m long, 55 % of the deck between her side decks (5.5 m), 2.5 m headroom. The step's one-off line now says what's fixed and what's hers.
 - **Her towing gear** (the Towing group: the tow winch, the stern roller): without the stern roller she tows over her bow (the staple at her stem, the winch on her foredeck facing forward); with it she tows over her stern from a towing hook aft of her house, her winch just forward of it, as the small tug does (deckGear.ts: the tug's towing hook for `towsOverBow` hulls too; the staple only without the roller).
-- Tests: harbourTugYard.test.ts (her house the player's; with the stern roller, her tow point aft and no staple). The full `npm test` and the typecheck pass.
+- Tests: harbourTugYard.test.ts (her house the player's; with the stern roller, her tow point aft and no staple). The full `npm test` (1626 tests, after merging next with the azimuth drives) and the typecheck pass.
 - Checked in the browser: her outside from three sides and the Wheelhouse step with its controls back.
 - README: the harbour tug's paragraph.
 - **Shared changes:** none.
@@ -43,7 +56,7 @@ Then (owner, 26 Oct 2026, on a sketch): "engine position is wrong, it should be 
 Owner, 26 Oct 2026: "for now, you could give her the Kort nozzles behaviour, but you should probably draw them differently in the engine page so that they're not aligned with the shafts ... facing the direction of travel. So like a Z in between the shaft and the thing."
 
 - Her behaviour is as before (stand-in shafts with Kort nozzles). On the Engine step she's drawn with Z-drives (`DesignHull.zDrives`; enginePreview.ts `zDrive`): her engines level, a level shaft aft from each to the drive's head, an upright leg down through her bottom, and at its foot the lower gear housing with the propeller in its nozzle, level, facing ahead (a pulling propeller, as on most azimuth drives). No rudders: an azimuth drive steers by turning. Only the Engine step draws them; her real drives come later.
-- Tests: harbourTugYard.test.ts (level propellers, no rudder, level engines). The full `npm test` and the typecheck pass.
+- Tests: harbourTugYard.test.ts (level propellers, no rudder, level engines). The full `npm test` (1626 tests, after merging next with the azimuth drives) and the typecheck pass.
 - **Shared changes:** none.
 
 ### The harbour tug: a fixed one-off in the Shipyard, stop 1 (approved by the owner 26 Oct 2026; on next)
@@ -62,7 +75,7 @@ Owner (relayed by the hull modifications chat, Oct 2026): "So this ship hull is 
   - her fuel `fuelL` 60 m³, a ship's (`DesignHull.fuelL`; the small boats' rule gave her 4 m³).
 - **Measured** (the page's trials, 26 Oct 2026): 11.8 kn flat out (her real 12.2), 900 nm range, 30.8 t bollard pull (a real tug of her power pulls about 60 t: the stand-in shafts; her drives will make it up), 334 crates on deck, £1.41 m. typeFit.ts has these; hullCards.ts her roles (heavy towing; fire).
 - The Shipyard camera now looks at all of her when the hull type changes (a 25 m tug inherited the 9 m landing craft's close view).
-- Tests: tests/shipyard/harbourTugYard.test.ts (she builds clean near her draught with a tug's GM, her fixed choices hold and the rest are the player's, her fendering's points round her outside her beam, she tows over her bow, a link or file, her engine hers alone). Tests that try every choice on every hull type now leave a one-off out where the choice is fixed on her (sheer, aftFacets, fishHold, handles, narrowConsole, protection, trawlGear, build); hullCards, brief, enginePreview and tugVoice count her and her engine. The full `npm test` and the typecheck pass.
+- Tests: tests/shipyard/harbourTugYard.test.ts (she builds clean near her draught with a tug's GM, her fixed choices hold and the rest are the player's, her fendering's points round her outside her beam, she tows over her bow, a link or file, her engine hers alone). Tests that try every choice on every hull type now leave a one-off out where the choice is fixed on her (sheer, aftFacets, fishHold, handles, narrowConsole, protection, trawlGear, build); hullCards, brief, enginePreview and tugVoice count her and her engine. The full `npm test` (1626 tests, after merging next with the azimuth drives) and the typecheck pass.
 - Checked in the browser (headless Chromium): every step on her, her outside from three sides, her fendering, staple and winch, and her in the game moored at the quay.
 - Not done yet: her azimuth drives and their controls (the owner: later); the exhaust stacks stand at the bridge's aft corners, as the small tug's, not the deckhouse's; a mast over the bridge is the usual light mast.
 - README: the harbour tug.
@@ -81,7 +94,7 @@ Owner, 25 Oct 2026: "when you start a new session, and you just say, you don't g
 - **💾 Save** in the header, shown only on a scratch boat on your own: asks her name (her name at the top if she has one), makes her a project, and from then on she saves herself. The Projects box says which she is.
 - Leaving a changed scratch boat (Close project, or opening another) asks first.
 - How it's told: a scratch boat is work with no project behind it (page.ts `currentProject()` empty: the start screen clears it, and a name or Save sets it). page.ts `saveScratch`, `showSaved`; `keepWorkLeftOnTable` and the autosave keep only a project's work.
-- Checked in the browser (headless Chromium): a scratch boat adds no project, survives a reload, is let go on a new visit; Save makes her a project that then saves her changes; a named start makes one at once. The full `npm test` and the typecheck pass.
+- Checked in the browser (headless Chromium): a scratch boat adds no project, survives a reload, is let go on a new visit; Save makes her a project that then saves her changes; a named start makes one at once. The full `npm test` (1626 tests, after merging next with the azimuth drives) and the typecheck pass.
 - README: scratch boats and 💾 Save.
 - **Shared changes:** none.
 
@@ -116,7 +129,7 @@ Owner (to the main game chat, Oct 2026): "these weathering and rusted texture sh
 - **The choice:** Paint step, Hull group, **Finish**: As new, Worked, Well used (design field `finish`: 0 well used, 1 worked, 2 as new, so every design from before reads as well used, as every boat looked). `liveryOf` writes `livery.weathering` from `CONFIG.shipyard.finish` ([1, 0.5, 0]: how much of the tile shows); the page draws it as the game does.
 - **Codes:** well used keeps her short code; worked or as new travels as a link or file ("her finish ... isn't in the code"), as the bow fender.
 - No draw calls added (the hull's own material).
-- Tests: tests/shipyard/finish.test.ts (well used as before, the livery's weathering for each, her hull's material drawn with it, the code and link). designDoc.test.ts: `finish` not in the code. The full `npm test` and the typecheck pass.
+- Tests: tests/shipyard/finish.test.ts (well used as before, the livery's weathering for each, her hull's material drawn with it, the code and link). designDoc.test.ts: `finish` not in the code. The full `npm test` (1626 tests, after merging next with the azimuth drives) and the typecheck pass.
 - README: the Finish choice.
 - **Shared changes:** none (the merge brought the game side).
 
@@ -127,7 +140,7 @@ Owner, 24 Oct 2026: "when the pilot boat's got a plumb bow, it's straight from t
 - **Raked from starboard:** each hull panel (a quad between two stations) is drawn as two triangles, and the diagonal ran the same way round the section on both sides, so starboard's split wasn't port's mirror. At a plumb stem, where the bottom panel has two corners on her centreline, starboard's split left one triangle lying flat in the centreline plane: unseen from starboard, so her stem's edge there was the other triangle's slant, from the keel at the station aft up to the chine at the stem. Now starboard's panels are split as port's mirror (vessel/view/hullMesh.ts), and both sides are drawn the same everywhere. (Not on a catamaran: her demihulls' panels are their own.)
 - **The missing face, head on:** a Shipyard stem head is a few centimetres wide (the deck's edge, ±0.03 m), but her sides close to a point below it, and the plate across a bow was drawn only on a square bow (over 0.2 m). The wedge between them, about 0.55 m deep, was open: a slit up her stem head. Now any stem head with width is plated across. This was on every bow rake, not only plumb.
 - No draw calls added (a few triangles in her hull mesh).
-- Tests: tests/shipyard/stemMirror.test.ts (the pilot boat, plumb, standard and most raked: starboard's panels mirror port's, and her stem head is closed; fails before the fix). The full `npm test` and the typecheck pass.
+- Tests: tests/shipyard/stemMirror.test.ts (the pilot boat, plumb, standard and most raked: starboard's panels mirror port's, and her stem head is closed; fails before the fix). The full `npm test` (1626 tests, after merging next with the azimuth drives) and the typecheck pass.
 - **Shared changes:** vessel/view/hullMesh.ts: the panels' diagonals mirrored side to side, and the stem head's plate. Every boat's starboard panels are now split as port's, so her starboard shading can look a touch different (the same shape).
 
 ### The Paint step revamped, with more colours (approved by the owner 24 Oct 2026; on next)

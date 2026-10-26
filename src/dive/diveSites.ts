@@ -4,8 +4,11 @@
  * things in a little ROV that can go inside"). This game marks where they are: named areas on
  * the chartplotter and the paper chart, like the potting and fishing grounds, each over a
  * wreck at a charted depth; the submersible game builds the wreck and its missions from the
- * site's id (docs/dive-contract.md: the same table in both repositories). The launch itself,
- * and the dive support ship, come later.
+ * site's id (docs/dive-contract.md: the same table in both repositories).
+ *
+ * The wrecks are left unnamed and undescribed here (owner, 26 Oct 2026: generic, so the
+ * submersible game's procedural wreck engine makes each one up): the charts say "wreck" and
+ * her depth until a dive identifies her, then her name (dive/diveReturn.ts `foundNames`).
  *
  * Some shallow, some mid, some deep (the owner's ask): `band` is shallow under 20 m, mid 20 m
  * to under 40 m, deep 40 m and more (the career archipelago's deepest water). The Oban map is real coast at real depths (its deepest water about
@@ -22,102 +25,85 @@ export type DiveBand = 'shallow' | 'mid' | 'deep';
 export interface DiveSite {
   /** The contract's id: the submersible game picks the wreck and its missions by it. */
   id: string;
-  /** The wreck's name, as the chart writes it. */
-  name: string;
+  /** Where she lies, in a few words (the place, not the wreck): for the notices. */
+  near: string;
+  /** The game's own wreck drawn at this place, if any (the paper chart marks it once). */
+  scenery?: string;
   /** Which map: the career archipelago, or a Voyage coast map's id. */
   map: 'career' | 'oban';
   /** Where: the game's metres (career), or WGS84 latitude and longitude (a coast map). */
   at: { x: number; z: number } | { lat: number; lon: number };
   depthM: number;
   band: DiveBand;
-  /** What she was, for the chart's note and the submersible game's scene. */
-  wreck: { kind: string; lengthM: number; lying: string };
-  /** A line for the chart and the radio: what's there, near what. */
-  note: string;
 }
 
 export const DIVE_SITES: readonly DiveSite[] = [
   // ── The career archipelago ──
   {
     id: 'career-margaret-ann',
-    name: 'Margaret Ann',
+    near: 'west of Calder Haven',
+    scenery: 'Margaret Ann',
     map: 'career',
     at: { x: 60, z: 470 },
     depthM: 8,
     band: 'shallow',
-    wreck: { kind: 'coaster', lengthM: 30, lying: 'on her side, her upper side awash' },
-    note: 'The coaster on the rocks west of Calder Haven: her hull is open to an ROV, her hold and engine room under water',
   },
   {
     id: 'career-ellen-rose',
-    name: 'Ellen Rose',
+    near: 'off Brannock',
     map: 'career',
     at: { x: -750, z: 750 },
     depthM: 27,
     band: 'mid',
-    wreck: { kind: 'steam drifter', lengthM: 24, lying: 'upright on sand, her funnel fallen' },
-    note: 'A steam drifter lost off Brannock in a winter gale, upright on the sand',
   },
   {
     id: 'career-sgarbh',
-    name: 'Sgarbh',
+    near: 'north of Eilean Garbh',
     map: 'career',
     at: { x: -1200, z: -1600 },
     depthM: 40,
     band: 'deep',
-    wreck: { kind: 'cargo steamer', lengthM: 52, lying: 'broken in two, her bow on its side' },
-    note: 'A cargo steamer north of Eilean Garbh, in the deepest water of the islands, broken in two',
   },
   // ── Oban and Lorn (Voyage) ──
   {
     id: 'oban-lorn-trader',
-    name: 'Lorn Trader',
+    near: 'north-west of Maiden Island',
     map: 'oban',
     at: { lat: 56.4375, lon: -5.499 },
     depthM: 54,
     band: 'deep',
-    wreck: { kind: 'steel coaster', lengthM: 60, lying: 'upright, her masts gone' },
-    note: 'A coaster lost in a gale off Maiden Island, upright in the deepest water of the map',
   },
   {
     id: 'oban-gylen',
-    name: 'Gylen wreck',
+    near: 'under Gylen Castle',
     map: 'oban',
     at: { lat: 56.37866, lon: -5.53406 },
     depthM: 40,
     band: 'deep',
-    wreck: { kind: 'wooden sailing ship', lengthM: 34, lying: 'timbers and ballast stones, her cannon scattered' },
-    note: 'An old sailing ship under Gylen Castle on Kerrera, her timbers on the bottom off the castle bay',
   },
   {
     id: 'oban-morven-lass',
-    name: 'Morven Lass',
+    near: 'off Slatrach Bay',
     map: 'oban',
     at: { lat: 56.41463, lon: -5.55377 },
     depthM: 28,
     band: 'mid',
-    wreck: { kind: 'fishing boat', lengthM: 20, lying: 'on her keel, her wheelhouse intact' },
-    note: 'A fishing boat off Slatrach Bay, on the Firth of Lorn side of Kerrera',
   },
   {
     id: 'oban-sound-spirit',
-    name: 'Sound Spirit',
+    near: 'off the north end of Kerrera',
     map: 'oban',
     at: { lat: 56.42667, lon: -5.50236 },
     depthM: 13,
     band: 'shallow',
-    wreck: { kind: 'puffer', lengthM: 20, lying: 'on her keel, her hold open' },
-    note: 'A cargo puffer off the north end of Kerrera, in the shallows at the mouth of the Sound',
   },
   {
     id: 'oban-selene',
-    name: 'Selene',
+    near: 'off Dunstaffnage',
     map: 'oban',
     at: { lat: 56.45797, lon: -5.43614 },
     depthM: 12,
     band: 'shallow',
-    wreck: { kind: 'motor yacht', lengthM: 18, lying: 'on her side' },
-    note: 'A motor yacht sunk at her mooring off Dunstaffnage, below the castle',
   },
 ];
 
@@ -129,6 +115,11 @@ export function siteWorld(s: DiveSite): { x: number; z: number } | null {
 /** The sites on a map: the career's ('career'), or a Voyage map's id. */
 export function sitesOn(map: string | null): DiveSite[] {
   return map ? DIVE_SITES.filter((s) => s.map === map) : [];
+}
+
+/** A site in words: the wreck's name once a dive has identified her, else "the wreck" and where. */
+export function siteLabel(s: DiveSite, names: Record<string, string> = {}): string {
+  return names[s.id] ? `the ${names[s.id]}` : `the wreck ${s.near}`;
 }
 
 /** Which band a depth is in (m). */

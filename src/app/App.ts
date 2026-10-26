@@ -195,6 +195,8 @@ import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
 import { fuelTankL } from '../vessel/fuelTank';
+import { applyDiveReturn, consumeDiveReturn, foundNames, takeDiveReturn, type DiveReturn } from '../dive/diveReturn';
+import { siteLabel } from '../dive/diveSites';
 import { consumeReturn, issueId, newHandoffId, outboundUrl, takeEnvelope, type Envelope, type MetaverseSite } from '../voyage/metaverse';
 import { bargesKey, bargesToSave, HotspotWatch, logsFromCamp, merchantsOn, parseBarges, parseTimberLogs, positionFor, restoreBarges, restoreTimberLogs, saleOffer, saleText, sellBarge, sitesOn, hotspotAt, timberLogsKey, timberLogsToSave } from '../voyage/timber';
 import { TimberView } from '../voyage/timberView';
@@ -796,6 +798,8 @@ export class App {
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
     this.startVesselId = created.vesselId;
+    // Back from a dive (dive/diveReturn.ts)? Its envelope off the address before Timber's look.
+    const diveBack = this.takeDiveBack();
     // Back from the timber camp? The envelope off the address first, then her place, then the barge.
     const handoff = MODE === 'voyage' ? this.takeHandoff() : null;
     this.restoreVoyagePlace();
@@ -861,6 +865,8 @@ export class App {
     this.scene.add(this.handGearView.root, this.camPreview.screen, this.rodView.root, this.lineGunView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
+    // After the career is back (setupBridge), so the dive's pay goes into it.
+    if (diveBack) this.landDive(diveBack);
 
     setupXR(this.renderer, this.camera);
     window.addEventListener('resize', () => this.onResize());
@@ -5408,6 +5414,32 @@ export class App {
   }
 
   /**
+   * Back from the submersible game (dive/diveReturn.ts; Submersible World's M9): its envelope
+   * taken off the address at once (a refresh never replays it), counted once by the handoff id
+   * issued at the launch. Career or Voyage.
+   */
+  private takeDiveBack(): DiveReturn | null {
+    const { back, clean } = takeDiveReturn(location.href);
+    if (clean) history.replaceState(history.state, '', clean);
+    return consumeDiveReturn(back);
+  }
+
+  /** The dive's results aboard: the crates on deck, the pay, the sub afloat astern; saved as it is now. */
+  private landDive(back: DiveReturn): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    const text = applyDiveReturn(this.world, v, back);
+    // Once the app is up: the word to the skipper, and the game saved with the dive's results in it.
+    setTimeout(() => {
+      this.overlay.notify(text, 14);
+      if (MODE === 'voyage') {
+        this.rememberT = Infinity;
+        this.rememberVoyagePlace(0);
+      } else this.career.tick();
+    }, 1500);
+  }
+
+  /**
    * Voyage: the handoff envelope (`mv`) taken off the address at once, so a refresh never
    * replays it (voyage/metaverse.ts), and checked: from the timber camp, with an id we issued
    * and haven't consumed. Anything else: nothing comes of it.
@@ -5608,7 +5640,7 @@ export class App {
     // Back to this page as it is (no one-off start or join parameters).
     const back = new URL(location.href);
     for (const k of ['mv', 'start', 'join', 'fit', 'host', 'together', 'fresh', 't']) back.searchParams.delete(k);
-    this.overlay.notify(`Diving on the ${ready.site.name}...`, 3);
+    this.overlay.notify(`Diving on ${siteLabel(ready.site, foundNames())}...`, 3);
     this.fade.style.opacity = '1';
     setTimeout(() => window.location.assign(diveUrl(ready.site, back.toString(), session)), CONFIG.modules.diveFrame.dive.fadeS * 1000);
   }
