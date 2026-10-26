@@ -120,7 +120,13 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const casing = base.engineCasing && deckhouse ? deckhouse : null;
   const ceilingAt = (z: number) => (casing && z >= casing.z0 && z <= casing.z1 ? casing.top : z >= front && z <= aft ? floorY : q.deckY(z));
   // (Pods: the engine level as a stern drive's, its gearbox end over the pod's axis.)
-  const shaft = sd || pods
+  // (Z-drives, the harbour tug's (DesignHull.zDrives; owner, Oct 2026: "much lower and further
+  // back"): her engines level and as low as they clear her bottom, their gearbox ends
+  // `zDriveEngineAft` of her length forward of her transom, a level shaft aft from each to its
+  // drive; the propellers at the drives' feet, `propDepth` down.)
+  const shaft = base.zDrives
+    ? { ...sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, CONFIG.shipyard.harbourTug.zDriveEngineAft * lengthM), propY: -(base.propDepth ?? 0) + propD / 2 }
+    : sd || pods
     ? sternDriveLine(shape, eng.size, twin ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
     : layShaft(shape, eng.size, twin ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
   // A stern drive's legs: one behind each engine, through the transom; the top of each (its

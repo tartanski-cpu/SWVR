@@ -12,6 +12,11 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### The harbour tug's drives drawn as Z-drives (preview/shipyard)
 
+Then (owner, 26 Oct 2026, on a sketch): "engine position is wrong, it should be much lower and further back. And the propellers, the Kort nozzles are backwards."
+
+- **Her engines** (the build, so the game draws them there too, and her balance follows): level and as low as they clear her bottom, their gearbox ends `CONFIG.shipyard.harbourTug.zDriveEngineAft` (0.29) of her length forward of her transom (engineRoom.ts, the stern drive's level-engine rule). Her GM is now 2.1 m (her engines lower).
+- **The drive units** (enginePreview.ts `zDrive`): the shaft runs from each engine's flange aft to the drive's head just inside her bottom; the leg down from it half a propeller's diameter forward of her transom's propeller station; the nozzle and propeller forward of the leg (a pulling propeller, its nozzle's mouth forward), the gear housing from the hub aft to the leg. Before, the leg was hidden inside the nozzle and the housing stuck out aft, so the unit read the wrong way round.
+
 Owner, 26 Oct 2026: "for now, you could give her the Kort nozzles behaviour, but you should probably draw them differently in the engine page so that they're not aligned with the shafts ... facing the direction of travel. So like a Z in between the shaft and the thing."
 
 - Her behaviour is as before (stand-in shafts with Kort nozzles). On the Engine step she's drawn with Z-drives (`DesignHull.zDrives`; enginePreview.ts `zDrive`): her engines level, a level shaft aft from each to the drive's head, an upright leg down through her bottom, and at its foot the lower gear housing with the propeller in its nozzle, level, facing ahead (a pulling propeller, as on most azimuth drives). No rudders: an azimuth drive steers by turning. Only the Engine step draws them; her real drives come later.

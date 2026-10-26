@@ -269,14 +269,16 @@ export const SHIPYARD_CONFIG = {
      * than the build counts (her heavy framing, machinery, tanks of water and stores), carried
      * here as one weight `ballastAboveKeel` m above her keel, where it gives her a real tug's
      * stability (GM about 2 m on her KM of 5.8 m), not all down in her bilge. Her fuel tanks
-     * `fuelL` litres, a ship's (about 60 m³), not the small boats' litre a kW. Her propellers reach `propDepth` m below her waterline, as her
+     * `fuelL` litres, a ship's (about 60 m³), not the small boats' litre a kW. Her engines (on
+     * the Z-drives she's drawn with) level and low, their gearbox ends `zDriveEngineAft` of her
+     * length forward of her transom (owner, Oct 2026: "much lower and further back"). Her propellers reach `propDepth` m below her waterline, as her
      * drive pods would hang under her shallow stern (her real pods reach 5.3 m), until the
      * drives come: her stand-in shafts turn propellers of a tug's size, not her transom's.
      */
     // Her fendering (parts/fendering.ts): `fenderingKg` of rubber (belts, stern and bow
     // cylinders, the bow's blocks: about 6 t on a 25 m tug); its contact points one to each
     // `probeCell` m cell of its outer face.
-    harbourTug: { scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9 },
+    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9 },
     /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
