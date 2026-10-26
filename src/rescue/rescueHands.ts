@@ -632,11 +632,10 @@ export class RescueHands {
 
   /** What the reticle is on, among the gear (within reach). */
   private deskTarget(ctx: RescueHandsContext, ray: THREE.Ray): 'ring' | 'hook' | 'line' | null {
-    const rs = ctx.world.rescue;
     const stow = this.ringStowW(ctx, this.tmp);
     if (ringIn(ctx.world, ctx.vesselId)?.state === 'stowed' && stow && stow.distanceTo(ray.origin) < DESK_REACH && ray.distanceToPoint(stow) < 0.35) return 'ring';
     const pole = this.hookRestW(ctx);
-    if (!rs?.hook?.holder && pole) {
+    if (!hookIn(ctx.world, ctx.vesselId)?.holder && pole) {
       const a = new THREE.Vector3();
       const b = new THREE.Vector3();
       ray.distanceSqToSegment(pole.start, pole.end, a, b);

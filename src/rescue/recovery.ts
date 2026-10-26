@@ -168,6 +168,12 @@ export function hookIn(world: WorldState, vesselId: EntityId): HookState | undef
   return r?.hooks?.[vesselId] ?? (vesselId === world.homeVesselId ? r?.hook : undefined);
 }
 
+/** Is this player holding a boat hook (any boat's)? */
+export function holdsHook(world: WorldState, who: EntityId): boolean {
+  const r = world.rescue;
+  return !!r && (Object.values(r.hooks ?? {}).some((h) => h.holder === who) || r.hook?.holder === who);
+}
+
 /** The boats that can take survivors aboard: the players' boats with rescue places. */
 function rescueBoats(world: WorldState): VesselState[] {
   return playerBoats(world).filter((v) => !!VESSEL_DEFS[v.defId].rescueGear);
