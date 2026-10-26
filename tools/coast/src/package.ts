@@ -416,6 +416,8 @@ const ferryMargin = 150;
 const smallRoute = 8000;
 const FERRY_NAMES: Record<string, string[]> = {
   'north-hebridean': ['Morvern Star', 'Sruth na Mara', 'Ardlamont', 'Glen Eacharn', 'Kilbrannan', 'Ceann Loch', 'Dun Leathan', 'Sgarbh Mor', 'Tobar Ban', 'Ardnadrochit'],
+  // Invented Finnish and Swedish names (both are spoken in the archipelago), no real ship's.
+  baltic: ['Luotoranta', 'Holmvik', 'Kallioniemi', 'Havsbris', 'Skärvind', 'Ulapanlaine', 'Kuutamo', 'Lokinsiipi', 'Saarenkulma', 'Fjärdstjärna', 'Kivikko', 'Sundholm'],
   aegean: ['Galini', 'Meltemi', 'Thalassopouli', 'Kyma', 'Ostria', 'Aigaio Star', 'Levantes', 'Pelagia', 'Kalimera', 'Glaros', 'Zefyros', 'Anemoni'],
 };
 type Ferry = { name: string; operator: string; foot: boolean; path: [number, number][] };

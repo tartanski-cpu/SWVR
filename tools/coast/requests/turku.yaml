@@ -1,0 +1,18 @@
+# Region request: Turku and the Archipelago Sea (owner, Oct 2026, after the "Next Waters"
+# research page): the city of Turku and its port, the Meyer Turku yard at Perno, Ruissalo,
+# the Airisto fairway, Pargas, Nagu and the islands between. Full scale, about 37 x 38 km,
+# for Voyage mode only, in chunks the game streams in round the boat. The first region with
+# the Baltic theme (themes.ts): granite shores, pine, spruce and birch, red and yellow
+# wooden houses.
+id: turku
+name: Turku and the Archipelago Sea
+bbox: [21.78, 60.16, 22.45, 60.50]   # lon/lat min, max
+theme: baltic
+chunked: true
+spine:
+  harbour.sheltered: auto
+  pier.exposed: auto
+  anchorage: auto
+weatherProfile: baltic
+fish: [herring, cod]
+goods: [building-materials, groceries, feed]
