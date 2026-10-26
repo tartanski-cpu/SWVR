@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { CURRENTS, FISHING_GROUNDS, MARKS, PLACES, PORTS, POTTING_GROUNDS, WIND_FARMS, WRECKS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, MARKS, PLACES, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
 
 /** The place names, most prominent first (they claim their room on the screen first). */
 const PLACES_BY_RANK = [...PLACES].sort((a, b) => a.rank - b.rank);
@@ -21,6 +21,7 @@ import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
 import { coastTerrains } from '../world/coastTerrain';
+import { allFarms } from '../world/windFarm';
 import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
 import { activeProject, foundations, installAt, jackUpAt, laidMarks, towId } from '../career/projects';
 import { siteWorld, sitesOn } from '../dive/diveSites';
@@ -410,6 +411,23 @@ export class ChartPlotter {
     // A construction project under way (career/projects.ts): its site, the stage's survey lines
     // (dashed magenta, the stretches run in green) and its buoys' spots (a magenta ring and the
     // mark's name until laid, then a mark like the others).
+    // A project's laid marks: yellow diamonds, as the map's own buoys.
+    const drawLaid = () => {
+      for (const m of laidMarks(world)) {
+        const [px, py] = toPx(m.x, m.z);
+        g.fillStyle = '#ffd23a';
+        g.strokeStyle = '#101010';
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(px, py - 6);
+        g.lineTo(px + 5, py);
+        g.lineTo(px, py + 6);
+        g.lineTo(px - 5, py);
+        g.closePath();
+        g.fill();
+        g.stroke();
+      }
+    };
     const proj = activeProject(world);
     if (proj) {
       const { def, p, jobs } = proj;
@@ -543,27 +561,14 @@ export class ChartPlotter {
         g.arc(px, py, 4, 0, Math.PI * 2);
         g.fill();
       }
-      for (const m of laidMarks(world)) {
-        const [px, py] = toPx(m.x, m.z);
-        g.fillStyle = '#ffd23a';
-        g.strokeStyle = '#101010';
-        g.lineWidth = 1.5;
-        g.beginPath();
-        g.moveTo(px, py - 6);
-        g.lineTo(px + 5, py);
-        g.lineTo(px, py + 6);
-        g.lineTo(px - 5, py);
-        g.closePath();
-        g.fill();
-        g.stroke();
-      }
+      drawLaid();
       g.restore();
-    }
+    } else drawLaid(); // (a finished project's marks stay laid round its farm)
 
     // Wind turbines (world/windFarm.ts): a white three-bladed sign each; the crew transfer's
     // turbine (transfer/transfer.ts) ringed in amber with its number, while the job is on.
     const tj = world.transfer?.job && !world.transfer.job.done ? world.transfer.job : null;
-    WIND_FARMS.forEach((f, fi) =>
+    allFarms().forEach((f, fi) =>
       f.turbines.forEach((t, ti) => {
         const [px, py] = toPx(t.x, t.z);
         if (px < -20 || px > W + 20 || py < -20 || py > H + 20) return;

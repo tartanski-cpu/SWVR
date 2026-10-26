@@ -4,7 +4,7 @@ import type { WorldState } from '../core/world';
 import type { PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { NavMarksView } from '../world/view/navMarksView';
-import { nacelleGeometry, rotorGeometry, transitionPieceParts } from '../world/view/windFarmView';
+import { nacelleGeometry, rotorGeometry, transitionPieceParts, WindFarmView } from '../world/view/windFarmView';
 import { landingAxis } from '../world/windFarm';
 import { foundations, installAt, jackUpAt, laidMarks, syncProjectBlocks } from './projects';
 
@@ -23,7 +23,9 @@ const PART_LIFT = 14;
  * met buoy, the site's cardinals, drawn and lit as the map's own buoys are), its foundations
  * (each driven pile standing at its turbine), the pile being driven, and the jack-up working
  * on site; the turbines going up (tower, nacelle, rotor: still, they're not turning till
- * they're commissioned) and the installation ship putting them up. Each a single merged mesh
+ * they're commissioned) and the installation ship putting them up. A commissioned turbine
+ * (and a finished project's farm) is drawn as the map's farms are (world/view/windFarmView.ts:
+ * into the wind, its rotor turning, lit at night), made again when another is commissioned. Each a single merged mesh
  * (one draw call), made again only when what's built changes. It also keeps the collision's added blocks in step on the crew's side (the host's
  * tick does on its own).
  */
@@ -45,6 +47,10 @@ export class ProjectView {
   private readonly nacelle: THREE.Mesh;
   private readonly rotor: THREE.Mesh;
   private readonly installer: THREE.Mesh;
+  /** The commissioned turbines, as a farm; which ones it was made for; the last frame's time. */
+  private farm: WindFarmView | null = null;
+  private farmKey = '';
+  private lastTime: number | null = null;
 
   constructor() {
     this.root.name = 'project';
@@ -95,7 +101,8 @@ export class ProjectView {
     this.marks?.update(waves, time, darkness, viewer);
     // The foundations standing, and the pile being driven (its top coming down to PILE_TOP).
     const found = foundations(world);
-    const standing = found.filter((f) => f.driving === null);
+    // (A commissioned turbine is the farm's to draw, below.)
+    const standing = found.filter((f) => f.driving === null && !f.turning);
     const pk = standing.map((f) => `${f.x},${f.z},${f.tp === 1},${f.erect === 1}`).join('|');
     if (pk !== this.pilesKey) {
       this.pilesKey = pk;
@@ -143,6 +150,23 @@ export class ProjectView {
       this.rotor.visible = e >= ic.rotorAt;
       this.rotor.position.set(up.x, wf.hub + lowered(ic.rotorAt, 1), up.z);
     }
+    // The commissioned turbines: a farm, turning and lit.
+    const turning = found.filter((f) => f.turning);
+    const fk = turning.map((f) => `${f.x},${f.z}`).join('|');
+    if (fk !== this.farmKey) {
+      this.farmKey = fk;
+      if (this.farm) {
+        this.root.remove(this.farm.root);
+        this.farm.root.traverse((o) => {
+          if (o instanceof THREE.Mesh || o instanceof THREE.Points) o.geometry.dispose();
+        });
+      }
+      this.farm = turning.length ? new WindFarmView([{ name: '', turbines: turning.map((f) => ({ x: f.x, z: f.z, landingDeg: f.landingDeg })) }]) : null;
+      if (this.farm) this.root.add(this.farm.root);
+    }
+    const dt = this.lastTime === null ? 0 : Math.min(0.1, Math.max(0, time - this.lastTime));
+    this.lastTime = time;
+    this.farm?.update(world, darkness, dt);
     const inst = installAt(world);
     this.installer.visible = !!inst;
     if (inst) this.installer.position.set(inst.x, 0, inst.z);

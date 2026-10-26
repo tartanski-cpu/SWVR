@@ -36,10 +36,14 @@
  *              ship, and the guard job pays less.
  *   transfer   fitters for a turbine once it's up: a crew transfer (transfer/transfer.ts) to
  *              the project's farm (world/windFarm.ts setProjectFarm: its turbines, once their
- *              transition pieces are on, are a farm like the map's), paid by the project.
+ *              transition pieces are on, are a farm like the map's), paid by the project. A
+ *              commissioning crew's (`commission`): once they're up, the turbine is
+ *              commissioned (`commissioning`, then `commissioned`): lit, its rotor turning.
+ *   done       the last stage done and every turbine commissioned: the project's bonus paid,
+ *              it's moved to CareerState.projectsDone, and its farm stands for good
+ *              (builtProject: drawn, solid and worked like the map's own farms).
  *
- * Voyage has no career, so no projects. The stages after the last one built so far (the
- * commissioning: a later step) leave the project waiting at the last stage done.
+ * Voyage has no career, so no projects.
  */
 import { CONFIG, type ProjectDef, type ProjectJobDef } from '../config';
 import type { Intent } from '../core/intents';
@@ -88,6 +92,10 @@ export interface ProjectProgress {
   erect?: Record<string, number>;
   /** Turbines up (tower, nacelle and rotor): their indices. */
   erected?: number[];
+  /** A turbine being commissioned (its engineers up): its index and the world time it began (s). Not saved: a session that ends finishes it. */
+  commissioning?: Record<string, number>;
+  /** Turbines commissioned (lit, turning): their indices. */
+  commissioned?: number[];
   /** Guard duty: ships turned away (met), and ships that got into the zone (each docks the guard job's pay). Saved. */
   warned?: number;
   strikes?: number;
@@ -168,7 +176,10 @@ export function projectBoardLines(world: WorldState): string[] {
   if (!a) return [];
   const name = a.def.name.replace(/ wind farm$/, '');
   const n = a.def.stages.length;
-  if (!a.jobs.length) return [`Project: ${name}, stages 1-${n} done`, 'Next stage coming in a later update'];
+  if (!a.jobs.length) {
+    const on = a.p.commissioned?.length ?? 0;
+    return [`Project: ${name}, every stage done: commissioning, ${on} of ${a.def.turbines.length} turbines generating`, 'Nothing more to do: the engineers are bringing her on line'];
+  }
   const left = a.jobs.filter((j) => !a.p.done.includes(j.id));
   const next = left[0];
   return [`Project: ${name}, stage ${a.p.stage + 1} of ${n}: ${a.def.stages[a.p.stage].name}, ${left.length} of ${a.jobs.length} jobs left`, next ? `Next: ${next.name}${left.length > 1 ? ' (any order: Menu > Office > Projects)' : ''}` : ''];
@@ -189,6 +200,11 @@ export function jobStatus(world: WorldState, job: ProjectJobDef): string {
   const a = activeProject(world);
   if (!a) return job.name;
   if (a.p.done.includes(job.id)) {
+    if (job.kind === 'transfer' && job.commission) {
+      const c0 = a.p.commissioning?.[String(job.turbine)];
+      if (c0 !== undefined) return `${job.name}: up, commissioning (${Math.min(99, Math.round((100 * (world.time - c0)) / CONFIG.career.projectCommission.s))} %)`;
+      return `${job.name}: done, turbine ${job.turbine + 1} generating`;
+    }
     const since = a.p.driving?.[job.id];
     if (since !== undefined) return `${job.name}: handed over, being driven (${Math.min(99, Math.round((100 * (world.time - since)) / CONFIG.career.projectTow.driveS))} %)`;
     if (job.kind === 'tow' && job.turbine === undefined) {
@@ -251,7 +267,19 @@ export interface FoundationState {
   tp: number | null;
   /** The turbine itself: none, going up (how far, 0..1), or up (1). */
   erect: number | null;
+  /** Commissioned: lit, its rotor turning with the wind. */
+  turning: boolean;
   landingDeg: number;
+}
+
+/** A finished project whose farm stands (the last done with turbines), or null. */
+export function builtProject(world: WorldState): ProjectDef | null {
+  const done = world.career?.projectsDone ?? [];
+  for (let i = done.length - 1; i >= 0; i--) {
+    const def = projectDef(done[i]);
+    if (def?.turbines.length) return def;
+  }
+  return null;
 }
 
 /** How far the turbine `k` is up (0..1): its work done over CONFIG.career.projectInstall.erectS, or 1 once up. */
@@ -263,7 +291,11 @@ function erectFraction(p: ProjectProgress, k: number): number {
 /** The foundations standing (driven) and the one being driven, at their turbines, with their transition pieces (the view, the plotter, the blocks). */
 export function foundations(world: WorldState): FoundationState[] {
   const a = activeProject(world);
-  if (!a) return [];
+  if (!a) {
+    // A finished project's farm: every turbine up and turning.
+    const built = world.career?.project ? null : builtProject(world);
+    return built ? built.turbines.map((t, i) => ({ turbine: i, x: t.x, z: t.z, driving: null, tp: 1, erect: 1, turning: true, landingDeg: t.landingDeg })) : [];
+  }
   const out: FoundationState[] = [];
   const cfg = CONFIG.career.projectTow;
   for (const s of a.def.stages)
@@ -276,7 +308,7 @@ export function foundations(world: WorldState): FoundationState[] {
       const fit = a.p.fitting?.[String(j.turbine)];
       const tp = a.p.fitted?.includes(j.turbine) ? 1 : fit !== undefined ? Math.min(1, (world.time - fit) / cfg.fitS) : null;
       const erect = a.p.erected?.includes(j.turbine) ? 1 : a.p.erect?.[String(j.turbine)] !== undefined ? erectFraction(a.p, j.turbine) : null;
-      out.push({ turbine: j.turbine, x: t.x, z: t.z, driving: driven ? null : Math.min(1, (world.time - since!) / cfg.driveS), tp, erect, landingDeg: t.landingDeg });
+      out.push({ turbine: j.turbine, x: t.x, z: t.z, driving: driven ? null : Math.min(1, (world.time - since!) / cfg.driveS), tp, erect, turning: !!a.p.commissioned?.includes(j.turbine), landingDeg: t.landingDeg });
     }
   return out;
 }
@@ -365,13 +397,13 @@ let farmKey = '';
  * underfoot) once every transition piece is on.
  */
 export function syncProjectBlocks(world: WorldState): void {
-  const a = activeProject(world);
+  const def = activeProject(world)?.def ?? (world.career?.project ? null : builtProject(world));
   const found = foundations(world);
-  const standing = !!a && found.length === a.def.turbines.length && found.every((f) => f.tp === 1);
-  const fk = standing ? a!.def.id : '';
+  const standing = !!def && found.length === def.turbines.length && found.every((f) => f.tp === 1);
+  const fk = standing ? def!.id : '';
   if (fk !== farmKey) {
     farmKey = fk;
-    setProjectFarm(standing ? { name: a!.def.name, turbines: a!.def.turbines } : null);
+    setProjectFarm(standing ? { name: def!.name, turbines: def!.turbines } : null);
   }
   const blocks = projectBlocks(world);
   const key = blocks.map((b) => `${b.x.toFixed(1)},${b.z.toFixed(1)},${b.top}`).join('|');
@@ -383,10 +415,12 @@ export function syncProjectBlocks(world: WorldState): void {
 /** The marks laid so far (the view and the chartplotter draw them). */
 export function laidMarks(world: WorldState): MarkDef[] {
   const a = activeProject(world);
-  if (!a) return [];
+  // A finished project's marks stay laid round its farm.
+  const def = a?.def ?? (world.career?.project ? null : builtProject(world));
+  if (!def) return [];
   const out: MarkDef[] = [];
-  for (const s of a.def.stages)
-    for (const j of s.jobs) if (j.kind === 'buoy' && a.p.done.includes(j.id)) out.push({ name: `${a.def.name}: ${j.name}`, kind: j.mark, x: j.at[0], z: j.at[1] });
+  for (const s of def.stages)
+    for (const j of s.jobs) if (j.kind === 'buoy' && (!a || a.p.done.includes(j.id))) out.push({ name: `${def.name}: ${j.name}`, kind: j.mark, x: j.at[0], z: j.at[1] });
   return out;
 }
 
@@ -433,7 +467,7 @@ function finishJob(world: WorldState, def: ProjectDef, p: ProjectProgress, job: 
     addRep(c, def.port, CONFIG.career.rep.contract);
     p.stage += 1;
     const next = def.stages[p.stage];
-    sayRadio(world, 'info', next ? `${portName(def.port)} harbour office: ${stage.name.toLowerCase()} done, well done skipper - ${money(stage.bonus)} bonus. Next: ${next.name.toLowerCase()}.` : `${portName(def.port)} harbour office: ${stage.name.toLowerCase()} done - ${money(stage.bonus)} bonus. That's all we can do on ${def.name} for now; the next stage is being planned.`);
+    sayRadio(world, 'info', next ? `${portName(def.port)} harbour office: ${stage.name.toLowerCase()} done, well done skipper - ${money(stage.bonus)} bonus. Next: ${next.name.toLowerCase()}.` : `${portName(def.port)} harbour office: ${stage.name.toLowerCase()} done - ${money(stage.bonus)} bonus. The engineers are bringing ${def.name} on line now.`);
   } else sayRadio(world, 'info', `${portName(def.port)} harbour office: ${text.toLowerCase()}, skipper. ${money(pay)} to your account.`);
   c.seq += 1;
 }
@@ -448,6 +482,7 @@ export function stepProjects(world: WorldState, dt = 1 / 60): void {
   const port = PORTS.find((x) => x.id === def.port);
   stepDriving(world, def, p);
   stepFitting(world, def, p);
+  if (stepCommissioning(world, def, p)) return;
   // One tow out at a time; a monopile only once the jack-up's free of the last.
   const busy = Object.keys(p.driving ?? {}).length > 0;
   const firstTow = jobs.find((j): j is TowJob => j.kind === 'tow' && !p.done.includes(j.id));
@@ -480,6 +515,36 @@ export function stepProjects(world: WorldState, dt = 1 / 60): void {
       if (have.length >= CONFIG.career.projectSurvey.segments) finishJob(world, def, p, job, `${job.name} run`);
     }
   }
+}
+
+/**
+ * The turbines being commissioned: each commissioned `projectCommission.s` after its engineers
+ * are up (lit, turning). The last stage done and every turbine commissioned: the project's
+ * done (true: it's gone from under way, into projectsDone).
+ */
+function stepCommissioning(world: WorldState, def: ProjectDef, p: ProjectProgress): boolean {
+  for (const [k, since] of Object.entries(p.commissioning ?? {})) {
+    if (world.time - since < CONFIG.career.projectCommission.s) continue;
+    delete p.commissioning![k];
+    if (!p.commissioned?.includes(Number(k))) (p.commissioned ??= []).push(Number(k));
+    world.career!.seq += 1;
+    sayRadio(world, 'info', `${def.name}: turbine ${Number(k) + 1} is commissioned and generating, skipper. Lights on.`);
+  }
+  const commissioned = def.turbines.every((_, i) => p.commissioned?.includes(i));
+  if (p.stage < def.stages.length || !commissioned || Object.keys(p.commissioning ?? {}).length) return false;
+  completeProject(world, def);
+  return true;
+}
+
+/** The project finished: its bonus paid, into projectsDone; its farm stands from now on (builtProject). */
+function completeProject(world: WorldState, def: ProjectDef): void {
+  const c = world.career!;
+  post(world, c, `${def.name}: the project done`, def.bonus);
+  addRep(c, def.port, CONFIG.career.rep.contract * 2);
+  c.projectsDone = [...(c.projectsDone ?? []).filter((d) => d !== def.id), def.id];
+  delete c.project;
+  c.seq += 1;
+  sayRadio(world, 'info', `${portName(def.port)} harbour office: ${def.name} is finished and generating, skipper. Fine work from start to finish - ${money(def.bonus)} bonus for the whole job.`);
 }
 
 /** The piles being driven: done after CONFIG.career.projectTow.driveS, each a foundation from then on. */
@@ -695,7 +760,10 @@ function stepFitters(world: WorldState, def: ProjectDef, p: ProjectProgress, job
   const key = itemTo(def, job);
   const tj = world.transfer?.job;
   if (tj?.project === key) {
-    if (tj.done) finishJob(world, def, p, job, `${job.name}: all ${tj.techs.length} up`);
+    if (!tj.done) return;
+    finishJob(world, def, p, job, `${job.name}: all ${tj.techs.length} up`);
+    // Commissioning engineers up: the turbine's commissioned in a while (stepCommissioning).
+    if (job.commission && !p.commissioned?.includes(job.turbine)) (p.commissioning ??= {})[String(job.turbine)] = world.time;
     return;
   }
   if (tj && !tj.done) return;
@@ -758,6 +826,7 @@ function setStage(world: WorldState, def: ProjectDef, n: number): void {
     else if (j.kind === 'tow') next.fitted = all;
     else if (j.kind === 'supply') (next.supplied ??= {})[j.id] = j.count;
     else if (j.kind === 'guard') next.erected = all;
+    else if (j.kind === 'transfer' && j.commission) (next.commissioned ??= []).push(j.turbine);
   }
   c.project = next;
   c.seq += 1;
@@ -803,6 +872,7 @@ export function applyProjectIntent(world: WorldState, intent: Intent): void {
         delete a.p.erect;
       }
       if (job.kind === 'transfer' && world.transfer?.job?.project === itemTo(a.def, job)) world.transfer.job.done = true;
+      if (job.kind === 'transfer' && job.commission && !a.p.commissioned?.includes(job.turbine)) (a.p.commissioned ??= []).push(job.turbine);
       const text = job.kind === 'buoy' ? `${job.name} laid on station` : job.kind === 'tow' ? `${job.name.replace(/ to .*/, '')} ${job.turbine !== undefined ? 'driven' : 'lifted on'}` : job.kind === 'supply' ? `${job.name} taken aboard` : job.kind === 'guard' ? 'turbines up' : job.kind === 'transfer' ? `${job.name} put across` : `${job.name} run`;
       finishJob(world, a.def, a.p, job, text);
     }

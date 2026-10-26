@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Construction projects, step 5: commissioning, and Tarran Rig finished (26 Oct 2026)
+
+Owner: "go to stage 6". The plan's last stage: commissioning crews out by crew transfer; the turbines light and turn; the project done with its bonus.
+
+- **Stage 6, Commissioning** (bonus £2,000): `comm1`, `comm2`, crew transfers of two engineers each (`ProjectJobDef` transfer with `commission: true`), £800 each, through the transfer system as the fitters were. Their crew up: the turbine is commissioned `projectCommission.s` 90 s later (`commissioning`, then `commissioned`, saved; one being commissioned reads back as done), the radio says so.
+- **Turning:** a commissioned turbine is drawn by a WindFarmView of its own inside ProjectView (into the wind, rotor turning, lit at night: the map farms' own drawing), made again as each is commissioned; ProjectView no longer draws its still parts.
+- **Finished:** the last stage done and every turbine commissioned, the project's done (`completeProject`): its `bonus` £5,000 and double the contract reputation, moved to `CareerState.projectsDone`, `project` cleared. Its farm stands for good (`builtProject`): `foundations` gives it every turbine up and turning, so it's drawn, solid (`projectBlocks`), a crew-transfer farm (`setProjectFarm`), on the plotter (now every farm via `allFarms()`, which also rings a transfer job's turbine on the project's farm), and its marks stay laid (`laidMarks`), on the plotter too.
+- **Board and menu:** after the last stage, "every stage done: commissioning, n of 2 turbines generating"; the debug Stage done on the last stage commissions at once, so the project finishes.
+- **Tests:** tests/projects.test.ts, 2 new (the crews up, commissioning, then the project done: bonus, projectsDone, the farm standing, solid, its marks, not offered again, saved; a turbine being commissioned saved), 1 changed. Headless: the finished farm by day and night (rotors turning, lights on as Holm Rig's).
+- **Shared changes:** none beyond the main game's files (the plotter's farm list now `allFarms()`).
+
 ### (From the modular-builder chat) The harbour tug's azimuth drives and levers
 
 The harbour tug's two azimuth stern drives and their twist-and-throttle levers (full write-up: `docs/progress/modules.md`). What moved in shared and game files:
