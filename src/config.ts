@@ -28,7 +28,7 @@ export type ProjectJobDef =
   | { id: string; kind: 'tow'; name: string; tow: string; turbine?: number; pay: number }
   | { id: string; kind: 'supply'; name: string; cargo: string; count: number; pay: number }
   | { id: string; kind: 'guard'; name: string; pay: number }
-  | { id: string; kind: 'transfer'; name: string; turbine: number; techs: number; pay: number };
+  | { id: string; kind: 'transfer'; name: string; turbine: number; techs: number; pay: number; commission?: boolean };
 
 /** A career upgrade, bought at the yard (CONFIG.career.upgrades). */
 export interface CareerUpgrade {
@@ -830,9 +830,12 @@ export const CONFIG = {
      *           less `projectGuard.strike` for each ship that got into the zone.
      *   transfer  `techs` fitters for turbine `turbine` (once it's up), on the crew-transfer
      *           quay (CONFIG.transfer), put across onto its landing as a wind farm transfer.
+     *           `commission`: they're its commissioning engineers: once they're up, the turbine
+     *           is commissioned (`projectCommission.s`), its lights on and its rotor turning.
+     * The last stage done and every turbine commissioned, the project's done: its `bonus`
+     * paid, and the farm stands for good (CareerState.projectsDone).
      * Positions: Tarran Rig, two turbines in 40 m of open water about 1.1 km north of Calder
      * Haven, clear of Holm Rig and the fishing grounds; its zone boxed by four cardinals.
-     * Stage 6 (commissioning) comes in a later step.
      */
     projects: [
       {
@@ -841,7 +844,7 @@ export const CONFIG = {
         port: 'calder',
         minRep: 0,
         desc: 'A new two-turbine wind farm north of Calder Haven: survey the site, then mark it out',
-        /** Paid when the whole project is done (later steps add its last stages). */
+        /** Paid when the whole project is done: its last stage, every turbine commissioned. */
         bonus: 5000,
         turbines: [
           { x: 350, z: -420, landingDeg: 180 },
@@ -893,6 +896,14 @@ export const CONFIG = {
               { id: 'fit2', kind: 'transfer', name: 'Fitters to turbine 2', turbine: 1, techs: 3, pay: 700 },
             ],
           },
+          {
+            name: 'Commissioning',
+            bonus: 2000,
+            jobs: [
+              { id: 'comm1', kind: 'transfer', name: 'Commissioning crew to turbine 1', turbine: 0, techs: 2, pay: 800, commission: true },
+              { id: 'comm2', kind: 'transfer', name: 'Commissioning crew to turbine 2', turbine: 1, techs: 2, pay: 800, commission: true },
+            ],
+          },
         ],
       },
     ] as ProjectDef[],
@@ -931,6 +942,8 @@ export const CONFIG = {
      * come within `hail` m of her and she's called on the VHF and alters away. Each that gets
      * into the zone costs `strike` of the guard job's pay (it never pays under `minPay`).
      */
+    /** Commissioning (see `projects`): a turbine is commissioned this long after its engineers are up (s). */
+    projectCommission: { s: 90 },
     projectGuard: { standBy: 900, zone: 400, every: [50, 110] as [number, number], from: 1700, hail: 300, strike: 600, minPay: 600 },
   },
 

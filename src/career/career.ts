@@ -562,7 +562,9 @@ export function parseCareer(raw: string | null): CareerState | null {
       // And a turbine going up (the installation ship worked on); guard duty's tally.
       const erected = [...(Array.isArray(pr.erected) ? pr.erected : []), ...Object.keys(pr.erect ?? {}).map(Number)].filter((n) => Number.isInteger(n));
       const tally = Object.fromEntries((['warned', 'strikes'] as const).filter((k) => typeof pr[k] === 'number').map((k) => [k, pr[k]]));
-      c.project = { id: pr.id, stage: Math.max(0, Math.floor(pr.stage)), done: pr.done.filter((d) => typeof d === 'string'), survey, ...(driven.length ? { driven } : {}), ...(fitted.length ? { fitted } : {}), ...(Object.keys(supplied).length ? { supplied } : {}), ...(erected.length ? { erected } : {}), ...tally };
+      // And a turbine being commissioned (its engineers were up).
+      const commissioned = [...(Array.isArray(pr.commissioned) ? pr.commissioned : []), ...Object.keys(pr.commissioning ?? {}).map(Number)].filter((n) => Number.isInteger(n));
+      c.project = { id: pr.id, stage: Math.max(0, Math.floor(pr.stage)), done: pr.done.filter((d) => typeof d === 'string'), survey, ...(driven.length ? { driven } : {}), ...(fitted.length ? { fitted } : {}), ...(Object.keys(supplied).length ? { supplied } : {}), ...(erected.length ? { erected } : {}), ...(commissioned.length ? { commissioned } : {}), ...tally };
     }
     if (Array.isArray(o.projectsDone)) c.projectsDone = o.projectsDone.filter((d) => typeof d === 'string');
     return c;
