@@ -32,14 +32,17 @@ describe('the harbour tug in the Shipyard', () => {
     expect(b.figures.engine).toMatch(/^Twin 1850 kW/);
   });
 
-  it('her fixed choices stay hers, whatever the design says; the rest are the player’s', () => {
-    const tried = buildDesign({ ...tug, sheer: 4, houseLength: 3, dhHeight: 1, guard: 2, sternRoller: 1, aFrame: 1, engine: 0, twin: 0 });
+  it('her fixed choices (her hull, protection, engines) stay hers, whatever the design says; the rest are the player’s, her house too', () => {
+    const tried = buildDesign({ ...tug, sheer: 4, length: 0, guard: 2, aFrame: 1, engine: 0, twin: 0, fishHold: 1 });
     const as = buildDesign(tug);
     expect(tried.figures).toEqual(as.figures);
     // Her colours, the inside and her deck gear do change her.
     const kitted = buildDesign({ ...tug, deckCrane: 1, searchlight: 1, fireMonitor: 1, paint: 0, interior: 1 });
     expect(kitted.figures.price).toBeGreaterThan(as.figures.price);
     expect(kitted.recipe.modules.some((m) => m.module === 'deck.crane')).toBe(true);
+    // (Owner, 26 Oct 2026: her wheelhouse and deckhouse the player's.)
+    const taller = buildDesign({ ...tug, headroom: 2.6, houseWidth: 0.5, dhHeight: 2.0 });
+    expect(taller.figures).not.toEqual(as.figures);
   });
 
   it('her fendering is her protection: its points round her sides, her stern and her bow, out beyond her plating', () => {
@@ -70,6 +73,15 @@ describe('the harbour tug in the Shipyard', () => {
     expect(winch.transform.position[2]).toBeLessThan(-8);
     expect(winch.transform.rotationDeg?.[1]).toBe(-180);
     expect(b.recipe.modules.some((m) => m.module === 'deck.stern-roller')).toBe(false);
+  });
+
+  it('with the stern roller she tows over her stern, from a towing hook aft of her house; no staple at her bow', () => {
+    const b = useDesign({ ...tug, sternRoller: 1 });
+    expect(b.warnings).toEqual([]);
+    const tow = gearOf({ defId: 'design' }, 'towPoint');
+    expect(tow!.point[2]).toBeGreaterThan(0);
+    expect(b.recipe.modules.some((m) => m.module === 'deck.bow-staple')).toBe(false);
+    expect(b.hull.sockets.find((s) => s.id === 'towWinch')!.transform.position[2]).toBeGreaterThan(0);
   });
 
   it('travels as a link or file, and comes back', () => {

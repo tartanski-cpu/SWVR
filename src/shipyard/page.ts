@@ -647,7 +647,7 @@ function section(title: string): HTMLElement {
   el.className = 'step';
   el.dataset.step = name.toLowerCase();
   el.dataset.title = name;
-  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}<p class="oneOffNote meta" hidden>She’s a one-off: her hull, deckhouse, bridge and stacks are fixed. Her colours, the wheelhouse inside and her deck gear are yours to choose.</p>`;
+  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}<p class="oneOffNote meta" hidden>Her hull is a one-off, fixed as she’s drawn, and so are her fendering and her engines. Her wheelhouse and deckhouse, her colours, the inside and her deck gear are yours to choose.</p>`;
   const guide = el.querySelector<HTMLElement>('.guide');
   if (guide && STEP_MORE[name]) aboutHeading(guide, STEP_MORE[name], true);
   stepBody.insertBefore(el, handoverStep);

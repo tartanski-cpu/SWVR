@@ -8,6 +8,11 @@ The running record for this area's chat: the Shipyard web app: designing a boat,
 
 Newest entry first. Each change set: what changed and why, the config keys, the tests, and what was and wasn't checked.
 
+## Lined up for later (owner's asks, not started)
+
+- **Exhaust stacks as their own part** (owner, 26 Oct 2026, from the Fairplay reference: "the exhaust pipes in a kind of standalone box ... split these exhaust pipes out as something that you can control. So in a bigger ship, we can make the wheelhouse smaller. And then I'd like to be able to move the twin exhaust pipes forward and aft on this deck house and choose whether they've got like a circular or a square kind of box around them"). Today a tug's stacks go up through the wheelhouse's aft corners, boxed in white where they pass through it. To come: the twin stacks a part of their own, placed fore and aft along the deckhouse (not tied to the wheelhouse), with a round or a square casing round them.
+- **The harbour tug's azimuth drives and their controls** (owner: later).
+
 ## Changes
 
 ### (From the modular-builder chat) The harbour tug gets her azimuth drives
@@ -17,6 +22,16 @@ Her stand-in shafts and rudders are replaced by two azimuth stern drives with a 
 - `parts/recipe.ts`: on her, the engine's `azimuth` and the drives' own gear ratio (`driveRatio` 1.6 on her gearbox's), no rudder module, and the helm's layout: a `control.azimuth-lever` each side of the wheel (slots `throttle` and `throttle2`), TRANSIT (`aziTransit`), the port joysticks moved out, the wheel smaller.
 - `page.ts`: the machinery summary accepts a boat with drives and no rudder. `enginePreview.ts`: a comment.
 - Her numbers, gearbox matched: 12.05 kn, 48 t bollard pull (was 31 t on the shafts). 60 t, a real tug's, would need bigger propellers.
+### The harbour tug: her wheelhouse and deckhouse the player's; her towing gear a choice (approved by the owner 26 Oct 2026; on next)
+
+Owner, 26 Oct 2026: "just looking at the predefined wheelhouse you've given me, it doesn't really match the wheelhouse in the pictures, which is much kind of more narrow, tall. Maybe it's good if you in the shipyard give me the control of the wheelhouse and deckhouse as parametric parts. The other thing that's missing is the tugboat towing equipment isn't there as an option."
+
+- **Her house is the player's** again: catalog.ts `HARBOUR_TUG_FIXED` now holds only her hull (size, bulwarks, bow, sheer, no raised foredeck or cabin below), steel, her fendering, her engines and nozzles, and the gear that doesn't suit her (trawl, dive, outboards, stern drives, pods). Her wheelhouse, deckhouse, windows, saloon, stacks' style and deck gear start from `HARBOUR_TUG_HOUSE` and move like any boat's. She starts with a narrower, taller bridge (owner: "more narrow, tall"): 3.8 m long, 55 % of the deck between her side decks (5.5 m), 2.5 m headroom. The step's one-off line now says what's fixed and what's hers.
+- **Her towing gear** (the Towing group: the tow winch, the stern roller): without the stern roller she tows over her bow (the staple at her stem, the winch on her foredeck facing forward); with it she tows over her stern from a towing hook aft of her house, her winch just forward of it, as the small tug does (deckGear.ts: the tug's towing hook for `towsOverBow` hulls too; the staple only without the roller).
+- Tests: harbourTugYard.test.ts (her house the player's; with the stern roller, her tow point aft and no staple). The full `npm test` and the typecheck pass.
+- Checked in the browser: her outside from three sides and the Wheelhouse step with its controls back.
+- README: the harbour tug's paragraph.
+- **Shared changes:** none.
 
 ### The harbour tug's drives drawn as Z-drives (approved by the owner 26 Oct 2026; on next)
 
