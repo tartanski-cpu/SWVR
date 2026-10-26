@@ -19,6 +19,7 @@
  * `pose` - it is cosmetic for everyone else, so trusting it is fine for co-op.
  * All payloads are plain JSON (WorldState is JSON by design).
  */
+import type { WorldDelta } from './worldDelta';
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
@@ -78,7 +79,7 @@ export interface RestartNotice {
  * (App). `end`: the host stopped hosting on purpose (Stop hosting): the game's over, nobody
  * takes it over (a host who's simply gone says nothing: the crew notice the silence).
  */
-export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState; chart?: ChartMarks } | { t: 'snapshot'; world: WorldState; paused?: boolean } | { t: 'chart'; op: ChartOp } | { t: 'end' } | RestartNotice;
+export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState; chart?: ChartMarks } | { t: 'snapshot'; world?: WorldState; delta?: WorldDelta; paused?: boolean } | { t: 'chart'; op: ChartOp } | { t: 'end' } | RestartNotice;
 
 /** Snapshot / pose send rate (Hz). */
 export const NET_RATE = 20;

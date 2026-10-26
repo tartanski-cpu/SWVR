@@ -57,6 +57,28 @@ export function boatOf(world: WorldState, playerId: EntityId | null | undefined)
   return v && playerBoats(world).includes(v) ? v : homeVessel(world);
 }
 
+/**
+ * The boat the game's calls follow (multiplayer study #27: the host left his boat moored and
+ * went out with a crew-mate in her tug, and no call ever came): of the players' boats that
+ * `can` (her gear for the job), the one with the most players aboard; the home boat on a tie,
+ * or when nobody's aboard any of them.
+ */
+export function missionBoat(world: WorldState, can: (v: VesselState) => boolean = () => true): VesselState | undefined {
+  const crew = new Map<string, number>();
+  for (const p of Object.values(world.players)) if (p.aboardVesselId) crew.set(p.aboardVesselId, (crew.get(p.aboardVesselId) ?? 0) + 1);
+  let best: VesselState | undefined;
+  let most = -1;
+  for (const v of playerBoats(world)) {
+    if (!can(v)) continue;
+    const n = (crew.get(v.id) ?? 0) + (v.id === world.homeVesselId ? 0.5 : 0);
+    if (n > most) {
+      best = v;
+      most = n;
+    }
+  }
+  return best;
+}
+
 /** Whose boat she is, for the chart and the lookout: her owner's name, the host's boat the name of whoever is aboard, else "the host". */
 export function boatOwnerName(world: WorldState, v: VesselState): string {
   if (v.owner) return world.players[v.owner]?.name ?? 'a crew-mate';

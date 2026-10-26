@@ -11,6 +11,7 @@ import { releaseHolds } from '../vessel/vesselControl';
 import { dropCarried } from '../cargo/cargo';
 import { CONFIG } from '../config';
 import type { PlayerState } from '../player/playerState';
+import { DeltaPacker } from './worldDelta';
 import { NET_RATE, type ClientMessage, type HostMessage } from './protocol';
 import type { HostTransport, Link } from './transport';
 import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
@@ -32,7 +33,7 @@ import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
  */
 export class HostSession {
   /** Each crew-mate: their link, their player, when they were last heard from (s, `now`), and how their silence stands. */
-  private readonly peers = new Map<string, { link: Link; playerId: EntityId; heardAt: number; away?: PlayerState; freed?: boolean; clientId?: string }>();
+  private readonly peers = new Map<string, { link: Link; playerId: EntityId; heardAt: number; away?: PlayerState; freed?: boolean; clientId?: string; fresh?: boolean }>();
   /** This page is hidden, its game stepping slowly (App): said in each snapshot, for the crew. */
   paused = false;
   private pending: Intent[] = [];
@@ -104,7 +105,7 @@ export class HostSession {
       const sameSite = !msg.site || !this.world.build?.site || msg.site === this.world.build.site;
       if (sameSite && msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
       this.world.players[playerId] = p;
-      this.peers.set(link.id, { link, playerId, heardAt: this.now(), ...(cid ? { clientId: cid } : {}) });
+      this.peers.set(link.id, { link, playerId, heardAt: this.now(), fresh: true, ...(cid ? { clientId: cid } : {}) });
       this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });
       return;
     }
@@ -201,8 +202,24 @@ export class HostSession {
     this.sinceSend += dt;
     if (this.sinceSend < 1 / NET_RATE) return;
     this.sinceSend = 0;
-    for (const { link } of this.peers.values()) this.send(link, { t: 'snapshot', world: this.world, ...(this.paused ? { paused: true } : {}) });
+    // What changed since the last send, as one text for every crew-mate (study #3: the whole
+    // world, packed again for each, was up to 159 KB a time). A crew-mate just welcomed gets
+    // the whole world once more, the changes counted from here.
+    const paused = this.paused ? { paused: true as const } : {};
+    const delta = this.packer.pack(this.world) ?? {};
+    let whole: string | null = null;
+    const changes = JSON.stringify({ t: 'snapshot', delta, ...paused } satisfies HostMessage);
+    for (const peer of this.peers.values()) {
+      if (peer.fresh) {
+        peer.fresh = false;
+        whole ??= JSON.stringify({ t: 'snapshot', world: this.world, ...paused } satisfies HostMessage);
+        peer.link.send(whole);
+      } else peer.link.send(changes);
+    }
   }
+
+  /** The world's changes from send to send (net/worldDelta.ts). */
+  private readonly packer = new DeltaPacker();
 
   private send(link: Link, msg: HostMessage): void {
     link.send(msg);

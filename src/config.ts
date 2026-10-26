@@ -2919,6 +2919,7 @@ export const CONFIG = {
    *                          that's transmitting hears nobody (one talks at a time, as on VHF).
    *   squelchS / squelchGain the short burst of noise as a transmission starts and ends.
    *   retryS                 a call that failed is tried again after this (s).
+   *   answerS                a call with no voice coming after this (s) is dropped and tried again.
    */
   voice: {
     nearFull: 2,
@@ -2933,6 +2934,7 @@ export const CONFIG = {
     squelchS: 0.12,
     squelchGain: 0.25,
     retryS: 5,
+    answerS: 8,
     /** Your own handset's talk button (audio/handsetAudio.ts): the switch's click and the squelch burst after it. */
     handset: { clickHz: 2200, clickGain: 0.5, squelchS: 0.09, squelchGain: 0.18 },
   },

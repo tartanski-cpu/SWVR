@@ -9,7 +9,7 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { RESCUE_DEFS } from '../src/rescue/rescueDefs';
-import { vesselToWorld } from '../src/rescue/recovery';
+import { ringIn, vesselToWorld } from '../src/rescue/recovery';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 
@@ -39,7 +39,7 @@ describe('the new emergencies', () => {
     const ringX = t.x + 9;
     send('ringThrow', { args: [ringX, 2, t.z, 0, 0, 0] });
     run(1);
-    expect(world.rescue!.ring!.state).toBe('water');
+    expect(ringIn(world, world.homeVesselId!)!.state).toBe('water');
     expect(t.phase).not.toBe('onLine');
     const x0 = t.x;
     run(4);

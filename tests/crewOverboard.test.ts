@@ -15,7 +15,7 @@ import { HostSession } from '../src/net/hostSession';
 import type { PlayerPose } from '../src/net/protocol';
 import { LoopbackHost } from '../src/net/transport';
 import { createPlayerState } from '../src/player/playerState';
-import { vesselToWorld } from '../src/rescue/recovery';
+import { ringIn, vesselToWorld } from '../src/rescue/recovery';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 
@@ -39,7 +39,7 @@ function setup() {
   mate.position = [stern.x + 3, -1.4, stern.z + 14];
   mate.mode = 'swim';
   world.players[mate.id] = mate;
-  const ring = () => world.rescue!.ring!;
+  const ring = () => ringIn(world, world.homeVesselId!)!;
   return { world, v, send, run, mate, ring, me: localPlayerId };
 }
 

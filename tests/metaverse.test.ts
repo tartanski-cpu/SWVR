@@ -234,6 +234,27 @@ describe('the timber run on the Oban map', () => {
     expect(tow.lineOf(w)?.target).toBe(`l:${log.id}`);
   });
 
+  it("a crew-mate alongside the merchant sells the barge from their page (multiplayer study #35)", async () => {
+    const { w, v, sim, t, control } = await oban();
+    const berths = await import('../src/world/berths');
+    const player = await import('../src/player/playerState');
+    const merchant = CONFIG.voyage.timber.merchants.find((m) => m.mapId === 'oban')!;
+    const berth = berths.berthWithId(merchant.berthId)!;
+    w.build = { ...(w.build ?? {}), map: 'oban' };
+    // The barge at the berth, the boat lying off her to seaward, stopped.
+    const barge = t.spawnLogBarge(w, berth.x, berth.z, 0, 10);
+    control.placeVessel(v, berth.x - berth.shoreX * 14, 0, berth.z - berth.shoreZ * 14, 0);
+    w.players['player-2'] = player.createPlayerState('player-2', 'Bosun');
+    w.players['player-2'].aboardVesselId = v.id;
+    expect(t.saleOffer(w, v, 'oban')?.bargeId).toBe(barge);
+    const before = w.career?.money ?? 0;
+    sim.stepWorld(w, [{ playerId: 'player-2', targetId: 'env', control: 'timberSell', value: 1, ref: 'some-other-barge' }], 1 / 20);
+    expect(w.timber!.barges[barge]).toBeTruthy(); // not the barge on offer: nothing
+    sim.stepWorld(w, [{ playerId: 'player-2', targetId: 'env', control: 'timberSell', value: 1, ref: barge }], 1 / 20);
+    expect(w.timber!.barges[barge]).toBeUndefined();
+    expect(w.career!.money - before).toBe(10 * CONFIG.voyage.timber.logPrice);
+  });
+
   it('kept with the save: where she lies, her load, and on the line again', async () => {
     const { w, v, t, m, control } = await oban();
     const at = t.hotspotAt(m.SITES[0])!;

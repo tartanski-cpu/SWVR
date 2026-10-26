@@ -53,6 +53,8 @@ export interface HoldRules {
   lockedByOther(c: Control): boolean;
   /** A local hand (or the desktop mouse) took hold of / let go of a control. */
   holdChanged(c: Control, held: boolean): void;
+  /** Who has it, by name (multiplayer study #33: with three or four aboard, whom to ask). */
+  holderName?(c: Control): string | null;
 }
 
 const NO_RULES: HoldRules = { lockedByOther: () => false, holdChanged: () => {} };
@@ -270,6 +272,27 @@ export class InteractionSystem {
     pos.setXYZ(0, f.ray.origin.x, f.ray.origin.y, f.ray.origin.z);
     pos.setXYZ(1, hit.x, hit.y, hit.z);
     pos.needsUpdate = true;
+  }
+
+  /**
+   * Let go of everything held here: both hands, the mouse's drag, the wheel steered by keys
+   * (multiplayer study #25: a player who took the headset off, or left VR, still held the
+   * wheel, and the others' hands were bumped off it with no reason given). The holds go too.
+   */
+  releaseAll(): void {
+    this.releaseHand('left');
+    this.releaseHand('right');
+    if (this.deskPressing) {
+      this.deskPressing.pressEnd();
+      this.deskPressing = null;
+    }
+    if (this.dragging) {
+      this.dragging.grabEnd(this.deskPointer);
+      this.dragging.held = false;
+      this.dragging = null;
+    }
+    this.stopSteering();
+    this.syncHolds();
   }
 
   private releaseHand(hand: Handedness): void {
@@ -507,7 +530,7 @@ export class InteractionSystem {
     }
     const c = this.deskHover;
     if (!c) return null;
-    return c.kind === 'grab' && this.rules.lockedByOther(c) ? `${c.label} (crew-mate has it)` : c.label;
+    return c.kind === 'grab' && this.rules.lockedByOther(c) ? `${c.label} (${this.rules.holderName?.(c) ?? 'a crew-mate'} has it)` : c.label;
   }
 
   private refreshHover(): void {

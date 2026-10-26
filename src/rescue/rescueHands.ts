@@ -48,7 +48,7 @@ import { gearOf } from '../boats/sims';
 import type { GearFacts } from '../modular/module';
 import type { CargoHands } from '../cargo/cargoHands';
 import { userSettings } from '../player/userSettings';
-import { distanceToHull } from './recovery';
+import { distanceToHull, hookIn, ringIn } from './recovery';
 import { lineFor, lineOf, towName, towPoint, towReach, towTargets } from '../tow/tow';
 import { ropePoints, ROPE_POINTS } from './rescueGearView';
 import { blockTop } from '../world/geography';
@@ -242,7 +242,7 @@ export class RescueHands {
   private hookRestW(ctx: RescueHandsContext): THREE.Line3 | null {
     const g = this.gear(ctx)?.hook;
     if (!g || !ctx.vesselRoot) return null;
-    const deck = ctx.world.rescue?.hook?.deck;
+    const deck = hookIn(ctx.world, ctx.vesselId)?.deck;
     if (deck) {
       const [x, y, z, yaw] = deck;
       const L = CONFIG.rescue.hookLength;
@@ -265,7 +265,7 @@ export class RescueHands {
 
   /** Distance from a point to the line from the cleat to the ring in the water, as drawn (m). */
   private lineDistance(ctx: RescueHandsContext, p: THREE.Vector3): number {
-    const r = ctx.world.rescue?.ring;
+    const r = ringIn(ctx.world, ctx.vesselId);
     if (!r || r.state !== 'water' || !this.cleatW(ctx, this.tmp2)) return Infinity;
     ropePoints(this.tmp2, this.closest.fromArray(r.pos), r.line, true, ctx.waves, this.rope);
     let best = Infinity;
@@ -298,9 +298,9 @@ export class RescueHands {
   tick(ctx: RescueHandsContext, dt: number): void {
     this.clock += dt;
     const r = ctx.world.rescue;
-    if (this.ring && this.clock - this.ringSince > GRACE && !(r?.ring?.state === 'held' && r.ring.holder === ctx.playerId)) this.ring = null;
+    if (this.ring && this.clock - this.ringSince > GRACE && !(ringIn(ctx.world, ctx.vesselId)?.state === 'held' && ringIn(ctx.world, ctx.vesselId)!.holder === ctx.playerId)) this.ring = null;
     if (this.hook && this.clock - this.hookSince > GRACE && r?.hook?.holder !== ctx.playerId) this.hook = null;
-    if (this.line && r?.ring?.state !== 'water') this.line = null;
+    if (this.line && ringIn(ctx.world, ctx.vesselId)?.state !== 'water') this.line = null;
   }
 
   private takeRing(ctx: RescueHandsContext, who: Holder): void {
@@ -375,9 +375,9 @@ export class RescueHands {
     // Pulling the line: hand travel away from the ring shortens it.
     if (this.line) {
       const f = hands[this.line.hand];
-      if (!f.tracked || !f.gripDown || !rs?.ring || rs.ring.state !== 'water') this.line = null;
+      if (!f.tracked || !f.gripDown || !ringIn(ctx.world, ctx.vesselId) || ringIn(ctx.world, ctx.vesselId)!.state !== 'water') this.line = null;
       else {
-        const away = this.tmp.set(f.grip.x - rs.ring.pos[0], 0, f.grip.z - rs.ring.pos[2]).normalize();
+        const away = this.tmp.set(f.grip.x - ringIn(ctx.world, ctx.vesselId)!.pos[0], 0, f.grip.z - ringIn(ctx.world, ctx.vesselId)!.pos[2]).normalize();
         const moved = this.tmp2.copy(f.grip).sub(this.line.last).dot(away);
         this.line.last.copy(f.grip);
         if (moved > 0) this.line.acc += moved;
@@ -410,7 +410,7 @@ export class RescueHands {
     for (const h of ['left', 'right'] as const) {
       const f = hands[h];
       const free = f.tracked && !busy[h] && !this.busy(h) && !ctx.cargoHands.busy(h);
-      const near = free && rs?.ring?.state === 'water' && this.nearLine(ctx, f.grip);
+      const near = free && ringIn(ctx.world, ctx.vesselId)?.state === 'water' && this.nearLine(ctx, f.grip);
       if (near && !this.hoverWas[h]) ctx.pulse(h, 0.25, 20);
       this.hoverWas[h] = !!near;
       if (near) this.lineHover = true;
@@ -425,7 +425,7 @@ export class RescueHands {
         continue;
       }
       const stow = this.ringStowW(ctx, this.tmp);
-      if (!this.ring && rs?.ring?.state === 'stowed' && stow && stow.distanceTo(f.grip) < GRAB) {
+      if (!this.ring && ringIn(ctx.world, ctx.vesselId)?.state === 'stowed' && stow && stow.distanceTo(f.grip) < GRAB) {
         this.takeRing(ctx, h);
         ctx.pulse(h, 0.5, 40);
         continue;
@@ -581,7 +581,7 @@ export class RescueHands {
     if (target === 'ring') return 'life ring\nclick to take it';
     if (target === 'hook') return 'boat hook\nclick to take it';
     if (target === 'line') {
-      if (rs?.ring?.player) return 'line: your crew-mate is on it!\nclick to pull in';
+      if (ringIn(ctx.world, ctx.vesselId)?.player) return 'line: your crew-mate is on it!\nclick to pull in';
       return rs?.active?.targets.some((t) => t.phase === 'onLine') ? 'line: survivor on it!\nclick to pull in' : 'life ring line\nclick to pull in';
     }
     return null;
@@ -632,22 +632,21 @@ export class RescueHands {
 
   /** What the reticle is on, among the gear (within reach). */
   private deskTarget(ctx: RescueHandsContext, ray: THREE.Ray): 'ring' | 'hook' | 'line' | null {
-    const rs = ctx.world.rescue;
     const stow = this.ringStowW(ctx, this.tmp);
-    if (rs?.ring?.state === 'stowed' && stow && stow.distanceTo(ray.origin) < DESK_REACH && ray.distanceToPoint(stow) < 0.35) return 'ring';
+    if (ringIn(ctx.world, ctx.vesselId)?.state === 'stowed' && stow && stow.distanceTo(ray.origin) < DESK_REACH && ray.distanceToPoint(stow) < 0.35) return 'ring';
     const pole = this.hookRestW(ctx);
-    if (!rs?.hook?.holder && pole) {
+    if (!hookIn(ctx.world, ctx.vesselId)?.holder && pole) {
       const a = new THREE.Vector3();
       const b = new THREE.Vector3();
       ray.distanceSqToSegment(pole.start, pole.end, a, b);
       if (a.distanceTo(b) < 0.15 && b.distanceTo(ray.origin) < DESK_REACH) return 'hook';
     }
     const cleat = this.cleatW(ctx, this.tmp);
-    if (rs?.ring?.state === 'water' && cleat && cleat.distanceTo(ray.origin) < DESK_REACH + 2) {
+    if (ringIn(ctx.world, ctx.vesselId)?.state === 'water' && cleat && cleat.distanceTo(ray.origin) < DESK_REACH + 2) {
       if (ray.distanceToPoint(cleat) < 0.4) return 'line';
       const a = new THREE.Vector3();
       const b = new THREE.Vector3();
-      ray.distanceSqToSegment(cleat, new THREE.Vector3().fromArray(rs.ring.pos), a, b);
+      ray.distanceSqToSegment(cleat, new THREE.Vector3().fromArray(ringIn(ctx.world, ctx.vesselId)!.pos), a, b);
       if (a.distanceTo(b) < 0.25 && b.distanceTo(ray.origin) < DESK_REACH + 2) return 'line';
     }
     return null;

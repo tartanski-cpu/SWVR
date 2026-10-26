@@ -1,3 +1,4 @@
+import { DeltaReader } from './worldDelta';
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
@@ -49,7 +50,8 @@ export class ClientSession {
   ) {
     this.heardAt = now();
     transport.onOpen = () => transport.send({ t: 'hello', name, ...(build ? { build } : {}), ...(clientId ? { clientId } : {}), ...(site ? { site } : {}) });
-    transport.onMessage = (m) => this.receive(m as HostMessage);
+    // (A snapshot comes as one text, packed once for all the crew: read here.)
+    transport.onMessage = (m) => this.receive((typeof m === 'string' ? JSON.parse(m) : m) as HostMessage);
     transport.onClose = (reason) => {
       if (this.status === 'closed') return;
       this.status = 'closed';
@@ -65,17 +67,24 @@ export class ClientSession {
     if (msg.t === 'welcome') {
       this.playerId = msg.playerId;
       this.status = 'connected';
+      this.reader.reset(msg.world);
       this.push(msg.world);
       this.onWelcome(msg.playerId, msg.world, msg.chart);
     } else if (msg.t === 'snapshot') {
       this.hostPaused = msg.paused === true;
-      this.push(msg.world);
+      if (msg.world) {
+        this.reader.reset(msg.world);
+        this.push(msg.world);
+      } else if (msg.delta) this.push(this.reader.apply(msg.delta));
     } else if (msg.t === 'chart') {
       this.onChart(msg.op);
     } else if (msg.t === 'restart') {
       this.onRestart(msg);
     }
   }
+
+  /** The host's world rebuilt from its changes (net/worldDelta.ts). */
+  private readonly reader = new DeltaReader();
 
   private push(world: WorldState): void {
     const recv = this.now();
