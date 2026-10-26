@@ -15,8 +15,8 @@ async function setup() {
   const { world, localPlayerId, vesselId } = createWorld(ids);
   world.environment.waves = [];
   const loop = new LoopbackHost();
-  const host = new HostSession(world, ids, loop, '12345');
   let clock = 0;
+  const host = new HostSession(world, ids, loop, '12345', () => clock);
   const client = new ClientSession(loop.client(), 'Guest', () => clock);
   await flush();
   return { world, host, client, localPlayerId, vesselId, setClock: (t: number) => (clock = t) };
@@ -107,21 +107,24 @@ describe('multiplayer (loopback)', () => {
   });
 
   it('a crew-mate gone quiet (a page closed without saying) is taken out of the world, and back as they were when heard from', async () => {
-    const { world, host, client } = await setup();
+    const { world, host, client, setClock } = await setup();
     client.sendPose(pose(null));
     const before = structuredClone(world.players['player-2']);
-    host.tick(CONFIG.net.crewSilentS - 1);
+    setClock(CONFIG.net.crewSilentS - 1);
+    host.tick(0.1);
     expect(world.players['player-2']).toBeDefined();
-    host.tick(2);
+    setClock(CONFIG.net.crewSilentS + 1);
+    host.tick(0.1);
     expect(world.players['player-2']).toBeUndefined(); // no frozen avatar
     client.sendPose(pose(null));
     expect(world.players['player-2']).toEqual(before);
   });
 
   it('a crew-mate quiet for a moment lets go of what they held; a tab joining again replaces its old self', async () => {
-    const { world, host, vesselId } = await setup();
+    const { world, host, vesselId, setClock } = await setup();
     world.vessels[vesselId].holds.helm = 'player-2';
-    host.tick(CONFIG.net.crewHoldS + 0.1);
+    setClock(CONFIG.net.crewHoldS + 0.1);
+    host.tick(0.1);
     expect(world.vessels[vesselId].holds.helm).toBeUndefined(); // the wheel's free for the others
     expect(world.players['player-2']).toBeDefined(); // still aboard, for now
     // The same tab joins again (a reload): one of them, not two.

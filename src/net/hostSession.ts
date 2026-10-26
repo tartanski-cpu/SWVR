@@ -30,7 +30,8 @@ import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
  * browser tab (its hello's `clientId`) replaces its old self at once.
  */
 export class HostSession {
-  private readonly peers = new Map<string, { link: Link; playerId: EntityId; silent: number; away?: PlayerState; freed?: boolean; clientId?: string }>();
+  /** Each crew-mate: their link, their player, when they were last heard from (s, `now`), and how their silence stands. */
+  private readonly peers = new Map<string, { link: Link; playerId: EntityId; heardAt: number; away?: PlayerState; freed?: boolean; clientId?: string }>();
   /** This page is hidden, its game stepping slowly (App): said in each snapshot, for the crew. */
   paused = false;
   private pending: Intent[] = [];
@@ -43,6 +44,8 @@ export class HostSession {
     private readonly ids: IdFactory,
     private readonly transport: HostTransport,
     readonly code: string,
+    /** The clock (s): real time, not the frames' (a slow frame rate mustn't slow the silence). */
+    private readonly now: () => number = () => performance.now() / 1000,
   ) {
     transport.onMessage = (link, msg) => this.receive(link, msg as ClientMessage);
     transport.onDisconnect = (link) => this.drop(link);
@@ -80,7 +83,7 @@ export class HostSession {
       const ours = this.world.build?.app;
       if (msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
       this.world.players[playerId] = p;
-      this.peers.set(link.id, { link, playerId, silent: 0, ...(cid ? { clientId: cid } : {}) });
+      this.peers.set(link.id, { link, playerId, heardAt: this.now(), ...(cid ? { clientId: cid } : {}) });
       this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });
       return;
     }
@@ -88,7 +91,7 @@ export class HostSession {
     if (!peer) return;
     if (msg.t === 'bye') return this.drop(link);
     // Heard from: back in the world if they'd gone quiet.
-    peer.silent = 0;
+    peer.heardAt = this.now();
     peer.freed = false;
     if (peer.away) {
       this.world.players[peer.playerId] = peer.away;
@@ -158,14 +161,15 @@ export class HostSession {
 
   /** Call every frame: broadcasts a snapshot NET_RATE times a second; crew-mates gone quiet are taken out. */
   tick(dt: number): void {
+    const now = this.now();
     for (const peer of this.peers.values()) {
-      peer.silent += dt;
+      const silent = now - peer.heardAt;
       // Quiet a moment: what they held is let go (nobody's locked out of the wheel by a page that's gone).
-      if (!peer.freed && peer.silent >= CONFIG.net.crewHoldS) {
+      if (!peer.freed && silent >= CONFIG.net.crewHoldS) {
         peer.freed = true;
         for (const v of Object.values(this.world.vessels)) releaseHolds(v, peer.playerId);
       }
-      if (peer.away || peer.silent < CONFIG.net.crewSilentS) continue;
+      if (peer.away || silent < CONFIG.net.crewSilentS) continue;
       const p = this.world.players[peer.playerId];
       if (!p) continue;
       dropCarried(this.world, peer.playerId);
