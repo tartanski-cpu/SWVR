@@ -6,7 +6,12 @@
  * along the arrow, from idle upright (a small `detent` near upright reads idle) to full at
  * `maxTiltDeg`. Both stay where they're left, as a real lever's friction holds them.
  *
- * VR: grab the grip. Twist your wrist (turn the hand about the upright, as a door knob) and the
+ * Its head is a real azimuth control's (owner, Oct 2026, from photos of tugs' consoles: "like
+ * this"): a black drum lying across the head, a bar on two posts above it for the hand, and a
+ * white pointer on the drum's front the way the drive pushes. The bar lies across the drive's
+ * direction, so its set shows where the drive points; pushing it forward rolls the drum forward
+ * along the pointer. The drum's ends are banded red (port) or green (starboard).
+ * VR: grab the bar. Twist your wrist (turn the hand about the upright, as a door knob) and the
  * turntable turns with it, `twistGain` degrees a degree; let go and grab again to turn further.
  * Push the hand forward along the arrow for power, back toward upright for less. Desktop: drag
  * it (sideways twists it, up and down sets the power), or click it and steer with the keys
@@ -19,13 +24,21 @@ import { Control, type Pointer } from '../../controls/Control';
 import type { VesselState } from '../../vessel/vesselState';
 
 export interface AzimuthLeverOptions {
+  /** The bar's height above the drum's axis, the pivot it tilts about (m). */
   length: number;
   maxTiltDeg: number;
   detent: number;
   twistGain: number;
   turntableRadius: number;
+  /** The drum across the head: its radius and width (m); the bar's radius (m). */
+  drumRadius: number;
+  drumWidth: number;
+  barRadius: number;
+  /** The head's colour (black, as the real ones) and its pointer's (white). */
+  handleColour: number;
+  tipColour: number;
+  /** Which drive: the bands round the drum's ends. */
   colour: number;
-  rodColour: number;
   baseColour: number;
 }
 
@@ -52,7 +65,8 @@ export class AzimuthLever extends Control {
   private twist0 = NaN;
   private angle0 = 0;
   private keys = { x: 0, y: 0 };
-  private readonly pivotY: number;
+  /** The height of the drum's axis (the power tilt's pivot) above the lever's foot (m). */
+  readonly pivotY: number;
 
   constructor(
     id: string,
@@ -65,11 +79,13 @@ export class AzimuthLever extends Control {
     this.label = label;
     const r = opts.turntableRadius;
     const dark = new THREE.MeshLambertMaterial({ color: opts.baseColour });
-    // The fixed housing, with its ring of marks: ahead (white), abeam and astern.
+    // The fixed square base plate, and on it the housing with its ring of marks: ahead
+    // (white), abeam and astern.
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(2 * r + 0.05, 0.008, 2 * r + 0.05).translate(0, 0.004, 0), dark);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.012, r + 0.018, 0.03, 20), dark);
     base.position.y = 0.015;
     const marks = new THREE.MeshLambertMaterial({ color: 0x8a9096 });
-    const root: THREE.Mesh[] = [base];
+    const root: THREE.Mesh[] = [plate, base];
     for (let k = 0; k < 4; k++) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.004, 0.014), k === 0 ? new THREE.MeshLambertMaterial({ color: 0xffffff }) : marks);
       const a = (k * Math.PI) / 2;
@@ -77,25 +93,35 @@ export class AzimuthLever extends Control {
       m.rotation.y = -a;
       root.push(m);
     }
-    // The turntable: a disc with an arrow (the way the drive pushes) and the lever's fork.
+    // The turntable: a disc with an arrow (the way the drive pushes) and the drum's saddle.
     this.table.position.y = 0.03;
+    const R = opts.drumRadius;
+    const W = opts.drumWidth;
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.012, 20).translate(0, 0.006, 0), this.material(opts.baseColour));
     const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.03, 3).rotateX(-Math.PI / 2).translate(0, 0.014, -r + 0.016), new THREE.MeshLambertMaterial({ color: opts.colour }));
-    const fork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.02).translate(0, 0.025, 0), new THREE.MeshLambertMaterial({ color: 0x15181a }));
-    this.pivotY = 0.03 + 0.03;
-    this.arm.position.y = 0.03;
-    // The power lever, and its grip: a fat upright handle to twist.
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.011, opts.length, 8).translate(0, opts.length / 2, 0), this.material(opts.rodColour));
-    this.grip = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.022, 0.075, 12).translate(0, opts.length + 0.03, 0), this.material(opts.colour));
-    this.arm.add(rod, this.grip);
-    this.table.add(disc, arrow, fork, this.arm);
+    const saddle = new THREE.Mesh(new THREE.BoxGeometry(W * 0.6, 0.02, R * 1.2).translate(0, 0.02, 0), new THREE.MeshLambertMaterial({ color: 0x15181a }));
+    // The power lever (it tilts about the drum's axis): the drum, a band round each end, two
+    // posts up from its ends, the bar across between them, the pointer on the drum's front.
+    const axisY = 0.012 + R;
+    this.pivotY = 0.03 + axisY;
+    this.arm.position.y = axisY;
+    const H = opts.length;
+    const across = (g: THREE.BufferGeometry) => g.rotateZ(Math.PI / 2);
+    const drum = new THREE.Mesh(across(new THREE.CylinderGeometry(R, R, W, 20)), this.material(opts.handleColour));
+    const bands = [-1, 1].map((sd) => new THREE.Mesh(across(new THREE.CylinderGeometry(R * 1.03, R * 1.03, 0.008, 20)).translate(sd * (W / 2 - 0.014), 0, 0), this.material(opts.colour)));
+    const posts = [-1, 1].map((sd) => new THREE.Mesh(new THREE.BoxGeometry(0.014, H, 0.02).translate(sd * (W / 2 - 0.007), H / 2, 0), this.material(opts.handleColour)));
+    this.grip = new THREE.Mesh(across(new THREE.CylinderGeometry(opts.barRadius, opts.barRadius, W + 0.012, 12)).translate(0, H, 0), this.material(opts.handleColour));
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.035, 10).rotateX(-Math.PI / 2).translate(0, 0, -R - 0.016), this.material(opts.tipColour));
+    this.arm.add(drum, ...bands, ...posts, this.grip, tip);
+    this.table.add(disc, arrow, saddle, this.arm);
     this.root.add(...root, this.table);
-    this.hitObjects.push(rod, this.grip, disc);
+    this.hitObjects.push(drum, ...posts, this.grip, tip, disc);
     this.show();
   }
 
   grabPoint(out: THREE.Vector3): THREE.Vector3 {
-    return this.grip.localToWorld(out.set(0, this.opts.length + 0.03, 0));
+    // (The bar's middle.)
+    return this.grip.localToWorld(out.set(0, this.opts.length, 0));
   }
 
   distanceTo(world: THREE.Vector3): number {
