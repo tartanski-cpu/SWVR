@@ -10,7 +10,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### The harbour tug's drives drawn as Z-drives (preview/shipyard)
+### The harbour tug's drives drawn as Z-drives (approved by the owner 26 Oct 2026; on next)
 
 Then (owner, 26 Oct 2026, on a sketch): "engine position is wrong, it should be much lower and further back. And the propellers, the Kort nozzles are backwards."
 
@@ -23,7 +23,7 @@ Owner, 26 Oct 2026: "for now, you could give her the Kort nozzles behaviour, but
 - Tests: harbourTugYard.test.ts (level propellers, no rudder, level engines). The full `npm test` and the typecheck pass.
 - **Shared changes:** none.
 
-### The harbour tug: a fixed one-off in the Shipyard, stop 1 (preview/shipyard)
+### The harbour tug: a fixed one-off in the Shipyard, stop 1 (approved by the owner 26 Oct 2026; on next)
 
 Owner (relayed by the hull modifications chat, Oct 2026): "So this ship hull is basically a one-off. It doesn't need to be parametric. ... I'd like this to appear in the shipyard, but with a fixed hull and with, let's say, all the parts of the wheelhouse fixed, so basically predefined. But the user should have the ability to add a deck crane, a dinghy, and some of the things which, let's say, are from the existing modules" and "you should be able to change the colors, the interior of the wheelhouse perhaps, the instrumentation, but the wheelhouse, I think the funnel stacks, the deck house, all that kind of stuff should be predefined and fixed." Her propulsion (azimuth stern drives and their controls) comes later. To this chat, 26 Oct 2026: start now (taking her hull from the hull chat's preview), a bigger engine for her real power, the Shipyard side only (no harbour check).
 
@@ -49,7 +49,7 @@ Owner (relayed by the hull modifications chat, Oct 2026): "So this ship hull is 
   - tests/fleet.test.ts: she isn't in the game's fleet (as the trawler and the cat); adding her is the main game chat's call;
   - tests/sheer.test.ts: leaves a one-off out.
 
-### Scratch boats: a project only when you name or save her (preview/shipyard)
+### Scratch boats: a project only when you name or save her (approved by the owner 26 Oct 2026; on next)
 
 Owner, 25 Oct 2026: "when you start a new session, and you just say, you don't give a name, you just say go, it creates a project, and quite often I'm just creating like a throwaway ship to test things. So I don't want it to save a project every time I go in. There should be an explicit save button."
 
