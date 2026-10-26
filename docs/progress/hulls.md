@@ -10,6 +10,33 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The solar catamaran redrawn after a design review; a catamaran's centre bow (owner)
+
+- **The owner** asked for a naval architect's review of her before step 2, then: make the changes, and "a wave piercing centre half hull would help, no?". Yes: it adds reserve buoyancy under the forward bridge deck just as the bows pierce a wave, so the forward wet deck slams less and the deck front doesn't dive into the back of a sea. Its keel is kept clear of calm water, so it costs nothing on solar power.
+- **Her new lines** (`designs.ts`, `solarCat`): 16.0 x 5.2 m, hulls 0.545 m wide at the waterline 4.63 m apart, 10.7 t (the Shipyard's estimate again: 4.77 t of foam and plywood structure, her electric outfit as before), **0.86 m draught** (was 1.2), KM 8.8 m.
+  - **Wet deck 1.0 m** over her waterline (was 0.75: about 0.06 L, for coastal water), her deck raised with it (1.45 m aft, 1.9 m at her bow).
+  - **Sections:** near-upright sides down to a chine 0.6 m under her waterline, a moderate V (about 40 deg deadrise) below. Wetted surface **57.4 m2 (was 73.6, -22 %)**. A correction to the review's suggestion: with her beam held at 0.54 m, rounder sections (a half-ellipse) would save about 14 %, the moderate V more. So a single chine moved down does it, no two-chine bilge needed.
+  - **Flare forward:** the chine narrows and rises in her forward third, her topsides flaring out over it, more freeboard there.
+  - **Centre bow** (`catamaran.centreBow`: `drop`, `halfWidth`): a V half hull on her centreline from 62 % of her length to her stem, 1.8 m wide at the wet deck, its keel 0.5 m over her waterline at its lowest.
+  - **Easily driven** (the game's catamaran resistance, cautious for hulls this slim; 0.55 propulsive efficiency): 2 kW 4.2 kn, 5 kW 5.7, 10 kW 6.9, 20 kW 8.4, 40 kW 10.0, 80 kW 11.8 (about 0.3-0.4 kn better than her first lines).
+- **A catamaran's centre bow in the game** (shared, `vessel/hullForm.ts`, `vessel/view/hullMesh.ts`): her stations take three more points between the wet deck's corners (its sides' tops and its keel; thirteen in all, the port half's points still 0 to 4, as the Shipyard reads them), so her buoyancy, contacts and drawing all have it; the drawing's catamaran rules now go by the outline's length, not fixed indices. The hull study draws it too (`loft.ts` `centreBowDrop`). The fast catamaran, without one, is unchanged.
+- **Checked:** typecheck, all tests; `tests/hulls/solarCat.test.ts` (her size, hull width, wet deck 1.0 m, weight and draught, KM; the centre bow clear of calm water and adding buoyancy when a wave reaches her wet deck; the game's volume, wetted surface under 60 m2, about 7 kn on 10 kW); screenshots from ahead and under her bows, both views.
+- **Shared changes:** `src/vessel/hullForm.ts` (the centre bow's points), `src/vessel/view/hullMesh.ts` (catamaran edges by the outline's length).
+
+### The solar catamaran, step 1: her hull, at the Shipyard's weight for her (owner)
+
+- **The owner:** a new one-off to try solar and battery power, from renders and a scale model of a 16 m solar power cat (5.2 m overall, 0.54 m hulls), being built of foam and plywood, light; her weight unknown, so "use our shipyard algorithm to test it". Variable-angle solar panels on her sides. Our own lines of her size and type, not the real boat's.
+- **Her weight, the Shipyard's way** (measured with the Shipyard's build on her lines as a catamaran hull type, in a scratch test):
+  - as the fast cat is built (aluminium, twin diesels, a small wheelhouse): 18.1 t;
+  - foam and plywood, at 16 kg/m2 of hull and 9 of house (against aluminium's 35 and 18, framing and bulkheads in): 11.7 t, her hull structure 4.75 t;
+  - her electric outfit in place of the diesels, shafting and fuel (-3.35 t): two motors and pods +0.3 t, a 100 kWh battery +0.7 t, about 70 m2 of panels with frames and hinges +0.8 t, her long house in place of the small wheelhouse +0.85 t, no bulwarks or fenders -0.4 t: **about 10.7 t**.
+- **Her lines** (`designs.ts`, `solarCat`): two hulls 4.62 m apart, 16.0 x 5.2 m overall, each 0.54 m wide at the waterline (L/b 28), 1.2 m draught, 10.8 t (Cb 0.53 a hull, Cp 0.83; KM 8.4 m). Near-upright sides to a chine just under her waterline, a deep V below; knife bows nearly plumb; square transoms for her pods; a flat bridge deck the full width, its underside 0.75 m over her waterline.
+- **Easily driven:** on the game's catamaran resistance (tuned on the fast cat, so cautious for hulls this slim) and its propulsive efficiency, 2 kW at her motors makes 3.9 kn, 5 kW 5.3, 10 kW 6.6, 20 kW 8.0, 40 kW 9.7, 80 kW 11.4.
+- **The hull study viewer's lines overlay** now draws a catamaran's lines on each hull (it drew one phantom hull on her centreline, the fast cat's too).
+- **To come** (the plan agreed with the owner): into the Shipyard as a fixed one-off (the Shipyard chat), her tilting solar wings and foredeck rack (a mechanism: the modular builder chat), solar and battery power (the main game chat and the Shipyard), and her tender garaged between her hulls aft.
+- **Checked:** typecheck, all tests; `tests/hulls/solarCat.test.ts` (her size, hull width and slenderness, wet deck, weight and draught, KM, the game's volume against her lines, 6-7.5 kn on 10 kW); screenshots of both views.
+- **Shared changes:** none.
+
 ### The harbour tug, step 2: her fendering (owner)
 
 - **Her fendering** (`src/hulls/fendering.ts`, her design's `fendering`), heavy black rubber as on harbour tugs, built on the game's own stations for her so it sits on her hull as the game draws it:

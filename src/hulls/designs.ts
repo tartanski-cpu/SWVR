@@ -916,5 +916,81 @@ export const DESIGNS: HullDesign[] = [
       bow: { radius: 0.4, drop: 0.45, from: 0.86, to: 1, blocks: { width: 0.3, gap: 0.06, depth: 0.3, height: 1.3 } },
     },
     colours: { topsides: 0x2e3b47, bulwark: 0x2e3b47, bottom: 0x7a2c24, boot: 0x1f2124, house: 0xeceeea, deck: 0x6b6f68, roof: 0xd8352c },
+  },  {
+    // A solar-electric catamaran (owner, Oct 2026, from renders and a scale model of a 16 m
+    // solar power cat being built of foam and plywood; our own lines of her size and type):
+    // hull only for now, her house, tilting solar wings, batteries and electric pods to come.
+    // Redrawn after a design review (owner: "act as an experienced naval architect"): the wet
+    // deck raised to 1.0 m, a wave-piercer's centre bow, flare and freeboard forward, and a
+    // moderate V under near-upright sides (a fifth less wetted surface than a deep V).
+    id: 'solarCat',
+    name: 'Solar catamaran (16 m type)',
+    blurb: 'Solar-electric catamaran: two very slim hulls (0.54 m at the waterline, L/b about 28) under a bridge deck the full width, 1.0 m over the water, with a wave-piercing centre bow under its forward end; knife bows with flare above the water, square transoms for her electric pods; a moderate V under near-upright sides for the least wetted surface. Very easily driven, for long quiet passages on sun and battery. Light foam and plywood construction. 16.0 x 5.2 m, draught 0.9 m.',
+    length: 16.0,
+    // Her centre bow: 1.8 m wide where it meets the wet deck, its keel's drop below the wet
+    // deck from 62 % of her length to her stem (0.5 m over her waterline at its lowest).
+    catamaran: {
+      spacing: 4.63,
+      tunnel: 1.0,
+      centreBow: {
+        drop: [
+          [0.62, 0],
+          [0.8, 0.4],
+          [0.93, 0.5],
+          [1, 0.2],
+        ],
+        halfWidth: 0.9,
+      },
+    },
+    // One hull's deck half-breadth: full nearly to her bow, a fine knife entry, flared above.
+    halfBeam: [
+      [0, 0.28],
+      [0.4, 0.285],
+      [0.72, 0.285],
+      [0.88, 0.27],
+      [0.95, 0.21],
+      [0.99, 0.1],
+      [1, 0.04],
+    ],
+    // More freeboard forward.
+    sheer: [
+      [0, 1.45],
+      [0.6, 1.5],
+      [0.85, 1.65],
+      [1, 1.9],
+    ],
+    keel: [
+      [0, -0.69],
+      [0.3, -0.84],
+      [0.7, -0.86],
+      [0.9, -0.81],
+      [0.98, -0.55],
+      [1, -0.3],
+    ],
+    rake: [
+      [0, 0],
+      [1, 0],
+    ],
+    // Near-upright sides down to a chine well under her waterline, a moderate V (about 40 deg
+    // deadrise) below it; forward the chine narrows and rises, her topsides flaring out over it.
+    section: {
+      chineBeam: [
+        [0, 0.94],
+        [0.6, 0.94],
+        [0.85, 0.82],
+        [1, 0.5],
+      ],
+      chineHeight: [
+        [0, 0.13],
+        [0.6, 0.12],
+        [0.85, 0.2],
+        [1, 0.35],
+      ],
+    },
+    bulwark: [
+      [0, 0],
+      [1, 0],
+    ],
+    colours: { topsides: 0x9ea3a6, bulwark: 0x9ea3a6, bottom: 0x2a2d30, boot: 0x2a2d30, house: 0x3a3f44, deck: 0x6e665c, roof: 0x1d2530 },
   },
 ];
