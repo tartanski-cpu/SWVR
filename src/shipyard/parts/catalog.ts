@@ -182,6 +182,8 @@ export interface DesignHull {
   propDepth?: number;
   /** Her engine room rises into her deckhouse (a ship's machinery casing: the harbour tug's): her engines may stand up to its top where they're under it. */
   engineCasing?: boolean;
+  /** Her shafts drawn as Z-drives on the Engine step (the harbour tug's: azimuth drives to come; enginePreview.ts zDrive). */
+  zDrives?: boolean;
   /** She tows over her bow (the harbour tug): her tow winch on the foredeck facing forward, her tow point at the stem (a bow staple). */
   towsOverBow?: boolean;
 }
@@ -548,6 +550,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     towsOverBow: true,
     propDepth: CONFIG.shipyard.harbourTug.propDepth,
     engineCasing: true,
+    zDrives: true,
     cockpit: 6.0,
     foredeck: 4.0,
     fixed: HARBOUR_TUG_FIXED,

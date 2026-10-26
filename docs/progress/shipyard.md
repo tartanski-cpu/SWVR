@@ -10,6 +10,14 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug's drives drawn as Z-drives (preview/shipyard)
+
+Owner, 26 Oct 2026: "for now, you could give her the Kort nozzles behaviour, but you should probably draw them differently in the engine page so that they're not aligned with the shafts ... facing the direction of travel. So like a Z in between the shaft and the thing."
+
+- Her behaviour is as before (stand-in shafts with Kort nozzles). On the Engine step she's drawn with Z-drives (`DesignHull.zDrives`; enginePreview.ts `zDrive`): her engines level, a level shaft aft from each to the drive's head, an upright leg down through her bottom, and at its foot the lower gear housing with the propeller in its nozzle, level, facing ahead (a pulling propeller, as on most azimuth drives). No rudders: an azimuth drive steers by turning. Only the Engine step draws them; her real drives come later.
+- Tests: harbourTugYard.test.ts (level propellers, no rudder, level engines). The full `npm test` and the typecheck pass.
+- **Shared changes:** none.
+
 ### The harbour tug: a fixed one-off in the Shipyard, stop 1 (preview/shipyard)
 
 Owner (relayed by the hull modifications chat, Oct 2026): "So this ship hull is basically a one-off. It doesn't need to be parametric. ... I'd like this to appear in the shipyard, but with a fixed hull and with, let's say, all the parts of the wheelhouse fixed, so basically predefined. But the user should have the ability to add a deck crane, a dinghy, and some of the things which, let's say, are from the existing modules" and "you should be able to change the colors, the interior of the wheelhouse perhaps, the instrumentation, but the wheelhouse, I think the funnel stacks, the deck house, all that kind of stuff should be predefined and fixed." Her propulsion (azimuth stern drives and their controls) comes later. To this chat, 26 Oct 2026: start now (taking her hull from the hull chat's preview), a bigger engine for her real power, the Shipyard side only (no harbour check).

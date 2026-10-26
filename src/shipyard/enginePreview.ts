@@ -37,6 +37,11 @@ export interface Machinery {
   sterndrive?: boolean;
   /** A Kort nozzle round each propeller (design.nozzle; CONFIG.nozzle.look). */
   nozzle?: boolean;
+  /**
+   * Drawn as Z-drives (the harbour tug's, DesignHull.zDrives: her stand-in shafts until her
+   * azimuth drives come): see zDrive.
+   */
+  zDrive?: boolean;
 }
 
 /** One engine and its gearbox (vessel/view/engineModels.ts), at its own size (ENGINES `size`). */
@@ -116,13 +121,18 @@ export function buildMachinery(m: Machinery): THREE.Group {
   const sh = m.shaft;
   const tilt = (sh.angleDeg * Math.PI) / 180;
   for (const s of m.twin ? [-1, 1] : [0]) {
-    const { holder, model: e } = placeEngine(m.engine, size, { x: s * sh.x, flangeY: sh.flangeY, flangeZ: sh.flangeZ, angleDeg: sh.angleDeg });
+    // (A Z-drive's engine lies level: its shaft runs level aft to the drive's top.)
+    const { holder, model: e } = placeEngine(m.engine, size, { x: s * sh.x, flangeY: sh.flangeY, flangeZ: sh.flangeZ, angleDeg: m.zDrive ? 0 : sh.angleDeg });
     if (!sh.fits) e.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) mesh.material = TOO_TALL;
     });
     out.add(holder);
     if (m.sterndrive) continue;
+    if (m.zDrive) {
+      zDrive(out, m, holder.position, s * (m.twin ? m.twinX : 0), sh.propY);
+      continue;
+    }
     // The shaft, straight from the flange to the propeller, out through her bottom.
     const from = holder.position.clone();
     const px = s * (m.twin ? m.twinX : 0);
@@ -163,6 +173,43 @@ export function buildMachinery(m: Machinery): THREE.Group {
     rudder.name = 'rudder';
   }
   return out;
+}
+
+/**
+ * A Z-drive (owner, Oct 2026: the harbour tug's nozzles "facing the direction of travel. So like
+ * a Z in between the shaft and the thing"): from the engine's flange a shaft level aft to the
+ * drive's top, an upright leg down through her bottom, and at its foot the lower gear housing
+ * with the propeller in its nozzle, level, facing ahead. No rudder: an azimuth drive steers by
+ * turning. Drawn only (the boat still has her stand-in shafts and nozzles: her real drives,
+ * with their controls, come later).
+ */
+function zDrive(out: THREE.Group, m: Machinery, flange: THREE.Vector3, px: number, propY: number): void {
+  const d = m.propD;
+  const top = new THREE.Vector3(px, flange.y, m.propZ);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, flange.distanceTo(top), 10), mat(STEEL, 0.7));
+  shaft.position.copy(flange).add(top).multiplyScalar(0.5);
+  shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), top.clone().sub(flange).normalize());
+  out.add(shaft);
+  // The upper gearbox (the shaft's turn down), the leg (streamlined: narrow across, long fore and aft), the lower housing.
+  const grey = 0x4a5560;
+  box(out, 0.5, 0.45, 0.6, px, top.y, m.propZ, grey);
+  const legTop = top.y;
+  const legFoot = propY;
+  box(out, 0.22, legTop - legFoot, 0.32 * d, px, (legTop + legFoot) / 2, m.propZ + 0.05 * d, grey);
+  const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.11 * d, 0.07 * d, 0.7 * d, 12), mat(grey, 0.4));
+  housing.rotation.x = Math.PI / 2;
+  housing.position.set(px, propY, m.propZ + 0.2 * d);
+  out.add(housing);
+  // The propeller and its nozzle, level, at the housing's forward end (a pulling propeller, as on most azimuth drives).
+  const prop = buildPropeller(d);
+  prop.position.set(px, propY, m.propZ);
+  prop.name = 'propeller';
+  out.add(prop);
+  if (m.nozzle) {
+    const nz = buildNozzle(d);
+    nz.position.set(px, propY, m.propZ);
+    out.add(nz);
+  }
 }
 
 /** An engine that doesn't fit: tinted red. */

@@ -85,3 +85,20 @@ describe('the harbour tug in the Shipyard', () => {
     expect(b.warnings[0]).toMatch(/harbour tug's own/);
   });
 });
+
+describe('her stand-in drives drawn as Z-drives (owner: "like a Z in between the shaft and the thing")', () => {
+  it('her engine level, the propeller and nozzle level under her stern facing ahead, no rudder', async () => {
+    const { buildMachinery } = await import('../../src/shipyard/enginePreview');
+    const { VESSEL_DEFS } = await import('../../src/vessel/vesselDef');
+    const THREE = await import('three');
+    const b = useDesign(tug);
+    const g = buildMachinery({ engine: tug.engine, twin: true, form: VESSEL_DEFS.design.hull, shaft: b.shaft, twinX: 2.9, propD: b.figures.propellerM, propZ: 11, rudderZ: 11.5, nozzle: true, zDrive: true });
+    const props = g.children.filter((o) => o.name === 'propeller');
+    expect(props).toHaveLength(2);
+    for (const p of props) expect(p.rotation.x).toBe(0);
+    expect(g.children.some((o) => o.name === 'rudder')).toBe(false);
+    // Each engine's holder level.
+    const holders = g.children.filter((o) => o instanceof THREE.Group && o.name !== 'propeller' && o.name !== 'nozzle' && o.children.length && o.rotation.x === 0);
+    expect(holders.length).toBeGreaterThanOrEqual(2);
+  });
+});
