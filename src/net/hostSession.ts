@@ -54,8 +54,11 @@ export class HostSession {
   /** A crew-mate's page is another build than ours (they won't stay: their page refuses ours). */
   onOtherBuild: (name: string, theirs: string) => void = () => {};
 
+  /** Players in the game: the host and every crew-mate not gone quiet (taken out of the world). */
   get playerCount(): number {
-    return 1 + this.peers.size;
+    let n = 1;
+    for (const p of this.peers.values()) if (!p.away) n++;
+    return n;
   }
 
   private receive(link: Link, msg: ClientMessage): void {

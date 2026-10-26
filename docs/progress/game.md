@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Multiplayer batch 1: noticing who's gone (26 Oct 2026)
+
+Owner: "go ahead with the multiplayer batch 1" (the multiplayer study's first batch: #21, #10, #1, #2, #9, #14).
+
+- **#1 Heartbeat both ways.** Crew: a host not heard from for `net.hostSilentS` 4 s is "not responding" (or, its snapshots say so, "in the background"), for `net.hostLostS` 10 s lost, as if its link had closed: the wait, then the takeover (ClientSession `silentS`, `lose`; App `heartbeat`). Host: a crew-mate quiet for `net.crewHoldS` 3 s lets go of what they held; after `net.crewSilentS` (now 12 s) is taken out of the world (back as they were if heard from), and no longer counted aboard. The silence is timed by the real clock, not the frames (a slow frame rate mustn't slow it). A tab joining again (its `clientId`, kept in the tab's sessionStorage) replaces its old self at once.
+- **#2 Stop hosting ends the game:** the host's `end` message; the crew are told "The host ended the game" and carry on alone; nobody takes over. (A host whose page simply goes says nothing: the heartbeat.)
+- **#10 A returning host joins:** a page re-hosting a code of its own (a reload, a takeover, Try her together) that finds it taken joins it as crew, and hosts it again if nobody turns out to be there. A takeover waits for a join under way to finish. `net.takeoverDelayS` 12 → 25 s (time for a Quest to reload).
+- **#21 A hidden host keeps the game going:** stepped from a timer (`net.hiddenStepS` 1 s; a background tab's timers), snapshots marked paused so the crew are told why.
+- **#9 Crew ride out game-finder blips** (PeerClientTransport: its errors ignored while the link to the host is open, and reconnected). **#14 The host reconnects** to the game finder, waiting longer each time (`net.finderRetryS`); the menu says "reconnecting (new crew can't join yet)", or that another page took the code.
+- **Checked:** tests/net.test.ts (3 new). Two browsers through the real PeerJS broker: Stop hosting (the crew told, no takeover after 35 s); a crew page gone silent (its hold on the wheel freed by 5 s, taken out by 15 s); a host gone silent (the crew notice by 14 s and start rejoining). Not checked: the hidden tab (a headless browser can't hide one), the game finder dropping, on the Quest.
+
 ### Fix: a crane's load lowered over her own deck goes on her deck (26 Oct 2026)
 
 Owner: since the HOOK message, a cardinal buoy can't be set down on the cargo deck: "not close enough to the water". The message was only saying what the crane had always done: a load set down over her deck needed its whole footprint on clear deck right under the hook (all four corners: a 1.1 m buoy on a small working deck seldom fits exactly), and anywhere else was taken for "over the side", so it wanted the water. Now a load lowered anywhere over her (`overDeck`, cargo/deck.ts: inside her deck's outline) goes on her deck, under the hook or at the nearest clear spot within `DECK_NUDGE` 1.2 m (`deckLanding`, cargo/cargo.ts); with no room near, it stays on the hook and HOOK says "No room on deck there: move the hook over a clear part of the deck"; it's never over the sea. A full deck (payload, slots) says so too. Test: tests/craneDeckSetDown.test.ts (a crane boat, the hook over her deck just off a clear patch: the buoy goes on deck; the old code gave "Lower it right down to the water first").

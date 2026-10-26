@@ -116,6 +116,7 @@ describe('multiplayer (loopback)', () => {
     setClock(CONFIG.net.crewSilentS + 1);
     host.tick(0.1);
     expect(world.players['player-2']).toBeUndefined(); // no frozen avatar
+    expect(host.playerCount).toBe(1); // nor counted aboard
     client.sendPose(pose(null));
     expect(world.players['player-2']).toEqual(before);
   });
