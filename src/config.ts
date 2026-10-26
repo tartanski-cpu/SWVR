@@ -2864,12 +2864,19 @@ export const CONFIG = {
    * the game itself, so the message is out before its page closes.
    * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
    * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
-   * A crew-mate the host hasn't heard from for `crewSilentS` s is taken out of its world (put
-   * back if heard from again; net/hostSession.ts): a page gone without saying leaves no frozen
-   * avatar. A crew page whose host is an older build waits for the host's page to update
-   * itself (App `onOtherBuild`) and tries again, `olderHostRetryS` s, then as "sent in together".
+   * A crew-mate the host hasn't heard from for `crewHoldS` s lets go of what they held (the
+   * wheel, a lever), and after `crewSilentS` s is taken out of its world (put back if heard
+   * from again; net/hostSession.ts): a page gone without saying leaves no frozen avatar. A
+   * crew page whose host is an older build waits for the host's page to update itself (App
+   * `onOtherBuild`) and tries again, `olderHostRetryS` s, then as "sent in together".
+   * The heartbeat the other way (multiplayer study #1): a host not heard from for
+   * `hostSilentS` s is "not responding", for `hostLostS` s lost (the takeover's wait starts,
+   * `takeoverDelayS`: long enough for a host's page to reload, even a Quest's). A host whose
+   * page is hidden keeps its game going, a step every `hiddenStepS` s (a background tab's
+   * timers run about once a second). A host whose link to the game finder drops reconnects,
+   * `finderRetryS` (first, most) apart, doubling.
    */
-  net: { crewSilentS: 20, olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 12 },
+  net: { crewHoldS: 3, crewSilentS: 12, hostSilentS: 4, hostLostS: 10, hiddenStepS: 1, finderRetryS: [2, 30] as [number, number], olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 25 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's

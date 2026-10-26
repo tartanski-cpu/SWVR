@@ -118,6 +118,46 @@ describe('multiplayer (loopback)', () => {
     expect(world.players['player-2']).toEqual(before);
   });
 
+  it('a crew-mate quiet for a moment lets go of what they held; a tab joining again replaces its old self', async () => {
+    const { world, host, vesselId } = await setup();
+    world.vessels[vesselId].holds.helm = 'player-2';
+    host.tick(CONFIG.net.crewHoldS + 0.1);
+    expect(world.vessels[vesselId].holds.helm).toBeUndefined(); // the wheel's free for the others
+    expect(world.players['player-2']).toBeDefined(); // still aboard, for now
+    // The same tab joins again (a reload): one of them, not two.
+    const ids = new IdFactory();
+    const w2 = createWorld(ids).world;
+    const loop = new LoopbackHost();
+    const h2 = new HostSession(w2, ids, loop, '12345');
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-a');
+    await flush();
+    expect(Object.keys(w2.players)).toHaveLength(2);
+    new ClientSession(loop.client(), 'Bosun', undefined, undefined, 'tab-a');
+    await flush();
+    expect(Object.keys(w2.players)).toHaveLength(2);
+    expect(h2.playerCount).toBe(2);
+    // Another tab is another player.
+    new ClientSession(loop.client(), 'Mate', undefined, undefined, 'tab-b');
+    await flush();
+    expect(h2.playerCount).toBe(3);
+  });
+
+  it('the host stopping on purpose ends the game for the crew (no takeover); a host quiet or in the background is noticed', async () => {
+    const { host, client, setClock } = await setup();
+    // Heard from at each snapshot; quiet since then.
+    setClock(10);
+    expect(client.silentS()).toBe(10);
+    host.paused = true;
+    host.tick(1);
+    expect(client.silentS()).toBe(0);
+    expect(client.hostPaused).toBe(true);
+    let why = '';
+    client.onClosed = (r) => (why = r);
+    host.close(true);
+    expect(why).toBe('The host ended the game');
+    expect(client.status).toBe('closed');
+  });
+
   it('a player who leaves is removed from the world', async () => {
     const { world, client } = await setup();
     expect(world.players['player-2']).toBeDefined();

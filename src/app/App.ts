@@ -355,6 +355,20 @@ function rememberHosting(code: string | null): void {
     // No storage: a reload of the host's tab joins its own old code instead (and finds nothing).
   }
 }
+/**
+ * This browser tab's id for multiplayer (kept across its reloads, not shared with another
+ * tab): sent with each join, so the host replaces the tab's old self (a reload, a dropped
+ * link) instead of keeping a frozen copy (multiplayer study #1).
+ */
+function tabClientId(): string {
+  try {
+    let id = sessionStorage.getItem('swvr.netClientId');
+    if (!id) sessionStorage.setItem('swvr.netClientId', (id = Math.random().toString(36).slice(2, 12)));
+    return id;
+  } catch {
+    return '';
+  }
+}
 /** A camera held flipped (player/cameraHold.ts `back`): a half turn about the hand's up, so it faces the holder. */
 const FLIPPED = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 /** The grab camera in a VR hand: tilted forward from the grip's axis (CONFIG.camera.holdPitchDeg). */
@@ -970,6 +984,7 @@ export class App {
     this.updateHullSounds(dt, slam, lap);
     this.menu.refresh();
     this.host?.tick(dt);
+    this.heartbeat();
     const t2 = performance.now();
 
     // The helm's outside views (a controller's Y): the camera put where they want it, last.
@@ -2979,7 +2994,7 @@ export class App {
       leaveGame: () => {
         this.netMessage = '';
         const borrowed = this.worldBorrowed;
-        this.leaveGame();
+        this.leaveGame(true);
         // The next game is typed afresh (owner: the old code was still in the box to delete).
         this.joinCode = '';
         this.mutedCrew.clear();
@@ -3228,6 +3243,8 @@ export class App {
       () => {
         this.hostStarting = false;
         this.host = new HostSession(this.world, this.ids, transport, code);
+        this.hostTransport = transport;
+        this.rehostCode = null;
         this.host.marks = this.marks;
         this.netPeer = transport.peer;
         this.hostPeerId = peerIdForRoom(code);
@@ -3260,6 +3277,19 @@ export class App {
         this.hostStarting = false;
         transport.close();
         const why = e?.type ?? 'network';
+        // Our own game's code (a reload, a takeover, Try her together) is taken: someone's
+        // hosting it already (a crew-mate took it over while we were away): join them as crew
+        // (multiplayer study #10). If nobody turns out to be there (our own old registration,
+        // just after a crash), hosting it is tried again (connectClient's onClosed).
+        const ours = code === START_HOST || code === START_GAME || this.borrowedCareer || this.rehostCode === code;
+        if (why === 'unavailable-id' && ours && !this.client) {
+          this.rehostCode = code;
+          this.joinCode = code;
+          this.togetherTries = CONFIG.net.togetherTries;
+          this.netMessage = `Someone is already hosting game ${code}: joining as crew`;
+          this.overlay.notify(this.netMessage, 5);
+          return this.joinGame();
+        }
         // The broker can be slow, down for a moment, or still hold a room we had before (a page
         // closed without saying): try again a few times. "Try her together" needs its room (the
         // others are waiting in it); a menu host can take any code.
@@ -3269,7 +3299,7 @@ export class App {
           setTimeout(() => this.hostGame(code === START_HOST || why === 'unavailable-id' ? code : randomRoomCode(), tries - 1), CONFIG.net.hostRetryS * 1000);
           return;
         }
-        this.netMessage = `Couldn't host (${why}). Check the connection, then Menu > Crew > Host a game`;
+        this.netMessage = why === 'unavailable-id' ? `Game ${code} is taken: Menu > Crew > Host a game for a new one` : `Couldn't open a game (${why}). Check the connection, then Menu > Crew > Host a game`;
         this.overlay.notify(this.netMessage, 8);
       },
     );
@@ -3399,7 +3429,7 @@ export class App {
 
   /** Become a client over `transport` (PeerJS, or the in-memory loopback in tests). */
   private connectClient(transport: ClientTransport): void {
-    const client = new ClientSession(transport, userSettings.playerName, undefined, APP_BUILD);
+    const client = new ClientSession(transport, userSettings.playerName, undefined, APP_BUILD, tabClientId() || undefined);
     this.client = client;
     this.netMessage = '';
     client.onChart = (op) => applyChartOp(this.marks, op);
@@ -3442,9 +3472,87 @@ export class App {
         } else this.overlay.notify(`Lost the host: waiting for ${heir?.name ?? 'the game'} to come back or take over...`, 4);
         return this.retryTogether(client);
       }
+      // Our own game's code taken by a crew-mate's takeover (we came back to it): no game
+      // there after all (it was our own old registration): host it again after all.
+      if (this.rehostCode === this.joinCode && reason === 'No game with that code' && client.status !== 'connected') {
+        this.client = null;
+        this.toSolo();
+        return this.hostGame(this.rehostCode, 1);
+      }
+      if (reason === 'The host ended the game') this.overlay.notify('The host ended the game: you carry on alone', 5);
       this.netMessage = reason;
       this.toSolo();
     };
+  }
+
+  /** A code this page hosted (a reload, a takeover) found taken: joined as crew, hosted again if nobody's there. */
+  private rehostCode: string | null = null;
+  /** Hosting: the game's connection (its link to the game finder: the menu's status). */
+  private hostTransport: PeerHostTransport | null = null;
+  /** Hosting with the page hidden: the slow step's timer, and when it last ran (ms). */
+  private hiddenTimer: ReturnType<typeof setInterval> | null = null;
+  private hiddenAt = 0;
+
+  /**
+   * The page hidden or shown (multiplayer study #21). A hidden page isn't drawn, and the game
+   * steps only as it draws, so a host's background tab froze everyone's world. Hidden while
+   * hosting, the game goes on from a timer (a background tab's run about once a second): the
+   * time since, stepped, and a snapshot out, marked paused so the crew are told why things
+   * are slow. Shown again, the drawing takes over. (A headset asleep stops everything; the
+   * crew's heartbeat notices that.)
+   */
+  private onVisibility(): void {
+    const hidden = document.visibilityState === 'hidden';
+    if (hidden && this.host && !this.hiddenTimer) {
+      this.host.paused = true;
+      this.hiddenAt = performance.now();
+      this.hiddenTimer = setInterval(() => this.stepHidden(), CONFIG.net.hiddenStepS * 1000);
+    } else if (!hidden && this.hiddenTimer) {
+      clearInterval(this.hiddenTimer);
+      this.hiddenTimer = null;
+      if (this.host) this.host.paused = false;
+    }
+  }
+
+  /** Hidden while hosting: the game stepped on by the time since (up to two seconds' worth), and the crew sent it. */
+  private stepHidden(): void {
+    if (!this.host || document.visibilityState !== 'hidden') {
+      if (this.hiddenTimer) clearInterval(this.hiddenTimer);
+      this.hiddenTimer = null;
+      return;
+    }
+    const now = performance.now();
+    const ticks = Math.min(Math.round(((now - this.hiddenAt) / 1000) * CONFIG.sim.tickRate), 2 * CONFIG.sim.tickRate);
+    this.hiddenAt = now;
+    for (const i of this.host.takeIntents()) this.intents.push(i);
+    for (let k = 0; k < ticks; k++) stepWorld(this.world, k === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+    this.host.tick(1);
+  }
+  /** The heartbeat's notice given (the host gone quiet), so it's said once. */
+  private hostQuiet = false;
+
+  /**
+   * Each frame, as crew: the host's silence (multiplayer study #1). A host whose page dies or
+   * whose headset sleeps says nothing, and its link can look open for minutes: past
+   * `hostSilentS` the crew are told it isn't responding (or, its snapshots said so, that its
+   * page is in the background), past `hostLostS` it's lost, as if its link had closed: the
+   * wait for it, then the takeover (net/takeover.ts).
+   */
+  private heartbeat(): void {
+    const c = this.client;
+    if (!c || c.status !== 'connected') {
+      this.hostQuiet = false;
+      return;
+    }
+    const quiet = c.silentS();
+    if (quiet >= CONFIG.net.hostLostS) {
+      this.hostQuiet = false;
+      return c.lose('The host left');
+    }
+    if (quiet >= CONFIG.net.hostSilentS && !this.hostQuiet) {
+      this.hostQuiet = true;
+      this.overlay.notify(c.hostPaused ? "The host's game is in the background: waiting for them..." : 'Host not responding...', 4);
+    } else if (quiet < 1) this.hostQuiet = false;
   }
 
   /** Joining from "Try her together": tries left while the host's game isn't open yet. */
@@ -3520,9 +3628,14 @@ export class App {
    * code (the world is ours since toSolo; the crew rejoin by their retries). The career in it
    * is theirs: it carries on but is never saved into our slots.
    */
-  private takeOver(code: string): void {
+  private takeOver(code: string, waits = 3): void {
     if (this.host || this.hostStarting || this.restarting) return;
     if (this.client?.status === 'connected' || this.inSharedGame) return; // the host came back
+    // A join under way (the host may just have come back): let it finish first (multiplayer study #10).
+    if (this.client?.status === 'connecting' && waits > 0) {
+      setTimeout(() => this.takeOver(code, waits - 1), CONFIG.net.togetherConnectS * 1000);
+      return;
+    }
     if (this.client) {
       const c = this.client;
       this.client = null;
@@ -3692,16 +3805,19 @@ export class App {
   }
 
   /** Stop hosting, or leave the game we joined; play on alone from where things are. */
-  private leaveGame(): void {
+  /** @param end the player chose to leave (Stop hosting, Leave game): as host, the crew are told the game's over. */
+  private leaveGame(end = false): void {
+    this.rehostCode = null;
     if (!this.restarting) {
       rememberHosting(null);
       showGameOnAddress(null);
       this.inSharedGame = false;
     }
     if (this.host) {
-      this.host.close();
+      this.host.close(end && !this.restarting);
       this.host = null;
     }
+    this.hostTransport = null;
     if (this.client) {
       const c = this.client;
       this.client = null;
@@ -3744,6 +3860,10 @@ export class App {
     if (this.netMessage) return this.netMessage;
     if (this.host) {
       const n = this.host.playerCount;
+      // (The game finder's link down: crew aboard play on, new crew can't find the game.)
+      const finder = this.hostTransport?.finder;
+      if (finder === 'reconnecting') return `Hosting, code ${this.host.code}: ${n} aboard · reconnecting (new crew can't join yet)`;
+      if (finder === 'taken') return `Hosting, code ${this.host.code}: ${n} aboard · another page took the code: new crew can't join (host a new game)`;
       return `Hosting, code ${this.host.code}: ${n} aboard`;
     }
     if (this.client) return this.client.status === 'connected' ? `In game ${this.joinCode}` : `Joining ${this.joinCode}...`;
@@ -4016,6 +4136,8 @@ export class App {
     }
     // Crew: the page closing or reloading says goodbye, so the host drops us now (HostSession).
     window.addEventListener('pagehide', () => this.client?.close());
+    // Host: a hidden page keeps the game going (onVisibility).
+    document.addEventListener('visibilitychange', () => this.onVisibility());
     // Started again to build the host's boat: join their game again.
     if (START_JOIN) {
       this.joinCode = START_JOIN;

@@ -23,12 +23,16 @@ import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
  * A crew-mate who goes (Leave game, the page closed or reloaded) says `bye` and is dropped at
  * once. A page that couldn't say it (closed abruptly, the headset taken off and its browser
  * stopped) often leaves its link looking open, so a crew-mate the host hasn't heard from for
- * CONFIG.net.crewSilentS is taken out of the world (no frozen avatar left standing; owner, Oct
- * 2026: five of them after a crew-mate's page tried again and again), and put back as they
- * were if they're heard from again.
+ * CONFIG.net.crewHoldS lets go of the controls they held (the wheel, a lever: free for the
+ * others), and after CONFIG.net.crewSilentS is taken out of the world (no frozen avatar left
+ * standing; owner, Oct 2026: five of them after a crew-mate's page tried again and again),
+ * put back as they were if they're heard from again. A page that joins again from the same
+ * browser tab (its hello's `clientId`) replaces its old self at once.
  */
 export class HostSession {
-  private readonly peers = new Map<string, { link: Link; playerId: EntityId; silent: number; away?: PlayerState }>();
+  private readonly peers = new Map<string, { link: Link; playerId: EntityId; silent: number; away?: PlayerState; freed?: boolean; clientId?: string }>();
+  /** This page is hidden, its game stepping slowly (App): said in each snapshot, for the crew. */
+  paused = false;
   private pending: Intent[] = [];
   private sinceSend = 0;
   /** The host's chart marks (the App's copy): a joiner gets them, ops are applied to them. */
@@ -54,6 +58,14 @@ export class HostSession {
   private receive(link: Link, msg: ClientMessage): void {
     if (msg.t === 'hello') {
       if (this.peers.has(link.id)) return;
+      // The same tab again (a reload, a dropped link): its old self goes first.
+      const cid = typeof msg.clientId === 'string' ? msg.clientId.slice(0, 40) : undefined;
+      if (cid)
+        for (const old of [...this.peers.values()])
+          if (old.clientId === cid) {
+            this.drop(old.link);
+            old.link.close();
+          }
       const playerId = this.ids.next('player');
       const p = createPlayerState(playerId, (msg.name || `Player ${this.peers.size + 2}`).slice(0, 24));
       p.look = randomLook(); // a random set of working clothes (net/avatarOutfits.ts)
@@ -68,7 +80,7 @@ export class HostSession {
       const ours = this.world.build?.app;
       if (msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
       this.world.players[playerId] = p;
-      this.peers.set(link.id, { link, playerId, silent: 0 });
+      this.peers.set(link.id, { link, playerId, silent: 0, ...(cid ? { clientId: cid } : {}) });
       this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });
       return;
     }
@@ -77,6 +89,7 @@ export class HostSession {
     if (msg.t === 'bye') return this.drop(link);
     // Heard from: back in the world if they'd gone quiet.
     peer.silent = 0;
+    peer.freed = false;
     if (peer.away) {
       this.world.players[peer.playerId] = peer.away;
       delete peer.away;
@@ -147,6 +160,11 @@ export class HostSession {
   tick(dt: number): void {
     for (const peer of this.peers.values()) {
       peer.silent += dt;
+      // Quiet a moment: what they held is let go (nobody's locked out of the wheel by a page that's gone).
+      if (!peer.freed && peer.silent >= CONFIG.net.crewHoldS) {
+        peer.freed = true;
+        for (const v of Object.values(this.world.vessels)) releaseHolds(v, peer.playerId);
+      }
       if (peer.away || peer.silent < CONFIG.net.crewSilentS) continue;
       const p = this.world.players[peer.playerId];
       if (!p) continue;
@@ -158,14 +176,16 @@ export class HostSession {
     this.sinceSend += dt;
     if (this.sinceSend < 1 / NET_RATE) return;
     this.sinceSend = 0;
-    for (const { link } of this.peers.values()) this.send(link, { t: 'snapshot', world: this.world });
+    for (const { link } of this.peers.values()) this.send(link, { t: 'snapshot', world: this.world, ...(this.paused ? { paused: true } : {}) });
   }
 
   private send(link: Link, msg: HostMessage): void {
     link.send(msg);
   }
 
-  close(): void {
+  /** @param end the host stopped hosting on purpose: the crew are told the game's over (no takeover). */
+  close(end = false): void {
+    if (end) this.broadcast({ t: 'end' });
     for (const { playerId } of this.peers.values()) {
       dropCarried(this.world, playerId);
       delete this.world.players[playerId];
