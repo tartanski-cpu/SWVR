@@ -13,6 +13,7 @@
  * design needs a handful of numbers per curve, not an offsets table.
  */
 import * as THREE from 'three';
+import type { TugFendering } from './fendering';
 
 /** Control points [t, value], t from 0 (transom) to 1 (stem), in any order. */
 export type Curve = [number, number][];
@@ -29,6 +30,12 @@ export interface SectionShape {
   chine2Height?: Curve;
   /** Round bilge: how many corner-cutting passes to soften the chines (0 = hard chine). */
   round?: number;
+  /**
+   * The two chines are a round bilge's, not a spray chine (a round-bilge ship drawn with hard
+   * chines: the harbour tug). The game draws both, and floats her on one chine on her side
+   * line that keeps each section's area (vessel/hullForm.ts bilgeChine).
+   */
+  bilge?: boolean;
   /**
    * Flare: the topsides lean out so the deck edge is this much wider than it would be with
    * vertical sides from the chine (fraction of the chine half-breadth); negative is tumblehome.
@@ -88,6 +95,13 @@ export interface HullDesign {
    * her topsides' colour above it, though the chine itself sweeps up. Drawn only.
    */
   paintKeel?: Curve;
+  /**
+   * Her bottom paint up to this height over her DWL in the game's drawing (m): a ship's boot
+   * top, at her waterline, not her chine (the harbour tug: her bilge is under water).
+   */
+  bootTop?: number;
+  /** A harbour tug's fendering (hulls/fendering.ts): drawn on her hull as the game builds it. */
+  fendering?: TugFendering;
   /**
    * Rake: how far the section leans fore-aft per metre of height above the keel (dz/dy).
    * Negative at the stem leans it forward; positive at the transom leans the transom aft.
@@ -254,13 +268,14 @@ export function loft(d: HullDesign): LoftedHull {
     const pts = shaped.map(([x, y]) => new THREE.Vector3(-x, y, z + rake * (y - keelY)));
     // Her paint line: her lowest chine's height, measured from the uncut keel (paintKeel).
     let paintY: number | undefined;
-    if (d.paintKeel) {
+    if (d.bootTop !== undefined) paintY = Math.min(d.bootTop, deckY);
+    else if (d.paintKeel) {
       const pRef = curveAt(d.paintKeel, t);
       const frac = Math.min(curveAt(s.chineHeight, t), s.chine2Height ? curveAt(s.chine2Height, t) : Infinity);
       paintY = pRef + frac * Math.max(0.05, drawnDeckY - pRef);
     }
     const lowChine = prof[1][1];
-    sections.push({ t, z, keelY, deckY, halfBeam: hb, pts, bulwark: Math.max(0, curveAt(d.bulwark, t)), ...(paintY !== undefined && paintY < lowChine - 1e-4 ? { paintY } : {}) });
+    sections.push({ t, z, keelY, deckY, halfBeam: hb, pts, bulwark: Math.max(0, curveAt(d.bulwark, t)), ...(paintY !== undefined && (d.bootTop !== undefined || paintY < lowChine - 1e-4) ? { paintY } : {}) });
   }
   return { design: d, sections };
 }

@@ -812,5 +812,109 @@ export const DESIGNS: HullDesign[] = [
     // The wheelhouse forward of amidships, the working deck aft (the Shipyard lets it go aft).
     wheelhouse: { z0: -0.5, z1: -3.6, halfWidth: 2.3, height: 2.2, frontRake: 0.35, sill: 1.0, head: 1.9, panesFront: 4, panesSide: 3, panesBack: 2, overhang: 0.25 },
     colours: { topsides: 0xd9622b, bulwark: 0xd9622b, bottom: 0x2a2f33, boot: 0xeeeeea, house: 0xf2f2ee, deck: 0x5e6660, roof: 0xd3d6d8 },
+  },  {
+    // A larger harbour tug (owner, Oct 2026, from photographs and the particulars of a 25 m
+    // azimuth stern drive harbour tug; our own lines, of her size and type): hull only for now,
+    // her drives, controls and house to come.
+    id: 'harbourTug',
+    name: 'Harbour tug (ASD, 25 m type)',
+    blurb: 'Azimuth stern drive harbour tug: very full and beamy (L/B 2.4 on her hull, 2.2 over her fenders), a round bilge, a blunt rounded bow for pushing ships under a strong sheer and high bulwarks round the foredeck (a bow winch tows over it), deep forward with the bottom rising aft in a long flat run to a shallow, wide stern with rounded corners, room under it for her two drive pods. A low working deck aft. 25.0 x 10.5 m (11.2 m over her fenders), draught 3.3 m (her pods to about 5.3 m).',
+    length: 25.0,
+    // Full: a parallel midbody, a wide stern rounded at its corners, a blunt bow rounded in plan.
+    halfBeam: [
+      [0, 3.8],
+      [0.03, 4.45],
+      [0.08, 4.95],
+      [0.16, 5.25],
+      [0.6, 5.25],
+      [0.72, 5.15],
+      [0.82, 4.85],
+      [0.9, 4.3],
+      [0.95, 3.55],
+      [0.98, 2.6],
+      [0.995, 1.4],
+      [1, 0],
+    ],
+    // A low working deck aft, a strong sheer up to her bow.
+    sheer: [
+      [0, 1.55],
+      [0.3, 1.45],
+      [0.5, 1.5],
+      [0.7, 1.85],
+      [0.88, 2.5],
+      [1, 3.05],
+    ],
+    // Deep forward and amidships, the bottom rising aft in a long run to a shallow transom (her
+    // drive pods hang under it), a rounded forefoot up to her stem.
+    keel: [
+      [0, -0.5],
+      [0.1, -1.0],
+      [0.25, -2.0],
+      [0.4, -2.8],
+      [0.55, -3.25],
+      [0.6, -3.3],
+      [0.85, -3.3],
+      [0.93, -2.9],
+      [0.975, -1.9],
+      [1, 0.0],
+    ],
+    // Upright sections, as the game draws her: her stem's rake is her forefoot's profile.
+    rake: [
+      [0, 0],
+      [1, 0],
+    ],
+    // A round bilge, drawn as two chines close together: its lower corner on a nearly flat
+    // bottom, its upper corner under her near-upright sides.
+    section: {
+      bilge: true,
+      chineBeam: [
+        [0, 0.85],
+        [0.3, 0.72],
+        [0.6, 0.68],
+        [0.85, 0.55],
+        [1, 0.35],
+      ],
+      chineHeight: [
+        [0, 0.12],
+        [0.3, 0.08],
+        [0.6, 0.08],
+        [0.85, 0.12],
+        [1, 0.3],
+      ],
+      chine2Beam: [
+        [0, 0.97],
+        [0.3, 0.95],
+        [0.6, 0.95],
+        [0.85, 0.8],
+        [1, 0.55],
+      ],
+      chine2Height: [
+        [0, 0.35],
+        [0.3, 0.3],
+        [0.6, 0.3],
+        [0.85, 0.35],
+        [1, 0.5],
+      ],
+    },
+    // Bulwarks all round, higher round the foredeck.
+    bulwark: [
+      [0, 0.9],
+      [0.55, 0.9],
+      [0.65, 1.1],
+      [1, 1.1],
+    ],
+    // Her bottom paint to her waterline (a ship's boot top), not her bilge.
+    bootTop: 0.05,
+    // Heavy rubber all round (hulls/fendering.ts): a D-fender belt under her deck edge and a
+    // smaller one below it along her sides, 0.3 m proud (11.1 m over them); a cylinder fender
+    // round her stern; at her bow a cylinder round the top and a row of block fenders under it
+    // down towards her waterline, for pushing ships.
+    fendering: {
+      belt: { radius: 0.3, drop: 0.3, from: 0.05, to: 0.88 },
+      lowerBelt: { radius: 0.22, drop: 0.95, from: 0.08, to: 0.85 },
+      stern: { radius: 0.4, drop: 0.45, from: 0, to: 0.06 },
+      bow: { radius: 0.4, drop: 0.45, from: 0.86, to: 1, blocks: { width: 0.3, gap: 0.06, depth: 0.3, height: 1.3 } },
+    },
+    colours: { topsides: 0x2e3b47, bulwark: 0x2e3b47, bottom: 0x7a2c24, boot: 0x1f2124, house: 0xeceeea, deck: 0x6b6f68, roof: 0xd8352c },
   },
 ];
