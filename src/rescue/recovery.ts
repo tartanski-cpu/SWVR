@@ -37,6 +37,8 @@ import type { VesselState } from '../vessel/vesselState';
 import { gearOf } from '../boats/sims';
 import { quickDeckPoint, stowOnDeck, type CargoItem } from '../cargo/cargo';
 import type { RescueState, RescueTarget } from './rescue';
+import type { EntityId } from '../core/ids';
+import { boatOf, playerBoats } from '../core/launch';
 
 export interface RingState {
   state: 'stowed' | 'held' | 'flying' | 'water';
@@ -102,7 +104,7 @@ function persons(r: RescueState): RescueTarget[] {
 
 /**
  * Where she takes survivors aboard: the seats, the stern they climb over (built into her
- * hull, its fittings). Only the home boat works a rescue; one without them is a mistake.
+ * hull, its fittings). Asked only of a boat that has them (rescueBoats).
  */
 export function rescuePlaces(defId: string): NonNullable<VesselDef['rescueGear']> {
   const places = VESSEL_DEFS[defId].rescueGear;
@@ -110,10 +112,10 @@ export function rescuePlaces(defId: string): NonNullable<VesselDef['rescueGear']
   return places;
 }
 
-/** The free seat for the next survivor aboard (vessel axes). */
-export function freeSeat(r: RescueState, v: VesselState): Vec3 {
+/** The free seat for the next survivor aboard her (vessel axes). */
+export function freeSeat(world: WorldState, v: VesselState): Vec3 {
   const seats = rescuePlaces(v.defId).seats;
-  const taken = persons(r).filter((t) => t.phase === 'aboard').length;
+  const taken = persons(world.rescue!).filter((t) => (t.phase === 'aboard' || t.phase === 'climbing') && (t.vessel ?? world.homeVesselId) === v.id).length;
   const [x, z] = seats[Math.min(taken, seats.length - 1)];
   return [x, hullPlan(VESSEL_DEFS[v.defId]).deckY(z), z];
 }
@@ -129,19 +131,61 @@ function checkRecovered(world: WorldState, r: RescueState): void {
   void world;
 }
 
-/** One tick of the ring, the line, survivors and hooked crates. */
-export function stepRecovery(world: WorldState, v: VesselState, waves: readonly PreparedWave[], dt: number): void {
-  const cfg = CONFIG.rescue;
+/**
+ * Each boat's own life ring and boat hook (multiplayer study #15: one ring for the whole game,
+ * thrown from the home boat's cleat whoever threw it, and survivors climbing aboard only her).
+ * Kept by the boat's id; an old save's one ring and hook become the home boat's.
+ */
+function settleGear(world: WorldState): RescueState {
   const r = world.rescue!;
-  const ring = (r.ring ??= createRing());
-  const gear = rescuePlaces(v.defId);
-  // The ring's line is made fast at her life ring station's cleat (a module); a boat
-  // without one has no ring to throw.
-  const station = gearOf(v, 'lifeRing');
-  const cleat = vesselToWorld(v, station?.cleat ?? [0, 0, 0]);
+  const home = world.homeVesselId;
+  if (home && r.ring) (r.rings ??= {})[home] ??= r.ring;
+  if (home && r.hook) (r.hooks ??= {})[home] ??= r.hook;
+  delete r.ring;
+  delete r.hook;
+  return r;
+}
 
+/** Her life ring (made if she hasn't one yet). */
+export function ringOf(world: WorldState, vesselId: EntityId): RingState {
+  return ((settleGear(world).rings ??= {})[vesselId] ??= createRing());
+}
+
+/** Her boat hook (made if she hasn't one yet). */
+export function hookOf(world: WorldState, vesselId: EntityId): HookState {
+  return ((settleGear(world).hooks ??= {})[vesselId] ??= { holder: null });
+}
+
+/** Her life ring as it stands, for the views (nothing made; an old save's is the home boat's). */
+export function ringIn(world: WorldState, vesselId: EntityId): RingState | undefined {
+  const r = world.rescue;
+  return r?.rings?.[vesselId] ?? (vesselId === world.homeVesselId ? r?.ring : undefined);
+}
+
+/** Her boat hook as it stands, for the views. */
+export function hookIn(world: WorldState, vesselId: EntityId): HookState | undefined {
+  const r = world.rescue;
+  return r?.hooks?.[vesselId] ?? (vesselId === world.homeVesselId ? r?.hook : undefined);
+}
+
+/** The boats that can take survivors aboard: the players' boats with rescue places. */
+function rescueBoats(world: WorldState): VesselState[] {
+  return playerBoats(world).filter((v) => !!VESSEL_DEFS[v.defId].rescueGear);
+}
+
+/** Whose ring a survivor on a line is on (an old save's: the home boat's). */
+function ringBoat(world: WorldState, t: RescueTarget): EntityId | undefined {
+  return t.ring ?? world.homeVesselId;
+}
+
+/** One tick of a boat's ring and its line: flying, floating, drawn in, a crew-mate in it. */
+function stepRing(world: WorldState, r: RescueState, v: VesselState, ring: RingState, waves: readonly PreparedWave[], dt: number): void {
+  const cfg = CONFIG.rescue;
+  // The ring's line is made fast at her life ring station's cleat (a module).
+  const station = gearOf(v, 'lifeRing')!;
+  const cleat = vesselToWorld(v, station.cleat);
   const wind = windVector(world.environment, { x: 0, z: 0 });
-  if (station && ring.state === 'flying') {
+  if (ring.state === 'flying') {
     ring.vel[1] -= CONFIG.ocean.gravity * dt;
     // The wind pushes it off line a little in flight.
     ring.vel[0] += wind.x * CONFIG.weather.ringPushPerWind * dt;
@@ -157,111 +201,177 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
       ring.line = Math.min(cfg.maxLine, Math.max(dist, 1));
     }
   }
-  if (station && ring.state === 'water') {
-    const dv = driftVelocity(world.environment, ring.pos[0], ring.pos[2], driftV);
-    ring.pos[0] += dv.x * dt;
-    ring.pos[2] += dv.z * dt;
-    // The line: no longer than paid out. Taut, it drags the ring toward the cleat.
-    const dx = ring.pos[0] - cleat.x;
-    const dz = ring.pos[2] - cleat.z;
-    const d = Math.hypot(dx, dz);
-    if (d > ring.line && d > 1e-6) {
-      ring.pos[0] = cleat.x + (dx / d) * ring.line;
-      ring.pos[2] = cleat.z + (dz / d) * ring.line;
-    }
-    ring.pos[1] = surfaceHeight(waves, ring.pos[0], ring.pos[2]);
-    // A crew-mate in it: still in the game, and still in the water (not aboard anything).
-    if (ring.player) {
-      const pl = world.players[ring.player];
-      if (!pl || pl.aboardVesselId) ring.player = null;
-    }
-    if (ring.player) {
-      const at = vesselToWorld(v, gear.stern);
-      if (v.engine.gear !== 0 && Math.hypot(ring.pos[0] - at.x, ring.pos[2] - at.z) < cfg.propRadius && world.time - (r.propWarnedCrew ?? -99) > 6) {
-        r.propWarnedCrew = world.time;
-        shout(r, 'Neutral! Put her in neutral, I\'m by the propeller!');
-      }
-    }
-    // Reeled right in with nobody on it: back on its hook.
-    const onLine = !!ring.player || persons(r).some((t) => t.phase === 'onLine');
-    if (!onLine && ring.line < 1.6) ring.state = 'stowed';
+  if (ring.state !== 'water') return;
+  const dv = driftVelocity(world.environment, ring.pos[0], ring.pos[2], driftV);
+  ring.pos[0] += dv.x * dt;
+  ring.pos[2] += dv.z * dt;
+  // The line: no longer than paid out. Taut, it drags the ring toward the cleat.
+  const dx = ring.pos[0] - cleat.x;
+  const dz = ring.pos[2] - cleat.z;
+  const d = Math.hypot(dx, dz);
+  if (d > ring.line && d > 1e-6) {
+    ring.pos[0] = cleat.x + (dx / d) * ring.line;
+    ring.pos[2] = cleat.z + (dz / d) * ring.line;
   }
+  ring.pos[1] = surfaceHeight(waves, ring.pos[0], ring.pos[2]);
+  // A crew-mate in it: still in the game, and still in the water (not aboard anything).
+  if (ring.player) {
+    const pl = world.players[ring.player];
+    if (!pl || pl.aboardVesselId) ring.player = null;
+  }
+  if (ring.player) {
+    const at = vesselToWorld(v, rescuePlaces(v.defId).stern);
+    if (v.engine.gear !== 0 && Math.hypot(ring.pos[0] - at.x, ring.pos[2] - at.z) < cfg.propRadius && world.time - (r.propWarnedCrew ?? -99) > 6) {
+      r.propWarnedCrew = world.time;
+      shout(r, "Neutral! Put her in neutral, I'm by the propeller!");
+    }
+  }
+  // Reeled right in with nobody on it: back on its hook.
+  const onLine = !!ring.player || persons(r).some((t) => t.phase === 'onLine' && ringBoat(world, t) === v.id);
+  if (!onLine && ring.line < 1.6) ring.state = 'stowed';
+}
+
+/** One tick of every boat's ring and line, the survivors, and hooked crates. */
+export function stepRecovery(world: WorldState, waves: readonly PreparedWave[], dt: number): void {
+  const cfg = CONFIG.rescue;
+  const r = settleGear(world);
+  // A boat gone (handed back, her owner long gone): her gear with her.
+  for (const id of Object.keys(r.rings ?? {})) if (!world.vessels[id]) delete r.rings![id];
+  for (const id of Object.keys(r.hooks ?? {})) if (!world.vessels[id]) delete r.hooks![id];
+  const boats = rescueBoats(world);
+  for (const v of boats) if (gearOf(v, 'lifeRing')) stepRing(world, r, v, ringOf(world, v.id), waves, dt);
 
   const inc = r.active;
   if (!inc) return;
-  const stern = vesselToWorld(v, gear.stern);
-  // Nobody on the line yet: the ring in the water is for the taking.
-  const ringFree = ring.state === 'water' && !ring.player && !persons(r).some((t) => t.phase === 'onLine');
-  // People on a raft or a sinking boat: with our stern alongside it and the propeller stopped,
-  // they come across one at a time (the next once the one before is up).
+  // The rings in the water, and which are for the taking (nobody on them yet).
+  const afloat = boats.filter((v) => r.rings?.[v.id]?.state === 'water').map((v) => ({ v, ring: r.rings![v.id] }));
+  const free = (id: EntityId) => !r.rings?.[id]?.player && !persons(r).some((t) => t.phase === 'onLine' && ringBoat(world, t) === id);
+  // People on a raft or a sinking boat: with a boat's stern alongside it and her propeller
+  // stopped, they come across to her one at a time (the next once the one before is up).
   const prop = inc.prop;
-  const climbingNow = inc.targets.some((t) => t.phase === 'climbing');
-  const alongsideProp = !!prop && !prop.sunk && inc.phase === 'accepted' && v.engine.gear === 0 && Math.hypot(prop.x - stern.x, prop.z - stern.z) < cfg.raftRange;
-  let tookOne = climbingNow;
+  const alongside = !prop || prop.sunk || inc.phase !== 'accepted' ? undefined : boats.find((v) => {
+    const stern = vesselToWorld(v, rescuePlaces(v.defId).stern);
+    return v.engine.gear === 0 && Math.hypot(prop.x - stern.x, prop.z - stern.z) < cfg.raftRange;
+  });
+  let tookOne = inc.targets.some((t) => t.phase === 'climbing');
   for (const t of inc.targets) {
-    if (t.kind === 'person') {
-      if (t.phase === 'raft' && alongsideProp && !tookOne) {
-        tookOne = true;
+    if (t.kind !== 'person') continue;
+    if (t.phase === 'raft' && alongside && !tookOne) {
+      tookOne = true;
+      t.phase = 'climbing';
+      t.t = 0;
+      t.vessel = alongside.id;
+      t.seat = freeSeat(world, alongside);
+    }
+    if ((!t.phase || t.phase === 'floating') && afloat.length && inc.phase === 'accepted') {
+      // The nearest ring: caught if it's on them; swum for if near and free.
+      let near = afloat[0];
+      let toRing = Infinity;
+      for (const a of afloat) {
+        const d = Math.hypot(t.x - a.ring.pos[0], t.z - a.ring.pos[2]);
+        if (d < toRing) {
+          toRing = d;
+          near = a;
+        }
+      }
+      if (toRing < cfg.catchRadius) {
+        t.phase = 'onLine';
+        t.ring = near.v.id;
+      } else if (free(near.v.id) && toRing < cfg.swimToRing) {
+        // Near enough to see it: they swim for it (owner: hard to land it right on them in VR).
+        const step = Math.min(cfg.swimSpeed * dt, toRing - cfg.catchRadius * 0.5);
+        t.x += ((near.ring.pos[0] - t.x) / toRing) * step;
+        t.z += ((near.ring.pos[2] - t.z) / toRing) * step;
+      }
+    }
+    if (t.phase === 'onLine') {
+      const id = ringBoat(world, t);
+      const v = id ? world.vessels[id] : undefined;
+      const ring = v ? r.rings?.[v.id] : undefined;
+      if (!v || !ring || ring.state !== 'water') {
+        // Her ring gone from under them (the boat taken away): back to floating.
+        t.phase = 'floating';
+        delete t.ring;
+        continue;
+      }
+      t.x = ring.pos[0];
+      t.z = ring.pos[2];
+      const stern = vesselToWorld(v, rescuePlaces(v.defId).stern);
+      const toStern = Math.hypot(t.x - stern.x, t.z - stern.z);
+      if (v.engine.gear !== 0 && toStern < cfg.propRadius) {
+        // Propeller! Swim (and pay the line) away until it stops.
+        if (!inc.propWarned || world.time - inc.propWarned > 6) {
+          inc.propWarned = world.time;
+          shout(r, 'Stop your propeller! Put her in neutral!');
+        }
+        ring.line = Math.min(cfg.maxLine, ring.line + cfg.swimAway * dt);
+        const dx = ring.pos[0] - stern.x;
+        const dz = ring.pos[2] - stern.z;
+        const d = Math.hypot(dx, dz) || 1;
+        ring.pos[0] += (dx / d) * cfg.swimAway * dt;
+        ring.pos[2] += (dz / d) * cfg.swimAway * dt;
+      } else if (toStern < cfg.climbRange && v.engine.gear === 0) {
         t.phase = 'climbing';
         t.t = 0;
-        t.seat = freeSeat(r, v);
+        t.vessel = v.id;
+        t.seat = freeSeat(world, v);
+        ring.state = 'stowed';
+        ring.holder = null;
       }
-      if ((!t.phase || t.phase === 'floating') && ring.state === 'water' && inc.phase === 'accepted') {
-        const toRing = Math.hypot(t.x - ring.pos[0], t.z - ring.pos[2]);
-        if (toRing < cfg.catchRadius) t.phase = 'onLine';
-        else if (ringFree && toRing < cfg.swimToRing) {
-          // Near enough to see it: they swim for it (owner: hard to land it right on them in VR).
-          const step = Math.min(cfg.swimSpeed * dt, toRing - cfg.catchRadius * 0.5);
-          t.x += ((ring.pos[0] - t.x) / toRing) * step;
-          t.z += ((ring.pos[2] - t.z) / toRing) * step;
-        }
-      }
-      if (t.phase === 'onLine') {
-        t.x = ring.pos[0];
-        t.z = ring.pos[2];
-        const toStern = Math.hypot(t.x - stern.x, t.z - stern.z);
-        if (v.engine.gear !== 0 && toStern < cfg.propRadius) {
-          // Propeller! Swim (and pay the line) away until it stops.
-          if (!inc.propWarned || world.time - inc.propWarned > 6) {
-            inc.propWarned = world.time;
-            shout(r, 'Stop your propeller! Put her in neutral!');
-          }
-          ring.line = Math.min(cfg.maxLine, ring.line + cfg.swimAway * dt);
-          const dx = ring.pos[0] - stern.x;
-          const dz = ring.pos[2] - stern.z;
-          const d = Math.hypot(dx, dz) || 1;
-          ring.pos[0] += (dx / d) * cfg.swimAway * dt;
-          ring.pos[2] += (dz / d) * cfg.swimAway * dt;
-        } else if (toStern < cfg.climbRange && v.engine.gear === 0) {
-          t.phase = 'climbing';
-          t.t = 0;
-          t.seat = freeSeat(r, v);
-          ring.state = 'stowed';
-          ring.holder = null;
-        }
-      } else if (t.phase === 'climbing') {
-        t.t = (t.t ?? 0) + dt;
-        if (t.t >= cfg.climbTime) {
-          t.phase = 'aboard';
-          shout(r, 'Thank you! Thank you so much!');
-        }
+    } else if (t.phase === 'climbing') {
+      t.t = (t.t ?? 0) + dt;
+      if (t.t >= cfg.climbTime) {
+        t.phase = 'aboard';
+        shout(r, 'Thank you! Thank you so much!');
       }
     }
   }
   checkRecovered(world, r);
 }
 
+const RECOVERY_INTENTS = new Set(['ringTake', 'ringStow', 'ringThrow', 'ringPull', 'ringGrab', 'rescuePropStrike', 'ringLetGo', 'hookTake', 'hookPush', 'hookStow', 'hookDrop', 'crateHook', 'crateTow', 'crateQuickLift', 'crateLift']);
+function isRecoveryIntent(control: string): boolean {
+  return RECOVERY_INTENTS.has(control);
+}
+
+/** The ring a swimmer is in, else the one in the water nearest them (its boat's id). */
+function swimmersRing(world: WorldState, who: EntityId): EntityId | undefined {
+  const rings = Object.entries(world.rescue?.rings ?? {});
+  const held = rings.find(([, g]) => g.player === who);
+  if (held) return held[0];
+  const pl = world.players[who];
+  let best: EntityId | undefined;
+  let d = Infinity;
+  for (const [id, g] of rings) {
+    if (g.state !== 'water' || !pl) continue;
+    const e = Math.hypot(pl.position[0] - g.pos[0], pl.position[2] - g.pos[2]);
+    if (e < d) {
+      d = e;
+      best = id;
+    }
+  }
+  return best;
+}
+
 /** Recovery intents. Returns true if it was one. */
-export function applyRecoveryIntent(world: WorldState, v: VesselState | undefined, intent: Intent): boolean {
-  const r = world.rescue!;
-  const ring = (r.ring ??= createRing());
-  const hook = (r.hook ??= { holder: null });
+export function applyRecoveryIntent(world: WorldState, home: VesselState | undefined, intent: Intent): boolean {
+  if (!isRecoveryIntent(intent.control)) return false;
+  const r = settleGear(world);
   const who = intent.playerId;
+  // The gear of the boat the player is aboard (a crew-mate in her own boat throws her own
+  // ring); a swimmer's, the ring in the water they're in or nearest them.
+  const aboard = boatOf(world, who);
+  const v = aboard && VESSEL_DEFS[aboard.defId].rescueGear ? aboard : home;
+  const swimmer = intent.control === 'ringGrab' || intent.control === 'ringLetGo' || intent.control === 'rescuePropStrike';
+  const vid = swimmer ? swimmersRing(world, who) : v?.id;
+  if (!vid) return true;
+  const ring = ringOf(world, vid);
+  const hook = hookOf(world, vid);
   const cfg = CONFIG.rescue;
   switch (intent.control) {
     case 'ringTake':
       if (v && !gearOf(v, 'lifeRing')) return true; // no life ring aboard
-      if (ring.state === 'stowed' || (ring.state === 'water' && !ring.player && !persons(r).some((t) => t.phase === 'onLine'))) {
+      if (ring.state === 'stowed' || (ring.state === 'water' && !ring.player && !persons(r).some((t) => t.phase === 'onLine' && ringBoat(world, t) === vid))) {
         ring.state = 'held';
         ring.holder = who;
       }
@@ -293,7 +403,7 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
       // A crew-mate in the water takes the floating ring: within reach of it, nobody on it.
       const pl = world.players[who];
       if (ring.state !== 'water' || ring.player || !pl || pl.aboardVesselId) return true;
-      if (persons(r).some((t) => t.phase === 'onLine')) return true;
+      if (persons(r).some((t) => t.phase === 'onLine' && ringBoat(world, t) === vid)) return true;
       if (Math.hypot(pl.position[0] - ring.pos[0], pl.position[2] - ring.pos[2]) > cfg.crewCatchRadius + cfg.crewCatchSlack) return true;
       ring.player = who;
       shout(r, `${pl.name || 'Your crew-mate'} has the ring: haul in!`);

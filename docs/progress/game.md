@@ -10,6 +10,22 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Multiplayer batch 4: playing together in separate boats, and smaller snapshots (26 Oct 2026)
+
+Owner: "go ahead with multiplayer batch 4" (the study's last batch: #3, #7, #15, #27, #25, #33, #31, #35).
+
+- **#3 Smaller snapshots** (`net/worldDelta.ts`, new). Each send says only what changed since the last: a part of the world whole if it changed, and in a set of things (`vessels`, `cargo`, `players`...) only the things that changed, came or went. Worked out once per send and sent as one text to every crew-mate (it was packed again for each). A crew-mate just welcomed gets the whole world once more with the next send. The crew page keeps the pieces as text and parses the world afresh each time, as it always did, so nothing it holds is shared with the next snapshot. **Measured live** (host and crew through the game finder): the whole world 18 KB (Tayvallich), 37 KB (career), 156 KB (Clyde); a send now 2 to 3 KB on each, the Clyde 48 times smaller. **Not measured on a Quest** (the study asked for before and after there): the host's work per send is one pass over the world, about 1 ms on this computer for the Clyde.
+- **#15 Each boat her own rescue gear.** A life ring and boat hook per boat (`world.rescue.rings`, `hooks`, by boat; `ringOf`, `hookOf`, `ringIn`, `hookIn`; an old save's one ring and hook become the home boat's). Taking, throwing, hauling and the hook work on the boat the player is aboard; a swimmer takes the ring nearest them. A survivor on a ring climbs aboard that boat (`RescueTarget.ring`, `vessel`), sits in her seats, and is landed from her at a quay; people on a raft come across to whichever rescue boat lies alongside. Every boat's ring and hook are drawn on every page (`otherGear` in App), survivors aboard the boat that took them.
+- **#27 Calls follow the players' boats** (`missionBoat`, core/launch.ts): rescue, tow and fire calls come to the players' boat with the most aboard that has the gear for the job (rescue places, a tow point, a fire monitor); the home boat on a tie or with nobody aboard.
+- **#7 Voice in either order:** a crew-mate with voice off isn't called; a call with no voice after `voice.answerS` 8 s is dropped and tried again (`retryS` later); the Crew tab says "voice off" by their name.
+- **#25** Leaving VR, or the page hidden (a headset taken off), lets go of everything your hands held (`InteractionSystem.releaseAll`).
+- **#33** A control someone else holds names them: "Wheel (Bosun has it)" (`HoldRules.holderName`).
+- **#31** A crew-mate can't buy yard gear that's fitted aboard (trawl gear, the skiff: it starts everyone again in her): "Ask the skipper".
+- **#35** A log barge at the merchant's quay can be sold from any page alongside (the `timberSell` intent, voyage/timber.ts `applyTimberSell`); the host's own sale is still made at once.
+- **Shared changes:** `src/core/launch.ts` (`missionBoat`), `src/core/simulation.ts` (the `timberSell` intent). (`src/rescue/`, `src/tow/tow.ts`, `src/fire/fire.ts`, `src/controls/` are the main game's own.)
+- **Tests:** tests/worldDelta.test.ts (new: the world rebuilt exactly over 30 steps with crates and parts coming and going; a send under half the world; an unmoved crate not sent); tests/launch.test.ts (calls follow the crew's boat; her own ring thrown, the survivor aboard her and landed from her); tests/metaverse.test.ts (a crew-mate's barge sale); the rescue tests now read the home boat's ring.
+- **Checked live:** crewcheck 27 of 27 with the new snapshots; the batch 2 reload checks again (a crew reload, the host launching with crew aboard, the host's reload: all as before); the sizes above. **Not checked:** voice (needs two microphones), the Quest (snapshot cost, letting go on taking the headset off), a rescue by two boats live.
+
 ### Multiplayer batch 3: joining the right game, clearly (26 Oct 2026)
 
 Owner: "go ahead with multiplayer batch 3" (the study's third batch: #6, #22, #24, #13, #4, #26, #8, #20, #23, #30, #34, #19, #32).

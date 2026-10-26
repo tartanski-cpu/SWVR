@@ -197,7 +197,7 @@ export interface MenuHost {
    * Who's in the game, one by one (the Crew tab's list, owner Oct 2026), or null past the
    * last: their name, whether it's you or the host, and whether you've muted their voice.
    */
-  crewMember(i: number): { name: string; you: boolean; host: boolean; muted: boolean } | null;
+  crewMember(i: number): { name: string; you: boolean; host: boolean; muted: boolean; voiceOff?: boolean } | null;
   /** Mute or unmute one crew-mate's voice, for you only. */
   toggleCrewMute(i: number): void;
   /** Voice with the crew (net/voice.ts): a status line, and your microphone muted. */
@@ -616,7 +616,7 @@ export function mainMenu(h: MenuHost): MainMenu {
   const member = (i: number): MenuRow => ({
     label: '',
     buttons: [
-      { text: () => { const m = h.crewMember(i); return m ? `${m.name}${m.you ? ' (you)' : ''}${m.host ? ' · host' : ''}` : ''; }, weight: 2.4 },
+      { text: () => { const m = h.crewMember(i); return m ? `${m.name}${m.you ? ' (you)' : ''}${m.host ? ' · host' : ''}${m.voiceOff ? ' · voice off' : ''}` : ''; }, weight: 2.4 },
       { text: () => { const m = h.crewMember(i); return !m || m.you ? '' : m.muted ? 'Muted' : 'Mute'; }, active: () => !!h.crewMember(i)?.muted, press: () => h.toggleCrewMute(i) },
     ],
   });

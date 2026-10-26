@@ -28,7 +28,8 @@ import { CONFIG } from '../config';
 import { driftVelocity } from '../world/drift';
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
-import { homeVessel, type WorldState } from '../core/world';
+import { type WorldState } from '../core/world';
+import { missionBoat } from '../core/launch';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import { regionAt } from '../world/regions';
@@ -73,6 +74,9 @@ export interface RescueTarget {
   shore?: [number, number];
   /** Aboard: where they sit (vessel axes). */
   seat?: Vec3;
+  /** On a line: whose ring (the boat's id). Climbing or aboard: the boat they're aboard (absent in an old save: the home boat). */
+  ring?: EntityId;
+  vessel?: EntityId;
   /** Hooked: by whom. Lifted crates: the cargo item they became. */
   hookedBy?: string;
   cargoId?: string;
@@ -118,9 +122,13 @@ export interface RescueState {
   completed: number;
   /** SOS calls answered (rescue/sos.ts): how many, and when the last was (world time, s). */
   sos?: { sent: number; t: number };
-  /** Rescue gear and survivors' shouts (rescue/recovery.ts); counter for the cheer. */
+  /** Each boat's life ring and boat hook, by her id (rescue/recovery.ts ringOf, hookOf). */
+  rings?: Record<EntityId, RingState>;
+  hooks?: Record<EntityId, HookState>;
+  /** Before multiplayer batch 4 the game's one ring and hook (an old save's): become the home boat's. */
   ring?: RingState;
   hook?: HookState;
+  /** Survivors' shouts; counter for the cheer. */
   shout?: Shout;
   shoutSeq?: number;
   /** The last swimmer into a turning propeller (views spray red when `seq` changes). */
@@ -348,9 +356,10 @@ function stepLanding(world: WorldState, r: RescueState, inc: Incident, v: Vessel
     }
   }
   if (inc.phase === 'recovered') {
-    const spot = landingSpot(v);
-    const next = people.find((t) => t.phase === 'aboard');
+    // Whichever boat they're aboard, moored at a quay: they step ashore from her.
     const busy = inc.landT !== undefined && world.time - inc.landT < cfg.landEvery;
+    const next = busy ? undefined : people.find((t) => t.phase === 'aboard' && landingSpot(world.vessels[t.vessel ?? world.homeVesselId ?? ''] ?? v));
+    const spot = next ? landingSpot(world.vessels[next.vessel ?? world.homeVesselId ?? ''] ?? v) : null;
     if (spot && next && !busy) {
       const i = people.indexOf(next);
       next.phase = 'landing';
@@ -376,10 +385,12 @@ function stepLanding(world: WorldState, r: RescueState, inc: Incident, v: Vessel
   if (inc.phase === 'landed' && world.time >= (inc.endT ?? 0)) r.active = null;
 }
 
-/** The vessel the rescues follow: the home boat, if she has places to take survivors aboard (her hull's fittings). */
+/**
+ * The vessel the rescue calls follow (multiplayer study #27): the players' boat with the most
+ * aboard that has places to take survivors aboard (her hull's fittings); the home boat on a tie.
+ */
 function rescueVessel(world: WorldState): VesselState | undefined {
-  const v = homeVessel(world);
-  return v && VESSEL_DEFS[v.defId].rescueGear ? v : undefined;
+  return missionBoat(world, (v) => !!VESSEL_DEFS[v.defId].rescueGear);
 }
 
 /** One tick: track cargo runs, roll and raise calls, time out unanswered ones, drift targets, recovery. */
@@ -466,7 +477,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
       }
     }
   }
-  stepRecovery(world, v, waves, dt);
+  stepRecovery(world, waves, dt);
   if (inc && (inc.phase === 'recovered' || inc.phase === 'landed')) stepLanding(world, r, inc, v, dt);
   if (inc && inc.phase === 'recovered' && !inc.doneSaid) {
     inc.doneSaid = true;
@@ -539,7 +550,7 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
       if (!v || r.active) break;
       const inc: Incident = { defId: 'manOverboard', phase: 'recovered', doneSaid: true, x: v.position[0], z: v.position[2], radius: 0, count: 1, callT: world.time, alertT: world.time, targets: [] };
       r.active = inc;
-      inc.targets.push({ id: `t${++r.seq}-0`, kind: 'person', x: v.position[0], z: v.position[2], phase: 'aboard', seat: freeSeat(r, v) });
+      inc.targets.push({ id: `t${++r.seq}-0`, kind: 'person', x: v.position[0], z: v.position[2], phase: 'aboard', vessel: v.id, seat: freeSeat(world, v) });
       say(r, 'info', 'Debug: a survivor aboard. Dock at a quay to land them.', world.time);
       break;
     }

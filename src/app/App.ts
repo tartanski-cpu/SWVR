@@ -142,7 +142,7 @@ import type { TowWinchApi } from '../modules/towWinch';
 import { sosCondition, sosStatus } from '../rescue/sos';
 import { RodGame } from '../fishing/rodGame';
 import { HelmCamera } from '../player/helmCamera';
-import { distanceToHull } from '../rescue/recovery';
+import { ringIn, distanceToHull } from '../rescue/recovery';
 import { RodView } from '../fishing/rodView';
 import { LineGun } from '../tow/lineGun';
 import { FenderHands, type FenderHandsContext } from '../player/fenderHands';
@@ -199,7 +199,7 @@ import { fuelTankL } from '../vessel/fuelTank';
 import { applyDiveReturn, consumeDiveReturn, foundNames, takeDiveReturn, type DiveReturn } from '../dive/diveReturn';
 import { siteLabel } from '../dive/diveSites';
 import { consumeReturn, issueId, newHandoffId, outboundUrl, takeEnvelope, type Envelope, type MetaverseSite } from '../voyage/metaverse';
-import { bargesKey, bargesToSave, HotspotWatch, logsFromCamp, merchantsOn, parseBarges, parseTimberLogs, positionFor, restoreBarges, restoreTimberLogs, saleOffer, saleText, sellBarge, sitesOn, hotspotAt, timberLogsKey, timberLogsToSave } from '../voyage/timber';
+import { bargesKey, bargesToSave, HotspotWatch, logsFromCamp, merchantsOn, parseBarges, parseTimberLogs, positionFor, restoreBarges, restoreTimberLogs, applyTimberSell, saleOffer, saleText, sitesOn, hotspotAt, timberLogsKey, timberLogsToSave } from '../voyage/timber';
 import { TimberView } from '../voyage/timberView';
 
 /**
@@ -614,6 +614,10 @@ export class App {
   private readonly deskHandW = new THREE.Vector3();
   private readonly rescueHands = new RescueHands();
   private readonly gearView = new RescueGearView();
+  /** The other players' boats' life rings and boat hooks (multiplayer study #15: each boat her own), by boat. */
+  private readonly otherGear = new Map<string, RescueGearView>();
+  /** Nobody's hands here (the other boats' gear is in other players' hands, if anyone's). */
+  private readonly noHands = new RescueHands();
   /** Small wheelhouse parts, hidden from outside (performance; app/interiorDetail.ts). */
   private interior: InteriorDetail | null = null;
   private readonly detailV = new THREE.Vector3();
@@ -782,6 +786,7 @@ export class App {
     world: () => this.world,
     vesselId: () => this.testVesselId,
     isClient: () => !this.savesHere(),
+    isCrew: () => !!this.client,
     notify: (t, sec) => this.overlay.notify(t, sec),
     pushEnv: (c, v, r) => this.pushEnvIntent(c, v, r),
   });
@@ -974,6 +979,11 @@ export class App {
       this.binoculars.warm(this.renderer, this.scene);
     });
     this.renderer.xr.addEventListener('sessionend', () => this.binoculars.drop());
+    // Out of VR, or the page hidden (the headset off): what our hands held is let go (study #25).
+    this.renderer.xr.addEventListener('sessionend', () => this.interaction?.releaseAll());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.interaction?.releaseAll();
+    });
     // Changing between VR and desktop, gear in hand goes back on its bracket.
     for (const ev of ['sessionstart', 'sessionend'] as const) this.renderer.xr.addEventListener(ev, () => this.gear.forEach((g) => g.hangBack()));
   }
@@ -1432,8 +1442,9 @@ export class App {
     this.projectView.update(this.world, this.renderWaves, renderTime, darkness, this.focus);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
-    this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
+    this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.vesselRoots);
     this.gearView.update(this.world, this.testVesselId, this.vesselRoots.get(this.testVesselId), this.renderWaves, this.rescueHands, this.localPlayerId, this.avatarHands);
+    this.updateOtherGear();
     this.updateRescueSounds();
   }
 
@@ -1554,7 +1565,8 @@ export class App {
     const list = this.voiceSpeakers;
     list.length = 0;
     for (const p of Object.values(this.world.players)) {
-      if (p.id === this.localPlayerId || !p.peerId || !p.avatar) continue;
+      // (Their voice off, their radio isn't in their pose: not called, study #7.)
+      if (p.id === this.localPlayerId || !p.peerId || !p.avatar?.radio) continue;
       const frame = (p.aboardVesselId && this.vesselRoots.get(p.aboardVesselId)) || this.scene;
       const h = p.avatar.head;
       const w = frame.localToWorld(new THREE.Vector3(h[0], h[1], h[2]));
@@ -2211,7 +2223,9 @@ export class App {
     if (!out && jumpPressed) out = climbOut(p, bodyW, null, this.bodyVessels(), this.renderWaves);
     // In the life ring (a crew-mate threw it, rescue/recovery.ts): out of it on climbing out,
     // or the jump button away from a hull lets go.
-    const ring = this.world.rescue?.ring;
+    // (Every boat has her own: the one we're in, else the nearest floating.)
+    const rings = Object.values(this.world.rescue?.rings ?? {});
+    const ring = rings.find((g) => g.state === 'water' && g.player === this.localPlayerId) ?? rings.filter((g) => g.state === 'water').sort((g, h) => Math.hypot(g.pos[0] - bodyW.x, g.pos[2] - bodyW.z) - Math.hypot(h.pos[0] - bodyW.x, h.pos[2] - bodyW.z))[0];
     const inRing = ring?.state === 'water' && ring.player === this.localPlayerId;
     if (inRing && (out || jumpPressed)) {
       this.rescueCtx().push('ringLetGo', undefined, 1);
@@ -3588,7 +3602,11 @@ export class App {
         if (!p) return null;
         const hostPeer = this.host ? this.hostPeerId : this.client && this.joinCode.length === 5 ? peerIdForRoom(this.joinCode) : '';
         // Your own name as you've set it (playing alone, the world's player still has the default).
-        return { name: p.id === this.localPlayerId ? userSettings.playerName : p.name, you: p.id === this.localPlayerId, host: !!p.peerId && p.peerId === hostPeer, muted: this.mutedCrew.has(p.id) };
+        // Voice off said by their name (study #7), in a game: theirs from their pose, ours from the setting.
+        const you = p.id === this.localPlayerId;
+        const inGame = !!this.host || this.client?.status === 'connected';
+        const voiceOff = inGame && (you ? !userSettings.voiceChat : !p.avatar?.radio);
+        return { name: you ? userSettings.playerName : p.name, you, host: !!p.peerId && p.peerId === hostPeer, muted: this.mutedCrew.has(p.id), voiceOff };
       },
       toggleCrewMute: (i: number) => {
         const all = Object.values(this.world.players).filter((p) => p.id !== this.localPlayerId);
@@ -3714,6 +3732,33 @@ export class App {
   }
   /** The heartbeat's notice given (the host gone quiet), so it's said once. */
   private hostQuiet = false;
+
+  /**
+   * The other players' boats' rescue gear, drawn as theirs: a crew-mate's ring thrown from her
+   * own boat, its line from her own cleat, in her hand or on its hook (our own boat's is
+   * `gearView`, with our hands).
+   */
+  private updateOtherGear(): void {
+    const seen = new Set<string>();
+    for (const v of playerBoats(this.world)) {
+      if (v.id === this.testVesselId || (!gearOf(v, 'lifeRing') && !gearOf(v, 'boatHook'))) continue;
+      const root = this.vesselRoots.get(v.id);
+      if (!root) continue;
+      seen.add(v.id);
+      let view = this.otherGear.get(v.id);
+      if (!view) {
+        view = new RescueGearView();
+        this.otherGear.set(v.id, view);
+        this.scene.add(view.root);
+      }
+      view.update(this.world, v.id, root, this.renderWaves, this.noHands, this.localPlayerId, this.avatarHands);
+    }
+    for (const [id, view] of this.otherGear)
+      if (!seen.has(id)) {
+        view.root.removeFromParent();
+        this.otherGear.delete(id);
+      }
+  }
 
   /** Who was in the game at the last look (noticeCrew), by player id; null while not in one. */
   private crewSeen: Map<EntityId, string> | null = null;
@@ -4540,6 +4585,11 @@ export class App {
         holdChanged: (c, held) => {
           const { vesselId, control } = this.routeControl(c);
           this.pushIntentTo(vesselId, 'hold', held ? 1 : 0, control);
+        },
+        holderName: (c) => {
+          const { vesselId, control } = this.routeControl(c);
+          const who = this.world.vessels[vesselId]?.holds[holdGroup(control) ?? control];
+          return who ? (this.world.players[who]?.name ?? null) : null;
         },
       },
     );
@@ -5444,7 +5494,7 @@ export class App {
   /** The cheer when everyone's out of the water, and what survivors shout. */
   private updateRescueSounds(): void {
     const r = this.world.rescue;
-    const now = { cheer: r?.cheer ?? 0, shout: r?.shout?.id ?? 0, ring: r?.ring?.state ?? 'stowed' };
+    const now = { cheer: r?.cheer ?? 0, shout: r?.shout?.id ?? 0, ring: ringIn(this.world, this.testVesselId)?.state ?? 'stowed' };
     const was = this.rescueHeard;
     this.rescueHeard = now;
     if (!was) return;
@@ -5860,7 +5910,7 @@ export class App {
     // Anchored in the bay: straight ashore (owner: seamless, no prompt).
     const site = this.timberWatch.update(boat, this.timberSites, dt, this.playingAlone() && !this.leavingForCamp);
     if (site) this.goAshore(site);
-    const sale = this.client ? null : saleOffer(this.world, boat, VOYAGE_MAP_ID);
+    const sale = saleOffer(this.world, boat, VOYAGE_MAP_ID);
     const saleKey = sale ? `${sale.bargeId}|${sale.logs}` : null;
     if (sale && this.saleShown !== saleKey) this.overlay.notify(`Alongside ${sale.merchant.name}: ${saleText(sale.logs, sale.total)}. Sell? (Enter, or the menu: Voyage)`, 6);
     this.saleShown = saleKey;
@@ -5882,14 +5932,17 @@ export class App {
 
   /** Voyage tab: its buttons' words (0: go or sell, 1: not now). */
   private timberButton(i: number): string {
-    if (i === 0 && !this.client && saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID)) return 'Sell';
+    if (i === 0 && saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID)) return 'Sell';
     return '';
   }
 
   private timberPress(i: number): void {
-    const sale = i === 0 && !this.client ? saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID) : null;
+    const sale = i === 0 ? saleOffer(this.world, this.world.vessels[this.testVesselId], VOYAGE_MAP_ID) : null;
     if (!sale) return;
-    sellBarge(this.world, sale.bargeId, sale.merchant);
+    // A crew-mate alongside asks the host's game (study #35); alone or hosting, sold here and
+    // now, so the place remembered next hasn't still got her.
+    if (this.client) return this.pushEnvIntent('timberSell', 1, sale.bargeId);
+    applyTimberSell(this.world, this.localPlayerId, sale.bargeId);
     this.rememberT = Infinity;
     this.rememberVoyagePlace(0);
   }

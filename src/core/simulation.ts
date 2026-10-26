@@ -39,7 +39,7 @@ import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/pot
 import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
-import { stepTimberLogs } from '../voyage/timber';
+import { applyTimberSell, stepTimberLogs } from '../voyage/timber';
 import { applyTransferIntent, isTransferIntent, stepTransfer } from '../transfer/transfer';
 import { applyTvIntent, isTvIntent, stepTv } from '../modules/furniture/tvState';
 import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
@@ -137,6 +137,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applySpawnBoatIntent(world, intent);
     } else if (isLaunchIntent(intent.control)) {
       applyLaunchIntent(world, intent);
+    } else if (intent.control === 'timberSell') {
+      applyTimberSell(world, intent.playerId, intent.ref);
     } else if (intent.control === 'teleportToPort' && intent.ref && world.vessels[intent.targetId]) {
       // With several boats about (multi-boat M5): a free berth, else the bay.
       // One harbour that can't be placed mustn't stop the whole tick: then she lies as the

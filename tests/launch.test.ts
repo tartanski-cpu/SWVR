@@ -194,3 +194,52 @@ describe('launching your own boat (multi-boat M3)', { timeout: 90000 }, () => {
     expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2])).toBeLessThan(1);
   });
 });
+
+describe('rescues with several boats (multiplayer study #15, #27)', { timeout: 90000 }, () => {
+  let m: Awaited<ReturnType<typeof loadOban>>;
+  beforeAll(async () => {
+    m = await loadOban();
+  });
+
+  it("calls follow the boat with the crew aboard; her own ring is thrown, and the survivor climbs aboard her", async () => {
+    const { gearOf } = await import('../src/boats/sims');
+    const recovery = await import('../src/rescue/recovery');
+    const rescue = await import('../src/rescue/rescue');
+    const { world, vesselId, localPlayerId } = (() => {
+      const g = m.world.createWorld(new m.ids.IdFactory(), 'pilotBoat', { harbour: true, weather: true });
+      g.world.environment.waves = [];
+      g.world.players['player-2'] = m.player.createPlayerState('player-2', 'Bosun');
+      return g;
+    })();
+    const send = (playerId: string, control: string, extra: Record<string, unknown> = {}) => m.sim.stepWorld(world, [{ playerId, targetId: 'rescue', control, value: 1, ...extra }], DT);
+    m.sim.stepWorld(world, [{ playerId: 'player-2', targetId: 'env', control: 'launchBoat', value: 1, ref: 'pilotBoat' }], DT);
+    const hers = m.launch.ownedBoat(world, 'player-2')!;
+    expect(gearOf(hers, 'lifeRing')).toBeTruthy();
+    // Nobody aboard anything: the home boat's calls. Both crew in her boat: hers.
+    expect(m.launch.missionBoat(world)!.id).toBe(vesselId);
+    world.players['player-2'].aboardVesselId = hers.id;
+    world.players[localPlayerId].aboardVesselId = hers.id;
+    expect(m.launch.missionBoat(world)!.id).toBe(hers.id);
+    // A person in the water off her stern; she throws her own ring at them.
+    world.rescue ??= rescue.createRescueState();
+    const stern = recovery.vesselToWorld(hers, recovery.rescuePlaces(hers.defId).stern);
+    const t = { id: 'p1', kind: 'person' as const, x: stern.x + 6, z: stern.z, phase: 'floating' as const };
+    world.rescue.active = { defId: 'manOverboard', phase: 'accepted', x: t.x, z: t.z, radius: 50, count: 1, callT: world.time, alertT: world.time, targets: [t] };
+    send('player-2', 'ringTake');
+    expect(recovery.ringIn(world, hers.id)?.state).toBe('held');
+    expect(recovery.ringIn(world, vesselId)?.state ?? 'stowed').toBe('stowed'); // the home boat's stays on its hook
+    send('player-2', 'ringThrow', { args: [t.x, 1, t.z, 0, 0, 0] });
+    for (let i = 0; i < 10; i++) m.sim.stepWorld(world, [], DT);
+    expect(world.rescue.active.targets[0].phase).toBe('onLine');
+    expect(world.rescue.active.targets[0].ring).toBe(hers.id);
+    hers.engine.gear = 0;
+    for (let i = 0; i < 400 && world.rescue.active?.targets[0].phase === 'onLine'; i++) {
+      send('player-2', 'ringPull', { value: 3 });
+    }
+    for (let i = 0; i < 200; i++) m.sim.stepWorld(world, [], DT);
+    const p = world.rescue.active!.targets[0];
+    // Aboard her, and (she's lying at the quay) landed from her.
+    expect(['aboard', 'landing', 'ashore']).toContain(p.phase);
+    expect(p.vessel).toBe(hers.id);
+  });
+});
