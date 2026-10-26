@@ -122,7 +122,18 @@ export interface HullDesign {
    * placed `spacing` apart (centre to centre) under a bridge deck whose underside is
    * `tunnel` m above the DWL.
    */
-  catamaran?: { spacing: number; tunnel: number };
+  catamaran?: {
+    spacing: number;
+    tunnel: number;
+    /**
+     * A wave-piercer's centre bow (the solar cat; owner): a half hull under her forward bridge
+     * deck, on her centreline, that takes the water only when her bows pierce a wave (reserve
+     * buoyancy there, the forward wet deck spared its slamming). `drop`: its keel's depth below
+     * the wet deck (m) along her (t), none aft of its first point; `halfWidth`: where its sides
+     * meet the wet deck, each side of her centreline (m). A V in section.
+     */
+    centreBow?: { drop: Curve; halfWidth: number };
+  };
   /** Optional raised foredeck break (forecastle): a second deck from t to the stem, this much higher. */
   forecastle?: { from: number; raise: number };
   colours?: Partial<typeof PAINT>;
@@ -370,7 +381,7 @@ export function buildHullMesh(h: LoftedHull): THREE.Mesh {
  * underside at tunnel height, the bulwarks along the outer edges and a transom plate
  * (the demihulls' own bulwarks are left off).
  */
-function bridgeDeck(b: Builder, h: LoftedHull, cat: { spacing: number; tunnel: number }, paint: typeof PAINT): void {
+function bridgeDeck(b: Builder, h: LoftedHull, cat: NonNullable<HullDesign['catamaran']>, paint: typeof PAINT): void {
   const S = h.sections;
   const up = new THREE.Vector3(0, 1, 0);
   const down = new THREE.Vector3(0, -1, 0);
@@ -386,7 +397,14 @@ function bridgeDeck(b: Builder, h: LoftedHull, cat: { spacing: number; tunnel: n
     const outA = half - a.x;
     const outC = half - c.x;
     b.quad(V(-outA, a.y, a.z), V(outA, a.y, a.z), V(outC, c.y, c.z), V(-outC, c.y, c.z), paint.deck, up);
-    b.quad(V(-inA, cat.tunnel, a.z), V(inA, cat.tunnel, a.z), V(inC, cat.tunnel, c.z), V(-inC, cat.tunnel, c.z), paint.bottom, down);
+    // The wet deck's underside, and a centre bow's V sides down to its keel where she has one.
+    const ka = cat.tunnel - centreBowDrop(cat, S[i].t);
+    const kc = cat.tunnel - centreBowDrop(cat, S[i + 1].t);
+    const w = Math.min(cat.centreBow?.halfWidth ?? 0, inA, inC);
+    for (const sd of [-1, 1]) {
+      b.quad(V(sd * inA, cat.tunnel, a.z), V(sd * w, cat.tunnel, a.z), V(sd * w, cat.tunnel, c.z), V(sd * inC, cat.tunnel, c.z), paint.bottom, down);
+      b.quad(V(sd * w, cat.tunnel, a.z), V(0, ka, a.z), V(0, kc, c.z), V(sd * w, cat.tunnel, c.z), paint.bottom, down);
+    }
     const bw0 = S[i].bulwark;
     const bw1 = S[i + 1].bulwark;
     if (bw0 > 0.01 || bw1 > 0.01) {
@@ -420,6 +438,17 @@ function bridgeDeck(b: Builder, h: LoftedHull, cat: { spacing: number; tunnel: n
   const e = S[i].pts[S[i].pts.length - 1];
   const inE = Math.max(0, half + e.x);
   b.quad(V(-inE, cat.tunnel, e.z), V(inE, cat.tunnel, e.z), V(inE, e.y, e.z), V(-inE, e.y, e.z), paint.topsides, V(0, 0, -1));
+  // (A centre bow's front, below the wet deck.)
+  const kE = cat.tunnel - centreBowDrop(cat, S[i].t);
+  const wE = Math.min(cat.centreBow?.halfWidth ?? 0, inE);
+  if (kE < cat.tunnel - 1e-6) b.quad(V(-wE, cat.tunnel, e.z), V(0, kE, e.z), V(0, kE, e.z), V(wE, cat.tunnel, e.z), paint.topsides, V(0, 0, -1));
+}
+
+/** How far a catamaran's centre bow's keel drops below her wet deck at `t` (0 where she has none). */
+export function centreBowDrop(cat: NonNullable<HullDesign['catamaran']>, t: number): number {
+  const c = cat.centreBow?.drop;
+  if (!c || t < c[0][0]) return 0;
+  return Math.max(0, curveAt(c, t));
 }
 
 /**
