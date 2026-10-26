@@ -820,9 +820,18 @@ export const MODULES_CONFIG = {
      *                   and its wall's thickness (m)
      *   hullClear       the Shipyard hangs each drive low enough that the top of its nozzle clears
      *                   her bottom by this (m), all along and across the nozzle
-     *   lever           each lean-to-point lever (control.azimuth-levers): its length to the knob
-     *                   (m), how far it leans at full power (deg), the power below which it reads
-     *                   idle (`detent`, 0..1), the levers' spacing (m), the knob's radius and colours
+     *   lever           each drive's twist-and-throttle lever (control.azimuth-lever): its length
+     *                   to the grip (m), how far it tilts at full power (deg), the power below which
+     *                   it reads idle (`detent`, 0..1), how far the turntable turns for a degree of
+     *                   the hand's twist (`twistGain`: a wrist turns about 90 deg comfortably, so
+     *                   a full turn round is a few grabs), its turntable's radius (m) and colours
+     *   console         where the Shipyard puts them (control.azimuth-lever ×2, the helm console's
+     *                   slots, from its centre): each lever `leverX` out from the wheel's middle
+     *                   (either side) and `leverZ` aft of the console top's aft face, on its own
+     *                   pedestal; TRANSIT on the starboard lever's pedestal ahead of it
+     *                   (`transitZ`); the port pedestal joysticks (searchlight, fire monitor)
+     *                   moved out `joystickShift` to port, clear; and the tug's wheel smaller,
+     *                   `wheelRadius` (m), so the levers sit close in for both hands
      */
     azimuth: {
       slewDegPerS: 12,
@@ -832,7 +841,8 @@ export const MODULES_CONFIG = {
       driveRatio: 1.6,
       hullClear: 0.15,
       look: { legWidth: 0.24, legChord: 0.75, housing: 0.11, nozzleLength: 0.5, nozzleWall: 0.09, colour: 0x4a5560, nozzleColour: 0x30363c },
-      lever: { length: 0.17, maxTiltDeg: 32, detent: 0.07, spacing: 0.2, knobRadius: 0.026, colours: { port: 0xd03a2a, stbd: 0x2a9a4a, rod: 0x9aa0a6, base: 0x23282c } },
+      lever: { length: 0.15, maxTiltDeg: 35, detent: 0.07, twistGain: 1.5, turntableRadius: 0.05, colours: { port: 0xd03a2a, stbd: 0x2a9a4a, rod: 0x9aa0a6, base: 0x23282c } },
+      console: { leverX: 0.3, leverZ: 0.2, transitZ: -0.02, joystickShift: 0.2, wheelRadius: 0.13 },
     },
 
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */

@@ -1,9 +1,9 @@
 /**
- * Azimuth drives and their lean-to-point levers (owner, Oct 2026: the harbour tug's ASD drives,
- * "lean-to-point levers, transit mode too, harbour tug first"; modules/dieselInboard `azimuth`,
+ * Azimuth drives and their twist-and-throttle levers (owner, Oct 2026: the harbour tug's ASD drives,
+ * "transit mode too, harbour tug first"; "a twist and throttle ... one hand each"; modules/dieselInboard `azimuth`,
  * modules/azimuthLevers): the Shipyard fits them to the harbour tug; each drive turns at its
  * steering rate and pushes the way it points; the classic moves (ahead, astern, turning on the
- * spot, TRANSIT with the wheel); and the lever reads the way it's leaned.
+ * spot, TRANSIT with the wheel); and the lever reads the twist and the push.
  */
 import * as THREE from 'three';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -60,15 +60,25 @@ function underWay() {
 }
 
 describe('azimuth drives', { timeout: 300000 }, () => {
-  it('the Shipyard fits the harbour tug with them: no rudders, the lean-to-point levers and TRANSIT, a START each', () => {
+  it('the Shipyard fits the harbour tug with them: no rudders, a lever each side of a small wheel, TRANSIT, a START each', () => {
     const b = buildDesign(tug0);
     expect(b.warnings).toEqual([]);
     const engine = b.recipe.modules.find((m) => m.socket === 'engine')!.config as Record<string, any>;
     expect(engine.azimuth).toBeDefined();
     expect(engine.twin).toMatchObject({ split: true });
     expect(b.recipe.modules.some((m) => m.socket === 'rudder')).toBe(false);
+    // A twist-and-throttle lever each side of the wheel (the port drive's to port), TRANSIT, a small wheel.
     const helm = b.recipe.modules.find((m) => m.socket === 'helm')!;
-    expect(helm.modules!.find((m) => m.socket === 'throttle')!.module).toBe('control.azimuth-levers');
+    const slots = (helm.config as Record<string, any>).slots;
+    const ac = CONFIG.modules.azimuth.console;
+    for (const [socket, side, x] of [['throttle', 'port', -ac.leverX], ['throttle2', 'stbd', ac.leverX]] as const) {
+      const m = helm.modules!.find((q) => q.socket === socket)!;
+      expect(m.module).toBe('control.azimuth-lever');
+      expect(m.config).toMatchObject({ side });
+      expect(slots[socket].position[0]).toBeCloseTo(x, 3);
+    }
+    expect(helm.modules!.find((m) => m.socket === 'aziTransit')!.bind).toEqual({ value: 'azimuth.transit' });
+    expect(helm.modules!.find((m) => m.socket === 'wheel')!.config).toMatchObject({ radius: ac.wheelRadius });
     expect(helm.modules!.some((m) => m.socket === 'start2')).toBe(true);
     // Other twins keep their shafts and the twin throttle.
     const cat = DESIGN_HULLS.findIndex((h) => h.name.startsWith('Fast catamaran'));
@@ -145,30 +155,39 @@ describe('azimuth drives', { timeout: 300000 }, () => {
     }
   });
 
-  it('the lever: leaned toward the hand, the way it leans its direction, how far its power; idle near upright; it stays where it is left', () => {
+  it('the lever: twist the hand and it turns, `twistGain` a degree; push the grip along its arrow for power; idle near upright; it stays where it is left', () => {
     const c = CONFIG.modules.azimuth.lever;
     const sent: [string, number][] = [];
-    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, knobRadius: c.knobRadius, colour: 0xff0000, rodColour: 0, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, twistGain: c.twistGain, turntableRadius: c.turntableRadius, colour: 0xff0000, rodColour: 0, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
     lever.bind({ emit: (ch: string, v: number) => sent.push([ch, v]), haptic: () => {} } as never);
     lever.root.updateMatrixWorld(true);
-    const knob = lever.grabPoint(new THREE.Vector3());
-    const pointer = (p: THREE.Vector3) => ({ position: p }) as never;
-    lever.grabStart(pointer(knob.clone()));
-    // Pulled to starboard and ahead, leaned half its travel: 45 deg, about half power.
-    const L = c.length;
-    const lean = (c.maxTiltDeg / 2) * (Math.PI / 180);
-    const at = new THREE.Vector3(Math.sin(lean) * Math.SQRT1_2 * L, 0.04 + Math.cos(lean) * L, -Math.sin(lean) * Math.SQRT1_2 * L);
-    lever.grabMove(pointer(at));
-    expect(lever.angle).toBeCloseTo(45, 0);
-    expect(lever.power).toBeCloseTo(0.5, 1);
-    // Aft and to port: -135.
-    lever.grabMove(pointer(new THREE.Vector3(-at.x, at.y, -at.z)));
-    expect(lever.angle).toBeCloseTo(-135, 0);
-    // Near upright: idle (the detent), its direction kept.
-    lever.grabMove(pointer(new THREE.Vector3(-0.004, 0.04 + L, 0.004)));
+    const grip = lever.grabPoint(new THREE.Vector3());
+    const turned = (deg: number) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-deg * Math.PI) / 180);
+    const pointer = (p: THREE.Vector3, deg: number) => ({ position: p, quaternion: turned(deg) }) as never;
+    lever.grabStart(pointer(grip.clone(), 0));
+    // The hand turned 30 deg to starboard: the lever 30 x twistGain round; still idle.
+    lever.grabMove(pointer(grip.clone(), 30));
+    expect(lever.angle).toBeCloseTo(30 * c.twistGain, 0);
     expect(lever.power).toBe(0);
-    expect(lever.angle).toBeCloseTo(-135, 0);
-    lever.grabEnd(pointer(at));
+    // Pushed along its arrow, the grip leaned half its travel: about half power, the angle kept.
+    const a = (30 * c.twistGain * Math.PI) / 180;
+    const lean = ((c.maxTiltDeg / 2) * Math.PI) / 180;
+    const pivot = grip.clone().setY(0.06);
+    const r = grip.y - 0.06;
+    const at = pivot.clone().add(new THREE.Vector3(Math.sin(a) * Math.sin(lean) * r, Math.cos(lean) * r, -Math.cos(a) * Math.sin(lean) * r));
+    lever.grabMove(pointer(at, 30));
+    expect(lever.angle).toBeCloseTo(30 * c.twistGain, 0);
+    expect(lever.power).toBeCloseTo(0.5, 1);
+    // Let go and grab again: it turns on from where it is (a full turn round is a few grabs).
+    lever.grabEnd(pointer(at, 30));
+    lever.grabStart(pointer(at, -60));
+    lever.grabMove(pointer(at, 0));
+    expect(lever.angle).toBeCloseTo(90 * c.twistGain, 0);
+    // Back to upright: idle (the detent), its direction kept.
+    lever.grabMove(pointer(grip.clone(), 0));
+    expect(lever.power).toBe(0);
+    expect(lever.angle).toBeCloseTo(90 * c.twistGain, 0);
+    lever.grabEnd(pointer(grip, 0));
     expect(sent.some(([ch]) => ch === 'azimuth.demand')).toBe(true);
     expect(sent.at(-1)).toEqual(['throttle.demand', 0]);
   });

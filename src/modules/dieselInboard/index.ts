@@ -253,7 +253,7 @@ const wrap = (a: number) => a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
 /**
  * Where each drive is asked to point (rad) and how hard (its engine's lever, 0..1): from its
  * own lever; or in TRANSIT from the wheel, both together, ahead or turned round astern by
- * which half each lever leans into. (+ to starboard: the wheel to starboard swings the push
+ * which half each lever is turned into. (+ to starboard: the wheel to starboard swings the push
  * to port, the stern to port, her bow to starboard.) A throttle below zero (the keys, a game
  * controller, the sea trials' astern run, which know only ahead and astern) is that much power
  * with the drive turned round: astern.

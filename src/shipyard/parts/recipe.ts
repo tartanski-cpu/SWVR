@@ -201,8 +201,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // START for each (port's, then starboard's, in the ENGINE group with the key).
   if (splitTwin) {
     const lever = consoleMount.modules!.find((m) => m.socket === 'throttle')!;
-    // (Azimuth drives: their lean-to-point levers and TRANSIT, modules/azimuthLevers.)
-    lever.module = p.zDriveSet ? 'control.azimuth-levers' : 'control.twin-throttle';
+    // (Azimuth drives: a lever each side of the wheel instead, below.)
+    lever.module = 'control.twin-throttle';
     lever.config = {};
     const start = consoleMount.modules!.find((m) => m.socket === 'start')!;
     start.config = { ...start.config, label: 'START port engine (hold)', engrave: 'START P' };
@@ -230,6 +230,31 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   cc.pedestals.x = cc.pedestals.x.map((x: number) => (x === throttleX ? throttleAt : Math.round(x * sx * 1000) / 1000));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   cc.slots.throttle.position = [throttleAt, cc.slots.throttle.position[1], cc.slots.throttle.position[2]];
+  if (p.zDriveSet && splitTwin) {
+    // Azimuth drives (owner, Oct 2026: "a twist and throttle ... at either side of the
+    // operator ... one hand each", and "a smaller steering wheel" so they're close together):
+    // a twist-and-throttle lever each side of the wheel, each on its own pedestal, the port
+    // drive's to the left; TRANSIT on the starboard pedestal ahead of its lever; the port
+    // pedestals' joysticks moved out to port, clear; and her wheel smaller
+    // (CONFIG.modules.azimuth.console).
+    const ac = CONFIG.modules.azimuth.console;
+    const lever = consoleMount.modules!.find((m) => m.socket === 'throttle')!;
+    Object.assign(lever, { module: 'control.azimuth-lever', config: { id: 'lever', side: 'port', name: 'PORT' }, bind: { angle: 'azimuth.demand', power: 'throttle.demand' } });
+    consoleMount.modules!.push(
+      { socket: 'throttle2', module: 'control.azimuth-lever', config: { id: 'lever2', side: 'stbd', name: 'STBD' }, bind: { angle: 'azimuth.demand2', power: 'throttle.demand2' } },
+      { socket: 'aziTransit', module: 'control.toggle', config: { label: 'TRANSIT: the wheel steers both drives as rudders; the levers set the power (off: the levers steer)', engrave: 'TRANSIT' }, bind: { value: 'azimuth.transit' } },
+    );
+    const y = cc.slots.throttle.position[1];
+    cc.slots.throttle.position = [-ac.leverX, y, ac.leverZ];
+    cc.slots.throttle2 = { position: [ac.leverX, y, ac.leverZ] };
+    cc.slots.aziTransit = { position: [ac.leverX, y, ac.transitZ] };
+    const outmost = -(dashHalf - cc.pedestals.halfWidth);
+    const out = (x: number) => Math.round(Math.max(outmost, x - ac.joystickShift) * 1000) / 1000;
+    for (const id of ['spotJoystick', 'monJoystick']) if (cc.slots[id]) cc.slots[id].position = [out(cc.slots[id].position[0]), cc.slots[id].position[1], cc.slots[id].position[2]];
+    cc.pedestals.x = [-ac.leverX, ac.leverX, ...cc.pedestals.x.filter((x: number) => x < 0 && x !== throttleAt).map(out)];
+    const wheel = consoleMount.modules!.find((m) => m.socket === 'wheel');
+    if (wheel) wheel.config = { ...CONFIG.modules.wheel, ...wheel.config, radius: ac.wheelRadius };
+  }
   if (pods) {
     // Pod drives: the black throttle, moved forward on its pedestal, and the helm joystick
     // aft of it with its JOYSTICK button between (CONFIG.shipyard.helm.podJoystick).
@@ -288,7 +313,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     consoleMount.modules!.push({ socket: clockId, module: 'instrument.screen', config: { screen: clockId } });
   }
   // What the basic controls keep at the helm (the rest comes off with them, below).
-  const BASIC_KEEP = ['wheel', 'throttle', 'podJoystick', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
+  const BASIC_KEEP = ['wheel', 'throttle', 'throttle2', 'aziTransit', 'podJoystick', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
   /** The switch panel's groups (CS2) from whichever switches she has (`has`). */
   const panelGroups = (has: (id: string) => boolean): PanelGroup[] => {
     const search = ['spotlight', 'firePump'].filter(has);

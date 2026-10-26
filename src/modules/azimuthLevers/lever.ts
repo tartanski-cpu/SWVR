@@ -1,15 +1,17 @@
 /**
- * One lean-to-point lever for an azimuth drive (owner, Oct 2026: "lean-to-point levers"): a
- * stick on a ball that leans any way round. The way it leans is the way its drive pushes (0
- * ahead, + to starboard, round to astern); how far it leans is the power, from idle upright
- * (a small `detent` round upright reads idle) to full at `maxTiltDeg`. It stays where it's left,
- * as a real azimuth lever's friction holds it.
+ * One azimuth drive's lever, twist and throttle (owner, Oct 2026: "a realistic approach with a
+ * twist and throttle ... at either side of the operator ... one hand each"), as an ASD tug's
+ * combined lever: a turntable that turns right round, an arrow on it pointing the way its drive
+ * pushes (0 ahead, + to starboard, round to astern), and on it a power lever that tilts forward
+ * along the arrow, from idle upright (a small `detent` near upright reads idle) to full at
+ * `maxTiltDeg`. Both stay where they're left, as a real lever's friction holds them.
  *
- * VR: grab the knob and move it where you want it: the stick leans toward the hand. Desktop:
- * drag it (sideways turns it round, up and down leans it more or less), or click it and steer
- * with the keys (A / D turn it round, W / S lean it more or less). It sends its direction (deg)
- * and power (0..1) as two intents while it moves (absolute values, so a late or repeated one
- * is harmless, as every control's).
+ * VR: grab the grip. Twist your wrist (turn the hand about the upright, as a door knob) and the
+ * turntable turns with it, `twistGain` degrees a degree; let go and grab again to turn further.
+ * Push the hand forward along the arrow for power, back toward upright for less. Desktop: drag
+ * it (sideways twists it, up and down sets the power), or click it and steer with the keys
+ * (A / D twist it, W / S more or less power). It sends its direction (deg) and power (0..1) as
+ * two intents while it moves (absolute values, so a late or repeated one is harmless).
  */
 import * as THREE from 'three';
 import { clamp } from '../../core/math';
@@ -20,14 +22,15 @@ export interface AzimuthLeverOptions {
   length: number;
   maxTiltDeg: number;
   detent: number;
-  knobRadius: number;
+  twistGain: number;
+  turntableRadius: number;
   colour: number;
   rodColour: number;
   baseColour: number;
 }
 
 const RAD = Math.PI / 180;
-/** Desktop: how fast the keys turn it round (deg/s) and lean it (power per s). */
+/** Desktop: how fast the keys twist it (deg/s) and set the power (per s). */
 const KEY_TURN = 90;
 const KEY_LEAN = 0.5;
 
@@ -35,18 +38,21 @@ export class AzimuthLever extends Control {
   readonly kind = 'grab' as const;
   readonly label: string;
   readonly keySteerable = true;
-  private readonly stick = new THREE.Group();
-  private readonly knob: THREE.Mesh;
+  /** The turntable (turns with the angle) and the power lever on it (tilts with the power). */
+  private readonly table = new THREE.Group();
+  private readonly arm = new THREE.Group();
+  private readonly grip: THREE.Mesh;
   /** Its direction (deg, 0 ahead, + to starboard) and power (0..1), as it stands. */
   angle = 0;
   power = 0;
   private sentAngle = NaN;
   private sentPower = NaN;
-  /** Grabbed: the knob's offset from the hand (so it doesn't jump to the hand's centre). */
+  /** Grabbed: the grip's offset from the hand, and the hand's twist and the angle at the grab. */
   private readonly offset = new THREE.Vector3();
+  private twist0 = NaN;
+  private angle0 = 0;
   private keys = { x: 0, y: 0 };
   private readonly pivotY: number;
-  private readonly up = new THREE.Vector3(0, 1, 0);
 
   constructor(
     id: string,
@@ -57,62 +63,78 @@ export class AzimuthLever extends Control {
   ) {
     super(id, channels.power);
     this.label = label;
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.03, 16), new THREE.MeshLambertMaterial({ color: opts.baseColour }));
+    const r = opts.turntableRadius;
+    const dark = new THREE.MeshLambertMaterial({ color: opts.baseColour });
+    // The fixed housing, with its ring of marks: ahead (white), abeam and astern.
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.012, r + 0.018, 0.03, 20), dark);
     base.position.y = 0.015;
-    // A ring of ticks round the base: ahead, abeam and astern marks.
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.004, 4, 24).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x8a9096 }));
-    ring.position.y = 0.031;
-    const ahead = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.004, 0.018), new THREE.MeshLambertMaterial({ color: 0xffffff }));
-    ahead.position.set(0, 0.033, -0.058);
-    this.pivotY = 0.04;
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8), new THREE.MeshLambertMaterial({ color: 0x15181a }));
-    ball.position.y = this.pivotY;
-    this.stick.position.y = this.pivotY;
+    const marks = new THREE.MeshLambertMaterial({ color: 0x8a9096 });
+    const root: THREE.Mesh[] = [base];
+    for (let k = 0; k < 4; k++) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.004, 0.014), k === 0 ? new THREE.MeshLambertMaterial({ color: 0xffffff }) : marks);
+      const a = (k * Math.PI) / 2;
+      m.position.set(Math.sin(a) * (r + 0.006), 0.031, -Math.cos(a) * (r + 0.006));
+      m.rotation.y = -a;
+      root.push(m);
+    }
+    // The turntable: a disc with an arrow (the way the drive pushes) and the lever's fork.
+    this.table.position.y = 0.03;
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.012, 20).translate(0, 0.006, 0), this.material(opts.baseColour));
+    const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.03, 3).rotateX(-Math.PI / 2).translate(0, 0.014, -r + 0.016), new THREE.MeshLambertMaterial({ color: opts.colour }));
+    const fork = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.02).translate(0, 0.025, 0), new THREE.MeshLambertMaterial({ color: 0x15181a }));
+    this.pivotY = 0.03 + 0.03;
+    this.arm.position.y = 0.03;
+    // The power lever, and its grip: a fat upright handle to twist.
     const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.011, opts.length, 8).translate(0, opts.length / 2, 0), this.material(opts.rodColour));
-    this.knob = new THREE.Mesh(new THREE.SphereGeometry(opts.knobRadius, 14, 10), this.material(opts.colour));
-    this.knob.position.y = opts.length;
-    this.stick.add(rod, this.knob);
-    this.root.add(base, ring, ahead, ball, this.stick);
-    this.hitObjects.push(rod, this.knob, base);
+    this.grip = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.022, 0.075, 12).translate(0, opts.length + 0.03, 0), this.material(opts.colour));
+    this.arm.add(rod, this.grip);
+    this.table.add(disc, arrow, fork, this.arm);
+    this.root.add(...root, this.table);
+    this.hitObjects.push(rod, this.grip, disc);
     this.show();
   }
 
   grabPoint(out: THREE.Vector3): THREE.Vector3 {
-    return this.knob.getWorldPosition(out);
+    return this.grip.localToWorld(out.set(0, this.opts.length + 0.03, 0));
   }
 
   distanceTo(world: THREE.Vector3): number {
-    return this.toLocal(world).distanceTo(this.toLocal(this.knob.getWorldPosition(new THREE.Vector3())));
+    return this.toLocal(world).distanceTo(this.toLocal(this.grabPoint(new THREE.Vector3())));
   }
 
   grabStart(p: Pointer): void {
     this.held = true;
-    this.offset.copy(this.toLocal(this.knob.getWorldPosition(new THREE.Vector3()))).sub(this.toLocal(p.position));
+    this.offset.copy(this.toLocal(this.grabPoint(new THREE.Vector3()))).sub(this.toLocal(p.position));
+    this.twist0 = this.handTwist(p);
+    this.angle0 = this.angle;
   }
 
   grabMove(p: Pointer): void {
-    // Where the knob is asked to be (the hand, and the offset it was grabbed at), from the pivot.
+    // Twist: the hand's turn about the upright since the grab turns the turntable.
+    const t = this.handTwist(p);
+    const angle = Number.isNaN(t) || Number.isNaN(this.twist0) ? this.angle : this.angle0 + wrapDeg(t - this.twist0) * this.opts.twistGain;
+    // Throttle: how far the grip is pushed along the arrow, as the lever's lean from upright.
     const v = this.toLocal(p.position).add(this.offset);
     v.y -= this.pivotY;
-    const across = Math.hypot(v.x, v.z);
-    const lean = Math.atan2(across, Math.max(0.005, v.y));
-    // (Near upright the direction is the hand's jitter: it keeps its last way round.)
-    const angle = across > 0.012 ? Math.atan2(v.x, -v.z) / RAD : this.angle;
+    const a = angle * RAD;
+    const along = v.x * Math.sin(a) - v.z * Math.cos(a);
+    const lean = Math.atan2(along, Math.max(0.005, v.y));
     this.set(angle, lean / (this.opts.maxTiltDeg * RAD));
   }
 
   grabEnd(_p: Pointer): void {
     this.held = false;
+    this.twist0 = NaN;
     this.markPending();
   }
 
-  /** Desktop drag: sideways turns it round, up and down leans it more or less. */
+  /** Desktop drag: sideways twists it, up and down sets the power. */
   nudge(dx: number, dy: number): void {
     this.set(this.angle + dx * 0.6, this.power - dy * 0.004);
     this.markPending();
   }
 
-  /** Desktop keys: A / D turn it round, W / S lean it more or less (tick() runs it). */
+  /** Desktop keys: A / D twist it, W / S more or less power (tick() runs it). */
   keySteer(x: number, y: number): void {
     this.held = x !== 0 || y !== 0;
     this.keys = { x: clamp(x, -1, 1), y: clamp(y, -1, 1) };
@@ -136,7 +158,7 @@ export class AzimuthLever extends Control {
     this.show();
   }
 
-  /** Lean it to `angle` (deg) and `power` (0..1, idle within the detent), send what changed. */
+  /** Set it to `angle` (deg) and `power` (0..1, idle within the detent), send what changed. */
   set(angle: number, power: number): void {
     this.angle = wrapDeg(angle);
     const p = clamp(power, 0, 1);
@@ -154,11 +176,23 @@ export class AzimuthLever extends Control {
     this.show();
   }
 
+  /**
+   * The hand's turn about the lever's upright (deg, as the lever's angles), from its
+   * orientation: the way the controller points, or across its knuckles if it points up or
+   * down. NaN without one (the desktop's mouse).
+   */
+  private handTwist(p: Pointer): number {
+    if (!p.quaternion) return NaN;
+    const q = this.root.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(p.quaternion);
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+    if (Math.hypot(fwd.x, fwd.z) > 0.3) return Math.atan2(fwd.x, -fwd.z) / RAD;
+    const across = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    return Math.atan2(-across.z, across.x) / RAD;
+  }
+
   private show(): void {
-    const lean = this.power * this.opts.maxTiltDeg * RAD;
-    const a = this.angle * RAD;
-    const tip = new THREE.Vector3(Math.sin(lean) * Math.sin(a), Math.cos(lean), -Math.sin(lean) * Math.cos(a));
-    this.stick.quaternion.setFromUnitVectors(this.up, tip);
+    this.table.rotation.y = -this.angle * RAD;
+    this.arm.rotation.x = -this.power * this.opts.maxTiltDeg * RAD;
   }
 }
 

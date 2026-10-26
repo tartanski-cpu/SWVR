@@ -10,6 +10,14 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The harbour tug's azimuth drives and levers
+
+The harbour tug's two azimuth stern drives and their twist-and-throttle levers (full write-up: `docs/progress/modules.md`). What moved in shared and game files:
+- `src/vessel/physics/propulsion.ts`: `twinStep` takes each engine's own speed of advance (`speed2`, default the same), unchanged for every other boat.
+- `src/vessel/vesselState.ts`: `aziAngle`, `aziAngle2`, `aziTransit` in the controls; `azimuth` (each drive's heading) in the engine's state.
+- `src/controls/instruments.ts`: the ENGINE screen draws each drive's heading dial when she has them.
+- `src/app/interiorDetail.ts`: `control:wheel` added to the parts never hidden from outside the wheelhouse (the tug's small 0.13 m wheel fell under the 0.3 m small-part size and vanished through the windows).
+
 ### (From the modular-builder chat) DIVE: the dive support ship opens the submersible game
 
 The dive A-frame's red DIVE (docs/progress/modules.md): with the sub afloat, stopped over a dive site's ring, it saves the game and opens the submersible game at that wreck by the address it reads (`?site=&depth=&sub=&tier=&crew=&return=&session=`). Shared changes: `app/App.ts` (`goDive`, and the DIVE press in the controls' handler); `docs/dive-contract.md` (the launch as built, replacing the proposed `mv` envelope for the way out; the return still to agree, the submersible game's M9). The session id goes in the same issued-ids store as the timber camp's (`swvr.mv.issued`).

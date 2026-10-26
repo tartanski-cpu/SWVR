@@ -29,7 +29,7 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `azimuth.demand` | deg, -180 to 180 | player sets; held: lever | module |  | Azimuth drives: the way the port drive's lever points, the direction it asks the drive to push (0 ahead, + to starboard, +-180 astern). Its power is throttle.demand. |
 | `azimuth.demand2` | deg, -180 to 180 | player sets; held: lever2 | module |  | Azimuth drives: the way the starboard drive's lever points (as azimuth.demand). Its power is throttle.demand2. |
-| `azimuth.transit` | on / off | player sets | module |  | Azimuth drives: TRANSIT on. The wheel swings both drives together as rudders (the autopilot can steer her); each lever then sets only its engine's power, ahead in its forward half, astern in its after half. |
+| `azimuth.transit` | on / off | player sets | module |  | Azimuth drives: TRANSIT on. The wheel swings both drives together as rudders (the autopilot can steer her); each lever then sets only its engine's power, ahead while it's turned into its forward half, astern into its after half. |
 | `azimuth.angle` | deg | read only | module |  | Azimuth drives: where the port drive points, the way it pushes (0 ahead, + to starboard), following its lever at its steering rate. |
 | `azimuth.angle2` | deg | read only | module |  | Azimuth drives: where the starboard drive points (as azimuth.angle). |
 

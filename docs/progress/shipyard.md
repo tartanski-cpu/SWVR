@@ -10,6 +10,14 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The harbour tug gets her azimuth drives
+
+Her stand-in shafts and rudders are replaced by two azimuth stern drives with a twist-and-throttle lever each side of a smaller wheel (full write-up: `docs/progress/modules.md`). What moved in the Shipyard's files:
+- `parts/engineRoom.ts`: `zDriveSet` (each drive's upright axis, head and propeller height), the propellers hung low enough that the nozzles clear her bottom by `CONFIG.modules.azimuth.hullClear` (her propeller centres 2.52 m down, from 1.8).
+- `parts/recipe.ts`: on her, the engine's `azimuth` and the drives' own gear ratio (`driveRatio` 1.6 on her gearbox's), no rudder module, and the helm's layout: a `control.azimuth-lever` each side of the wheel (slots `throttle` and `throttle2`), TRANSIT (`aziTransit`), the port joysticks moved out, the wheel smaller.
+- `page.ts`: the machinery summary accepts a boat with drives and no rudder. `enginePreview.ts`: a comment.
+- Her numbers, gearbox matched: 12.05 kn, 48 t bollard pull (was 31 t on the shafts). 60 t, a real tug's, would need bigger propellers.
+
 ### The harbour tug's drives drawn as Z-drives (approved by the owner 26 Oct 2026; on next)
 
 Then (owner, 26 Oct 2026, on a sketch): "engine position is wrong, it should be much lower and further back. And the propellers, the Kort nozzles are backwards."
