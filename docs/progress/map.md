@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Turku: cruise ships building at Perno (26 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner (who worked at the yard): "I'd like to have some partially completed cruise ships in the yard ... use the images and build up something that looks convincing."
 
 - **Two ships, an original design** (not a real ship or class), placed from the map by the request (`turku.yaml` `yardShips`; `common.ts`, `package.ts`):
@@ -26,6 +28,8 @@ Owner (who worked at the yard): "I'd like to have some partially completed cruis
 - **Shared changes:** `src/world/defs.ts` (`YardShipDef`, `RegionDef.yardShips`).
 
 ### Turku and the Archipelago Sea: a new Voyage map, and the Baltic theme (26 Oct 2026)
+
+**Owner approved; merged into `next`.**
 
 Owner, after the "Next Waters" research page: "Go ahead with Turku as the next map".
 
