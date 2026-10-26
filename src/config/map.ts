@@ -349,6 +349,30 @@ export const MAP_CONFIG = {
       hoist: 45,
       colours: { frame: 0x2c55a8, trolley: 0xf2a040, crane: 0xf0c840, dark: 0x3a3e44, rail: 0x55585a },
     },
+    /**
+     * A cruise ship under construction at a yard (Perno), an original design: her hull to the
+     * main deck (`depth`, a share of her length), decks of `deck` m on top, `decks` of them
+     * finished; her superstructure from `aft` to `fore` (shares of her length from the stern),
+     * its front raked back `rake` m a deck, terraced aft every `terrace` decks by `terraceStep`
+     * m; her blocks `block` m long. Lifeboats every `boatEvery` m along `boatSpan` of her
+     * length. Colours: the finished ship's navy and white, red bottom, primer grey, the
+     * lifeboats' orange, the water-park aft. The yard's luffing cranes along the quay.
+     */
+    yardShip: {
+      depth: 0.065,
+      deck: 3,
+      decks: 16,
+      aft: 0.06,
+      fore: 0.78,
+      rake: 1.4,
+      terrace: 3,
+      terraceStep: 7,
+      block: 24,
+      boatEvery: 15,
+      boatSpan: [0.3, 0.68] as [number, number],
+      cranes: 2,
+      colours: { navy: 0x1d2f5e, white: 0xffffff, glass: 0x7f93a8, red: 0x9a2a24, primer: 0x8e9396, light: 0xb9bdbf, boat: 0xf08a28, deck: 0x8a8278, funnel: 0xeef0ee, park: [0xd8402c, 0x2e7fd0, 0xf0c030, 0x3aa86a, 0x8a4fc0], crane: 0xf0c840 },
+    },
     folly: { height: 11, tiers: 2, bay: 3.8, pier: 1.3, thick: 1.2, sill: 0.8, band: 1.2, cornice: 0.8, colours: { wall: 0xb9b2a4, cornice: 0xa39c8e } },
   },
 };

@@ -23,3 +23,8 @@ privateJetties: true
 pottingApart: 1200
 # Dozens of ferry lines are mapped, many unnamed or cut in pieces: only the named ones.
 ferriesNamed: true
+# The yard at Perno (owner, who worked there): a cruise ship about half built in the building
+# dock, and one nearly finished at the outfitting pier.
+yardShips:
+  - { dock: largest, stage: 0.45, length: 330 }
+  - { berth: perno-shipyard-cargo, stage: 0.88, length: 300 }

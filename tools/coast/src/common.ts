@@ -43,6 +43,13 @@ export interface RegionRequest {
   pottingApart?: number;
   /** Only the map's named ferry routes, the longest piece of each name (the Archipelago Sea maps dozens of unnamed and split ones) (package.ts). */
   ferriesNamed?: boolean;
+  /**
+   * Ships under construction at a shipyard (package.ts): in a mapped dry dock (`dock`: its
+   * name, or "largest"), or alongside a berth (`berth`: its id, the outfitting quay); how far
+   * on she is (`stage`, 0 to 1: hull blocks, then the superstructure deck by deck, then paint),
+   * her length (m) and which way her bow points along the dock or berth (`bow`: 1 or -1).
+   */
+  yardShips?: { dock?: string; berth?: string; stage: number; length: number; bow?: 1 | -1 }[];
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

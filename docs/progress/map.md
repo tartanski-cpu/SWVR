@@ -10,6 +10,21 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku: cruise ships building at Perno (26 Oct 2026)
+
+Owner (who worked at the yard): "I'd like to have some partially completed cruise ships in the yard ... use the images and build up something that looks convincing."
+
+- **Two ships, an original design** (not a real ship or class), placed from the map by the request (`turku.yaml` `yardShips`; `common.ts`, `package.ts`):
+  - **In the building dock** (the map's dry dock, 368 by 81 m, read by the features stage as `drydocks`): 330 m, about half built (`stage` 0.45). She stands on her keel blocks on the dock floor (the dock is dry ground in the map): red bottom, the hull a patchwork of primer-grey, light-grey and white blocks (a few already navy), the superstructure lifted on block by block, each to its own height, under the two gantries.
+  - **At the outfitting pier** (the yard's berth along the 209 m pier): 300 m, nearly finished (`stage` 0.88), afloat (keel 8.5 m down). Navy hull, white decks each with a thin glass-and-balcony line, the front raked back, the stern terraced, the bridge with its wings, the funnel, a water-park aft (coloured slides, a tower, a dome), the orange lifeboats along her sides, a few blocks still in primer.
+  - Two of the yard's yellow luffing cranes along each (portal, slewing house, jib raised over her).
+- **Drawing** (`coastStructures.ts` `yardShipParts`): the hull and every deck built as prisms over the hull's plan (a parallel body, a fine bow over its last 22 %, the stern's corners rounded); merged into the region's one landmark mesh, so no extra draw call. Both ships together are about 4,300 triangles.
+- **Settings** `CONFIG.structures.yardShip` (hull depth 6.5 % of her length, decks of 3 m, 16 of them, the superstructure from 6 % to 78 % of her length, rake 1.4 m a deck, terraces every 3 decks, blocks 24 m, lifeboats every 15 m, colours); in the pipeline `T.yardBeam` (14 % of her length), `yardDraught`, `yardBerthOff`.
+- **Tests** (`coastTurku.test.ts`): the half-built ship in the dock, between the gantry's rails, on its floor; the finished one afloat by the yard's berth; she stands over 60 m above the water, the half-built one lower; under 6,000 triangles together. `npm run test:map` and the typecheck pass. Seen in the game headless from the water and from above (the dock ship under the gantries, the finished one at the pier).
+- **Not solid** (like the bridges and the gantries): you can sail through them. Making them solid would need new physics shapes, so it's the owner's call.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`YardShipDef`, `RegionDef.yardShips`).
+
 ### Turku and the Archipelago Sea: a new Voyage map, and the Baltic theme (26 Oct 2026)
 
 Owner, after the "Next Waters" research page: "Go ahead with Turku as the next map".

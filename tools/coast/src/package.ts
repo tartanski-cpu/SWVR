@@ -33,6 +33,10 @@ const T = {
   namedApart: 30,
   /** A bridge's deck stands at least this high over the sea (m), whatever the ground at its ends. */
   bridgeMinDeck: 6,
+  /** A yard's ship under construction: her beam as a share of her length; afloat at the quay she draws this (m), her side this much nearer the face than a small boat's berth (which lies 2.2 m off it) (m). */
+  yardBeam: 0.14,
+  yardDraught: 8.5,
+  yardBerthOff: 1.2,
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
    * (the game puts you 2 m in): a pontoon (2.5 m) has; a narrower walkway's berths aren't chosen. */
   namedDeck: 2.4,
@@ -413,6 +417,30 @@ const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; y
   for (const side of [-1, 1]) for (let k = -2; k <= 2; k++) base = Math.min(base, hAt(g.x + vx * side * (g.span / 2) + (ux * k * g.length) / 5, g.z + vz * side * (g.span / 2) + (uz * k * g.length) / 5));
   return { ...g, x: r1(g.x), z: r1(g.z), base: r1(Math.max(0.5, base)) };
 });
+// Ships under construction at a yard (the request's `yardShips`; Perno): in a mapped dry dock,
+// standing on her keel blocks on its floor, or afloat alongside a berth (the outfitting quay),
+// her side a little off its face. Her beam from her length (world/coastStructures.ts draws her).
+const yardShips: object[] = [];
+for (const [i, y] of (req.yardShips ?? []).entries()) {
+  const beam = Math.round(y.length * T.yardBeam);
+  if (y.dock) {
+    const docks = ((F?.drydocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).sort((a, b) => b.length * b.width - a.length * a.width);
+    const d = y.dock === 'largest' ? docks[0] : docks.find((k) => k.name === y.dock);
+    if (!d) {
+      warnings.push(`yard ship ${i + 1}: no dry dock "${y.dock}"`);
+      continue;
+    }
+    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(hAt(d.x, d.z) + 1), stage: y.stage, seed: i + 1 });
+  } else if (y.berth) {
+    const b = (berths as { id: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number }[]).find((k) => k.id === y.berth);
+    if (!b) {
+      warnings.push(`yard ship ${i + 1}: no berth "${y.berth}"`);
+      continue;
+    }
+    const off = beam / 2 - T.yardBerthOff;
+    yardShips.push({ x: r1(b.x - b.shoreX * off), z: r1(b.z - b.shoreZ * off), yawDeg: (b.headingDeg + (y.bow === -1 ? 180 : 0)) % 360, length: y.length, beam, keel: -T.yardDraught, stage: y.stage, seed: i + 1 });
+  }
+}
 // Ferries (the coast extras plan, C7): each mapped ferry route, cut to the map (its longest
 // stretch `ferryMargin` m inside the box's edge), each end a terminal where she berths (an
 // end of the route inside the map, named from the nearest ferry terminal or port) or the
@@ -603,6 +631,7 @@ const pkg = {
   bridges,
   follies,
   gantries,
+  yardShips,
   places,
   ferries: ferryRoutes,
   shelters,

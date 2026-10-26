@@ -406,12 +406,8 @@ for (const t of things) {
 // Gantry cranes over a building dock (Perno, Turku): the map draws their track as an area.
 // Its long side is the way the gantry runs; across it, the span between the rails. `count`
 // gantries share the track. Only the big ones (a span of `gantryMinSpan` m or more).
-const gantries: { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[] = [];
-for (const t of things) {
-  if (t.tags.man_made !== 'crane' || t.tags['crane:type'] !== 'gantry_crane' || t.kind === 'node') continue;
-  const ring = t.lines.filter((l) => l.length > 3).sort((a, b) => area(b) - area(a))[0];
-  if (!ring || !inBox(middle(ring))) continue;
-  // The track's way: along its longest edge.
+/** An area's box along its longest edge: its middle, the bearing of that edge (deg, 0-180), its length along it and width across. */
+function edgeBox(ring: XZ[]): { x: number; z: number; yawDeg: number; length: number; width: number } {
   let best = [0, 0];
   let bestLen = 0;
   for (let i = 1; i < ring.length; i++) {
@@ -422,11 +418,24 @@ for (const t of things) {
   const along = ring.map(([x, z]) => x * best[0] + z * best[1]);
   const across = ring.map(([x, z]) => -x * best[1] + z * best[0]);
   const [a0, a1, c0, c1] = [Math.min(...along), Math.max(...along), Math.min(...across), Math.max(...across)];
-  if (c1 - c0 < T.gantryMinSpan) continue;
   const [ma, mc] = [(a0 + a1) / 2, (c0 + c1) / 2];
-  gantries.push({ name: nameOf(t.tags), x: ma * best[0] - mc * best[1], z: ma * best[1] + mc * best[0], yawDeg: Math.round(((Math.atan2(best[0], -best[1]) * 180) / Math.PI + 360) % 180), length: Math.round(a1 - a0), span: Math.round(c1 - c0), count: Math.max(1, Number.parseInt(t.tags.count ?? '1', 10) || 1) });
+  return { x: ma * best[0] - mc * best[1], z: ma * best[1] + mc * best[0], yawDeg: Math.round(((Math.atan2(best[0], -best[1]) * 180) / Math.PI + 360) % 180), length: Math.round(a1 - a0), width: Math.round(c1 - c0) };
 }
-const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
+const gantries: { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[] = [];
+// A shipyard's building docks (for the yard's ships under construction: package.ts `yardShips`).
+const drydocks: { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[] = [];
+for (const t of things) {
+  if (t.kind === 'node') continue;
+  const crane = t.tags.man_made === 'crane' && t.tags['crane:type'] === 'gantry_crane';
+  const dock = t.tags.waterway === 'dock' && t.tags.dock === 'drydock';
+  if (!crane && !dock) continue;
+  const ring = t.lines.filter((l) => l.length > 3).sort((a, b) => area(b) - area(a))[0];
+  if (!ring || !inBox(middle(ring))) continue;
+  const b = edgeBox(ring);
+  if (dock) drydocks.push({ name: nameOf(t.tags), ...b });
+  else if (b.width >= T.gantryMinSpan) gantries.push({ name: nameOf(t.tags), x: b.x, z: b.z, yawDeg: b.yawDeg, length: b.length, span: b.width, count: Math.max(1, Number.parseInt(t.tags.count ?? '1', 10) || 1) });
+}
+const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, drydocks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
 writeFileSync(join(D.out, 'features.json'), JSON.stringify(out));
 
 // Thin data, said plainly in the report (the milestones that use it have little to work with).

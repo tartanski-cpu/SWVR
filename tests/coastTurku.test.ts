@@ -14,8 +14,9 @@ import { setRemotePackage, type ChunkedCoastTerrain, type CoastPackage } from '.
 import { coastSample, registerChunkedCoast, type CoastSample } from '../src/world/coastTerrain';
 import { coastGeoOf, coastLatLon } from '../src/world/coastGeo';
 import { mapRegion, voyageMap } from '../src/world/maps';
+import * as THREE from 'three';
 import { CONFIG } from '../src/config';
-import { gantryParts } from '../src/world/coastStructures';
+import { gantryParts, yardShipParts } from '../src/world/coastStructures';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'public', 'regions', 'turku');
@@ -127,5 +128,45 @@ describe('Turku: the Perno yard\'s gantry cranes (owner, from photos of the yard
     expect(y0).toBeLessThan(g.base + 1);
     const tris = parts.reduce((t, p) => t + p.attributes.position.count / 3, 0);
     expect(tris).toBeLessThan(2000);
+  });
+});
+
+describe('Turku: the cruise ships building at Perno (owner, who worked there)', () => {
+  const bounds = (parts: THREE.BufferGeometry[]) => {
+    let [y0, y1, tris] = [Infinity, -Infinity, 0];
+    for (const p of parts) {
+      p.computeBoundingBox();
+      y0 = Math.min(y0, p.boundingBox!.min.y);
+      y1 = Math.max(y1, p.boundingBox!.max.y);
+      tris += p.attributes.position.count / 3;
+    }
+    return { y0, y1, tris };
+  };
+
+  it('one half built, standing in the building dock under the gantries; one nearly finished afloat at the outfitting pier', () => {
+    const r = mapRegion(voyageMap('turku')!);
+    const [dock, quay] = r.yardShips!;
+    const g = r.gantries![0];
+    // In the dock: on its floor (dry), between the gantry's rails.
+    expect(dock.stage).toBeLessThan(0.6);
+    expect(dock.keel).toBeGreaterThan(0);
+    expect(Math.hypot(dock.x - g.x, dock.z - g.z)).toBeLessThan(g.length / 2);
+    expect(dock.beam).toBeLessThan(g.span);
+    // At the pier: afloat, her keel under the water, by the yard's berth.
+    expect(quay.stage).toBeGreaterThan(0.8);
+    expect(quay.keel).toBeLessThan(-5);
+    const b = r.berths.find((x) => x.id === 'perno-shipyard-cargo')!;
+    expect(Math.hypot(quay.x - b.x, quay.z - b.z)).toBeLessThan(quay.beam);
+  });
+
+  it('the finished ship stands some 70 m over the water, the half-built one lower; both within the Quest\'s budget', () => {
+    const r = mapRegion(voyageMap('turku')!);
+    const [dock, quay] = r.yardShips!;
+    const q = bounds(yardShipParts(quay));
+    const d = bounds(yardShipParts(dock));
+    expect(q.y1).toBeGreaterThan(60);
+    expect(q.y0).toBeLessThan(-5);
+    expect(d.y1 - dock.keel).toBeLessThan(q.y1 - quay.keel);
+    expect(q.tris + d.tris).toBeLessThan(6000);
   });
 });

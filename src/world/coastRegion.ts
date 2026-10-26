@@ -9,7 +9,7 @@
  */
 import type { CoastFeaturesRef } from './coastFeatures';
 import { registerShore, type ShoreLayout } from './coastShore';
-import type { BerthDef, BlockDef, BridgeDef, BuildingDef, CurrentZoneDef, FarmDef, FerryRouteDef, FishingGroundDef, FollyDef, GantryDef, HarbourBoatsDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PlaceDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SkylineDef, SlipwayDef } from './defs';
+import type { BerthDef, BlockDef, BridgeDef, BuildingDef, CurrentZoneDef, FarmDef, FerryRouteDef, FishingGroundDef, FollyDef, GantryDef, HarbourBoatsDef, YardShipDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PlaceDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SkylineDef, SlipwayDef } from './defs';
 import { registerChunkedCoast, registerCoastTerrain, type ChunkedCoastLayout, type CoastTerrainLayout } from './coastTerrain';
 import { registerForest, type ForestLayout } from './forest';
 
@@ -41,6 +41,7 @@ export interface CoastPackage {
   bridges?: BridgeDef[];
   follies?: FollyDef[];
   gantries?: GantryDef[];
+  yardShips?: YardShipDef[];
   /** Its features file (tools/coast features.ts: farms, landmarks, shore, names...); fetched by the milestones that use it. */
   features?: CoastFeaturesRef;
   /** What its shore is made of (tools/coast shore.ts): the map's layout; absent in an older package. */
@@ -120,6 +121,7 @@ export function fromCoastPackage(pkg: CoastPackage, at: CoastPlacement): RegionD
     ...(pkg.farms?.length ? { farms: pkg.farms.map((f) => ({ ...f, x: f.x + dx, z: f.z + dz, ...(f.corners ? { corners: f.corners.map(([x, z]) => [x + dx, z + dz] as [number, number]) } : {}) })) } : {}),
     ...(pkg.places?.length ? { places: shift(pkg.places, dx, dz) } : {}),
     ...(pkg.bridges?.length ? { bridges: pkg.bridges.map((b) => ({ ...b, path: b.path.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) } : {}),
+    ...(pkg.yardShips?.length ? { yardShips: pkg.yardShips.map((y) => ({ ...y, x: y.x + dx, z: y.z + dz })) } : {}),
     ...(pkg.gantries?.length ? { gantries: pkg.gantries.map((g) => ({ ...g, x: g.x + dx, z: g.z + dz })) } : {}),
     ...(pkg.follies?.length ? { follies: pkg.follies.map((f) => ({ ...f, outline: f.outline.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) } : {}),
     ...(pkg.ferries?.length ? { ferries: pkg.ferries.map((f) => ({ ...f, path: f.path.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) } : {}),
