@@ -21,7 +21,9 @@
  *               there: in the dock, a patchwork of primer-grey and white hull blocks with the
  *               superstructure stacked block by block over part of her, each deck a band of
  *               windows under its white; finished at the quay, the same shape whole, painted
- *               white over a blue hull (owner). The yard's yellow luffing cranes along her.
+ *               white over a blue hull (owner), with her bridge and its wings, a funnel, a
+ *               water-park aft and the lifeboats along her sides. The yard's yellow luffing
+ *               cranes along her.
  *   folly       a ring of arches along its mapped footprint (McCaig's Tower above Oban: two
  *               tiers): a pier every `bay` m round it, two tiers of openings between them
  *               under a band each, a cornice on top; its walls from the lowest ground round it.
@@ -403,15 +405,36 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
       const u1 = finished ? front : Math.min(front, u0 + c.block);
       if (blockDecks(u0) <= d) continue;
       const ring = slice(u0, u1, narrow);
-      // Finished: the same decks, painted white.
-      if (finished) {
-        parts.push(prism(ring, y0, y0 + c.deck, w, k.white));
-        continue;
-      }
-      const primer = hash01(y.seed, u0, d) < 0.45;
+      // Each deck a band of windows and balconies under its white (finished: all painted).
+      const primer = !finished && hash01(y.seed, u0, d) < 0.45;
       parts.push(prism(ring, y0, y0 + 0.7, w, primer ? k.primer : k.glass));
       parts.push(prism(slice(u0, u1, narrow * 0.985), y0 + 0.7, y0 + c.deck, w, primer ? k.light : k.white));
     }
+  }
+  if (finished) {
+    const top = main + c.decks * c.deck;
+    const bridgeDeck = main + (c.decks - 4) * c.deck;
+    const bridgeU = sFore - (c.decks - 4) * c.rake;
+    // The bridge across her, its wings out over her sides, its windows.
+    parts.push(member(w(bridgeU - 6, -B / 2 - 3, bridgeDeck + 1.5), w(bridgeU - 6, B / 2 + 3, bridgeDeck + 1.5), 9, 3, k.white));
+    parts.push(member(w(bridgeU - 1.8, -B / 2 - 3, bridgeDeck + 2), w(bridgeU - 1.8, B / 2 + 3, bridgeDeck + 2), 1, 1.4, k.glass));
+    // The funnel, a third of her length from the stern, raked aft.
+    const fu = -L / 2 + 0.36 * L;
+    parts.push(member(w(fu, 0, top - 2), w(fu - 6, 0, top + 16), 10, 18, k.funnel));
+    parts.push(member(w(fu - 5.4, 0, top + 14.5), w(fu - 6.4, 0, top + 17), 10.5, 18.5, k.hull));
+    // The water-park aft: slides in their colours twisting down from a tower, and a dome.
+    const pu = sAft + Math.floor((c.decks - 1) / c.terrace) * c.terraceStep * 1.6 + 12;
+    for (let i = 0; i < 5; i++) {
+      const s0 = pu + (i % 2 ? 6 : -4);
+      const side = (i - 2) * (B / 7);
+      parts.push(member(w(s0, side, top + 10), w(s0 + 14, side * 1.4, top + 1), 1.6, 1.6, k.park[i % k.park.length]));
+      parts.push(member(w(s0 + 14, side * 1.4, top + 1), w(s0 + 4, side * 0.6, top - 5), 1.6, 1.6, k.park[(i + 2) % k.park.length]));
+    }
+    parts.push(member(w(pu, 0, top), w(pu, 0, top + 11), 5, 5, k.white));
+    parts.push(part(new THREE.SphereGeometry(7, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).translate(...w(pu + 30, 0, top)), k.glass));
+    // The lifeboats along her sides, a little out from the hull.
+    const boatY = main + 2 * c.deck + 1;
+    for (let u = -L / 2 + c.boatSpan[0] * L; u < -L / 2 + c.boatSpan[1] * L; u += c.boatEvery) for (const side of [-1, 1]) parts.push(member(w(u - 5.5, side * (B / 2 + 1.5), boatY), w(u + 5.5, side * (B / 2 + 1.5), boatY), 4, 3.2, k.boat));
   }
   // The yard's luffing cranes along her: on the quay beside her (or the dock's side), each a
   // portal on rails, its slewing house and a jib raised over her.

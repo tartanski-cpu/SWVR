@@ -357,9 +357,10 @@ export const MAP_CONFIG = {
      * main deck (`depth`, a share of her length), decks of `deck` m on top, `decks` of them
      * when finished; her superstructure from `aft` to `fore` (shares of her length from the
      * stern), its front raked back `rake` m a deck, terraced aft every `terrace` decks by
-     * `terraceStep` m; her blocks `block` m long. Colours: the finished ship's white and blue
-     * hull, red bottom, the blocks' primer and light grey, the windows' band; the yard's
-     * luffing cranes (`cranes` along each ship).
+     * `terraceStep` m; her blocks `block` m long. Finished, lifeboats every `boatEvery` m along
+     * `boatSpan` of her length. Colours: the finished ship's white and blue hull, red bottom,
+     * the blocks' primer and light grey, the windows' band, the lifeboats, funnel and
+     * water-park; the yard's luffing cranes (`cranes` along each ship).
      */
     yardShip: {
       depth: 0.065,
@@ -371,8 +372,10 @@ export const MAP_CONFIG = {
       terrace: 3,
       terraceStep: 7,
       block: 24,
+      boatEvery: 15,
+      boatSpan: [0.3, 0.68] as [number, number],
       cranes: 2,
-      colours: { hull: 0x1f3f8a, white: 0xffffff, glass: 0x7f93a8, red: 0x9a2a24, primer: 0x8e9396, light: 0xb9bdbf, crane: 0xf0c840 },
+      colours: { hull: 0x1f3f8a, white: 0xffffff, glass: 0x7f93a8, red: 0x9a2a24, primer: 0x8e9396, light: 0xb9bdbf, boat: 0xf08a28, funnel: 0xffffff, park: [0xd8402c, 0x2e7fd0, 0xf0c030, 0x3aa86a, 0x8a4fc0], crane: 0xf0c840 },
     },
     folly: { height: 11, tiers: 2, bay: 3.8, pier: 1.3, thick: 1.2, sill: 0.8, band: 1.2, cornice: 0.8, colours: { wall: 0xb9b2a4, cornice: 0xa39c8e } },
   },
