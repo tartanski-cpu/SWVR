@@ -109,6 +109,8 @@ describe('the skiff and her crane', () => {
   it('every hull type either fits it or says there is no room', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
       for (let skiff = 1; skiff < SKIFFS.length; skiff++) {
+        // (Not a one-off whose deck gear is fixed: the solar catamaran.)
+        if ('skiff' in (DESIGN_HULLS[hull].fixed ?? {})) continue;
         const b = useDesign({ ...typeOf(hull), skiff });
         expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
         const has = mounted().some((x) => x.def.id === 'deck.tender-crane');

@@ -43,7 +43,7 @@ import { hullQueries } from '../modular/hull';
 import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
 import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -654,7 +654,7 @@ function section(title: string): HTMLElement {
   el.className = 'step';
   el.dataset.step = name.toLowerCase();
   el.dataset.title = name;
-  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}<p class="oneOffNote meta" hidden>Her hull is a one-off, fixed as she’s drawn, and so are her fendering and her engines. Her wheelhouse and deckhouse, her colours, the inside and her deck gear are yours to choose.</p>`;
+  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}<p class="oneOffNote meta" hidden></p>`;
   const guide = el.querySelector<HTMLElement>('.guide');
   if (guide && STEP_MORE[name]) aboutHeading(guide, STEP_MORE[name], true);
   stepBody.insertBefore(el, handoverStep);
@@ -763,7 +763,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'solarBattery' ? DESIGN_HULLS[design.hull]?.material === 'foam and plywood' : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -1037,13 +1037,18 @@ section('5. Engine');
 // drawing, its name and one line, the full description behind its ⓘ button.
 {
   const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug, ENGINE_ICONS.medium, ENGINE_ICONS.v8big];
-  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six', 'tug V16'];
+  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six', 'tug V16', 'electric'];
   pickTiles(
     controls,
     'engine',
     ENGINES.map((e, i) => ({ icon: looks[i] ?? ENGINE_ICONS.six, name: `${e.kw} kW`, sub: `${kinds[i] ?? ''} · ${e.kg} kg`, info: `${e.name}. ${'about' in e ? `${e.about} ` : ''}${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })),
     (i) => change({ engine: i, ...(SINGLE_ONLY_ENGINES.includes(i) ? { twin: 0 } : {}) }),
   );
+}
+// The solar catamaran's one choice (owner, 26 Oct 2026): her battery, 20 to 200 kWh (its weight and range in her figures).
+{
+  group('Battery', 'Her lithium battery, low in her hulls amidships: about 7 kg a kWh. More is more range on her motors, and more weight: she sits lower, with less room under her wet deck. Her figures give her range at an easy cruise.').dataset.when = 'solarBattery';
+  slider('battery', 'Battery', (v) => `${batteryKWh(v)} kWh`).dataset.when = 'solarBattery';
 }
 toggleTiles(
   controls,
@@ -1279,7 +1284,11 @@ function lockOneOff(): void {
     for (; el && el.tagName !== 'H2'; el = el.nextElementSibling as HTMLElement | null) if (!el.classList.contains('oneOffHidden') && el.style.display !== 'none' && !el.classList.contains('tileInfo')) any = true;
     h.classList.toggle('oneOffHidden', !any && Object.keys(fixed).length > 0);
   });
-  document.querySelectorAll<HTMLElement>('.oneOffNote').forEach((n) => (n.hidden = !Object.keys(fixed).length));
+  // (Each one-off says what's fixed and what's yours: DesignHull.oneOffNote.)
+  document.querySelectorAll<HTMLElement>('.oneOffNote').forEach((n) => {
+    n.hidden = !Object.keys(fixed).length;
+    n.textContent = DESIGN_HULLS[design.hull]?.oneOffNote ?? '';
+  });
   // An engine only some types take (ENGINES `only`: the harbour tug's): its tile on those only.
   document.querySelectorAll<HTMLElement>('[data-key=engine][data-i]').forEach((el) => {
     const only = (ENGINES[Number(el.dataset.i)] as { only?: readonly number[] }).only;
@@ -1536,6 +1545,20 @@ function figureGroup(key: string, title: string, sum: string, r: ([string, strin
   return `<details class="fold" data-fold="${key}"${isOpen(key, open) ? ' open' : ''}><summary>${title}<span class="sum">${sum}</span></summary><table class="figs">${body}</table>${inner}</details>`;
 }
 const pounds = (x: number) => `£${Math.round(x).toLocaleString('en-GB')}`;
+/** Her roll period, or why there isn't one (a stiff, well-damped hull stops rolling before a second swing can be timed: the solar catamaran). */
+function rollWords(period: number | null): string {
+  return period !== null && Number.isFinite(period) ? `${period.toFixed(1)} s` : 'none to time (stops at once)';
+}
+/** The solar catamaran's battery at full power on both motors (h; undefined: not her). */
+function batteryHoursFlatOut(): number | undefined {
+  const s = boat.figures.solar;
+  return s ? (s.batteryKWh * CONFIG.shipyard.solarCat.usableShare) / (2 * ENGINES[design.engine].kw) : undefined;
+}
+/** ...and how far that takes her at her top speed (nm). */
+function batteryRangeFlatOut(topKn: number): number | undefined {
+  const h = batteryHoursFlatOut();
+  return h === undefined ? undefined : h * topKn;
+}
 function showFigures(): void {
   const f = boat.figures;
   const isMatched = matched();
@@ -1546,7 +1569,7 @@ function showFigures(): void {
   $('figures').innerHTML = [
     figureGroup('size', 'Size &amp; form', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`, [
       ['Length × beam', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`],
-      ['Built of', f.material === 'steel' ? 'Steel' : 'Aluminium'],
+      ['Built of', f.material === 'steel' ? 'Steel' : f.material === 'aluminium' ? 'Aluminium' : 'Foam and plywood'],
       ['Displacement', `${f.massT.toFixed(2)} t`],
       ['Draught', `${f.draughtM.toFixed(2)} m`],
       ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
@@ -1555,7 +1578,7 @@ function showFigures(): void {
     figureGroup('stability', 'Stability &amp; balance', `GM ${f.gmM.toFixed(2)} m`, [
       ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
       ['Balance (LCG)', balance],
-      ['Roll period', t ? `${t.motions.rollPeriod.toFixed(1)} s` : 'trial running…'],
+      ['Roll period', t ? rollWords(t.motions.rollPeriod) : 'trial running…'],
     ]),
     figureGroup('deck', 'Deck', `${room.crates} crates`, [
       ['Deck cargo', deckWords(room)],
@@ -1563,6 +1586,17 @@ function showFigures(): void {
       // (Her fish hold, if she has one: as many fish boxes as stack in it.)
       ...(holdBoxes() ? [['Fish hold', `${holdBoxes()} fish boxes`] as [string, string]] : []),
     ]),
+    // The solar catamaran's battery (parts/solar.ts): her range at an easy cruise, and her wet deck's height.
+    ...(f.solar
+      ? [
+          figureGroup('battery', 'Battery &amp; range', `${f.solar.rangeNm} nm`, [
+            ['Battery', `${f.solar.batteryKWh} kWh`],
+            ['Cruise', `${f.solar.cruiseKn.toFixed(1)} kn on ${f.solar.cruiseKw} kW`],
+            ['Range on battery', `${f.solar.rangeNm} nm, ${f.solar.hours.toFixed(1)} h (no sun)`],
+            ['Under her wet deck', `${f.solar.wetDeckM.toFixed(2)} m`],
+          ]),
+        ]
+      : []),
     figureGroup('machinery', 'Machinery', f.engine.split(',')[0], [
       ['Engine', f.engine],
       ['Propeller', `${f.propellerM.toFixed(2)} m`],
@@ -1613,7 +1647,7 @@ function showKeys(): void {
   const tiles: { k: string; v: string; busy?: boolean; l?: Check; none?: string }[] = [
     { k: 'Price', v: pounds(f.price), l: line((l) => l.label === 'Price'), none: 'no limit set' },
     { k: 'Top speed', v: t ? `${t.topSpeedKn.toFixed(1)} kn` : '…', busy: !fresh, l: line((l) => l.label === 'Top speed') },
-    { k: 'Range flat out', v: t ? `${(t.speedTable.at(-1)?.rangeNm ?? 0).toFixed(0)} nm` : '…', busy: !fresh, l: line((l) => l.label === 'Range flat out') },
+    { k: 'Range flat out', v: t ? `${(batteryRangeFlatOut(t.topSpeedKn) ?? t.speedTable.at(-1)?.rangeNm ?? 0).toFixed(0)} nm` : '…', busy: !fresh, l: line((l) => l.label === 'Range flat out') },
     { k: 'Stability (GM)', v: `${f.gmM.toFixed(2)} m`, l: line((l) => l.label === 'Stability (GM)') },
     pots ? { k: 'Pots on deck', v: `${room.pots}`, l: line((l) => l.label.endsWith('pots on deck')) } : { k: 'Deck cargo', v: `${room.crates} crates`, l: line((l) => l.label.endsWith('crates on deck')) },
   ];
@@ -1656,12 +1690,13 @@ function showTrial(): void {
   rows($('trial'), [
     ['Top speed', `${t.topSpeedKn.toFixed(1)} kn at ${Math.round(top.rpm)} rpm`],
     ['Three-quarter lever', `${three.knots.toFixed(1)} kn`],
-    ['Fuel flat out', `${top.fuelLph.toFixed(0)} L/h, ${top.rangeNm.toFixed(0)} nm`],
+    // (The solar catamaran: her battery, not fuel.)
+    boat.figures.solar ? ['Battery flat out', `${batteryHoursFlatOut()!.toFixed(1)} h, ${batteryRangeFlatOut(t.topSpeedKn)!.toFixed(0)} nm`] : ['Fuel flat out', `${top.fuelLph.toFixed(0)} L/h, ${top.rangeNm.toFixed(0)} nm`],
     ['Rest to 90 % of top speed', `${t.timeTo90Pct.toFixed(1)} s`],
     ['Turning circle (tactical)', `${t.tacticalDiameter.toFixed(0)} m`],
     ['Crash stop', `${t.crashStopDistance.toFixed(0)} m in ${t.crashStopTime.toFixed(1)} s`],
     ['Bollard pull', `${(t.bollard.aheadKN / 9.81).toFixed(2)} t`],
-    ['Roll period', `${t.motions.rollPeriod.toFixed(1)} s`],
+    ['Roll period', rollWords(t.motions.rollPeriod)],
   ]);
 }
 

@@ -18,6 +18,8 @@ import { flattenMounts } from '../../src/modular/recipe';
 import { vesselWalkArea } from '../../src/vessel/layout';
 import { hullPlan } from '../../src/vessel/layout';
 
+/** A one-off whose type fixes this choice (the solar catamaran fixes nearly all of hers): not hers to try. */
+const fixes = (hull: number, key: string): boolean => key in (DESIGN_HULLS[hull].fixed ?? {});
 const all = (pick: (steps: number) => number) => Object.fromEntries(FIELDS.map((f) => [f.key, pick(f.steps)])) as unknown as ShipDesign;
 
 describe('Shipyard: the boats it builds', () => {
@@ -240,6 +242,7 @@ describe('Shipyard: the boats it builds', () => {
   it('the deck crane goes on the foredeck or the aft deck of each hull, with a hydraulic pump, and the walk area keeps clear of it', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
       for (const deckCrane of [1, 2]) {
+        if (fixes(hull, 'deckCrane')) continue;
         const boat = useDesign({ ...DEFAULT_DESIGN, hull, deckCrane });
         expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}/${deckCrane}`).toEqual([]);
         const ids = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id);
@@ -269,6 +272,7 @@ describe('Shipyard: the boats it builds', () => {
       for (const deckCrane of [0, 1, 2])
         for (let searchlight = 0; searchlight < 4; searchlight++)
           for (let fireMonitor = 0; fireMonitor < 4; fireMonitor++) {
+            if (fixes(hull, 'searchlight')) continue;
             const tag = `hull ${hull} crane ${deckCrane} lamp ${searchlight} monitor ${fireMonitor}`;
             const boat = useDesign({ ...DEFAULT_DESIGN, hull, deckCrane, searchlight, fireMonitor });
             expect(validateRecipe(RECIPES.design, LIBRARY), tag).toEqual([]);
@@ -316,6 +320,7 @@ describe('Shipyard: the boats it builds', () => {
 
   it('the advanced instruments (chartplotter, NAV / WIND screen, task board, whiteboard) on every hull; the chart table its own choice, with room to walk past it', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      if (fixes(hull, 'chartTable')) continue;
       const boat = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, controls: 1, chartTable: 1 });
       expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}`).toEqual([]);
       const mounted = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;

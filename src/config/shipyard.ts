@@ -104,6 +104,10 @@ export const SHIPYARD_CONFIG = {
     materials: {
       aluminium: { shellKgPerM2: 35, houseKgPerM2: 18, pricePerKg: 20 },
       steel: { shellKgPerM2: 85, houseKgPerM2: 50, pricePerKg: 5 },
+      // Foam-cored plywood (the solar catamaran's, owner, Oct 2026: her real sister is being
+      // built of foam and plywood): under half aluminium's weight a square metre; dear to build
+      // by the kilo (hand laid-up), cheap by the boat.
+      'foam and plywood': { shellKgPerM2: 16, houseKgPerM2: 9, pricePerKg: 40 },
     },
     /**
      * Her other weights (build.ts), and her load as trialled:
@@ -272,6 +276,33 @@ export const SHIPYARD_CONFIG = {
      * most `maxPx` across); the service's name centred `textAt` along her, at most `textShare`
      * of her length long. One mesh for both sides: one draw call.
      */
+    /**
+     * The solar catamaran (owner, 26 Oct 2026: a one-off, "the only thing that should be
+     * options are the number of batteries"; the hull modifications chat's `solarCat` lines,
+     * 16 x 5.2 m): all of her fixed but her battery (design.battery: 20 to 200 kWh in tens,
+     * design.ts batteryKWh).
+     *   batteryKgPerKWh, batteryPricePerKWh  lithium iron phosphate packs with their housings
+     *                 and management (about 7 kg a kWh), low in her hulls amidships;
+     *   usableShare   how much of it she uses before it's flat (kept off empty for its life);
+     *   solarM2, solarKg, solarPrice  her solar roof: about 70 m2 of panels with their frames
+     *                 and the wings' hinges (0.8 t), on and over her roof;
+     *   podKg         each of her two pods, with its electric motor's housing and strut
+     *                 (her motors themselves are ENGINES' '25 kW electric pod motor');
+     *   cruiseKw      the power her range is given at (both motors together): her easy cruise,
+     *                 the speed it makes worked out on her resistance at `propulsiveEff` (the
+     *                 game's usual share of a motor's power that ends up pushing her);
+     *   standInRatio  until her electric drives come (the modular builder chat), her motors run
+     *                 in the game as a small diesel each: geared down this much more than her
+     *                 gearbox (a pod's own reduction), so it can turn her big slow propellers;
+     *   roof          her solar roof's look (modules/solarRoof): each panel `panel` m (across,
+     *                 along) with `gap` between; the roof no wider than `wingClear` m inside her beam; each
+     *                 wing `wingWidth` m wide (stowed, folded in over the roof's edge);
+     *                 the foredeck rack `rack.length` m long, `rack.clear` m forward of the
+     *                 house, its top `rack.height` m over her deck, `rack.inset` m in from her sides;
+     *   wetDeckWarn   the least clearance under her wet deck (m) before the Shipyard warns:
+     *                 less slams in a chop.
+     */
+    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.55, standInRatio: 2.5, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing

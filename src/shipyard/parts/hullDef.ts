@@ -26,7 +26,7 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 /** Her hull definition: the exhaust stacks, every socket (the places her modules go), her rescue places, what she can carry, her handling, windage and fittings. */
 export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart) {
   const { code, d, id } = a;
-  const { fendering, markings, F, aft, at, batteriesKg, hx, beamDeck, bowFender, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, sideDoor, st, stem, transom, twin, tyres, wall, warnings, weighed, wheelhouseSockets } = p;
+  const { electric, fendering, markings, F, aft, at, batteriesKg, hx, beamDeck, bowFender, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, sideDoor, st, stem, transom, twin, tyres, wall, warnings, weighed, wheelhouseSockets } = p;
   // A tug's dry exhaust stacks (owner, Oct 2026; CONFIG.shipyard.exhaustStack; the stern
   // trawler's too: a hull type with `exhaustStacks`): one per
   // engine, each in an aft corner of the wheelhouse (starboard; a twin's second to port), from
@@ -121,6 +121,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     ...(stack ? [{ id: 'exhaustStack', type: 'deck.fitting' as const, transform: { position: [stack.pipes[0].x, stack.floor, stack.pipes[0].z] as V3 }, label: stack.outer ? 'On the deckhouse: her exhaust stacks' : 'The wheelhouse\'s aft corners: her exhaust stacks' }] : []),
     ...(bowFender ? [{ id: 'bowFender', type: 'hull.side' as const, transform: { position: [0, bowFender.bottom, bowFender.front] as V3 }, label: 'Her bow: the bow fender' }] : []),
     ...(pushFender ? [{ id: 'pushFender', type: 'hull.side' as const, transform: { position: [0, pushFender.bottom, pushFender.z] as V3 }, label: 'Her square bow: the push fender' }] : []),
+    ...(electric ? [{ id: 'solarRoof', type: 'deck.equipment' as const, transform: { position: [0, roofY, (front + aft) / 2] as V3 }, label: 'Her roof: the solar panels' }] : []),
     ...(markings ? [{ id: 'markings', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: 'Her topsides: the service markings' }] : []),
     ...(fendering ? [{ id: 'fendering', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: 'Her sides, stern and bow: the fendering' }] : []),
     ...(prot.side ? [{ id: 'hullGuard', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: prot.side === 'strake' ? 'Her sheer, all round: the rubbing strake' : 'Her sides: the tyres' }] : []),
@@ -159,7 +160,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipLess(weighed, [
-      outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : pods ? pdc.legKg : 0)) * n, at: at.engineBed },
+      outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : pods ? (electric ? CONFIG.shipyard.solarCat.podKg : pdc.legKg) : 0)) * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
       // The deck crane, if she has one: designed in where its column stands, so she still
       // floats on her lines and upright with it (her hull and ballast lighter by its weight,

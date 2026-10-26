@@ -119,7 +119,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       socket: 'pods',
       module: 'propulsion.pods',
       config: {
-        engine: engine.engine,
+        // (The solar catamaran's stand-in for her electric motors: a small diesel geared down by
+        // CONFIG.shipyard.solarCat.standInRatio more, so it can swing her big slow propellers.)
+        engine: p.electric ? { ...engine.engine, gearRatio: Math.round(engine.engine.gearRatio * CONFIG.shipyard.solarCat.standInRatio * 1000) / 1000 } : engine.engine,
         propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02 },
         ...podSet,
         steering: pdc.steering,
@@ -129,7 +131,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         alternatorAmps: engine.alternatorAmps ?? CONFIG.modules.dieselInboard.alternatorAmps,
         oilUse: engine.oilUse ?? CONFIG.vessels.workboat.maintenance.use,
         starterAmps: engine.starterAmps ?? CONFIG.modules.dieselInboard.starterAmps,
-        massKg: eng.kg + pdc.legKg,
+        massKg: eng.kg + (p.electric ? CONFIG.shipyard.solarCat.podKg : pdc.legKg),
         maintenance: engine.maintenance,
         voice: eng.voice,
         installed: engine.installed,
@@ -720,6 +722,31 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (bowFender) recipe.modules.push({ socket: 'bowFender', module: 'hull.bow-fender', config: bowFender });
   // The harbour tug's fendering: its mesh and points worked out from her lines (trim.ts, parts/fendering.ts).
   if (fendering) recipe.modules.push({ socket: 'fendering', module: 'hull.fendering', config: { positions: fendering.positions, probes: fendering.probes } });
+  // The solar catamaran's solar roof (modules/solarRoof; CONFIG.shipyard.solarCat.roof): over the
+  // roof and its overhang, a wing each side out to her beam (stowed flat), a rack on the foredeck.
+  if (p.electric) {
+    const sr = CONFIG.shipyard.solarCat.roof;
+    const z0 = layout.overhead ? layout.overhead.z1 : p.aft;
+    const top = rnd(roofTopAt((roofFront + p.aft) / 2) + 0.05);
+    const rx = Math.min(hw + 0.1, Math.min(...[z0, (z0 + roofFront) / 2, roofFront].map((z) => q.halfBeam(z))) - sr.wingClear);
+    // Each wing folded in over the roof's outer panels, hinged at its edge: lying on them, a panel's depth higher.
+    const wing = Math.min(sr.wingWidth, rx - 0.3);
+    const rackZ1 = front - sr.rack.clear;
+    const rackZ0 = rackZ1 - sr.rack.length;
+    const rackX = Math.min(q.halfBeam(rackZ0), q.halfBeam(rackZ1)) - sr.rack.inset;
+    const deckY = Math.max(q.deckY(rackZ0), q.deckY(rackZ1));
+    recipe.modules.push({
+      socket: 'solarRoof',
+      module: 'deck.solar-roof',
+      config: {
+        roof: { x0: rnd(-rx), x1: rnd(rx), z0: rnd(z0), z1: rnd(roofFront), y: top },
+        wings: [-1, 1].map((s) => ({ x0: rnd(s > 0 ? rx - wing : -rx), x1: rnd(s > 0 ? rx : -rx + wing), z0: rnd(z0), z1: rnd(roofFront), y: rnd(top + 0.06) })),
+        rack: rackX > 0.5 ? { x0: rnd(-rackX), x1: rnd(rackX), z0: rnd(rackZ1), z1: rnd(rackZ0), y: rnd(deckY + sr.rack.height), deckY: rnd(deckY) } : null,
+        panel: sr.panel,
+        gap: sr.gap,
+      },
+    });
+  }
   // A service livery's markings: the skin over her topsides worked out from her lines (trim.ts, parts/markings.ts).
   if (markings) recipe.modules.push({ socket: 'markings', module: 'hull.markings', config: { ...markings } });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
