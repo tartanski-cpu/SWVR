@@ -38,8 +38,8 @@ export interface Machinery {
   /** A Kort nozzle round each propeller (design.nozzle; CONFIG.nozzle.look). */
   nozzle?: boolean;
   /**
-   * Drawn as Z-drives (the harbour tug's, DesignHull.zDrives: her stand-in shafts until her
-   * azimuth drives come): see zDrive.
+   * Drawn as Z-drives (the harbour tug's, DesignHull.zDrives; in the game her azimuth drives,
+   * modules/dieselInboard `azimuth`): see zDrive.
    */
   zDrive?: boolean;
 }

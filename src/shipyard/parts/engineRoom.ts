@@ -152,6 +152,25 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
         return { units, mount: { y, z }, strut: rnd(Math.max(pdc.look.strutLength, podPropD / 2 + 0.12)) };
       })()
     : null;
+  // The harbour tug's azimuth drives (DesignHull.zDrives; modules/dieselInboard `azimuth`):
+  // each drive's upright axis half a propeller's diameter forward of where the stand-in's
+  // propeller was (as the Engine step draws them, enginePreview.ts zDrive), its head just
+  // inside her bottom there, its propeller at the shaft's level `propDepth` down, or lower if
+  // need be so the top of its nozzle clears her bottom by `hullClear` all over the nozzle's
+  // footprint (as a real one hangs under her).
+  const zDriveSet = base.zDrives && twin
+    ? (() => {
+        const az = CONFIG.modules.azimuth;
+        const legZ = rnd(transom - 0.65 - 0.5 * propD);
+        const ring = propD / 2 + 0.01 + az.look.nozzleWall;
+        const mid = legZ - az.propFwd * propD;
+        const half = (az.look.nozzleLength * propD) / 2;
+        let lowest = Infinity;
+        for (const cx of [-shaft.x, shaft.x]) for (const dx of [-1, -0.5, 0, 0.5, 1]) for (const z of [mid - half, mid, mid + half]) lowest = Math.min(lowest, bottomUnder(shape, cx + dx * ring, z));
+        const propY = Math.min(shaft.propY ?? 0, lowest - az.hullClear - ring);
+        return { legZ, headY: rnd(Math.max(...[-shaft.x, shaft.x].map((x) => bottomUnder(shape, x, legZ))) + 0.3), propY: rnd(propY) };
+      })()
+    : null;
   // Outboards instead (owner, Oct 2026; design.outboards): 2 to 4 of the petrol V8s
   // (CONFIG.modules.outboard) on a bracket off the transom, in place of the engine package,
   // its shaft and the rudder (they steer by swinging). The engine choice above then only
@@ -214,7 +233,7 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const tankL = base.fuelL ?? Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
-  return { batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };
+  return { zDriveSet, batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };
 }
 export type MachineryPart = ReturnType<typeof machineryPart>;
 

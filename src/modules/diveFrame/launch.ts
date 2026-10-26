@@ -14,7 +14,8 @@
  * Plain functions, no page or scene; the app does the leaving (App.ts goDive).
  */
 import { CONFIG } from '../../config';
-import { sitesOn, siteWorld, type DiveSite } from '../../dive/diveSites';
+import { siteLabel, sitesOn, siteWorld, type DiveSite } from '../../dive/diveSites';
+import { foundNames } from '../../dive/diveReturn';
 import type { VesselState } from '../../vessel/vesselState';
 import { DIVE_FRAME, subAt } from './index';
 import { diveFrameOf, diveFrameState } from './onBoat';
@@ -35,7 +36,7 @@ export function diveReady(v: VesselState, map: string | null): { site: DiveSite 
     .sort((a, b) => a.d - b.d);
   if (!sites.length || !Number.isFinite(sites[0].d)) return { why: 'There are no dive sites in these waters' };
   const near = sites[0];
-  if (near.d > CONFIG.dive.radius) return { why: `Not over a wreck: the nearest, the ${near.site.name}, is ${Math.round(near.d)} m off (the dashed rings on the chart)` };
+  if (near.d > CONFIG.dive.radius) return { why: `Not over a wreck: the nearest, ${siteLabel(near.site, foundNames())}, is ${Math.round(near.d)} m off (the dashed rings on the chart)` };
   const kn = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / KNOT;
   const max = CONFIG.modules.diveFrame.dive.maxSpeedKn;
   if (kn > max) return { why: `Stop her over the wreck first (under ${max} kn; she's making ${kn.toFixed(1)})` };

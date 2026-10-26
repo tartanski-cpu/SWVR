@@ -361,7 +361,8 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const rudder = cfg('rudder')?.rudder?.position as [number, number, number] | undefined;
   // A stern drive: its engines only (the legs are its module's, shown at Engine too).
   const sd = !!cfg('sternDrive') || !!cfg('pods');
-  if (!bed || (!sd && (!prop || !rudder))) return null;
+  // (Azimuth drives have no rudder: the Z-drives are drawn from her propellers' place.)
+  if (!bed || (!sd && (!prop || (!rudder && !engine?.azimuth)))) return null;
   // (Pod drives are always twin.)
   const twin = (!!design.twin || !!cfg('pods')) && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;

@@ -28,7 +28,7 @@ export type ProjectJobDef =
   | { id: string; kind: 'tow'; name: string; tow: string; turbine?: number; pay: number }
   | { id: string; kind: 'supply'; name: string; cargo: string; count: number; pay: number }
   | { id: string; kind: 'guard'; name: string; pay: number }
-  | { id: string; kind: 'transfer'; name: string; turbine: number; techs: number; pay: number };
+  | { id: string; kind: 'transfer'; name: string; turbine: number; techs: number; pay: number; commission?: boolean };
 
 /** A career upgrade, bought at the yard (CONFIG.career.upgrades). */
 export interface CareerUpgrade {
@@ -703,7 +703,24 @@ export const CONFIG = {
    * the chart's wreck mark, its name and its depth; on the paper chart as a wreck mark and
    * its depth.
    */
-  dive: { radius: 50 },
+  dive: {
+    radius: 50,
+    /**
+     * Back from a dive (dive/diveReturn.ts, docs/dive-contract.md; Submersible World's M9): what
+     * the finds fetch (£, by the submersible game's kind, else its class), each in a salvage
+     * crate on deck, sold in any port; the survey and the story paid on coming back aboard:
+     * so much a point of coverage gained, for naming the wreck, for finding how she was lost
+     * (and more if right at the first filing). `airFactor`: a find's weight out of the water
+     * over its weight in water (about 1.15 for iron and brass). A return carries at most
+     * `maxItems` finds. Salvage on deck sells once she's been stopped (under `sellBelowMS`) in port for `sellAfterS` s.
+     */
+    prices: { bottle: 30, plate: 40, lantern: 220, porthole: 650, binnacle: 1800, safe: 2500, crate: 700, anchor: 2600, engine: 1500, small: 40, medium: 600, heavy: 1500 },
+    fees: { perCoveragePoint: 25, identified: 600, finding: 800, firstTime: 1200 },
+    airFactor: 1.15,
+    maxItems: 30,
+    sellBelowMS: 0.4,
+    sellAfterS: 30,
+  },
   career: {
     /**
      * A sea trial (owner, Oct 2026: "a sea trial is time limited to 5 mins"): a Shipyard design
@@ -813,9 +830,12 @@ export const CONFIG = {
      *           less `projectGuard.strike` for each ship that got into the zone.
      *   transfer  `techs` fitters for turbine `turbine` (once it's up), on the crew-transfer
      *           quay (CONFIG.transfer), put across onto its landing as a wind farm transfer.
+     *           `commission`: they're its commissioning engineers: once they're up, the turbine
+     *           is commissioned (`projectCommission.s`), its lights on and its rotor turning.
+     * The last stage done and every turbine commissioned, the project's done: its `bonus`
+     * paid, and the farm stands for good (CareerState.projectsDone).
      * Positions: Tarran Rig, two turbines in 40 m of open water about 1.1 km north of Calder
      * Haven, clear of Holm Rig and the fishing grounds; its zone boxed by four cardinals.
-     * Stage 6 (commissioning) comes in a later step.
      */
     projects: [
       {
@@ -824,7 +844,7 @@ export const CONFIG = {
         port: 'calder',
         minRep: 0,
         desc: 'A new two-turbine wind farm north of Calder Haven: survey the site, then mark it out',
-        /** Paid when the whole project is done (later steps add its last stages). */
+        /** Paid when the whole project is done: its last stage, every turbine commissioned. */
         bonus: 5000,
         turbines: [
           { x: 350, z: -420, landingDeg: 180 },
@@ -876,6 +896,14 @@ export const CONFIG = {
               { id: 'fit2', kind: 'transfer', name: 'Fitters to turbine 2', turbine: 1, techs: 3, pay: 700 },
             ],
           },
+          {
+            name: 'Commissioning',
+            bonus: 2000,
+            jobs: [
+              { id: 'comm1', kind: 'transfer', name: 'Commissioning crew to turbine 1', turbine: 0, techs: 2, pay: 800, commission: true },
+              { id: 'comm2', kind: 'transfer', name: 'Commissioning crew to turbine 2', turbine: 1, techs: 2, pay: 800, commission: true },
+            ],
+          },
         ],
       },
     ] as ProjectDef[],
@@ -914,6 +942,8 @@ export const CONFIG = {
      * come within `hail` m of her and she's called on the VHF and alters away. Each that gets
      * into the zone costs `strike` of the guard job's pay (it never pays under `minPay`).
      */
+    /** Commissioning (see `projects`): a turbine is commissioned this long after its engineers are up (s). */
+    projectCommission: { s: 90 },
     projectGuard: { standBy: 900, zone: 400, every: [50, 110] as [number, number], from: 1700, hail: 300, strike: 600, minPay: 600 },
   },
 
@@ -1171,6 +1201,8 @@ export const CONFIG = {
       { name: 'Chain basket', mass: 450, size: [0.95, 0.7, 0.95] as [number, number, number], shape: 'drum' as const, slots: 3 },
       // A construction project's mark buoy (career/projects.ts), on its float: crane only, never trade cargo.
       { name: 'Mark buoy', mass: 420, size: [1.1, 1.5, 1.1] as [number, number, number], shape: 'drum' as const, slots: 4 },
+      // A salvage crate from a dive (dive/diveReturn.ts): its own mass (the find's), from 40 kg.
+      { name: 'Salvage', mass: 40, size: [0.8, 0.55, 0.7] as [number, number, number], shape: 'box' as const, slots: 2 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,
