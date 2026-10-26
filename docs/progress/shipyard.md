@@ -10,10 +10,22 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Lined up for later (owner's asks, not started)
 
-- **Exhaust stacks as their own part** (owner, 26 Oct 2026, from the Fairplay reference: "the exhaust pipes in a kind of standalone box ... split these exhaust pipes out as something that you can control. So in a bigger ship, we can make the wheelhouse smaller. And then I'd like to be able to move the twin exhaust pipes forward and aft on this deck house and choose whether they've got like a circular or a square kind of box around them"). Today a tug's stacks go up through the wheelhouse's aft corners, boxed in white where they pass through it. To come: the twin stacks a part of their own, placed fore and aft along the deckhouse (not tied to the wheelhouse), with a round or a square casing round them.
 - **The harbour tug's azimuth drives and their controls** (owner: later).
 
 ## Changes
+
+### Exhaust stacks as a part of their own: on the deckhouse, moved along it, round or square casings (preview/shipyard)
+
+Owner, 26 Oct 2026: "the Fair Play reference tag has the exhaust pipes in a kind of standalone box ... split these exhaust pipes out as something that you can control. So in a bigger ship, we can make the wheelhouse smaller. And then I'd like to be able to move the twin exhaust pipes forward and aft on this deck house and choose whether they've got like a circular or a square kind of box around them"; then "Do the Funnel stack part next".
+
+- **New choices** on the Engine step, under Exhaust stacks, on a boat with stacks (the small tug, the stern trawler, the harbour tug) and a deckhouse: **Stacks stand** through the wheelhouse (as before) or **on the deckhouse** (design `stackMount`); then **Along the deckhouse**, its aft end to its front (`stackPos`, 21 steps, `STACK_POS_STEPS`), and **Casings** round or square (`stackCasing`). Not in the short code: such a boat travels as a link or file.
+- **On the deckhouse** (hullDef.ts; `CONFIG.shipyard.exhaustStack.onDeckhouse`): each pipe (one per engine) up from her engine space through the deckhouse, then in a casing of its own `casingHeight` 1.6 m tall over its top, `casingPad` 0.3 m round the pipe, its outer face `fromSide` 0.15 m in from the deckhouse's side, `endClear` 0.15 m in from its ends; the pipe `aboveCasing` 1.4 m over the casing, raked or straight as chosen. Kept out of the wheelhouse's plan: where it would stand in it, moved to the nearer end of the wheelhouse along the deckhouse (saying so). With no deckhouse, or no room on it, they go up through the wheelhouse (saying so). The casing is solid to walk round on a walked deckhouse top.
+- **The module** (modules/exhaustStack, `fitting.exhaust-stack`): a config `outer` (shape, half-width, top): the casing drawn over the deckhouse and the pipe out of its top; the smoke from the pipe's top as before (`stackOutlet`). Still one mesh for the stacks (no new draw calls).
+- **The harbour tug** starts with hers on the deckhouse's aft end in square casings, as the reference tug's.
+- Tests: tests/shipyard/stacksOnDeckhouse.test.ts (the tug's at the aft end in square casings, the pipes out of their tops; moved forward, round, never in the wheelhouse; through the wheelhouse when chosen or with no deckhouse, saying so; a link or file). designDoc.test.ts: the three fields not in the code. The full `npm test` and the typecheck pass.
+- Checked in the browser: the tug with square casings aft, round ones halfway, square ones forward, and back through the wheelhouse; the Engine step's new controls.
+- README: the stacks' choices; the harbour tug's.
+- **Shared changes:** src/modules/exhaustStack/index.ts (the casing on a deckhouse; a stack without `outer` is drawn as before).
 
 ### The harbour tug: her wheelhouse and deckhouse the player's; her towing gear a choice (approved by the owner 26 Oct 2026; on next)
 

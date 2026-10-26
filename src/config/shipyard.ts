@@ -330,7 +330,17 @@ export const SHIPYARD_CONFIG = {
      * their tops. Her cooling water leaves by a hole `waterAbove` m over the waterline in her
      * side for each, abreast of her engines (CONFIG.effects.exhaust.water).
      */
-    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
+    exhaustStack: {
+      radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0,
+      /**
+       * Stacks standing on the deckhouse (design.stackMount; owner, Oct 2026: "the exhaust pipes in
+       * a kind of standalone box", round or square): each in a casing `casingHeight` m tall over
+       * the deckhouse top, `casingPad` m round its pipe, its outer face `fromSide` m in from the
+       * deckhouse's side, its ends kept `endClear` m in from the deckhouse's ends; the pipe
+       * standing `aboveCasing` m over the casing's top.
+       */
+      onDeckhouse: { casingHeight: 1.6, casingPad: 0.3, fromSide: 0.15, endClear: 0.15, aboveCasing: 1.4 },
+    },
     /** Old school instruments (design.oldSchool): the analogue gauges' price (GBP; the basic screens are 6,000, the advanced 18,000). */
     oldSchoolPrice: 4000,
     /** What each advanced touchscreen adds to her price (GBP; CS5: a big multifunction display, on top of the advanced package). */

@@ -12,6 +12,8 @@ import { cradleAxis } from '../../modules/diveFrame';
 import type { Socket } from '../../modular/socket';
 import { displacementResistance } from '../../vessel/displacementHull';
 import { BREAKERS } from '../../vessel/vesselState';
+import { deckhouseHalfWidth } from '../../vessel/deckhouse';
+import { STACK_POS_STEPS } from '../design';
 import { atDWL, type BuildArgs, type V3 } from './common';
 import { DESIGN_HULLS, liveryOf, TUG_DIESEL, TUG_HULL } from './catalog';
 import type { HullPart } from './hull';
@@ -24,7 +26,7 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 /** Her hull definition: the exhaust stacks, every socket (the places her modules go), her rescue places, what she can carry, her handling, windage and fittings. */
 export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart) {
   const { code, d, id } = a;
-  const { fendering, F, aft, at, batteriesKg, hx, beamDeck, bowFender, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, sideDoor, st, stem, transom, twin, tyres, wall, weighed, wheelhouseSockets } = p;
+  const { fendering, F, aft, at, batteriesKg, hx, beamDeck, bowFender, bowRamp, cf, cr, craneAt, cx, damping, deckMid, deckSockets, deckhouse, dhW, eng, engMid, engZ0, engineSockets, form, freeboard, front, h, hg, houseGearSockets, houseL, hw, interiorSockets, layout, lc, lengthM, level, mass, n, nOb, obc, outboards, pdc, planing, pods, prot, pushFender, q, r2, rho, ring, rnd, roofDrop, roofTopAt, roofY, saloonL, sb, sd, sdc, shape, sideDoor, st, stem, transom, twin, tyres, wall, warnings, weighed, wheelhouseSockets } = p;
   // A tug's dry exhaust stacks (owner, Oct 2026; CONFIG.shipyard.exhaustStack; the stern
   // trawler's too: a hull type with `exhaustStacks`): one per
   // engine, each in an aft corner of the wheelhouse (starboard; a twin's second to port), from
@@ -41,13 +43,44 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const af = p.house.aftFacet;
   const aftIn = (x: number) => (af ? Math.max(0, Math.abs(x - hx) - af.centre) * (af.depth / (hw - af.centre)) : 0);
   const intoFacets = (v: V3): V3 => (af && Math.abs(v[0] - hx) < hw && v[2] > aft - wall - 0.7 && v[2] <= aft - wall + 0.01 && v[1] > F - 0.5 ? [v[0], v[1], rnd(v[2] - aftIn(v[0]))] : v);
-  const stack = DESIGN_HULLS[d.hull]?.exhaustStacks && !nOb && aft - front >= 1 && roofTopAt(aft - 0.3) - F >= 1
+  // On the deckhouse (design.stackMount; owner, Oct 2026: "split these exhaust pipes out as
+  // something that you can control ... move the twin exhaust pipes forward and aft on this deck
+  // house and choose whether they've got like a circular or a square kind of box around them"):
+  // each pipe in a casing of its own (CONFIG.shipyard.exhaustStack.onDeckhouse) out near the
+  // deckhouse's side, `stackPos` along it from its aft end to its front, clear of the
+  // wheelhouse on it (moved aft or forward of it if it would stand in it). Without a deckhouse,
+  // or no room on it, they go up through the wheelhouse as before.
+  const odh = esc.onDeckhouse;
+  const pad = esc.radius + odh.casingPad;
+  const onDh = (() => {
+    if (!d.stackMount || !deckhouse || !DESIGN_HULLS[d.hull]?.exhaustStacks || nOb) return null;
+    const z0 = deckhouse.z0 + pad + odh.endClear;
+    const z1 = deckhouse.z1 - pad - odh.endClear;
+    if (z1 < z0) return null;
+    const want = z1 - ((d.stackPos ?? 0) / (STACK_POS_STEPS - 1)) * (z1 - z0);
+    const xAt = (z: number) => deckhouseHalfWidth(deckhouse, z) - odh.fromSide - pad;
+    // In the wheelhouse's plan (its walls and a hand's width): moved to the nearer of its ends, if the deckhouse runs on past it.
+    const inHouse = (z: number) => z > front - pad - 0.1 && z < aft + pad + 0.1 && xAt(z) - pad < hx + hw + 0.1 && xAt(z) + pad > hx - hw - 0.1;
+    let z = want;
+    if (inHouse(z)) {
+      const ends = [aft + pad + 0.15, front - pad - 0.15].filter((e) => e >= z0 && e <= z1 && !inHouse(e)).sort((a, b) => Math.abs(a - want) - Math.abs(b - want));
+      if (!ends.length) return null;
+      z = ends[0];
+    }
+    const x = Math.min(xAt(z - pad), xAt(z + pad), xAt(z));
+    if (x < pad) return null;
+    return { z: rnd(z), x: rnd(x), moved: Math.abs(z - want) > 0.05 };
+  })();
+  if (d.stackMount && !onDh && DESIGN_HULLS[d.hull]?.exhaustStacks && !nOb) warnings.push(deckhouse ? 'There’s no room on her deckhouse for her exhaust stacks: they go up through the wheelhouse.' : 'Her exhaust stacks stand on a deckhouse: she has none, so they go up through the wheelhouse.');
+  if (onDh?.moved) warnings.push('Her exhaust stacks would stand in the wheelhouse there: they’re moved along the deckhouse clear of it.');
+  const stack = DESIGN_HULLS[d.hull]?.exhaustStacks && !nOb && (onDh || (aft - front >= 1 && roofTopAt(aft - 0.3) - F >= 1))
     ? (() => {
         const r = esc.radius;
-        const z = rnd(aft - wall - esc.inset - r);
         const sides = twin ? [1, -1] : [1];
-        const pipes = sides.map((sd) => ({ x: rnd(sd * (hw - wall - esc.inset - r)), z: rnd(z - aftIn(hx + sd * (hw - wall - esc.inset))) }));
-        const roof = rnd(roofTopAt(z));
+        const z = onDh ? onDh.z : rnd(aft - wall - esc.inset - r);
+        const pipes = onDh ? sides.map((sd) => ({ x: rnd(sd * onDh.x), z: onDh.z })) : sides.map((sd) => ({ x: rnd(sd * (hw - wall - esc.inset - r)), z: rnd(z - aftIn(hx + sd * (hw - wall - esc.inset))) }));
+        const roof = onDh ? rnd(deckhouse!.top) : rnd(roofTopAt(z));
+        const floor = onDh ? rnd(q.deckY(z)) : rnd(F);
         // The water's holes: where her side is `waterAbove` over the waterline, abreast of the engine.
         const zw = rnd(Math.min(transom - 0.8, Math.max(engZ0, engMid)));
         const sec = halfSection(shape, zw);
@@ -64,10 +97,11 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
         return {
           pipes,
           radius: r,
-          foot: rnd(F - esc.below),
-          floor: rnd(F),
+          foot: rnd(floor - esc.below),
+          floor,
           roof,
-          above: esc.aboveRoof,
+          above: onDh ? odh.aboveCasing : esc.aboveRoof,
+          ...(onDh ? { outer: { shape: d.stackCasing ? ('square' as const) : ('round' as const), half: rnd(pad), top: rnd(roof + odh.casingHeight) } } : {}),
           rakedShare: esc.rakedShare,
           rakeDeg: raked ? esc.rakeDeg : 0,
           cutDeg: raked ? esc.cutDeg : 0,
@@ -80,11 +114,11 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     : null;
   const stackTops = stack ? stack.pipes.map((p) => stackOutlet(stack, p)) : [];
   /** How far a port stack moves the hand gear on the aft wall inboard (m). */
-  const portStack = stack && stack.pipes.length > 1 ? 2 * esc.radius + 0.17 : 0;
+  const portStack = stack && !stack.outer && stack.pipes.length > 1 ? 2 * esc.radius + 0.17 : 0;
   // Her places (sockets), each part offering its own (P4b): her own here (the exhaust stacks,
   // what protects her sides), the engine room's, the wheelhouse's, inside it, on deck, and on the house outside.
   const sockets: Socket[] = [
-    ...(stack ? [{ id: 'exhaustStack', type: 'deck.fitting' as const, transform: { position: [stack.pipes[0].x, stack.floor, stack.pipes[0].z] as V3 }, label: 'The wheelhouse\'s aft corners: her exhaust stacks' }] : []),
+    ...(stack ? [{ id: 'exhaustStack', type: 'deck.fitting' as const, transform: { position: [stack.pipes[0].x, stack.floor, stack.pipes[0].z] as V3 }, label: stack.outer ? 'On the deckhouse: her exhaust stacks' : 'The wheelhouse\'s aft corners: her exhaust stacks' }] : []),
     ...(bowFender ? [{ id: 'bowFender', type: 'hull.side' as const, transform: { position: [0, bowFender.bottom, bowFender.front] as V3 }, label: 'Her bow: the bow fender' }] : []),
     ...(pushFender ? [{ id: 'pushFender', type: 'hull.side' as const, transform: { position: [0, pushFender.bottom, pushFender.z] as V3 }, label: 'Her square bow: the push fender' }] : []),
     ...(fendering ? [{ id: 'fendering', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: 'Her sides, stern and bow: the fendering' }] : []),

@@ -13,7 +13,12 @@
  * roof at a low collar; over the roof a plain pipe, tapering a little, upright and then, for
  * its top `rakedShare` of the height (owner: "part of it to be vertical and then... the last
  * 30% to be raked"), bent aft `rakeDeg` at a joint (0: straight up all the way), its top cut
- * on a slant facing aft (`cutDeg`), dark inside. One mesh of its own (one draw call, tugs
+ * on a slant facing aft (`cutDeg`), dark inside.
+ *
+ * Or standing on a deckhouse (`outer`; owner, Oct 2026, from a harbour tug's: "the exhaust pipes
+ * in a kind of standalone box ... a circular or a square kind of box around them"): from her
+ * engine space up through the deckhouse (`floor` her deck, `roof` its top), then in a casing of
+ * its own, round or square, from the deckhouse top up to `outer.top`, the pipe over that. One mesh of its own (one draw call, tugs
  * only), named 'exhaustStack': the Shipyard shows it with the wheelhouse and the machinery.
  */
 import * as THREE from 'three';
@@ -37,6 +42,8 @@ export interface ExhaustStackConfig {
   /** The pipe outside, and the casing inside the wheelhouse (0xrrggbb). */
   colour: number;
   casing: number;
+  /** Standing on a deckhouse: each pipe's casing over its top (`roof`), round or square, `half` m from the pipe's axis to its side, up to `top`. */
+  outer?: { shape: 'round' | 'square'; half: number; top: number };
   /** Her cooling water's outlets in her sides, and which way each points (out of her side). */
   water?: { position: [number, number, number]; direction: [number, number, number] }[];
 }
@@ -53,15 +60,17 @@ function pipeShape(c: Pick<ExhaustStackConfig, 'above' | 'rakedShare' | 'rakeDeg
 }
 
 /** Where a pipe's smoke comes out (the middle of its cut top) and which way it goes (along its top part), the boat's axes. */
-export function stackOutlet(c: Pick<ExhaustStackConfig, 'radius' | 'roof' | 'above' | 'rakedShare' | 'rakeDeg' | 'cutDeg' | 'taper'>, p: { x: number; z: number }): { position: [number, number, number]; direction: [number, number, number] } {
+export function stackOutlet(c: Pick<ExhaustStackConfig, 'radius' | 'roof' | 'above' | 'rakedShare' | 'rakeDeg' | 'cutDeg' | 'taper' | 'outer'>, p: { x: number; z: number }): { position: [number, number, number]; direction: [number, number, number] } {
   const { upright, raked, rake } = pipeShape(c);
+  // (Out of its casing's top, on a deckhouse.)
+  const base = c.outer?.top ?? c.roof;
   // The cut's middle: the top less half the drop across it.
   const drop = Math.tan((c.cutDeg * Math.PI) / 180) * c.radius * c.taper;
   const r3 = (v: number) => Math.round(v * 1000) / 1000;
-  if (!raked) return { position: [r3(p.x), r3(c.roof + upright - drop), r3(p.z)], direction: [0, 1, 0] };
+  if (!raked) return { position: [r3(p.x), r3(base + upright - drop), r3(p.z)], direction: [0, 1, 0] };
   const mid = raked - drop;
   return {
-    position: [r3(p.x), r3(c.roof + upright + mid * Math.cos(rake)), r3(p.z + mid * Math.sin(rake))],
+    position: [r3(p.x), r3(base + upright + mid * Math.cos(rake)), r3(p.z + mid * Math.sin(rake))],
     direction: [0, r3(Math.cos(rake)), r3(Math.sin(rake))],
   };
 }
@@ -75,12 +84,15 @@ export const EXHAUST_STACK: ModuleDefinition<ExhaustStackConfig> = {
     ...(c.roof > c.floor && c.floor > c.foot && c.above > 0 && c.radius > 0 ? [] : ['the stack runs up from its foot through the floor and the roof, and on over it']),
     ...(c.pipes.length >= 1 && c.pipes.length <= 2 ? [] : ['one or two pipes']),
     ...(c.rakeDeg >= 0 && c.rakeDeg < 45 && c.cutDeg >= 0 && c.cutDeg < 60 ? [] : ['rake 0 to 45°, cut 0 to 60°']),
+    ...(!c.outer || (c.outer.top > c.roof && c.outer.half > c.radius) ? [] : ['its casing stands over the deckhouse, round the pipe']),
   ],
   ports: {},
   // Solid from the floor up through the wheelhouse: you walk round it, cargo doesn't stand in it.
   footprints: (c) => {
     const r = c.radius + 0.07;
-    return c.pipes.map((p) => ({ x0: p.x - r, x1: p.x + r, z0: p.z - r, z1: p.z + r, base: c.floor - 0.1, top: c.roof }));
+    const out = c.outer;
+    // (On a deckhouse, its casing over the deckhouse's top too: you walk round it up there.)
+    return c.pipes.flatMap((p) => [{ x0: p.x - r, x1: p.x + r, z0: p.z - r, z1: p.z + r, base: c.floor - 0.1, top: c.roof }, ...(out ? [{ x0: p.x - out.half, x1: p.x + out.half, z0: p.z - out.half, z1: p.z + out.half, base: c.roof - 0.05, top: out.top }] : [])]);
   },
   view: {
     frame: 'boat',
@@ -99,29 +111,37 @@ export const EXHAUST_STACK: ModuleDefinition<ExhaustStackConfig> = {
         g.computeVertexNormals();
         return g;
       };
+      // Where the pipe comes out into the open: the roof, or its casing's top on a deckhouse.
+      const open = c.outer?.top ?? c.roof;
       for (const p of c.pipes) {
-        // Through the wheelhouse, in its casing; and below the floor, the bare pipe.
+        // Through the wheelhouse (or the deckhouse), in its casing; and below the floor, the bare pipe.
         parts.push(part(new THREE.CylinderGeometry(r, r, c.floor - c.foot, 14).translate(p.x, (c.foot + c.floor) / 2, p.z), c.colour));
         parts.push(part(new THREE.CylinderGeometry(r + 0.05, r + 0.05, c.roof - c.floor - 0.05, 14).translate(p.x, (c.floor + c.roof) / 2 - 0.025, p.z), c.casing));
-        parts.push(part(new THREE.CylinderGeometry(r + 0.06, r + 0.08, 0.07, 14).translate(p.x, c.roof + 0.03, p.z), COLLAR));
+        if (c.outer) {
+          // Its own casing over the deckhouse, round or square, closed at its top round the pipe.
+          const h = c.outer.top - c.roof;
+          const casing = c.outer.shape === 'square' ? new THREE.BoxGeometry(2 * c.outer.half, h, 2 * c.outer.half) : new THREE.CylinderGeometry(c.outer.half, c.outer.half, h, 20);
+          parts.push(part(casing.translate(p.x, c.roof + h / 2, p.z), c.casing));
+        }
+        parts.push(part(new THREE.CylinderGeometry(r + 0.06, r + 0.08, 0.07, 14).translate(p.x, open + 0.03, p.z), COLLAR));
         // Over the roof: upright, tapering a little.
         const stem = new THREE.CylinderGeometry(rBend, r, upright, 16, 1, true).translate(0, upright / 2, 0);
         if (!raked) cut(stem, upright, rBend);
-        parts.push(part(stem.translate(p.x, c.roof, p.z), c.colour));
+        parts.push(part(stem.translate(p.x, open, p.z), c.colour));
         let mouthAt = upright - 0.04;
         let mouthR = rBend;
         let lean = 0;
-        let base = new THREE.Vector3(p.x, c.roof, p.z);
+        let base = new THREE.Vector3(p.x, open, p.z);
         if (raked) {
           // The joint where it bends (a band round it hides the seam), then its top part raked aft.
-          parts.push(part(new THREE.SphereGeometry(rBend * 1.02, 16, 8).translate(p.x, c.roof + upright, p.z), c.colour));
-          parts.push(part(new THREE.CylinderGeometry(rBend + 0.015, rBend + 0.015, 0.06, 16).translate(p.x, c.roof + upright, p.z), COLLAR));
+          parts.push(part(new THREE.SphereGeometry(rBend * 1.02, 16, 8).translate(p.x, open + upright, p.z), c.colour));
+          parts.push(part(new THREE.CylinderGeometry(rBend + 0.015, rBend + 0.015, 0.06, 16).translate(p.x, open + upright, p.z), COLLAR));
           const head = cut(new THREE.CylinderGeometry(rTop, rBend, raked, 16, 1, true).translate(0, raked / 2, 0), raked, rTop);
-          parts.push(part(head.rotateX(rake).translate(p.x, c.roof + upright, p.z), c.colour));
+          parts.push(part(head.rotateX(rake).translate(p.x, open + upright, p.z), c.colour));
           mouthAt = raked - 0.04;
           mouthR = rTop;
           lean = rake;
-          base = new THREE.Vector3(p.x, c.roof + upright, p.z);
+          base = new THREE.Vector3(p.x, open + upright, p.z);
         }
         // Dark inside, under its cut top.
         const mouth = cut(new THREE.CircleGeometry(mouthR * 0.94, 16).rotateX(-Math.PI / 2).translate(0, mouthAt, 0), mouthAt, mouthR);

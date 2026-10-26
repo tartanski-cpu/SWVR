@@ -397,6 +397,10 @@ const HARBOUR_TUG_HOUSE: Partial<ShipDesign> = {
   sills: 0,
   houseX: 20,
   stackStyle: 0,
+  // Her stacks on the deckhouse at its aft end, in square casings (owner, Oct 2026: the reference tug's "standalone box").
+  stackMount: 1,
+  stackPos: 0,
+  stackCasing: 1,
   towWinch: 1,
   sternRoller: 0,
   winchAt: 0,
