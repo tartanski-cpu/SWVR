@@ -276,3 +276,33 @@ export function plantReady(s: VesselState): void {
   const was = s.plant;
   s.plant = { ...newPlant(true), noteN: was?.noteN };
 }
+
+/** One step of her start-up, as the control room's START-UP page and its checklist card show it. */
+export interface StartupStep {
+  what: string;
+  where: string;
+  done: boolean;
+  /** How it stands, when that says more than done or not (the generator running up, the air's pressure). */
+  note?: string;
+}
+
+/** Her start-up's steps from dead ship to the bridge, each done or not from her state as it is now (plant/plant.ts's order). */
+export function startupSteps(s: VesselState): StartupStep[] {
+  const p = s.plant;
+  if (!p) return [];
+  const c = CONFIG.plant;
+  const es = engines(s);
+  const both = (f: (k: number) => boolean) => f(0) && f(1);
+  const running = (k: number) => es[k]?.phase === 'running';
+  return [
+    { what: 'BATTERY MASTER ON', where: 'switchboard', done: isPowered(s) },
+    { what: 'GENERATOR: FUEL VALVE, START', where: 'port generator, aft', done: p.gen === 'running', note: p.gen === 'starting' ? `RUNNING UP ${Math.max(0, Math.ceil(c.genRunUpS - p.genT))} s` : !p.genFuel ? 'FUEL VALVE SHUT' : undefined },
+    { what: 'GENERATOR BREAKER CLOSED', where: 'switchboard', done: busLive(p) },
+    { what: 'DAY TANK VALVES, FUEL PUMP', where: 'tanks fwd stbd; switchboard', done: both((k) => !!p.dayValve[k]) && !!p.fuelPump },
+    { what: 'SEA SUCTION VALVES OPEN', where: 'strainers, port side', done: both((k) => !!p.sea[k]) },
+    { what: 'PRE-LUBE: OIL PRESSURE UP', where: 'each engine\'s stand', done: both((k) => running(k) || p.lubeBar[k] >= c.lubeStartBar), note: `${p.lubeBar[0].toFixed(1)} / ${p.lubeBar[1].toFixed(1)} bar` },
+    { what: 'START AIR: COMPRESSOR, VALVE', where: 'fwd stbd; air bottle', done: !!p.airValve && (p.airBar >= c.airStartMinBar || both(running)), note: `${p.airBar.toFixed(0)} bar` },
+    { what: 'START BOTH ENGINES', where: 'each engine\'s stand', done: both(running) },
+    { what: 'ENGINE CONTROL TO BRIDGE', where: 'switchboard', done: p.place === 2 },
+  ];
+}

@@ -10,7 +10,7 @@ import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
-import { bridgeHasControl, busLive, hasPlant } from '../src/plant/plant';
+import { bridgeHasControl, busLive, hasPlant, startupSteps } from '../src/plant/plant';
 import { DESIGN_HULLS } from '../src/shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../src/shipyard/design';
 import { matchGear } from '../src/shipyard/trial';
@@ -197,5 +197,31 @@ describe('the harbour tug\'s throttles synchronised', { timeout: 300000 }, () =>
     send('throttle.demand', 0.2);
     expect(v.controls.lever).toBeCloseTo(0.2);
     expect(v.controls.lever2).toBeCloseTo(0.9);
+  });
+});
+
+describe('the START-UP page\'s steps', { timeout: 300000 }, () => {
+  it('tick off from her state as she\'s brought to life, to the bridge', () => {
+    const t = deadShip();
+    const { v, run, er } = t;
+    const done = () => startupSteps(v).map((s) => s.done);
+    expect(startupSteps(v)).toHaveLength(9);
+    // Dead ship: the generator and everything after it still to do.
+    expect(done().slice(1)).toEqual([false, false, false, false, false, false, false, false]);
+    // (Running up, on a boat of its own: a second START would stop it.)
+    const u = deadShip();
+    u.er('genFuel');
+    u.er('genStart');
+    u.run(1);
+    expect(startupSteps(u.v)[1].note).toMatch(/RUNNING UP/);
+    upToStart(t);
+    expect(done().slice(0, 7)).toEqual([true, true, true, true, true, true, true]);
+    expect(done().slice(7)).toEqual([false, false]);
+    er('start1');
+    run(8);
+    er('start2');
+    run(8);
+    er('place', 2);
+    expect(done().every(Boolean)).toBe(true);
   });
 });

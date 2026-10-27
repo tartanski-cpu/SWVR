@@ -11,7 +11,7 @@
  * where it goes, with its corners' texture coordinates on that rectangle.
  */
 import { CONFIG } from '../../../config';
-import { busLive } from '../../../plant/plant';
+import { busLive, startupSteps } from '../../../plant/plant';
 import type { VesselState, EngineState } from '../../../vessel/vesselState';
 import { fuelTankL } from '../../../vessel/fuelTank';
 
@@ -35,7 +35,7 @@ export const LIVE = {
 
 /** The fixed canvas's panels. */
 export const FIXED = {
-  size: [1024, 1024] as const,
+  size: [1024, 1536] as const,
   msb: { x: 0, y: 0, w: 1024, h: 384 },
   tools: { x: 0, y: 384, w: 512, h: 256 },
   signEars: { x: 512, y: 384, w: 512, h: 128 },
@@ -44,6 +44,8 @@ export const FIXED = {
   signThruster: { x: 512, y: 640, w: 512, h: 128 },
   signFire: { x: 0, y: 768, w: 512, h: 128 },
   signStop: { x: 512, y: 768, w: 512, h: 128 },
+  /** The start-up checklist card on the control room's inboard wall (portrait, about A3). */
+  card: { x: 0, y: 896, w: 480, h: 640 },
 };
 
 const SCREEN_BG = '#0c1a22';
@@ -149,7 +151,46 @@ export class TugPanels {
       g.fillStyle = TEXT;
       g.fillText(`Z-DRIVE ${Math.round(deg(e.azimuth))}°`, cx - 44, cy + 64);
     });
-    // ── Screen 2: power and tanks ──
+    // ── Screen 2: her start-up until she's handed to the bridge, then power and tanks ──
+    const steps = startupSteps(v);
+    if (steps.length && steps.some((s) => !s.done)) this.startupPage(g, steps, time);
+    else this.powerPage(g, v, pe, se, time);
+    this.alarmPage(g, v, time);
+    this.boardAndLops(g, pe, se);
+  }
+
+  /**
+   * The START-UP page (owner, 27 Oct 2026; plant/plant.ts): her steps from dead ship to the
+   * bridge, each ticked from her state, the next one marked (blinking), with how it stands.
+   */
+  private startupPage(g: CanvasRenderingContext2D, steps: ReturnType<typeof startupSteps>, time: number): void {
+    const R = LIVE.power;
+    this.screen(g, R, 'START-UP FROM DEAD SHIP', time);
+    const next = steps.findIndex((s) => !s.done);
+    const blink = Math.floor(time * 2) % 2 === 0;
+    steps.forEach((st, i) => {
+      const y = R.y + 56 + i * 27;
+      const here = i === next;
+      if (here) {
+        g.fillStyle = blink ? '#1f3f4e' : '#183340';
+        g.fillRect(R.x + 8, y - 17, R.w - 16, 25);
+      }
+      g.font = 'bold 15px monospace';
+      g.fillStyle = st.done ? GREEN : here ? AMBER : '#6d8693';
+      g.fillText(st.done ? '✓' : here ? '▶' : String(i + 1), R.x + 16, y);
+      g.font = '14px sans-serif';
+      g.fillStyle = st.done ? '#9fb7c2' : here ? TEXT : '#7f97a3';
+      g.fillText(st.what, R.x + 40, y);
+      g.textAlign = 'right';
+      g.font = '12px sans-serif';
+      g.fillStyle = here ? AMBER : '#5d7a88';
+      g.fillText(here && st.note ? st.note : st.done ? '' : st.where, R.x + R.w - 14, y);
+      g.textAlign = 'left';
+    });
+  }
+
+  /** The POWER & TANKS page (screen 2 once she's started and handed over). */
+  private powerPage(g: CanvasRenderingContext2D, v: VesselState, pe: EngineState, se: EngineState, time: number): void {
     this.screen(g, LIVE.power, 'POWER & TANKS', time);
     const tank = fuelTankL(v);
     const fuel = tank ? v.engine.fuelL / tank : 0;
@@ -162,6 +203,9 @@ export class TugPanels {
     soc.slice(0, 2).forEach((s, i) => this.tankBar(g, LIVE.power.x + 270, LIVE.power.y + 56 + i * 64, i === 0 ? 'START BATTERY' : 'HOUSE BATTERY', s, `${(23 + 2.6 * s).toFixed(1)} V`, s < 0.3));
     g.fillStyle = TEXT;
     g.fillText(`DC MAIN SWITCH  ${v.electrics?.master ? 'ON' : 'OFF'}`, LIVE.power.x + 270, LIVE.power.y + 200);
+  }
+
+  private alarmPage(g: CanvasRenderingContext2D, v: VesselState, time: number): void {
     // ── Screen 3: alarms ──
     this.screen(g, LIVE.alarms, 'ALARM MONITORING', time);
     const list = alarms(v);
@@ -175,6 +219,9 @@ export class TugPanels {
       g.fillStyle = al.level === 'alarm' ? (on ? RED : '#7a2620') : AMBER;
       g.fillText(`${al.level === 'alarm' ? 'ALARM' : 'WARN '}  ${al.text}`, LIVE.alarms.x + 16, LIVE.alarms.y + 70 + i * 24);
     });
+  }
+
+  private boardAndLops(g: CanvasRenderingContext2D, pe: EngineState, se: EngineState): void {
     // ── The brass gauge board ──
     const B = LIVE.board;
     g.fillStyle = '#2b2118';
@@ -379,5 +426,60 @@ export class TugPanels {
     sign(FIXED.signThruster, '#f0c419', '#111111', 'THRUSTER ROOM', 'KEEP DOOR CLOSED');
     sign(FIXED.signFire, '#b52a20', '#ffffff', 'FIRE PUMP', 'FIFI 1');
     sign(FIXED.signStop, '#b52a20', '#ffffff', 'EMERGENCY STOP', 'MAIN ENGINES');
+    this.drawCard(g);
+  }
+
+  /**
+   * The start-up checklist card on the wall by the control room's door (owner, 27 Oct 2026): a
+   * laminated card, the steps of plant/plant.ts in order, where each control is.
+   */
+  private drawCard(g: CanvasRenderingContext2D): void {
+    const C = FIXED.card;
+    g.fillStyle = '#f4f1e6';
+    g.fillRect(C.x, C.y, C.w, C.h);
+    g.fillStyle = '#1d5fa8';
+    g.fillRect(C.x, C.y, C.w, 74);
+    g.fillStyle = '#ffffff';
+    g.textAlign = 'center';
+    g.font = 'bold 30px sans-serif';
+    g.fillText('START-UP', C.x + C.w / 2, C.y + 34);
+    g.font = 'bold 19px sans-serif';
+    g.fillText('FROM DEAD SHIP', C.x + C.w / 2, C.y + 62);
+    g.textAlign = 'left';
+    const steps: [string, string][] = [
+      ['Battery master ON', 'switchboard, in the control room'],
+      ['Generator: fuel valve OPEN, START', 'port generator, aft; wait to 400 V'],
+      ['Generator breaker CLOSE', 'switchboard: the lights come up'],
+      ['Day tank valves OPEN, fuel pump ON', 'fuel tanks fwd stbd; switchboard'],
+      ['Sea suction valves OPEN', 'strainers, port side'],
+      ['Pre-lube pumps ON', 'each engine\'s stand; wait for 1 bar'],
+      ['Compressor ON, air valve OPEN', 'fwd stbd; the air bottle; 12 bar+'],
+      ['START each engine', 'its stand'],
+      ['ENGINE CONTROL to BRIDGE', 'switchboard'],
+    ];
+    steps.forEach(([what, where], i) => {
+      const y = C.y + 116 + i * 54;
+      g.fillStyle = '#1d5fa8';
+      g.beginPath();
+      g.arc(C.x + 34, y - 7, 15, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#ffffff';
+      g.font = 'bold 17px sans-serif';
+      g.textAlign = 'center';
+      g.fillText(String(i + 1), C.x + 34, y - 1);
+      g.textAlign = 'left';
+      g.fillStyle = '#151a1d';
+      g.font = 'bold 19px sans-serif';
+      g.fillText(what, C.x + 60, y - 6);
+      g.fillStyle = '#56616b';
+      g.font = '15px sans-serif';
+      g.fillText(where, C.x + 60, y + 14);
+    });
+    g.fillStyle = '#b52a20';
+    g.font = 'bold 15px sans-serif';
+    g.fillText('Alarms list what\'s missing: ALARM screen.', C.x + 24, C.y + C.h - 24);
+    g.strokeStyle = '#c9c4b2';
+    g.lineWidth = 4;
+    g.strokeRect(C.x + 2, C.y + 2, C.w - 4, C.h - 4);
   }
 }

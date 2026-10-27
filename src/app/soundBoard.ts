@@ -20,6 +20,7 @@ import { WindAudio } from '../audio/windAudio';
 import { RaceAudio } from '../audio/raceAudio';
 import { SurfAudio } from '../audio/surfAudio';
 import { BoatVoices } from '../audio/boatVoices';
+import { PlantAudio } from '../audio/plantAudio';
 
 /**
  * The game's sound systems in one place (split out of App). Each makes its own sounds; the
@@ -67,13 +68,15 @@ export class SoundBoard {
   readonly surf = new SurfAudio();
   /** The other players' boats: their engines, the rush of water and their horns, in 3D. */
   readonly boats = new BoatVoices();
+  /** The harbour tug's engine room machinery: generator, fans, compressor, starting air (audio/plantAudio.ts). */
+  readonly plant = new PlantAudio();
 
   /** On a user gesture: start audio (again harmless). */
   unlock(): void {
     this.engine.unlock();
     const ctx = this.engine.context;
     this.tenderEngine.attach(ctx);
-    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.handset, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race, this.surf, this.boats]) s.attach(ctx);
+    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.handset, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race, this.surf, this.boats, this.plant]) s.attach(ctx);
     watchVoices();
   }
 }

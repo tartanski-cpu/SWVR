@@ -240,6 +240,15 @@ export class TugRoom {
       k.box(d1 - d0 - 0.04, 1.96, 0.05, ecr.x1 - (d1 - d0) / 2, sole + 0.99, d0 + 0.03, 0xc9cec8);
       k.ball(0.03, ecr.x1 - 0.12, sole + 1.0, d0 + 0.08, STEEL, 8);
       fixed.push(panel(FIXED.signEcr, FIXED.size, [ecr.x1 + 0.055, sole + 2.08, (d0 + d1) / 2], '+x', 0.84, 0.18));
+      // The start-up checklist card on its inboard wall, facing the aisle, beside the door on its
+      // longer side (owner, 27 Oct 2026), at eye height.
+      {
+        const fwd = d0 - ecr.z0;
+        const aft = ecr.z1 - d1;
+        const cz = fwd > aft ? (ecr.z0 + d0) / 2 : (d1 + ecr.z1) / 2;
+        k.box(0.012, 0.58, 0.44, ecr.x1 + 0.056, sole + 1.45, cz, 0xc9c4b2);
+        fixed.push(panel(FIXED.card, FIXED.size, [ecr.x1 + 0.063, sole + 1.45, cz], '+x', 0.42, 0.56));
+      }
       // Its floor, a step up on sound-deadening, and its ceiling panels.
       k.box(ecr.x1 - ecr.x0, 0.04, ecr.z1 - ecr.z0, (ecr.x0 + ecr.x1) / 2, sole + 0.02, (ecr.z0 + ecr.z1) / 2, ECR_FLOOR);
       k.box(ecr.x1 - ecr.x0, 0.03, ecr.z1 - ecr.z0, (ecr.x0 + ecr.x1) / 2, head - 0.02, (ecr.z0 + ecr.z1) / 2, 0xf2f3ee);
