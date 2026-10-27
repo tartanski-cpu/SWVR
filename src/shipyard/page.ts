@@ -384,6 +384,27 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   ptag.position.set(0, lowest - propD / 2 - 0.35, prop?.[2] ?? 0);
   // (A stern drive's propellers are on its legs: no tag down there.)
   g.add(...(sd ? [tag] : [tag, ptag]));
+  // The solar catamaran's battery (owner, Oct 2026: "I'd like the batteries to show up so you
+  // can kind of see how big the battery packs are"): a pack low in each hull amidships, as long
+  // as her kWh make it (CONFIG.shipyard.solarCat.pack), where her weights put it.
+  const solar = boat.figures.solar;
+  const cell = boat.weights.items.find((it) => it.name.startsWith('Battery ('));
+  if (solar && cell) {
+    const pk = CONFIG.shipyard.solarCat.pack;
+    const half = (VESSEL_DEFS.design.hull.catamaran?.spacing ?? 0) / 2;
+    const xs = half ? [-half, half] : [0];
+    const len = (solar.batteryKWh * pk.litresPerKWh) / 1000 / (pk.height * pk.width * xs.length);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x35c46a, emissive: 0x0e4a24, metalness: 0.2, roughness: 0.6 });
+    for (const x of xs) {
+      const pack = new THREE.Mesh(new THREE.BoxGeometry(pk.width, pk.height, len), mat);
+      pack.position.set(x, cell.y, cell.z);
+      pack.name = 'battery';
+      g.add(pack);
+    }
+    const btag = nameTag(`Battery ${solar.batteryKWh} kWh${xs.length > 1 ? `: ${xs.length} packs, ${len.toFixed(1)} m long` : ''}`, '#1f8a4c');
+    btag.position.set(0, cell.y + 0.6, cell.z);
+    g.add(btag);
+  }
   root.add(g);
   return g;
 }

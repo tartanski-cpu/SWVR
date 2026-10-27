@@ -299,10 +299,14 @@ export const SHIPYARD_CONFIG = {
      *                 wing `wingWidth` m wide (stowed, folded in over the roof's edge);
      *                 the foredeck rack `rack.length` m long, `rack.clear` m forward of the
      *                 house, its top `rack.height` m over her deck, `rack.inset` m in from her sides;
+     *   pack          how her battery's drawn on the Engine step (page.ts): its packs, one low in
+     *                 each hull amidships, `litresPerKWh` of pack a kWh (lithium iron phosphate
+     *                 modules with their housings, about 6 L a kWh), `height` x `width` (m) in
+     *                 section, as long as that makes them;
      *   wetDeckWarn   the least clearance under her wet deck (m) before the Shipyard warns:
      *                 less slams in a chop.
      */
-    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.55, standInRatio: 2.5, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
+    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.55, standInRatio: 2.5, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing

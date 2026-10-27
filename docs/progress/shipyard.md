@@ -14,6 +14,13 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The solar catamaran's battery packs drawn on the Engine step (preview/shipyard)
+
+Owner, 27 Oct 2026: "I'd like the batteries to show up so you can kind of see how big the battery packs are in the preview in the shipyard as well."
+
+- On the Engine step (page.ts `addMachinery`), her battery as a green pack low in each hull amidships, where her weights put it, its section `CONFIG.shipyard.solarCat.pack` (`height` 0.35 x `width` 0.3 m) and as long as `litresPerKWh` 6 (lithium iron phosphate modules with their housings) makes it: 20 kWh two packs 0.6 m long, 100 kWh 2.9 m, 200 kWh 5.7 m. Its tag says how big. Moves with the Battery slider.
+- Checked in the browser at 20, 100 and 200 kWh. The Shipyard tests and the typecheck pass.
+
 ### The EFFICIENCY screen, stage 1: litres a mile and the sweet spot (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "for all ships, an efficiency instrument. And in the beginning, I just want a liters per nautical mile, so that basically we can find the sweet spot ... this efficiency screen might actually become full of graphs"; the plan (stages 1 to 3) agreed: "Yes, you can kick off that efficiency screen".
