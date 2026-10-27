@@ -66,6 +66,10 @@ export class EngineSound {
     private readonly voice: EngineVoice,
     private readonly turbo: { osc: OscillatorNode; gain: GainNode } | null,
     private readonly presence: BiquadFilterNode,
+    /** The mechanical clatter's level (a voice with `mech`), turned up in her engine room. */
+    private readonly mechGain: GainNode | null,
+    /** The engine room's compressor (open elsewhere). */
+    private readonly squeeze: DynamicsCompressorNode,
   ) {}
 
   /** Voiced for small speakers (CONFIG.engineSmallSpeakers): on for phones and tablets. */
@@ -92,7 +96,15 @@ export class EngineSound {
     presence.frequency.value = CONFIG.engineSmallSpeakers.presenceHz;
     presence.Q.value = 0.8;
     presence.gain.value = 0;
-    master.connect(presence).connect(houseLp).connect(destination);
+    // In her engine room (set's `room`) a compressor squeezes it: loud and dense, never clipped.
+    // Elsewhere its threshold is at 0 dB: it doesn't touch the sound.
+    const squeeze = ctx.createDynamicsCompressor();
+    squeeze.threshold.value = 0;
+    squeeze.knee.value = 6;
+    squeeze.ratio.value = 1;
+    squeeze.attack.value = 0.004;
+    squeeze.release.value = 0.18;
+    master.connect(presence).connect(houseLp).connect(squeeze).connect(destination);
 
     // ── Combustion: body resonance, low-pass, a little saturation ──
     const dcBlock = ctx.createBiquadFilter();
@@ -141,6 +153,7 @@ export class EngineSound {
     thump.connect(underLp).connect(muffled).connect(master);
 
     let worklet: AudioWorkletNode | null = null;
+    let mechGain: GainNode | null = null;
     let fallback: { osc1: OscillatorNode; osc2: OscillatorNode } | null = null;
     if (await loadDieselWorklet(ctx)) {
       const { cylinders, strength, jitter, pulseTau, pulseTauLow } = voice;
@@ -161,7 +174,7 @@ export class EngineSound {
         top.type = 'lowpass';
         top.frequency.value = voice.mechBand?.[1] ?? 1400;
         top.Q.value = 0.5;
-        const mech = ctx.createGain();
+        const mech = (mechGain = ctx.createGain());
         mech.gain.value = voice.mech;
         worklet.connect(hp).connect(top).connect(mech).connect(thump);
       }
@@ -218,7 +231,7 @@ export class EngineSound {
       turbo = { osc, gain };
     }
 
-    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, houseLp, voice, turbo, presence);
+    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, houseLp, voice, turbo, presence, mechGain, squeeze);
   }
 
   /** Stop it and unhook it (the boat changed engines). */
@@ -236,9 +249,17 @@ export class EngineSound {
    * @param level overall level (distance attenuation, the wheelhouse etc.)
    * @param lp    low-pass on everything (Hz): 20000 on deck, lower through the wheelhouse
    * @param t     schedule time (default now)
+   * @param room  0..1, heard in her engine room beside it (the clatter of its valve gear and
+   *              injectors up: CONFIG.engineRoom.sound.mech times; the wet exhaust's water
+   *              doesn't reach you there)
    */
-  set(e: EngineSoundInput, level: number, lp = 20000, t = this.ctx.currentTime): void {
+  set(e: EngineSoundInput, level: number, lp = 20000, t = this.ctx.currentTime, room = 0): void {
     this.houseLp.frequency.setTargetAtTime(lp, t, 0.15);
+    if (this.mechGain) this.mechGain.gain.setTargetAtTime(this.voice.mech * (1 + (CONFIG.engineRoom.sound.mech - 1) * room), t, 0.2);
+    if (room > 0) e = { ...e, submerged: 0 };
+    const c = CONFIG.engineRoom.sound.compress;
+    this.squeeze.threshold.setTargetAtTime(room > 0 ? c.thresholdDb : 0, t, 0.2);
+    this.squeeze.ratio.setTargetAtTime(room > 0 ? c.ratio : 1, t, 0.2);
     const smooth = 0.06;
     const rpm = Math.max(0, e.rpm);
     const rpmFrac = Math.min(1, rpm / e.ratedRpm);
@@ -362,7 +383,7 @@ export class EngineAudio {
    * @param house     level factor and low-pass (Hz) for where you are: 1 / 20000 on deck,
    *                  less inside the wheelhouse (CONFIG.wheelhouseSound)
    */
-  update(v: VesselState | undefined, distance: number, submerged = 0, house = 1, lp = 20000): void {
+  update(v: VesselState | undefined, distance: number, submerged = 0, house = 1, lp = 20000, room = 0): void {
     if (!v) return;
     // Her engine's voice: a boat with another kind of engine gets its own sound.
     const diesel = gearOf(v, 'diesel');
@@ -376,7 +397,7 @@ export class EngineAudio {
     const input = { rpm: e.rpm, load: e.rack, ratedRpm: this.ratedRpm, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged };
     const level = (0.42 / (1 + distance / 8)) * house;
     if (!this.sound2) {
-      this.sound.set(input, level, lp);
+      this.sound.set(input, level, lp, undefined, room);
       return;
     }
     // Twin engines: two sounds, together ~+3 dB (each at engineTwinLevel / sqrt 2: two
@@ -392,8 +413,8 @@ export class EngineAudio {
     const drift = dr.share * (0.6 * Math.sin((2 * Math.PI * t) / dr.periodsS[0]) + 0.4 * Math.sin((2 * Math.PI * t) / dr.periodsS[1]));
     const s = e.stbd;
     const input2 = s ? { rpm: s.rpm, load: s.rack, ratedRpm: this.ratedRpm, running: s.phase === 'running', cranking: s.phase === 'cranking', submerged } : input;
-    this.sound.set(input, each, lp);
-    this.sound2.set({ ...input2, rpm: input2.rpm * (1 + drift) }, each, lp);
+    this.sound.set(input, each, lp, undefined, room);
+    this.sound2.set({ ...input2, rpm: input2.rpm * (1 + drift) }, each, lp, undefined, room);
   }
 }
 

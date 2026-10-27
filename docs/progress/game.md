@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug's V16s: a big rumbling voice, and loud in her engine room (27 Oct 2026)
+
+Owner: "we'll come back to engine sounds, because we need a big rumbling noise for these big diesels"; "Move onto sounds".
+- **A V16 voice** (`CONFIG.engineVoices.v16`; the tug's engine in the Shipyard's catalogue now takes it, it had the landing craft's small V8's): 16 cylinders four-stroke, 80 firings a second at her 600 rpm idle, 213 at 1600 rated; long pulses (big cylinders) so the beats run into a roar; the banks firing in turn with the starboard bank's pulses weaker, so half the firing rate (40 Hz at idle, 107 flat out) growls under the beat; a big, low exhaust (resonances at 62 and 96 Hz), the top rolled off more than the other voices; a low turbo whine rising with boost; a little valve-gear and injector clatter (300 to 1100 Hz).
+- **In her engine room** (`CONFIG.engineRoom.sound`: `level` 1.2, `mech` 5, `compress` −22 dB at 8 : 1; `EngineSound.set`'s `room`, App): louder than on deck, the clatter five times up, no wet-exhaust muffling, through a compressor that's open (0 dB) everywhere else, so two engines flat out are loud and dense without clipping.
+- **Rendered offline** (headless Chromium, the game's own engine sound, both engines as the game plays a twin, 3 m off, idle then opened up to full): flat out, 54 % of the V16's sound is under 150 Hz on deck (37 % at first try; the old V8 voice at her revs 93 %, but a small engine's thin beat), idle 97 %; peaks 0.70 on deck, 1.09 in the engine room before the game's volume (0.72 after it: no clipping). The clips were sent to the owner to judge by ear.
+- **Not checked:** by ear (no speakers here); in VR.
+- **Shared changes:** `src/shipyard/parts/catalog.ts` (the tug's engine's voice, one word: the Shipyard chat's file, for the owner's ask); `src/audio/engineAudio.ts` (the engine room's `room`, clatter level and compressor; other boats unchanged: the compressor is open and `room` 0 for them).
+
 ### The tug's engine room labelled; no flicker; the gauge board clear (27 Oct 2026)
 
 Owner: "many of the things are not labeled, so you don't know what's the oil pump, you don't know what all the switches in the electrical bus board do. There's also some Z fighting in the engine control room and some gauges hidden behind the wall with the pipes on it ... label everything."

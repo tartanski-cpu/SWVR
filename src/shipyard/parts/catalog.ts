@@ -722,7 +722,7 @@ export const ENGINES = [
   // The harbour tug's (owner, Oct 2026: her real power, 2 x 1850 kW, until her azimuth drives
   // come): a big high-power diesel of her size, on a shaft for now, turning a propeller as big
   // as her draught aft allows. Heavy and long: only she has the room for it.
-  { name: '1850 kW harbour tug diesel (V16, 1600 rpm)', kw: 1850, kg: 8500, voice: 'v8' as const, rackRise: 1.2, ratedRpm: 1600, idleRpm: 600, propMaxM: 2.4, pricePerKw: 200, size: [4.4, 1.7, 2.1] as const, only: [HARBOUR_TUG] as readonly number[], about: 'The harbour tug’s: a big high-power diesel for her bollard pull. A stand-in on a shaft until her azimuth drives come.' },
+  { name: '1850 kW harbour tug diesel (V16, 1600 rpm)', kw: 1850, kg: 8500, voice: 'v16' as const, rackRise: 1.2, ratedRpm: 1600, idleRpm: 600, propMaxM: 2.4, pricePerKw: 200, size: [4.4, 1.7, 2.1] as const, only: [HARBOUR_TUG] as readonly number[], about: 'The harbour tug’s: a big high-power diesel for her bollard pull. A stand-in on a shaft until her azimuth drives come.' },
   // The solar catamaran's (owner, 26 Oct 2026): an electric motor driving each of her pods,
   // from her battery (in the game: physics/electricMotor.ts, through her pods; 27 Oct 2026).
   { name: '25 kW electric pod motor', kw: 25, kg: 60, voice: 'electric' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.7, pricePerKw: 300, size: [0.7, 0.4, 0.4] as const, only: [SOLAR_CAT] as readonly number[], electric: true, about: 'The solar catamaran’s: an electric motor for each of her pods, quiet and clean, running on her battery.' },
