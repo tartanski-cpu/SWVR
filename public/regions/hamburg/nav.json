@@ -1,0 +1,2578 @@
+{
+ "marks": [
+  {
+   "name": "130",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -5871.7,
+   "z": -2798.6,
+   "depth": -15,
+   "light": "OcR.4s"
+  },
+  {
+   "name": "132",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -3939.3,
+   "z": -2228.8,
+   "depth": -15,
+   "light": "QR.1s"
+  },
+  {
+   "name": "134",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -1859.5,
+   "z": -1990.1,
+   "depth": -15,
+   "light": "Fl(2)R.9s"
+  },
+  {
+   "name": "135/KS 1",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": -127,
+   "z": -1709,
+   "depth": -15,
+   "light": "QG.1s"
+  },
+  {
+   "name": "Seemannshöft",
+   "type": "beacon_lateral",
+   "category": "port",
+   "shape": "lattice",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -3073.4,
+   "z": -1673.2,
+   "depth": 0.6,
+   "light": "Fl(2)R.5.5s"
+  },
+  {
+   "name": "136",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -1197.9,
+   "z": -1995.6,
+   "depth": -15,
+   "light": "Oc(2)R.9s"
+  },
+  {
+   "name": "KS 13",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 1874.5,
+   "z": 3748.9,
+   "depth": -15
+  },
+  {
+   "name": "KS 11",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 1606.8,
+   "z": 3229.9,
+   "depth": -15,
+   "light": "Fl(2)G.9s"
+  },
+  {
+   "name": "KS 4",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 1095.1,
+   "z": 1858.8,
+   "depth": -15,
+   "light": "Oc(2)R.9s"
+  },
+  {
+   "name": "KS 2",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 1038.5,
+   "z": 1252.2,
+   "depth": -15,
+   "light": "FlR.4s"
+  },
+  {
+   "name": "KS 9",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 821.9,
+   "z": -425.9,
+   "depth": -15,
+   "light": "FlG.4s"
+  },
+  {
+   "name": "KS 7",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 768.8,
+   "z": -877.2,
+   "depth": -13.2,
+   "light": "IsoG.8s"
+  },
+  {
+   "name": "KS 5",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 573.2,
+   "z": -1260,
+   "depth": -13.9,
+   "light": "Oc(2)G.9s"
+  },
+  {
+   "name": "KS 3",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 252.6,
+   "z": -1547.5,
+   "depth": -15,
+   "light": "FlG.4s"
+  },
+  {
+   "name": "R 4",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 3735.3,
+   "z": 3616.3,
+   "depth": -15,
+   "light": "FlR.4s"
+  },
+  {
+   "name": "R2/Sch",
+   "type": "buoy_lateral",
+   "category": "preferred_channel_starboard",
+   "shape": "pillar",
+   "colour": "red;green;red",
+   "pattern": "horizontal",
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 3699.6,
+   "z": 3471.7,
+   "depth": -15
+  },
+  {
+   "name": "SH1",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 5237.9,
+   "z": 365.5,
+   "depth": -15,
+   "light": "Fl(1+3)G.4s"
+  },
+  {
+   "name": "MZ K-S",
+   "type": "buoy_cardinal",
+   "category": "south",
+   "shape": "pillar",
+   "colour": "yellow;black",
+   "pattern": "horizontal",
+   "topmark": "2 cones down",
+   "gameKind": "S",
+   "x": 6361.2,
+   "z": 367.5,
+   "depth": -15
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "barrel",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": 6668.7,
+   "z": 289.3,
+   "depth": -15
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "barrel",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": 6665.1,
+   "z": 321.1,
+   "depth": -15
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "barrel",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": 6672.5,
+   "z": 256.6,
+   "depth": -5.7
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "unknown_purpose",
+   "shape": "conical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 6597.1,
+   "z": -875.6,
+   "depth": -15
+  },
+  {
+   "name": "SPT GH-N",
+   "type": "buoy_special_purpose",
+   "category": "unknown_purpose",
+   "shape": "conical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 4109.4,
+   "z": -1723.5,
+   "depth": -3.2
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "unknown_purpose",
+   "shape": "conical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 6547,
+   "z": -776.8,
+   "depth": -15
+  },
+  {
+   "name": "SPT GH-S",
+   "type": "buoy_special_purpose",
+   "category": "unknown_purpose",
+   "shape": "conical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 4153.4,
+   "z": -1686.5,
+   "depth": -6.8
+  },
+  {
+   "name": "K 1",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": -2374.2,
+   "z": -633.5,
+   "depth": -13.9,
+   "light": "Fl(3)G.12s"
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "barrel",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": 6909.8,
+   "z": 80.7,
+   "depth": -5.7
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "barrel",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": 6925.4,
+   "z": 58.7,
+   "depth": -10.7
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "barrel",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": 6936.7,
+   "z": 35,
+   "depth": -15
+  },
+  {
+   "name": "Work of Art",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "can",
+   "colour": "grey",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": -1169.6,
+   "z": -2083.2,
+   "depth": -13.2
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "conical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": -3932.4,
+   "z": -1795.4,
+   "depth": -12.8
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "warning",
+   "shape": "conical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": -3913,
+   "z": -1771.2,
+   "depth": -12.8
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "warning",
+   "shape": "conical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": -3874.9,
+   "z": -1688.8,
+   "depth": -10.3
+  },
+  {
+   "name": "",
+   "type": "beacon_cardinal",
+   "category": "south",
+   "shape": "pile",
+   "colour": "yellow;black",
+   "pattern": "horizontal",
+   "topmark": "2 cones down",
+   "gameKind": "S",
+   "x": 527.7,
+   "z": -2015.6,
+   "depth": -15
+  },
+  {
+   "name": "Vattenfall 2",
+   "type": "buoy_special_purpose",
+   "category": "recording",
+   "shape": "pillar",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 1303.7,
+   "z": 2533.4,
+   "depth": -9.3,
+   "light": "FlY"
+  },
+  {
+   "name": "SH2",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": "board",
+   "gameKind": "port",
+   "x": 5253.9,
+   "z": 334.3,
+   "depth": -10.7,
+   "light": "Fl(1+3)R.4s"
+  },
+  {
+   "name": "",
+   "type": "beacon_lateral",
+   "category": "starboard",
+   "shape": "stake",
+   "colour": "green",
+   "pattern": null,
+   "topmark": "cone, point up",
+   "gameKind": "stbd",
+   "x": -6727.3,
+   "z": -3122.8,
+   "depth": -15
+  },
+  {
+   "name": "",
+   "type": "beacon_lateral",
+   "category": "port",
+   "shape": "stake",
+   "colour": "red",
+   "pattern": null,
+   "topmark": "cylinder",
+   "gameKind": "port",
+   "x": -6747.2,
+   "z": -3125,
+   "depth": -15
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "unknown_purpose",
+   "shape": "can",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 2390.7,
+   "z": 278,
+   "depth": -15
+  },
+  {
+   "name": "SPT OH-N",
+   "type": "buoy_special_purpose",
+   "category": "unknown_purpose",
+   "shape": "can",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 2453.8,
+   "z": 42.3,
+   "depth": -15
+  },
+  {
+   "name": "FMT VDT",
+   "type": "buoy_special_purpose",
+   "category": "no_entry",
+   "shape": "can",
+   "colour": "grey",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 2546.4,
+   "z": 2178.9,
+   "depth": -12.8
+  },
+  {
+   "name": "",
+   "type": "buoy_isolated_danger",
+   "category": "isolated_danger",
+   "shape": "pillar",
+   "colour": "black;red;black",
+   "pattern": "horizontal",
+   "topmark": "2 spheres",
+   "gameKind": "isolated",
+   "x": 1693.2,
+   "z": 3515.4,
+   "depth": -9.3
+  },
+  {
+   "name": "",
+   "type": "beacon_cardinal",
+   "category": "south",
+   "shape": "pile",
+   "colour": "yellow;black",
+   "pattern": "horizontal",
+   "topmark": "2 cones down",
+   "gameKind": "S",
+   "x": 543.8,
+   "z": -2016.5,
+   "depth": -14.3
+  },
+  {
+   "name": "",
+   "type": "beacon_cardinal",
+   "category": "south",
+   "shape": "pile",
+   "colour": "yellow;black",
+   "pattern": "horizontal",
+   "topmark": "2 cones down",
+   "gameKind": "S",
+   "x": 560.1,
+   "z": -2016.9,
+   "depth": -9.3
+  },
+  {
+   "name": "SPT FH-N",
+   "type": "buoy_special_purpose",
+   "category": "no_entry",
+   "shape": "can",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 177.6,
+   "z": -2101.9,
+   "depth": -5.7
+  },
+  {
+   "name": "SPT FH-S",
+   "type": "buoy_special_purpose",
+   "category": "no_entry",
+   "shape": "can",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 181.8,
+   "z": -2082.5,
+   "depth": -10.7
+  },
+  {
+   "name": "",
+   "type": "buoy_cardinal",
+   "category": "west",
+   "shape": "pillar",
+   "colour": "yellow;black;yellow",
+   "pattern": "horizontal",
+   "topmark": "2 cones point together",
+   "gameKind": "W",
+   "x": 3250.6,
+   "z": 871,
+   "depth": -6.8
+  }
+ ],
+ "lights": [
+  {
+   "name": "Blankenese",
+   "x": -6667.1,
+   "z": -3239.2,
+   "height": 84,
+   "range": 16,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "IsoW.4s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "130",
+   "x": -5871.7,
+   "z": -2798.6,
+   "character": "Oc",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "OcR.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "132",
+   "x": -3939.3,
+   "z": -2228.8,
+   "character": "Q",
+   "period": 1,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "QR.1s",
+   "on": "buoy"
+  },
+  {
+   "name": "134",
+   "x": -1859.5,
+   "z": -1990.1,
+   "character": "Fl",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Fl(2)R.9s",
+   "on": "buoy"
+  },
+  {
+   "name": "135/KS 1",
+   "x": -127,
+   "z": -1709,
+   "character": "Q",
+   "period": 1,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "QG.1s",
+   "on": "buoy"
+  },
+  {
+   "name": "Bubendey-Ufer",
+   "x": -1601.5,
+   "z": -1350.9,
+   "height": 38,
+   "range": 15,
+   "character": "Iso",
+   "period": 8,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "IsoW.8s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Petroleumhafen, Einfahrt, N-Seite",
+   "x": -1567.4,
+   "z": -1277.7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "Bubendey-Ufer",
+   "x": -2569.4,
+   "z": -1641,
+   "height": 20,
+   "range": 13,
+   "character": "Iso",
+   "period": 8,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "IsoW.8s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Seemannshöft",
+   "x": -3073.4,
+   "z": -1673.2,
+   "height": 9,
+   "range": 3,
+   "character": "Fl",
+   "group": "2",
+   "period": 5.5,
+   "sequence": "0.7+(1.3)+0.7+(2.8)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Fl(2)R.5.5s",
+   "on": "beacon"
+  },
+  {
+   "name": "Altenwerder",
+   "x": 990.1,
+   "z": 3175,
+   "height": 25,
+   "range": 7,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "IsoW.4s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Ellerholz Oberfeuer",
+   "x": 1313.1,
+   "z": 3342.9,
+   "height": 33,
+   "range": 5,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.4s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Altenwerder Oberfeuer",
+   "x": 994.2,
+   "z": 3330.5,
+   "height": 31,
+   "range": 7,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "IsoW.4s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Ellerholz",
+   "x": 1290.9,
+   "z": 3249.9,
+   "height": 25,
+   "range": 5,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.4s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": 683.1,
+   "z": -1671.6,
+   "height": 8,
+   "range": 3,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "QY",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 785.5,
+   "z": -1671.6,
+   "height": 8,
+   "range": 3,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "QY",
+   "on": "light"
+  },
+  {
+   "name": "136",
+   "x": -1197.9,
+   "z": -1995.6,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Oc(2)R.9s",
+   "on": "buoy"
+  },
+  {
+   "name": "KS 11",
+   "x": 1606.8,
+   "z": 3229.9,
+   "character": "Fl",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "Fl(2)G.9s",
+   "on": "buoy"
+  },
+  {
+   "name": "KS 4",
+   "x": 1095.1,
+   "z": 1858.8,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Oc(2)R.9s",
+   "on": "buoy"
+  },
+  {
+   "name": "KS 2",
+   "x": 1038.5,
+   "z": 1252.2,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "KS 9",
+   "x": 821.9,
+   "z": -425.9,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "KS 7",
+   "x": 768.8,
+   "z": -877.2,
+   "character": "Iso",
+   "period": 8,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "IsoG.8s",
+   "on": "buoy"
+  },
+  {
+   "name": "KS 5",
+   "x": 573.2,
+   "z": -1260,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "Oc(2)G.9s",
+   "on": "buoy"
+  },
+  {
+   "name": "KS 3",
+   "x": 252.6,
+   "z": -1547.5,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "R 4",
+   "x": 3735.3,
+   "z": 3616.3,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "SH1",
+   "x": 5237.9,
+   "z": 365.5,
+   "character": "Fl",
+   "group": "1+3",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "Fl(1+3)G.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 3604.5,
+   "z": -1559,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "Athabaskahöft",
+   "x": -1301.1,
+   "z": -1595.8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red",
+     "from": 334,
+     "to": 327
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "Köhlbrandhöft",
+   "x": 642.4,
+   "z": -1632.2,
+   "height": 8,
+   "range": 3,
+   "character": "Iso",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1735.5,
+   "z": -1762.1,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -5489.7,
+   "z": -2239.8,
+   "character": "Q",
+   "group": "3",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Q(3)O.10s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -5828.3,
+   "z": -2340.4,
+   "character": "Fl",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Fl(2)O.9s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -6027,
+   "z": -2388.7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FW",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -6365.4,
+   "z": -2528.4,
+   "character": "Q",
+   "group": "9",
+   "period": 15,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "Q(9)Y.15s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -2032.3,
+   "z": 479.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -2051.3,
+   "z": 221.8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -2155.9,
+   "z": -113.9,
+   "character": "Iso",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -1861.3,
+   "z": -247.4,
+   "height": 13,
+   "range": 8,
+   "character": "Oc",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "OcG.5s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -2065,
+   "z": -445.9,
+   "height": 13,
+   "range": 8,
+   "character": "Oc",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "OcG.5s",
+   "on": "light"
+  },
+  {
+   "name": "K 1",
+   "x": -2374.2,
+   "z": -633.5,
+   "character": "Fl",
+   "group": "3",
+   "period": 12,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "Fl(3)G.12s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": -3055.9,
+   "z": -1526.2,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FlO.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -3519.8,
+   "z": -1748.7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -3803.9,
+   "z": -1786.6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -3570,
+   "z": -1821.3,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -3979.4,
+   "z": -1836.9,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -3627.3,
+   "z": -1848.6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -4571.1,
+   "z": -1924.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -4623.1,
+   "z": -1966.9,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "Waltershofer Höft",
+   "x": -1040.3,
+   "z": -1114.1,
+   "character": "Oc",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "OcO.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -1880.4,
+   "z": -1631.4,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -6505.1,
+   "z": -2504.4,
+   "height": 3,
+   "character": "Oc",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "yellow",
+     "from": 130,
+     "to": 330
+    }
+   ],
+   "label": "OcY.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -592.7,
+   "z": -2055.8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -67.7,
+   "z": -2016.8,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "IsoO.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 854.2,
+   "z": -1664.1,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1466.8,
+   "z": -1539.9,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 117.7,
+   "z": -2033.8,
+   "character": "Q",
+   "group": "9",
+   "period": 15,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Q(9)O.15s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -462.1,
+   "z": -2010.6,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Oc(2)O.9s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -782.2,
+   "z": -2060.8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1133.8,
+   "z": 1095.5,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 2093.2,
+   "z": -1161,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 2054.1,
+   "z": -805.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1507.7,
+   "z": 1580,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 2009.7,
+   "z": -1065.4,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 2043.8,
+   "z": -529.3,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 2005.1,
+   "z": -727,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1032.5,
+   "z": 636.2,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FlO.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1106.7,
+   "z": 1136,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1294.2,
+   "z": 1265.4,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "IsoO.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 735.3,
+   "z": 679.1,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 5158,
+   "z": -1298.3,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4006.2,
+   "z": -1148.7,
+   "character": "Iso",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "IsoO.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4493.4,
+   "z": -1080.6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4589.9,
+   "z": -1165.7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4306.6,
+   "z": -1003.7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 2731.4,
+   "z": -1994.1,
+   "character": "Iso",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "IsoY.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4199.8,
+   "z": -1240.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3504,
+   "z": -1571.7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4328.9,
+   "z": -1055.8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4775.3,
+   "z": -1177.4,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3986.2,
+   "z": -1344.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4111.9,
+   "z": -1321.7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 5119.7,
+   "z": -160.9,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4988.4,
+   "z": -568,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FW",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 5216,
+   "z": -120.4,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4996.2,
+   "z": -390,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FW",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 5287.7,
+   "z": -87.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1328.2,
+   "z": 2452.7,
+   "height": 13,
+   "range": 2,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "green",
+     "from": 19,
+     "to": 61
+    },
+    {
+     "colour": "white",
+     "from": 61,
+     "to": 75
+    }
+   ],
+   "label": "IsoGW.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1250.9,
+   "z": 2493.1,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "QR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 681.7,
+   "z": 1159.7,
+   "height": 7,
+   "range": 3,
+   "character": "Iso",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1796.7,
+   "z": 1602.7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "Großer kattwyk",
+   "x": 1248.1,
+   "z": 2290.9,
+   "height": 18,
+   "range": 10,
+   "character": "Iso",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.5s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1327,
+   "z": 2461.6,
+   "height": 11,
+   "range": 5,
+   "character": "Oc",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "OcR.5s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1849.1,
+   "z": 2471.8,
+   "character": "Fl",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Fl(2)O.9s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1993.8,
+   "z": 2259,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    },
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FGR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1749.8,
+   "z": 2295.1,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "FlY.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1800.1,
+   "z": 2454.8,
+   "character": "Q",
+   "group": "9",
+   "period": 15,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Q(9)O.15s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1934.2,
+   "z": 1795.7,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FlO.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3870.3,
+   "z": 194.7,
+   "character": "Iso",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "IsoY.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3024.9,
+   "z": -2.2,
+   "character": "Oc",
+   "group": "3",
+   "period": 12,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Oc(3)O.12s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3210.8,
+   "z": -2079.6,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "IsoW.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3643.7,
+   "z": -1888.6,
+   "character": "Iso",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "IsoO.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3189.5,
+   "z": -2148.1,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3663.9,
+   "z": -1922.6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3573.9,
+   "z": -1885.8,
+   "character": "Q",
+   "group": "3",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Q(3)O.10s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 2232.8,
+   "z": -2236,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "QO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 2377.1,
+   "z": -2245.9,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3816.1,
+   "z": -1829.7,
+   "character": "Oc",
+   "group": "4",
+   "period": 15,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Oc(4)W.15s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 5204.1,
+   "z": -1492.2,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Oc(2)O.9s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 5203.1,
+   "z": -1427.7,
+   "character": "Fl",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "Fl(2)O.9s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1748.5,
+   "z": -2101.9,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3295.1,
+   "z": 2651.1,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FW",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3119.9,
+   "z": 2526.4,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3425.6,
+   "z": 2957.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FW",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 658.4,
+   "z": 257.4,
+   "height": 12,
+   "range": 7,
+   "character": "Oc",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "OcG.5s",
+   "on": "light"
+  },
+  {
+   "name": "Rugenbergen",
+   "x": 735.3,
+   "z": 358.7,
+   "height": 18,
+   "range": 7,
+   "character": "Oc",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "OcG.5s",
+   "on": "light"
+  },
+  {
+   "name": "Neuhof",
+   "x": 1218.9,
+   "z": 788.7,
+   "height": 12,
+   "range": 2,
+   "character": "Oc",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "green",
+     "from": 65,
+     "to": 107
+    },
+    {
+     "colour": "white",
+     "from": 107,
+     "to": 116
+    }
+   ],
+   "label": "OcGW.4s",
+   "on": "light"
+  },
+  {
+   "name": "Köhlbrandt-N",
+   "x": 1093.1,
+   "z": -753.3,
+   "height": 12,
+   "range": 5,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Oc(2)R.9s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 967.5,
+   "z": -1331.6,
+   "height": 38,
+   "range": 5,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Oc(2)R.9s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1133.7,
+   "z": -700.6,
+   "height": 18,
+   "range": 5,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Oc(2)R.9s",
+   "on": "light"
+  },
+  {
+   "name": "Köhlbrandt-S",
+   "x": 964.3,
+   "z": -1169.6,
+   "height": 20,
+   "range": 5,
+   "character": "Oc",
+   "group": "2",
+   "period": 9,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Oc(2)R.9s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3267.1,
+   "z": 2417.2,
+   "height": 15,
+   "range": 8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "Reiherstieg",
+   "x": 3201.3,
+   "z": 2407.3,
+   "height": 12,
+   "range": 8,
+   "character": "F",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR.5s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -1635.6,
+   "z": -1133.1,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1965.9,
+   "z": 3452.3,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1997.8,
+   "z": 3544.9,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -2323.1,
+   "z": -8.6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -2327.6,
+   "z": -131.6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "orange"
+    }
+   ],
+   "label": "FO",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1837.8,
+   "z": -1540.1,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    },
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FGR",
+   "on": "light"
+  },
+  {
+   "name": "Vattenfall 2",
+   "x": 1303.7,
+   "z": 2533.4,
+   "character": "Fl",
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "FlY",
+   "on": "buoy"
+  },
+  {
+   "name": "SH2",
+   "x": 5253.9,
+   "z": 334.3,
+   "character": "Fl",
+   "group": "1+3",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Fl(1+3)R.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "Finkenwerder Oberfeuer",
+   "x": -5499,
+   "z": -2008.6,
+   "height": 32,
+   "range": 9,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.4s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -4530.1,
+   "z": -1968.5,
+   "height": 15,
+   "range": 8,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.4s",
+   "on": "light"
+  },
+  {
+   "name": "Finkenwerder Unterfeuer",
+   "x": -4529.8,
+   "z": -1970.1,
+   "height": 6,
+   "range": 3,
+   "character": "Iso",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "IsoR.4s",
+   "on": "light"
+  },
+  {
+   "name": "Moorburger Weide",
+   "x": 2040.9,
+   "z": 3572.5,
+   "height": 35,
+   "range": 4,
+   "character": "Iso",
+   "period": 6,
+   "sectors": [
+    {
+     "colour": "green",
+     "from": 136,
+     "to": 138
+    },
+    {
+     "colour": "white",
+     "from": 138,
+     "to": 140
+    },
+    {
+     "colour": "red",
+     "from": 140,
+     "to": 142
+    }
+   ],
+   "label": "IsoGWR.6s",
+   "on": "light"
+  }
+ ],
+ "hazards": [
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 6060.5,
+   "z": -1420.9,
+   "depth": 1,
+   "radius": 42.1,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -2427.3,
+   "z": 643.5,
+   "depth": 1.4,
+   "radius": 10.3,
+   "drawn": true
+  }
+ ],
+ "farms": [],
+ "currents": []
+}

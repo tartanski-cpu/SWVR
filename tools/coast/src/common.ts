@@ -62,6 +62,8 @@ export interface RegionRequest {
    */
   inlandWater?: boolean;
   inlandDepth?: number;
+  /** Deck heights (m) of high bridges the map doesn't give, by name: every piece of it (package.ts). */
+  bridgeDecks?: Record<string, number>;
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

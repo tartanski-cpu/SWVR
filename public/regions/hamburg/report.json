@@ -1,0 +1,270 @@
+{
+ "warnings": [
+  "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)",
+  "features: no wrecks mapped (C6: none here)",
+  "features: 8 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)",
+  "overlapping piers at osg-steg (4720, -3796): decks 2.4 m and 0.5 m over 160 m²",
+  "overlapping piers at parkhoft-pier-2 (-1929, -1276): decks 2.4 m and 0.5 m over 144 m²",
+  "overlapping piers at parkhoft-pier-2 (-1755, -1278): decks 2.4 m and 0.5 m over 88 m²",
+  "overlapping piers at parkhoft-pier-2 (-1756, -1264): decks 2.4 m and 0.5 m over 48 m²",
+  "overlapping piers at parkhoft-pier-2 (-1759, -1264): decks 2.4 m and 0.5 m over 76 m²",
+  "overlapping piers at anlegeponton-museumshafen-ovelgonne (-714, -2070): decks 2.4 m and 0.5 m over 60 m²",
+  "overlapping piers at brandenburger-hafen (3308, -1723): decks 2.4 m and 0.5 m over 192 m²",
+  "overlapping piers at parkhoft-pier-2 (-1928, -1270): decks 2.4 m and 0.5 m over 180 m²",
+  "overlapping piers at brandenburger-hafen (3250, -1752): decks 2.4 m and 0.5 m over 192 m²",
+  "hafencity-pier: no berth with room for a boat (best blocked at 3 points): not a port",
+  "autoterminal-hamburg: no berth with room for a boat (best blocked at 10 points): not a port",
+  "wilhelmsburg-pier-3: no berth with room for a boat (best blocked at 7 points): not a port",
+  "veddel-pier-4: no berth with room for a boat (best blocked at 4 points): not a port"
+ ],
+ "nav": {
+  "marks": 47,
+  "lights": 133,
+  "hazards": 2,
+  "farms": 0,
+  "currents": 0
+ },
+ "houses": {
+  "byType": {
+   "house": 5065,
+   "terrace": 784,
+   "warehouse": 1266,
+   "boathouse": 480,
+   "shed": 1068,
+   "cottage": 704,
+   "church": 28,
+   "castle": 1,
+   "ruin": 4
+  },
+  "fromTags": 67,
+  "fromRules": 33,
+  "plain": 6099
+ },
+ "harbours": {
+  "harbours": 95,
+  "blocks": 645,
+  "berths": 2253,
+  "slipways": 2,
+  "buildings": 9400,
+  "edits": 0,
+  "sparse": [
+   "way/25895665: 1957 m2 in a 10266 m2 box, 4.0 m thick",
+   "way/69416622: 1041 m2 in a 2311 m2 box, 8.6 m thick",
+   "way/72700978: 283 m2 in a 884 m2 box, 4.8 m thick",
+   "way/97669759: 190 m2 in a 1084 m2 box, 2.5 m thick",
+   "way/158882901: 344 m2 in a 1028 m2 box, 2.2 m thick",
+   "way/158882903: 311 m2 in a 716 m2 box, 2.5 m thick",
+   "way/161963826: 3099 m2 in a 18788 m2 box, 9.1 m thick",
+   "way/164425483: 1092 m2 in a 3628 m2 box, 6.7 m thick",
+   "way/164426637: 832 m2 in a 2856 m2 box, 7.6 m thick",
+   "way/264072817: 485 m2 in a 1326 m2 box, 6.7 m thick",
+   "way/344221922: 176 m2 in a 410 m2 box, 4.1 m thick",
+   "way/444889617: 118 m2 in a 220 m2 box, 2.7 m thick",
+   "way/444891268: 74 m2 in a 180 m2 box, 2.4 m thick",
+   "way/449117795: 174 m2 in a 454 m2 box, 4.0 m thick",
+   "way/449117796: 303 m2 in a 588 m2 box, 6.1 m thick",
+   "way/631609557: 356 m2 in a 1077 m2 box, 3.0 m thick",
+   "way/1306365575: 39 m2 in a 76 m2 box, 2.7 m thick"
+  ],
+  "roles": {
+   "harbour.sheltered": "Ernst-August-Schleuse pier",
+   "pier.exposed": "Rethehöft pier",
+   "anchorage": "Neustadt anchorage"
+  }
+ },
+ "features": {
+  "farms": {},
+  "landmarks": {
+   "lighthouse": 11,
+   "turbine": 38,
+   "mast": 29,
+   "tower": 26,
+   "chimney": 27,
+   "monument": 9,
+   "church": 56,
+   "water_tower": 1
+  },
+  "shore": {
+   "sand": 5,
+   "beach": 1,
+   "rock": 6,
+   "shingle": 25
+  },
+  "cliffs": 7,
+  "farmland": 629,
+  "names": {
+   "suburb": 18,
+   "city": 1,
+   "cape": 1,
+   "locality": 31,
+   "hamlet": 1,
+   "neighbourhood": 15,
+   "islet": 1
+  },
+  "fogSignals": 4,
+  "wrecks": 0,
+  "cables": {
+   "pipeline": 3
+  },
+  "overhead": 8,
+  "overheadWithClearance": 0,
+  "ferryRoutes": 56,
+  "ferryTerminals": 21
+ },
+ "trees": {
+  "woodedKm2": {
+   "natural": 8.42,
+   "scrub": 1.03,
+   "mixed": 1.18,
+   "broadleaf": 1.65,
+   "orchard": 6.96
+  },
+  "mappedKm2": {
+   "scrub": 1.54,
+   "broadleaf": 1.99,
+   "mixed": 1.32,
+   "orchard": 7.55
+  },
+  "clearedCells": 45515,
+  "bytes": 60722
+ },
+ "dredgedCells": 1492,
+ "triangles": 84935,
+ "deepTriangles": 7045,
+ "vertices": 49162,
+ "bytes": 2166939,
+ "chunks": [
+  {
+   "id": 0,
+   "triangles": 3725
+  },
+  {
+   "id": 1,
+   "triangles": 2023
+  },
+  {
+   "id": 2,
+   "triangles": 881
+  },
+  {
+   "id": 3,
+   "triangles": 2039
+  },
+  {
+   "id": 4,
+   "triangles": 2948
+  },
+  {
+   "id": 5,
+   "triangles": 6472
+  },
+  {
+   "id": 6,
+   "triangles": 2023
+  },
+  {
+   "id": 7,
+   "triangles": 834
+  },
+  {
+   "id": 8,
+   "triangles": 1935
+  },
+  {
+   "id": 9,
+   "triangles": 2651
+  },
+  {
+   "id": 10,
+   "triangles": 3523
+  },
+  {
+   "id": 11,
+   "triangles": 6920
+  },
+  {
+   "id": 12,
+   "triangles": 8104
+  },
+  {
+   "id": 13,
+   "triangles": 4876
+  },
+  {
+   "id": 14,
+   "triangles": 2658
+  },
+  {
+   "id": 15,
+   "triangles": 2090
+  },
+  {
+   "id": 16,
+   "triangles": 1690
+  },
+  {
+   "id": 17,
+   "triangles": 3202
+  },
+  {
+   "id": 18,
+   "triangles": 7877
+  },
+  {
+   "id": 19,
+   "triangles": 6541
+  },
+  {
+   "id": 20,
+   "triangles": 3155
+  },
+  {
+   "id": 21,
+   "triangles": 131
+  },
+  {
+   "id": 22,
+   "triangles": 450
+  },
+  {
+   "id": 23,
+   "triangles": 90
+  },
+  {
+   "id": 24,
+   "triangles": 1419
+  },
+  {
+   "id": 25,
+   "triangles": 3485
+  },
+  {
+   "id": 26,
+   "triangles": 2510
+  },
+  {
+   "id": 27,
+   "triangles": 683
+  }
+ ],
+ "landShare": 0.8270844365826857,
+ "seenFromWater": 0.69,
+ "coastPoints": 4895,
+ "shoreBandPoints": 7552,
+ "chunkBudget": 12000,
+ "package": {
+  "ports": 77,
+  "berths": 137,
+  "blocks": 645,
+  "buildings": 9400,
+  "marks": 27,
+  "lights": 116,
+  "slipways": 2,
+  "fishingGrounds": 0,
+  "pottingGrounds": 0,
+  "landmarks": [
+   "Blankenese IsoW.4s"
+  ],
+  "bytes": 2348427
+ }
+}

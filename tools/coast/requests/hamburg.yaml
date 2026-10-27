@@ -18,3 +18,8 @@ spine:
 weatherProfile: north-sea
 fish: []
 goods: [building-materials, groceries, feed]
+# The harbour ferry lines are mapped in many pieces, some twice: each named line once.
+ferriesNamed: true
+# The Köhlbrandbrücke clears about 53 m over the water, on viaducts end to end; the map gives
+# no height (package.ts).
+bridgeDecks: { Köhlbrandbrücke: 55 }

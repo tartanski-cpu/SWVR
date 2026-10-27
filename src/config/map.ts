@@ -341,6 +341,11 @@ export const MAP_CONFIG = {
      * yard's name along the girder where the map asks for it (`signHeight`).
      */
     gantry: {
+      /** A goliath this wide between its rails or more (m) is drawn full size (Perno's is 156 m);
+       *  a narrower gantry (a container yard's stacking crane, 40 m) is scaled down by its span. */
+      fullSpan: 150,
+      /** Under this share of full size, no T-crane on top and no sign: a stacking crane, not a goliath. */
+      bareBelow: 0.5,
       height: 100,
       girderDepth: 11,
       girderWidth: 9,

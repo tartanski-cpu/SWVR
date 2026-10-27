@@ -246,12 +246,18 @@ function signParts(text: string, centre: V3, right: THREE.Vector3, normal: THREE
 export function gantryParts(g: GantryDef): THREE.BufferGeometry[] {
   const c = CONFIG.structures.gantry;
   const k = c.colours;
+  // Drawn to its own size: a goliath of `fullSpan` m between the rails or more full size (Perno),
+  // a smaller one (a container yard's stacking crane, 40 m) scaled down by its span, everything
+  // but the rails; under `bareBelow` of full size, without the goliath's T-crane on top.
+  const m = Math.min(1, g.span / c.fullSpan);
+  const goliath = m >= c.bareBelow;
   const a = (g.yawDeg * Math.PI) / 180;
   // Along the track (u) and across it (v), from its middle.
   const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
   const at = (s: number, w: number, y: number): V3 => [g.x + ux * s + vx * w, y, g.z + uz * s + vz * w];
   const y0 = g.base;
-  const H = y0 + c.height;
+  const [girderDepth, girderWidth, leg, legBase] = [c.girderDepth * m, c.girderWidth * m, c.leg * m, c.legBase * m];
+  const H = y0 + c.height * m;
   const half = g.span / 2;
   const parts: THREE.BufferGeometry[] = [];
   // The rails, two on each side, the track's length.
@@ -259,42 +265,44 @@ export function gantryParts(g: GantryDef): THREE.BufferGeometry[] {
   const shares = c.at[Math.min(g.count, c.at.length) - 1];
   for (const f of shares) {
     const s = (f - 0.5) * g.length;
-    const top = H - c.girderDepth;
+    const top = H - girderDepth;
     // The girder, a little past the legs each side.
-    parts.push(member(at(s, -half - 6, H - c.girderDepth / 2), at(s, half + 6, H - c.girderDepth / 2), c.girderWidth, c.girderDepth, k.frame));
+    parts.push(member(at(s, -half - 6 * m, H - girderDepth / 2), at(s, half + 6 * m, H - girderDepth / 2), girderWidth, girderDepth, k.frame));
     for (const side of [-1, 1]) {
       const w = side * half;
       // The A-frame: two legs from their feet, spread along the rails, to the girder.
       for (const e of [-1, 1]) {
-        parts.push(member(at(s + (e * c.legBase) / 2, w, y0 + 3), at(s + e * (c.girderWidth / 2 - c.leg / 2), w, top + 0.5), c.leg, c.leg, k.frame));
+        parts.push(member(at(s + (e * legBase) / 2, w, y0 + 3 * m), at(s + e * (girderWidth / 2 - leg / 2), w, top + 0.5 * m), leg, leg, k.frame));
         // Its bogie on the rails.
-        parts.push(member(at(s + (e * c.legBase) / 2 - 6, w, y0 + 1.5), at(s + (e * c.legBase) / 2 + 6, w, y0 + 1.5), 4.5, 3, k.dark));
+        parts.push(member(at(s + (e * legBase) / 2 - 6 * m, w, y0 + 1.5 * m), at(s + (e * legBase) / 2 + 6 * m, w, y0 + 1.5 * m), 4.5 * m, 3 * m, k.dark));
       }
       // A tie across the A-frame at a third of its height.
       const ty = y0 + (top - y0) / 3;
-      const tw = (c.legBase / 2) * (2 / 3) + (c.girderWidth / 2) * (1 / 3);
-      parts.push(member(at(s - tw, w, ty), at(s + tw, w, ty), 2, 2, k.frame));
+      const tw = (legBase / 2) * (2 / 3) + (girderWidth / 2) * (1 / 3);
+      parts.push(member(at(s - tw, w, ty), at(s + tw, w, ty), 2 * m, 2 * m, k.frame));
     }
     // Its sign along the girder, on both faces, a little to one side of the middle (owner).
-    if (g.sign) {
+    if (g.sign && goliath) {
       for (const f of [-1, 1]) {
         const normal = new THREE.Vector3(ux * f, 0, uz * f);
         // Reading left to right for someone facing the face: right = (-normal) x up.
         const right = new THREE.Vector3().crossVectors(normal.clone().negate(), new THREE.Vector3(0, 1, 0)).normalize();
-        const mid = at(s + (f * c.girderWidth) / 2, -half * 0.12, H - c.girderDepth / 2);
-        parts.push(...signParts(g.sign, mid, right, normal, c.signHeight, k.sign));
+        const mid = at(s + (f * girderWidth) / 2, -half * 0.12, H - girderDepth / 2);
+        parts.push(...signParts(g.sign, mid, right, normal, c.signHeight * m, k.sign));
       }
     }
     // The cab trolley riding on the girder, and the hoist trolley under it with its ropes and hook block.
-    parts.push(member(at(s, -half * 0.45 - 7, H + 3), at(s, -half * 0.45 + 7, H + 3), c.girderWidth + 2, 6, k.trolley));
+    parts.push(member(at(s, -half * 0.45 - 7 * m, H + 3 * m), at(s, -half * 0.45 + 7 * m, H + 3 * m), girderWidth + 2 * m, 6 * m, k.trolley));
     const hw = half * 0.15;
-    parts.push(member(at(s, hw - 5, top - 3), at(s, hw + 5, top - 3), c.girderWidth + 1, 6, k.trolley));
-    for (const [ds, dw] of [[-2, -3], [2, -3], [-2, 3], [2, 3]]) parts.push(member(at(s + ds, hw + dw, top - 6), at(s + ds, hw + dw, top - 6 - c.hoist), 0.25, 0.25, k.dark));
-    parts.push(member(at(s, hw - 4, top - 7 - c.hoist), at(s, hw + 4, top - 7 - c.hoist), 4, 2.5, k.trolley));
-    // The T-crane on top of the far leg: its mast and its jib across the girder.
-    const mw = half - 3;
-    parts.push(member(at(s, mw, H), at(s, mw, H + c.mast), 1.8, 1.8, k.trolley));
-    parts.push(member(at(s, mw - c.jib * 0.75, H + c.mast + 1), at(s, mw + c.jib * 0.25, H + c.mast + 1), 2, 2.5, k.trolley));
+    parts.push(member(at(s, hw - 5 * m, top - 3 * m), at(s, hw + 5 * m, top - 3 * m), girderWidth + m, 6 * m, k.trolley));
+    for (const [ds, dw] of [[-2, -3], [2, -3], [-2, 3], [2, 3]]) parts.push(member(at(s + ds * m, hw + dw * m, top - 6 * m), at(s + ds * m, hw + dw * m, top - (6 + c.hoist) * m), 0.25, 0.25, k.dark));
+    parts.push(member(at(s, hw - 4 * m, top - (7 + c.hoist) * m), at(s, hw + 4 * m, top - (7 + c.hoist) * m), 4 * m, 2.5 * m, k.trolley));
+    // The T-crane on top of the far leg: its mast and its jib across the girder (a goliath's).
+    if (goliath) {
+      const mw = half - 3;
+      parts.push(member(at(s, mw, H), at(s, mw, H + c.mast), 1.8, 1.8, k.trolley));
+      parts.push(member(at(s, mw - c.jib * 0.75, H + c.mast + 1), at(s, mw + c.jib * 0.25, H + c.mast + 1), 2, 2.5, k.trolley));
+    }
   }
   return parts;
 }

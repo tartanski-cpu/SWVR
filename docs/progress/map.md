@@ -10,6 +10,24 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The Port of Hamburg: a river port, the first map without a coastline (27 Oct 2026)
+
+Owner: "I'd like a Hamburg harbour map".
+
+- **The map** (`tools/coast/requests/hamburg.yaml`): the Elbe from Finkenwerder and Övelgönne up to the Elbe bridges, at full scale, 13.9 by 7.8 km, in 28 chunks (none over 8,100 drawn faces): the Landungsbrücken (where you start, `landungsbrucken-cargo`), the Speicherstadt and HafenCity, Blohm + Voss, Burchardkai, Altenwerder and Eurogate, the Köhlbrand, Wilhelmsburg and the free port's docks. For Voyage only (`src/world/maps.ts`, live weather off the Elbe, `ELBE_WEATHER`), on the landing page beside Turku. 77 ports, 137 berths, 9,400 buildings, 645 pier and quay blocks; 2.4 MB.
+- **Water with no coastline** (`reconcile.ts`, `inlandWater`): the map data has no coastline this far up a river, so the sea came out as one solid field. Now the map's own water outlines (river banks, docks, canals, lakes) bound the land and water patches too, and a patch with no sea seed in it is water when at least half of it is water in the land cover (ESA WorldCover). Its depth: 2 m at the bank, 0.25 m deeper a metre out, held to `inlandDepth` (15 m: a dredged fairway's, the real channel being about 16 m). Every other map leaves `inlandWater` off and is unchanged.
+- **The Hanseatic theme** (`themes.ts` `hanseatic`): red-brick warehouses and terraces, slate-grey, green copper and red roofs, stone revetments and the river's mud at the water's edge; lime, oak, plane and birch in the parks.
+- **The harbour ferry lines:** each line once (`ferriesNamed`, as Turku), 12 lines; a line the map knows only by its number reads "Line 62" (`package.ts`, every map from its next run).
+- **The Köhlbrandbrücke 55 m up:** the map gives no height, so its deck was drawn at its abutments' ground, 9 m, under which nothing could pass. A request now gives a bridge's deck by name (`bridgeDecks`, `common.ts`; here `Köhlbrandbrücke: 55`, every piece of it: about 53 m clear in life). Drawn as a beam bridge on tall piers, not yet with its cable-stayed towers.
+- **Gantries to their own size** (`coastStructures.ts` `gantryParts`; `CONFIG.structures.gantry.fullSpan` 150 m, `bareBelow` 0.5): Altenwerder's 25 stacking cranes are mapped as gantry tracks 40 m between the rails, and came out as 100 m goliaths. Now a gantry under `fullSpan` is scaled by its span (a 40 m one 27 m tall), and under half size has no T-crane and no sign. Perno's is unchanged (156 m).
+- **No creel grounds where a map lists no fish** (`package.ts`): Hamburg had two "Skerry" grounds in the docks.
+- **Yachts only on mooring buoys** (`boats.ts`): Hamburg maps 1,100 "moorings" that are piles, dolphins and bollards along the quays (ships lie against them); the stage put a yacht on a mooring at each, 400 of them against the piers. Now only buoys are taken (172 moorings, all the stage's own).
+- **Berths a step from a deck** (`package.ts` `ashoreOnDeck`, `T.quayBack` 2 m as the game's `CONFIG.start.quayBack`): a cargo or fuel berth is chosen only where the spot the game puts you ashore is on a deck. And a pier or quay's heading is kept to a tenth of a degree (it was whole degrees, which on Ballinkai's 1.5 km quay moved its far end 13 m sideways, off its own berth). Both from each map's next run.
+- **Tests:** `tests/coastHamburg.test.ts` (the box and chunks, the Landungsbrücken's latitude and longitude, the Elbe water and dredged, St. Pauli and Wilhelmsburg land, the start berth's depth and the ports, the ferry lines once each over water, the Köhlbrandbrücke at 55 m over the Köhlbrand). `npm run test:map`, the typecheck and all of `npm test` pass. Headless: the start at the Landungsbrücken (12 s to load, 154 draw calls), HafenCity's marinas, the Elbe, Altenwerder's cranes, the Köhlbrandbrücke.
+- **Not yet:** no containers on the terminals, nor the quay's ship-to-shore cranes (the map has their tracks, not the stacks): the terminals are bare ground; the Köhlbrandbrücke's towers and cables; the Elbphilharmonie as an ordinary building. Several piers share a name (five "Waltershof pier"), named for the nearest place by the harbours stage. 13 overlapping-pier and no-room warnings in the package report, as on the other maps.
+- **Not checked:** on the Quest.
+- **Shared changes:** `index.html` (the Hamburg link), `src/world/coastStructures.ts` gantry sizes (no change to Perno's).
+
 ### Turku loads faster: the piers' kit made as you come near, the berths and steps by a grid (27 Oct 2026)
 
 **Owner approved; merged into `next`.**

@@ -40,6 +40,8 @@ const T = {
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
    * (the game puts you 2 m in): a pontoon (2.5 m) has; a narrower walkway's berths aren't chosen. */
   namedDeck: 2.4,
+  /** The game puts you ashore this far in from where a boat lies (m; CONFIG.start.quayBack): on a deck. */
+  quayBack: 2,
   /**
    * A named berth must have room for a whole boat: clear water this far either way along the
    * face from the berth (m: the biggest boats are about 14 m long, and a margin) and out to
@@ -115,7 +117,8 @@ const blocks = hb.blocks.map((b: { kind: string; x: number; z: number; halfLengt
   z: r1(b.z),
   halfLength: r1(b.halfLength),
   halfWidth: r1(b.halfWidth),
-  yawDeg: Math.round(b.yawDeg),
+  // To a tenth of a degree: a whole degree moves the far end of Hamburg's 1.5 km quays 13 m.
+  yawDeg: r1(b.yawDeg),
   top: b.top,
   fendered: b.kind === 'pontoon' ? false : b.fendered, // a pontoon has a rubbing strip, not fenders
 }));
@@ -219,13 +222,19 @@ const blocked = (b: Berth) => {
     }
   return n;
 };
+/** The spot a step ashore from a berth (the game's startSpot.ts, `quayBack` m in from where she lies) is on a deck. */
+const ashoreOnDeck = (b: Berth) => {
+  const d = b.shoreDist + T.quayBack;
+  return (blocks as KitBlock[]).some((k) => insideBlock(k, b.x + b.shoreX * d, b.z + b.shoreZ * d));
+};
 const roomRank = (b: Berth) => {
   const n = blocked(b);
   return n === 0 ? 0 : n <= 2 ? 1 : 2;
 };
 harbours.forEach((h, n) => {
   // (Not on a deck too narrow to step ashore and stack goods on: a walkway's berths are moorings, not a port's.)
-  const own = (hb.berths as Berth[]).filter((b) => pieceOf.get(b.source) === h.id && (b.deckW ?? Infinity) >= T.namedDeck);
+  // (Nor where the spot a step ashore isn't on a deck: a berth at the very end of a quay.)
+  const own = (hb.berths as Berth[]).filter((b) => pieceOf.get(b.source) === h.id && (b.deckW ?? Infinity) >= T.namedDeck && ashoreOnDeck(b));
   // Room for a whole boat first (no bow on the rocks), then fixed faces (cargo wants a quay
   // or a pier) before pontoons, then nearest the harbour's middle.
   const rank = new Map(own.map((b) => [b, roomRank(b)]));
@@ -399,9 +408,12 @@ const skylineStyle = req.theme;
 // deck stands level with the higher of the ground at its two ends (its abutments), at least
 // `bridgeMinDeck` m over the sea. A folly stands on the lowest ground round its footprint
 // (its walls reach down to it).
+// A high bridge whose height the map doesn't carry (the Köhlbrandbrücke, on its viaducts
+// from end to end): the request gives its deck height by name (`bridgeDecks`), for every
+// piece of it.
 const bridges = ((F?.bridges ?? []) as { name: string; structure: string; carries: string; width: number; path: [number, number][] }[]).map((b) => {
   const [a, e] = [b.path[0], b.path[b.path.length - 1]];
-  return { ...b, deck: r1(Math.max(T.bridgeMinDeck, hAt(a[0], a[1]), hAt(e[0], e[1]))) };
+  return { ...b, deck: r1(Math.max(T.bridgeMinDeck, req.bridgeDecks?.[b.name] ?? 0, hAt(a[0], a[1]), hAt(e[0], e[1]))) };
 });
 const follies = ((F?.follies ?? []) as { name: string; outline: [number, number][]; height: number | null }[]).map((f) => ({
   name: f.name,
@@ -474,6 +486,8 @@ const ferryRoutes: object[] = [];
     for (const r of routes) if (r.name && len(r.path) > len(longest.get(r.name)?.path ?? [])) longest.set(r.name, r);
     routes = routes.filter((r) => r.name && longest.get(r.name) === r);
   }
+  // A harbour ferry line mapped by its number alone ("62"): "Line 62" on the chart.
+  routes = routes.map((r) => (/^\d+$/.test(r.name ?? '') ? { ...r, name: `Line ${r.name}` } : r));
   for (const [n, r] of routes.entries()) {
     // The longest run of the route inside the map.
     let best: [number, number][] = [];
@@ -579,9 +593,10 @@ const potAll = (nav.hazards as { name: string; kind: string; x: number; z: numbe
     }
     return { id: `${req.id}-pots-${i + 1}`, name: hz.name ? `${hz.name}` : `Skerry ${i + 1}`, x: at.x, z: at.z, radius: 60, quality: 0.8 };
   });
-// Thinned to `pottingApart` m where the request asks (in the order the chart lists them).
+// Thinned to `pottingApart` m where the request asks (in the order the chart lists them); none
+// where it lists no fish at all (a river port: Hamburg).
 const pottingGrounds: typeof potAll = [];
-for (const g of potAll) if (!req.pottingApart || pottingGrounds.every((o) => Math.hypot(o.x - g.x, o.z - g.z) >= req.pottingApart!)) pottingGrounds.push(g);
+if ((req.fish ?? []).length) for (const g of potAll) if (!req.pottingApart || pottingGrounds.every((o) => Math.hypot(o.x - g.x, o.z - g.z) >= req.pottingApart!)) pottingGrounds.push(g);
 
 // Landmarks: the highest named summit; the tallest lighthouse.
 const peaks = Object.entries(osm.nodeTags as Record<string, Record<string, string>>)
