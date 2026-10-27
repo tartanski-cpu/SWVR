@@ -918,6 +918,7 @@ export class App {
       walkAreas: this.walkAreas,
       keep: () => this.keptBelow(),
       notify: (text, s) => this.overlay.notify(text, s),
+      boatName: (defId) => this.boatLabel(defId),
     });
     this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine));
 
