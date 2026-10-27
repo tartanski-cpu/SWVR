@@ -4,14 +4,33 @@
  * roof and its aft overhang, a wing of them along each side of it, and a rack of them over
  * her foredeck on short legs, or on her house's front where it slopes below its windows. The wings hinge at the roof's outer edges; drawn stowed, folded
  * in flat over the roof's outer panels (opening them out and tilting them is a moving part
- * for later, as are her panels charging her battery).
+ * for later).
  *
  * Plain geometry from its config (the Shipyard works out where the roof is): merged with the
  * boat's fixed parts, so no draw calls of its own however many panels.
+ *
+ * Charging (`charge`; owner, 27 Oct 2026: "solar charging from the sun with a realistic
+ * model"), each tick on real-time power (the energy goes in at the rate the motors take it
+ * out, so what the screens show is what drives her):
+ *   light    the sunlight on each group of panels as she lies (environment/sunlight.ts): the
+ *            roof's and the rack's flat, the sloped front's facing ahead and up, each turned
+ *            with her heading, heel and trim; the stowed wings lie on the roof's outer panels
+ *            and shade them, so those count once
+ *   panels   power = light x area x `panelEff`, less `tempCoeff` a degree their cells run over
+ *            25 C (cells at the air's `airTempC` plus light x (`noctC` - 20) / 800), through
+ *            the charge controller (`controllerEff`) and into the battery (`chargeEff`)
+ *   battery  full charge up to `taperFrom` of full, then less and less to nothing at full (a
+ *            lithium pack's absorption); what her motors draw now is fed straight from the
+ *            panels first (VesselState.engine.powerKw), so a full battery still runs her on sun
+ * Her battery is VesselState.battery (the share of `batteryKWh`, her usable kWh); what the
+ * panels do now is VesselState.solar, for the SOLAR screen. Not modelled: her own house
+ * shading her panels.
  */
 import * as THREE from 'three';
 import type { ModuleDefinition } from '../../modular/module';
 import { part } from '../../render/geometryUtils';
+import { planeIrradiance, sunlight } from '../../environment/sunlight';
+import type { VesselState } from '../../vessel/vesselState';
 
 /** A flat field of panels: from z0 (aft) to z1 (forward), x0 to x1 across, its top at `y`. */
 export interface PanelField {
@@ -36,10 +55,63 @@ export interface SolarRoofConfig {
   /** One panel's size (m, across and along) and the gap between panels. */
   panel: [number, number];
   gap: number;
+  /** Her panels charging her battery (see above; none: they're only drawn). */
+  charge?: SolarCharge;
+}
+
+/** How her panels charge her battery (CONFIG.shipyard.solarCat.solar, and her battery's usable kWh). */
+export interface SolarCharge {
+  batteryKWh: number;
+  panelEff: number;
+  tempCoeff: number;
+  noctC: number;
+  airTempC: number;
+  controllerEff: number;
+  chargeEff: number;
+  taperFrom: number;
 }
 
 const CELLS = 0x1b2740;
 const FRAME = 0xb8bcbe;
+
+/** How many whole panels fit a field (across, along), as drawn. */
+function panelsIn(f: PanelField, c: SolarRoofConfig): [number, number] {
+  const [pw, pl] = c.panel;
+  return [Math.max(1, Math.floor((f.x1 - f.x0 + c.gap) / (pw + c.gap))), Math.max(1, Math.floor((Math.abs(f.z1 - f.z0) + c.gap) / (pl + c.gap)))];
+}
+
+/** Her panels in groups by the way they face: area (m2) and the normal (boat axes, z aft). */
+export function panelGroups(c: SolarRoofConfig): { area: number; n: [number, number, number] }[] {
+  const one = c.panel[0] * c.panel[1];
+  const area = (f: PanelField) => {
+    const [nx, nz] = panelsIn(f, c);
+    return nx * nz * one;
+  };
+  // Flat: the roof's (the stowed wings lie on its outer panels, so the roof counts once), the rack's.
+  const groups: { area: number; n: [number, number, number] }[] = [{ area: area(c.roof) + (c.rack ? area(c.rack) : 0), n: [0, 1, 0] }];
+  if (c.slope) {
+    // The sloped front: its panels laid along the slope (as drawn), facing forward and up.
+    const s = c.slope;
+    const len = Math.hypot(s.z1 - s.z0, s.y1 - s.y0);
+    groups.push({ area: area({ x0: s.x0, x1: s.x1, z0: 0.05, z1: len - 0.05, y: 0 }), n: [0, (s.z1 - s.z0) / len, -(s.y1 - s.y0) / len] });
+  }
+  return groups;
+}
+
+/** A vector in the boat's axes turned into the world's by her orientation (x, y, z, w). */
+function toWorld(q: readonly number[], v: readonly number[], out: [number, number, number]): [number, number, number] {
+  const [x, y, z, w] = q;
+  // v + 2w (q x v) + 2 q x (q x v), the vector part of q being (x, y, z).
+  const tx = 2 * (y * v[2] - z * v[1]);
+  const ty = 2 * (z * v[0] - x * v[2]);
+  const tz = 2 * (x * v[1] - y * v[0]);
+  out[0] = v[0] + w * tx + (y * tz - z * ty);
+  out[1] = v[1] + w * ty + (z * tx - x * tz);
+  out[2] = v[2] + w * tz + (x * ty - y * tx);
+  return out;
+}
+const nWorld: [number, number, number] = [0, 0, 0];
+const groupCache = new WeakMap<SolarRoofConfig, ReturnType<typeof panelGroups>>();
 
 /** A field's panels on a thin frame plate: as many whole panels as fit, centred. */
 function field(f: PanelField, c: SolarRoofConfig): THREE.BufferGeometry[] {
@@ -47,8 +119,7 @@ function field(f: PanelField, c: SolarRoofConfig): THREE.BufferGeometry[] {
   const w = f.x1 - f.x0;
   const l = f.z1 - f.z0;
   const parts = [part(new THREE.BoxGeometry(w, 0.03, l).translate((f.x0 + f.x1) / 2, f.y - 0.04, (f.z0 + f.z1) / 2), FRAME)];
-  const nx = Math.max(1, Math.floor((w + c.gap) / (pw + c.gap)));
-  const nz = Math.max(1, Math.floor((l + c.gap) / (pl + c.gap)));
+  const [nx, nz] = panelsIn(f, c);
   const sx = (w - nx * pw - (nx - 1) * c.gap) / 2;
   const sz = (l - nz * pl - (nz - 1) * c.gap) / 2;
   for (let i = 0; i < nx; i++)
@@ -60,13 +131,44 @@ function field(f: PanelField, c: SolarRoofConfig): THREE.BufferGeometry[] {
   return parts;
 }
 
-export const SOLAR_ROOF: ModuleDefinition<SolarRoofConfig> = {
+export const SOLAR_ROOF: ModuleDefinition<SolarRoofConfig, VesselState> = {
   id: 'deck.solar-roof',
   version: 1,
   fits: ['deck.equipment'],
   defaults: { roof: { x0: -1, x1: 1, z0: 0, z1: -2, y: 2.5 }, wings: [], rack: null, panel: [1.0, 1.6], gap: 0.04 },
   validateConfig: (c) => [...(c.roof.x1 > c.roof.x0 && c.roof.z0 > c.roof.z1 ? [] : ['the solar roof has no room']), ...(c.panel[0] > 0.2 && c.panel[1] > 0.2 ? [] : ['the solar panels are too small'])],
   ports: {},
+  sim: {
+    init: () => {
+      throw new Error('the solar roof charges VesselState.battery until 6d');
+    },
+    legacyState: (v) => v,
+    tick({ config: c, env }, v, dt) {
+      const ch = c.charge;
+      if (!ch) return;
+      let groups = groupCache.get(c);
+      if (!groups) groupCache.set(c, (groups = panelGroups(c)));
+      const light = sunlight(env.sun, env.cloud, env.rain);
+      let watts = 0;
+      for (const g of groups) {
+        const poa = planeIrradiance(light, toWorld(v.orientation, g.n, nWorld));
+        const cellC = ch.airTempC + (poa * (ch.noctC - 20)) / 800;
+        watts += poa * g.area * ch.panelEff * Math.max(0, 1 + ch.tempCoeff * (cellC - 25));
+      }
+      const panelKw = (watts * ch.controllerEff) / 1000;
+      // What the battery takes: all of it below `taperFrom`, less and less to none at full; what
+      // the motors draw now comes straight from the panels.
+      const soc = v.battery ?? 0;
+      const accept = soc < ch.taperFrom ? 1 : Math.max(0, (1 - soc) / (1 - ch.taperFrom));
+      const motors = Math.max(0, v.engine.powerKw ?? 0);
+      const chargeKw = Math.min(panelKw, motors + panelKw * accept) * ch.chargeEff;
+      v.battery = Math.min(1, soc + (chargeKw * dt) / 3600 / ch.batteryKWh);
+      const s = (v.solar ??= { wm2: 0, panelKw: 0, chargeKw: 0 });
+      s.wm2 = light.ghi;
+      s.panelKw = panelKw;
+      s.chargeKw = chargeKw;
+    },
+  },
   view: {
     frame: 'boat',
     build({ config: c }) {

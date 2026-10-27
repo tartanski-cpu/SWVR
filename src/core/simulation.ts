@@ -232,7 +232,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     const machinery = vesselRuntime(vessel)!;
     stepEnergyNetwork(vessel, machinery, dt);
     stepHullLeak(vessel, dt);
-    machinery.tick(dt, world.time);
+    machinery.tick(dt, world.time, world.environment);
     // Voyage: no knocks counted while she settles (owner, Oct 2026: a boat should never spawn
     // in with damage, only take it from a real crash): `spawnGraceS` from when she comes into
     // the world or is sent to a port. The career keeps her condition from its save, as before.

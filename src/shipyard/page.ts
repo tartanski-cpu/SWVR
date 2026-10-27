@@ -1420,7 +1420,7 @@ function showConsoleEditor(): void {
   const panelY = dashY + dg.rows * cellH + 26;
   const panelH = 34;
   const H = panelY + panelH + 14;
-  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', efficiency: 'ECO', towline: 'TOW LINE', dialCompass: 'COMPASS', dialSpeed: 'LOG', dialDepth: 'DEPTH', dialChain: 'CHAIN', dialRpm: 'REVS', dialTemp: 'TEMP', dialFuel: 'FUEL', clock: 'CLOCK', dialClock: 'CLOCK', touch1: 'TOUCH', touch2: 'TOUCH 2' };
+  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', efficiency: 'ECO', solar: 'SOLAR', towline: 'TOW LINE', dialCompass: 'COMPASS', dialSpeed: 'LOG', dialDepth: 'DEPTH', dialChain: 'CHAIN', dialRpm: 'REVS', dialTemp: 'TEMP', dialFuel: 'FUEL', clock: 'CLOCK', dialClock: 'CLOCK', touch1: 'TOUCH', touch2: 'TOUCH 2' };
   const picked = (kind: string, id: string) => consolePick?.kind === kind && consolePick.id === id;
   let svg = `<svg viewBox="0 0 ${W} ${H}" class="consoleSvg">`;
   // The dash's cells, then its screens.

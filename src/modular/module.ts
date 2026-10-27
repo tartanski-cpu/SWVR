@@ -286,6 +286,13 @@ export interface PortIO {
 export interface EnvironmentReader {
   /** Simulated time (s). */
   time: number;
+  /** Unit vector toward the sun (world axes; below the horizon at night: y < 0). */
+  sun: [number, number, number];
+  /** The weather's cloud cover and rain now, 0..1 (none without weather: tests, trials). */
+  cloud: number;
+  rain: number;
+  /** Game hours to each real second (the game's clock). */
+  timeScale: number;
 }
 
 /**

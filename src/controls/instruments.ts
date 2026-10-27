@@ -711,6 +711,108 @@ const paintEfficiency: Painter = (g, s, def) => {
   }
 };
 
+/**
+ * SOLAR & BATTERY (owner, 27 Oct 2026, the solar catamaran's; modules/solarRoof): her battery
+ * (%, kWh), the sun's power into her (and the sunlight), what her motors draw, the net (green
+ * charging), how long to full or to flat at that, and a chart of the last hour: the sun in
+ * (green) and the motors out (amber), a point every `CONFIG.solarScreen.sampleS` (each
+ * player's screen gathers its own). Plugged in at the quay: SHORE POWER and its kW.
+ */
+interface SolarLog {
+  t: number;
+  sun: number[];
+  out: number[];
+  version: number;
+}
+const solarLogs = new Map<string, SolarLog>();
+function solarLog(def: VesselDef): SolarLog {
+  let log = solarLogs.get(def.id);
+  if (!log) solarLogs.set(def.id, (log = { t: -Infinity, sun: [], out: [], version: 0 }));
+  return log;
+}
+/** Into her battery now (sun and shore), and out of it to her motors (kW). */
+function solarFlows(s: VesselState): { sun: number; shore: number; out: number; net: number } {
+  const sun = s.solar?.chargeKw ?? 0;
+  const shore = s.shore?.chargeKw ?? 0;
+  const out = Math.max(0, s.engine.powerKw ?? 0);
+  return { sun, shore, out, net: sun + shore - (s.engine.powerKw ?? 0) };
+}
+function solarKey(s: VesselState, def: VesselDef): string {
+  const log = solarLog(def);
+  const now = performance.now() / 1000;
+  const c = CONFIG.solarScreen;
+  const f = solarFlows(s);
+  if (now - log.t >= c.sampleS) {
+    log.t = now;
+    log.sun.push(s.solar?.panelKw ?? 0);
+    log.out.push(f.out);
+    const keep = Math.round(c.windowS / c.sampleS);
+    if (log.sun.length > keep) {
+      log.sun.splice(0, log.sun.length - keep);
+      log.out.splice(0, log.out.length - keep);
+    }
+    log.version++;
+  }
+  return [Math.round((s.battery ?? 0) * 1000), (s.solar?.panelKw ?? 0).toFixed(1), f.out.toFixed(1), f.shore.toFixed(1), Math.round((s.solar?.wm2 ?? 0) / 10), log.version].join('|');
+}
+/** Hours as "3 h 20" (or "--"). */
+function hoursText(h: number): string {
+  if (!Number.isFinite(h) || h > 99) return '--';
+  const m = Math.round(h * 60);
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
+}
+const paintSolar: Painter = (g, s, def) => {
+  title(g, 'SOLAR & BATTERY');
+  const usable = batteryKWhOf(s) ?? 0;
+  const soc = s.battery ?? 0;
+  const f = solarFlows(s);
+  const sunKw = s.solar?.panelKw ?? 0;
+  // Left: the battery, then the flows and how long at this rate.
+  g.textAlign = 'left';
+  big(g, `${Math.round(soc * 100)}%`, 20, 84, 52, soc < (gearOf(s, 'diesel')?.engine.fuel.lowFraction ?? 0.1) ? RED : GREEN);
+  text(g, `${(soc * usable).toFixed(1)} kWh`, 22, 114, AMBER);
+  text(g, `SUN ${sunKw.toFixed(1)} kW`, 22, 146, GREEN);
+  text(g, `MOTORS ${f.out.toFixed(1)} kW`, 22, 170, AMBER);
+  text(g, `NET ${f.net >= 0 ? '+' : ''}${f.net.toFixed(1)} kW`, 22, 194, f.net >= 0 ? GREEN : RED);
+  const hours = f.net > 0.05 ? ((1 - soc) * usable) / f.net : f.net < -0.05 ? (soc * usable) / -f.net : Infinity;
+  text(g, f.net > 0.05 ? `FULL IN ${hoursText(hours)}` : f.net < -0.05 ? `FLAT IN ${hoursText(hours)}` : 'STEADY', 22, 218, DIM);
+  // Top right: the sunlight, or shore power when plugged in.
+  if (s.shore) text(g, `SHORE POWER ${s.shore.ratedKw} kW`, 492, 18, GREEN, SMALL_PX, 'right');
+  else text(g, `SUN ${Math.round(s.solar?.wm2 ?? 0)} W/m²`, 492, 18, DIM, SMALL_PX, 'right');
+  // Right: the last hour, the sun in and the motors out.
+  const log = solarLog(def);
+  const c = CONFIG.solarScreen;
+  const x0 = 200;
+  const x1 = 492;
+  const y0 = 228;
+  const y1 = 50;
+  const top = Math.max(5, Math.ceil(Math.max(...log.sun, ...log.out, 0) / 5) * 5);
+  const keep = Math.round(c.windowS / c.sampleS);
+  g.strokeStyle = DIM;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(x0, y1);
+  g.lineTo(x0, y0);
+  g.lineTo(x1, y0);
+  g.stroke();
+  text(g, `${top} kW`, x0 + 6, y1 - 4, DIM, SMALL_PX);
+  text(g, 'LAST HOUR', x1, y0 + 6, DIM, SMALL_PX, 'right');
+  const line = (vals: number[], colour: string) => {
+    if (vals.length < 2) return;
+    g.strokeStyle = colour;
+    g.beginPath();
+    vals.forEach((v, i) => {
+      const x = x1 - ((vals.length - 1 - i) / (keep - 1)) * (x1 - x0);
+      const y = y0 - ((y0 - y1) * v) / top;
+      if (i) g.lineTo(x, y);
+      else g.moveTo(x, y);
+    });
+    g.stroke();
+  };
+  line(log.out, AMBER);
+  line(log.sun, GREEN);
+};
+
 /** True and apparent wind where the boat is: speed (m/s) and the direction it blows FROM. */
 function winds(s: VesselState, env: EnvironmentState | null): { trueFrom: number; trueSpd: number; appRel: number; appSpd: number } {
   const w = env ? windVector(env, { x: 0, z: 0 }, { x: s.position[0], z: s.position[2] }) : { x: 0, z: 0 };
@@ -1226,6 +1328,7 @@ export const SCREENS = {
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   efficiency: { paint: paintEfficiency, key: efficiencyKey },
+  solar: { paint: paintSolar, key: solarKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
   towline: { paint: paintTowline, cells: [2, 1], key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
   // Old school: the analogue gauges, each a quarter.
@@ -1268,10 +1371,10 @@ export type ScreenName = keyof typeof SCREENS;
 // you have tabs that you have to flip between to see the different information") ──
 
 /** The pages a touchscreen can show, in tab order: each is one of the screens above, drawn in it. */
-export const TOUCH_PAGES = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'anchor', 'towline', 'nav'] as const;
+export const TOUCH_PAGES = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'anchor', 'towline', 'nav'] as const;
 export type TouchPage = (typeof TOUCH_PAGES)[number];
 /** What each page's tab says. */
-export const TOUCH_TABS: Record<TouchPage, string> = { speed: 'SPEED', heading: 'HDG', rpm: 'ENGINE', engineMonitor: 'SYSTEMS', efficiency: 'ECO', anchor: 'ANCHOR', towline: 'TOW', nav: 'WIND' };
+export const TOUCH_TABS: Record<TouchPage, string> = { speed: 'SPEED', heading: 'HDG', rpm: 'ENGINE', engineMonitor: 'SYSTEMS', efficiency: 'ECO', solar: 'SOLAR', anchor: 'ANCHOR', towline: 'TOW', nav: 'WIND' };
 /**
  * The tab bar and the page area, in the screen's own pixels (512 x 256; the bezel is the outer
  * 10). The tabs are along the top: from the helm the wheel's rim hides a dash screen's foot.

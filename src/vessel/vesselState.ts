@@ -323,6 +323,13 @@ export interface VesselState {
   holds: Record<string, EntityId>;
   /** Outboard boats and electric pod motors (modules/pods `electric`): battery charge, 0 (flat) .. 1 (full). */
   battery?: number;
+  /**
+   * Solar panels (modules/solarRoof, the solar catamaran's): the sunlight now (GHI, W/m2), what
+   * her panels make (kW, after their controller) and what goes into her battery (kW).
+   */
+  solar?: { wm2: number; panelKw: number; chargeKw: number };
+  /** Plugged in at a quay charger (vessel/shorePower.ts): its rating and what goes into her battery now (kW). */
+  shore?: { ratedKw: number; chargeKw: number };
   /** A ship's tender: whose crane she belongs to and where she is (vessel/tenderCrane.ts). */
   tender?: TenderState;
   /** Landing on (or landed on) a slipway, her bow ramp down on it (world/slipway.ts). Absent: not. */
