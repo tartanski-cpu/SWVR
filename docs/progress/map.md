@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku: the yard's ships wider, their superstructure running nearly to the bow (27 Oct 2026)
+
+Owner, from a picture of the finished ship: "it's way too narrow, and the superstructure starts way too far back. Take a look at pictures of Icon of the Seas or Legend of the Seas for inspiration."
+
+- **From the Icon class** (365 m, about 48 m at the waterline, much wider over the superstructure; the bridge front about a tenth of her length from the stem), as proportions, not a copy:
+  - **Wider:** her beam 14.5 % of her length (`T.yardBeam`, from 14 %: 48 m on the dock ship, 44 m on the finished one); above her lifeboats her decks overhang the hull, `superWidth` 1.2 times its width from the `overhangFrom` (3rd) deck up, narrowing with the bow under them; the lifeboats sit under the overhang, and the bridge wings reach out past it.
+  - **Further forward:** the superstructure to `fore` 0.9 of her length (from 0.78), from `aft` 0.04 (from 0.06), over a fuller bow (`bowLength` 0.2, `bowFullness` 2.2, from 0.22 and 1.7). Its front stays upright (0.6 m a deck) and faceted.
+- Both ships take it (the dock ship's blocks too). Settings in `CONFIG.structures.yardShip`.
+- **Tests** pass (`coastTurku.test.ts`, `npm run test:map`, the typecheck). Seen in the game headless from her bow quarter and abeam.
+- **Not checked:** on the Quest.
+
 ### Turku: the finished ship back, her front less raked and rounded in three facets (27 Oct 2026)
 
 Owner: "the original cruise ship you had, the completed one, maybe was a better basis ... The forward slopey part was too sloped ... less sloped. And usually the front of the cruise ships are curved, but you could use kind of three facets to keep it simple ... go back to that model."

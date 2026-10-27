@@ -306,10 +306,11 @@ function hash01(...k: number[]): number {
   return ((h >>> 0) % 10007) / 10007;
 }
 
-/** A yard ship's half-breadth (m) at `u` m from her middle (forward +): a parallel body, a fine bow over its last 22 %, the stern's corners rounded. */
+/** A yard ship's half-breadth (m) at `u` m from her middle (forward +): a parallel body, a full bow over its last `bowLength` of her, the stern's corners rounded. */
 function halfBreadth(L: number, B: number, u: number): number {
-  const bow = L / 2 - 0.22 * L;
-  if (u > bow) return (B / 2) * Math.max(0, 1 - ((u - bow) / (0.22 * L)) ** 1.7);
+  const c = CONFIG.structures.yardShip;
+  const bow = L / 2 - c.bowLength * L;
+  if (u > bow) return (B / 2) * Math.max(0, 1 - ((u - bow) / (c.bowLength * L)) ** c.bowFullness);
   const fromStern = u + L / 2;
   return (B / 2) * (fromStern < 8 ? 0.88 + (0.12 * fromStern) / 8 : 1);
 }
@@ -360,24 +361,25 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
   const wl = keel < 0 ? 0 : keel + 8.5;
   // The plan between two stations, sampled along.
   // (Every 8 m in the fine bow; along the straight body only at the block's ends.)
-  const bowStart = L / 2 - 0.22 * L;
-  const slice = (u0: number, u1: number, scale = 1): [number, number][] => {
+  const bowStart = L / 2 - c.bowLength * L;
+  const hull = (u: number) => halfBreadth(L, B, u);
+  const slice = (u0: number, u1: number, scale = 1, half = hull): [number, number][] => {
     const us: number[] = [];
     for (let u = u0; u < u1; u += u >= bowStart - 8 ? 8 : Math.max(8, Math.min(u1, bowStart) - u)) us.push(u);
     us.push(u1);
-    const side = us.map((u) => [u, -halfBreadth(L, B, u) * scale] as [number, number]);
-    const other = [...us].reverse().map((u) => [u, halfBreadth(L, B, u) * scale] as [number, number]);
+    const side = us.map((u) => [u, -half(u) * scale] as [number, number]);
+    const other = [...us].reverse().map((u) => [u, half(u) * scale] as [number, number]);
     // (At the stem the two sides meet: one point.)
     return [...side, ...other.filter((p, i) => i > 0 || p[1] > 0.5)];
   };
   // A deck's front block: its front rounded in three facets (owner: "the front of the cruise
   // ships are curved ... three facets"): a flat middle face across the middle third of her,
   // and an angled face each side swept back `frontFacet` of her beam to her side.
-  const front3 = (u0: number, u1: number, scale: number): [number, number][] => {
+  const front3 = (u0: number, u1: number, scale: number, width = hull): [number, number][] => {
     const back = u1 - c.frontFacet * B;
-    if (back - u0 < 4) return slice(u0, u1, scale);
-    const ring = slice(u0, back, scale);
-    const half = halfBreadth(L, B, back) * scale;
+    if (back - u0 < 4) return slice(u0, u1, scale, width);
+    const ring = slice(u0, back, scale, width);
+    const half = width(back) * scale;
     // (The plan runs down one side to its end, then back up the other: the facets go between.)
     const turn = ring.findIndex((p) => p[1] > 0);
     return [...ring.slice(0, turn), [u1, -half / 3], [u1, half / 3], ...ring.slice(turn)];
@@ -420,16 +422,19 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     const back = sAft + Math.floor(d / c.terrace) * c.terraceStep * (d > c.decks / 2 ? 1.6 : 1);
     if (front - back < 20) break;
     const narrow = d >= c.decks - 3 ? 0.78 : 0.97;
+    // Above her lifeboats her decks overhang the hull (`superWidth`), as on the big ships of
+    // today, narrowing with the bow under them; below, the hull's width.
+    const width = d >= c.overhangFrom ? (u: number) => hull(u) * c.superWidth : hull;
     // Along her in blocks, those this high so far (finished: the deck the length of her).
     for (let u0 = back; u0 < front - 1; u0 += finished ? front - back : c.block) {
       const u1 = finished ? front : Math.min(front, u0 + c.block);
       if (blockDecks(u0) <= d) continue;
       const plan = u1 >= front - 0.01 ? front3 : slice;
-      const ring = plan(u0, u1, narrow);
+      const ring = plan(u0, u1, narrow, width);
       // Each deck a band of windows and balconies under its white (painted: no primer left).
       const primer = !painted && hash01(y.seed, u0, d) < 0.45;
       parts.push(prism(ring, y0, y0 + 0.7, w, primer ? k.primer : k.glass));
-      parts.push(prism(plan(u0, u1, narrow * 0.985), y0 + 0.7, y0 + c.deck, w, primer ? k.light : k.white));
+      parts.push(prism(plan(u0, u1, narrow * 0.985, width), y0 + 0.7, y0 + c.deck, w, primer ? k.light : k.white));
     }
   }
   if (finished) {
@@ -437,8 +442,9 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     const bridgeDeck = main + (c.decks - 4) * c.deck;
     const bridgeU = sFore - (c.decks - 4) * c.rake;
     // The bridge across her, its wings out over her sides, its windows.
-    parts.push(member(w(bridgeU - 6, -B / 2 - 3, bridgeDeck + 1.5), w(bridgeU - 6, B / 2 + 3, bridgeDeck + 1.5), 9, 3, k.white));
-    parts.push(member(w(bridgeU - 1.8, -B / 2 - 3, bridgeDeck + 2), w(bridgeU - 1.8, B / 2 + 3, bridgeDeck + 2), 1, 1.4, k.glass));
+    const wing = (B / 2) * c.superWidth + 3;
+    parts.push(member(w(bridgeU - 6, -wing, bridgeDeck + 1.5), w(bridgeU - 6, wing, bridgeDeck + 1.5), 9, 3, k.white));
+    parts.push(member(w(bridgeU - 1.8, -wing, bridgeDeck + 2), w(bridgeU - 1.8, wing, bridgeDeck + 2), 1, 1.4, k.glass));
     // The funnel, a third of her length from the stern, raked aft.
     const fu = -L / 2 + 0.36 * L;
     parts.push(member(w(fu, 0, top - 2), w(fu - 6, 0, top + 16), 10, 18, k.funnel));
@@ -456,7 +462,8 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
   }
   // Painted, her lifeboats along her sides, a little out from the hull, where her decks are up to them.
   if (painted) {
-    const boatY = main + 2 * c.deck + 1;
+    // (Under the decks that overhang them.)
+    const boatY = main + (c.overhangFrom - 1) * c.deck + 1;
     for (let u = -L / 2 + c.boatSpan[0] * L; u < -L / 2 + c.boatSpan[1] * L; u += c.boatEvery) {
       if (blockDecks(u) < 4) continue;
       for (const side of [-1, 1]) parts.push(member(w(u - 5.5, side * (B / 2 + 1.5), boatY), w(u + 5.5, side * (B / 2 + 1.5), boatY), 4, 3.2, k.boat));

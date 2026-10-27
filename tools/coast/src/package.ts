@@ -33,8 +33,8 @@ const T = {
   namedApart: 30,
   /** A bridge's deck stands at least this high over the sea (m), whatever the ground at its ends. */
   bridgeMinDeck: 6,
-  /** A yard's ship under construction: her beam as a share of her length; afloat at the quay she draws this (m), her side this much nearer the face than a small boat's berth (which lies 2.2 m off it) (m). */
-  yardBeam: 0.14,
+  /** A yard's ship under construction: her beam as a share of her length (the Icon class: 48 m on 365); afloat at the quay she draws this (m), her side this much nearer the face than a small boat's berth (which lies 2.2 m off it) (m). */
+  yardBeam: 0.145,
   yardDraught: 8.5,
   yardBerthOff: 1.2,
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
