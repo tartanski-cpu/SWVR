@@ -39,6 +39,8 @@ export interface HandFrame {
   triggerPressed: boolean;
   /** The thumbstick (x right, y as the controller gives it: forward is negative). */
   stick?: [number, number];
+  /** The thumbstick clicked in this frame. */
+  stickPressed?: boolean;
 }
 
 interface HandState {
@@ -195,6 +197,7 @@ export class InteractionSystem {
         if (f.gripDown) {
           // Its thumbstick works it, where it can be (the tug's azimuth levers).
           if (h.held.stickSteerable) h.held.stickSteer(...stickOf(f));
+          if (h.held.stickSteerable && f.stickPressed) h.held.stickClick();
           h.held.grabMove(p);
         } else {
           if (h.held.stickSteerable) h.held.stickSteer(0, 0);

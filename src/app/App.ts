@@ -1,3 +1,6 @@
+import { AZI_HELM_CODES, glanceYaw, pointAndPush, stepDriveKeys, type DriveAsk, type DriveKeys } from '../player/aziHelm';
+import { KEY_LEAN, wrapDeg } from '../modules/azimuthLevers/lever';
+import { AziDials } from '../ui/aziDials';
 import * as THREE from 'three';
 import { FLEET, FLEET_IDS } from '../boats/fleet';
 import { diveGeometry } from '../modules/diveFrame';
@@ -721,6 +724,10 @@ export class App {
   /** What the remote's prompt says (empty: nothing). */
   private craneRemotePrompt = '';
   private padSteering = false;
+  /** At an azimuth helm: LB was used to look round (not a tap, which looks ahead again). */
+  private lbLooked = false;
+  /** At an azimuth helm on the desktop: the two drives' dials in the bottom corners (ui/aziDials.ts). */
+  private readonly aziDials = new AziDials();
   private readonly helmPrompt = new HelmPrompt();
   /** The boatyards' boards (ui/yardBoard.ts), one per yard (CONFIG.boatyards). */
   private yardBoards: YardBoard[] = [];
@@ -919,6 +926,8 @@ export class App {
       keep: () => this.keptBelow(),
       notify: (text, s) => this.overlay.notify(text, s),
       boatName: (defId) => this.boatLabel(defId),
+      addControls: (cs) => this.interaction?.addControls(cs),
+      removeControls: (cs) => this.interaction?.removeControls(cs),
     });
     this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine));
 
@@ -1136,7 +1145,7 @@ export class App {
     );
     this.keyboard.endFrame();
     // The keys a keyboard-steered control's buttons use do only that while it's steered.
-    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : [...(this.interaction?.steeringCodes ?? []), ...(this.craneRemote ? REMOTE_CODES : []), ...(this.typingCode() ? CODE_KEYS : [])]);
+    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : [...(this.interaction?.steeringCodes ?? []), ...(this.craneRemote ? REMOTE_CODES : []), ...(this.typingCode() ? CODE_KEYS : []), ...(this.aziHelmBoat() ? AZI_HELM_CODES : [])]);
   }
 
   /** Desktop, the Crew tab open on your own: the number keys type the game code (study #34). */
@@ -1469,6 +1478,7 @@ export class App {
     for (const b of this.yardBoards) b.update(this.scene, this.focus);
     for (const s of this.shipyardSigns) s.updateAt(this.scene, this.focus);
     this.belowDecks.update(dt);
+    this.plantNotes();
     this.gangway.update(this.gangwayCtx(), this.camera.getWorldPosition(this.gangwayEye));
     if (this.board) {
       this.board.update(this.world);
@@ -1712,7 +1722,8 @@ export class App {
     if (k.actionPressed('couplingDown')) dc = -0.1;
     if (k.actionPressed('couplingUp')) dc = 0.1;
     if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
-    if ((k.actionPressed('board') && !cam) || this.xrInput.wasPressed('left', XR_BUTTON.stick)) this.toggleBoard();
+    // (The left stick's click, while that hand holds a control that takes its stick, is the control's: the tug's levers' sync.)
+    if ((k.actionPressed('board') && !cam) || (this.xrInput.wasPressed('left', XR_BUTTON.stick) && !this.interaction?.holding('left')?.stickSteerable)) this.toggleBoard();
     if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
     if (k.actionPressed('seaState')) {
       // Cycle the weather presets (each eases in; the sea follows the wind).
@@ -1734,6 +1745,10 @@ export class App {
    * path the physical controls use.
    */
   private handleDebugDriving(dt: number): void {
+    // At the helm of a boat with azimuth drives (the harbour tug): her own keys and sticks.
+    const azi = this.aziHelmBoat();
+    this.desktop.glance = 0;
+    if (azi) return this.driveAzimuth(azi, dt);
     const id = this.drivenVesselId();
     const v = this.world.vessels[id];
     if (!v) return;
@@ -1789,6 +1804,109 @@ export class App {
         }
         this.pushIntentTo(id, key, next);
       });
+    }
+  }
+
+  /** The boat whose azimuth helm you're at (desktop, at the helm: the harbour tug), or null. */
+  private aziHelmBoat(): VesselState | null {
+    if (!this.atHelm || this.renderer.xr.isPresenting || this.camMode.on) return null;
+    const v = this.world.vessels[this.drivenVesselId()];
+    return v && gearOf(v, 'diesel')?.azimuth ? v : null;
+  }
+
+  /** The azimuth helm's keys: each drive's twist before its notches while its keys are held (null: read it afresh). */
+  private readonly aziTurn: (number | null)[] = [null, null];
+  /** Each drive was being worked by a stick (point and push): let go, it goes to idle. */
+  private readonly aziStick = [false, false];
+  /** In TRANSIT, the right stick was setting the throttles. */
+  private aziTransitStick = false;
+
+  /**
+   * Driving her from the desktop at her azimuth helm (owner, 27 Oct 2026; player/aziHelm.ts):
+   * W / S / A / D the port drive, the arrow keys the starboard one; a controller's sticks point
+   * and push (LB held, the right stick looks instead); X (or B) both to idle; T (or RB) TRANSIT,
+   * in which A / D (or ← →, or the left stick) steer the wheel and W / S (↑ ↓, or the right
+   * stick) set both throttles; Q / E / Tab glance round. Sent as the levers' own intents.
+   */
+  private driveAzimuth(v: VesselState, dt: number): void {
+    const k = this.keyboard;
+    const id = v.id;
+    const pad = this.pad.state.connected ? this.pad.state : null;
+    const c = v.controls;
+    const transit = (c.aziTransit ?? 0) > 0.5;
+    const cur: DriveAsk[] = [
+      { angle: c.aziAngle ?? 0, power: Math.max(0, c.lever) },
+      { angle: c.aziAngle2 ?? 0, power: Math.max(0, c.lever2 ?? c.lever) },
+    ];
+    const send = (i: number, ask: DriveAsk) => {
+      const s = i ? '2' : '';
+      if (Math.abs(wrapDeg(ask.angle - cur[i].angle)) > 0.05) this.pushIntentTo(id, `azimuth.demand${s}`, Math.round(ask.angle * 10) / 10);
+      if (Math.abs(ask.power - cur[i].power) > 1e-3) this.pushIntentTo(id, `throttle.demand${s}`, Math.round(ask.power * 1000) / 1000);
+    };
+    const key = (code: string) => (k.isDown(code) ? 1 : 0);
+    const keys: DriveKeys[] = [
+      { power: key('KeyW') - key('KeyS'), twist: key('KeyD') - key('KeyA') },
+      { power: key('ArrowUp') - key('ArrowDown'), twist: key('ArrowRight') - key('ArrowLeft') },
+    ];
+    this.desktop.glance = glanceYaw(!!key('KeyQ'), !!key('KeyE'), !!key('Tab'));
+    if (k.wasPressed('KeyT') || pad?.pressed[PAD.rb]) {
+      this.pushIntentTo(id, 'azimuth.transit', transit ? 0 : 1);
+      this.overlay.notify(transit ? 'TRANSIT off: each drive on its own keys / stick' : 'TRANSIT on: A / D (or the left stick) steer, W / S (or the right stick) both throttles', 3);
+      return;
+    }
+    if (k.wasPressed('KeyX') || pad?.pressed[PAD.b]) {
+      cur.forEach((d, i) => send(i, { angle: d.angle, power: 0 }));
+      this.aziTurn.fill(null);
+      return;
+    }
+    if (transit) {
+      // As on any boat: the wheel, and both throttles together (each drive's lever kept turned
+      // where it is: ahead in its forward half, astern in its after half).
+      const cfg = CONFIG.debugDriving;
+      const steer = clamp(keys[0].twist + keys[1].twist, -1, 1);
+      let helm = c.helm;
+      if (steer) helm = clamp(helm + steer * cfg.helmRate * dt, -1, 1);
+      const stick = padHelm(pad?.lx ?? 0, this.padSteering);
+      this.padSteering = stick.steering;
+      if (stick.helm !== null && !steer) helm = stick.helm;
+      if (Math.abs(helm - c.helm) > 1e-4) this.pushIntentTo(id, 'helm.demand', helm);
+      let power = cur[0].power;
+      const push = clamp(keys[0].power + keys[1].power, -1, 1);
+      if (push) power = clamp(power + push * KEY_LEAN * dt, 0, 1);
+      const ry = pad && !pad.down[PAD.lb] ? Math.max(0, -pad.ry) : 0;
+      if (ry > 0) {
+        power = ry;
+        this.aziTransitStick = true;
+      } else if (this.aziTransitStick) {
+        power = 0;
+        this.aziTransitStick = false;
+      }
+      cur.forEach((d, i) => send(i, { angle: d.angle, power }));
+      return;
+    }
+    for (let i = 0; i < 2; i++) {
+      // The controller's stick first (the right one only while LB isn't held: then it looks round).
+      const looking = i === 1 && !!pad?.down[PAD.lb];
+      const ask = pad && !looking ? pointAndPush(i ? pad.rx : pad.lx, i ? pad.ry : pad.ly) : null;
+      if (ask) {
+        this.aziStick[i] = true;
+        this.aziTurn[i] = null;
+        send(i, ask);
+        continue;
+      }
+      if (this.aziStick[i] && !looking) {
+        // Let go: idle, still pointing where it was.
+        this.aziStick[i] = false;
+        send(i, { angle: cur[i].angle, power: 0 });
+        continue;
+      }
+      if (!keys[i].power && !keys[i].twist) {
+        this.aziTurn[i] = null;
+        continue;
+      }
+      const step = stepDriveKeys(this.aziTurn[i] ?? cur[i].angle, cur[i].power, keys[i], dt);
+      this.aziTurn[i] = step.turn;
+      send(i, step);
     }
   }
 
@@ -4599,8 +4717,9 @@ export class App {
         }
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
-        if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
+        if ((channel === 'start' || channel === 'ignition.start' || channel === 'ignition.start2') && value > 0) this.startInGearHint();
         if (channel === 'dipstick' || channel === 'propulsion.oilCheck') this.readDipstick();
+        if (tv.control === 'aziSync') this.overlay.notify(value > 0 ? 'Throttles synchronised: either lever sets both (click the stick in again to split them)' : 'Throttles split: each lever its own drive', 3);
         if (channel === 'cleat') this.cleatHint(value);
         if (channel === 'sos') return value > 0 ? this.sendSos() : undefined;
         // The dive A-frame's DIVE: into the submersible game (the app leaves the page; nothing to the boat).
@@ -4705,9 +4824,18 @@ export class App {
       // The right stick looks round, anywhere; the left walks, off the helm.
       const r = CONFIG.gamepad.lookRate * dt;
       // (With the crane's remote the right stick works the crane: it looks only while LB is held.)
-      if (!external && (!this.craneRemote || pad.down[PAD.lb])) this.desktop.setLook(this.desktop.lookYaw - pad.rx * r, this.desktop.lookPitch - pad.ry * r);
-      this.helmStick.x = external ? pad.rx : 0;
-      this.helmStick.y = external ? pad.ry : 0;
+      // (At an azimuth helm the right stick is the starboard drive: it looks only while LB is held,
+      // and a tap of LB on its own looks ahead again.)
+      const azi = this.atHelm && !!v && !!gearOf(v, 'diesel')?.azimuth;
+      const lookOk = (!this.craneRemote && !azi) || !!pad.down[PAD.lb];
+      if (!external && lookOk) this.desktop.setLook(this.desktop.lookYaw - pad.rx * r, this.desktop.lookPitch - pad.ry * r);
+      this.helmStick.x = external && (!azi || pad.down[PAD.lb]) ? pad.rx : 0;
+      this.helmStick.y = external && (!azi || pad.down[PAD.lb]) ? pad.ry : 0;
+      if (azi) {
+        if (pad.pressed[PAD.lb]) this.lbLooked = false;
+        if (pad.down[PAD.lb] && (pad.rx || pad.ry)) this.lbLooked = true;
+        if (pad.released[PAD.lb] && !this.lbLooked) this.desktop.setLook(0, -0.12);
+      }
       // Outside views: the triggers zoom (RT in, LT out) instead of being the mouse buttons.
       if (external) {
         if (pad.down[PAD.rt]) this.helmCam.zoomBy(1, dt);
@@ -4738,9 +4866,23 @@ export class App {
       this.desktop.padMove.run = false;
     }
     if (this.pointer) this.pointer.padAim = ctl;
+    // An azimuth helm's dials, bottom corners: where each drive points, where its lever asks, its power.
+    const azi = this.aziHelmBoat();
+    this.aziDials.update(
+      azi
+        ? [
+            { deg: ((azi.engine.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle ?? 0, power: Math.max(0, azi.controls.lever), sync: !!azi.controls.aziSync },
+            { deg: ((azi.engine.stbd?.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle2 ?? 0, power: Math.max(0, azi.controls.lever2 ?? azi.controls.lever), sync: !!azi.controls.aziSync },
+          ]
+        : null,
+    );
     this.helmPrompt.show(
       this.craneRemotePrompt
         ? this.craneRemotePrompt
+        : this.atHelm && v && gearOf(v, 'diesel')?.azimuth
+        ? ctl
+          ? 'At the helm · left stick: port drive · right stick: starboard drive\npoint a stick the way to push, push it for power; let go: idle\nLB + right stick: look (tap LB: ahead) · RB: TRANSIT · B: both idle · Y: camera · A: leave'
+          : 'At the helm · W S A D: port drive (power, twist) · ↑ ↓ ← →: starboard drive\nX: both idle · T: TRANSIT · Q / E: look over a shoulder, both or Tab: aft · F: leave'
         : this.atHelm
         ? ctl
           ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · Y: camera view · A: leave\nD-pad: anchor up ↑ / down ↓, horn ←, wipers → · left stick click: searchlight · right stick click: laser · X: fire pump'
@@ -5224,6 +5366,7 @@ export class App {
         f.triggerPressed = this.xrInput.wasPressed(h, XR_BUTTON.trigger);
         f.trigger = this.xrInput.hands[h].values[XR_BUTTON.trigger] ?? (f.triggerDown ? 1 : 0);
         f.stick = this.xrInput.hands[h].stick;
+        f.stickPressed = this.xrInput.wasPressed(h, XR_BUTTON.stick);
       }
       // The menu gets the right hand first; while it's on the menu its trigger is the menu's.
       if (this.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
@@ -5324,7 +5467,8 @@ export class App {
    */
   private updateLaser(dt: number): void {
     const inXR = this.renderer.xr.isPresenting;
-    const on = inXR ? this.xrInput.isDown('right', XR_BUTTON.stick) && this.hands.right.tracked : !!this.pointer?.laserDown;
+    // (Not while the right hand holds a control that takes its stick: its click is the control's.)
+    const on = inXR ? this.xrInput.isDown('right', XR_BUTTON.stick) && this.hands.right.tracked && !this.interaction?.holding('right')?.stickSteerable : !!this.pointer?.laserDown;
     if (!on) return this.laser.off();
     if (inXR) return this.laser.update(dt, this.hands.right.ray);
     const ray = this.laserRay;
@@ -6257,9 +6401,34 @@ export class App {
     this.overlay.notify(r === 'ok' ? 'Dipstick: oil between MIN and MAX. Fine.' : r === 'low' ? 'Dipstick: oil near MIN. Top up from the can.' : 'Dipstick: barely any oil on it! Top up now.', 4);
   }
 
+  /** Each boat's engine room alarm last said (plant/plant.ts `noteN`), by boat. */
+  private readonly plantNoteN = new Map<string, number>();
+
+  /** The harbour tug's engine room: what stopped or blocked her (a start, the generator, a blackout), said to whoever's aboard her. */
+  private plantNotes(): void {
+    const id = this.world.players[this.localPlayerId]?.aboardVesselId;
+    const p = id ? this.world.vessels[id]?.plant : undefined;
+    if (!id || !p) return;
+    const n = p.noteN ?? 0;
+    const was = this.plantNoteN.get(id);
+    this.plantNoteN.set(id, n);
+    if (was !== undefined && n > was && p.note) {
+      this.overlay.notify(p.note, 4);
+      this.xrInput.pulse('right', 0.6, 120);
+    }
+  }
+
+  /** The bridge's START on the harbour tug before her engine room has handed her over: why nothing happens. */
+  private engineRoomHint(v: VesselState | undefined): boolean {
+    if (!v?.plant || v.plant.place === 2) return false;
+    this.overlay.notify('Engines not ready: the engine room has control. Start her up below, then turn ENGINE CONTROL to BRIDGE (or Menu > Tests > Quick start).', 5);
+    return true;
+  }
+
   /** START pressed with the lever in gear: the neutral-safety switch says no. */
   private startInGearHint(): void {
     const v = this.world.vessels[this.testVesselId];
+    if (this.engineRoomHint(v)) return;
     const diesel = v && gearOf(v, 'diesel');
     if (v && diesel && leverDemand(diesel, v.controls.lever).gear !== 0) {
       this.overlay.notify('Neutral safety: the lever must be in neutral to start', 2.5);
@@ -6281,6 +6450,7 @@ export class App {
     const diesel = gearOf(v, 'diesel');
     // Quick start is a session setting (CONFIG.vessels.workboat.electrics.quickStart), for a boat with batteries and a diesel.
     if (!diesel || !gearOf(v, 'batteries') || !CONFIG.vessels.workboat.electrics.quickStart) {
+      if (v.engine.phase === 'off' && this.engineRoomHint(v)) return;
       if (v.engine.phase === 'off') this.overlay.notify('Start her properly: master, INSTR breaker, key, wait for the GLOW lamp, START (see the card). Menu > Tests > Quick start does it all.', 5);
       else send('key', 0);
       return;

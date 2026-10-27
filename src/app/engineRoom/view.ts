@@ -17,6 +17,7 @@ import type { VesselState, EngineState } from '../../vessel/vesselState';
 import type { EngineRoomPlan } from './plan';
 import { tugLayout } from './tug/layout';
 import { TugRoom } from './tug/room';
+import type { Control } from '../../controls/Control';
 
 const PLATE = 0x8d9296; // chequer plate, worn grey
 const LINING = 0xd9dcd6; // painted lining, off-white
@@ -41,6 +42,11 @@ export class EngineRoomView {
   private sinceDraw = 1;
   /** The harbour tug's room in detail (tug/room.ts), in place of the plain one's contents. */
   private readonly tug: TugRoom | null = null;
+
+  /** Its controls (the tug's start-up: tug/controls.ts); none in a plain room. */
+  get controls(): Control[] {
+    return this.tug?.controls ?? [];
+  }
 
   /** @param name her name, for the tug's screens */
   constructor(readonly plan: EngineRoomPlan, name = '') {

@@ -11,6 +11,7 @@
  * writer 'legacy' until the module that owns it is converted. Renaming a key: add the old
  * name to `aliases`, never delete it (saves and recipes may use it).
  */
+import { bridgeHasControl } from '../plant/plant';
 import { CONFIG } from '../config';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
@@ -344,6 +345,7 @@ export const BUS_KEYS = {
   },
   ...breakerKeys(),
   ...circuitKeys(),
+  'plant.bridge': state('boolean', (s) => bridgeHasControl(s), "The harbour tug's engine room has handed her engines to the bridge (plant/plant.ts: the control place at BRIDGE); always true on a boat without one.", { default: true, writer: 'core' }),
   'electrical.powered': state('boolean', (s) => isPowered(s), '12 V on the bus: master on and the selected battery not flat (boats without electrics: always).', { default: true, writer: 'core' }),
   'electrical.busVoltage': state('number', (s) => s.electrics?.volts, 'Bus voltage on the last tick (0 with the master off).', { unit: 'V', writer: 'core' }),
   'electrical.amps': state('number', (s) => s.electrics?.amps, 'Net battery current on the last tick, + discharging.', { unit: 'A', writer: 'core' }),

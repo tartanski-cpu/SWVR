@@ -14,7 +14,7 @@
  *   across the vee at the front; the vibration damper and gear case on the free end; the
  *   flywheel housing aft, with the starter motors on it; engine-driven sea-water and jacket-
  *   water pumps low on the front; duplex lube oil and fuel filters on the sides; the dipstick;
- *   lifting eyes; the local operating panel (its face drawn by the room, live: `lop`).
+ *   lifting eyes. (Its local operating panel is on a stand in the aisle: the room's, room.ts.)
  *
  * Built in the engine's own frame: x across (+ starboard), y up from the flange's height, z
  * along her from the flange (0, aft end) forward to -length. Placed by the caller as the boat
@@ -170,11 +170,8 @@ export function detailedEngine(size: readonly [number, number, number], side: -1
   filters(zm + 0.4, 0x7a5a32); // fuel (brown)
   k.cyl(0.012, [sx, crank - 0.2, zm + 1.1], [sx + side * 0.08, crank + 0.35, zm + 1.1], STEEL, 6);
   k.ball(0.025, sx + side * 0.08, crank + 0.37, zm + 1.1, YELLOW, 8);
+  // (Its local operating panel stands on its own in the aisle beside it: the room's, room.ts.)
   const lop = { at: [sx + side * 0.06, bankY + 0.05, zm - 1.4] as V3, facing: side < 0 ? ('port' as const) : ('stbd' as const), w: 0.42, h: 0.3 };
-  k.box(0.08, lop.h + 0.06, lop.w + 0.06, lop.at[0] - side * 0.04, lop.at[1], lop.at[2], DARK);
-  // An emergency stop beside it.
-  k.box(0.05, 0.1, 0.1, lop.at[0], lop.at[1] - 0.25, lop.at[2], YELLOW);
-  k.cyl(0.03, [lop.at[0], lop.at[1] - 0.25, lop.at[2]], [lop.at[0] + side * 0.05, lop.at[1] - 0.25, lop.at[2]], RED, 12);
   // Lifting eyes on top, and the crankcase breather.
   for (const z of [zF + 0.3, zA - 0.3]) k.ring(0.05, 0.015, [0, bankY + 0.66, z], 'x', STEEL, 10);
   k.pipe(0.035, [[0, bankY + 0.6, zA - 0.2], [0, bankY + 0.75, zA - 0.2], [0, bankY + 0.75, zA + 0.15]], BRONZE, false);

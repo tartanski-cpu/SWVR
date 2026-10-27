@@ -10,7 +10,81 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### (From the modular-builder chat) HANDOVER, not built: driving the harbour tug from the keyboard and a game controller
+### The tug's levers in VR: the hand twists, the stick sets the power; a click synchronises the throttles (27 Oct 2026)
+
+Owner: "the throttles are on the stick, which is right, but I don't want the twist to be on the sticks. I want the twist to be with hand controllers"; "I need a button which synchronizes the throttles ... the throttles are at the same power. Maybe ... a click in, so you can do it while you're on the hand controllers."
+- **Twist by hand, power by stick** (`modules/azimuthLevers/lever.ts`, `CONFIG.modules.azimuth.lever.vrTwist` 'hand'; 'stick' brings back the stick's sideways twist): holding a lever, turn your wrist and it turns (`twistGain` 1.5 degrees a degree, from the grab; the notches as ever); the thumbstick forward and back sets its power; the stick's sideways and pushing the hand do nothing. `handMoves` stays off.
+- **Synchronised throttles:** the thumbstick clicked in while a hand holds a lever (`Control.stickClick`, `HandFrame.stickPressed`) sends `aziSync` (1 or 2: on, at the port or starboard lever's power; 0: split). On, the host sets both throttles to that lever's power, and from then on a `throttle.demand` or `throttle.demand2` sets both (`vessel/vesselControl.ts`, `VesselControls.aziSync`, holds respected). A held lever whose stick is still follows the other's power. A buzz and a notice ("Throttles synchronised"); the desktop dials say SYNC.
+- **That click is the lever's** while the hand holds it: the left stick's click doesn't board / go ashore, the right's doesn't work the laser.
+- The driving guide poster and the README say the new way.
+- **Tests:** tests/azimuth.test.ts (the modular-builder chat's thumbstick-only test rewritten for the new split: the hand twists, the stick's sideways doesn't, its forward gives power, the hand turning back follows; the click sends the sync); tests/plant.test.ts (synchronised: both to the clicked lever's power, either sets both, split again).
+- **Not checked:** VR (the twist's feel, the click). No visible change on the desktop beyond the dials' SYNC.
+- **Shared changes:**
+  - `src/modules/azimuthLevers/lever.ts` (`vrTwist`, `stickClick`, a held lever following the power), `src/modules/azimuthLevers/index.ts`, `src/config/modules.ts` (`vrTwist`), `src/modules/poster/azimuthGuide.ts` (one line): the modular builder chat's files, for the owner's ask;
+  - `src/vessel/vesselState.ts` (`aziSync`), `src/vessel/vesselControl.ts` (the `aziSync` intent; synchronised throttles).
+
+### Driving the harbour tug from the keyboard and a game controller (27 Oct 2026)
+
+The owner: "I want my non-VR friends to be able to drive this tug"; built from the modular-builder chat's handover (below), with the owner's decisions. Only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`), on the desktop (F by her wheel, or a controller's A); every other boat's helm is as it was.
+- **Keys** (`player/aziHelm.ts`, `App.driveAzimuth`): W / S / A / D the port drive (power, twist), the arrow keys the starboard one, at the levers' own rates (`KEY_TURN` 90°/s, `KEY_LEAN` 0.5 a second, now exported from `modules/azimuthLevers/lever.ts`) and with their notches (`snapTo`: the turn clicks at ahead, abeam and astern and on through). Power stops at idle; astern is twisting round. X both to idle; T TRANSIT on / off. In TRANSIT, A / D (← →) steer the wheel and W / S (↑ ↓) set both throttles, as on any boat. Sent as the levers' own intents (`azimuth.demand`, `throttle.demand` and their `2`s, `azimuth.transit`, `helm.demand`), so a VR crew-mate sees the levers move, and the engine room's handover (`plant.bridge`) still governs them.
+- **Looking:** Q over the port shoulder, E over the starboard one, Q + E or Tab aft, held (`CONFIG.aziHelm.glanceDeg` 115°, easing over `glanceTau` 0.12 s; `DesktopController.glance`, on top of the mouse look). At her helm the keyboard claims W A S D, the arrows, X, T, Q, E and Tab (`AZI_HELM_CODES`): their usual jobs wait (Q cargo, E engine, T sea trials), and Tab doesn't move the page's focus.
+- **Controller:** point and push (`pointAndPush`): each stick's direction is its drive's (up ahead, right to starboard, back astern; notched), how far its power; let go, idle, still pointing there. Hold LB: the right stick looks round instead (the starboard drive holds); a tap of LB looks ahead. RB TRANSIT (then the left stick steers, the right stick's up sets both throttles); B both to idle. The orbit and flyby views swing on LB + the right stick.
+- **On-screen dials** (`ui/aziDials.ts`, `CONFIG.aziHelm.dialPx` 150): bottom left the port drive, bottom right the starboard: the ENGINE screen's dial (`controls/instruments.ts` `azimuthDial`, now exported), the arrow where the drive pushes, the ring where its lever asks, and a power bar. Desktop only, at her helm; redrawn only when they change.
+- **The helm prompt** says all this, keys or controller.
+- **Tests:** tests/aziHelm.test.ts (the keys' rates, idle floor, notches and on through; point and push; the glance; the claimed keys).
+- **Checked headless** (desktop, Oban, the tug readied by Quick start), with real key presses:
+  - F took her helm and the prompt changed;
+  - W raised the port drive's power and D twisted it, clicking into 3 o'clock; ↑ raised the starboard drive's power and ← turned it to port; the drives followed;
+  - Q and Tab turned the view (115°, aft), and it came back;
+  - T switched TRANSIT on and off; E no longer stopped her engine;
+  - the dials showed both drives, and went away when she was left.
+
+  The headless browser runs her deck at under a frame a second, so key holds were long.
+- **Not checked:** a real game controller (none here; its sums are tested), and in a friend's hands.
+- **Shared changes:** `src/modules/azimuthLevers/lever.ts` exports `KEY_TURN` and `KEY_LEAN` (no other change).
+
+### The harbour tug's start-up from dead ship, part 1 (27 Oct 2026)
+
+Owner: "the only thing I want for the engine room is a realistic startup procedure. So it's go downstairs, turn the fuel and whatever is appropriate for the generator, get power on"; the plan agreed, "go ahead with part 1".
+
+- **The procedure** (`src/plant/plant.ts`, its state `VesselState.plant`, plain JSON stepped by the host after her machinery each tick; `CONFIG.plant`). She comes from port **dead ship**:
+  1. 24 V: the battery master (`electrics.master`), now also on the control room's switchboard;
+  2. the generator: its fuel valve, START on its control box; it runs up in `genRunUpS` 8 s;
+  3. power on: the generator breaker on the main switchboard (refused while it's stopped or running up; it trips if the generator stops). The room's lights come up from the emergency lights' glow;
+  4. fuel: each engine's day tank valve, and the fuel supply pump on the switchboard;
+  5. sea water: each engine's sea suction valve, at the strainers;
+  6. pre-lube: each engine's pre-lube pump, until its oil is at `lubeStartBar` 1 bar (`prelubeBar` 1.5 in `prelubeS` 15 s; falling `lubeDecayBarS` 0.05 a second with the pump off; `lubeRunBar` 4.2 running);
+  7. starting air: the compressor (`airFillBarS` 0.75 bar a second to `airMaxBar` 30) and the main air valve; each start takes `startAirBar` 4 and needs `airStartMinBar` 12;
+  8. START at each engine's own control stand (or from the bridge once handed over);
+  9. the engine control switch (LOCAL / CONTROL ROOM / BRIDGE) to BRIDGE: only then do the bridge's levers and STARTs work her.
+- **Missed steps say so, as her alarms would:** START with no 24 V, oil pressure, fuel, fuel pressure, air valve or air is blocked, with the reason (`plant.note`, said to whoever's aboard: `App.plantNotes`). Running, a day tank valve shut stops that engine after `starveS` 6 s; a sea suction shut is the cooling fault the boats already have (she heats up and alarms); the generator's fuel shut stops it, and its breaker trips: blackout. The bridge's START before the handover says "Engines not ready: the engine room has control".
+- **The controls** (`app/engineRoom/tug/controls.ts`): 18 ordinary controls through intents `er.<what>` (multiplayer works as for any control):
+  - a new handwheel `Valve` (a press opens or shuts it; its wheel turns and its spindle rises when open), toggles, buttons and the battery master;
+  - on the switchboard, the generator, the day tanks, the air bottles and compressor, the strainers, and each engine's **local control stand**: new, a pedestal in the aisle beside each engine with its panel at eye height (the panel on the engine's side was hidden behind its lagging);
+  - built with the room, registered with the interaction system then (`BelowContext.addControls`), working only while you're below.
+- **Quick start** (Menu > Tests, and the Shipyard's sea trial) readies it all and hands her to the bridge (`plantReady`), so nothing that starts her the quick way changes. A tug already running when her plant is first made (a game carried on) starts ready, her pre-lube pumps on.
+- **The screens' alarm list** shows what's still to do: dead ship, breaker open, pumps stopped, valves shut, oil pressure, start air, control not at the bridge.
+- **Tests:** tests/plant.test.ts covers:
+  - dead ship, with the bridge's START dead;
+  - the whole procedure to the bridge, her levers then working her;
+  - each missed step blocking her start, with its reason;
+  - fuel, sea water and the generator's fuel shut while she runs;
+  - Quick start.
+
+  tests/azimuth.test.ts now readies her engine room first.
+- **Checked headless:**
+  - the whole procedure through the controls' real press path (the interaction system's, routed to the host), from dead ship to both engines running and the control at the bridge;
+  - every control seen in place, and the lights going from dead to live;
+  - while below: 7–48 draw calls (was 5–10; the controls are small separate meshes) and about 105,000 triangles.
+- **Not checked:** VR (reaching the valves and switches, especially the low ones), the Quest's frame rate below with the controls, multiplayer with two below.
+- **Shared changes**, all small; other boats unchanged:
+  - `src/vessel/vesselState.ts`: `plant`, `PlantState`;
+  - `src/vessel/vesselControl.ts`: the `er.` intents, and Quick start readies the plant;
+  - `src/core/simulation.ts`: `stepPlant` after her machinery;
+  - `src/modular/busKeys.ts`: the `plant.bridge` key;
+  - `src/modules/dieselInboard/index.ts`: its `bridge` port. Until she's handed over, the bridge's levers and STARTs don't reach her engines.
+  - the golden runs' fixtures (`tests/golden/fixtures/`) and `docs/BUS_KEYS.md` regenerated: they record every bus key, so `plant.bridge` (always on for a boat without an engine room) is new in them; nothing else in them changed.
+### (From the modular-builder chat) HANDOVER, built 27 Oct 2026 (see the entry above): driving the harbour tug from the keyboard and a game controller
 
 The owner, 27 Oct 2026: "I want my non-VR friends to be able to drive this tug", reviewed a proposal from the modular-builder chat and chose: arrow keys, power stops at idle, point-and-push sticks, glance keys and LB to look, the on-screen dials, "Handover" (to this chat: it's the helm mode, keys and controller, `src/app/` and `src/player/`). **What to build**, only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`); every other boat's helm stays as it is:
 

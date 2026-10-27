@@ -2,13 +2,14 @@
 
 **Covers:** everything on the test build since the 23 October notes (Friday afternoon), from every chat's work, up to Tuesday 27 October.
 
-**What's where:** all of this is on the test build (8eea7eb) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) took everything up to multiplayer batch 2 on 27 Oct (31b20c7); batches 3 and 4, the engine rooms and the 27 Oct fixes are on the test build only. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
+**What's where:** all of this is on the test build (992d2d9) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) took everything up to multiplayer batch 2 on 27 Oct (31b20c7); batches 3 and 4, the engine rooms, the tug's start-up and driving, and the 27 Oct fixes are on the test build only. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
 
 A page with screenshots of the same is published alongside these notes.
 
 ## Highlights
 
-- **Engine rooms:** go below on the harbour tug and the stern trawler. The tug's is in full detail, with an engine control room and live screens.
+- **Engine rooms:** go below on the harbour tug and the stern trawler. The tug's is in full detail, with an engine control room and live screens, and you start her up there from dead ship.
+- **Driving the tug** from the keyboard or a game controller, with dials on screen; in VR her levers work from the thumbsticks.
 - **Construction projects:** build a wind farm in six stages. **Tarran Rig**, two turbines north of Calder Haven: survey the site, lay its marks, tow out the monopiles, the transition pieces, guard the works while the turbines go up, and bring her on line. When it's done the farm stands for good.
 - **Crew transfer to wind farms:** the **Holm Rig** wind farm, technicians to put across onto a turbine's boat landing, and a bow fender to hold her there.
 - **The harbour tug:** a 25 m azimuth stern drive tug, a one-off in the Shipyard, with heavy fendering, her own Z-drives and twist-and-throttle levers.
@@ -18,6 +19,31 @@ A page with screenshots of the same is published alongside these notes.
 - **Twin engines** worked separately, each with its own lever and START.
 - **Playing together, made sturdy:** four batches of multiplayer fixes. Dropouts are noticed in seconds, nobody loses their boat or cargo, you're taken to the right game, each boat has her own rescue gear, and what the host sends is 15 to 50 times smaller.
 - **Fixes:** the game no longer drops to a few frames a second beside the boats board, multiplayer copes with a host whose page is out of date, and Step ashore puts you beside your boat.
+
+## The tug's start-up
+
+The harbour tug now comes from port **dead ship**: no generator, the engine room dark but for the emergency lights, her levers and STARTs on the bridge dead. You bring her to life below, as a twin-engine tug generally is (the times shortened to keep it playable):
+1. the **battery master** on the control room's switchboard;
+2. the **generator**: its fuel valve, then START on its control box (it runs up in about 8 s);
+3. the **generator breaker** on the switchboard: power on, and the room's lights come up;
+4. each engine's **day tank valve**, and the **fuel supply pump**;
+5. each engine's **sea suction valve**, at the strainers;
+6. each engine's **pre-lube** pump, until its oil pressure is up;
+7. the **air compressor** and the **starting air valve**, until the bottles are full enough;
+8. **START** on each engine's new **control stand** in the aisle (gauges, pre-lube, START, STOP and an emergency stop);
+9. **ENGINE CONTROL** on the switchboard to **BRIDGE**: only then do the levers and STARTs up top work her.
+
+Eighteen working controls in all: handwheel valves (press to open or shut; the spindle rises when open), switches and buttons. Miss a step and her alarms say what's wrong ("START BLOCKED - LUBE OIL PRESSURE LOW"), and the control room's alarm screen lists what's still to do. Running, shut a day tank valve and that engine stops; shut a sea suction and she overheats; shut the generator's fuel and the room blacks out. Quick start (Menu → Tests) still does it all in one press.
+
+## Driving the tug
+
+Only at the helm of a boat with azimuth drives; every other boat's helm is as it was.
+- **Keyboard** (F at her wheel): W / S / A / D the port drive's power and twist, the arrow keys the starboard drive's. Power stops at idle: to go astern, twist the drive round. X both to idle; T TRANSIT.
+- **Looking:** hold Q to look over the port shoulder, E over the starboard, Q + E or Tab aft.
+- **Game controller:** point and push, a stick for each drive: push the way you want that drive to push, how far is the power; let go and it idles. Hold LB to look round with the right stick; RB TRANSIT; B both idle.
+- **On-screen dials** in the bottom corners: where each drive pushes, where its lever asks, and its power.
+- **In VR** (the modular builder chat's change, at the owner's request): grab a lever and work it with that hand's thumbstick; your hand only holds it. Holding any control, that hand's stick no longer slides or turns you.
+- The levers' twist clicks into 12, 3, 6 and 9 o'clock, with a buzz in VR; the desktop's W now takes a lever out of idle.
 
 ## Engine rooms
 
@@ -130,19 +156,21 @@ A study of everything that went wrong playing together turned into four batches 
 - Menu → Office → Projects at Calder Haven takes Tarran Rig. To jump ahead, show the Debug tab (Settings → Game) and use Missions → Project → Stage done or Stage back; +£50,000 is there too.
 - The harbour tug and the catamaran are in the Shipyard's hull types; the dive support vessel starts with `career.html?boat=diveShip`.
 - Wreck sites: Oban (Voyage) round Kerrera and Maiden Island; in the career west of Calder Haven and off Brannock.
+- Start her up: take the harbour tug from the Shipyard, open her engine hatch, Go below and follow the steps above; then F at her wheel to drive her from the keys, or A with a game controller.
 - Engine rooms: take the harbour tug from the Shipyard (or `career.html?boat=diveShip` for the plain room), open her engine hatch, point at Go below. Start her engines and watch the screens and the shafts; Climb up at the ladder.
 - Playing together: Menu → Crew → Host a game, and send the address (it carries the code) or read the code out; a friend opens it or types the code. Try it across Career and Voyage, a reload, and each in your own boat.
 
 ## Known limits
 
 - The beginner boat has no chartplotter or duty board: the project's lines and rings need a boat with a plotter, and what's next is on the Jobs page.
-- The live game has everything up to multiplayer batch 2 (moved over 27 Oct). Batches 3 and 4, the engine rooms and the 27 Oct fixes are on the test build only, so play together on the same address.
-- The engine rooms are to look at for now: nothing in them works yet, there's no engine-room sound and no fade going down. Not yet tried in VR or measured on the Quest.
+- The live game has everything up to multiplayer batch 2 (moved over 27 Oct). Batches 3 and 4, the engine rooms, the tug's start-up and driving, and the 27 Oct fixes are on the test build only, so play together on the same address.
+- The start-up has no sounds yet, no START-UP page on the control room screen and no checklist card on the wall (part 2). Not yet tried in VR (some valves are low) or measured on the Quest; draw calls below went from 5–10 to about 7–48 with the controls.
+- The tug's controller driving was checked by its sums only (no controller here), and the keys in a headless browser.
 - The TV needs a desktop player to share a tab; VR players see it but can't start it.
 - Multiplayer was checked with two and three headless browsers through the real game finder, not yet on the Quest: voice in either order, and letting go on taking the headset off, need a try there.
 
 ## Coming next
 
 - Multiplayer on the Quest: the owner's test of the four batches with friends, and the snapshot cost measured on the headset.
-- Engine rooms, milestone 2: the stops, fuel valves, sea cock and bilge pump working; the room's own sound; a fade going down; then maintenance jobs and faults to find.
+- The tug's start-up, part 2: a START-UP page on the control room screen ticking the steps off, a checklist card on the wall, and the sounds.
 - Moving batches 3 and 4 and the engine rooms to the live game, when the owner says they're good.

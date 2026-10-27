@@ -742,6 +742,33 @@ export const CONFIG = {
     big: { fromLoaM: 24, lengthShare: 0.42, maxLengthM: 10.5 },
   },
 
+  /**
+   * The harbour tug's start-up from dead ship (owner, 27 Oct 2026: "a realistic startup
+   * procedure ... go downstairs, turn the fuel and whatever is appropriate for the generator,
+   * get power on"; src/plant/plant.ts). Times are shortened from real life to keep it playable.
+   *   genRunUpS      the generator from START to 400 V 50 Hz (s)
+   *   starveS        an engine or the generator runs on this long once its fuel is shut (s)
+   *   prelubeBar     the oil pressure the pre-lube pump builds, in `prelubeS`; `lubeStartBar`
+   *                  is what a start needs (the engine's own pump gives `lubeRunBar` running);
+   *                  with the pump off it falls `lubeDecayBarS` a second
+   *   airMaxBar      the starting air bottles full; the compressor fills them `airFillBarS` a
+   *                  second (about 40 s from empty); each start takes `startAirBar`, and a start
+   *                  needs `airStartMinBar`
+   */
+  plant: {
+    genRunUpS: 8,
+    starveS: 6,
+    prelubeBar: 1.5,
+    prelubeS: 15,
+    lubeStartBar: 1.0,
+    lubeRunBar: 4.2,
+    lubeDecayBarS: 0.05,
+    airMaxBar: 30,
+    airFillBarS: 0.75,
+    startAirBar: 4,
+    airStartMinBar: 12,
+  },
+
   dive: {
     radius: 50,
     /**
@@ -1817,6 +1844,13 @@ export const CONFIG = {
    * looks round (rad/s at full deflection).
    */
   gamepad: { deadZone: 0.15, steerCurve: 1.5, helmReach: 1.6, lookRate: 2.4 },
+  /**
+   * At the helm of a boat with azimuth drives (the harbour tug), desktop (player/aziHelm.ts;
+   * owner, 27 Oct 2026): Q / E glance this far round over the port / starboard shoulder (deg;
+   * both, or Tab, straight aft), easing there and back over about `glanceTau` s; the on-screen
+   * dials' size (px).
+   */
+  aziHelm: { glanceDeg: 115, glanceTau: 0.12, dialPx: 150 },
 
   /**
    * The boatyard (owner, Oct 2026): where she's fitted out and mended, on the Calder Haven

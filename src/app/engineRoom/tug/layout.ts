@@ -56,6 +56,11 @@ export interface TugLayout {
   drums: { x: number; z: number };
   rack: { x: number; z0: number };
   escape: { x: number; z: number };
+  /**
+   * Each engine's local control stand (port first): in the aisle beside it, inboard of its
+   * handrail, its panel facing the aisle (+x for the port engine), `z` its middle.
+   */
+  lops: { x: number; z: number; facing: '+x' | '-x' }[];
   solids: Solid[];
 }
 
@@ -137,5 +142,11 @@ export function tugLayout(p: EngineRoomPlan): TugLayout | null {
   solids.push({ x0: rack.x - 0.24, x1: hw, z0: rack.z0 - 0.05, z1: rack.z0 + 0.95, y1: top(1.8) });
   const escape = { x: -(hw - 0.45), z: p.z1 - 0.3 };
   solids.push({ x0: escape.x - 0.4, x1: escape.x + 0.4, z0: escape.z - 0.42, z1: p.z1, y1: top(3) });
-  return { port, stbd, front, aft, ecr, bench, dayTanks, receivers, compressor, gensets, aftDoor: 0, firePumps, valveChest, bilgePumps, strainers, drums, rack, escape, solids };
+  // The local control stands, a third of the way aft along each engine, inboard of its handrail.
+  const lops = [port, stbd].map((e) => {
+    const s = e.x < 0 ? 1 : -1;
+    return { x: e.x + s * (W / 2 + 0.46), z: front + Math.min(1.2, L / 3), facing: s > 0 ? ('+x' as const) : ('-x' as const) };
+  });
+  for (const l of lops) solids.push({ x0: l.x - 0.14, x1: l.x + 0.14, z0: l.z - 0.32, z1: l.z + 0.32, y1: top(1.5) });
+  return { port, stbd, front, aft, lops, ecr, bench, dayTanks, receivers, compressor, gensets, aftDoor: 0, firePumps, valveChest, bilgePumps, strainers, drums, rack, escape, solids };
 }

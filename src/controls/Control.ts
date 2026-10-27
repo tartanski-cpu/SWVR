@@ -156,6 +156,8 @@ export abstract class Control {
    */
   readonly stickSteerable: boolean = false;
   stickSteer(_x: number, _y: number): void {}
+  /** VR: the thumbstick clicked in while a hand holds it (the tug's levers: synchronise the throttles). */
+  stickClick(): void {}
   /**
    * Desktop: while this control is keyboard-steered, these keys work its companion buttons
    * (held down, the button is held: the deck crane's hoist, boom and hook). Those keys do

@@ -14,9 +14,14 @@
  * white pointer on the drum's front the way the drive pushes. The bar lies across the drive's
  * direction, so its set shows where the drive points; pushing it forward rolls the drum forward
  * along the pointer. The drum's ends are banded red (port) or green (starboard).
- * VR: grab the bar and work it with that hand's thumbstick (sideways twists it, forward and back
- * the power); the hand only holds it (owner, Oct 2026: "the only way in VR to control the
- * throttles is with the joysticks"; `handMoves` off). With `handMoves` on, the hand works it
+ * VR (owner, 27 Oct 2026: "the throttles are on the stick, which is right, but I don't want the
+ * twist to be on the sticks. I want the twist to be with hand controllers"; `vrTwist` 'hand'):
+ * grab the bar, twist your wrist to turn it (`twistGain` degrees a degree), and that hand's
+ * thumbstick, forward and back, sets the power; pushing the hand doesn't. Click the thumbstick
+ * in to synchronise the two throttles, or split them (`aziSync`: vessel/vesselControl.ts).
+ * (`vrTwist` 'stick': the stick's sideways twists it too, the hand only holds it; the owner's
+ * earlier choice, "the only way in VR to control the throttles is with the joysticks", Oct 2026.)
+ * With `handMoves` on, the hand works it
  * too: twist your wrist (as a door knob) and the turntable turns with it, `twistGain` degrees a
  * degree; push the hand forward along the arrow for power. Desktop: drag
  * it (sideways twists it, up and down sets the power), or click it and steer with the keys
@@ -37,6 +42,8 @@ export interface AzimuthLeverOptions {
   snapDeg: number;
   /** VR: the hand's own twist and push work it (false: the hand only holds it; its thumbstick works it). */
   handMoves: boolean;
+  /** VR, with `handMoves` off: what twists it, the hand ('hand': the stick only sets the power) or the stick's sideways ('stick', the default). */
+  vrTwist?: 'hand' | 'stick';
   twistGain: number;
   turntableRadius: number;
   /** The drum across the head: its radius and width (m); the bar's radius (m). */
@@ -53,8 +60,8 @@ export interface AzimuthLeverOptions {
 
 const RAD = Math.PI / 180;
 /** Desktop: how fast the keys twist it (deg/s) and set the power (per s). */
-const KEY_TURN = 90;
-const KEY_LEAN = 0.5;
+export const KEY_TURN = 90;
+export const KEY_LEAN = 0.5;
 
 export class AzimuthLever extends Control {
   readonly kind = 'grab' as const;
@@ -83,6 +90,8 @@ export class AzimuthLever extends Control {
   private grabbed = false;
   /** The stick moved it since the hand last took it as it stands: the hand takes it again first. */
   private reanchor = false;
+  /** The two throttles synchronised (state.controls.aziSync), for the stick click to switch. */
+  private synced = false;
   /** The height of the drum's axis (the power tilt's pivot) above the lever's foot (m). */
   readonly pivotY: number;
 
@@ -162,12 +171,16 @@ export class AzimuthLever extends Control {
   grabMove(p: Pointer): void {
     // The thumbstick working it (tick() moves it): the hand just holds on, and moves it from
     // where the stick leaves it.
-    if (this.keys.x !== 0 || this.keys.y !== 0 || this.reanchor) {
+    // (With the hand twisting it, the stick sets only the power: the twist goes on from the grab.)
+    if (this.opts.vrTwist !== 'hand' && (this.keys.x !== 0 || this.keys.y !== 0 || this.reanchor)) {
       this.reanchor = false;
       return this.anchor(p);
     }
-    // (The hand only holds it: the stick works it.)
-    if (!this.opts.handMoves) return;
+    // (The hand only holds it: the stick works it. Or the hand twists it, the stick its power.)
+    if (!this.opts.handMoves) {
+      if (this.opts.vrTwist === 'hand') this.twistBy(p);
+      return;
+    }
     // Twist: the hand's turn about the upright since the grab turns the turntable.
     const t = this.handTwist(p);
     const angle = Number.isNaN(t) || Number.isNaN(this.twist0) ? this.turn : this.angle0 + wrapDeg(t - this.twist0) * this.opts.twistGain;
@@ -178,6 +191,19 @@ export class AzimuthLever extends Control {
     const along = v.x * Math.sin(a) - v.z * Math.cos(a);
     const lean = Math.atan2(along, Math.max(0.005, v.y));
     this.set(angle, lean / (this.opts.maxTiltDeg * RAD));
+  }
+
+  /** The hand's turn about the upright since the grab turns it (its power left as it is). */
+  private twistBy(p: Pointer): void {
+    const t = this.handTwist(p);
+    if (Number.isNaN(t) || Number.isNaN(this.twist0)) return;
+    this.set(this.angle0 + wrapDeg(t - this.twist0) * this.opts.twistGain, this.lean);
+  }
+
+  /** VR: the thumbstick clicked in while held: the two throttles synchronised (to this one's power) or split again. */
+  stickClick(): void {
+    this.ctx?.haptic(0.7, 60);
+    this.ctx?.emit('aziSync', this.synced ? 0 : this.channels.power.endsWith('2') ? 2 : 1);
   }
 
   grabEnd(_p: Pointer): void {
@@ -203,17 +229,30 @@ export class AzimuthLever extends Control {
   }
 
   stickSteer(x: number, y: number): void {
-    this.keySteer(x, y);
+    // (Its stick let go: our own power is on its way to the host; don't take an older one meanwhile.)
+    if (y === 0 && this.keys.y !== 0) this.markPending();
+    this.keySteer(this.opts.vrTwist === 'hand' ? 0 : x, y);
   }
 
   tick(dt: number): void {
     if (this.keys.x === 0 && this.keys.y === 0) return;
     this.set(this.turn + this.keys.x * KEY_TURN * dt, this.lean + this.keys.y * KEY_LEAN * dt);
-    this.reanchor = this.grabbed;
+    this.reanchor = this.grabbed && this.opts.vrTwist !== 'hand';
   }
 
   sync(state: VesselState): void {
-    if (this.held) return;
+    this.synced = (state.controls.aziSync ?? 0) > 0;
+    if (this.held) {
+      // Held, its stick still: the other lever may be moving its power (the throttles
+      // synchronised), so it follows the state's power (its twist stays the hand's).
+      if (!this.grabbed || this.opts.handMoves || this.keys.y !== 0) return;
+      const power = this.read.power(state);
+      if (this.awaiting(Math.abs(power - this.power) < 0.01) || Math.abs(power - this.power) < 0.01) return;
+      this.power = this.lean = power;
+      this.sentPower = power;
+      this.show();
+      return;
+    }
     const angle = this.read.angle(state);
     const power = this.read.power(state);
     if (this.awaiting(Math.abs(power - this.power) < 0.01 && Math.abs(wrapDeg(angle - this.angle)) < 0.5)) return;

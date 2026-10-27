@@ -13,6 +13,7 @@
  * (player/gangway.ts): you're put at the ladder's foot, or back on her floor by the hatch.
  * While below, her walk area is the room's (walk.ts); hers is put back when you come up.
  */
+import type { Control } from '../../controls/Control';
 import type * as THREE from 'three';
 import { VESSEL_DEFS } from '../../vessel/vesselDef';
 import type { WalkArea } from '../../vessel/layout';
@@ -43,6 +44,9 @@ export interface BelowContext {
   notify: (text: string, seconds: number) => void;
   /** Her name, for the screens. */
   boatName: (defId: string) => string;
+  /** A room's controls (the tug's start-up), handed to the interaction system when it's built and taken back when it goes. */
+  addControls: (cs: Control[]) => void;
+  removeControls: (cs: Control[]) => void;
 }
 
 export class BelowDecks {
@@ -75,6 +79,12 @@ export class BelowDecks {
         const { EngineRoomView } = await import('./view');
         view = new EngineRoomView(plan, this.ctx.boatName(v.defId));
         this.views.set(boatId, view);
+        // Its controls work her (routed to her, whoever's boat she is), and only while we're below.
+        for (const c of view.controls) {
+          c.route = boatId;
+          c.enabled = false;
+        }
+        this.ctx.addControls(view.controls);
       }
       // (She may have gone while it loaded, or we've stepped off her.)
       const p = this.ctx.world().players[this.ctx.playerId()];
@@ -82,6 +92,7 @@ export class BelowDecks {
       this.ctx.scene.add(view.root);
       view.update(root, v, 1);
       this.here = { boatId, plan, view, deckArea: this.ctx.walkAreas.get(boatId) };
+      for (const c of view.controls) c.enabled = true;
       this.ctx.walkAreas.set(boatId, roomWalkArea(plan, tugLayout(plan)?.solids));
       // A step forward of the ladder's foot, facing forward along her (toward the gauges).
       p.position = [plan.ladder.x, plan.sole, Math.max(plan.z0 + 0.6, plan.ladder.z - 1.2)];
@@ -123,6 +134,7 @@ export class BelowDecks {
     const h = this.here;
     if (!h) return;
     this.here = null;
+    for (const c of h.view.controls) c.enabled = false;
     h.view.root.removeFromParent();
     if (h.deckArea) this.ctx.walkAreas.set(h.boatId, h.deckArea);
     for (const o of this.hidden) o.visible = true;
@@ -132,7 +144,9 @@ export class BelowDecks {
   /** A boat gone from the page: her room's drawing with her. */
   forget(boatId: string): void {
     if (this.here?.boatId === boatId) this.leave();
-    this.views.get(boatId)?.dispose();
+    const view = this.views.get(boatId);
+    if (view) this.ctx.removeControls(view.controls);
+    view?.dispose();
     this.views.delete(boatId);
   }
 
