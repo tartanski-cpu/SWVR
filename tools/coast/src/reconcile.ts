@@ -15,7 +15,8 @@
  *   Inland water A river port with no coastline (the request's `inlandWater`): the map's
  *                river, canal and dock outlines are barriers too, and a patch with no coastline
  *                seeds is water where most of its cells are the land cover's water; its depth
- *                held to `inlandDepth`.
+ *                a dredged harbour's (`inlandShelf`) down to `inlandDepth`, not the coarse
+ *                bathymetry's.
  *   Cover        ESA WorldCover's class per cell, for the colours.
  *
  * Writes data/work/<id>/grid.json and heights.bin (Float32), cover.bin and land.bin (Uint8),
@@ -33,6 +34,8 @@ const T = {
   shoreRise: { base: 0.4, slope: 0.04, reach: 40 },
   /** Offshore shelf: `base` m deep at the coast, `slope` deeper per metre out; blended into the bathymetry over `blend` m. */
   shelf: { base: 0.8, slope: 0.1, blend: 300 },
+  /** A river port (inland water): dredged, `base` m deep at the quay wall and `slope` deeper per metre out, to the request's `inlandDepth` (the coarse bathymetry doesn't see its basins). */
+  inlandShelf: { base: 2, slope: 0.25 },
   /** Never shallower than this in the sea (m below MSL), never deeper than `floor`. */
   minDepth: 0.5,
   floor: 60,
@@ -249,6 +252,8 @@ for (let k = 0; k < N; k++) {
   if (land[k]) {
     const h = Number.isFinite(demH[k]) ? demH[k] : 0;
     heights[k] = d < T.shoreRise.reach ? Math.max(h, T.shoreRise.base + T.shoreRise.slope * d) : Math.max(h, T.shoreRise.base + T.shoreRise.slope * T.shoreRise.reach);
+  } else if (req.inlandWater) {
+    heights[k] = -Math.min(req.inlandDepth ?? T.floor, T.inlandShelf.base + T.inlandShelf.slope * d);
   } else {
     const shelf = -(T.shelf.base + T.shelf.slope * d);
     let deep = bathyH[k];
@@ -258,8 +263,7 @@ for (let k = 0; k < N; k++) {
     }
     deep = Math.min(deep, -T.minDepth);
     const h = shelf + (deep - shelf) * smooth(d / T.shelf.blend);
-    // (A river port: no deeper than its dredged fairway.)
-    heights[k] = Math.max(-(req.inlandDepth ?? T.floor), -T.floor, Math.min(-T.minDepth, h));
+    heights[k] = Math.max(-T.floor, Math.min(-T.minDepth, h));
   }
 }
 
