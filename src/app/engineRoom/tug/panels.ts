@@ -33,6 +33,21 @@ export const LIVE = {
   lopStbd: { x: 384, y: 640, w: 384, h: 256 },
 };
 
+/**
+ * The main switchboard's cubicles, left to right, and the plate under the control in each that
+ * has one (owner, 27 Oct 2026: "you don't know what all the switches in the electrical bus board
+ * do"); the controls stand at their cubicles' middles (controls.ts `msbCubicle`).
+ */
+export const MSB_CUBICLES: { name: string; control?: string; plate?: string }[] = [
+  { name: '24 V DC', control: 'master', plate: 'BATTERY MASTER' },
+  { name: 'GEN 1', control: 'er.genBreaker', plate: 'GEN 1 BREAKER' },
+  { name: 'GEN 2', plate: 'standby' },
+  { name: 'BUS TIE' },
+  { name: 'FUEL PUMPS', control: 'er.fuelPump', plate: 'FUEL SUPPLY PUMP' },
+  { name: 'ENGINE CONTROL', control: 'er.place', plate: 'LOCAL · ECR · BRIDGE' },
+  { name: '400 V DIST' },
+];
+
 /** The fixed canvas's panels. */
 export const FIXED = {
   size: [1024, 1536] as const,
@@ -344,9 +359,8 @@ export class TugPanels {
     const M = FIXED.msb;
     g.fillStyle = '#a9b0ae';
     g.fillRect(M.x, M.y, M.w, M.h);
-    const cubicles = ['GEN 1', 'GEN 2', 'BUS TIE', 'SHORE', '400 V DIST', '230 V DIST', '24 V DC'];
-    const cw = M.w / cubicles.length;
-    cubicles.forEach((name, i) => {
+    const cw = M.w / MSB_CUBICLES.length;
+    MSB_CUBICLES.forEach(({ name, control, plate }, i) => {
       const x = M.x + i * cw;
       g.strokeStyle = '#6f7674';
       g.lineWidth = 3;
@@ -372,14 +386,24 @@ export class TugPanels {
       g.beginPath();
       g.arc(x + cw / 2, M.y + 150, 16, 0, Math.PI * 2);
       g.fill();
+      // Its control's mounting (the real switch stands on it: controls.ts), or a dummy breaker.
       g.fillStyle = '#3a3f42';
-      g.fillRect(x + cw / 2 - 26, M.y + 200, 52, 90);
-      g.fillStyle = i < 2 ? '#b52a20' : '#26292b';
-      g.fillRect(x + cw / 2 - 10, M.y + 220, 20, 40);
-      g.fillStyle = i < 3 ? '#58d26b' : '#3a3f42';
-      g.beginPath();
-      g.arc(x + cw / 2, M.y + 320, 8, 0, Math.PI * 2);
-      g.fill();
+      g.fillRect(x + cw / 2 - 30, M.y + 196, 60, 98);
+      if (!control) {
+        g.fillStyle = '#26292b';
+        g.fillRect(x + cw / 2 - 10, M.y + 220, 20, 40);
+      }
+      // Its name plate under it.
+      if (plate) {
+        g.fillStyle = control ? '#f2f1ea' : '#c9ccc9';
+        g.fillRect(x + 10, M.y + 304, cw - 20, 34);
+        g.strokeStyle = '#1a1d1f';
+        g.lineWidth = 2;
+        g.strokeRect(x + 13, M.y + 307, cw - 26, 28);
+        g.fillStyle = '#111416';
+        g.font = 'bold 15px sans-serif';
+        g.fillText(plate, x + cw / 2, M.y + 327, cw - 30);
+      }
     });
     g.textAlign = 'left';
     // ── The tool board: pegboard and spanners ──

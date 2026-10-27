@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The tug's engine room labelled; no flicker; the gauge board clear (27 Oct 2026)
+
+Owner: "many of the things are not labeled, so you don't know what's the oil pump, you don't know what all the switches in the electrical bus board do. There's also some Z fighting in the engine control room and some gauges hidden behind the wall with the pipes on it ... label everything."
+- **Name plates** (`tug/labels.ts`, placed by `TugRoom.plates`; one canvas, one more draw call): engraved-style white plates, a name and what it is or does, on: the fuel day tanks (which engine) and their outlet valves; the starting air bottle and its main air valve; the air compressor; the sea water strainers and sea suction valves (which engine); generator 1 (in use) and 2 (standby), generator 1's fuel valve and START / STOP; under each engine stand's switches, "PRE-LUBE PUMP · START · STOP" with "lube oil pump: run until 1 bar, then START"; the bilge and ballast valve chest and the bilge pumps.
+- **The main switchboard** (`panels.ts` `MSB_CUBICLES`): each working control now stands in its own cubicle, named on a plate under it: 24 V DC (BATTERY MASTER), GEN 1 (GEN 1 BREAKER), FUEL PUMPS (FUEL SUPPLY PUMP), ENGINE CONTROL (LOCAL · ECR · BRIDGE); GEN 2 (standby), BUS TIE and 400 V DIST are dummies. The controls' hover names say what each does.
+- **Z-fighting:** the gauge board, the checklist card, the switchboard's face and the signs on the control room's aft wall sat 1–2 mm off their surfaces; moved clear, and the room's pictures, screens and plates are drawn in front of their surfaces (polygon offset), which holds on the Quest's coarser depth too.
+- **The brass gauge board** in the control room was behind the port side's pipe runs, which ran through the control room: they now end at its aft wall.
+- **Checked headless:** each group close up, lit (the switchboard, an engine's stand, the tanks and air bottle, the strainers, the generator, the gauge board now clear). **Not checked:** VR (legibility in the headset; the flicker on the Quest).
+- **Shared changes:** none.
+
 ### Engine rooms: the next step glows; solid walls in VR; crew-mates seen below (27 Oct 2026)
 
 Owner: "highlight the next thing that needs to be touched ... Don't make it too easy, but if it was somehow glowing"; "it's still possible to slide through the walls of the engine room"; "in multiplayer ... I could see one of the players, but that player couldn't see me. And then when I ... came back, it was the other way around."

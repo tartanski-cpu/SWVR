@@ -586,8 +586,10 @@ export const SHIPYARD_CONFIG = {
          * 2026: "a steep transverse stair" rather than a ladder; house.ts transverseStair): each
          * step at most `rise` (m) up and `tread` across her (about 54 degrees), `width` out from
          * the face; a `landing` that wide (across her) at its head; `kg` the stair and its rails.
+         * (Owner, 27 Oct 2026: "still difficult to get up ... a bit narrow": 0.9 m wide and its
+         * landing 0.9 m, were 0.65 and 0.7.)
          */
-        stair: { rise: 0.3, tread: 0.22, width: 0.65, landing: 0.7, kg: 90 },
+        stair: { rise: 0.3, tread: 0.22, width: 0.9, landing: 0.9, kg: 110 },
       },
       /**
        * Run on aft of the wheelhouse (design.dhAft; owner, Oct 2026: the stern trawler's deck
