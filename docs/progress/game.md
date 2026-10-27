@@ -50,6 +50,7 @@ Owner: "the only thing I want for the engine room is a realistic startup procedu
   - `src/core/simulation.ts`: `stepPlant` after her machinery;
   - `src/modular/busKeys.ts`: the `plant.bridge` key;
   - `src/modules/dieselInboard/index.ts`: its `bridge` port. Until she's handed over, the bridge's levers and STARTs don't reach her engines.
+  - the golden runs' fixtures (`tests/golden/fixtures/`) and `docs/BUS_KEYS.md` regenerated: they record every bus key, so `plant.bridge` (always on for a boat without an engine room) is new in them; nothing else in them changed.
 ### (From the modular-builder chat) HANDOVER, not built: driving the harbour tug from the keyboard and a game controller
 
 The owner, 27 Oct 2026: "I want my non-VR friends to be able to drive this tug", reviewed a proposal from the modular-builder chat and chose: arrow keys, power stops at idle, point-and-push sticks, glance keys and LB to look, the on-screen dials, "Handover" (to this chat: it's the helm mode, keys and controller, `src/app/` and `src/player/`). **What to build**, only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`); every other boat's helm stays as it is:
