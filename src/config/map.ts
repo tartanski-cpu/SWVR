@@ -356,7 +356,8 @@ export const MAP_CONFIG = {
      * A cruise ship under construction at a yard (Perno), an original design: her hull to the
      * main deck (`depth`, a share of her length), decks of `deck` m on top, `decks` of them
      * when finished; her superstructure from `aft` to `fore` (shares of her length from the
-     * stern), its front raked back `rake` m a deck, terraced aft every `terrace` decks by
+     * stern), its front raked back `rake` m a deck (owner: "less sloped") and rounded in three
+     * facets, the two outer swept back `frontFacet` of her beam; terraced aft every `terrace` decks by
      * `terraceStep` m; her blocks `block` m long. Finished, lifeboats every `boatEvery` m along
      * `boatSpan` of her length. Colours: the finished ship's white and blue hull, red bottom,
      * the blocks' primer and light grey, the windows' band, the lifeboats, funnel and
@@ -368,7 +369,8 @@ export const MAP_CONFIG = {
       decks: 16,
       aft: 0.06,
       fore: 0.78,
-      rake: 1.4,
+      rake: 0.6,
+      frontFacet: 0.2,
       terrace: 3,
       terraceStep: 7,
       block: 24,

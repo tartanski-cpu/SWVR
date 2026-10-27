@@ -370,11 +370,24 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     // (At the stem the two sides meet: one point.)
     return [...side, ...other.filter((p, i) => i > 0 || p[1] > 0.5)];
   };
+  // A deck's front block: its front rounded in three facets (owner: "the front of the cruise
+  // ships are curved ... three facets"): a flat middle face across the middle third of her,
+  // and an angled face each side swept back `frontFacet` of her beam to her side.
+  const front3 = (u0: number, u1: number, scale: number): [number, number][] => {
+    const back = u1 - c.frontFacet * B;
+    if (back - u0 < 4) return slice(u0, u1, scale);
+    const ring = slice(u0, back, scale);
+    const half = halfBreadth(L, B, back) * scale;
+    // (The plan runs down one side to its end, then back up the other: the facets go between.)
+    const turn = ring.findIndex((p) => p[1] > 0);
+    return [...ring.slice(0, turn), [u1, -half / 3], [u1, half / 3], ...ring.slice(turn)];
+  };
   // How far her blocks are built (all her decks once `stage` reaches 0.8), and whether she's
   // painted (the owner's ship at the outfitting pier: the dock ship's shape, in fresh paint).
   const finished = y.stage >= 0.8;
   const painted = y.painted ?? finished;
-  // The hull: her bottom red to the waterline; above it, painted, blue to the main deck; or,
+  // The hull: her bottom red to the waterline; above it, finished, a blue band then white to
+  // the main deck; painted, blue to it; or,
   // earlier, block by block in primer grey, light grey or white (a few already painted blue).
   const blocks = Math.ceil(L / c.block);
   for (let b = 0; b < blocks; b++) {
@@ -383,7 +396,10 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     if (u1 - u0 < 1) continue;
     const ring = slice(u0, u1);
     parts.push(prism(ring, keel, wl, w, k.red));
-    if (painted) parts.push(prism(ring, wl, main, w, k.hull));
+    if (finished) {
+      parts.push(prism(ring, wl, wl + 8, w, k.hull));
+      parts.push(prism(ring, wl + 8, main, w, k.white));
+    } else if (painted) parts.push(prism(ring, wl, main, w, k.hull));
     else {
       const mid = (wl + main) / 2;
       for (const [y0, y1, t] of [[wl, mid, 2], [mid, main, 3]] as [number, number, number][]) {
@@ -408,11 +424,12 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     for (let u0 = back; u0 < front - 1; u0 += finished ? front - back : c.block) {
       const u1 = finished ? front : Math.min(front, u0 + c.block);
       if (blockDecks(u0) <= d) continue;
-      const ring = slice(u0, u1, narrow);
+      const plan = u1 >= front - 0.01 ? front3 : slice;
+      const ring = plan(u0, u1, narrow);
       // Each deck a band of windows and balconies under its white (painted: no primer left).
       const primer = !painted && hash01(y.seed, u0, d) < 0.45;
       parts.push(prism(ring, y0, y0 + 0.7, w, primer ? k.primer : k.glass));
-      parts.push(prism(slice(u0, u1, narrow * 0.985), y0 + 0.7, y0 + c.deck, w, primer ? k.light : k.white));
+      parts.push(prism(plan(u0, u1, narrow * 0.985), y0 + 0.7, y0 + c.deck, w, primer ? k.light : k.white));
     }
   }
   if (finished) {

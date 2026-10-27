@@ -7,6 +7,7 @@
   "features: 32 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)",
   "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
   "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
   "overlapping piers at janessaari-pier (2908, -10335): decks 3.5 m and 2.4 m over 44 m²",
   "overlapping piers at janessaari-pier (3207, -10315): decks 3.5 m and 2.4 m over 40 m²",
   "overlapping piers at satama-pier (5281, -11384): decks 3.5 m and 2.4 m over 124 m²",
@@ -1758,6 +1759,6 @@
    "Varisvuori",
    "Rajakari Fl(1)RWG.4s"
   ],
-  "bytes": 2563430
+  "bytes": 2563415
  }
 }

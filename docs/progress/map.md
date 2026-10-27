@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku: the finished ship back, her front less raked and rounded in three facets (27 Oct 2026)
+
+Owner: "the original cruise ship you had, the completed one, maybe was a better basis ... The forward slopey part was too sloped ... less sloped. And usually the front of the cruise ships are curved, but you could use kind of three facets to keep it simple ... go back to that model."
+
+- **Back to the original finished ship** at the outfitting pier (`turku.yaml`: 300 m, `stage` 0.88, her own block pattern): navy band at the waterline under a white hull, white decks with their window bands, lifeboats, bridge and wings, funnel and water-park.
+- **Her front less raked:** `CONFIG.structures.yardShip.rake` 1.4 to 0.6 m a deck (about 10 m over her 16 decks, from 22). The dock ship's front takes it too.
+- **Her front rounded in three facets** (`coastStructures.ts` `front3`): each deck's front block ends in a flat middle face across the middle third of her, and an angled face each side swept back `frontFacet` (0.2) of her beam to her side.
+- **Kept from the last change set:** the request's `painted` and `seed` options (`common.ts`, `package.ts`, `YardShipDef.painted`) stay, unused for now.
+- **Tests** (`coastTurku.test.ts`): the dock ship unpainted in the drained dock; the finished one at the pier; her front setting back under 10 m over all her decks; over 60 m to her funnel; both ships under 8,000 triangles. `npm run test:map` and the typecheck pass. Seen in the game headless from her bow quarter: the upright faceted front over the long foredeck.
+- **Not checked:** on the Quest.
+
 ### Fix: grey slopes over narrow sounds (the far-hills change) (27 Oct 2026)
 
 Owner, near Naantali in Turku: "There are some grey geometry near Naantali (NW) but I can drive through them."

@@ -143,7 +143,7 @@ describe('Turku: the cruise ships building at Perno (owner, who worked there)', 
     return { y0, y1, tris };
   };
 
-  it('one half built, standing in the drained building dock under the gantries; one the same shape in fresh paint afloat at the outfitting pier', () => {
+  it('one half built, standing in the drained building dock under the gantries; one nearly finished afloat at the outfitting pier', () => {
     const r = mapRegion(voyageMap('turku')!);
     const [dock, quay] = r.yardShips!;
     const g = r.gantries![0];
@@ -153,25 +153,23 @@ describe('Turku: the cruise ships building at Perno (owner, who worked there)', 
     expect(dock.keel).toBeGreaterThan(0);
     expect(Math.hypot(dock.x - g.x, dock.z - g.z)).toBeLessThan(g.length / 2);
     expect(dock.beam).toBeLessThan(g.span);
-    // At the pier: afloat, her keel under the water, by the yard's berth, painted.
-    expect(quay.painted).toBe(true);
+    // At the pier: nearly finished, afloat, her keel under the water, by the yard's berth.
+    expect(quay.stage).toBeGreaterThan(0.8);
     expect(quay.keel).toBeLessThan(-5);
     const b = r.berths.find((x) => x.id === 'perno-shipyard-cargo')!;
     expect(Math.hypot(quay.x - b.x, quay.z - b.z)).toBeLessThan(quay.beam);
   });
 
-  it('the painted ship is the dock ship\'s shape (owner: "the same shape but with fresh paint, lifeboats and windows"); both within the Quest\'s budget', () => {
+  it('the finished ship: her front nearly upright (owner: "less sloped") and rounded in three facets; her funnel over 60 m up; both within the Quest\'s budget', () => {
     const r = mapRegion(voyageMap('turku')!);
     const [dock, quay] = r.yardShips!;
-    expect([quay.length, quay.beam, quay.stage, quay.seed]).toEqual([dock.length, dock.beam, dock.stage, dock.seed]);
+    const c = CONFIG.structures.yardShip;
+    // Her front sets back under a metre a deck: under 10 m over all her decks.
+    expect(c.rake * c.decks).toBeLessThan(10);
     const q = bounds(yardShipParts(quay));
     const d = bounds(yardShipParts(dock));
-    // The same blocks and decks as the dock ship, plus her lifeboats (a pair at each station); her keel under the water.
-    const extra = yardShipParts(quay).length - yardShipParts(dock).length;
-    expect(extra).toBeGreaterThan(0);
-    expect(extra % 2).toBe(0);
     expect(q.y0).toBeLessThan(-5);
-    expect(q.y1).toBeGreaterThan(50);
+    expect(q.y1).toBeGreaterThan(60);
     expect(q.tris + d.tris).toBeLessThan(8000);
   });
 });
