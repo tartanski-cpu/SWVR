@@ -71,6 +71,8 @@ describe('a narrow console', () => {
   it('on every hull type, basic and advanced, at its shortest: every switch still on the console, a valid boat; too short says so', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
       if (DESIGN_HULLS[hull].retired) continue;
+      // (Not a one-off whose console is fixed: the solar catamaran.)
+      if ('consoleLen' in (DESIGN_HULLS[hull].fixed ?? {})) continue;
       for (const controls of [0, 1]) {
         const d = type(hull, { controls, consoleLen: 1 });
         const { b, helm, cc } = helmOf(d);
@@ -106,6 +108,8 @@ describe('a faceted front’s dash (owner, Oct 2026, the pilot boat: "some of th
   it('on every hull type, basic and advanced: every dash screen lies on one facet, flat on its face, none buried across a wing’s corner', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
       if (DESIGN_HULLS[hull].retired) continue;
+      // (Not a one-off whose console is fixed: the solar catamaran.)
+      if ('consoleLen' in (DESIGN_HULLS[hull].fixed ?? {})) continue;
       for (const controls of [0, 1]) {
         const { helm, cc } = helmOf(type(hull, { controls, facets: 1 }));
         const c = cc as unknown as Helm & { wrap?: { centre: number; k: number } };

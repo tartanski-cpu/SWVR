@@ -2726,6 +2726,16 @@ export const CONFIG = {
    *   turbo          a turbocharger's whine (a sine, Hz from idle to full boost) at `gain`
    *                  under full boost; null if naturally aspirated
    */
+  /**
+   * The EFFICIENCY screen (owner, 27 Oct 2026: "an efficiency instrument ... litres per nautical
+   * mile, so that basically we can find the sweet spot"; controls/efficiency.ts): litres a mile
+   * from the engines' fuel flow over her speed through the water. Its sweet-spot chart keeps
+   * her litres a mile against her speed, in bins `binKn` wide, each the running mean of what she
+   * did there (`blend` of each new reading), read at most every `sampleS` seconds, only above
+   * `minKn` and only while her speed is steady (changed by under `steadyKn` since the last
+   * reading: a boat speeding up burns more than she will at that speed). Up to `maxKn`.
+   */
+  efficiency: { binKn: 0.5, blend: 0.25, sampleS: 0.5, minKn: 0.8, steadyKn: 0.15, maxKn: 50 },
   engineVoices: {
     /**
      * The workboat's 400 kW engine: a worn, naturally aspirated straight six, dark and

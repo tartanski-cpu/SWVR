@@ -6,6 +6,7 @@
  * what the parts after it need.
  */
 import { CONFIG } from '../../config';
+import { lightshipOf, type PointMass } from '../../modular/massProperties';
 import type { Mount } from '../../modular/recipe';
 import type { Socket } from '../../modular/socket';
 import type { FurnitureConfig, FurnitureKind } from '../../modules/furniture';
@@ -107,6 +108,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   /** Why a piece left off won't go where it was put, in a few words. */
   const furnitureWhy: Partial<Record<FurnitureKey, string>> = {};
   let furnitureKg = 0;
+  const furnitureMasses: PointMass[] = [];
   for (const piece of PIECES) {
     const pin = furnitureAt(d[piece.key] ?? 0);
     if (!pin) continue;
@@ -217,6 +219,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     const config: FurnitureConfig = { kind: piece.kind, length: L, depth: D, height };
     furnitureMounts.push({ socket: id, module: 'furniture.piece', config: config as unknown as Record<string, unknown> });
     furnitureKg += size.kg;
+    furnitureMasses.push({ massKg: size.kg, at: [put[0], r2(mid[1] + height / 2), put[2]] });
     // Moved: along its wall (put back against the wall it's always; a free seat, any way).
     const off = found.wall === 'free' ? Math.hypot(mid[0] - px, mid[2] - pz) : found.wall === 'aft' ? Math.abs(mid[0] - px) : Math.abs(mid[2] - pz);
     furniturePlaced[piece.key] = { x: put[0], z: mid[2], moved: off > fc.movedOver };
@@ -232,6 +235,10 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   }
   // Her places include the furniture's (P4b: gathered into her hull definition).
   hull.sockets.push(...furnitureSockets);
+  // Each piece weighs itself in the game (modules/furniture `physical`): her lightship, weighed
+  // with it (weights.ts), is without it, as with her engines (hullDef.ts lightshipLess); else
+  // she'd carry its weight twice.
+  if (furnitureMasses.length) hull.lightship = lightshipOf(hull.lightship, furnitureMasses);
   return { furnitureKg, furnitureMounts, furniturePlaced, furnitureWhy };
 }
 export type FurniturePart = ReturnType<typeof furniturePart>;

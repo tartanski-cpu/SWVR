@@ -17,7 +17,8 @@ const as = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ...D
 describe('hull resistance by type', () => {
   it('the tug and the trawler take the displacement hull curve; the planing types do not', () => {
     for (const [hull, t] of DESIGN_HULLS.entries()) {
-      if (t.retired) continue;
+      // (A catamaran's resistance is her two slim hulls': vessel/catamaran.ts.)
+      if (t.retired || t.catamaran) continue;
       useDesign(as(hull));
       const r = VESSEL_DEFS.design.resistance;
       if (t.regime === 'displacement') expect(r.waveCap, t.name).toBe(CONFIG.displacementHull.resistance.waveCap);

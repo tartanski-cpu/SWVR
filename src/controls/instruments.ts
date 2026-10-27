@@ -13,6 +13,7 @@ import type { EnvironmentState } from '../environment/environmentState';
 import { beaufort, windVector } from '../environment/weather';
 import { formatPosition } from '../nav/geo';
 import { addCurrent } from '../world/currents';
+import { litresPerNm, newEfficiencyLog, rangeNm, record, sweetSpot, type EfficiencyLog } from './efficiency';
 
 /**
  * The bridge's screens (speed, heading, rpm, rudder, engine monitor, NAV / WIND) and the
@@ -591,6 +592,96 @@ const paintEngineMonitor: Painter = (g, s) => {
   cond(264, 'ENGINE', 1 - (e.wear ?? 0));
 };
 
+/**
+ * EFFICIENCY (owner, 27 Oct 2026: "an efficiency instrument ... litres per nautical mile, so
+ * that basically we can find the sweet spot"; controls/efficiency.ts): litres a mile now, big;
+ * her fuel flow and speed; how far her fuel takes her at this speed; and the sweet-spot chart,
+ * her litres a mile against her speed as she's been driven (each player's screen gathers its
+ * own), its lowest point marked. Stage 1: diesel; her energy, CO2 and trips to come.
+ */
+const effLogs = new Map<string, EfficiencyLog>();
+function effLog(def: VesselDef): EfficiencyLog {
+  let log = effLogs.get(def.id);
+  if (!log) effLogs.set(def.id, (log = newEfficiencyLog()));
+  return log;
+}
+function efficiencyKey(s: VesselState, def: VesselDef): string {
+  const log = effLog(def);
+  const kn = logKnots(s);
+  record(log, performance.now() / 1000, kn, s.engine.fuelFlowLph);
+  const l = litresPerNm(s.engine.fuelFlowLph, kn);
+  return [l === null ? '-' : l.toFixed(2), kn.toFixed(1), s.engine.fuelFlowLph.toFixed(1), Math.round(s.engine.fuelL), log.version].join('|');
+}
+const paintEfficiency: Painter = (g, s, def) => {
+  title(g, 'EFFICIENCY');
+  const log = effLog(def);
+  const kn = logKnots(s);
+  const flow = s.engine.fuelFlowLph;
+  const l = litresPerNm(flow, kn);
+  // Left: litres a mile now, then the flow and speed it's from, and the range at this speed.
+  g.textAlign = 'left';
+  big(g, l === null ? '--' : l < 10 ? l.toFixed(2) : l.toFixed(1), 20, 84, 52);
+  text(g, 'L / nm', 22, 114, AMBER);
+  text(g, `${flow.toFixed(1)} L/h`, 22, 150);
+  text(g, `${kn.toFixed(1)} kn`, 22, 174);
+  const r = rangeNm(s.engine.fuelL, l);
+  text(g, r === null ? 'RANGE --' : `RANGE ${Math.round(r)} nm`, 22, 206, r !== null && r < 10 ? RED : GREEN);
+  // Right: the sweet-spot chart (speed across, litres a mile up), its axes scaled to what's seen.
+  const x0 = 200;
+  const x1 = 492;
+  const y0 = 228;
+  const y1 = 50;
+  const c = CONFIG.efficiency;
+  let topKn = 10;
+  let topL = 1;
+  log.bins.forEach((v, i) => {
+    if (!Number.isNaN(v)) {
+      topKn = Math.max(topKn, (i + 1) * c.binKn);
+      topL = Math.max(topL, v);
+    }
+  });
+  topKn = Math.ceil(topKn / 5) * 5;
+  topL = Math.ceil(topL * 1.15);
+  const X = (k: number) => x0 + ((x1 - x0) * k) / topKn;
+  const Y = (v: number) => y0 - ((y0 - y1) * v) / topL;
+  g.strokeStyle = DIM;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(x0, y1);
+  g.lineTo(x0, y0);
+  g.lineTo(x1, y0);
+  g.stroke();
+  text(g, `${topL} L/nm`, x0 + 6, y1 - 4, DIM, SMALL_PX);
+  text(g, `${topKn} kn`, x1, y0 + 6, DIM, SMALL_PX, 'right');
+  // Her readings: a dot each speed she's been steady at, joined in order of speed.
+  const pts: [number, number][] = [];
+  log.bins.forEach((v, i) => {
+    if (!Number.isNaN(v)) pts.push([X((i + 0.5) * c.binKn), Y(v)]);
+  });
+  g.strokeStyle = AMBER;
+  g.beginPath();
+  pts.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py)));
+  g.stroke();
+  g.fillStyle = AMBER;
+  for (const [px, py] of pts) g.fillRect(px - 3, py - 3, 6, 6);
+  // Her sweet spot (green), and where she is now (a hollow ring).
+  const best = sweetSpot(log);
+  if (best) {
+    g.fillStyle = GREEN;
+    g.beginPath();
+    g.arc(X(best.knots), Y(best.lpnm), 7, 0, Math.PI * 2);
+    g.fill();
+    text(g, `BEST ${best.knots.toFixed(1)} kn ${best.lpnm.toFixed(2)} L/nm`, x1, 18, GREEN, SMALL_PX, 'right');
+  } else text(g, 'DRIVE STEADY TO FILL', x1, 18, DIM, SMALL_PX, 'right');
+  if (l !== null && kn <= topKn && l <= topL) {
+    g.strokeStyle = '#ffe6b0';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(X(kn), Y(l), 9, 0, Math.PI * 2);
+    g.stroke();
+  }
+};
+
 /** True and apparent wind where the boat is: speed (m/s) and the direction it blows FROM. */
 function winds(s: VesselState, env: EnvironmentState | null): { trueFrom: number; trueSpd: number; appRel: number; appSpd: number } {
   const w = env ? windVector(env, { x: 0, z: 0 }, { x: s.position[0], z: s.position[2] }) : { x: 0, z: 0 };
@@ -1103,6 +1194,7 @@ export const SCREENS = {
   rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, s.engine.stbd ? `${Math.round(s.engine.stbd.rpm / 10)}${s.engine.stbd.phase}${s.engine.stbd.gear}` : '', s.engine.azimuth === undefined ? '' : `${Math.round((s.engine.azimuth * 180) / Math.PI)},${Math.round(((s.engine.stbd?.azimuth ?? 0) * 180) / Math.PI)},${Math.round(s.controls.aziAngle ?? 0)},${Math.round(s.controls.aziAngle2 ?? 0)},${s.controls.aziTransit ?? 0},${Math.sign(s.controls.lever)},${Math.sign(s.controls.lever2 ?? 0)}`, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
+  efficiency: { paint: paintEfficiency, key: efficiencyKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
   towline: { paint: paintTowline, cells: [2, 1], key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
   // Old school: the analogue gauges, each a quarter.
@@ -1145,10 +1237,10 @@ export type ScreenName = keyof typeof SCREENS;
 // you have tabs that you have to flip between to see the different information") ──
 
 /** The pages a touchscreen can show, in tab order: each is one of the screens above, drawn in it. */
-export const TOUCH_PAGES = ['speed', 'heading', 'rpm', 'engineMonitor', 'anchor', 'towline', 'nav'] as const;
+export const TOUCH_PAGES = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'anchor', 'towline', 'nav'] as const;
 export type TouchPage = (typeof TOUCH_PAGES)[number];
 /** What each page's tab says. */
-export const TOUCH_TABS: Record<TouchPage, string> = { speed: 'SPEED', heading: 'HDG', rpm: 'ENGINE', engineMonitor: 'SYSTEMS', anchor: 'ANCHOR', towline: 'TOW', nav: 'WIND' };
+export const TOUCH_TABS: Record<TouchPage, string> = { speed: 'SPEED', heading: 'HDG', rpm: 'ENGINE', engineMonitor: 'SYSTEMS', efficiency: 'ECO', anchor: 'ANCHOR', towline: 'TOW', nav: 'WIND' };
 /**
  * The tab bar and the page area, in the screen's own pixels (512 x 256; the bezel is the outer
  * 10). The tabs are along the top: from the helm the wheel's rim hides a dash screen's foot.

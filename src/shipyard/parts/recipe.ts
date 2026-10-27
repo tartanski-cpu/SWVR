@@ -119,7 +119,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       socket: 'pods',
       module: 'propulsion.pods',
       config: {
-        engine: engine.engine,
+        // (The solar catamaran's stand-in for her electric motors: a small diesel geared down by
+        // CONFIG.shipyard.solarCat.standInRatio more, so it can swing her big slow propellers.)
+        engine: p.electric ? { ...engine.engine, gearRatio: Math.round(engine.engine.gearRatio * CONFIG.shipyard.solarCat.standInRatio * 1000) / 1000 } : engine.engine,
         propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02 },
         ...podSet,
         steering: pdc.steering,
@@ -129,7 +131,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         alternatorAmps: engine.alternatorAmps ?? CONFIG.modules.dieselInboard.alternatorAmps,
         oilUse: engine.oilUse ?? CONFIG.vessels.workboat.maintenance.use,
         starterAmps: engine.starterAmps ?? CONFIG.modules.dieselInboard.starterAmps,
-        massKg: eng.kg + pdc.legKg,
+        massKg: eng.kg + (p.electric ? CONFIG.shipyard.solarCat.podKg : pdc.legKg),
         maintenance: engine.maintenance,
         voice: eng.voice,
         installed: engine.installed,
@@ -275,6 +277,13 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.slots.towline = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
     consoleMount.modules!.push({ socket: 'towline', module: 'instrument.screen', config: { screen: 'towline' } });
   }
+  // EFFICIENCY (owner, 27 Oct 2026: "an efficiency instrument ... litres per nautical mile, so
+  // that basically we can find the sweet spot"): with the advanced instruments, after the
+  // engine monitor (on a touchscreen, its ECO page).
+  if (d.controls) {
+    cc.slots.efficiency = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
+    consoleMount.modules!.push({ socket: 'efficiency', module: 'instrument.screen', config: { screen: 'efficiency' } });
+  }
   // ANCHOR (owner, Oct 2026: "is the chain going down? Is the anchor set? Is the chain going
   // up? Is it in?"): a quarter screen beside the speed screen, on any boat with an anchor.
   if (anchorAt) {
@@ -300,8 +309,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const touch = d.controls ? Math.max(0, Math.min(2, d.touch ?? 0)) : 0;
   const touchIds = touch ? ['touch1', 'touch2'].slice(0, touch) : [];
   if (touch) {
-    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
-    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline'].includes(m.socket));
+    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
+    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'towline'].includes(m.socket));
     touchIds.forEach((id, k) => {
       cc.slots[id] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
       consoleMount.modules!.push({ socket: id, module: 'instrument.screen', config: { screen: 'touch', pages, channel: k ? 'touchPage2' : 'touchPage1', first: k ? 2 : 0 } });
@@ -372,7 +381,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // CS6, `lampsUpBelow`, it would run under the wheel's rim, so it goes up on the face too.)
   const lampsUp = !lowSills(d) && !panelPinned && !toFace.includes('ENGINE') && fitted('lamps') && 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow;
   const faceItems = [...faceItemsFor(toFace), ...(lampsUp ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])];
-  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
+  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
   // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
   // by its rules in this order, the half-height ones stacked two high in one screen's place
@@ -722,6 +731,34 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (bowFender) recipe.modules.push({ socket: 'bowFender', module: 'hull.bow-fender', config: bowFender });
   // The harbour tug's fendering: its mesh and points worked out from her lines (trim.ts, parts/fendering.ts).
   if (fendering) recipe.modules.push({ socket: 'fendering', module: 'hull.fendering', config: { positions: fendering.positions, probes: fendering.probes } });
+  // The solar catamaran's solar roof (modules/solarRoof; CONFIG.shipyard.solarCat.roof): over the
+  // roof and its overhang, a wing each side out to her beam (stowed flat), a rack on the foredeck.
+  if (p.electric) {
+    const sr = CONFIG.shipyard.solarCat.roof;
+    const z0 = layout.overhead ? layout.overhead.z1 : p.aft;
+    const top = rnd(roofTopAt((roofFront + p.aft) / 2) + 0.05);
+    const rx = Math.min(hw + 0.1, Math.min(...[z0, (z0 + roofFront) / 2, roofFront].map((z) => q.halfBeam(z))) - sr.wingClear);
+    // Each wing folded in over the roof's outer panels, hinged at its edge: lying on them, a panel's depth higher.
+    const wing = Math.min(sr.wingWidth, rx - 0.3);
+    const rackZ1 = front - sr.rack.clear;
+    const rackZ0 = rackZ1 - sr.rack.length;
+    // Her house's front sloped below its windows (design.kick): panels on the slope, in place of the rack.
+    const kickAft = Math.max(0, -p.ahead);
+    const rackX = kickAft > 0.3 ? 0 : Math.min(q.halfBeam(rackZ0), q.halfBeam(rackZ1)) - sr.rack.inset;
+    const deckY = Math.max(q.deckY(rackZ0), q.deckY(rackZ1));
+    recipe.modules.push({
+      socket: 'solarRoof',
+      module: 'deck.solar-roof',
+      config: {
+        roof: { x0: rnd(-rx), x1: rnd(rx), z0: rnd(z0), z1: rnd(roofFront), y: top },
+        wings: [-1, 1].map((s) => ({ x0: rnd(s > 0 ? rx - wing : -rx), x1: rnd(s > 0 ? rx : -rx + wing), z0: rnd(z0), z1: rnd(roofFront), y: rnd(top + 0.06) })),
+        rack: rackX > 0.5 ? { x0: rnd(-rackX), x1: rnd(rackX), z0: rnd(rackZ1), z1: rnd(rackZ0), y: rnd(deckY + sr.rack.height), deckY: rnd(deckY) } : null,
+        ...(kickAft > 0.3 ? { slope: { x0: rnd(-hw + 0.1), x1: rnd(hw - 0.1), z0: rnd(front), y0: rnd(house.lowerFromY), z1: rnd(front + kickAft), y1: rnd(p.floorY + p.sill) } } : {}),
+        panel: sr.panel,
+        gap: sr.gap,
+      },
+    });
+  }
   // A service livery's markings: the skin over her topsides worked out from her lines (trim.ts, parts/markings.ts).
   if (markings) recipe.modules.push({ socket: 'markings', module: 'hull.markings', config: { ...markings } });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
