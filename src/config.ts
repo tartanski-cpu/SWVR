@@ -703,6 +703,30 @@ export const CONFIG = {
    * the chart's wreck mark, its name and its depth; on the paper chart as a wreck mark and
    * its depth.
    */
+  /**
+   * The engine room you go down into (src/app/engineRoom/; owner, 27 Oct 2026: a detailed
+   * engine room drawn only while you're below, in the same page; the harbour tug and the stern
+   * trawler first). Where one fits (plan.ts): a boat at least `minLoaM` long whose hull under
+   * the engine hatch has `headroomM` of standing room (floor plates to the underside of the
+   * deck, `deckheadM` of plating and beams) over a floor `minWidthM` wide, for at least
+   * `minLengthM` along her, and room for a walkway `walkwayM` wide outboard of each engine;
+   * grown fore and aft from under the hatch to `lengthShare` of her
+   * length (at most `maxLengthM`), kept `endClearShare` of her length from each end (the
+   * forepeak, the steering flat). Its sides stand `liningM` in from her plating.
+   */
+  engineRoom: {
+    minLoaM: 18,
+    headroomM: 1.95,
+    deckheadM: 0.25,
+    minWidthM: 2.2,
+    walkwayM: 0.7,
+    minLengthM: 3,
+    lengthShare: 0.3,
+    maxLengthM: 8,
+    endClearShare: 0.12,
+    liningM: 0.12,
+  },
+
   dive: {
     radius: 50,
     /**
@@ -1677,8 +1701,10 @@ export const CONFIG = {
    *   radius      how big a target it is (m): the ring's radius, and the pointer's hit
    *   reach       how far away it can be pointed at (m)
    *   aboardRange shown over a moored boat when you're ashore within this of her (m)
+   *   hatchRange  "Go below" (a boat with an engine room, her hatch open) within this of the hatch (m)
+   *   ladderRange "Climb up" below, within this of the ladder's foot (m)
    */
-  gangway: { up: 1.6, ashoreUp: 0.8, edgeIn: 0.6, radius: 0.35, reach: 25, aboardRange: 14 },
+  gangway: { up: 1.6, ashoreUp: 0.8, edgeIn: 0.6, radius: 0.35, reach: 25, aboardRange: 14, hatchRange: 3, ladderRange: 2.5 },
 
   contacts: {
     /** The values below are for a boat of this mass (the workboat); lighter ones scale them down. */

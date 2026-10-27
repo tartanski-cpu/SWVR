@@ -147,6 +147,7 @@ import { RodView } from '../fishing/rodView';
 import { LineGun } from '../tow/lineGun';
 import { FenderHands, type FenderHandsContext } from '../player/fenderHands';
 import { Gangway, type GangwayContext } from '../player/gangway';
+import { BelowDecks, roomFor } from './engineRoom';
 import type { FendersApi } from '../modules/fenders';
 import { LineGunView } from '../tow/lineGunView';
 import { lineLength, lineOf, nearestTowTarget, sternLocal, towAlertT, towName, towPoint, towStatus, towTargets, winchStalled } from '../tow/tow';
@@ -586,6 +587,8 @@ export class App {
   private readonly fenderHands = new FenderHands();
   /** The gangway mark (player/gangway.ts): "Step ashore" over the quay from a moored boat, "Step aboard" over her deck. */
   private readonly gangway = new Gangway();
+  /** Going below into an engine room (app/engineRoom/): made once the scene and the rig are. */
+  private belowDecks!: BelowDecks;
   private readonly gangwayEye = new THREE.Vector3();
   /** The line-throwing gun's game (tow/lineGun.ts) and what it shows. */
   private readonly lineGun = new LineGun();
@@ -907,6 +910,15 @@ export class App {
     // The career's Shipyard signs, one on the quay at every harbour (Voyage's stands by the planning table: setupPlan).
     // ...and beside each, the Your boats board (your Shipyard favourites).
     if (MODE === 'career') this.shipyardSigns = careerShipyardSpots().flatMap((at) => [ShipyardDoor.shipyard(host, at), ShipyardDoor.boats(host, at)]);
+    this.belowDecks = new BelowDecks({
+      scene: this.scene,
+      world: () => this.world,
+      playerId: () => this.localPlayerId,
+      boatRoot: (id) => this.vesselRoots.get(id),
+      walkAreas: this.walkAreas,
+      keep: () => this.keptBelow(),
+      notify: (text, s) => this.overlay.notify(text, s),
+    });
     this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine));
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
@@ -1454,6 +1466,7 @@ export class App {
     this.noteKeys.menu.refresh();
     for (const b of this.yardBoards) b.update(this.scene, this.focus);
     for (const s of this.shipyardSigns) s.updateAt(this.scene, this.focus);
+    this.belowDecks.update(dt);
     this.gangway.update(this.gangwayCtx(), this.camera.getWorldPosition(this.gangwayEye));
     if (this.board) {
       this.board.update(this.world);
@@ -4175,6 +4188,7 @@ export class App {
     const gone = this.boats.get(id);
     if (gone) this.interaction?.removeControls(gone.controls);
     this.interiors.delete(id);
+    this.belowDecks.forget(id);
     for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans, this.boats] as Map<EntityId, unknown>[]) map.delete(id);
   }
 
@@ -5461,6 +5475,23 @@ export class App {
   }
 
   /** The rescue hands' view of the app. */
+  /**
+   * What stays drawn below decks (app/engineRoom/): our rig (the camera, hands, overlay), the
+   * menus and their rays, the marks, the reticle and laser, gear in hand; and any crew-mate in
+   * the room with us.
+   */
+  private keptBelow(): THREE.Object3D[] {
+    const keep: THREE.Object3D[] = [this.rig.carrier, this.gangway.root, this.menu.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, this.desktopHand.root, this.laser.beam.root, this.handGearView.root];
+    if (this.interaction) keep.push(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
+    const id = this.belowDecks.boatId;
+    const v = id ? this.world.vessels[id] : undefined;
+    const plan = v ? roomFor(v.defId) : null;
+    if (plan)
+      for (const p of Object.values(this.world.players))
+        if (p.id !== this.localPlayerId && p.aboardVesselId === id && p.position[1] < plan.deckhead) keep.push(...this.avatars.partsOf(p.id));
+    return keep;
+  }
+
   private gangwayCtx(): GangwayContext {
     return {
       world: this.world,
@@ -5469,6 +5500,13 @@ export class App {
       board: (ref) => this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: ref ? 1 : 0, ref }),
       notify: (text) => this.overlay.notify(text, 2.5),
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      room: (id) => {
+        const v = this.world.vessels[id];
+        return v ? roomFor(v.defId) : null;
+      },
+      below: () => this.belowDecks.boatId,
+      goBelow: (id) => void this.belowDecks.goBelow(id),
+      goUp: () => this.belowDecks.goUp(),
     };
   }
 

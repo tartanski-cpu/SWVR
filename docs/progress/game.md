@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Engine rooms, milestone 1: going below on the tug and the trawler (27 Oct 2026)
+
+Owner: an engine room as a separate game, for performance; agreed instead (same performance, multiplayer and the simulation kept): in the same page, only the room drawn while you're below; the harbour tug and the stern trawler first. The plan and what's next for the Shipyard and modular builder chats: `docs/ENGINE_ROOM.md`.
+
+- **Where one fits** (`src/app/engineRoom/plan.ts`, `CONFIG.engineRoom`: `minLoaM` 18, `headroomM` 1.95, `deckheadM` 0.25, `minWidthM` 2.2, `walkwayM` 0.7, `minLengthM` 3, `lengthShare` 0.3, `maxLengthM` 8, `endClearShare` 0.12, `liningM` 0.12): from her own hull sections, engine hatch and installed engines (`engines.ts`, from her recipe). The harbour tug (7.5 × 8.8 m, 2.5 m headroom), the stern trawler (6 × 2.9 m) and the dive ship (on the trawler's hull); every other boat as before.
+- **Going below** (`index.ts` BelowDecks, `player/gangway.ts`): "Go below" over her open engine hatch (`gangway.hatchRange` 3 m), "Climb up" at the ladder's head (`ladderRange` 2.5 m), by the same pointing as Step aboard. Below, everything outside is hidden (again each frame: some views set their own visibility), and only the room, your rig, the menus, the marks and a crew-mate in the room with you are drawn (`AvatarsView.partsOf`); her walk area is the room's (`walk.ts`: its floor, round the engines). Off her (a teleport, the boat gone), you're out of it without a word.
+- **The room** (`view.ts`, its own 4 KB download, fetched the first time): floor plates, lined sides with frames, deck beams and light fittings, a watertight door, her engines as the boat draws them with their shafts, the ladder beside an engine, a live gauge panel per engine (running, rpm, coolant, oil), hemisphere and ambient light. Measured headless, Oban: below 3–4 draw calls and about 2,000 triangles; on deck 127–153 calls and about 330,000.
+- **Tests:** tests/engineRoom.test.ts (which hull types have one; standing room inside her plating; her engines in it with a walkway; the ladder beside them; walking round them).
+- **Checked in headless Chromium:** the trawler and the tug, "Go below" over the open hatch, the room from inside, the gauges, "Climb up" back on deck beside the hatch, no errors. **Not checked:** in VR, on the Quest, with a crew-mate below.
+- **Not yet (milestone 2):** controls in the room (local stops, valves, bilge pump), its sound, a fade, Quest measurements.
+- **Shared changes:** none (`docs/ENGINE_ROOM.md` new).
+
 ### Fix: a hidden host steps 20 times a second; the tug's gearbox fixed (26 Oct 2026)
 
 Owner: joined a desktop host's game on the Quest, aboard the tug, "the simulation rate ... like 1 frames per second"; and building the tug "takes forever ... trying to work out its gearbox", so she couldn't be saved on the Quest; "it's a fixed gearbox".
