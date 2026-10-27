@@ -776,6 +776,12 @@ export const CONFIG = {
     startAirBar: 4,
     airStartMinBar: 12,
     /**
+     * Her 24 V batteries: charged from the live switchboard (`chargeSocPerS` of a full charge a
+     * second, flat to full in about 3 minutes); Quick start gives flat ones `jumpStartSoc`.
+     */
+    chargeSocPerS: 0.006,
+    jumpStartSoc: 0.3,
+    /**
      * The cue (owner, 27 Oct 2026: "highlight the next thing that needs to be touched ... if it
      * was somehow glowing ... don't make it too easy"): the next step's controls glow amber,
      * pulsing up to `level` (0..1) and back every `periodS` s; `on` false: no cue.

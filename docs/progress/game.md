@@ -10,6 +10,14 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Quick start works on the tug whatever she was left like; her batteries charge from the generator (27 Oct 2026)
+
+Owner: "Quick start wasn't working in the tug I had in my favourites."
+- **Found** (reproduced in the career with the tug): Quick start silently did nothing (a) with a lever left at some power (the small boats' neutral-safety rule: the tug's lever power counts as in gear), and (b) with her batteries flat (dead ship leaves the 24 V master on with nothing charging, so a tug left a while drains).
+- **Fixed** (`plant/plant.ts` `plantReady`, `stepPlant`; `CONFIG.plant.chargeSocPerS` 0.006, `jumpStartSoc` 0.3): on the tug, Quick start brings both levers to idle first (she starts in neutral), and gives flat batteries enough to start on (a jump start); and her switchboard's battery chargers fill the 24 V batteries while the generator is on line (flat to full in about 3 minutes), as on a real tug.
+- **Tests:** tests/plant.test.ts (Quick start with the levers at 0.4 and the batteries flat: both engines running, the levers at idle, the batteries charging). **Checked headless** in the career with the tug: fresh, levers left forward, flat batteries: each time she starts.
+- **Shared changes:** none.
+
 ### The harbour tug's V16s: a big rumbling voice, and loud in her engine room (27 Oct 2026)
 
 Owner: "we'll come back to engine sounds, because we need a big rumbling noise for these big diesels"; "Move onto sounds".
