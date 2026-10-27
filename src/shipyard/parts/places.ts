@@ -99,6 +99,13 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     fore: { position: at.floodFore, ...floodAim(at.floodFore, [0, rnd(q.deckY(zFore)), rnd(zFore)], [...along([F, frontIn], [F + sill, frontIn]), ...along([F + sill, frontIn], [F + windowHead, headIn])], -1) },
     aft: { position: at.floodAft, ...floodAim(at.floodAft, [0, rnd(q.deckY(zAftDeck)), rnd(zAftDeck)], along([FA, aft - wall], [roofAt(aft - wall), aft - wall]), 1) },
   };
+  /** The poster's middle on the port wall (a hair in from its inside face). */
+  const posterAt = (): V3 => {
+    const pc = CONFIG.modules.poster;
+    const y = F + Math.min(pc.aboveFloorMax, sill - pc.height / 2 - 0.06);
+    const z = Math.min(cf + pc.aftOfConsole + pc.width / 2, aft - wall - 0.15 - pc.width / 2);
+    return [rnd(hx - (hw - wall) + 0.01), rnd(y), rnd(z)];
+  };
   const bowCleat = stem + 0.5;
   const sternCleat = transom - 0.4;
   // With a skiff, the midship cleats for her painter (owner): on the bulwark tops at the house's
@@ -124,6 +131,9 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     { id: 'navDisplay', type: 'cabin.overhead', transform: { position: at.navDisplay }, label: 'Overhead, on the centreline ahead of the helm' },
     { id: 'whiteboard', type: 'cabin.overhead', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Under the roof by the aft wall, port of the door: the pull-down whiteboard' },
     { id: 'dutyBoard', type: 'wall.panel', transform: { position: at.dutyBoard, rotationDeg: [0, -90, 0] }, label: 'Starboard wall, aft' },
+    // The azimuth drives' driving guide (owner, Oct 2026), on the port wall below the sill, aft
+    // of the helm, facing in (furniture.poster; CONFIG.modules.poster).
+    ...(p.zDriveSet ? [{ id: 'poster', type: 'wall.panel' as const, transform: { position: posterAt(), rotationDeg: [0, 90, 0] as V3 }, label: 'Port wall, aft of the helm, below the sill' }] : []),
     { id: 'doorIn', type: 'wall.panel', transform: { position: [rnd(hx + 0.45), FA + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
     { id: 'doorOut', type: 'wall.panel', transform: { position: [rnd(hx + 0.45), FA + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
     ...(rampBow

@@ -12,6 +12,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### The solar catamaran redrawn after a design review; a catamaran's centre bow (owner)
 
+- **On `next`** (27 Oct, the owner's word): merged with `origin/next`; typecheck and all 1663 tests pass. Step 2 (the Shipyard one-off) is with the Shipyard chat.
 - **The owner** asked for a naval architect's review of her before step 2, then: make the changes, and "a wave piercing centre half hull would help, no?". Yes: it adds reserve buoyancy under the forward bridge deck just as the bows pierce a wave, so the forward wet deck slams less and the deck front doesn't dive into the back of a sea. Its keel is kept clear of calm water, so it costs nothing on solar power.
 - **Her new lines** (`designs.ts`, `solarCat`): 16.0 x 5.2 m, hulls 0.545 m wide at the waterline 4.63 m apart, 10.7 t (the Shipyard's estimate again: 4.77 t of foam and plywood structure, her electric outfit as before), **0.86 m draught** (was 1.2), KM 8.8 m.
   - **Wet deck 1.0 m** over her waterline (was 0.75: about 0.06 L, for coastal water), her deck raised with it (1.45 m aft, 1.9 m at her bow).

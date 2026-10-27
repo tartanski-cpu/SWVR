@@ -43,6 +43,11 @@ The hull modifications chat (step 2, owner's word): "the solar catamaran as a fi
 - README: the solar catamaran.
 - **Shared changes:** a new module src/modules/solarRoof/index.ts (`deck.solar-roof`), registered in src/boats/library.ts; src/vessel/view/engineModels.ts (an `electric` look); the hull chat's src/hulls and src/vessel/hullForm.ts, hullMesh.ts (merged from their branch).
 - **Waiting on the modular builder chat:** electric pod drives (motor, battery drain, no fuel or smoke, a motor's sound; brief sent through the owner). Then she's wired to them (stop 2).
+### (From the modular-builder chat) The harbour tug's driving guide poster
+
+- `parts/places.ts`: a `poster` place (wall.panel) on the port wall below the sill, aft of the helm, facing in, only on a boat with azimuth drives (`zDriveSet`); its height and fore-and-aft place from `CONFIG.modules.poster` (`aboveFloorMax`, `aftOfConsole`), kept clear of the aft wall.
+- `parts/recipe.ts`: the tug's `furniture.poster` (her driving guide) in it.
+
 
 ### (From the main game chat) A code ready once her gearbox is matched (26 Oct 2026)
 

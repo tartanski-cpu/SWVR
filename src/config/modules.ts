@@ -440,6 +440,15 @@ export const MODULES_CONFIG = {
     startCard: { width: 0.19, height: 0.26 },
 
     /**
+     * furniture.poster (owner, Oct 2026: the harbour tug's driving guide "as a poster ... inside
+     * the wheelhouse"): its size (m, landscape, about A2), the canvas it's painted on (`px`
+     * across), and where the Shipyard hangs it on the port wall below the sill (`aboveFloorMax`:
+     * its middle no higher than this over the floor; `aftOfConsole`: its forward edge this far
+     * aft of the console's front, so it's beside you at the helm when you turn to port).
+     */
+    poster: { width: 0.59, height: 0.42, px: 1400, aboveFloorMax: 0.75, aftOfConsole: 0.8 },
+
+    /**
      * instrument.screen: a screen on the shared display atlas (controls/instruments.ts).
      *   dash  on a dash face, tilted back `tiltDeg`, standing just proud of it
      *   hung  hung from the roof on a bracket `bracket` m long, its face tilted down

@@ -256,6 +256,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.pedestals.x = [-ac.leverX, ac.leverX, ...cc.pedestals.x.filter((x: number) => x < 0 && x !== throttleAt).map(out)];
     const wheel = consoleMount.modules!.find((m) => m.socket === 'wheel');
     if (wheel) wheel.config = { ...CONFIG.modules.wheel, ...wheel.config, radius: ac.wheelRadius };
+    // Her driving guide, on the port wall (places.ts `poster`; owner, Oct 2026).
+    recipe.modules.push({ socket: 'poster', module: 'furniture.poster', config: { poster: 'azimuthGuide', width: CONFIG.modules.poster.width, height: CONFIG.modules.poster.height } });
   }
   if (pods) {
     // Pod drives: the black throttle, moved forward on its pedestal, and the helm joystick
