@@ -2,7 +2,7 @@
  * Module deck.solar-roof: a solar boat's panels (owner, 26 Oct 2026: the Shipyard's solar
  * catamaran, from her renders): rows of dark panels in thin aluminium frames over her house's
  * roof and its aft overhang, a wing of them along each side of it, and a rack of them over
- * her foredeck on short legs. The wings hinge at the roof's outer edges; drawn stowed, folded
+ * her foredeck on short legs, or on her house's front where it slopes below its windows. The wings hinge at the roof's outer edges; drawn stowed, folded
  * in flat over the roof's outer panels (opening them out and tilting them is a moving part
  * for later, as are her panels charging her battery).
  *
@@ -28,6 +28,11 @@ export interface SolarRoofConfig {
   wings: PanelField[];
   /** The foredeck rack, and the deck under its legs (null: none). */
   rack: (PanelField & { deckY: number }) | null;
+  /**
+   * Panels on a house front sloped below its windows (the Shipyard's `kick`), from its foot
+   * (forward, low: z0, y0) up to the windows (aft, high: z1, y1), x0 to x1 across (none: absent).
+   */
+  slope?: { x0: number; x1: number; z0: number; y0: number; z1: number; y1: number };
   /** One panel's size (m, across and along) and the gap between panels. */
   panel: [number, number];
   gap: number;
@@ -79,6 +84,14 @@ export const SOLAR_ROOF: ModuleDefinition<SolarRoofConfig> = {
         // Its legs: one at each corner, down to her deck.
         const h = r.y - 0.05 - c.rack.deckY;
         for (const x of [r.x0 + 0.05, r.x1 - 0.05]) for (const z of [r.z0 + 0.05, r.z1 - 0.05]) parts.push(part(new THREE.BoxGeometry(0.05, h, 0.05).translate(x, c.rack.deckY + h / 2, z), FRAME));
+      }
+      if (c.slope) {
+        // Laid out flat along the slope (z from its foot), then tilted up to it about its foot.
+        const s = c.slope;
+        const dz = s.z1 - s.z0;
+        const dy = s.y1 - s.y0;
+        const tilt = new THREE.Matrix4().makeRotationX(-Math.atan2(dy, dz)).setPosition(0, s.y0, s.z0);
+        for (const g of field({ x0: s.x0, x1: s.x1, z0: 0.05, z1: Math.hypot(dz, dy) - 0.05, y: 0.06 }, c)) parts.push(g.applyMatrix4(tilt));
       }
       return { staticParts: parts, movingParts: [], controls: [], update: () => {} };
     },

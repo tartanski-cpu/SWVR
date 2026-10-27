@@ -43,7 +43,7 @@ import { hullQueries } from '../modular/hull';
 import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
 import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -915,6 +915,8 @@ section('2. Wheelhouse');
     { icon: HOUSE_ICONS.aftFacets, name: 'Three facets', info: 'Her aft windows in three facets, as the front’s can be: the middle square across her with the door in it, the outer two angled forward to the sides. With the windows raked out all round, they lean out with the rest. Not with a cockpit overhead. Travels as a link or file, not a code.' },
   ]);
   measure('windowRake', 'Front rake', (a) => (Math.abs(a) < 0.5 ? 'upright' : a > 0 ? `${a.toFixed(0)}° reverse` : `${(-a).toFixed(0)}° back`)).dataset.unless = 'flare';
+  // The front below the windows sloped back from its foot (owner, Oct 2026: the solar catamaran's "kicked out").
+  slider('kick', 'Below the windows', (i) => (i ? `sloped ${kickDeg(i)}°` : 'upright'));
   // (Raked out all round, the front leans out with them: its own rake stands aside.)
   optionTiles('flare', 'Sides & aft', [
     { icon: HOUSE_ICONS.upright, name: 'Upright', info: 'Her side and aft windows upright.' },

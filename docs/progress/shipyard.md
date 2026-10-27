@@ -14,6 +14,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The front below the windows kicked out (a new wheelhouse choice); the solar catamaran's, with panels on it (preview/shipyard)
+
+Owner, 27 Oct 2026: "the wheelhouse, I think, on the real catamaran is kicked out at quite a steep angle in front of the windows. And then the solar panels are on top of that sloped part. So this is a new parameter for the wheelhouse ... the rake or the slope angle under the windows. And I think that, of course, needs to work with the deck house that it may sit upon."
+
+- **Below the windows** (Wheelhouse step, Windows group; design `kick`, `KICK_STEPS` 16, `kickDeg` 5° a step, 0 upright .. 75; not in the code): the house's front below the windows sloped back from its foot up to the sill, on any hull. Built on the house shape's own lower lean (`HouseShape.lowerRakeDeg`, now -kick; its lean forward, the old `lowerFront`, still not offered): hullMesh draws it and the glass's foot moves aft with it. Its foot (`lowerFromY`) is her deck (or the floor if sunk lower), or **the top of a deckhouse the house stands on**.
+- **Inside** (house.ts `consoleBack`; shared vessel/layout.ts): the console stands behind the slope as well as the glass (each of its parts clear of the slope at its height); the floor under the slope isn't walked beside the console (`kickAft`); outside, the deck kept clear from the slope's foot.
+- **The solar catamaran**: kicked out 60° (`kick` 12, fixed); **her panels on the slope** (modules/solarRoof `slope`: a field laid along it, tilted from its foot) in place of the foredeck rack. Her berth and head moved a metre aft (the console now stands further aft).
+- Tests: tests/shipyard/kickedFront.test.ts (the range; the pilot boat's glass foot and console aft by the slope, the floor under it not walked; on the harbour tug's deckhouse, from its top; the solar cat's 60° slope with panels, no rack; a link or file). designDoc.test.ts: `kick` not in the code. The Shipyard and module tests and the typecheck pass.
+- Checked in the browser: the solar cat (side, bow quarter, at the helm), the pilot boat at 40°, the harbour tug at 30° on her deckhouse.
+- README: the new choice; the solar cat's front.
+- **Shared changes:** src/vessel/layout.ts (a front sloped back keeps its foot as the deck's clear line; the floor under the slope not walked); src/modules/solarRoof (`slope`).
+
 ### The solar catamaran's paint the player's; black as she comes (preview/shipyard)
 
 Owner, 27 Oct 2026: "The solar catamaran should get the paint options as well, the ones that are appropriate. Of course, it needs to be black."

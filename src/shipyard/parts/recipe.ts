@@ -735,7 +735,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     const wing = Math.min(sr.wingWidth, rx - 0.3);
     const rackZ1 = front - sr.rack.clear;
     const rackZ0 = rackZ1 - sr.rack.length;
-    const rackX = Math.min(q.halfBeam(rackZ0), q.halfBeam(rackZ1)) - sr.rack.inset;
+    // Her house's front sloped below its windows (design.kick): panels on the slope, in place of the rack.
+    const kickAft = Math.max(0, -p.ahead);
+    const rackX = kickAft > 0.3 ? 0 : Math.min(q.halfBeam(rackZ0), q.halfBeam(rackZ1)) - sr.rack.inset;
     const deckY = Math.max(q.deckY(rackZ0), q.deckY(rackZ1));
     recipe.modules.push({
       socket: 'solarRoof',
@@ -744,6 +746,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         roof: { x0: rnd(-rx), x1: rnd(rx), z0: rnd(z0), z1: rnd(roofFront), y: top },
         wings: [-1, 1].map((s) => ({ x0: rnd(s > 0 ? rx - wing : -rx), x1: rnd(s > 0 ? rx : -rx + wing), z0: rnd(z0), z1: rnd(roofFront), y: rnd(top + 0.06) })),
         rack: rackX > 0.5 ? { x0: rnd(-rackX), x1: rnd(rackX), z0: rnd(rackZ1), z1: rnd(rackZ0), y: rnd(deckY + sr.rack.height), deckY: rnd(deckY) } : null,
+        ...(kickAft > 0.3 ? { slope: { x0: rnd(-hw + 0.1), x1: rnd(hw - 0.1), z0: rnd(front), y0: rnd(house.lowerFromY), z1: rnd(front + kickAft), y1: rnd(p.floorY + p.sill) } } : {}),
         panel: sr.panel,
         gap: sr.gap,
       },

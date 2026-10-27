@@ -413,6 +413,10 @@ const SOLAR_CAT_FIXED: Partial<ShipDesign> = {
   headroom: 1.95,
   floor: 0,
   windowRake: -60,
+  // The front below her windows kicked out (owner, 27 Oct 2026: "kicked out at quite a steep
+  // angle in front of the windows. And then the solar panels are on top of that sloped part"):
+  // sloped back 60° (design.kick 12), its panels on it (parts/recipe.ts, modules/solarRoof).
+  kick: 12,
   roofThickness: 0.12,
   roofEdge: 30,
   saloon: 4.4,
@@ -439,8 +443,8 @@ const SOLAR_CAT_FIXED: Partial<ShipDesign> = {
   setteeAt: furnitureCell(-1.8, 6.5),
   setteeAt2: furnitureCell(1.8, 6.5),
   galleyAt: furnitureCell(1.8, 4.2),
-  berthAt: furnitureCell(-1.8, 10),
-  headAt: furnitureCell(1.8, 10),
+  berthAt: furnitureCell(-1.8, 9),
+  headAt: furnitureCell(1.8, 9),
 };
 
 const HARBOUR_TUG_HOUSE: Partial<ShipDesign> = {

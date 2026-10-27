@@ -182,7 +182,10 @@ function houseWalk(
   // windows leans forward (to the windows' foot): the deck is kept clear of all of it.
   const sh = wh.shape;
   const ahead = sh ? Math.max(0, wh.floorY + (wh.frontSill ?? wh.windowSill) - sh.lowerFromY) * Math.tan((sh.lowerRakeDeg * Math.PI) / 180) : 0;
-  const ext = { x: wh.halfWidth, z0: wh.front - ahead, z1: wh.aft };
+  // (Sloped back from its foot instead (the Shipyard's `kick`: ahead < 0), the house's foot is its
+  // front, and inside, the floor under the slope isn't walked: `kickAft` of it, up to the sill.)
+  const kickAft = Math.max(0, -ahead);
+  const ext = { x: wh.halfWidth, z0: wh.front - Math.max(0, ahead), z1: wh.aft };
   const int = { x: wh.halfWidth - wh.wall, z0: wh.front + wh.wall, z1: wh.aft - wh.wall };
   // A faceted front's console wraps round with it (vesselDef.ts HouseShape.facet): its wings
   // set back with the outer panes, so its aft edge is further aft toward the sides.
@@ -239,7 +242,7 @@ function houseWalk(
         height: (_x, z) => floorAt(z),
         contains: (x, z) =>
           // (Clear of her gear standing on it: furniture, a stack's casing; module footprints at this floor's height.)
-          (Math.abs(L(x)) <= int.x - r && z >= (byConsole(L(x), r) ? consoleAftAt(Math.abs(L(x)) + r) + r : int.z0 + r) && z <= aftEdgeAt(Math.abs(L(x)) + r) - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z) && !onGear(gear, x, z, r, floorAt(z))) ||
+          (Math.abs(L(x)) <= int.x - r && z >= (byConsole(L(x), r) ? consoleAftAt(Math.abs(L(x)) + r) + r : int.z0 + kickAft + r) && z <= aftEdgeAt(Math.abs(L(x)) + r) - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z) && !onGear(gear, x, z, r, floorAt(z))) ||
           (Math.abs(L(x)) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
           // The port side door, out to the side deck.
           (!!sd && L(x) < -int.x + r + 0.02 && L(x) > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),

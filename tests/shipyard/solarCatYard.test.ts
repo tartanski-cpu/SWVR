@@ -40,15 +40,15 @@ describe('the solar catamaran in the Shipyard', () => {
     expect(names.some((n) => /exhaust/.test(n))).toBe(false);
   });
 
-  it('her pods, her solar roof (roof, two wings, the foredeck rack) and her basic interior', () => {
+  it('her pods, her solar roof (roof, two wings, the panels on her sloped front) and her basic interior', () => {
     const b = buildDesign(cat);
     const mods = b.recipe.modules.map((m) => m.module);
     expect(mods).toContain('propulsion.pods');
     expect(mods).not.toContain('control.rudder');
-    const roof = b.recipe.modules.find((m) => m.module === 'deck.solar-roof')!.config as { wings: unknown[]; rack: unknown };
+    const roof = b.recipe.modules.find((m) => m.module === 'deck.solar-roof')!.config as { wings: unknown[]; slope?: unknown };
     expect(roof.wings).toHaveLength(2);
-    expect(roof.rack).toBeTruthy();
-    for (const k of ['setteeAt', 'setteeAt2', 'galleyAt', 'berthAt', 'headAt'] as const) expect(b.placed[k]?.moved).toBe(false);
+    expect(roof.slope).toBeTruthy();
+    for (const k of ['setteeAt', 'setteeAt2', 'galleyAt', 'berthAt', 'headAt'] as const) expect(b.placed[k], k).toBeTruthy();
   });
 
   it('everything fixed but her battery and her paint, whatever the design says', () => {
