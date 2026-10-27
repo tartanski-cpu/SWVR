@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The tug's levers: the thumbsticks work them, notches at 12, 3, 6 and 9 o'clock (27 Oct 2026)
+
+Owner: grabbed, "the left and right joystick should be controlling the throttles once you've grabbed them. And not sliding you around"; the same holding the wheel; and the azimuth levers should "snap to ... 12 o'clock, 3 o'clock, 6 o'clock, and 9 o'clock to make it a bit easier to find those key positions". (Neither was on any branch: found nowhere in the history, so built here.)
+
+- **A held control's stick doesn't move you.** While a hand holds any control (a lever, the wheel, a joystick, the tiller), its thumbstick neither walks you (left) nor turns you (right): `App.stickFree`, from `InteractionSystem.holding(hand)`.
+- **On the tug's azimuth levers, it works the lever** (`Control.stickSteerable` / `stickSteer`, the stick in `HandFrame.stick`): forward and back for more or less power, sideways to twist, at the desktop keys' rates (90°/s, half the power a second). The hand keeps hold: let the stick go and the lever stays where the stick left it, and moving the hand works it on from there. A resting thumb doesn't creep it: `CONFIG.interaction.stickDeadZone` 0.2. Only the levers take the stick for now; the wheel and the other controls just stop it moving you.
+- **Notches:** its turn clicks onto ahead, abeam and astern within `CONFIG.modules.azimuth.lever.snapDeg` 8° either side, with a buzz in VR, and turns on through (the lever keeps its own turn under the notch, as its lean under the idle detent).
+- **Fixed on the way:** the desktop keys (W) and the stick couldn't take the lever out of idle: each small step fell inside the idle detent and was put back to 0. Its lean now adds up under the detent.
+- **Tests:** tests/azimuth.test.ts: the stick working a held lever and the hand holding it after; the interaction system giving a holding hand's stick to it, the dead zone, `holding`; the notches, turning on through them, W from idle.
+- **Not checked:** VR on the Quest (the stick and the buzz); not run in the browser (covered by the tests).
+- **Shared changes:** `src/modules/azimuthLevers/` (the lever and its options) and `src/config/modules.ts` (`snapDeg`), the modular builder's files: small, for the owner's ask on the tug.
+
 ### Engine rooms: the harbour tug's in detail, with an engine control room (27 Oct 2026)
 
 Owner: "make that engine room much more detailed just for the tug ... keep the engine dimensions and the sort of principles of it ... get that triangles and draw calls count back up and use that Quest processing ... some tugboats have an engine control room ... screens, or it could be steampunk."

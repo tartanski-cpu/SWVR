@@ -14,7 +14,8 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { azimuthDemand } from '../src/modules/dieselInboard';
-import { AzimuthLever } from '../src/modules/azimuthLevers/lever';
+import { AzimuthLever, snapTo } from '../src/modules/azimuthLevers/lever';
+import { InteractionSystem, type HandFrame } from '../src/controls/InteractionSystem';
 import { buildDesign, DESIGN_HULLS } from '../src/shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../src/shipyard/design';
 import { matchGear } from '../src/shipyard/trial';
@@ -164,7 +165,7 @@ describe('azimuth drives', { timeout: 300000 }, () => {
   it('the lever: twist the hand and it turns, `twistGain` a degree; push the grip along its arrow for power; idle near upright; it stays where it is left', () => {
     const c = CONFIG.modules.azimuth.lever;
     const sent: [string, number][] = [];
-    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
     lever.bind({ emit: (ch: string, v: number) => sent.push([ch, v]), haptic: () => {} } as never);
     lever.root.updateMatrixWorld(true);
     const grip = lever.grabPoint(new THREE.Vector3());
@@ -196,5 +197,95 @@ describe('azimuth drives', { timeout: 300000 }, () => {
     lever.grabEnd(pointer(grip, 0));
     expect(sent.some(([ch]) => ch === 'azimuth.demand')).toBe(true);
     expect(sent.at(-1)).toEqual(['throttle.demand', 0]);
+  });
+
+  it('held in VR, its thumbstick works it (forward more power, sideways a twist), and the hand then holds it where the stick left it', () => {
+    const c = CONFIG.modules.azimuth.lever;
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    lever.bind({ emit: () => {}, haptic: () => {} } as never);
+    lever.root.updateMatrixWorld(true);
+    const hand = { position: lever.grabPoint(new THREE.Vector3()), quaternion: new THREE.Quaternion() } as never;
+    lever.grabStart(hand);
+    // Stick full forward for a second: half power (the keys' rate), the hand not moved.
+    lever.stickSteer(0, 1);
+    for (let i = 0; i < 10; i++) {
+      lever.grabMove(hand);
+      lever.tick(0.1);
+    }
+    expect(lever.power).toBeCloseTo(0.5, 2);
+    // Stick to starboard for half a second: 45 degrees round, power kept.
+    lever.stickSteer(1, 0);
+    for (let i = 0; i < 5; i++) {
+      lever.grabMove(hand);
+      lever.tick(0.1);
+    }
+    expect(lever.angle).toBeCloseTo(45, 0);
+    // Stick let go: the hand, still where it was, holds the lever where the stick left it.
+    lever.stickSteer(0, 0);
+    lever.grabMove(hand);
+    lever.tick(0.1);
+    expect(lever.angle).toBeCloseTo(45, 0);
+    expect(lever.power).toBeCloseTo(0.5, 2);
+    expect(lever.held).toBe(true);
+    lever.grabEnd(hand);
+    expect(lever.held).toBe(false);
+  });
+
+  it('a hand holding it: the interaction system gives it that hand\'s stick, and says the hand holds it (so the stick neither walks nor turns you)', () => {
+    const c = CONFIG.modules.azimuth.lever;
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    lever.root.updateMatrixWorld(true);
+    const sys = new InteractionSystem([lever], () => {}, () => {});
+    const frame = (grip: THREE.Vector3, down: boolean, pressed: boolean, stick: [number, number]): HandFrame => ({ tracked: true, grip, ray: new THREE.Ray(grip.clone(), new THREE.Vector3(0, 0, -1)), quat: new THREE.Quaternion(), gripDown: down, gripPressed: pressed, triggerDown: false, triggerPressed: false, stick });
+    const far = new THREE.Vector3(5, 5, 5);
+    const at = lever.grabPoint(new THREE.Vector3());
+    const hands = (l: HandFrame) => ({ left: l, right: frame(far, false, false, [0, 0]) });
+    sys.updateXR(hands(frame(at, true, true, [0, 0])));
+    expect(sys.holding('left')).toBe(lever);
+    expect(sys.holding('right')).toBe(null);
+    // Stick forward (the controller's y is negative forward), past the dead zone.
+    for (let i = 0; i < 10; i++) {
+      sys.updateXR(hands(frame(at, true, false, [0, -1])));
+      lever.tick(0.1);
+    }
+    expect(lever.power).toBeCloseTo(0.5, 2);
+    // A thumb resting just off centre (inside the dead zone) doesn't creep it.
+    for (let i = 0; i < 10; i++) {
+      sys.updateXR(hands(frame(at, true, false, [0.1, -0.1])));
+      lever.tick(0.1);
+    }
+    expect(lever.power).toBeCloseTo(0.5, 2);
+    // Grip let go: the hand holds nothing, and its stick is the player's again.
+    sys.updateXR(hands(frame(at, false, false, [0, -1])));
+    expect(sys.holding('left')).toBe(null);
+    lever.tick(0.1);
+    expect(lever.power).toBeCloseTo(0.5, 2);
+  });
+
+  it('its turn clicks into notches at 12, 3, 6 and 9 o\'clock, and turns on through them; the keys take it out of idle', () => {
+    const c = CONFIG.modules.azimuth.lever;
+    expect(snapTo(84, c.snapDeg)).toBe(90);
+    expect(Math.abs(snapTo(-176, c.snapDeg) ?? 0)).toBe(180);
+    expect(snapTo(-95, c.snapDeg)).toBe(-90);
+    expect(snapTo(3, c.snapDeg)).toBe(0);
+    expect(snapTo(45, c.snapDeg)).toBe(null);
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    let clicks = 0;
+    lever.bind({ emit: () => {}, haptic: () => clicks++ } as never);
+    // The desktop keys, a frame at a time: D turns it on through 3 o'clock, with a click there.
+    lever.keySteer(1, 0);
+    const seen = new Set<number>();
+    for (let i = 0; i < 90; i++) {
+      lever.tick(1 / 60);
+      seen.add(Math.round(lever.angle));
+    }
+    expect(seen.has(90)).toBe(true);
+    expect(Math.round(lever.angle)).toBe(Math.round(snapTo(135, c.snapDeg) ?? 135));
+    expect(clicks).toBeGreaterThan(0);
+    // W from idle: small steps under the idle detent add up, and it comes out of idle.
+    lever.keySteer(0, 1);
+    for (let i = 0; i < 60; i++) lever.tick(1 / 60);
+    expect(lever.power).toBeCloseTo(0.5, 1);
+    lever.keySteer(0, 0);
   });
 });

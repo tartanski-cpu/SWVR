@@ -4,7 +4,10 @@
  * combined lever: a turntable that turns right round, an arrow on it pointing the way its drive
  * pushes (0 ahead, + to starboard, round to astern), and on it a power lever that tilts forward
  * along the arrow, from idle upright (a small `detent` near upright reads idle) to full at
- * `maxTiltDeg`. Both stay where they're left, as a real lever's friction holds them.
+ * `maxTiltDeg`. Both stay where they're left, as a real lever's friction holds them. Its turn
+ * clicks into a notch at ahead, abeam and astern (`snapDeg` either side), as the idle detent
+ * holds its power: the lever's own turn and lean go on under them (`turn`, `lean`), so the hand
+ * or the stick moves on through a notch instead of sticking in it.
  *
  * Its head is a real azimuth control's (owner, Oct 2026, from photos of tugs' consoles: "like
  * this"): a black drum lying across the head, a bar on two posts above it for the hand, and a
@@ -28,6 +31,8 @@ export interface AzimuthLeverOptions {
   length: number;
   maxTiltDeg: number;
   detent: number;
+  /** Within this many degrees of ahead, abeam or astern (12, 3, 6 and 9 o'clock) it clicks onto it (0: no notches). */
+  snapDeg: number;
   twistGain: number;
   turntableRadius: number;
   /** The drum across the head: its radius and width (m); the bar's radius (m). */
@@ -51,6 +56,8 @@ export class AzimuthLever extends Control {
   readonly kind = 'grab' as const;
   readonly label: string;
   readonly keySteerable = true;
+  /** VR: held, its hand's thumbstick works it as the keys do (sideways twists it, forward and back the power). */
+  readonly stickSteerable = true;
   /** The turntable (turns with the angle) and the power lever on it (tilts with the power). */
   private readonly table = new THREE.Group();
   private readonly arm = new THREE.Group();
@@ -58,6 +65,9 @@ export class AzimuthLever extends Control {
   /** Its direction (deg, 0 ahead, + to starboard) and power (0..1), as it stands. */
   angle = 0;
   power = 0;
+  /** Its turn and lean as the hand or the keys have them, before the notches and the idle detent. */
+  private turn = 0;
+  private lean = 0;
   private sentAngle = NaN;
   private sentPower = NaN;
   /** Grabbed: the grip's offset from the hand, and the hand's twist and the angle at the grab. */
@@ -65,6 +75,10 @@ export class AzimuthLever extends Control {
   private twist0 = NaN;
   private angle0 = 0;
   private keys = { x: 0, y: 0 };
+  /** Held by a hand (VR), as against steered by the keys only. */
+  private grabbed = false;
+  /** The stick moved it since the hand last took it as it stands: the hand takes it again first. */
+  private reanchor = false;
   /** The height of the drum's axis (the power tilt's pivot) above the lever's foot (m). */
   readonly pivotY: number;
 
@@ -130,15 +144,27 @@ export class AzimuthLever extends Control {
 
   grabStart(p: Pointer): void {
     this.held = true;
+    this.grabbed = true;
+    this.anchor(p);
+  }
+
+  /** The hand's place and twist now stand for the lever as it is now (at the grab, and while the stick works it). */
+  private anchor(p: Pointer): void {
     this.offset.copy(this.toLocal(this.grabPoint(new THREE.Vector3()))).sub(this.toLocal(p.position));
     this.twist0 = this.handTwist(p);
-    this.angle0 = this.angle;
+    this.angle0 = this.turn;
   }
 
   grabMove(p: Pointer): void {
+    // The thumbstick working it (tick() moves it): the hand just holds on, and moves it from
+    // where the stick leaves it.
+    if (this.keys.x !== 0 || this.keys.y !== 0 || this.reanchor) {
+      this.reanchor = false;
+      return this.anchor(p);
+    }
     // Twist: the hand's turn about the upright since the grab turns the turntable.
     const t = this.handTwist(p);
-    const angle = Number.isNaN(t) || Number.isNaN(this.twist0) ? this.angle : this.angle0 + wrapDeg(t - this.twist0) * this.opts.twistGain;
+    const angle = Number.isNaN(t) || Number.isNaN(this.twist0) ? this.turn : this.angle0 + wrapDeg(t - this.twist0) * this.opts.twistGain;
     // Throttle: how far the grip is pushed along the arrow, as the lever's lean from upright.
     const v = this.toLocal(p.position).add(this.offset);
     v.y -= this.pivotY;
@@ -150,26 +176,34 @@ export class AzimuthLever extends Control {
 
   grabEnd(_p: Pointer): void {
     this.held = false;
+    this.grabbed = false;
+    this.reanchor = false;
+    this.keys = { x: 0, y: 0 };
     this.twist0 = NaN;
     this.markPending();
   }
 
   /** Desktop drag: sideways twists it, up and down sets the power. */
   nudge(dx: number, dy: number): void {
-    this.set(this.angle + dx * 0.6, this.power - dy * 0.004);
+    this.set(this.turn + dx * 0.6, this.lean - dy * 0.004);
     this.markPending();
   }
 
   /** Desktop keys: A / D twist it, W / S more or less power (tick() runs it). */
   keySteer(x: number, y: number): void {
-    this.held = x !== 0 || y !== 0;
+    this.held = this.grabbed || x !== 0 || y !== 0;
     this.keys = { x: clamp(x, -1, 1), y: clamp(y, -1, 1) };
     if (!this.held) this.markPending();
   }
 
+  stickSteer(x: number, y: number): void {
+    this.keySteer(x, y);
+  }
+
   tick(dt: number): void {
     if (this.keys.x === 0 && this.keys.y === 0) return;
-    this.set(this.angle + this.keys.x * KEY_TURN * dt, this.power + this.keys.y * KEY_LEAN * dt);
+    this.set(this.turn + this.keys.x * KEY_TURN * dt, this.lean + this.keys.y * KEY_LEAN * dt);
+    this.reanchor = this.grabbed;
   }
 
   sync(state: VesselState): void {
@@ -177,8 +211,8 @@ export class AzimuthLever extends Control {
     const angle = this.read.angle(state);
     const power = this.read.power(state);
     if (this.awaiting(Math.abs(power - this.power) < 0.01 && Math.abs(wrapDeg(angle - this.angle)) < 0.5)) return;
-    this.angle = angle;
-    this.power = power;
+    this.angle = this.turn = angle;
+    this.power = this.lean = power;
     this.sentAngle = angle;
     this.sentPower = power;
     this.show();
@@ -186,9 +220,13 @@ export class AzimuthLever extends Control {
 
   /** Set it to `angle` (deg) and `power` (0..1, idle within the detent), send what changed. */
   set(angle: number, power: number): void {
-    this.angle = wrapDeg(angle);
-    const p = clamp(power, 0, 1);
-    this.power = p < this.opts.detent ? 0 : p;
+    this.turn = wrapDeg(angle);
+    const notch = snapTo(this.turn, this.opts.snapDeg);
+    // (A click into a notch, as into idle.)
+    if (notch !== null && notch !== this.angle) this.ctx?.haptic(0.4, 25);
+    this.angle = notch ?? this.turn;
+    this.lean = clamp(power, 0, 1);
+    this.power = this.lean < this.opts.detent ? 0 : this.lean;
     if (!(Math.abs(wrapDeg(this.angle - this.sentAngle)) < 0.2)) {
       this.ctx?.emit(this.channels.angle, Math.round(this.angle * 10) / 10);
       this.sentAngle = this.angle;
@@ -220,6 +258,12 @@ export class AzimuthLever extends Control {
     this.table.rotation.y = -this.angle * RAD;
     this.arm.rotation.x = -this.power * this.opts.maxTiltDeg * RAD;
   }
+}
+
+/** The notch (0, 90, 180 or -90 deg) within `band` degrees of `deg`, or null between them. */
+export function snapTo(deg: number, band: number): number | null {
+  const n = wrapDeg(Math.round(deg / 90) * 90);
+  return band > 0 && Math.abs(wrapDeg(deg - n)) <= band ? n : null;
 }
 
 /** Degrees brought into (-180, 180]. */

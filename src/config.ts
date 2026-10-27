@@ -2421,6 +2421,11 @@ export const CONFIG = {
      * so they are no harder to press in VR.
      */
     switchScale: 0.75,
+    /**
+     * VR: a held control that takes its hand's thumbstick (the tug's azimuth levers) ignores
+     * this much of the stick's travel round centre (0..1), so a resting thumb doesn't creep it.
+     */
+    stickDeadZone: 0.2,
     /** Pointer-ray fallback length (m) for controls just out of reach. */
     rayLength: 1.5,
     /** Desktop reticle reach (m). */
