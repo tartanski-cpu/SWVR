@@ -306,3 +306,40 @@ export function startupSteps(s: VesselState): StartupStep[] {
     { what: 'ENGINE CONTROL TO BRIDGE', where: 'switchboard', done: p.place === 2 },
   ];
 }
+
+/**
+ * The controls (their intents' names, as the room's controls send them) still to work for the
+ * next step of her start-up: what the engine room cues with a glow (owner, 27 Oct 2026: "highlight
+ * the next thing that needs to be touched ... don't make it too easy"). None once she's handed over.
+ */
+export function nextControls(s: VesselState): string[] {
+  const p = s.plant;
+  if (!p) return [];
+  const steps = startupSteps(s);
+  const i = steps.findIndex((st) => !st.done);
+  const es = engines(s);
+  const off = (k: number) => es[k]?.phase !== 'running';
+  const each = (name: string, todo: (k: number) => boolean) => [0, 1].filter(todo).map((k) => `er.${name}${k + 1}`);
+  switch (i) {
+    case 0:
+      return ['master'];
+    case 1:
+      return !p.genFuel ? ['er.genFuel'] : p.gen === 'off' ? ['er.genStart'] : [];
+    case 2:
+      return ['er.genBreaker'];
+    case 3:
+      return [...each('dayValve', (k) => !p.dayValve[k]), ...(p.fuelPump ? [] : ['er.fuelPump'])];
+    case 4:
+      return each('sea', (k) => !p.sea[k]);
+    case 5:
+      return each('prelube', (k) => !p.prelube[k] && off(k));
+    case 6:
+      return [...(p.compressor ? [] : ['er.compressor']), ...(p.airValve ? [] : ['er.airValve'])];
+    case 7:
+      return each('start', (k) => off(k) && es[k]?.phase !== 'cranking');
+    case 8:
+      return ['er.place'];
+    default:
+      return [];
+  }
+}

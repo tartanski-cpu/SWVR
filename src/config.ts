@@ -767,6 +767,12 @@ export const CONFIG = {
     airFillBarS: 0.75,
     startAirBar: 4,
     airStartMinBar: 12,
+    /**
+     * The cue (owner, 27 Oct 2026: "highlight the next thing that needs to be touched ... if it
+     * was somehow glowing ... don't make it too easy"): the next step's controls glow amber,
+     * pulsing up to `level` (0..1) and back every `periodS` s; `on` false: no cue.
+     */
+    cue: { on: true, level: 0.55, periodS: 2.2 },
   },
 
   dive: {

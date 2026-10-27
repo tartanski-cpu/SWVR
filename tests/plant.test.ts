@@ -10,7 +10,7 @@ import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
-import { bridgeHasControl, busLive, hasPlant, startupSteps } from '../src/plant/plant';
+import { bridgeHasControl, busLive, hasPlant, nextControls, startupSteps } from '../src/plant/plant';
 import { DESIGN_HULLS } from '../src/shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../src/shipyard/design';
 import { matchGear } from '../src/shipyard/trial';
@@ -223,5 +223,51 @@ describe('the START-UP page\'s steps', { timeout: 300000 }, () => {
     run(8);
     er('place', 2);
     expect(done().every(Boolean)).toBe(true);
+  });
+});
+
+describe('the cue: the next step\'s controls glow', { timeout: 300000 }, () => {
+  it('names the controls still to work for the next step, and none once she\'s handed over', () => {
+    const t = deadShip();
+    const { v, run, er, send } = t;
+    send('master', 0);
+    expect(nextControls(v)).toEqual(['master']);
+    send('master', 1);
+    expect(nextControls(v)).toEqual(['er.genFuel']);
+    er('genFuel');
+    expect(nextControls(v)).toEqual(['er.genStart']);
+    er('genStart');
+    // Running up: nothing to touch till it's on line.
+    expect(nextControls(v)).toEqual([]);
+    run(CONFIG.plant.genRunUpS + 0.5);
+    expect(nextControls(v)).toEqual(['er.genBreaker']);
+    er('genBreaker');
+    expect(nextControls(v)).toEqual(['er.dayValve1', 'er.dayValve2', 'er.fuelPump']);
+    er('dayValve1');
+    expect(nextControls(v)).toEqual(['er.dayValve2', 'er.fuelPump']);
+    er('dayValve2');
+    er('fuelPump');
+    expect(nextControls(v)).toEqual(['er.sea1', 'er.sea2']);
+    er('sea1');
+    er('sea2');
+    expect(nextControls(v)).toEqual(['er.prelube1', 'er.prelube2']);
+    er('prelube1');
+    er('prelube2');
+    // Pumps on, the pressure building: nothing more to touch for this step.
+    expect(nextControls(v)).toEqual([]);
+    run(CONFIG.plant.prelubeS + 1);
+    expect(nextControls(v)).toEqual(['er.compressor', 'er.airValve']);
+    er('compressor');
+    er('airValve');
+    run(CONFIG.plant.airMaxBar / CONFIG.plant.airFillBarS);
+    expect(nextControls(v)).toEqual(['er.start1', 'er.start2']);
+    er('start1');
+    run(8);
+    expect(nextControls(v)).toEqual(['er.start2']);
+    er('start2');
+    run(8);
+    expect(nextControls(v)).toEqual(['er.place']);
+    er('place', 2);
+    expect(nextControls(v)).toEqual([]);
   });
 });

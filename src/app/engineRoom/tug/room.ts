@@ -23,7 +23,8 @@ import type { TugLayout } from './layout';
 import { FIXED, LIVE, TugPanels, type Region } from './panels';
 import { tugControls, type ControlPlaces } from './controls';
 import type { Control } from '../../../controls/Control';
-import { busLive } from '../../../plant/plant';
+import { busLive, nextControls } from '../../../plant/plant';
+import { CONFIG } from '../../../config';
 
 // Colours (as an engine room is painted; the pipes colour-coded, as is usual practice).
 const PLATE = 0x8a8f92;
@@ -97,6 +98,8 @@ export class TugRoom {
   /** Her lights: full on a live switchboard, the emergency lights (dim) on batteries alone. */
   private readonly lights: { light: THREE.Light; full: number; dead: number }[] = [];
   private lit = 1;
+  /** The controls glowing as the next step's (a cue). */
+  private readonly cued = new Set<Control>();
 
   constructor(readonly p: EngineRoomPlan, readonly t: TugLayout, name: string) {
     const k = new Kit();
@@ -550,6 +553,17 @@ export class TugRoom {
     for (const c of this.controls) {
       c.sync(v);
       c.tick(dt);
+    }
+    // The next step's controls glow, a slow soft pulse (owner, 27 Oct 2026: "highlight the next
+    // thing ... don't make it too easy"); the rest are put out once, so a lit button relights.
+    const cfg = CONFIG.plant.cue;
+    const next = cfg.on ? new Set(nextControls(v)) : new Set<string>();
+    const level = cfg.level * (0.5 + 0.5 * Math.sin((time * Math.PI * 2) / cfg.periodS));
+    for (const c of this.controls) {
+      if (next.has(c.channel)) {
+        c.cue(level);
+        this.cued.add(c);
+      } else if (this.cued.delete(c)) c.cue(0);
     }
     // The main lights come up (or go out) with the switchboard, over about a second.
     const want = !v.plant || busLive(v.plant) ? 1 : 0;
