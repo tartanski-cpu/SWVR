@@ -402,9 +402,13 @@ const SOLAR_CAT_FIXED: Partial<ShipDesign> = {
   housePos: 0.5,
   houseLength: 5.4,
   houseWidth: 1,
-  headroom: 2.1,
+  // Low and swept (owner, 27 Oct 2026: "the window as raked as possible ... more like 60";
+  // "near standing headroom", the helm for sitting at): near standing headroom, the front swept
+  // back 60°. (Her floor stays level with her bridge deck: sunk into it, her aft doorway and the
+  // cockpit under the roof's overhang would be too low.)
+  headroom: 1.95,
   floor: 0,
-  windowRake: 0,
+  windowRake: -60,
   roofThickness: 0.12,
   roofEdge: 30,
   saloon: 4.4,

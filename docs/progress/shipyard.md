@@ -14,6 +14,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The front windows swept back to 60°; the solar catamaran's house low and swept (preview/shipyard)
+
+Owner, 27 Oct 2026, on the solar catamaran's house: "what I would do if I had the sliders is I would slide this down and I would make then the window as raked as possible ... lower the head height, move it to the sides"; then "would expect it to have near standing headroom ... the windows probably need to rake back more than 30 degrees. It's probably more like 60. That'd be good to have a slide. Generally, it would be good to have that slider work more like that."
+
+- **Front rake** (design `windowRake`, `MEASURES.windowRake`): now from 60° swept back to 30° reverse, on any hull (was ±30°). The house's front shear, the wipers and the console's set-back under the glass (house.ts `consoleBack`) already worked for any angle: the steeper the sweep, the further aft the console stands. Past the old -30°, a link or file.
+- **The solar catamaran's house** (`SOLAR_CAT_FIXED`): front swept back 60°, headroom 1.95 m (near standing; her helm is for sitting at), her floor level with her bridge deck. (Sunk 0.2 m into it, her aft doorway and the cockpit under the roof's overhang came out too low, the Shipyard said so: kept level.) Already the full width between her narrow side decks.
+- Tests: tests/shipyard/sweptFront.test.ts (the slider's range; every hull type at 60°: a sound boat, no new warnings, the console further aft; the solar cat's sweep; a link or file past 30°). The Shipyard tests and the typecheck pass.
+- Checked in the browser: the solar cat from the side and both quarters.
+- Still to do on her house: the owner's pictures (asked for in this chat) to compare against; a helm seat (the furniture keeps the helm clear today).
+- README: the front's range; the solar catamaran's house.
+
 ### The solar catamaran: a one-off, all fixed but her battery (stop 1; preview/shipyard)
 
 The hull modifications chat (step 2, owner's word): "the solar catamaran as a fixed one-off in the Shipyard, like the harbour tug". Owner, 26 Oct 2026: "this is a bit of a one-off build. I would say the only thing that should be options are the number of batteries ... We'll go with the some kind of pods as you suggest ... it should have a sort of basic interior. I'm not too sure the console will fit in there for the controls, but that there needs to be some instrumentation and things to drive it with."

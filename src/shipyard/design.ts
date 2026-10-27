@@ -820,7 +820,8 @@ export const MEASURES: Record<MeasureKey, { min: number; max: number; by: number
   // (Whole steps down: a stair's rise each.)
   saloonFloor: { min: 0, max: 0.6, by: 0.2, code: SCALES.saloonFloor, steps: 4 },
   saloonRoof: { min: 0, max: 0.6, by: 0.05, code: SCALES.saloonRoof, steps: 4 },
-  windowRake: { min: -30, max: 30, by: 1, code: SCALES.windowRake, steps: 9 },
+  // (Swept back to 60° (owner, 27 Oct 2026: the solar catamaran's "more like 60"); past -30°, a link or file.)
+  windowRake: { min: -60, max: 30, by: 1, code: SCALES.windowRake, steps: 9 },
   roofThickness: { min: 0.08, max: 0.3, by: 0.01, code: SCALES.roofThickness, steps: 3 },
   roofEdge: { min: 20, max: 60, by: 1, code: SCALES.roofEdge, steps: 4 },
   dhLength: { min: 0, max: 3.5, by: 0.1, code: SCALES.dhLength, steps: 8 },
