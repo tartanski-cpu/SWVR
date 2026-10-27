@@ -14,7 +14,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### The solar catamaran's wheelhouse and furniture are the player's; furniture keeps clear of the breaker panel (preview/shipyard)
+### The solar catamaran's wheelhouse and furniture are the player's; furniture keeps clear of the breaker panel (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "the wheelhouse is not configurable. I think I want to use the sliders, so I can move that around. Which means you shouldn't predefine the furniture. Inside the toilet doesn't seem to be movable. And it's overlapping with the switch panel for the breakers."
 
@@ -23,7 +23,7 @@ Owner, 27 Oct 2026: "the wheelhouse is not configurable. I think I want to use t
 - **Furniture keeps clear of the panels by the helm** (furniture.ts, every boat): the breaker panel, and the helm assist panel aft of it, on the starboard wall, with `CONFIG.shipyard.furniture.panelRoom` (0.6 m) out from the wall to stand at them. Her head had stood right over the breakers (0.14 m from the panel's middle); it now stands 0.8 m aft of it. On any boat, a piece pinned over those panels slides along its wall to clear them, or is left off with a warning if it can't (the crew-quarters test's mess now slides aft).
 - Tests: `solarCatYard` (her hull, motors and deck stay fixed; her house, controls and furniture are free and build clean moved, resized, without a saloon or overhead, with a deckhouse, with a touchscreen; furniture comes off; the head clear of the breakers), `sweptFront` (her 60° is where she starts). All of `npm test` passes. Checked in the browser: her Wheelhouse step's sliders, the house moved forward and shortened with the solar roof following, the Furniture step's Move and Take off (screenshots).
 
-### Solar charging and quay chargers (preview/shipyard)
+### Solar charging and quay chargers (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "plan the implementation of solar charging from the sun with a realistic model, and then a plug-in charger at the quayside"; on the plan: "Yes to both" (the sun on real-time power, the chargers on the game's clock; 22 kW posts at the berths, 150 kW fast chargers at the fuel berths).
 
@@ -36,7 +36,7 @@ Owner, 27 Oct 2026: "plan the implementation of solar charging from the sun with
 - **Shared changes:** `src/environment/sunlight.ts` (new) and `CONFIG.environment.sunlight`; `modular/module.ts` (the modules' `EnvironmentReader` gains the sun, cloud, rain and the clock's pace, as it always meant to for solar) and `modular/simAssembly.ts` / `core/simulation.ts` (fill it; the game hours for the chargers, and `stepShorePower` each tick); `src/vessel/shorePower.ts` (new); `vessel/vesselState.ts` (`solar`, `shore`); `vessel/vesselControl.ts` (the menu's Refuel for an electric boat); `fuel/fuelHose.ts`, `fuelView.ts`, `fuelHands.ts` (the pumps generalised to **stations**, a pump's id unchanged, the chargers added; the fuel hose works exactly as before); `career/career.ts` (the shore power bill); `controls/instruments.ts` (the SOLAR screen, its page and tab); `CONFIG.charger`, `CONFIG.solarScreen`; `modules/solarRoof` (its charging). The electric motor's stop-gap `berthChargeKw` taken out.
 - Tests: `tests/shipyard/solarCharging.test.ts` (new: the sky model; her panel groups; about 5 kW at noon on real-time power; the sloped front facing the sun gives more; overcast, rain and night; a full battery's taper, the motors fed first), `tests/shipyard/shoreCharger.test.ts` (new: the stations; which plug fits which boat; plugging in by hand and charging at 22 kW on the game's clock, faster asleep, billed on unplugging; pulled out sailing off), `solarCatDrive` (the menu's Refuel on the fast charger). `fuelHose` tests unchanged and passing. Checked in the browser: the post at the Calder cargo quay with the cable in her socket, the fast charger beside the Calder pump, the SOLAR screen at sea and on shore power (screenshots). Not checked: VR handling of the plug (it's the fuel nozzle's code), the light's colours by eye.
 
-### Electric drives: the solar catamaran's motors run on her battery (preview/shipyard)
+### Electric drives: the solar catamaran's motors run on her battery (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "based on what you said here, it looks like we need to implement the electric drives."
 
@@ -51,7 +51,7 @@ Owner, 27 Oct 2026: "based on what you said here, it looks like we need to imple
 - **Shared changes:** `src/vessel/physics/electricMotor.ts` (new); `modules/pods` (the `electric` branch: motors, battery, power, no oil); `modular/module.ts` (the diesel gear's `electric`); `vessel/vesselState.ts` (`EngineState.powerKw`; the battery for electric pods); `vessel/physics/engineThermal.ts` (`engineAlarms`: low battery for electric); `vessel/vesselControl.ts` (`stepRefuelling` charges an electric boat); `vessel/view/vesselEffects.ts` (no smoke for electric); `audio/engineAudio.ts` and `CONFIG.engineVoices.electric` (the whine); `controls/instruments.ts` (the screens above); `app/App.ts` (no oil-pressure buzzer for electric).
 - Tests: `tests/shipyard/solarCatDrive.test.ts` (new: the motor from rest either way, its torque and power limits, regenerating, flat and off; her figures in the game's simulation, no fuel burnt, key off; LOW BATT and the fuel berth's charging); `tugVoice` (her voice). The typecheck, all of `npm test` and the Shipyard tests pass. In the browser: built from the Shipyard, played, switched on and driven: the screens read as above (screenshots), no smoke. Not checked: the whine by ear (headless has no sound), and VR.
 
-### The solar catamaran's battery packs drawn on the Engine step (preview/shipyard)
+### The solar catamaran's battery packs drawn on the Engine step (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "I'd like the batteries to show up so you can kind of see how big the battery packs are in the preview in the shipyard as well."
 
