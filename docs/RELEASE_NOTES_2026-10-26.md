@@ -2,7 +2,7 @@
 
 **Covers:** everything on the test build since the 23 October notes (Friday afternoon), from every chat's work, up to Tuesday 27 October.
 
-**What's where:** all of this is on the test build (8eea7eb) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) is still Friday's; it moves on when the owner says. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
+**What's where:** all of this is on the test build (8eea7eb) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) took everything up to multiplayer batch 2 on 27 Oct (31b20c7); batches 3 and 4, the engine rooms and the 27 Oct fixes are on the test build only. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
 
 A page with screenshots of the same is published alongside these notes.
 
@@ -136,7 +136,7 @@ A study of everything that went wrong playing together turned into four batches 
 ## Known limits
 
 - The beginner boat has no chartplotter or duty board: the project's lines and rings need a boat with a plotter, and what's next is on the Jobs page.
-- The live game is still Friday's: none of this is there yet.
+- The live game has everything up to multiplayer batch 2 (moved over 27 Oct). Batches 3 and 4, the engine rooms and the 27 Oct fixes are on the test build only, so play together on the same address.
 - The engine rooms are to look at for now: nothing in them works yet, there's no engine-room sound and no fade going down. Not yet tried in VR or measured on the Quest.
 - The TV needs a desktop player to share a tab; VR players see it but can't start it.
 - Multiplayer was checked with two and three headless browsers through the real game finder, not yet on the Quest: voice in either order, and letting go on taking the headset off, need a try there.
@@ -145,4 +145,4 @@ A study of everything that went wrong playing together turned into four batches 
 
 - Multiplayer on the Quest: the owner's test of the four batches with friends, and the snapshot cost measured on the headset.
 - Engine rooms, milestone 2: the stops, fuel valves, sea cock and bilge pump working; the room's own sound; a fade going down; then maintenance jobs and faults to find.
-- Moving the test build to the live game, when the owner says it's good.
+- Moving batches 3 and 4 and the engine rooms to the live game, when the owner says they're good.
