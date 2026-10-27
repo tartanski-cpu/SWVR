@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Turku: the yard's ships 20 decks high, five in the hull (27 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "still looks too high. The Icon class is 20 decks high approximately, but ... five of those decks are in the hull."
 
 - **Her height by decks** (`CONFIG.structures.yardShip`): `hullDecks` 5 of `deck` 3 m from her keel to her main deck (15 m, from 6.5 % of her length, 19.5 m on the 300 m ship), and `decks` 15 on top (from 16): 20 in all, 60 m from her keel. Afloat at 8.5 m, her main deck is 6.5 m over the water and her top deck about 51 m (from 59), the funnel over it.
@@ -20,6 +22,8 @@ Owner: "still looks too high. The Icon class is 20 decks high approximately, but
 - **Not checked:** on the Quest.
 
 ### Turku: the yard's ships wider, their superstructure running nearly to the bow (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
 
 Owner, from a picture of the finished ship: "it's way too narrow, and the superstructure starts way too far back. Take a look at pictures of Icon of the Seas or Legend of the Seas for inspiration."
 
@@ -32,6 +36,8 @@ Owner, from a picture of the finished ship: "it's way too narrow, and the supers
 
 ### Turku: the finished ship back, her front less raked and rounded in three facets (27 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "the original cruise ship you had, the completed one, maybe was a better basis ... The forward slopey part was too sloped ... less sloped. And usually the front of the cruise ships are curved, but you could use kind of three facets to keep it simple ... go back to that model."
 
 - **Back to the original finished ship** at the outfitting pier (`turku.yaml`: 300 m, `stage` 0.88, her own block pattern): navy band at the waterline under a white hull, white decks with their window bands, lifeboats, bridge and wings, funnel and water-park.
@@ -43,6 +49,8 @@ Owner: "the original cruise ship you had, the completed one, maybe was a better 
 
 ### Fix: grey slopes over narrow sounds (the far-hills change) (27 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner, near Naantali in Turku: "There are some grey geometry near Naantali (NW) but I can drive through them."
 
 - **Cause** (mine, from the review fixes of 24 Oct, "Far hills merged less"): to merge the far hills' mesh less often, chunks now drawn nearer (in full or coarse) were left in the far mesh until it was next tidied, and a merge took in a band of chunks just inside the coarse ring. The far mesh is a 270 m grid: across a narrow sound (Naantalinsalmi) it lies as sloping ground over the water, standing above the nearer mesh, and only drawn, so you sail through it. At speed you outran the tidying.
@@ -51,6 +59,8 @@ Owner, near Naantali in Turku: "There are some grey geometry near Naantali (NW) 
 - **Note:** the fault is on `next` and in the live game (it went with the review fixes).
 
 ### Turku: the finished ship as the dock ship's shape, white and blue; the yard's name on the gantries (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
 
 Owner: "the docks [are] usually drained during the build. I don't like the completed cruise ship. You can actually make it look like the same shape as the ones in the dock, but just a nice white paint and a blue coloured hull. And I'd like the text Meyer Turku to be on the gantry cranes."
 
