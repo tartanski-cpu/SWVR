@@ -80,10 +80,16 @@ describe('azimuth drives', { timeout: 300000 }, () => {
     expect(helm.modules!.find((m) => m.socket === 'aziTransit')!.bind).toEqual({ value: 'azimuth.transit' });
     expect(helm.modules!.find((m) => m.socket === 'wheel')!.config).toMatchObject({ radius: ac.wheelRadius });
     expect(helm.modules!.some((m) => m.socket === 'start2')).toBe(true);
+    // Her driving guide on the port wall, facing in; no other boat has it.
+    expect(b.recipe.modules.find((m) => m.socket === 'poster')).toMatchObject({ module: 'furniture.poster', config: { poster: 'azimuthGuide' } });
+    const wall = b.hull.sockets.find((q) => q.id === 'poster')!;
+    expect(wall.transform.position[0]).toBeLessThan(0);
+    expect(wall.transform.rotationDeg).toEqual([0, 90, 0]);
     // Other twins keep their shafts and the twin throttle.
     const cat = DESIGN_HULLS.findIndex((h) => h.name.startsWith('Fast catamaran'));
     const c = buildDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[cat].defaults, hull: cat });
     expect((c.recipe.modules.find((m) => m.socket === 'engine')!.config as Record<string, any>).azimuth).toBeUndefined();
+    expect(c.recipe.modules.some((m) => m.socket === 'poster')).toBe(false);
   });
 
   it('TRANSIT: the wheel swings both drives as rudders; each lever ahead in its forward half, astern in its after half; a throttle below zero is astern', () => {
