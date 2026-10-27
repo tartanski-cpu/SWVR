@@ -759,7 +759,10 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     const kickAft = Math.max(0, -p.ahead);
     const rackX = kickAft > 0.3 ? 0 : Math.min(q.halfBeam(rackZ0), q.halfBeam(rackZ1)) - sr.rack.inset;
     const deckY = Math.max(q.deckY(rackZ0), q.deckY(rackZ1));
-    recipe.modules.push({
+    // (Her house is the player's: one too small for a field of panels on its roof gets none, and says so.)
+    const roomy = rx - 0.3 > sr.panel[0] / 2 && z0 - roofFront > sr.panel[1];
+    if (!roomy) p.warnings.push('Her roof is too small for her solar panels: she has none, and charges only at the quay. A longer or wider wheelhouse takes them.');
+    if (roomy) recipe.modules.push({
       socket: 'solarRoof',
       module: 'deck.solar-roof',
       config: {

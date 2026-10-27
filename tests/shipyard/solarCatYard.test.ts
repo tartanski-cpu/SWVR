@@ -51,11 +51,37 @@ describe('the solar catamaran in the Shipyard', () => {
     for (const k of ['setteeAt', 'setteeAt2', 'galleyAt', 'berthAt', 'headAt'] as const) expect(b.placed[k], k).toBeTruthy();
   });
 
-  it('everything fixed but her battery and her paint, whatever the design says', () => {
+  it('her hull, motors and deck fixed, whatever the design says', () => {
     const as = buildDesign(cat);
-    const tried = buildDesign({ ...cat, length: 0, houseLength: 3, engine: 0, twin: 0, pods: 0, deckCrane: 1, setteeAt: 0, gear: 9, markings: 1 });
+    const tried = buildDesign({ ...cat, length: 0, engine: 0, twin: 0, pods: 0, deckCrane: 1, gear: 9, markings: 1, foreCabin: 1 });
     expect(tried.figures).toEqual(as.figures);
     expect(tried.recipe.modules.some((m) => m.module === 'hull.markings')).toBe(false);
+  });
+
+  it('her wheelhouse, controls and furniture are the player’s (owner, 27 Oct 2026: "I want to use the sliders")', () => {
+    const fixed = DESIGN_HULLS[SOLAR_CAT].fixed!;
+    for (const k of ['housePos', 'houseLength', 'houseWidth', 'headroom', 'windowRake', 'kick', 'saloon', 'overhead', 'dhLength', 'controls', 'touch', 'setteeAt', 'headAt', 'seatAt', 'dashSpeed'] as const) expect(k in fixed, k).toBe(false);
+    // Moved and resized, the house (and its solar roof, which follows it) builds clean.
+    const variants: Partial<ShipDesign>[] = [{ houseLength: 3 }, { housePos: 0.8, saloon: 0, overhead: 0 }, { windowRake: 0, kick: 0 }, { headroom: 2.2 }, { houseWidth: 0.7 }, { dhLength: 2, dhHeight: 0.8 }, { touch: 1 }];
+    for (const v of variants) {
+      const b = buildDesign({ ...cat, ...v });
+      expect(b.recipe.modules.some((m) => m.module === 'deck.solar-roof'), JSON.stringify(v)).toBe(true);
+      expect(b.figures.lengthM, JSON.stringify(v)).toBeCloseTo(16, 1);
+    }
+    expect(buildDesign({ ...cat, houseLength: 3 }).figures.massT).toBeLessThan(buildDesign(cat).figures.massT);
+    // Her furniture moves, and comes off.
+    const moved = buildDesign({ ...cat, setteeAt: 0 });
+    expect(moved.recipe.modules.filter((m) => m.module === 'furniture.piece').length).toBe(buildDesign(cat).recipe.modules.filter((m) => m.module === 'furniture.piece').length - 1);
+  });
+
+  it('her head keeps clear of the breaker panel (owner: "it\'s overlapping with the switch panel for the breakers")', () => {
+    const b = buildDesign(cat);
+    expect(b.warnings).toEqual([]);
+    const head = b.placed.headAt!;
+    const breakers = b.hull.sockets.find((s) => s.id === 'breakerPanel')!.transform.position!;
+    // Not on the breakers' wall within the panel's width and the room to stand at it.
+    const sameWall = Math.sign(head.x) === Math.sign(breakers[0]);
+    expect(!sameWall || Math.abs(head.z - breakers[2]) > 0.27 + 0.3, JSON.stringify({ head, breakers })).toBe(true);
   });
 
   it('her paint is the player\'s (owner: "the paint options as well"), black as she comes', () => {

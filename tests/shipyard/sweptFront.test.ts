@@ -41,7 +41,8 @@ describe('the front swept back to 60°', () => {
 
   it('the solar catamaran is swept 60°; past 30° a design travels as a link or file', () => {
     const cat = DESIGN_HULLS.findIndex((h) => h.name.startsWith('Solar catamaran'));
-    expect(DESIGN_HULLS[cat].fixed!.windowRake).toBe(-60);
+    // (Where she starts: her wheelhouse is the player's since 27 Oct 2026.)
+    expect(DESIGN_HULLS[cat].defaults.windowRake).toBe(-60);
     const d = { ...DEFAULT_DESIGN, windowRake: -45 };
     expect(shortCode(d)).toBeNull();
     const back = readDesign(designToken(d));

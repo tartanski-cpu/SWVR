@@ -17,6 +17,7 @@ import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, InteriorPart } from './house';
 import type { HullDefPart } from './hullDef';
 import type { EngineHatchPart } from './engineRoom';
+import type { PlacesPart } from './places';
 
 /** A floor furniture can stand on: its name, its height, its extent along her, its half width at z (inside its walls), its ceiling at z, and whether its aft end is a wall. */
 interface Floor {
@@ -59,14 +60,16 @@ export function furnitureName(kind: FurnitureKind, i: number): string {
  * that floor nearest the pin (port, starboard or aft; the seat stands free, facing forward),
  * along it as near the pin as it fits. It keeps clear of the console and the helm's standing
  * room, the doorways, the side door, the chart table, the companionway, an engine hatch in the
- * floor, the exhaust stacks, and the pieces placed before it (CONFIG.shipyard.furniture). If
+ * floor, the exhaust stacks, the panels on the wall by the helm (the breakers and the helm
+ * assist: owner, 27 Oct 2026, the solar catamaran's head stood over the breakers), and the
+ * pieces placed before it (CONFIG.shipyard.furniture). If
  * it fits nowhere along either wall within reach of its pin, it's left off and she says why.
  * The head and the locker stand to just under the ceiling. Each is a furniture.piece module on
  * a place of its own (P4b): her hull definition gets the places, her recipe the modules.
  */
-export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & EngineHatchPart & InteriorPart & HullDefPart) {
+export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & EngineHatchPart & InteriorPart & HullDefPart & PlacesPart) {
   const { d } = a;
-  const { FA, aft, cf, chartTableAt, ctab, cx, floorY, helmAft, hull, hw, hx, layout, levels, roofAt, saloonL, sb, sideDoor, stack, transom, warnings, wall } = p;
+  const { at, helmAssist, FA, aft, cf, chartTableAt, ctab, cx, floorY, helmAft, hull, hw, hx, layout, levels, roofAt, saloonL, sb, sideDoor, stack, transom, warnings, wall } = p;
   const fc = CONFIG.shipyard.furniture;
   const mf = CONFIG.modules.furniture;
   const r2 = (v: number) => Math.round(v * 1000) / 1000;
@@ -100,6 +103,11 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const eh = layout.engineHatch;
   if (eh && eh.y === undefined) inHouse([eh.x0 - hx - 0.1, eh.x1 - hx + 0.1, eh.z0 - 0.1, eh.z1 + 0.1]);
   for (const pipe of stack?.pipes ?? []) blocked.push({ rect: [pipe.x - 0.3, pipe.x + 0.3, pipe.z - 0.3, pipe.z + 0.3], house: true, tall: true });
+  // The panels on the wall by the helm (in the house's frame), and room to stand at them: the
+  // breakers, and the helm assist aft of them, on the starboard wall.
+  const panel = (z: number, width: number) => blocked.push({ rect: [inside - fc.panelRoom, inside + 0.1, z - width / 2 - 0.05, z + width / 2 + 0.05], house: true, tall: true });
+  panel(at.breakerPanel[2], CONFIG.modules.breakerPanel.width);
+  if (helmAssist) panel(at.helmAssist[2], CONFIG.modules.helmAssist.width);
 
   const furnitureSockets: Socket[] = [];
   const furnitureMounts: Mount[] = [];

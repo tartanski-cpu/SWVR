@@ -14,6 +14,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The solar catamaran's wheelhouse and furniture are the player's; furniture keeps clear of the breaker panel (preview/shipyard)
+
+Owner, 27 Oct 2026: "the wheelhouse is not configurable. I think I want to use the sliders, so I can move that around. Which means you shouldn't predefine the furniture. Inside the toilet doesn't seem to be movable. And it's overlapping with the switch panel for the breakers."
+
+- **Her house is hers to shape**, as the harbour tug's is: `SOLAR_CAT_FIXED` (catalog.ts) now holds only her hull, motors and pods, and deck fittings; everything on the Wheelhouse, Controls and Furniture steps (`HOUSE_KEYS`: size and place, saloon, windows, the kicked front, roof, overhead, inside, deckhouse, the console and instruments, every furniture piece and seat facing, the dash and panel placings) starts from `SOLAR_CAT_HOUSE` and is the player's to change. A cabin below stays off (her hulls are too slim for one). Her solar roof follows her house (it always was worked out from it); a house too small for a field of panels gets none, with a warning that she then charges only at the quay. The one-off note says what's fixed and what's hers.
+- **Her furniture is movable**: the basic interior is where she starts (settees, galley, berth, head), each piece moved or taken off on the Furniture step like any boat's. Her starting pins moved to where the pieces now stand: the berth 8.5 m and the head 8.3 m forward of her transom (were 9), the galley 4.7 m (was 4.2).
+- **Furniture keeps clear of the panels by the helm** (furniture.ts, every boat): the breaker panel, and the helm assist panel aft of it, on the starboard wall, with `CONFIG.shipyard.furniture.panelRoom` (0.6 m) out from the wall to stand at them. Her head had stood right over the breakers (0.14 m from the panel's middle); it now stands 0.8 m aft of it. On any boat, a piece pinned over those panels slides along its wall to clear them, or is left off with a warning if it can't (the crew-quarters test's mess now slides aft).
+- Tests: `solarCatYard` (her hull, motors and deck stay fixed; her house, controls and furniture are free and build clean moved, resized, without a saloon or overhead, with a deckhouse, with a touchscreen; furniture comes off; the head clear of the breakers), `sweptFront` (her 60° is where she starts). All of `npm test` passes. Checked in the browser: her Wheelhouse step's sliders, the house moved forward and shortened with the solar roof following, the Furniture step's Move and Take off (screenshots).
+
 ### Solar charging and quay chargers (preview/shipyard)
 
 Owner, 27 Oct 2026: "plan the implementation of solar charging from the sun with a realistic model, and then a plug-in charger at the quayside"; on the plan: "Yes to both" (the sun on real-time power, the chargers on the game's clock; 22 kW posts at the berths, 150 kW fast chargers at the fuel berths).
