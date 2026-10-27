@@ -14,6 +14,11 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the modular-builder chat) The harbour tug's driving guide poster
+
+- `parts/places.ts`: a `poster` place (wall.panel) on the port wall below the sill, aft of the helm, facing in, only on a boat with azimuth drives (`zDriveSet`); its height and fore-and-aft place from `CONFIG.modules.poster` (`aboveFloorMax`, `aftOfConsole`), kept clear of the aft wall.
+- `parts/recipe.ts`: the tug's `furniture.poster` (her driving guide) in it.
+
 ### (From the main game chat) A code ready once her gearbox is matched (26 Oct 2026)
 
 Owner, in the main game chat: the harbour tug took forever on the Quest before she could be saved. The tug's fixed gearbox is the entry below (this chat's, merged here); on top of it, for every boat:

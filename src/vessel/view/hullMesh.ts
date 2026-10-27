@@ -158,11 +158,17 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // the wet deck's underside down (away from a point above it); her inner topsides and the
   // wet deck are painted as her topsides, not her bottom.
   const cat = form.catamaran;
+  // Her outline's edges: the port hull's 0 to 3 (deck edge, chine, keel, inner chine, to the wet
+  // deck's corner), the wet deck's from 4 (two with a centre bow: down to its keel and up), the
+  // starboard hull's last four.
+  const nCat = st[0].polygon.length;
+  const wetEdge = (k: number) => !!cat && k >= 4 && k <= nCat - 6;
+  const portEdge = (k: number) => k < 4;
   const insideEdge = (i: number, k: number): THREE.Vector3 => {
     if (!cat) return inside(i);
     const poly = st[i].polygon;
-    if (k === 4) return new THREE.Vector3(0, poly[4][1] + 0.3, st[i].z);
-    return new THREE.Vector3((k < 4 ? -1 : 1) * cat.spacing / 2, (poly[2][1] + poly[0][1]) / 2, st[i].z);
+    if (wetEdge(k)) return new THREE.Vector3(0, poly[4][1] + 0.3, st[i].z);
+    return new THREE.Vector3((portEdge(k) ? -1 : 1) * cat.spacing / 2, (poly[2][1] + poly[0][1]) / 2, st[i].z);
   };
   // Her paint line (Station.paintY; else her chine): her bottom's colour below it, her
   // topsides' above, each face of her sides and bottom cut along it where it crosses, so it
@@ -194,7 +200,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     put(c1, v[o1], v[o2], !up[lone]);
     put(c1, v[o2], c2, !up[lone]);
   };
-  const topsideEdge = (k: number) => (cat ? [0, 3, 4, 5, 8].includes(k) : k < chine || k >= last - chine);
+  const topsideEdge = (k: number) => (cat ? k === 0 || k === 3 || wetEdge(k) || k === nCat - 5 || k === nCat - 2 : k < chine || k >= last - chine);
 
   // A cabin sunk below the deck (its floor lower than the deck under it: you step down into
   // it) has no deck across it: the deck is cut away inside the house's walls. Every house's
@@ -258,7 +264,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       const ref = cat && a !== last ? insideEdge(i, a).add(insideEdge(i + 1, a)).multiplyScalar(0.5) : mid;
       // Her sides and bottom face away from her centreline (a demihull's); the deck and a
       // catamaran's wet deck by `ref`.
-      const axisX = a === last || (cat && a === 4) ? undefined : cat ? ((a < 4 ? -1 : 1) * cat.spacing) / 2 : 0;
+      const axisX = a === last || wetEdge(a) ? undefined : cat ? ((portEdge(a) ? -1 : 1) * cat.spacing) / 2 : 0;
       const panel = (p0: THREE.Vector3, q0: THREE.Vector3, p1: THREE.Vector3, q1: THREE.Vector3, c: number) => {
         tri(p0, q0, q1, ref, c, paintOf(c, a), axisX);
         tri(p0, q1, p1, ref, c, paintOf(c, a), axisX);
