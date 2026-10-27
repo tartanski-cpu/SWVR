@@ -41,12 +41,12 @@ export const MAP_CONFIG = {
      *   coastHysteresis a chunk keeps its coarse copy, or its place in the far set, this far (m)
      *                   past its line, so a boat on a line doesn't swap it back and forth
      *   coastResort     the chunks are re-sorted by distance only when the viewer has moved this far (m)
-     *   coastFarAhead   a merge takes in the chunks within this far (m) of needing it too
-     *                   (the next row about to leave the coarse ring, the hills just beyond
-     *                   the fog), so one merge serves a whole row; drawn under the nearer ground, unseen
-     *   coastFarSlack, coastFarTidy  a chunk no longer needed far (now drawn nearer, which hides
-     *                   it, or now in the fog) stays in the merged mesh; when that's more than
-     *                   coastFarSlack of it, it's tidied, at most every coastFarTidy s
+     *   coastFarAhead   a merge takes in the chunks within this far (m) beyond the fog too,
+     *                   so the fog lifting a little needs no merge
+     *   coastFarSlack, coastFarTidy  a chunk gone into the fog stays in the merged mesh,
+     *                   unseen; when that's more than coastFarSlack of it, it's tidied, at most
+     *                   every coastFarTidy s (one now drawn nearer leaves it at once: the far
+     *                   grid is too coarse for a narrow sound and stands over its water)
      */
     coastFogStep: 500,
     coastHysteresis: 300,
