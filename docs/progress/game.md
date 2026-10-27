@@ -10,6 +10,24 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug's start-up, part 2: the START-UP page, the checklist card, the machinery's sounds (27 Oct 2026)
+
+Owner: "go to the next stage in the engine startup" (part 2 of the agreed plan).
+- **The START-UP page** (`app/engineRoom/tug/panels.ts` `startupPage`; the steps from `plant/plant.ts` `startupSteps`): the control room's middle screen shows her nine steps until she's handed to the bridge (then POWER & TANKS again). Each step is ticked from her state as it is; the next is marked and blinks, with where to go or how it stands (the generator's run-up seconds, the oil pressure, the air's bar).
+- **The checklist card** (`FIXED.card`, the fixed canvas now 1024 × 1536): a laminated card, about A3, on the control room's inboard wall beside its door, facing the aisle: the nine steps, where each control is, and what to wait for.
+- **The machinery's sounds** (`audio/plantAudio.ts`, the engine bus; synthesised, no files):
+  - the generator: a small diesel's firing note and clatter, rising in pitch and level as it runs up;
+  - the supply fans' roar on a live switchboard;
+  - the compressor's chug, easing as the bottles fill;
+  - a blast of starting air at each main engine's start.
+
+  Full volume below; on her deck a quarter, muffled through the hull (`App.plantSound`).
+- **Fixed:** below, "Press F to take the helm" showed (the helm is right overhead, and the distance check is level only); F no longer takes the helm from the engine room.
+- **Tests:** tests/plant.test.ts (the steps tick off from dead ship to the bridge; the generator's run-up shown).
+- **Checked headless:** the page part-way through a start (steps 1–4 ticked, step 5 marked, with its place); the card on the wall from the aisle; the sounds following her state (silent dead; the generator quiet and low running up, at 50 Hz on line; the fans and compressor on; a quarter on deck), with no errors. Not heard (no speakers here).
+- **Not checked:** VR, and the sounds' balance with her main engines by ear.
+- **Shared changes:** none.
+
 ### The tug's levers in VR: the hand twists, the stick sets the power; a click synchronises the throttles (27 Oct 2026)
 
 Owner: "the throttles are on the stick, which is right, but I don't want the twist to be on the sticks. I want the twist to be with hand controllers"; "I need a button which synchronizes the throttles ... the throttles are at the same power. Maybe ... a click in, so you can do it while you're on the hand controllers."

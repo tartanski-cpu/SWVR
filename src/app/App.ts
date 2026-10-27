@@ -1,3 +1,4 @@
+import { busLive } from '../plant/plant';
 import { AZI_HELM_CODES, glanceYaw, pointAndPush, stepDriveKeys, type DriveAsk, type DriveKeys } from '../player/aziHelm';
 import { KEY_LEAN, wrapDeg } from '../modules/azimuthLevers/lever';
 import { AziDials } from '../ui/aziDials';
@@ -1479,6 +1480,7 @@ export class App {
     for (const s of this.shipyardSigns) s.updateAt(this.scene, this.focus);
     this.belowDecks.update(dt);
     this.plantNotes();
+    this.plantSound();
     this.gangway.update(this.gangwayCtx(), this.camera.getWorldPosition(this.gangwayEye));
     if (this.board) {
       this.board.update(this.world);
@@ -4799,7 +4801,8 @@ export class App {
     const spot = v && VESSEL_DEFS[v.defId]?.boardingSpot;
     // (By the wheel and a crane's post both: the nearer takes F / A.)
     this.helmDist = spot ? Math.hypot(p.position[0] - spot[0], p.position[2] - spot[2]) : Infinity;
-    const near = !!spot && !inXR && !cam && (p.mode ?? 'walk') === 'walk' && this.helmDist < CONFIG.gamepad.helmReach && !(this.craneNear && this.craneNearDist < this.helmDist);
+    // (Not from her engine room below it: BelowDecks.)
+    const near = !!spot && !inXR && !cam && !this.belowDecks?.boatId && (p.mode ?? 'walk') === 'walk' && this.helmDist < CONFIG.gamepad.helmReach && !(this.craneNear && this.craneNearDist < this.helmDist);
     if (this.atHelm && !near) this.atHelm = false;
     const toggle = (this.keyboard.actionPressed('helm') && !this.interaction?.steering && !this.twinLeverKeys()) || !!pad?.pressed[PAD.a];
     if (toggle && near && v) {
@@ -6399,6 +6402,28 @@ export class App {
     if (!v) return;
     const r = dipstickReading(v);
     this.overlay.notify(r === 'ok' ? 'Dipstick: oil between MIN and MAX. Fine.' : r === 'low' ? 'Dipstick: oil near MIN. Top up from the can.' : 'Dipstick: barely any oil on it! Top up now.', 4);
+  }
+
+  /** Her main engines' last phases, to hear a start's starting air. */
+  private readonly plantPhases: string[] = ['', ''];
+
+  /** The harbour tug's engine room machinery heard (audio/plantAudio.ts): loud below, faint on her deck. */
+  private plantSound(): void {
+    const id = this.world.players[this.localPlayerId]?.aboardVesselId;
+    const v = id ? this.world.vessels[id] : undefined;
+    const p = v?.plant;
+    if (!v || !p) return this.sound.plant.update(null);
+    const phases = [v.engine.phase, v.engine.stbd?.phase ?? 'off'];
+    const airStart = phases.some((ph, k) => ph === 'cranking' && this.plantPhases[k] !== 'cranking');
+    phases.forEach((ph, k) => (this.plantPhases[k] = ph));
+    this.sound.plant.update({
+      gen: p.gen === 'running' ? 1 : p.gen === 'starting' ? Math.min(0.95, p.genT / CONFIG.plant.genRunUpS) : 0,
+      fans: busLive(p),
+      compressor: !!p.compressor && busLive(p) && p.airBar < CONFIG.plant.airMaxBar - 0.01,
+      airFull: p.airBar / CONFIG.plant.airMaxBar,
+      airStart,
+      where: this.belowDecks.boatId === v.id ? 'below' : 'deck',
+    });
   }
 
   /** Each boat's engine room alarm last said (plant/plant.ts `noteN`), by boat. */

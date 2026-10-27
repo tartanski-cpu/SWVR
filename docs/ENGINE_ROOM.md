@@ -51,7 +51,7 @@ The owner: "the only thing I want for the engine room is a realistic startup pro
 
 Missed steps block her start and say why. Quick start does it all.
 
-Part 2 (next): a START-UP page on the control room screen ticking the steps off, a checklist card on the wall, and the sounds (the generator, the starting air, the fans).
+Part 2 (27 Oct 2026): a START-UP page on the control room's middle screen ticking the steps off from her state (the next one marked), a checklist card on the wall by the control room door, and the machinery's sounds (the generator running up, the fans, the compressor, the starting air's blast; `audio/plantAudio.ts`).
 
 ## For the Shipyard chat (its files: `src/shipyard/`)
 
