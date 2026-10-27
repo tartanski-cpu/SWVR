@@ -14,19 +14,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### The EFFICIENCY screen, stage 1: litres a mile and the sweet spot (preview/shipyard)
+### The EFFICIENCY screen, stage 1: litres a mile and the sweet spot (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "for all ships, an efficiency instrument. And in the beginning, I just want a liters per nautical mile, so that basically we can find the sweet spot ... this efficiency screen might actually become full of graphs"; the plan (stages 1 to 3) agreed: "Yes, you can kick off that efficiency screen".
 
 - **The screen** (controls/instruments.ts `efficiency`; its arithmetic controls/efficiency.ts; `CONFIG.efficiency`): litres a nautical mile now (her engines' fuel flow, both on a twin, over her speed through the water; none under `minKn` 0.8), the L/h and knots it's from, her **range at this speed** on the fuel left; the **sweet-spot chart**: her litres a mile against her speed in `binKn` 0.5 kn bins, each the running mean (`blend` 0.25) of her steady readings (at most every `sampleS` 0.5 s, only while her speed changed by under `steadyKn` 0.15 kn: speeding up burns more than she will at that speed), the lowest marked green (BEST), where she is now a ring; its axes scale to what's been seen. Each player's screen gathers its own (it's what that screen saw, kept with the view, not the boat's state; it starts again with the page).
 - **Where**: the Shipyard's boats with the **advanced instruments**, a full screen after the engine monitor (placeable by hand: `dashEfficiency`); on a **touchscreen**, its **ECO** page. The basic and old-school helms don't carry it; the fleet's own boats (the workboat and her sisters, not Shipyard designs) don't yet.
 - Next (stage 2, agreed in the plan): a trip log (litres, miles, average since leaving the berth), CO2, the trip's fuel cost; stage 3 for hybrids and the solar catamaran: one energy measure (kWh a mile), an energy-flow diagram, charts over the trip.
-- Tests: tests/efficiency.test.ts (litres a mile and range; steady readings into bins, the sweet spot; no reading while speeding up or too soon; the screen and its touchscreen page); helmView.test.ts and build.test.ts count it among the screens and pages. The full `npm test` and the typecheck pass.
+- Tests: tests/efficiency.test.ts (litres a mile and range; steady readings into bins, the sweet spot; no reading while speeding up or too soon; the screen and its touchscreen page); helmView.test.ts and build.test.ts count it among the screens and pages. The full `npm test` (1687 tests, after merging next) and the typecheck pass.
 - Checked in the browser: the screen painted after a run of steady speeds (a planing boat's hump, BEST, the ring).
 - README: the screen.
 - **Shared changes:** src/controls/instruments.ts (the screen, the ECO page), src/controls/efficiency.ts (new), src/config.ts (`efficiency`).
 
-### The front below the windows kicked out (a new wheelhouse choice); the solar catamaran's, with panels on it (preview/shipyard)
+### The front below the windows kicked out (a new wheelhouse choice); the solar catamaran's, with panels on it (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "the wheelhouse, I think, on the real catamaran is kicked out at quite a steep angle in front of the windows. And then the solar panels are on top of that sloped part. So this is a new parameter for the wheelhouse ... the rake or the slope angle under the windows. And I think that, of course, needs to work with the deck house that it may sit upon."
 
@@ -38,7 +38,7 @@ Owner, 27 Oct 2026: "the wheelhouse, I think, on the real catamaran is kicked ou
 - README: the new choice; the solar cat's front.
 - **Shared changes:** src/vessel/layout.ts (a front sloped back keeps its foot as the deck's clear line; the floor under the slope not walked); src/modules/solarRoof (`slope`).
 
-### The solar catamaran's paint the player's; black as she comes (preview/shipyard)
+### The solar catamaran's paint the player's; black as she comes (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "The solar catamaran should get the paint options as well, the ones that are appropriate. Of course, it needs to be black."
 
@@ -48,7 +48,7 @@ Owner, 27 Oct 2026: "The solar catamaran should get the paint options as well, t
 - README: her paint.
 - Merged origin/next (the tug's driving guide poster; the solar cat's hull now on next, the same as merged from the hull chat's branch).
 
-### The front windows swept back to 60°; the solar catamaran's house low and swept (preview/shipyard)
+### The front windows swept back to 60°; the solar catamaran's house low and swept (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026, on the solar catamaran's house: "what I would do if I had the sliders is I would slide this down and I would make then the window as raked as possible ... lower the head height, move it to the sides"; then "would expect it to have near standing headroom ... the windows probably need to rake back more than 30 degrees. It's probably more like 60. That'd be good to have a slide. Generally, it would be good to have that slider work more like that."
 
@@ -59,7 +59,7 @@ Owner, 27 Oct 2026, on the solar catamaran's house: "what I would do if I had th
 - Still to do on her house: the owner's pictures (asked for in this chat) to compare against; a helm seat (the furniture keeps the helm clear today).
 - README: the front's range; the solar catamaran's house.
 
-### The solar catamaran: a one-off, all fixed but her battery (stop 1; preview/shipyard)
+### The solar catamaran: a one-off, all fixed but her battery (stop 1; approved by the owner 27 Oct 2026; on next)
 
 The hull modifications chat (step 2, owner's word): "the solar catamaran as a fixed one-off in the Shipyard, like the harbour tug". Owner, 26 Oct 2026: "this is a bit of a one-off build. I would say the only thing that should be options are the number of batteries ... We'll go with the some kind of pods as you suggest ... it should have a sort of basic interior. I'm not too sure the console will fit in there for the controls, but that there needs to be some instrumentation and things to drive it with."
 
