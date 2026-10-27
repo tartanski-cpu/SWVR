@@ -1,13 +1,14 @@
-# Workboat World: what's new, 23 to 26 October 2026
+# Workboat World: what's new, 23 to 27 October 2026
 
-**Covers:** everything on the test build since the 23 October notes (Friday afternoon), from every chat's work, up to Monday 26 October.
+**Covers:** everything on the test build since the 23 October notes (Friday afternoon), from every chat's work, up to Tuesday 27 October.
 
-**What's where:** all of this is on the test build (76e5529) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) is still Friday's; it moves on when the owner says. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
+**What's where:** all of this is on the test build (8eea7eb) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) is still Friday's; it moves on when the owner says. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
 
 A page with screenshots of the same is published alongside these notes.
 
 ## Highlights
 
+- **Engine rooms:** go below on the harbour tug and the stern trawler. The tug's is in full detail, with an engine control room and live screens.
 - **Construction projects:** build a wind farm in six stages. **Tarran Rig**, two turbines north of Calder Haven: survey the site, lay its marks, tow out the monopiles, the transition pieces, guard the works while the turbines go up, and bring her on line. When it's done the farm stands for good.
 - **Crew transfer to wind farms:** the **Holm Rig** wind farm, technicians to put across onto a turbine's boat landing, and a bow fender to hold her there.
 - **The harbour tug:** a 25 m azimuth stern drive tug, a one-off in the Shipyard, with heavy fendering, her own Z-drives and twist-and-throttle levers.
@@ -17,6 +18,18 @@ A page with screenshots of the same is published alongside these notes.
 - **Twin engines** worked separately, each with its own lever and START.
 - **Playing together, made sturdy:** four batches of multiplayer fixes. Dropouts are noticed in seconds, nobody loses their boat or cargo, you're taken to the right game, each boat has her own rescue gear, and what the host sends is 15 to 50 times smaller.
 - **Fixes:** the game no longer drops to a few frames a second beside the boats board, multiplayer copes with a host whose page is out of date, and Step ashore puts you beside your boat.
+
+## Engine rooms
+
+- **Go below:** open the engine hatch on the harbour tug or the stern trawler (and the dive ship, on the trawler's hull) and point at **Go below** to climb down her ladder; **Climb up** at the ladder's head brings you back. It's the same game: the sea, her engines and your crew-mates carry on above, and only the room is drawn while you're below, which is what pays for the detail.
+- **Where one fits** is worked out from her own hull sections, her hatch and her engines: at least 18 m long, 1.95 m headroom under the deck, a walkway outboard of each engine. Every other boat keeps her hatch over the engine as before. The room rolls and pitches with her.
+- **The trawler's** is the plain first room: her engine, frames and beams, and a gauge panel of revs and temperatures.
+- **The harbour tug's, in detail:**
+  - her two 1,850 kW V16s, the same size on the same shaft line, properly built: bedplate on rubber mounts, crankcase doors, sixteen heads with bolts and injector pipes, lagged exhausts to two turbochargers, the charge-air cooler, filters, starters, and a local gauge panel and emergency stop on each;
+  - an engine control room forward to port, its window aft onto the port engine; a console with three live screens (each engine's revs, load and temperatures with its Z-drive's heading; fuel and batteries; an alarm list from her real state), the main switchboard and a row of brass-rimmed gauges;
+  - fire pumps on the engines' front ends, shaft lines aft that turn with her revs, two generator sets and the thruster room door, fuel day tanks with sight glasses, starting-air bottles and their compressor, a workbench and tool board, the valve chest, pumps and strainers;
+  - colour-coded pipe runs; overhead, CO₂ nozzles, fans, cable trays and lifting rails with chain blocks; chequer plate underfoot. Her room is now 10.5 m long.
+- **What it costs** (measured headless, not yet on the Quest): on deck 127–153 draw calls and about 330,000 triangles; below in the plain room 3–4 calls and about 2,000 triangles; below in the tug's 5–10 calls and about 105,000 triangles.
 
 ## Career
 
@@ -104,6 +117,8 @@ A study of everything that went wrong playing together turned into four batches 
 
 - **2 frames a second beside the Your boats board** (with favourites saved, on the Quest and in Chrome): fixed.
 - **Step ashore** at a quay with no named berth put you at the start harbour: fixed.
+- **A minimised host** (27 Oct): crew of a host whose window was minimised got about one step a second. The hidden host now keeps time from a worker that the browser doesn't slow: 20 steps a second again.
+- **The harbour tug on the Quest** (27 Oct): her gearbox is fixed, as hers is, so the Shipyard no longer spends ages matching one and she can be saved on the Quest browser. Any boat's code is ready to save as soon as her gearbox is matched.
 - **Laying buoys:** the crane's HOOK explains itself, and loads over her own deck go on the deck.
 
 ## Debug
@@ -115,16 +130,19 @@ A study of everything that went wrong playing together turned into four batches 
 - Menu → Office → Projects at Calder Haven takes Tarran Rig. To jump ahead, show the Debug tab (Settings → Game) and use Missions → Project → Stage done or Stage back; +£50,000 is there too.
 - The harbour tug and the catamaran are in the Shipyard's hull types; the dive support vessel starts with `career.html?boat=diveShip`.
 - Wreck sites: Oban (Voyage) round Kerrera and Maiden Island; in the career west of Calder Haven and off Brannock.
+- Engine rooms: take the harbour tug from the Shipyard (or `career.html?boat=diveShip` for the plain room), open her engine hatch, point at Go below. Start her engines and watch the screens and the shafts; Climb up at the ladder.
 - Playing together: Menu → Crew → Host a game, and send the address (it carries the code) or read the code out; a friend opens it or types the code. Try it across Career and Voyage, a reload, and each in your own boat.
 
 ## Known limits
 
 - The beginner boat has no chartplotter or duty board: the project's lines and rings need a boat with a plotter, and what's next is on the Jobs page.
 - The live game is still Friday's: none of this is there yet.
+- The engine rooms are to look at for now: nothing in them works yet, there's no engine-room sound and no fade going down. Not yet tried in VR or measured on the Quest.
 - The TV needs a desktop player to share a tab; VR players see it but can't start it.
 - Multiplayer was checked with two and three headless browsers through the real game finder, not yet on the Quest: voice in either order, and letting go on taking the headset off, need a try there.
 
 ## Coming next
 
 - Multiplayer on the Quest: the owner's test of the four batches with friends, and the snapshot cost measured on the headset.
+- Engine rooms, milestone 2: the stops, fuel valves, sea cock and bilge pump working; the room's own sound; a fade going down; then maintenance jobs and faults to find.
 - Moving the test build to the live game, when the owner says it's good.
