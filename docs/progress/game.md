@@ -50,6 +50,19 @@ Owner: "the only thing I want for the engine room is a realistic startup procedu
   - `src/core/simulation.ts`: `stepPlant` after her machinery;
   - `src/modular/busKeys.ts`: the `plant.bridge` key;
   - `src/modules/dieselInboard/index.ts`: its `bridge` port. Until she's handed over, the bridge's levers and STARTs don't reach her engines.
+### (From the modular-builder chat) HANDOVER, not built: driving the harbour tug from the keyboard and a game controller
+
+The owner, 27 Oct 2026: "I want my non-VR friends to be able to drive this tug", reviewed a proposal from the modular-builder chat and chose: arrow keys, power stops at idle, point-and-push sticks, glance keys and LB to look, the on-screen dials, "Handover" (to this chat: it's the helm mode, keys and controller, `src/app/` and `src/player/`). **What to build**, only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`); every other boat's helm stays as it is:
+
+- **Keyboard at the helm (F):** the port drive on **W / S** (power up, down) and **A / D** (twist: A turns its push toward port, D toward starboard); the starboard drive on **↑ / ↓** and **← / →** the same way. Power stops at idle; astern is twisting the drive round (never a throttle below zero). **X** both drives to idle; **T** TRANSIT on / off (at this helm only; T is otherwise the sea-trials test key). In TRANSIT, A / D steer the wheel and W / S work both throttles, as on any boat.
+- **Looking (keyboard):** right-drag mouse look stays as now. Glance keys, held: **Q** over the port shoulder, **E** over the starboard shoulder, **Q + E or Tab** straight aft; let go and the view swings back forward (smoothly).
+- **Game controller at the helm (A):** **point and push**: the left stick is the port drive, the right stick the starboard. The stick's direction is the way that drive pushes (up ahead, right to starboard, back astern: deg = atan2(x, -y), y + down), how far it's pushed past the dead zone its power (0..1). Let go: power to idle, the drive keeps pointing where it was. **Hold LB** and the right stick looks round instead (the starboard drive holds its setting meanwhile); a **tap of LB** (no stick) snaps the view forward. In the orbit / flyby views (Y), LB + right stick swings the camera. **RB** TRANSIT on / off: then the left stick's x steers the wheel and the right stick's y sets both throttles. **B** both to idle. The rest as now (A leave, Y camera view, d-pad anchor / horn / wipers, View talk).
+- **On-screen dials** at the desktop helm (not in VR): two small dials in the bottom corners, port left, starboard right, as on the tug's poster: an arrow where its drive really points, a ring where its lever asks, a power bar.
+
+**What the modular side already gives you** (no changes needed there):
+- Bus keys (send them as intents, absolute values; the levers in the wheelhouse follow them, so a VR crew-mate sees them move): `azimuth.demand` / `azimuth.demand2` (each lever's direction, deg, 0 ahead, + to starboard, -180..180), `throttle.demand` / `throttle.demand2` (each one's power, 0..1 here), `azimuth.transit` (on / off). Read back: `azimuth.angle` / `azimuth.angle2` (where each drive really points, deg; or `EngineState.azimuth`, rad, port in `engine`, starboard in `engine.stbd`).
+- The levers' own rates for keys, to match: 90 deg/s of twist, 0.5 power/s (`src/modules/azimuthLevers/lever.ts` KEY_TURN, KEY_LEAN), and the notches at ahead, abeam and astern: `snapTo(deg, CONFIG.modules.azimuth.lever.snapDeg)` from the same file. The drives follow at `CONFIG.modules.azimuth.slewDegPerS` (12 deg/s).
+- The ENGINE screen's dial drawing (`src/controls/instruments.ts` `azimuthDial`) is the look the on-screen dials should copy.
 
 ### The tug's levers: the thumbsticks work them, notches at 12, 3, 6 and 9 o'clock (27 Oct 2026)
 
