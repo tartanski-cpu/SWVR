@@ -20,6 +20,20 @@ import type { PlantState, VesselState } from '../../../vessel/vesselState';
 import type { EngineRoomPlan } from '../plan';
 import type { V3 } from './kit';
 import type { TugLayout } from './layout';
+import { MSB_CUBICLES } from './panels';
+
+/** The main switchboard's face (room.ts draws it): its left end and width (m), along her. */
+export function msbFace(t: TugLayout): { x0: number; w: number } | null {
+  const e = t.ecr;
+  return e ? { x0: e.x0 + 0.12, w: e.x1 - 0.5 - (e.x0 + 0.1) - 0.04 } : null;
+}
+
+/** The middle (x) of the switchboard cubicle that holds a control. */
+function msbCubicle(t: TugLayout, control: string): number {
+  const f = msbFace(t)!;
+  const i = MSB_CUBICLES.findIndex((c) => c.control === control);
+  return f.x0 + ((i + 0.5) * f.w) / MSB_CUBICLES.length;
+}
 
 /** Which way a control faces (out of the surface it's on). */
 export type Facing = '+x' | '-x' | '+z' | '-z' | '+y';
@@ -132,14 +146,13 @@ export function tugControls(p: EngineRoomPlan, t: TugLayout, places: ControlPlac
   // ── The control room's switchboard (its face toward +z, along the forward bulkhead) ──
   if (t.ecr) {
     const e = t.ecr;
-    const mx0 = e.x0 + 0.1;
-    const zFace = e.z0 + 0.49;
-    // Low down on its left end: the battery master (the boat's 24 V); a row of switches at a hand's height.
-    add(new MasterSwitch('er.master', { channel: 'master' }), '+z', [mx0 + 0.2, sole + 0.95, zFace + 0.005]);
-    const row = sole + 1.0;
-    add(new Toggle('er.genBreaker', 'er.genBreaker', 'Generator breaker: close / open (main switchboard)', pl((q) => q.genBreaker)), '+z', [mx0 + 0.55, row, zFace]);
-    add(new Toggle('er.fuelPump', 'er.fuelPump', 'Fuel supply pump: on / off', pl((q) => q.fuelPump)), '+z', [mx0 + 0.8, row, zFace]);
-    add(new Toggle('er.place', 'er.place', 'Engine control: LOCAL / CONTROL ROOM / BRIDGE', pl((q) => q.place), 3), '+z', [mx0 + 1.05, row, zFace]);
+    const zFace = e.z0 + 0.5;
+    // Each in its own cubicle, named on a plate under it (panels.ts MSB_CUBICLES), at a hand's height.
+    const row = sole + 0.99;
+    add(new MasterSwitch('er.master', { channel: 'master' }), '+z', [msbCubicle(t, 'master'), row, zFace + 0.005]);
+    add(new Toggle('er.genBreaker', 'er.genBreaker', 'Generator 1 breaker: close / open', pl((q) => q.genBreaker)), '+z', [msbCubicle(t, 'er.genBreaker'), row, zFace]);
+    add(new Toggle('er.fuelPump', 'er.fuelPump', 'Fuel supply pump (fuel pressure to both main engines): on / off', pl((q) => q.fuelPump)), '+z', [msbCubicle(t, 'er.fuelPump'), row, zFace]);
+    add(new Toggle('er.place', 'er.place', 'Engine control: LOCAL / CONTROL ROOM / BRIDGE', pl((q) => q.place), 3), '+z', [msbCubicle(t, 'er.place'), row, zFace]);
   }
 
   // ── The generator (the port one; the starboard one is the standby) ──
@@ -161,7 +174,7 @@ export function tugControls(p: EngineRoomPlan, t: TugLayout, places: ControlPlac
   // ── The air bottles: the main air valve on the forward one; the compressor's switch on its motor ──
   const r0 = t.receivers[0];
   if (r0) add(new Valve('er.airValve', 'er.airValve', 'Starting air main valve', pl((q) => q.airValve), 0xb52a20, 0.06), '+y', [r0.x, sole + 1.72, r0.z]);
-  if (t.compressor) add(new Toggle('er.compressor', 'er.compressor', 'Air compressor: on / off', pl((q) => q.compressor)), '+z', [t.compressor.x - 0.2, sole + 0.6, t.compressor.z + 0.2]);
+  if (t.compressor) add(new Toggle('er.compressor', 'er.compressor', 'Air compressor (fills the starting air bottles): on / off', pl((q) => q.compressor)), '+z', [t.compressor.x - 0.2, sole + 0.6, t.compressor.z + 0.2]);
 
   // ── The sea water strainers (port side): each engine's sea suction valve, aft one the port engine's ──
   const strainers = [...t.strainers].sort((a, b) => a.z - b.z);
@@ -179,7 +192,7 @@ export function tugControls(p: EngineRoomPlan, t: TugLayout, places: ControlPlac
     const y = l.at[1] - 0.26;
     // Left to right as you face it: pre-lube, START, STOP (facing +x, your left is +z).
     const dz = l.facing === '+x' ? -0.13 : 0.13;
-    add(new Toggle(`er.prelube${k}`, `er.prelube${k}`, `${n}: pre-lube pump on / off`, pl((q) => q.prelube[i])), l.facing, [x, y, l.at[2] - dz]);
+    add(new Toggle(`er.prelube${k}`, `er.prelube${k}`, `${n}: pre-lube pump (lube oil pressure before starting) on / off`, pl((q) => q.prelube[i])), l.facing, [x, y, l.at[2] - dz]);
     add(new Button(`er.start${k}`, `er.start${k}`, `${n}: START (local)`, 'pulse', 0x2f9a48, (s) => (i === 0 ? s.engine : s.engine.stbd)?.phase === 'running'), l.facing, [x, y, l.at[2]]);
     add(new Button(`er.stop${k}`, `er.stop${k}`, `${n}: STOP (local)`, 'pulse', 0xb52a20), l.facing, [x, y, l.at[2] + dz]);
   });
