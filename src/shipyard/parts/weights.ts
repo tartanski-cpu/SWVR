@@ -4,6 +4,8 @@
  * what the parts after it need.
  */
 import { CONFIG } from '../../config';
+import { BATTERY_DEFAULT, batteryKWh } from '../design';
+import { solarFigures } from './solar';
 import { cradleAxis } from '../../modules/diveFrame';
 import { overheadM2, type BuildArgs } from './common';
 import type { DesignedBoat } from '../build';
@@ -21,7 +23,7 @@ import type { HoldPart } from './hold';
 /** Her weights built up part by part (what she's built of, her houses, machinery and gear), her price, and the designed boat itself. */
 export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart & RecipePart): DesignedBoat {
   const { d } = a;
-  const { aFrame, afc, aft, anchorAt, at, base, basketAt, batteriesKg, beamDeck, bowFender, bowFenderKg, bowRamp, bulwarkHeight, cabinM2, cr, craneAt, deckMid, deckhouse, dg, dhArea, dhRailM, eng, floorY, front, gear, gm, grownPlate, guardKg, guardY, h, hasMonitor, houseL, hull, hw, keelMid, kw, layout, lengthM, level, mass, mat, material, n, nOb, nozzle, obc, onTop, outboards, pc, pdc, pf, placed, podPropD, podSet, pods, powerKw, propD, pushFender, recipe, ring, rodRack, roofDrop, roofY, saloonL, sd, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, sideDoor, skiffAt, st, stem, sternRoller, strakeM, tankL, transom, twin, tyres, warnings, wc, winchAt } = p;
+  const { shape, electric, aFrame, afc, aft, anchorAt, at, base, basketAt, batteriesKg, beamDeck, bowFender, bowFenderKg, bowRamp, bulwarkHeight, cabinM2, cr, craneAt, deckMid, deckhouse, dg, dhArea, dhRailM, eng, floorY, front, gear, gm, grownPlate, guardKg, guardY, h, hasMonitor, houseL, hull, hw, keelMid, kw, layout, lengthM, level, mass, mat, material, n, nOb, nozzle, obc, onTop, outboards, pc, pdc, pf, placed, podPropD, podSet, pods, powerKw, propD, pushFender, recipe, ring, rodRack, roofDrop, roofY, saloonL, sd, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, sideDoor, skiffAt, st, stem, sternRoller, strakeM, tankL, transom, twin, tyres, warnings, wc, winchAt } = p;
   // ── Her weights, built up (owner, Oct 2026: aluminium or steel, the houses counted) ──
   // Each part's weight and the height of its centre. Her hull: her plating and framing, by
   // its area (every station's section all round, deck included, and her transom and any
@@ -61,8 +63,11 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     { name: 'Deckhouse rail and ladder', kg: deckhouse?.walk ? dhRailM * CONFIG.shipyard.deckhouse.walk.railKgPerM + (deckhouse.walk.stair ? CONFIG.shipyard.deckhouse.walk.stair.kg : CONFIG.shipyard.deckhouse.walk.ladder.kg) : 0, y: deckhouse ? deckhouse.top + 0.4 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: 'Cockpit overhead', kg: overheadM2(layout.overhead) * mat.houseKgPerM2, y: layout.overhead ? layout.overhead.y - 0.3 : deckMid, z: layout.overhead ? (layout.overhead.z0 + layout.overhead.z1) / 2 : 0 },
     { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
-    { name: outboards ? 'Outboards' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY, z: machineZ },
-    { name: outboards ? 'Bracket, rigging and tanks' : sd ? 'Stern drive legs, tanks, exhaust' : pods ? 'Pod drives, tanks, exhaust' : 'Shafting, propeller, rudder, tanks, exhaust', kg: sd ? sdc.legKg * n + machineKg * wc.machineryShare * 0.4 : pods ? pdc.legKg * n + machineKg * wc.machineryShare * 0.4 : machineKg * wc.machineryShare, y: outboards ? deckMid : pods ? podSet!.mount.y : machineY, z: outboards ? machineZ : sd ? transom : pods ? podSet!.mount.z : (machineZ + transom) / 2 },
+    { name: outboards ? 'Outboards' : electric ? 'Electric motors' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY, z: machineZ },
+    { name: outboards ? 'Bracket, rigging and tanks' : sd ? 'Stern drive legs, tanks, exhaust' : pods ? (electric ? 'Pods: struts, housings, propellers' : 'Pod drives, tanks, exhaust') : 'Shafting, propeller, rudder, tanks, exhaust', kg: sd ? sdc.legKg * n + machineKg * wc.machineryShare * 0.4 : pods ? (electric ? CONFIG.shipyard.solarCat.podKg * n : pdc.legKg * n + machineKg * wc.machineryShare * 0.4) : machineKg * wc.machineryShare, y: outboards ? deckMid : pods ? podSet!.mount.y : machineY, z: outboards ? machineZ : sd ? transom : pods ? podSet!.mount.z : (machineZ + transom) / 2 },
+    // The solar catamaran's (CONFIG.shipyard.solarCat): her battery, low in her hulls amidships, and her solar roof on and over her house.
+    { name: `Battery (${batteryKWh(d.battery ?? BATTERY_DEFAULT)} kWh)`, kg: electric ? batteryKWh(d.battery ?? BATTERY_DEFAULT) * CONFIG.shipyard.solarCat.batteryKgPerKWh : 0, y: keelMid + 0.3, z: h.lcb },
+    { name: 'Solar roof: panels, frames, wing hinges', kg: electric ? CONFIG.shipyard.solarCat.solarKg : 0, y: roofY + 0.15, z: (front + aft) / 2 },
     { name: 'Batteries', kg: batteriesKg, y: at.engineSpace[1], z: at.engineSpace[2] },
     { name: 'Deck crane', kg: craneAt ? cr.massKg : 0, y: craneAt ? craneAt[1] + cr.columnHeight / 2 : deckMid, z: craneAt ? craneAt[2] : 0 },
     { name: 'Dive A-frame, rams, winch and docking head', kg: df ? dfc.frameKg : 0, y: df ? df.place.deck + df.legLength / 2 : deckMid, z: df ? df.place.transom - dfc.footFromTransom : 0 },
@@ -96,11 +101,14 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? (d.rescueBoat ? gp.rescueBoat : gp.skiff) : 0) + (p.netDrumAt ? gp.netDrum : 0) + (p.trawlWinchesAt ? gp.trawlWinches : 0) + (p.diveFrame ? gp.diveFrame : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (bowFender ? CONFIG.shipyard.bowFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
-  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 + Math.min(2, d.touch ?? 0) * CONFIG.shipyard.touchPrice : d.oldSchool ? CONFIG.shipyard.oldSchoolPrice : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (electric ? batteryKWh(d.battery ?? BATTERY_DEFAULT) * CONFIG.shipyard.solarCat.batteryPricePerKWh + CONFIG.shipyard.solarCat.solarPrice : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 + Math.min(2, d.touch ?? 0) * CONFIG.shipyard.touchPrice : d.oldSchool ? CONFIG.shipyard.oldSchoolPrice : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  // The solar catamaran's battery figures (parts/solar.ts), and a warning if her wet deck sits low.
+  const solar = electric ? solarFigures(d, hull, shape, mass) : undefined;
+  if (solar && solar.wetDeckM < CONFIG.shipyard.solarCat.wetDeckWarn) warnings.push(`Her wet deck is only ${Math.round(solar.wetDeckM * 100)} cm over the water: she'd slam under it in a chop. A smaller battery makes her lighter.`);
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : pods ? podPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : pods ? ', on pod drives' : ''}${nozzle ? (twin ? ', in Kort nozzles' : ', in a Kort nozzle') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
+    figures: { ...(solar ? { solar } : {}), lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : pods ? podPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : pods ? ', on pod drives' : ''}${nozzle ? (twin ? ', in Kort nozzles' : ', in a Kort nozzle') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
     warnings,
     placed: { ...placed, ...p.furniturePlaced },
     placeWhy: { ...p.placeWhy, ...p.furnitureWhy },

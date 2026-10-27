@@ -7,7 +7,7 @@ import { BODY_RADIUS, CONFIG } from '../../config';
 import { hullQueries } from '../../modular/hull';
 import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, OverheadLayout } from '../../vessel/vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../../vessel/deckhouse';
-import { consoleLengthM, houseOffsetM, lowSills, MEASURES, SCALES } from '../design';
+import { consoleLengthM, houseOffsetM, kickDeg, lowSills, MEASURES, SCALES } from '../design';
 import type { Socket } from '../../modular/socket';
 import { halfBreadthAt, type BuildArgs, type V3 } from './common';
 import { facetCentre, frontMullions, TUG_HULL, type DesignHull } from './catalog';
@@ -403,8 +403,12 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const saloonRoof = roofDrop ? { z: rnd(helmAft), y: rnd(roofY - roofDrop) } : null;
   /** The roof's underside at z (a lower saloon roof aft of its step). */
   const roofAt = (z: number) => (saloonRoof && z > saloonRoof.z ? saloonRoof.y : roofY);
-  // The front below the windows stays upright (its choice isn't offered now, owner).
-  const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: d.roofEdge, visor: CONFIG.shipyard.visor }; // (one set length now, owner: `d.visor` is kept in the code, unused)
+  // The front below the windows: upright, or sloped back from its foot (design.kick; owner,
+  // Oct 2026: the solar catamaran's, "kicked out at quite a steep angle in front of the
+  // windows"): a lean of -kick, from the house's foot (her deck, the floor if sunk lower, or the
+  // top of a deckhouse it stands on) up to the window sill. (Leaning forward at the top, the
+  // old lowerFront, isn't offered now, owner.)
+  const house: HouseShape = { lowerRakeDeg: -kickDeg(d.kick ?? 0), lowerFromY: deckhouse ? onTop - 0.02 : Math.min(q.deckY(front), floorY), roofEdgeDeg: d.roofEdge, visor: CONFIG.shipyard.visor }; // (one set length now, owner: `d.visor` is kept in the code, unused)
   // A three-facet front (owner: a tug's pilot house): the middle pane square across her
   // between the mullions, the outer two angled back `facetDeg` to the side walls; the
   // console wraps round with it, its wings set back as much (sb).
@@ -427,13 +431,17 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // screens on stalks; the screens hung from the roof.
   const consoleBack = (() => {
     const lean = Math.tan((windowRake * Math.PI) / 180); // + forward at the top
+    // A sloped front below the windows (design.kick) carries the glass's foot aft (-ahead), and
+    // reaches aft over the floor as it rises to the sill: at y over the floor, this far aft.
+    const kick = Math.max(0, -ahead);
+    const slopeAft = (y: number) => Math.max(0, Math.min(floorY + y, floorY + sill) - house.lowerFromY) * Math.tan((kickDeg(d.kick ?? 0) * Math.PI) / 180);
     // How far aft the glass reaches anywhere from the sill up to height y (it's tightest at the
-    // sill for glass leaning forward, at y for glass raked aft).
-    const glassAft = (y: number) => Math.max(0, -lean * (y - sill));
+    // sill for glass leaning forward, at y for glass raked aft); below the sill, the slope.
+    const glassAft = (y: number) => (y <= sill ? slopeAft(y) : kick + Math.max(0, -lean * (y - sill)));
     const parts: [number, number][] = lowSills(d)
       ? [[1.02, 0.06], [0.9 + 0.21 + CONFIG.modules.screen.dash.height / 2, 0.2], [headroom - 0.1, 0.32]]
       : [[0.9 + CONFIG.modules.helmConsole.dash.top, 0.06], [headroom - 0.1, 0.32]];
-    const above = parts.filter(([y]) => y > sill);
+    const above = kick > 0 ? parts : parts.filter(([y]) => y > sill);
     return above.length ? Math.ceil(Math.max(0, ...above.map(([y, z]) => glassAft(y) + CONFIG.shipyard.consoleClear - z)) * 100) / 100 : 0; // (up to the next cm)
   })();
   /** The console's line: the house front, less any setback (consoleBack). */

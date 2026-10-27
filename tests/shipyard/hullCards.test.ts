@@ -9,7 +9,7 @@ import { HULL_ROLES, hullCards } from '../../src/shipyard/hullCards';
 describe('the hull cards', () => {
   it('a card for every type offered (not the retired workboat), each with what it is made for', () => {
     const cards = hullCards();
-    expect(cards.map((c) => c.title)).toEqual(['Landing craft', 'Gillnetter', 'Pilot boat', 'Small tug', 'Stern trawler', 'Fast catamaran', 'Harbour tug']);
+    expect(cards.map((c) => c.title)).toEqual(['Landing craft', 'Gillnetter', 'Pilot boat', 'Small tug', 'Stern trawler', 'Fast catamaran', 'Harbour tug', 'Solar catamaran']);
     expect(HULL_ROLES).toHaveLength(DESIGN_HULLS.length);
     for (const c of cards) {
       expect(c.roles.main.length, c.title).toBeGreaterThan(0);

@@ -10,14 +10,78 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Lined up for later (owner's asks, not started)
 
-- (Nothing waiting.)
+- **The solar catamaran, stop 2:** wire her to the modular builder chat's electric pod drives when they come (her battery running down; their sound). Later: her wings opening and tilting (step 3, the modular builder chat), charging from the sun (step 4, with the main game chat), her tender between her hulls aft.
 
 ## Changes
 
+### The EFFICIENCY screen, stage 1: litres a mile and the sweet spot (approved by the owner 27 Oct 2026; on next)
+
+Owner, 27 Oct 2026: "for all ships, an efficiency instrument. And in the beginning, I just want a liters per nautical mile, so that basically we can find the sweet spot ... this efficiency screen might actually become full of graphs"; the plan (stages 1 to 3) agreed: "Yes, you can kick off that efficiency screen".
+
+- **The screen** (controls/instruments.ts `efficiency`; its arithmetic controls/efficiency.ts; `CONFIG.efficiency`): litres a nautical mile now (her engines' fuel flow, both on a twin, over her speed through the water; none under `minKn` 0.8), the L/h and knots it's from, her **range at this speed** on the fuel left; the **sweet-spot chart**: her litres a mile against her speed in `binKn` 0.5 kn bins, each the running mean (`blend` 0.25) of her steady readings (at most every `sampleS` 0.5 s, only while her speed changed by under `steadyKn` 0.15 kn: speeding up burns more than she will at that speed), the lowest marked green (BEST), where she is now a ring; its axes scale to what's been seen. Each player's screen gathers its own (it's what that screen saw, kept with the view, not the boat's state; it starts again with the page).
+- **Where**: the Shipyard's boats with the **advanced instruments**, a full screen after the engine monitor (placeable by hand: `dashEfficiency`); on a **touchscreen**, its **ECO** page. The basic and old-school helms don't carry it; the fleet's own boats (the workboat and her sisters, not Shipyard designs) don't yet.
+- Next (stage 2, agreed in the plan): a trip log (litres, miles, average since leaving the berth), CO2, the trip's fuel cost; stage 3 for hybrids and the solar catamaran: one energy measure (kWh a mile), an energy-flow diagram, charts over the trip.
+- Tests: tests/efficiency.test.ts (litres a mile and range; steady readings into bins, the sweet spot; no reading while speeding up or too soon; the screen and its touchscreen page); helmView.test.ts and build.test.ts count it among the screens and pages. The full `npm test` (1687 tests, after merging next) and the typecheck pass.
+- Checked in the browser: the screen painted after a run of steady speeds (a planing boat's hump, BEST, the ring).
+- README: the screen.
+- **Shared changes:** src/controls/instruments.ts (the screen, the ECO page), src/controls/efficiency.ts (new), src/config.ts (`efficiency`).
+
+### The front below the windows kicked out (a new wheelhouse choice); the solar catamaran's, with panels on it (approved by the owner 27 Oct 2026; on next)
+
+Owner, 27 Oct 2026: "the wheelhouse, I think, on the real catamaran is kicked out at quite a steep angle in front of the windows. And then the solar panels are on top of that sloped part. So this is a new parameter for the wheelhouse ... the rake or the slope angle under the windows. And I think that, of course, needs to work with the deck house that it may sit upon."
+
+- **Below the windows** (Wheelhouse step, Windows group; design `kick`, `KICK_STEPS` 16, `kickDeg` 5° a step, 0 upright .. 75; not in the code): the house's front below the windows sloped back from its foot up to the sill, on any hull. Built on the house shape's own lower lean (`HouseShape.lowerRakeDeg`, now -kick; its lean forward, the old `lowerFront`, still not offered): hullMesh draws it and the glass's foot moves aft with it. Its foot (`lowerFromY`) is her deck (or the floor if sunk lower), or **the top of a deckhouse the house stands on**.
+- **Inside** (house.ts `consoleBack`; shared vessel/layout.ts): the console stands behind the slope as well as the glass (each of its parts clear of the slope at its height); the floor under the slope isn't walked beside the console (`kickAft`); outside, the deck kept clear from the slope's foot.
+- **The solar catamaran**: kicked out 60° (`kick` 12, fixed); **her panels on the slope** (modules/solarRoof `slope`: a field laid along it, tilted from its foot) in place of the foredeck rack. Her berth and head moved a metre aft (the console now stands further aft).
+- Tests: tests/shipyard/kickedFront.test.ts (the range; the pilot boat's glass foot and console aft by the slope, the floor under it not walked; on the harbour tug's deckhouse, from its top; the solar cat's 60° slope with panels, no rack; a link or file). designDoc.test.ts: `kick` not in the code. The Shipyard and module tests and the typecheck pass.
+- Checked in the browser: the solar cat (side, bow quarter, at the helm), the pilot boat at 40°, the harbour tug at 30° on her deckhouse.
+- README: the new choice; the solar cat's front.
+- **Shared changes:** src/vessel/layout.ts (a front sloped back keeps its foot as the deck's clear line; the floor under the slope not walked); src/modules/solarRoof (`slope`).
+
+### The solar catamaran's paint the player's; black as she comes (approved by the owner 27 Oct 2026; on next)
+
+Owner, 27 Oct 2026: "The solar catamaran should get the paint options as well, the ones that are appropriate. Of course, it needs to be black."
+
+- Her paint left out of her fixed choices (catalog.ts `SOLAR_PAINT`): her topsides (`paint`), finish, wheelhouse walls (`houseColour`), window frames, roof colour and its top panel are the player's, on the Paint step as on any boat. She comes black (LIVERIES 'Black': her house its light grey), black frames, a black roof edge, as new. Not the service liveries' markings (`markings` stays fixed: they want a single hull). Her one-off note says what's hers now.
+- Tests: solarCatYard.test.ts (her paint not fixed, black as she comes, another paint builds the same boat; the markings stay off). The Shipyard tests and the typecheck pass.
+- Checked in the browser: black, with the Paint step's rows.
+- README: her paint.
+- Merged origin/next (the tug's driving guide poster; the solar cat's hull now on next, the same as merged from the hull chat's branch).
+
+### The front windows swept back to 60°; the solar catamaran's house low and swept (approved by the owner 27 Oct 2026; on next)
+
+Owner, 27 Oct 2026, on the solar catamaran's house: "what I would do if I had the sliders is I would slide this down and I would make then the window as raked as possible ... lower the head height, move it to the sides"; then "would expect it to have near standing headroom ... the windows probably need to rake back more than 30 degrees. It's probably more like 60. That'd be good to have a slide. Generally, it would be good to have that slider work more like that."
+
+- **Front rake** (design `windowRake`, `MEASURES.windowRake`): now from 60° swept back to 30° reverse, on any hull (was ±30°). The house's front shear, the wipers and the console's set-back under the glass (house.ts `consoleBack`) already worked for any angle: the steeper the sweep, the further aft the console stands. Past the old -30°, a link or file.
+- **The solar catamaran's house** (`SOLAR_CAT_FIXED`): front swept back 60°, headroom 1.95 m (near standing; her helm is for sitting at), her floor level with her bridge deck. (Sunk 0.2 m into it, her aft doorway and the cockpit under the roof's overhang came out too low, the Shipyard said so: kept level.) Already the full width between her narrow side decks.
+- Tests: tests/shipyard/sweptFront.test.ts (the slider's range; every hull type at 60°: a sound boat, no new warnings, the console further aft; the solar cat's sweep; a link or file past 30°). The Shipyard tests and the typecheck pass.
+- Checked in the browser: the solar cat from the side and both quarters.
+- Still to do on her house: the owner's pictures (asked for in this chat) to compare against; a helm seat (the furniture keeps the helm clear today).
+- README: the front's range; the solar catamaran's house.
+
+### The solar catamaran: a one-off, all fixed but her battery (stop 1; approved by the owner 27 Oct 2026; on next)
+
+The hull modifications chat (step 2, owner's word): "the solar catamaran as a fixed one-off in the Shipyard, like the harbour tug". Owner, 26 Oct 2026: "this is a bit of a one-off build. I would say the only thing that should be options are the number of batteries ... We'll go with the some kind of pods as you suggest ... it should have a sort of basic interior. I'm not too sure the console will fit in there for the controls, but that there needs to be some instrumentation and things to drive it with."
+
+- **Her hull type** (catalog.ts `SOLAR_CAT` 8, design `HULL_TYPES` 9): the hull study's `solarCat` as drawn (the hull chat's lines, merged from claude/great-franklin-4e64nk), her wave-piercing centre bow kept; `regime` displacement, `catamaran` (her resistance her two slim hulls': vessel/catamaran.ts). A one-off with **everything fixed but `battery`** (`SOLAR_CAT_FIXED`: every design field as she is; the page hides the rest, its note per type now, `DesignHull.oneOffNote`). Her house: the wheelhouse 5.4 m with a 4.4 m saloon under one roof, the full width between narrow side decks, upright windows in a strip down each side, a short overhang over the open cockpit aft. White, a white house, the roof white; as new.
+- **Foam and plywood** (a new material, `CONFIG.shipyard.materials['foam and plywood']`: 16 kg/m2 of hull, 9 of house, the hull chat's figures): 4.7 t of hull structure.
+- **Her battery** (design `battery`, 20 to 200 kWh in tens, `batteryKWh`, default 100 kWh; not in the code): `CONFIG.shipyard.solarCat.batteryKgPerKWh` 7, low in her hulls amidships; priced `batteryPricePerKWh`. Her **solar roof** `solarKg` 800 kg, `solarPrice`. No fuel to speak of (a 40 L token tank for her stand-in). As she comes, 100 kWh: **10.99 t, 0.88 m draught**, GM 6.3 m, 0.98 m under her wet deck (the hull chat's 10.7 t, plus her furniture).
+- **Battery & range** (parts/solar.ts; her figures panel): her speed on `cruiseKw` 10 kW at `propulsiveEff` 0.55 on her own resistance (**6.9 kn**), the hours her battery's `usableShare` 0.9 gives at that, and the range (**62 nm, 9 h at 100 kWh**; 13 nm at 20 kWh, 123 nm at 200); her wet deck's height over the water, warning under `wetDeckWarn` 0.6 m. "Range flat out" and the trial's "Battery flat out" are her battery at full power on both motors (15 nm at 100 kWh), not fuel. No sun counted yet.
+- **Her motors**: ENGINES `SOLAR_MOTOR` 6 '25 kW electric pod motor' (hers alone, `only`; on another hull it's the 150 kW, saying so), twin, on **pod drives** (pods now allowed for an electric motor on a displacement hull, `electric`), each pod `podKg` 90 kg, its propeller the motor's own big slow one (`propMaxM` 0.7, not the pods' 0.55 cap). Drawn on the Engine step as a finned electric motor (vessel/view/engineModels.ts `electric` look). **In the game, a stand-in** until the modular builder chat's electric pod drives: each runs as a small diesel geared down `standInRatio` 2.5 more (a pod's own reduction) so it can swing her propellers; her gearbox fixed at step 4 (`gear` in her fixed choices, never matched): about **8.5 kn** flat out (11 on her real motors). Its sound and smoke are a diesel's until then.
+- **Her solar roof** (a new module, modules/solarRoof `deck.solar-roof`; recipe.ts; `CONFIG.shipyard.solarCat.roof`): dark panels (`panel` 1.0 x 1.6 m, `gap` 0.04) in aluminium frames over her roof and its overhang; a **wing** each side (`wingWidth` 1.0 m) drawn stowed, folded in over the roof's outer panels on a hinge at its edge (opening and tilting them: step 3, a moving part for the modular builder chat); a **rack** over the foredeck (`rack`: 2.4 m long, 0.7 m forward of the house, 0.6 m up, on four legs). All merged with her fixed parts: no draw calls of its own.
+- **A basic interior** (her fixed furniture pins): a settee each side of the saloon, a galley aft to starboard, a berth forward to port behind the helm and the head across from it. Her helm forward with the usual console and its screens (it fits: her house is 4.6 m wide).
+- **Fixed in passing (all boats with furniture): her furniture was counted twice in the game.** Each piece weighs itself (modules/furniture `physical`) and her weighed lightship had it too; furniture.ts now takes it off her lightship (`lightshipOf`), as her engines are (hullDef.ts). Her mass in the game now matches her weights (materials.test.ts caught it on her).
+- **The page**: the Engine step's **Battery** slider (her only control); the **Battery & range** figures; "Foam and plywood"; a roll period of "none to time (stops at once)" where a stiff, well-damped hull leaves none to time (she was NaN). Her hull card (hullCards.ts, typeFit.ts: measured on her stand-in).
+- Tests: tests/shipyard/solarCatYard.test.ts (she builds clean, 16 x 5.2 m of foam and plywood near her lines; her pods, solar roof and interior; all fixed but her battery; the battery's weight, draught, wet deck and range; her motors hers alone; her card; a link or file). The every-hull tests skip a one-off's fixed choices (her crane, searchlight, chart table, flare, skiff, console length); the resistance test skips catamarans; the cards and voices lists take her. designDoc.test.ts: `battery` not in the code. The full `npm test` and the typecheck pass.
+- Checked in the browser: her card, from both quarters and the side, the furniture from above, at the helm, the Engine step (Battery, her motors, her figures). Not checked: in the game in VR.
+- README: the solar catamaran.
+- **Shared changes:** a new module src/modules/solarRoof/index.ts (`deck.solar-roof`), registered in src/boats/library.ts; src/vessel/view/engineModels.ts (an `electric` look); the hull chat's src/hulls and src/vessel/hullForm.ts, hullMesh.ts (merged from their branch).
+- **Waiting on the modular builder chat:** electric pod drives (motor, battery drain, no fuel or smoke, a motor's sound; brief sent through the owner). Then she's wired to them (stop 2).
 ### (From the modular-builder chat) The harbour tug's driving guide poster
 
 - `parts/places.ts`: a `poster` place (wall.panel) on the port wall below the sill, aft of the helm, facing in, only on a boat with azimuth drives (`zDriveSet`); its height and fore-and-aft place from `CONFIG.modules.poster` (`aboveFloorMax`, `aftOfConsole`), kept clear of the aft wall.
 - `parts/recipe.ts`: the tug's `furniture.poster` (her driving guide) in it.
+
 
 ### (From the main game chat) A code ready once her gearbox is matched (26 Oct 2026)
 
