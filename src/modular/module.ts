@@ -17,6 +17,7 @@
  * Everything tunable comes from the module's config (`defaults`), which a recipe overrides
  * per boat: lever travel, gauge range, crane speeds.
  */
+import type { MotorSpec } from '../vessel/physics/electricMotor';
 import type * as THREE from 'three';
 import type { Control } from '../controls/Control';
 import type { Screen } from '../controls/instruments';
@@ -186,7 +187,7 @@ export interface GearFacts {
   /** A midship cleat (the skiff's painter): its station and the line's height. */
   midCleat: { z: number; lineY: number };
   /** The inboard diesel: the engine, its propeller, and its upkeep (oil, and where the engine and its dipstick are). */
-  diesel: { engine: Workboat['engine']; propeller: Workboat['propeller']; maintenance: Workboat['maintenance']; voice?: keyof typeof CONFIG.engineVoices; twin?: boolean; twinX?: number; /** Twin engines worked separately: a lever and a START each (VesselState.engine.stbd). */ split?: boolean; /** Outboards: each unit's x (m; propulsion.outboard), all giving the one engine's thrust. */ units?: number[]; /** Azimuth drives in place of shafts and rudders (modules/dieselInboard `azimuth`). */ azimuth?: boolean };
+  diesel: { engine: Workboat['engine']; propeller: Workboat['propeller']; maintenance: Workboat['maintenance']; voice?: keyof typeof CONFIG.engineVoices; twin?: boolean; twinX?: number; /** Twin engines worked separately: a lever and a START each (VesselState.engine.stbd). */ split?: boolean; /** Outboards: each unit's x (m; propulsion.outboard), all giving the one engine's thrust. */ units?: number[]; /** Azimuth drives in place of shafts and rudders (modules/dieselInboard `azimuth`). */ azimuth?: boolean; /** Electric motors in place of the diesels, from her battery (modules/pods `electric`, physics/electricMotor.ts). */ electric?: MotorSpec };
   /** The rudder and its steering gear. */
   rudder: Workboat['rudder'];
   /** An electric outboard: motor, battery and tiller. */
@@ -285,6 +286,13 @@ export interface PortIO {
 export interface EnvironmentReader {
   /** Simulated time (s). */
   time: number;
+  /** Unit vector toward the sun (world axes; below the horizon at night: y < 0). */
+  sun: [number, number, number];
+  /** The weather's cloud cover and rain now, 0..1 (none without weather: tests, trials). */
+  cloud: number;
+  rain: number;
+  /** Game hours to each real second (the game's clock). */
+  timeScale: number;
 }
 
 /**

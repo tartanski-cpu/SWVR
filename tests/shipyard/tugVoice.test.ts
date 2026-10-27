@@ -13,7 +13,7 @@ describe('the tug diesel’s voice', () => {
   it('the tug diesel speaks with the plain straight six (owner); the big-six voice kept, fires six a revolution, evenly, with clatter', () => {
     const tug = ENGINES.findIndex((e) => e.ratedRpm === 1000);
     expect(ENGINES[tug].voice).toBe('inlineSix');
-    expect(ENGINES.filter((_, i) => i !== tug).map((e) => e.voice)).toEqual(['inlineSix', 'v8', 'v8', 'inlineSix', 'v8', 'inlineSix']); // (the last, the solar catamaran's electric motors, a stand-in voice until her electric drives come)
+    expect(ENGINES.filter((_, i) => i !== tug).map((e) => e.voice)).toEqual(['inlineSix', 'v8', 'v8', 'inlineSix', 'v8', 'electric']); // (the last, the solar catamaran's electric motors: their whine)
     const big = CONFIG.engineVoices.bigSix;
     expect(ENGINES[tug].idleRpm).toBe(450);
     // Six a revolution: 45 Hz at its 450 rpm idle, 100 flat out.

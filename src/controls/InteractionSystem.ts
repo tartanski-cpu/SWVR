@@ -37,6 +37,8 @@ export interface HandFrame {
   gripPressed: boolean;
   triggerDown: boolean;
   triggerPressed: boolean;
+  /** The thumbstick (x right, y as the controller gives it: forward is negative). */
+  stick?: [number, number];
 }
 
 interface HandState {
@@ -55,6 +57,16 @@ export interface HoldRules {
   holdChanged(c: Control, held: boolean): void;
   /** Who has it, by name (multiplayer study #33: with three or four aboard, whom to ask). */
   holderName?(c: Control): string | null;
+}
+
+/** A hand's thumbstick as a control takes it: x right, y forward, the dead zone taken off and the rest rescaled to 0..1. */
+function stickOf(f: HandFrame): [number, number] {
+  const [x, y] = f.stick ?? [0, 0];
+  const dz = CONFIG.interaction.stickDeadZone;
+  const r = Math.hypot(x, y);
+  if (r <= dz) return [0, 0];
+  const k = Math.min(1, (r - dz) / (1 - dz)) / r;
+  return [x * k, -y * k];
 }
 
 const NO_RULES: HoldRules = { lockedByOther: () => false, holdChanged: () => {} };
@@ -181,8 +193,11 @@ export class InteractionSystem {
         // Held while the grip is (owner, Oct 2026: "when I grab them, I want to be locked onto
         // them. Doesn't matter if I move my body away from them"): no letting go by distance.
         if (f.gripDown) {
+          // Its thumbstick works it, where it can be (the tug's azimuth levers).
+          if (h.held.stickSteerable) h.held.stickSteer(...stickOf(f));
           h.held.grabMove(p);
         } else {
+          if (h.held.stickSteerable) h.held.stickSteer(0, 0);
           h.held.grabEnd(p);
           h.held = null;
         }
@@ -295,8 +310,14 @@ export class InteractionSystem {
     this.syncHolds();
   }
 
+  /** VR: the control this hand holds now, if any (its stick doesn't walk or turn you meanwhile). */
+  holding(hand: Handedness): Control | null {
+    return this.hands[hand].held;
+  }
+
   private releaseHand(hand: Handedness): void {
     const h = this.hands[hand];
+    if (h.held?.stickSteerable) h.held.stickSteer(0, 0);
     if (h.held) h.held.grabEnd(this.pointers[hand]);
     if (h.pressing) h.pressing.pressEnd();
     h.held = null;

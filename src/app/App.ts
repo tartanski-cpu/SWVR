@@ -1291,7 +1291,8 @@ export class App {
       // pressure with the key on and the engine stopped (it stops when she runs, owner).
       const diesel = gearOf(v, 'diesel');
       const al = diesel ? engineAlarms(v, diesel) : { highTemp: false, lowFuel: false };
-      const noOilPressure = !!diesel && v.engine.key > 0 && v.engine.phase !== 'running' && isPowered(v, 'instruments');
+      // (Electric motors: no oil pressure to lose.)
+      const noOilPressure = !!diesel && !diesel.electric && v.engine.key > 0 && v.engine.phase !== 'running' && isPowered(v, 'instruments');
       const consoleDist = this.homeView?.dashAnchor ? this.homeView.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
       this.sound.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running') || noOilPressure, consoleDist);
     }
@@ -2273,6 +2274,11 @@ export class App {
     return true;
   }
 
+  /** This hand's thumbstick walks or turns you: not while it makes a gesture, nor while the hand holds a control. */
+  private stickFree(hand: 'left' | 'right'): boolean {
+    return !this.gestures.ownsStick(hand) && !this.interaction?.holding(hand);
+  }
+
   /** Grab-the-world, stick and desktop movement, collision, floor following, comfort overlay. */
   private updateLocomotion(dt: number, inXR: boolean): void {
     const p = this.world.players[this.localPlayerId];
@@ -2453,8 +2459,10 @@ export class App {
       const s = Math.sin(p.yaw);
       desktopDelta = { x: (x * c + z * s) * speedScale, y, z: (-x * s + z * c) * speedScale };
     }
-    // A stick making a hand gesture (its grip held on a free hand) doesn't walk or turn.
-    const [lx, ly] = this.gestures.ownsStick('left') ? [0, 0] : this.xrInput.hands.left.stick;
+    // A stick making a hand gesture (its grip held on a free hand) doesn't walk or turn, nor
+    // does the stick of a hand holding a control (owner, Oct 2026: grabbed, "the left and
+    // right joystick should be controlling the throttles ... and not sliding you around").
+    const [lx, ly] = this.stickFree('left') ? this.xrInput.hands.left.stick : [0, 0];
     // Run (on foot): push the stick right to the edge - it ramps from walk to run over the
     // last fifth of its travel, so it doesn't lurch. (A stick click is already "board".)
     const push = Math.min(1, Math.max(0, (Math.hypot(lx, ly) - 0.8) / 0.2));
@@ -2467,7 +2475,7 @@ export class App {
       headForward: this.headFwd,
       grabbing,
       moveStick: inXR ? [lx * speedScale * run, -ly * speedScale * run] : [0, 0],
-      turnStick: inXR && !this.gestures.ownsStick('right') ? this.xrInput.hands.right.stick[0] : 0,
+      turnStick: inXR && this.stickFree('right') ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
       fly,
       // The desktop's fly camera (J): the body stays at its height, whatever is under the camera.
@@ -5215,6 +5223,7 @@ export class App {
         f.triggerDown = this.xrInput.isDown(h, XR_BUTTON.trigger);
         f.triggerPressed = this.xrInput.wasPressed(h, XR_BUTTON.trigger);
         f.trigger = this.xrInput.hands[h].values[XR_BUTTON.trigger] ?? (f.triggerDown ? 1 : 0);
+        f.stick = this.xrInput.hands[h].stick;
       }
       // The menu gets the right hand first; while it's on the menu its trigger is the menu's.
       if (this.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
