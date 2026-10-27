@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Turku loads faster: the piers' kit made as you come near, the berths and steps by a grid (27 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "The Turku map takes a while to load. Can you make sure it's not doing the same thing as the Firth of Clyde map with all the piers?"
 
 - **Measured** (a CPU profile of the page loading, headless): the world ready 20.8 s after the reload, of which the game's own start-up was 10.4 s. Two parts of it went over all of Turku's 3,276 jetty pieces (the Clyde has 308): making the harbour kit of every pier on the map before the first frame (5.6 s), though a square of it is drawn only within 2.5 km of you; and working out every berth along every pier face (2.6 s, each spot checked against every block and every berth so far), wanted at the start only to put you on the quay. The Clyde's old trouble (laying out its cargo, fixed by the main game chat on 24 Oct) is fine here: 0.7 s.
