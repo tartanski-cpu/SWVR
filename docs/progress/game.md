@@ -10,6 +10,13 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Engine rooms: the ladder is the only way out (27 Oct 2026)
+
+Owner: "if you jump, you actually jump out of the engine room back to the ship ... The only way in and out should be the ladder."
+- Below, the jump (Space, VR's A) and board / go ashore (B, the left stick's click) do nothing but say "In the engine room: climb up at the ladder" (`App.updateBody`, `App.toggleBoard`). A jump took you into the air off her deck, which the engine room took as having left.
+- **Checked headless:** below, Space and B: still below, aboard, on the floor plates; on deck, Space jumps as before. **Not checked:** VR (its A button).
+- **Shared changes:** none.
+
 ### The harbour tug's start-up, part 2: the START-UP page, the checklist card, the machinery's sounds (27 Oct 2026)
 
 Owner: "go to the next stage in the engine startup" (part 2 of the agreed plan).

@@ -2309,6 +2309,12 @@ export class App {
 
     if (mode === 'walk') {
       if (!jumpPressed) return false;
+      // In an engine room the ladder is the only way out (owner, 27 Oct 2026: a jump took you
+      // out of it and back on deck): no jumping below.
+      if (this.belowDecks.boatId) {
+        this.overlay.notify('In the engine room: climb up at the ladder', 2);
+        return false;
+      }
       const headL = frame.worldToLocal(this.tmpV.copy(this.headW));
       if (area.ladderAt(headL.x, headL.z)) return false; // Space climbs ladders
       const v = p.aboardVesselId ? this.vesselViews.get(p.aboardVesselId) : undefined;
@@ -2670,6 +2676,8 @@ export class App {
   }
 
   private toggleBoard(): void {
+    // (Not from an engine room: the ladder is the only way out of it.)
+    if (this.belowDecks.boatId) return this.overlay.notify('In the engine room: climb up at the ladder', 2);
     const aboard = this.world.players[this.localPlayerId].aboardVesselId;
     this.intents.push({
       playerId: this.localPlayerId,
