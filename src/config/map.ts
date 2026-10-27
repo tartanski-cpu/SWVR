@@ -70,6 +70,8 @@ export const MAP_CONFIG = {
     /** A coast region's harbour kit (piers, quays, slipways, lamps) in squares this big (m), each drawn only within coastStructureDistance (m) of the viewer; lighthouses always. */
     coastStructureCell: 1000,
     coastStructureDistance: 2500,
+    /** ...each square made only as the viewer comes within that distance of it (and a square more), piece by piece, up to this many ms a frame; those round the start before the first frame (worldView CoastKit). */
+    coastKitMs: 4,
     /** A mussel farm's long-line (a coast map's, the coast extras plan C2; worldView.buildFarm): one float every this many metres along it. */
     lineFloat: 6,
     coastLoadDistance: 1500,
