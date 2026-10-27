@@ -10,6 +10,8 @@
  * Each panel is a rectangle on one of them (`Region`, in pixels); room.ts puts a quad for it
  * where it goes, with its corners' texture coordinates on that rectangle.
  */
+import { CONFIG } from '../../../config';
+import { busLive } from '../../../plant/plant';
 import type { VesselState, EngineState } from '../../../vessel/vesselState';
 import { fuelTankL } from '../../../vessel/fuelTank';
 
@@ -62,13 +64,25 @@ const deg = (rad: number | undefined) => ((((rad ?? 0) * 180) / Math.PI) % 360 +
 /** Her alarms as the monitoring system would list them, from her state. */
 export function alarms(v: VesselState): { text: string; level: 'alarm' | 'warn' }[] {
   const out: { text: string; level: 'alarm' | 'warn' }[] = [];
+  // Her start-up (plant/plant.ts): what's still shut, stopped or low.
+  const p = v.plant;
+  if (p) {
+    if (!busLive(p)) out.push({ text: p.gen === 'starting' ? 'GENERATOR RUNNING UP' : p.gen === 'running' ? 'NO MAIN POWER - GENERATOR BREAKER OPEN' : 'DEAD SHIP - GENERATOR STOPPED', level: p.gen === 'starting' ? 'warn' : 'alarm' });
+    if (!p.fuelPump) out.push({ text: 'FUEL SUPPLY PUMP STOPPED', level: 'warn' });
+    if (!p.airValve) out.push({ text: 'START AIR MAIN VALVE SHUT', level: 'warn' });
+    if (p.airBar < CONFIG.plant.airStartMinBar) out.push({ text: `START AIR PRESSURE LOW  ${p.airBar.toFixed(0)} bar`, level: 'alarm' });
+    if (p.place !== 2) out.push({ text: p.place === 0 ? 'ENGINE CONTROL AT LOCAL' : 'ENGINE CONTROL AT CONTROL ROOM', level: 'warn' });
+  }
   engines(v).forEach((e, i) => {
     const n = i === 0 ? 'PORT ME' : 'STBD ME';
+    if (p && !p.dayValve[i]) out.push({ text: `${n} DAY TANK VALVE SHUT`, level: 'warn' });
+    if (p && !p.sea[i]) out.push({ text: `${n} SEA SUCTION SHUT`, level: 'warn' });
+    if (p && e.phase === 'off' && p.lubeBar[i] < CONFIG.plant.lubeStartBar) out.push({ text: `${n} LUB OIL PRESSURE LOW  ${p.lubeBar[i].toFixed(1)} bar`, level: 'alarm' });
     if (e.coolantC > 95) out.push({ text: `${n} JACKET WATER TEMP HIGH  ${Math.round(e.coolantC)} °C`, level: 'alarm' });
     if (e.oilC > 115) out.push({ text: `${n} LUB OIL TEMP HIGH  ${Math.round(e.oilC)} °C`, level: 'alarm' });
     if ((e.oil ?? 1) < 0.35) out.push({ text: `${n} LUB OIL LEVEL LOW`, level: 'warn' });
     if (e.coolingFault) out.push({ text: `${n} SEA WATER PUMP FAULT`, level: 'alarm' });
-    if (e.key > 0 && e.phase === 'off') out.push({ text: `${n} LUB OIL PRESSURE LOW (STOPPED)`, level: 'warn' });
+    if (!p && e.key > 0 && e.phase === 'off') out.push({ text: `${n} LUB OIL PRESSURE LOW (STOPPED)`, level: 'warn' });
   });
   const tank = fuelTankL(v);
   if (tank && v.engine.fuelL / tank < 0.15) out.push({ text: 'FUEL DAY TANK LEVEL LOW', level: 'warn' });

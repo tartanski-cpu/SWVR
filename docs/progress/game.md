@@ -10,6 +10,47 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug's start-up from dead ship, part 1 (27 Oct 2026)
+
+Owner: "the only thing I want for the engine room is a realistic startup procedure. So it's go downstairs, turn the fuel and whatever is appropriate for the generator, get power on"; the plan agreed, "go ahead with part 1".
+
+- **The procedure** (`src/plant/plant.ts`, its state `VesselState.plant`, plain JSON stepped by the host after her machinery each tick; `CONFIG.plant`). She comes from port **dead ship**:
+  1. 24 V: the battery master (`electrics.master`), now also on the control room's switchboard;
+  2. the generator: its fuel valve, START on its control box; it runs up in `genRunUpS` 8 s;
+  3. power on: the generator breaker on the main switchboard (refused while it's stopped or running up; it trips if the generator stops). The room's lights come up from the emergency lights' glow;
+  4. fuel: each engine's day tank valve, and the fuel supply pump on the switchboard;
+  5. sea water: each engine's sea suction valve, at the strainers;
+  6. pre-lube: each engine's pre-lube pump, until its oil is at `lubeStartBar` 1 bar (`prelubeBar` 1.5 in `prelubeS` 15 s; falling `lubeDecayBarS` 0.05 a second with the pump off; `lubeRunBar` 4.2 running);
+  7. starting air: the compressor (`airFillBarS` 0.75 bar a second to `airMaxBar` 30) and the main air valve; each start takes `startAirBar` 4 and needs `airStartMinBar` 12;
+  8. START at each engine's own control stand (or from the bridge once handed over);
+  9. the engine control switch (LOCAL / CONTROL ROOM / BRIDGE) to BRIDGE: only then do the bridge's levers and STARTs work her.
+- **Missed steps say so, as her alarms would:** START with no 24 V, oil pressure, fuel, fuel pressure, air valve or air is blocked, with the reason (`plant.note`, said to whoever's aboard: `App.plantNotes`). Running, a day tank valve shut stops that engine after `starveS` 6 s; a sea suction shut is the cooling fault the boats already have (she heats up and alarms); the generator's fuel shut stops it, and its breaker trips: blackout. The bridge's START before the handover says "Engines not ready: the engine room has control".
+- **The controls** (`app/engineRoom/tug/controls.ts`): 18 ordinary controls through intents `er.<what>` (multiplayer works as for any control):
+  - a new handwheel `Valve` (a press opens or shuts it; its wheel turns and its spindle rises when open), toggles, buttons and the battery master;
+  - on the switchboard, the generator, the day tanks, the air bottles and compressor, the strainers, and each engine's **local control stand**: new, a pedestal in the aisle beside each engine with its panel at eye height (the panel on the engine's side was hidden behind its lagging);
+  - built with the room, registered with the interaction system then (`BelowContext.addControls`), working only while you're below.
+- **Quick start** (Menu > Tests, and the Shipyard's sea trial) readies it all and hands her to the bridge (`plantReady`), so nothing that starts her the quick way changes. A tug already running when her plant is first made (a game carried on) starts ready, her pre-lube pumps on.
+- **The screens' alarm list** shows what's still to do: dead ship, breaker open, pumps stopped, valves shut, oil pressure, start air, control not at the bridge.
+- **Tests:** tests/plant.test.ts covers:
+  - dead ship, with the bridge's START dead;
+  - the whole procedure to the bridge, her levers then working her;
+  - each missed step blocking her start, with its reason;
+  - fuel, sea water and the generator's fuel shut while she runs;
+  - Quick start.
+
+  tests/azimuth.test.ts now readies her engine room first.
+- **Checked headless:**
+  - the whole procedure through the controls' real press path (the interaction system's, routed to the host), from dead ship to both engines running and the control at the bridge;
+  - every control seen in place, and the lights going from dead to live;
+  - while below: 7–48 draw calls (was 5–10; the controls are small separate meshes) and about 105,000 triangles.
+- **Not checked:** VR (reaching the valves and switches, especially the low ones), the Quest's frame rate below with the controls, multiplayer with two below.
+- **Shared changes**, all small; other boats unchanged:
+  - `src/vessel/vesselState.ts`: `plant`, `PlantState`;
+  - `src/vessel/vesselControl.ts`: the `er.` intents, and Quick start readies the plant;
+  - `src/core/simulation.ts`: `stepPlant` after her machinery;
+  - `src/modular/busKeys.ts`: the `plant.bridge` key;
+  - `src/modules/dieselInboard/index.ts`: its `bridge` port. Until she's handed over, the bridge's levers and STARTs don't reach her engines.
+
 ### The tug's levers: the thumbsticks work them, notches at 12, 3, 6 and 9 o'clock (27 Oct 2026)
 
 Owner: grabbed, "the left and right joystick should be controlling the throttles once you've grabbed them. And not sliding you around"; the same holding the wheel; and the azimuth levers should "snap to ... 12 o'clock, 3 o'clock, 6 o'clock, and 9 o'clock to make it a bit easier to find those key positions". (Neither was on any branch: found nowhere in the history, so built here.)

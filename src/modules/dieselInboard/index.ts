@@ -132,6 +132,9 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     heading: { dir: 'write', key: 'azimuth.angle', required: false },
     heading2: { dir: 'write', key: 'azimuth.angle2', required: false },
     powered: { dir: 'read', key: 'electrical.powered' },
+    // The harbour tug's engine room (plant/plant.ts): until it hands her to the bridge, the
+    // bridge's levers and STARTs don't work her engines.
+    bridge: { dir: 'read', key: 'plant.bridge', required: false },
     volts: { dir: 'read', key: 'electrical.busVoltage', required: false },
     fuel: { dir: 'write', key: 'fuel.litres' },
     thrust: { dir: 'write', key: 'propulsion.thrust' },
@@ -171,7 +174,7 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
       const inputs: DieselInputs = {
         lever: io.num('throttle'),
         heat: io.num('heat'),
-        start: io.num('start'),
+        start: bridgeHas(io) ? io.num('start') : 0,
         powered: !!io.get('powered'),
         // A tired battery cranks slowly, a flat one not at all; no electrics: a full starter.
         starterFactor: io.has('volts') ? clamp((io.num('volts') - 9) / 2.5, 0, 1) : 1,
@@ -269,6 +272,11 @@ export function azimuthDemand(io: Pick<PortIO, 'num' | 'has' | 'get'>): { want: 
   return { want: [wrap(want[0]), wrap(want[1])], power };
 }
 
+/** The bridge works her engines: always, but on the harbour tug until her engine room hands them over (plant.bridge). */
+function bridgeHas(io: PortIO): boolean {
+  return !io.has('bridge') || !!io.get('bridge');
+}
+
 /**
  * One tick of the two drives and their engines: each drive turned toward where it's asked (the
  * shortest way, at its steering rate), each engine from its power (twinStep: its own START,
@@ -300,7 +308,9 @@ function azimuthStep(port: PhysicsPort, c: DieselInboardConfig & { azimuth: NonN
     speeds.push(-f.z * Math.cos(th) + f.x * Math.sin(th));
     wet += Math.min(1, Math.max(0, (port.depthAt(props[i]) + p.diameter / 2) / p.diameter)) / 2;
   }
-  const t = twinStep(e, c, { ...inputs, lever: power[0] }, power[1], io.num('start2'), speeds[0], wet, dt, speeds[1]);
+  // (Not handed to the bridge: her engines idle whatever the levers say, and her STARTs are dead.)
+  const bridge = bridgeHas(io);
+  const t = twinStep(e, c, { ...inputs, lever: bridge ? power[0] : 0 }, bridge ? power[1] : 0, bridge ? io.num('start2') : 0, speeds[0], wet, dt, speeds[1]);
   io.set('thrust', (t.port + t.stbd) / 2);
   io.set('immersion', wet);
   io.set('fuel', t.fuelL);

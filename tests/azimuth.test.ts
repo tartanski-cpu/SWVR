@@ -20,6 +20,7 @@ import { buildDesign, DESIGN_HULLS } from '../src/shipyard/build';
 import { DEFAULT_DESIGN, type ShipDesign } from '../src/shipyard/design';
 import { matchGear } from '../src/shipyard/trial';
 import { placeVessel } from '../src/vessel/vesselControl';
+import { plantReady } from '../src/plant/plant';
 
 afterAll(() => useDesign(DEFAULT_DESIGN));
 
@@ -42,6 +43,8 @@ function underWay() {
   const run = (s: number) => {
     for (let i = 0; i < s / DT; i++) stepWorld(world, [], DT);
   };
+  // (Her engine room readied and handed to the bridge, as the quick start does: plant/plant.ts.)
+  plantReady(v);
   send('electrical.master', 1);
   for (const b of ['instruments', 'chart', 'radio', 'navLights', 'hydraulics']) send(`breaker.${b}`, 1);
   send('ignition.key', 1);

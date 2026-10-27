@@ -36,6 +36,23 @@ Her room is longer (`CONFIG.engineRoom.big`) and drawn in detail by `src/app/eng
 
 It's 5–10 draw calls and about 105,000 triangles while you're below; see `docs/progress/game.md`. The other rooms (the trawler's, the dive ship's) are still the plain milestone 1 room.
 
+## The harbour tug's start-up (27 Oct 2026)
+
+The owner: "the only thing I want for the engine room is a realistic startup procedure". Part 1 (`src/plant/plant.ts`, the controls in `tug/controls.ts`): she comes from port dead ship, and is brought to life below, step by step:
+1. 24 V on (battery master);
+2. the generator (its fuel valve, START);
+3. its breaker on the switchboard (power on, the lights come up);
+4. fuel (day tank valves, supply pump);
+5. sea water (sea suction valves);
+6. pre-lube;
+7. starting air (compressor, main air valve);
+8. START at each engine's local control stand;
+9. the engine control switch to BRIDGE.
+
+Missed steps block her start and say why. Quick start does it all.
+
+Part 2 (next): a START-UP page on the control room screen ticking the steps off, a checklist card on the wall, and the sounds (the generator, the starting air, the fans).
+
 ## For the Shipyard chat (its files: `src/shipyard/`)
 
 - Show the engine room in the Shipyard: the space from `engineRoomPlan`, in the cutaway or the Engine step, with a line like "Engine room 7.5 × 8.8 m, 2.5 m headroom" or "No engine room: hatch access only".
@@ -54,9 +71,7 @@ It's 5–10 draw calls and about 105,000 triangles while you're below; see `docs
 
 ## Next for the main game (milestone 2)
 
-- Controls in the room, as ordinary controls through intents, so multiplayer and holds work:
-  - each engine's local stop and emergency stop;
-  - the fuel valves, the sea cock;
+- Controls in the room, as ordinary controls through intents, so multiplayer and holds work (the tug's start-up has the first: the local stops, the fuel and sea valves):
   - the bilge pump;
   - the dipstick and oil.
 - The engine room's sound: loud below, the outside muffled.

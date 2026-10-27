@@ -730,6 +730,33 @@ export const CONFIG = {
     big: { fromLoaM: 24, lengthShare: 0.42, maxLengthM: 10.5 },
   },
 
+  /**
+   * The harbour tug's start-up from dead ship (owner, 27 Oct 2026: "a realistic startup
+   * procedure ... go downstairs, turn the fuel and whatever is appropriate for the generator,
+   * get power on"; src/plant/plant.ts). Times are shortened from real life to keep it playable.
+   *   genRunUpS      the generator from START to 400 V 50 Hz (s)
+   *   starveS        an engine or the generator runs on this long once its fuel is shut (s)
+   *   prelubeBar     the oil pressure the pre-lube pump builds, in `prelubeS`; `lubeStartBar`
+   *                  is what a start needs (the engine's own pump gives `lubeRunBar` running);
+   *                  with the pump off it falls `lubeDecayBarS` a second
+   *   airMaxBar      the starting air bottles full; the compressor fills them `airFillBarS` a
+   *                  second (about 40 s from empty); each start takes `startAirBar`, and a start
+   *                  needs `airStartMinBar`
+   */
+  plant: {
+    genRunUpS: 8,
+    starveS: 6,
+    prelubeBar: 1.5,
+    prelubeS: 15,
+    lubeStartBar: 1.0,
+    lubeRunBar: 4.2,
+    lubeDecayBarS: 0.05,
+    airMaxBar: 30,
+    airFillBarS: 0.75,
+    startAirBar: 4,
+    airStartMinBar: 12,
+  },
+
   dive: {
     radius: 50,
     /**

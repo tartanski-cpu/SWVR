@@ -1,3 +1,4 @@
+import { applyPlantIntent, plantReady } from '../plant/plant';
 import { BREAKERS, type BreakerName } from './vesselState';
 import * as THREE from 'three';
 import type { Intent } from '../core/intents';
@@ -219,7 +220,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       }
       break;
     case 'quickStart':
-      // One press does it all (quick-start option / debug): master, main breakers, start.
+      // One press does it all (quick-start option / debug): master, main breakers, start
+      // (the harbour tug's engine room readied first: plant/plant.ts).
+      if (s.engine.phase === 'off') plantReady(s);
       quickStart(s);
       break;
     case 'master':
@@ -227,6 +230,8 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       if (s.electrics) s.electrics.master = intent.value > 0.5 ? 1 : 0;
       break;
     default:
+      // The harbour tug's engine room: 'er.<what>' (plant/plant.ts).
+      if (intent.control.startsWith('er.')) applyPlantIntent(s, intent.control.slice(3), intent.value);
       // Breakers: 'brk_<name>' 1 on / 0 off.
       if (intent.control.startsWith('brk_') && s.electrics) {
         const k = intent.control.slice(4) as BreakerName;

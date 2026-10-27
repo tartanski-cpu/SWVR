@@ -21,6 +21,9 @@ import { detailedEngine } from './engine';
 import { Kit, circle, type V3 } from './kit';
 import type { TugLayout } from './layout';
 import { FIXED, LIVE, TugPanels, type Region } from './panels';
+import { tugControls, type ControlPlaces } from './controls';
+import type { Control } from '../../../controls/Control';
+import { busLive } from '../../../plant/plant';
 
 // Colours (as an engine room is painted; the pipes colour-coded, as is usual practice).
 const PLATE = 0x8a8f92;
@@ -89,6 +92,11 @@ export class TugRoom {
   private readonly shafts: THREE.Mesh[] = [];
   private readonly turned = [0, 0];
   private sinceDraw = 1;
+  /** The start-up's controls (controls.ts), in the room; the app hands them to the interaction system. */
+  readonly controls: Control[];
+  /** Her lights: full on a live switchboard, the emergency lights (dim) on batteries alone. */
+  private readonly lights: { light: THREE.Light; full: number; dead: number }[] = [];
+  private lit = 1;
 
   constructor(readonly p: EngineRoomPlan, readonly t: TugLayout, name: string) {
     const k = new Kit();
@@ -98,6 +106,7 @@ export class TugRoom {
     const live: THREE.BufferGeometry[] = [];
     const fixed: THREE.BufferGeometry[] = [];
     const L = t.port.size[0];
+    const places: ControlPlaces = { lops: [] };
 
     // ── The engines, in detail, placed as hers are (at the flange, tilted to the shaft) ──
     for (const e of [t.port, t.stbd]) {
@@ -105,8 +114,18 @@ export class TugRoom {
       const de = detailedEngine(e.size, side);
       const m = new THREE.Matrix4().makeRotationX((e.angleDeg * Math.PI) / 180).setPosition(e.x, e.flangeY, e.flangeZ);
       k.parts.push(...Kit.moved(de.kit.parts, m));
-      const at = new THREE.Vector3(...de.lop.at).applyMatrix4(m);
-      live.push(panel(e.x < 0 ? LIVE.lopPort : LIVE.lopStbd, LIVE.size, [at.x + side * 0.002, at.y, at.z], side > 0 ? '+x' : '-x', de.lop.w, de.lop.h));
+      // Its local control stand in the aisle: a pedestal, its live panel at eye height, an
+      // emergency stop on its forward edge, the plate for its pre-lube switch, START and STOP
+      // under the panel (the room's controls: controls.ts).
+      const st = t.lops[e === t.port ? 0 : 1];
+      const f = st.facing === '+x' ? 1 : -1;
+      k.box(0.3, 0.06, 0.5, st.x, sole + 0.03, st.z, DARK);
+      k.box(0.1, 1.05, 0.14, st.x - f * 0.05, sole + 0.55, st.z, 0x5f676c);
+      k.box(0.12, de.lop.h + 0.42, de.lop.w + 0.08, st.x - f * 0.04, sole + 1.3, st.z, 0x6c7378);
+      k.box(0.05, 0.1, 0.1, st.x + f * 0.03, sole + 1.62, st.z + de.lop.w / 2 + 0.02, YELLOW);
+      k.cyl(0.035, [st.x + f * 0.05, sole + 1.62, st.z + de.lop.w / 2 + 0.02], [st.x + f * 0.1, sole + 1.62, st.z + de.lop.w / 2 + 0.02], RED, 12);
+      live.push(panel(e.x < 0 ? LIVE.lopPort : LIVE.lopStbd, LIVE.size, [st.x + f * 0.021, sole + 1.42, st.z], st.facing, de.lop.w, de.lop.h));
+      places.lops.push({ at: [st.x + f * 0.02, sole + 1.42, st.z], facing: st.facing });
       // The exhaust uptakes, lagged, from the turbochargers up through the deckhead, with expansion bellows.
       for (const ex of de.exhausts) {
         const o = new THREE.Vector3(...ex).applyMatrix4(m);
@@ -289,14 +308,16 @@ export class TugRoom {
       // Its sight glass, the quick-closing valve at its foot (wire to deck), the vent up.
       k.cyl(0.02, [tk.x0 + 0.1, sole + 0.15, tk.z1 + 0.04], [tk.x0 + 0.1, sole + 1.5, tk.z1 + 0.04], 0xd9c48a, 8);
       for (const y of [sole + 0.15, sole + 1.5]) k.box(0.06, 0.05, 0.06, tk.x0 + 0.1, y, tk.z1 + 0.03, STEEL);
-      k.valve([x, sole + 0.2, tk.z1 + 0.08], 0.04, BROWN, YELLOW);
+      // (Its outlet valve is a control: controls.ts.)
+      k.box(0.12, 0.12, 0.06, x, sole + 0.35, tk.z1 + 0.03, BROWN);
       k.pipe(0.04, [[x, sole + 1.6, z], [x, head, z]], BROWN, false);
       k.pipe(0.035, [[x, sole + 0.2, tk.z1 + 0.1], [x, sole + 0.12, tk.z1 + 0.35], [t.stbd.x + 0.6, sole + 0.12, tk.z1 + 0.35], [t.stbd.x + 0.6, sole + 0.12, t.front + 0.4]], BROWN);
     }
     for (const r of t.receivers) {
       k.vessel(r.r, r.x, sole + 0.1, sole + 1.7, r.z, 0x7c868c);
       k.box(r.r * 2, 0.1, r.r * 2, r.x, sole + 0.05, r.z, DARK);
-      k.valve([r.x, sole + 1.75, r.z], 0.035, AIR, RED);
+      // (The forward bottle's valve is the main air valve, a control: controls.ts.)
+      if (r !== t.receivers[0]) k.valve([r.x, sole + 1.75, r.z], 0.035, AIR, RED);
       k.ball(0.05, r.x + r.r * 0.8, sole + 1.2, r.z, 0xf2efe6, 10); // its pressure gauge
     }
     k.pipe(0.025, [[t.receivers[0].x, sole + 1.6, t.receivers[0].z], [t.receivers[0].x, sole + 1.9, t.receivers[0].z], [t.receivers[1].x, sole + 1.9, t.receivers[1].z], [t.receivers[1].x, sole + 1.6, t.receivers[1].z]], AIR);
@@ -306,6 +327,7 @@ export class TugRoom {
       k.cyl(0.18, [c.x - 0.38, sole + 0.38, c.z], [c.x + 0.05, sole + 0.38, c.z], 0x3d6fa8, 16); // its motor
       k.box(0.3, 0.42, 0.34, c.x + 0.22, sole + 0.35, c.z, 0x7c868c);
       for (let i = 0; i < 5; i++) k.box(0.32, 0.015, 0.36, c.x + 0.22, sole + 0.6 + i * 0.03, c.z, STEEL);
+      k.box(0.18, 0.24, 0.1, c.x - 0.2, sole + 0.6, c.z + 0.15, 0x6c7378); // its starter box (its switch: controls.ts)
       k.pipe(0.025, [[c.x + 0.22, sole + 0.75, c.z], [c.x + 0.22, sole + 1.9, c.z], [t.receivers[1].x, sole + 1.9, c.z], [t.receivers[1].x, sole + 1.9, t.receivers[1].z]], AIR);
     }
 
@@ -329,7 +351,8 @@ export class TugRoom {
         k.box(0.44, 0.08, 0.44, st.x + 0.02, sole + 0.04, st.z, DARK);
         for (const dz of [-0.1, 0.1]) k.vessel(0.09, st.x, sole + 0.08, sole + 0.6, st.z + dz, GREEN);
         k.cyl(0.015, [st.x, sole + 0.66, st.z], [st.x + 0.2, sole + 0.66, st.z], RED, 6); // the changeover lever
-        k.valve([st.x + 0.05, sole + 0.75, st.z + 0.28], 0.04, GREEN, RED);
+        // (Its sea suction valve is a control: controls.ts.)
+        k.cyl(0.05, [st.x + 0.05, sole + 0.35, st.z + 0.28], [st.x + 0.05, sole + 0.72, st.z + 0.28], GREEN, 12);
         k.pipe(0.06, [[st.x, sole + 0.35, st.z + 0.22], [st.x + 0.4, sole + 0.35, st.z + 0.22], [st.x + 0.4, sole + 0.35, t.front - 0.2], [t.port.x - 0.4, sole + 0.35, t.front - 0.2]], GREEN);
       }
     }
@@ -353,6 +376,9 @@ export class TugRoom {
       for (let i = 0; i < 8; i++) k.box(0.05, 0.05, (g.z1 - ez1) * 0.8, g.x + Math.cos((i / 8) * Math.PI * 2) * 0.34, sole + 0.55 + Math.sin((i / 8) * Math.PI * 2) * 0.34, (ez1 + g.z1) / 2, 0x3e6a4c);
       k.box(0.4, 0.34, 0.22, g.x, sole + 1.08, g.z1 - 0.3, 0x6c7378);
       k.box(0.3, 0.2, 0.01, g.x, sole + 1.1, g.z1 - 0.185, 0xf2efe6);
+      // Its fuel supply (the port set's valve on it is a control: controls.ts), along the floor.
+      k.box(0.1, 0.1, 0.1, g.x - 0.55, sole + 0.05, g.z0 + 0.3, BROWN);
+      k.pipe(0.025, [[g.x - 0.55, sole + 0.08, g.z0 + 0.3], [g.x - 0.25, sole + 0.08, g.z0 + 0.3], [g.x - 0.25, sole + 0.3, g.z0 + 0.3]], BROWN, false);
       // Its exhaust up, lagged.
       k.cyl(0.07, [g.x + 0.15, sole + 0.95, ez0 + 0.2], [g.x + 0.15, head + 0.05, ez0 + 0.2], LAGGING, 12);
     }
@@ -493,17 +519,35 @@ export class TugRoom {
     // ── Its lights: the room's, and three lamps along the deckhead ──
     const hemi = new THREE.HemisphereLight(0xfff6e8, 0x5d6064, 1.25);
     hemi.position.set(0, head, (p.z0 + p.z1) / 2);
-    this.root.add(hemi, new THREE.AmbientLight(0xffffff, 0.3));
+    const amb = new THREE.AmbientLight(0xffffff, 0.3);
+    this.root.add(hemi, amb);
+    // (Dead ship: the emergency lights only, a dim glow; the lamps out.)
+    this.lights.push({ light: hemi, full: 1.25, dead: 0.16 }, { light: amb, full: 0.3, dead: 0.05 });
     for (const l of lamps) {
       const pl = new THREE.PointLight(0xfff1d6, 2.2, 7, 1.6);
       pl.position.set(...l);
       this.root.add(pl);
+      this.lights.push({ light: pl, full: 2.2, dead: 0 });
     }
+
+    // ── The start-up's controls ──
+    this.controls = tugControls(p, t, places);
+    for (const c of this.controls) this.root.add(c.root);
   }
 
   /** Each frame: the shafts turned with their engines; the live panels redrawn a few times a second. */
   update(v: VesselState | undefined, time: number, dt: number): void {
     if (!v) return;
+    for (const c of this.controls) {
+      c.sync(v);
+      c.tick(dt);
+    }
+    // The main lights come up (or go out) with the switchboard, over about a second.
+    const want = !v.plant || busLive(v.plant) ? 1 : 0;
+    if (this.lit !== want) {
+      this.lit = want > this.lit ? Math.min(1, this.lit + dt * 1.5) : Math.max(0, this.lit - dt * 3);
+      for (const l of this.lights) l.light.intensity = l.dead + (l.full - l.dead) * this.lit;
+    }
     const rpm = [v.engine.rpm, (v.engine.stbd ?? v.engine).rpm];
     this.shafts.forEach((m, i) => {
       // Shown turning at a tenth of its speed (at its true speed, many turns a frame, it would

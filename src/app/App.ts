@@ -919,6 +919,8 @@ export class App {
       keep: () => this.keptBelow(),
       notify: (text, s) => this.overlay.notify(text, s),
       boatName: (defId) => this.boatLabel(defId),
+      addControls: (cs) => this.interaction?.addControls(cs),
+      removeControls: (cs) => this.interaction?.removeControls(cs),
     });
     this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine));
 
@@ -1468,6 +1470,7 @@ export class App {
     for (const b of this.yardBoards) b.update(this.scene, this.focus);
     for (const s of this.shipyardSigns) s.updateAt(this.scene, this.focus);
     this.belowDecks.update(dt);
+    this.plantNotes();
     this.gangway.update(this.gangwayCtx(), this.camera.getWorldPosition(this.gangwayEye));
     if (this.board) {
       this.board.update(this.world);
@@ -4598,7 +4601,7 @@ export class App {
         }
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
-        if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
+        if ((channel === 'start' || channel === 'ignition.start' || channel === 'ignition.start2') && value > 0) this.startInGearHint();
         if (channel === 'dipstick' || channel === 'propulsion.oilCheck') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
         if (channel === 'sos') return value > 0 ? this.sendSos() : undefined;
@@ -6256,9 +6259,34 @@ export class App {
     this.overlay.notify(r === 'ok' ? 'Dipstick: oil between MIN and MAX. Fine.' : r === 'low' ? 'Dipstick: oil near MIN. Top up from the can.' : 'Dipstick: barely any oil on it! Top up now.', 4);
   }
 
+  /** Each boat's engine room alarm last said (plant/plant.ts `noteN`), by boat. */
+  private readonly plantNoteN = new Map<string, number>();
+
+  /** The harbour tug's engine room: what stopped or blocked her (a start, the generator, a blackout), said to whoever's aboard her. */
+  private plantNotes(): void {
+    const id = this.world.players[this.localPlayerId]?.aboardVesselId;
+    const p = id ? this.world.vessels[id]?.plant : undefined;
+    if (!id || !p) return;
+    const n = p.noteN ?? 0;
+    const was = this.plantNoteN.get(id);
+    this.plantNoteN.set(id, n);
+    if (was !== undefined && n > was && p.note) {
+      this.overlay.notify(p.note, 4);
+      this.xrInput.pulse('right', 0.6, 120);
+    }
+  }
+
+  /** The bridge's START on the harbour tug before her engine room has handed her over: why nothing happens. */
+  private engineRoomHint(v: VesselState | undefined): boolean {
+    if (!v?.plant || v.plant.place === 2) return false;
+    this.overlay.notify('Engines not ready: the engine room has control. Start her up below, then turn ENGINE CONTROL to BRIDGE (or Menu > Tests > Quick start).', 5);
+    return true;
+  }
+
   /** START pressed with the lever in gear: the neutral-safety switch says no. */
   private startInGearHint(): void {
     const v = this.world.vessels[this.testVesselId];
+    if (this.engineRoomHint(v)) return;
     const diesel = v && gearOf(v, 'diesel');
     if (v && diesel && leverDemand(diesel, v.controls.lever).gear !== 0) {
       this.overlay.notify('Neutral safety: the lever must be in neutral to start', 2.5);
@@ -6280,6 +6308,7 @@ export class App {
     const diesel = gearOf(v, 'diesel');
     // Quick start is a session setting (CONFIG.vessels.workboat.electrics.quickStart), for a boat with batteries and a diesel.
     if (!diesel || !gearOf(v, 'batteries') || !CONFIG.vessels.workboat.electrics.quickStart) {
+      if (v.engine.phase === 'off' && this.engineRoomHint(v)) return;
       if (v.engine.phase === 'off') this.overlay.notify('Start her properly: master, INSTR breaker, key, wait for the GLOW lamp, START (see the card). Menu > Tests > Quick start does it all.', 5);
       else send('key', 0);
       return;

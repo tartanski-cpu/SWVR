@@ -327,6 +327,8 @@ export interface VesselState {
   slip?: SlipState;
   /** 12 V electrics, boats that have them (vessel/electrics.ts). */
   electrics?: ElectricsState;
+  /** The harbour tug's engine room machinery, for her start-up from dead ship (plant/plant.ts). Absent: other boats. */
+  plant?: PlantState;
   /**
    * Modules with state of their own (modular boats; the first: the deck crane), by their
    * path on her ('deckCrane'): plain JSON, so it is sent to crew and saved like the rest.
@@ -351,6 +353,42 @@ export interface VesselState {
   settleUntil?: number;
   /** The roving fender hung over the side by a deckhand (vessel/walkFender.ts); null or unset: none. */
   walkFender?: { side: -1 | 1; z: number; by?: string } | null;
+}
+
+/**
+ * The harbour tug's engine room machinery (plant/plant.ts): what's open, running and switched,
+ * port engine first in the pairs. Her 24 V battery master is `electrics.master`.
+ */
+export interface PlantState {
+  /** The generator's fuel valve open; the generator off, running up, or running (s since its START). */
+  genFuel: number;
+  gen: 'off' | 'starting' | 'running';
+  genT: number;
+  /** The generator's breaker on the main switchboard closed (the switchboard live). */
+  genBreaker: number;
+  /** The fuel supply pump switched on; each engine's day tank valve open; each engine's sea suction open. */
+  fuelPump: number;
+  dayValve: [number, number];
+  sea: [number, number];
+  /** Each engine's pre-lube pump switched on, and its lube oil pressure (bar). */
+  prelube: [number, number];
+  lubeBar: [number, number];
+  /** The air compressor switched on, the starting air (bar), the main air valve to the engines open. */
+  compressor: number;
+  airBar: number;
+  airValve: number;
+  /** Where the engines are worked from: 0 local (the engine-side panels), 1 the control room, 2 the bridge. */
+  place: number;
+  /** Seconds each engine and the generator have run with their fuel shut. */
+  starve: [number, number];
+  genStarve: number;
+  /** Each engine counted as started this crank (its starting air taken). */
+  cranked: [number, number];
+  /** The plant set the cooling fault (sea suction shut), so it clears it when opened. */
+  seaFault?: boolean;
+  /** The last thing that stopped or blocked her, said to whoever's aboard, and a count that goes up with each (so the same one again is said again). */
+  note?: string;
+  noteN?: number;
 }
 
 /** Batteries, master switch and the last tick's readings (vessel/electrics.ts). */
