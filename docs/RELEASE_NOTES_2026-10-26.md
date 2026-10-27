@@ -2,7 +2,7 @@
 
 **Covers:** everything on the test build since the 23 October notes (Friday afternoon), from every chat's work, up to Tuesday 27 October.
 
-**What's where:** all of this is on the test build (992d2d9) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) took everything up to multiplayer batch 2 on 27 Oct (31b20c7); batches 3 and 4, the engine rooms, the tug's start-up and driving, and the 27 Oct fixes are on the test build only. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
+**What's where:** all of this is on the test build (76638d4) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) took everything up to multiplayer batch 2 on 27 Oct (31b20c7); batches 3 and 4, the engine rooms, the tug's start-up and driving, and the 27 Oct fixes are on the test build only. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
 
 A page with screenshots of the same is published alongside these notes.
 
@@ -35,6 +35,19 @@ The harbour tug now comes from port **dead ship**: no generator, the engine room
 
 Eighteen working controls in all: handwheel valves (press to open or shut; the spindle rises when open), switches and buttons. Miss a step and her alarms say what's wrong ("START BLOCKED - LUBE OIL PRESSURE LOW"), and the control room's alarm screen lists what's still to do. Running, shut a day tank valve and that engine stops; shut a sea suction and she overheats; shut the generator's fuel and the room blacks out. Quick start (Menu → Tests) still does it all in one press.
 
+## The engine room after the first go (27 Oct, evening)
+
+- **A START-UP page** on the control room's middle screen: the nine steps ticked as they're done, the next marked and blinking with where to go or how it stands; the screen goes back to POWER & TANKS once she's at the bridge.
+- **A checklist card** on the wall beside the control room door.
+- **The machinery's sounds:** the generator running up, the fans on the live switchboard, the compressor easing off as the bottles fill, a blast of starting air at each engine's start. Loud below, faint on deck.
+- **The next step glows:** its controls pulse a soft amber until worked. Only the controls: you still find them.
+- **Everything labelled:** name plates on the day tanks and their outlet valves, the air bottle and its valve, the compressor, the strainers and sea suction valves, the generators, and each engine stand's PRE-LUBE PUMP, START and STOP. Each switch on the main switchboard has its own named cubicle (BATTERY MASTER, GEN 1 BREAKER, FUEL SUPPLY PUMP, ENGINE CONTROL).
+- **Fixes:** no flicker in the control room; its gauge board no longer behind the pipes; the ladder the only way in or out (no jumping out); the walls solid in VR; a crew-mate who comes down after you is seen; Quick start works with a lever left at power or with flat batteries, and her generator now charges her batteries.
+
+## Her V16s' voice
+
+Her two 1,850 kW engines had the small landing craft's V8 voice. Now their own: long firing pulses that run into a roar, the two banks firing unevenly so a deep growl runs under the beat, a big low exhaust, a low turbo whine rising with power. Flat out over half the sound is under 150 Hz; at idle almost all of it. In her engine room they're louder, with the clatter of their valve gear and injectors, through a compressor that keeps two engines flat out clean (untouched on deck). Recordings, before and after, are on the published page.
+
 ## Driving the tug
 
 Only at the helm of a boat with azimuth drives; every other boat's helm is as it was.
@@ -42,7 +55,7 @@ Only at the helm of a boat with azimuth drives; every other boat's helm is as it
 - **Looking:** hold Q to look over the port shoulder, E over the starboard, Q + E or Tab aft.
 - **Game controller:** point and push, a stick for each drive: push the way you want that drive to push, how far is the power; let go and it idles. Hold LB to look round with the right stick; RB TRANSIT; B both idle.
 - **On-screen dials** in the bottom corners: where each drive pushes, where its lever asks, and its power.
-- **In VR** (the modular builder chat's change, at the owner's request): grab a lever and work it with that hand's thumbstick; your hand only holds it. Holding any control, that hand's stick no longer slides or turns you.
+- **In VR:** grab a lever and twist your wrist to turn it; that hand's thumbstick, forward and back, sets its power. Click the thumbstick in (or press the console's blue SYNC) to synchronise the two throttles; again to split them. Holding any control, that hand's stick no longer slides or turns you.
 - The levers' twist clicks into 12, 3, 6 and 9 o'clock, with a buzz in VR; the desktop's W now takes a lever out of idle.
 
 ## Engine rooms
@@ -164,7 +177,7 @@ A study of everything that went wrong playing together turned into four batches 
 
 - The beginner boat has no chartplotter or duty board: the project's lines and rings need a boat with a plotter, and what's next is on the Jobs page.
 - The live game has everything up to multiplayer batch 2 (moved over 27 Oct). Batches 3 and 4, the engine rooms, the tug's start-up and driving, and the 27 Oct fixes are on the test build only, so play together on the same address.
-- The start-up has no sounds yet, no START-UP page on the control room screen and no checklist card on the wall (part 2). Not yet tried in VR (some valves are low) or measured on the Quest; draw calls below went from 5–10 to about 7–48 with the controls.
+- The engine room hasn't been measured on the Quest (draw calls below went from 5–10 to about 8–50 with the controls and plates). The V16's voice was tuned by measurement, not by ear.
 - The tug's controller driving was checked by its sums only (no controller here), and the keys in a headless browser.
 - The TV needs a desktop player to share a tab; VR players see it but can't start it.
 - Multiplayer was checked with two and three headless browsers through the real game finder, not yet on the Quest: voice in either order, and letting go on taking the headset off, need a try there.
@@ -172,5 +185,5 @@ A study of everything that went wrong playing together turned into four batches 
 ## Coming next
 
 - Multiplayer on the Quest: the owner's test of the four batches with friends, and the snapshot cost measured on the headset.
-- The tug's start-up, part 2: a START-UP page on the control room screen ticking the steps off, a checklist card on the wall, and the sounds.
+- The V16's voice tuned by ear, and the Quest's frame rate measured below.
 - Moving batches 3 and 4 and the engine rooms to the live game, when the owner says they're good.
