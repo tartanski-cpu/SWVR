@@ -114,15 +114,20 @@ function linesOverlay(h: LoftedHull): THREE.Object3D {
   const g = new THREE.Group();
   g.name = 'lines';
   const mat = new THREE.LineBasicMaterial({ color: 0x102030, transparent: true, opacity: 0.6 });
-  for (const s of h.sections) {
-    const pts = [...s.pts, ...s.pts.slice().reverse().map((p) => new THREE.Vector3(-p.x, p.y, p.z))];
-    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  // Each hull's lines about its own centreline (a catamaran's two, `spacing` apart).
+  const cat = h.design.catamaran;
+  for (const o of cat ? [-cat.spacing / 2, cat.spacing / 2] : [0]) {
+    const at = (p: THREE.Vector3, side: number) => new THREE.Vector3(o + side * p.x, p.y, p.z);
+    for (const s of h.sections) {
+      const pts = [...s.pts.map((p) => at(p, 1)), ...s.pts.slice().reverse().map((p) => at(p, -1))];
+      g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+    }
+    const deck = h.sections.map((s) => s.pts[s.pts.length - 1]);
+    const keel = h.sections.map((s) => s.pts[0]);
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(deck.map((p) => at(p, 1))), mat));
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(deck.map((p) => at(p, -1))), mat));
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(keel.map((p) => at(p, 1))), mat));
   }
-  const deck = h.sections.map((s) => s.pts[s.pts.length - 1]);
-  const keel = h.sections.map((s) => s.pts[0]);
-  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(deck), mat));
-  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(deck.map((p) => new THREE.Vector3(-p.x, p.y, p.z))), mat));
-  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(keel), mat));
   // Lift the lines a hair off the surface so they don't flicker against it.
   g.scale.setScalar(1.004);
   g.visible = showLines;
