@@ -740,6 +740,14 @@ export const CONFIG = {
     endClearShare: 0.12,
     liningM: 0.12,
     big: { fromLoaM: 24, lengthShare: 0.42, maxLengthM: 10.5 },
+    /**
+     * Her main engines heard from in her engine room (owner, 27 Oct 2026: "a big rumbling noise
+     * for these big diesels"): `level` times as loud as on deck at the same distance (no hull,
+     * house or water between you and them), their mechanical clatter `mech` times its deck level,
+     * squeezed by a compressor (`compress`: above `thresholdDb`, `ratio` to 1) so two big engines
+     * flat out sound loud and dense without clipping; it's open (0 dB) everywhere else.
+     */
+    sound: { level: 1.2, mech: 5, compress: { thresholdDb: -22, ratio: 8 } },
   },
 
   /**
@@ -767,6 +775,18 @@ export const CONFIG = {
     airFillBarS: 0.75,
     startAirBar: 4,
     airStartMinBar: 12,
+    /**
+     * Her 24 V batteries: charged from the live switchboard (`chargeSocPerS` of a full charge a
+     * second, flat to full in about 3 minutes); Quick start gives flat ones `jumpStartSoc`.
+     */
+    chargeSocPerS: 0.006,
+    jumpStartSoc: 0.3,
+    /**
+     * The cue (owner, 27 Oct 2026: "highlight the next thing that needs to be touched ... if it
+     * was somehow glowing ... don't make it too easy"): the next step's controls glow amber,
+     * pulsing up to `level` (0..1) and back every `periodS` s; `on` false: no cue.
+     */
+    cue: { on: true, level: 0.55, periodS: 2.2 },
   },
 
   dive: {
@@ -2905,6 +2925,43 @@ export const CONFIG = {
       drive: 1.5,
       hiss: { base: 0.003, load: 0.012 },
       turbo: { idleHz: 650, boostHz: 1700, gain: 0.007 } as { idleHz: number; boostHz: number; gain: number } | null,
+    },
+    /**
+     * The harbour tug's 1850 kW V16s (owner, 27 Oct 2026: "we need a big rumbling noise for these
+     * big diesels"; they had the landing craft's small V8's voice). A medium-speed four-stroke V16
+     * fires 8 times a revolution: 80 Hz at her 600 rpm idle, 213 Hz at 1600 rated. What makes a
+     * big one rumble:
+     *   - long pulses (big cylinders, long exhaust strokes): the beats run into each other, a roar
+     *     rather than separate thumps (`pulseTau`, `pulseTauLow`);
+     *   - the two banks firing a little unevenly, the port bank's pulses stronger and one cylinder
+     *     of each bank a touch weak: a lope at the cycle (rpm / 120: 5 Hz at idle, 13 Hz flat
+     *     out) and its harmonics through the beat, which the ear hears as rumble (`strength`);
+     *   - a big, low exhaust: the body resonance at 62 Hz and the stack's at 96, the top rolled
+     *     off (`lp`), saturated a little harder under load (`drive`);
+     *   - its turbochargers' whine, low (big rotors) and rising with boost, kept quiet;
+     *   - the clatter of its valve gear and injectors (`mech`, 300 to 1100 Hz): faint on deck,
+     *     loud in her engine room (the engine sound's `room`: App, below).
+     */
+    v16: {
+      cylinders: 16,
+      // Port bank (even) and starboard bank (odd) firing in turn, the starboard's pulses weaker,
+      // one cylinder of each a touch weak: half the firing rate (40 Hz at idle, 107 flat out)
+      // comes up strongly under the beat, a deep growl at every speed (rendered offline:
+      // without it, flat out only a third of the sound was under 150 Hz).
+      strength: [1.0, 0.58, 0.97, 0.6, 1.04, 0.56, 0.95, 0.61, 1.02, 0.58, 0.86, 0.6, 1.0, 0.5, 0.96, 0.59],
+      jitter: 0.06,
+      grit: 0.18,
+      mech: 0.5,
+      mechBand: [300, 1100] as readonly [number, number] | null,
+      pulseTau: 0.017,
+      pulseTauLow: 0.009,
+      body: { freq: 62, q: 0.8, gain: 7 },
+      stack: { freq: 96, q: 1.6, gain: 6 },
+      lp: { base: 170, rpm: 70, load: 120 },
+      thump: { base: 0.62, rpm: 0.3, load: 0.45 },
+      drive: 1.7,
+      hiss: { base: 0.004, load: 0.016 },
+      turbo: { idleHz: 900, boostHz: 2300, gain: 0.009 } as { idleHz: number; boostHz: number; gain: number } | null,
     },
     /**
      * The petrol V8 outboards (owner, Oct 2026: "a great V8 petrol outboard sound", heard on

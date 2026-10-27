@@ -1292,8 +1292,10 @@ export class App {
       const submerged = this.exhaustSubmersion(testView.root, this.world.vessels[this.testVesselId], nowMs / 1000);
       // In the wheelhouse the engine's quieter (more so with the door shut); full on deck.
       const ws = CONFIG.wheelhouseSound;
-      const house = this.insideHouse ? (this.closed > 0 ? [ws.engineShut, ws.engineShutLp] : [ws.engineInside, ws.engineInsideLp]) : [1, 20000];
-      this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1]);
+      // Below in her engine room: right beside them, louder and with their clatter (CONFIG.engineRoom.sound).
+      const below = this.belowDecks.boatId === this.testVesselId;
+      const house = below ? [CONFIG.engineRoom.sound.level, 20000] : this.insideHouse ? (this.closed > 0 ? [ws.engineShut, ws.engineShutLp] : [ws.engineInside, ws.engineInsideLp]) : [1, 20000];
+      this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1], below ? 1 : 0);
       const v = this.world.vessels[this.testVesselId];
       this.sound.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
       this.updateBoatVoices(dt);
@@ -2309,6 +2311,12 @@ export class App {
 
     if (mode === 'walk') {
       if (!jumpPressed) return false;
+      // In an engine room the ladder is the only way out (owner, 27 Oct 2026: a jump took you
+      // out of it and back on deck): no jumping below.
+      if (this.belowDecks.boatId) {
+        this.overlay.notify('In the engine room: climb up at the ladder', 2);
+        return false;
+      }
       const headL = frame.worldToLocal(this.tmpV.copy(this.headW));
       if (area.ladderAt(headL.x, headL.z)) return false; // Space climbs ladders
       const v = p.aboardVesselId ? this.vesselViews.get(p.aboardVesselId) : undefined;
@@ -2423,7 +2431,10 @@ export class App {
       return;
     }
     if (!this.updateBody(dt, inXR, area, frame)) {
-      this.runLocomotion(dt, inXR, frame, inXR ? area : this.withDoor(area, p.aboardVesselId), 1, inXR);
+      // (VR moves through walls aboard, fenced at her edge; but in an engine room its walls and
+      // machinery are solid, as on the desktop: owner, 27 Oct 2026, "it's still possible to slide
+      // through the walls of the engine room".)
+      this.runLocomotion(dt, inXR, frame, inXR ? area : this.withDoor(area, p.aboardVesselId), 1, inXR && !this.belowDecks.boatId);
       this.crossRamp();
     }
     this.placeDebugPanel(inXR);
@@ -2670,6 +2681,8 @@ export class App {
   }
 
   private toggleBoard(): void {
+    // (Not from an engine room: the ladder is the only way out of it.)
+    if (this.belowDecks.boatId) return this.overlay.notify('In the engine room: climb up at the ladder', 2);
     const aboard = this.world.players[this.localPlayerId].aboardVesselId;
     this.intents.push({
       playerId: this.localPlayerId,

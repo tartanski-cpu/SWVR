@@ -14,6 +14,13 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The stair across a deckhouse's aft face wider (approved by the owner 27 Oct 2026; on next)
+
+Owner, 27 Oct 2026: "The transverse stairs are still difficult to get up on the deck house. I think they're a bit narrow, and it could be that making them a bit wider will just make it easier to get up."
+
+- The steep stair down the aft face of a deckhouse run on aft of the wheelhouse (the harbour tug's, the stern trawler's; house.ts `transverseStair`) is 0.9 m wide (out from the face, was 0.65), its landing at the top 0.9 m across her (was 0.7): more room for your feet on each tread and to step on and off at the top. Its steps are as they were (0.3 m up, 0.22 m across, about 54°). Setting: `CONFIG.shipyard.deckhouse.walk.stair` (`width`, `landing`; `kg` 110 for the bigger stair). The working deck's gear keeps clear of it as before.
+- Tests: the Shipyard tests pass (the tug builds clean with it). Checked in the browser: the tug's stair from her stern quarter (screenshot). Not checked: climbing it in VR.
+
 ### The solar catamaran's wheelhouse and furniture are the player's; furniture keeps clear of the breaker panel (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "the wheelhouse is not configurable. I think I want to use the sliders, so I can move that around. Which means you shouldn't predefine the furniture. Inside the toilet doesn't seem to be movable. And it's overlapping with the switch panel for the breakers."

@@ -10,6 +10,50 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Quick start works on the tug whatever she was left like; her batteries charge from the generator (27 Oct 2026)
+
+Owner: "Quick start wasn't working in the tug I had in my favourites."
+- **Found** (reproduced in the career with the tug): Quick start silently did nothing (a) with a lever left at some power (the small boats' neutral-safety rule: the tug's lever power counts as in gear), and (b) with her batteries flat (dead ship leaves the 24 V master on with nothing charging, so a tug left a while drains).
+- **Fixed** (`plant/plant.ts` `plantReady`, `stepPlant`; `CONFIG.plant.chargeSocPerS` 0.006, `jumpStartSoc` 0.3): on the tug, Quick start brings both levers to idle first (she starts in neutral), and gives flat batteries enough to start on (a jump start); and her switchboard's battery chargers fill the 24 V batteries while the generator is on line (flat to full in about 3 minutes), as on a real tug.
+- **Tests:** tests/plant.test.ts (Quick start with the levers at 0.4 and the batteries flat: both engines running, the levers at idle, the batteries charging). **Checked headless** in the career with the tug: fresh, levers left forward, flat batteries: each time she starts.
+- **Shared changes:** none.
+
+### The harbour tug's V16s: a big rumbling voice, and loud in her engine room (27 Oct 2026)
+
+Owner: "we'll come back to engine sounds, because we need a big rumbling noise for these big diesels"; "Move onto sounds".
+- **A V16 voice** (`CONFIG.engineVoices.v16`; the tug's engine in the Shipyard's catalogue now takes it, it had the landing craft's small V8's): 16 cylinders four-stroke, 80 firings a second at her 600 rpm idle, 213 at 1600 rated; long pulses (big cylinders) so the beats run into a roar; the banks firing in turn with the starboard bank's pulses weaker, so half the firing rate (40 Hz at idle, 107 flat out) growls under the beat; a big, low exhaust (resonances at 62 and 96 Hz), the top rolled off more than the other voices; a low turbo whine rising with boost; a little valve-gear and injector clatter (300 to 1100 Hz).
+- **In her engine room** (`CONFIG.engineRoom.sound`: `level` 1.2, `mech` 5, `compress` −22 dB at 8 : 1; `EngineSound.set`'s `room`, App): louder than on deck, the clatter five times up, no wet-exhaust muffling, through a compressor that's open (0 dB) everywhere else, so two engines flat out are loud and dense without clipping.
+- **Rendered offline** (headless Chromium, the game's own engine sound, both engines as the game plays a twin, 3 m off, idle then opened up to full): flat out, 54 % of the V16's sound is under 150 Hz on deck (37 % at first try; the old V8 voice at her revs 93 %, but a small engine's thin beat), idle 97 %; peaks 0.70 on deck, 1.09 in the engine room before the game's volume (0.72 after it: no clipping). The clips were sent to the owner to judge by ear.
+- **Not checked:** by ear (no speakers here); in VR.
+- **Shared changes:** `src/shipyard/parts/catalog.ts` (the tug's engine's voice, one word: the Shipyard chat's file, for the owner's ask) and `tests/shipyard/tugVoice.test.ts` (its list of the engines' voices: the harbour tug's now `v16`); `src/audio/engineAudio.ts` (the engine room's `room`, clatter level and compressor; other boats unchanged: the compressor is open and `room` 0 for them).
+
+### The tug's engine room labelled; no flicker; the gauge board clear (27 Oct 2026)
+
+Owner: "many of the things are not labeled, so you don't know what's the oil pump, you don't know what all the switches in the electrical bus board do. There's also some Z fighting in the engine control room and some gauges hidden behind the wall with the pipes on it ... label everything."
+- **Name plates** (`tug/labels.ts`, placed by `TugRoom.plates`; one canvas, one more draw call): engraved-style white plates, a name and what it is or does, on: the fuel day tanks (which engine) and their outlet valves; the starting air bottle and its main air valve; the air compressor; the sea water strainers and sea suction valves (which engine); generator 1 (in use) and 2 (standby), generator 1's fuel valve and START / STOP; under each engine stand's switches, "PRE-LUBE PUMP · START · STOP" with "lube oil pump: run until 1 bar, then START"; the bilge and ballast valve chest and the bilge pumps.
+- **The main switchboard** (`panels.ts` `MSB_CUBICLES`): each working control now stands in its own cubicle, named on a plate under it: 24 V DC (BATTERY MASTER), GEN 1 (GEN 1 BREAKER), FUEL PUMPS (FUEL SUPPLY PUMP), ENGINE CONTROL (LOCAL · ECR · BRIDGE); GEN 2 (standby), BUS TIE and 400 V DIST are dummies. The controls' hover names say what each does.
+- **Z-fighting:** the gauge board, the checklist card, the switchboard's face and the signs on the control room's aft wall sat 1–2 mm off their surfaces; moved clear, and the room's pictures, screens and plates are drawn in front of their surfaces (polygon offset), which holds on the Quest's coarser depth too.
+- **The brass gauge board** in the control room was behind the port side's pipe runs, which ran through the control room: they now end at its aft wall.
+- **Checked headless:** each group close up, lit (the switchboard, an engine's stand, the tanks and air bottle, the strainers, the generator, the gauge board now clear). **Not checked:** VR (legibility in the headset; the flicker on the Quest).
+- **Shared changes:** none.
+
+### Engine rooms: the next step glows; solid walls in VR; crew-mates seen below (27 Oct 2026)
+
+Owner: "highlight the next thing that needs to be touched ... Don't make it too easy, but if it was somehow glowing"; "it's still possible to slide through the walls of the engine room"; "in multiplayer ... I could see one of the players, but that player couldn't see me. And then when I ... came back, it was the other way around."
+- **The cue** (`plant/plant.ts` `nextControls`, `tug/room.ts`, `Control.cue`; `CONFIG.plant.cue` `on`, `level` 0.55, `periodS` 2.2): the next step's controls still to work glow amber, a slow pulse, and stop once worked. Nothing glows while she waits (the generator running up, the oil pressure building) or once she's handed over. Only the controls themselves: you still find them.
+- **Solid walls in VR** (`App`, `engineRoom/walk.ts`): aboard, VR movement goes through walls by design (the wheelhouse), fenced only at her edge; below, it now collides with the room's sides, the control room's walls and the machinery as the desktop does, and doesn't lift you off the floor. A head leaned through a side, a bulkhead or the deckhead (room-scale) fades the view, as the engines did.
+- **Crew-mates below** (`engineRoom/index.ts` `hideOutside`): going below hides everything outside the room, again each frame, but it never showed anything again: a crew-mate still on deck when you went down stayed hidden when they came down after you (so whoever went first couldn't see the second). What's to be kept is now shown again.
+- **Tests:** tests/plant.test.ts (the cued controls at each step, none while waiting or once handed over).
+- **Checked headless:** a crew-mate (a second player put in the world) on deck, then below by you: hidden, then shown, then hidden again when back up; the cue on the battery master, then the generator's fuel valve glowing amber in the dark room. **Not checked:** VR (the walls, the cue's look in the headset), real multiplayer with two headsets.
+- **Shared changes:** `src/controls/Control.ts` (`cue`).
+
+### Engine rooms: the ladder is the only way out (27 Oct 2026)
+
+Owner: "if you jump, you actually jump out of the engine room back to the ship ... The only way in and out should be the ladder."
+- Below, the jump (Space, VR's A) and board / go ashore (B, the left stick's click) do nothing but say "In the engine room: climb up at the ladder" (`App.updateBody`, `App.toggleBoard`). A jump took you into the air off her deck, which the engine room took as having left.
+- **Checked headless:** below, Space and B: still below, aboard, on the floor plates; on deck, Space jumps as before. **Not checked:** VR (its A button).
+- **Shared changes:** none.
+
 ### The harbour tug's start-up, part 2: the START-UP page, the checklist card, the machinery's sounds (27 Oct 2026)
 
 Owner: "go to the next stage in the engine startup" (part 2 of the agreed plan).

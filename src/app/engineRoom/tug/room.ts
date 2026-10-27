@@ -21,9 +21,11 @@ import { detailedEngine } from './engine';
 import { Kit, circle, type V3 } from './kit';
 import type { TugLayout } from './layout';
 import { FIXED, LIVE, TugPanels, type Region } from './panels';
+import { drawLabels, LABEL_ASPECT, LABEL_SIZE, labelRegion, type LabelName } from './labels';
 import { tugControls, type ControlPlaces } from './controls';
 import type { Control } from '../../../controls/Control';
-import { busLive } from '../../../plant/plant';
+import { busLive, nextControls } from '../../../plant/plant';
+import { CONFIG } from '../../../config';
 
 // Colours (as an engine room is painted; the pipes colour-coded, as is usual practice).
 const PLATE = 0x8a8f92;
@@ -97,6 +99,9 @@ export class TugRoom {
   /** Her lights: full on a live switchboard, the emergency lights (dim) on batteries alone. */
   private readonly lights: { light: THREE.Light; full: number; dead: number }[] = [];
   private lit = 1;
+  private readonly labelTex: THREE.CanvasTexture;
+  /** The controls glowing as the next step's (a cue). */
+  private readonly cued = new Set<Control>();
 
   constructor(readonly p: EngineRoomPlan, readonly t: TugLayout, name: string) {
     const k = new Kit();
@@ -203,8 +208,11 @@ export class TugRoom {
         [sole + 1.6, 0.025, BROWN],
         [sole + 0.25, 0.06, BLACK],
       ];
-      runs.forEach(([y, r, c], i) => k.pipe(r, [[x - s * i * 0.02, y, p.z0 + 0.1], [x - s * i * 0.02, y, p.z1 - 0.1]], c, false));
+      // (To port they end at the control room's aft wall: through it they hid its gauge board.)
+      const from = s < 0 && t.ecr ? t.ecr.z1 + 0.06 : p.z0 + 0.1;
+      runs.forEach(([y, r, c], i) => k.pipe(r, [[x - s * i * 0.02, y, from], [x - s * i * 0.02, y, p.z1 - 0.1]], c, false));
       for (let z = p.z0 + 0.5; z < p.z1 - 0.2; z += 1.2) {
+        if (z < from) continue;
         k.box(0.03, 0.5, 0.05, s * (hw - 0.05), sole + 1.78, z, GALV);
         k.box(0.2, 0.03, 0.05, s * (hw - 0.12), sole + 1.55, z, GALV);
       }
@@ -239,7 +247,7 @@ export class TugRoom {
       k.box(0.1, head - (sole + 2.0), d1 - d0, ecr.x1, (sole + 2.0 + head) / 2, (d0 + d1) / 2, ECR_WALL);
       k.box(d1 - d0 - 0.04, 1.96, 0.05, ecr.x1 - (d1 - d0) / 2, sole + 0.99, d0 + 0.03, 0xc9cec8);
       k.ball(0.03, ecr.x1 - 0.12, sole + 1.0, d0 + 0.08, STEEL, 8);
-      fixed.push(panel(FIXED.signEcr, FIXED.size, [ecr.x1 + 0.055, sole + 2.08, (d0 + d1) / 2], '+x', 0.84, 0.18));
+      fixed.push(panel(FIXED.signEcr, FIXED.size, [ecr.x1 + 0.06, sole + 2.08, (d0 + d1) / 2], '+x', 0.84, 0.18));
       // The start-up checklist card on its inboard wall, facing the aisle, beside the door on its
       // longer side (owner, 27 Oct 2026), at eye height.
       {
@@ -247,7 +255,7 @@ export class TugRoom {
         const aft = ecr.z1 - d1;
         const cz = fwd > aft ? (ecr.z0 + d0) / 2 : (d1 + ecr.z1) / 2;
         k.box(0.012, 0.58, 0.44, ecr.x1 + 0.056, sole + 1.45, cz, 0xc9c4b2);
-        fixed.push(panel(FIXED.card, FIXED.size, [ecr.x1 + 0.063, sole + 1.45, cz], '+x', 0.42, 0.56));
+        fixed.push(panel(FIXED.card, FIXED.size, [ecr.x1 + 0.07, sole + 1.45, cz], '+x', 0.42, 0.56));
       }
       // Its floor, a step up on sound-deadening, and its ceiling panels.
       k.box(ecr.x1 - ecr.x0, 0.04, ecr.z1 - ecr.z0, (ecr.x0 + ecr.x1) / 2, sole + 0.02, (ecr.z0 + ecr.z1) / 2, ECR_FLOOR);
@@ -283,14 +291,14 @@ export class TugRoom {
       const mx1 = ecr.x1 - 0.5;
       k.box(mx1 - mx0, 2.0, 0.48, (mx0 + mx1) / 2, sole + 1.0, ecr.z0 + 0.25, 0x98a09e);
       k.box(mx1 - mx0, 0.05, 0.5, (mx0 + mx1) / 2, sole + 2.03, ecr.z0 + 0.25, 0x7a827f);
-      fixed.push(panel(FIXED.msb, FIXED.size, [(mx0 + mx1) / 2, sole + 1.15, ecr.z0 + 0.492], '+z', mx1 - mx0 - 0.04, 1.4));
+      fixed.push(panel(FIXED.msb, FIXED.size, [(mx0 + mx1) / 2, sole + 1.15, ecr.z0 + 0.498], '+z', mx1 - mx0 - 0.04, 1.4));
       k.box(mx1 - mx0, 0.04, 0.9, (mx0 + mx1) / 2, sole + 0.02, ecr.z0 + 0.95, 0x1c1c1c); // its rubber mat
       // The brass gauge board on the outboard wall, over the console's end.
-      live.push(panel(LIVE.board, LIVE.size, [ecr.x0 + 0.02, sole + 1.62, (ecr.z0 + ecr.z1) / 2 + 0.2], '+x', 1.3, 0.4));
+      live.push(panel(LIVE.board, LIVE.size, [ecr.x0 + 0.028, sole + 1.62, (ecr.z0 + ecr.z1) / 2 + 0.2], '+x', 1.3, 0.4));
       k.box(0.03, 0.46, 1.36, ecr.x0 + 0.005, sole + 1.62, (ecr.z0 + ecr.z1) / 2 + 0.2, 0x5a3b22);
       // Outside it: the emergency stops and the ear defenders sign, on its aft wall.
-      fixed.push(panel(FIXED.signEars, FIXED.size, [ecr.x1 - 0.25 - 0.3, sole + 2.1, wz + 0.052], '+z', 0.5, 0.125));
-      fixed.push(panel(FIXED.signStop, FIXED.size, [ecr.x0 + 0.32, sole + 1.62, wz + 0.052], '+z', 0.44, 0.11));
+      fixed.push(panel(FIXED.signEars, FIXED.size, [ecr.x1 - 0.25 - 0.3, sole + 2.1, wz + 0.058], '+z', 0.5, 0.125));
+      fixed.push(panel(FIXED.signStop, FIXED.size, [ecr.x0 + 0.32, sole + 1.62, wz + 0.058], '+z', 0.44, 0.11));
       for (const dx of [0.2, 0.44]) {
         k.box(0.16, 0.16, 0.08, ecr.x0 + dx, sole + 1.4, wz + 0.09, YELLOW);
         k.cyl(0.05, [ecr.x0 + dx, sole + 1.4, wz + 0.13], [ecr.x0 + dx, sole + 1.4, wz + 0.17], RED, 14);
@@ -522,8 +530,18 @@ export class TugRoom {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = 4;
     }
-    this.root.add(new THREE.Mesh(mergeGeometries(live), new THREE.MeshBasicMaterial({ map: this.liveTex, toneMapped: false })));
-    this.root.add(new THREE.Mesh(mergeGeometries(fixed), new THREE.MeshLambertMaterial({ map: this.fixedTex })));
+    // (Drawn in front of the surface each is mounted on, a hair off it: no flicker between them,
+    // owner, 27 Oct 2026, "some Z fighting in the engine control room".)
+    const front = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
+    this.root.add(new THREE.Mesh(mergeGeometries(live), new THREE.MeshBasicMaterial({ map: this.liveTex, toneMapped: false, ...front })));
+    this.root.add(new THREE.Mesh(mergeGeometries(fixed), new THREE.MeshLambertMaterial({ map: this.fixedTex, ...front })));
+    // The name plates (labels.ts): one canvas, one mesh.
+    const labelCanvas = document.createElement('canvas');
+    drawLabels(labelCanvas);
+    this.labelTex = new THREE.CanvasTexture(labelCanvas);
+    this.labelTex.colorSpace = THREE.SRGBColorSpace;
+    this.labelTex.anisotropy = 4;
+    this.root.add(new THREE.Mesh(mergeGeometries(this.plates(p, t, places)), new THREE.MeshLambertMaterial({ map: this.labelTex, ...front })));
 
     // ── Its lights: the room's, and three lamps along the deckhead ──
     const hemi = new THREE.HemisphereLight(0xfff6e8, 0x5d6064, 1.25);
@@ -551,6 +569,17 @@ export class TugRoom {
       c.sync(v);
       c.tick(dt);
     }
+    // The next step's controls glow, a slow soft pulse (owner, 27 Oct 2026: "highlight the next
+    // thing ... don't make it too easy"); the rest are put out once, so a lit button relights.
+    const cfg = CONFIG.plant.cue;
+    const next = cfg.on ? new Set(nextControls(v)) : new Set<string>();
+    const level = cfg.level * (0.5 + 0.5 * Math.sin((time * Math.PI * 2) / cfg.periodS));
+    for (const c of this.controls) {
+      if (next.has(c.channel)) {
+        c.cue(level);
+        this.cued.add(c);
+      } else if (this.cued.delete(c)) c.cue(0);
+    }
     // The main lights come up (or go out) with the switchboard, over about a second.
     const want = !v.plant || busLive(v.plant) ? 1 : 0;
     if (this.lit !== want) {
@@ -571,6 +600,58 @@ export class TugRoom {
     this.liveTex.needsUpdate = true;
   }
 
+  /**
+   * Where the name plates go (owner, 27 Oct 2026: "label everything"): on the machinery and
+   * beside the valves and switches of her start-up, and her other gear; each `w` m wide.
+   */
+  private plates(p: EngineRoomPlan, t: TugLayout, places: ControlPlaces): THREE.BufferGeometry[] {
+    const out: THREE.BufferGeometry[] = [];
+    const sole = p.sole;
+    const hw = p.halfWidth;
+    const plate = (name: LabelName, at: V3, facing: '+x' | '-x' | '+z' | '-z', w: number) => out.push(panel(labelRegion(name), LABEL_SIZE, at, facing, w, w / LABEL_ASPECT));
+    // The day tanks (the inboard one the port engine's) and their outlet valves.
+    [...t.dayTanks].sort((a, b) => a.x0 - b.x0).forEach((tk, i) => {
+      const x = (tk.x0 + tk.x1) / 2;
+      plate(i ? 'tankStbd' : 'tankPort', [x, sole + 1.15, tk.z1 + 0.004], '+z', 0.62);
+      plate(i ? 'outletStbd' : 'outletPort', [x, sole + 0.64, tk.z1 + 0.004], '+z', 0.42);
+    });
+    // The starting air: its forward bottle, its main valve on top; the compressor.
+    const r0 = t.receivers[0];
+    if (r0) {
+      plate('airBottle', [r0.x, sole + 1.0, r0.z + r0.r + 0.006], '+z', 0.46);
+      plate('airValve', [r0.x, sole + 1.38, r0.z + r0.r + 0.006], '+z', 0.44);
+    }
+    if (t.compressor) plate('compressor', [t.compressor.x + 0.22, sole + 0.45, t.compressor.z + 0.174], '+z', 0.29);
+    // The sea water strainers on the port side (the aft one the port engine's), on the side
+    // before the frames, and their sea suction valves.
+    [...t.strainers].sort((a, b) => a.z - b.z).forEach((st, i) => {
+      plate(i ? 'strainerStbd' : 'strainerPort', [-hw + 0.09, sole + 1.25, st.z], '+x', 0.6);
+      plate(i ? 'seaStbd' : 'seaPort', [-hw + 0.09, sole + 0.98, st.z + 0.28], '+x', 0.46);
+    });
+    // The generators: their names on their engines' inboard sides; the one in use's fuel valve
+    // (outboard, at its forward end) and START / STOP (on its control box, over the button).
+    [...t.gensets].sort((a, b) => a.x - b.x).forEach((g, i) => {
+      const s = g.x < 0 ? 1 : -1;
+      const ez0 = g.z0 + 0.1;
+      const ez1 = g.z0 + (g.z1 - g.z0) * 0.55;
+      plate(i ? 'gen2' : 'gen1', [g.x + s * 0.256, sole + 0.6, (ez0 + ez1) / 2], s > 0 ? '+x' : '-x', 0.5);
+      if (i === 0) {
+        plate('genFuel', [g.x - s * 0.256, sole + 0.55, g.z0 + 0.4], s > 0 ? '-x' : '+x', 0.5);
+        plate('genStart', [g.x + s * 0.204, sole + 1.19, g.z1 - 0.3], s > 0 ? '+x' : '-x', 0.2);
+      }
+    });
+    // Each engine's control stand: under its pre-lube switch, START and STOP, what each is.
+    for (const l of places.lops) {
+      const f = l.facing === '+x' ? 1 : -1;
+      plate('stand', [l.at[0] + f * 0.004, l.at[1] - 0.345, l.at[2]], l.facing, 0.42);
+    }
+    // The bilge and ballast valve chest and the bilge pumps, starboard side.
+    const v = t.valveChest;
+    plate('valveChest', [hw - 0.09, sole + 1.3, (v.z0 + v.z1) / 2], '-x', 0.6);
+    for (const bp of t.bilgePumps) plate('bilgePump', [hw - 0.09, sole + 1.2, bp.z], '-x', 0.36);
+    return out;
+  }
+
   dispose(): void {
     this.root.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -580,6 +661,7 @@ export class TugRoom {
     });
     this.liveTex.dispose();
     this.fixedTex.dispose();
+    this.labelTex.dispose();
   }
 }
 

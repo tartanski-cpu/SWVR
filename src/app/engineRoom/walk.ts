@@ -1,7 +1,8 @@
 /**
  * Walking in the engine room (plan.ts): its floor plates, inside its sides and bulkheads, round
  * her engines (each a solid block from her bottom to its top). The boat's own walk area is put
- * back when you climb out (App).
+ * back when you climb out (App). In VR too its walls and machinery are solid (App: no moving
+ * through walls below), and a head leaned through them fades the view (`insideSolid`).
  */
 import type { WalkArea } from '../../vessel/layout';
 import type { EngineRoomPlan } from './plan';
@@ -20,7 +21,8 @@ export function roomWalkArea(p: EngineRoomPlan, solids: Solid[] = []): WalkArea 
     floorsAt: (x, z) => (inRoom(x, z, 0) ? [p.sole] : []),
     walkable: (x, z, y) => inRoom(x, z, BODY) && Math.abs(y - p.sole) < 0.5 && !inEngine(x, p.sole + 0.1, z, BODY) && !inSolid(x, p.sole + 0.1, z, BODY),
     ladderAt: () => null,
-    insideSolid: (x, y, z) => inEngine(x, y, z, 0) || inSolid(x, y, z, 0),
+    // (Its sides, bulkheads and deckhead too: a head leaned through them in VR fades the view.)
+    insideSolid: (x, y, z) => inEngine(x, y, z, 0) || inSolid(x, y, z, 0) || !inRoom(x, z, 0) || y > p.deckhead,
     inBounds: (x, z) => inRoom(x, z, BODY),
   };
 }
