@@ -112,7 +112,9 @@ export function engineRoomPlan(def: { hull: HullForm; layout: LayoutConfig }, en
   const step = 0.25;
   const fwdLimit = stem + c.endClearShare * loa;
   const aftLimit = transom - c.endClearShare * loa;
-  const maxLen = Math.min(c.maxLengthM, c.lengthShare * loa);
+  // (A big boat's longer: room forward of her engines for an engine control room.)
+  const big = loa >= c.big.fromLoaM;
+  const maxLen = big ? Math.min(c.big.maxLengthM, c.big.lengthShare * loa) : Math.min(c.maxLengthM, c.lengthShare * loa);
   let sole = soleAt(hull, mid, half, deckAt(hull, mid));
   if (sole === null || !fits(mid, sole)) return null;
   let z0 = mid;

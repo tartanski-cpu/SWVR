@@ -712,7 +712,9 @@ export const CONFIG = {
    * `minLengthM` along her, and room for a walkway `walkwayM` wide outboard of each engine;
    * grown fore and aft from under the hatch to `lengthShare` of her
    * length (at most `maxLengthM`), kept `endClearShare` of her length from each end (the
-   * forepeak, the steering flat). Its sides stand `liningM` in from her plating.
+   * forepeak, the steering flat). Its sides stand `liningM` in from her plating. A big boat
+   * (`big.fromLoaM` and over: the harbour tug) gets a longer one, `big.lengthShare` of her
+   * length up to `big.maxLengthM`: room forward of her engines for an engine control room.
    */
   engineRoom: {
     minLoaM: 18,
@@ -725,6 +727,7 @@ export const CONFIG = {
     maxLengthM: 8,
     endClearShare: 0.12,
     liningM: 0.12,
+    big: { fromLoaM: 24, lengthShare: 0.42, maxLengthM: 10.5 },
   },
 
   dive: {

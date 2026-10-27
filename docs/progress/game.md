@@ -10,6 +10,48 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Engine rooms: the harbour tug's in detail, with an engine control room (27 Oct 2026)
+
+Owner: "make that engine room much more detailed just for the tug ... keep the engine dimensions and the sort of principles of it ... get that triangles and draw calls count back up and use that Quest processing ... some tugboats have an engine control room ... screens, or it could be steampunk."
+
+- **Her room is longer** (a big boat's, `CONFIG.engineRoom.big`: from 24 m, `lengthShare` 0.42 up to `maxLengthM` 10.5): 10.5 × 8.8 m, 2.2 m headroom, 2.9 m forward of her engines for the control room.
+- **Her engines in detail** (`src/app/engineRoom/tug/engine.ts`), the same 1850 kW V16s in the same 4.4 × 1.7 × 2.1 m envelope on the same shaft line, in her engines' colour, laid out as a medium-speed V16 generally is (our own arrangement):
+  - bedplate on rubber mounts, crankcase doors with their bolts and relief valves;
+  - two banks of eight heads with rocker covers, head bolts, injector pipes from the fuel rails, jacket-water branches and the wiring harness;
+  - lagged exhaust manifolds to two turbochargers on the free end, with their air filters, and the charge-air cooler;
+  - the damper and gear case, engine-driven pumps, the flywheel housing and starters;
+  - duplex lube oil and fuel filters, the dipstick, lifting eyes, and a local operating panel with live gauges and an emergency stop.
+- **The room** (`tug/layout.ts` where things go, plain numbers, also walked round; `tug/room.ts` the drawing; `tug/kit.ts` shapes):
+  - **Control room** forward to port: its window aft onto the port engine; a console with three live screens (the engines and each Z-drive's heading, power and tanks, the alarm list); the main switchboard's cubicles; a chair; a row of brass-rimmed gauges; emergency stops outside.
+  - **Forward:** a workbench with a vice and a tool board; two fuel day tanks with sight glasses and quick-closing valves; two starting-air receivers and their compressor.
+  - **Each engine's free end:** a red fire pump with its fire main.
+  - **Aft:** the shaft lines (couplings, cardan shafts), turning with their engines' revs (shown at a tenth of the speed, so the eye can follow them), under gratings; two generator sets; the thruster room door.
+  - **Down the sides:**
+    - the bilge and ballast valve chest and pumps, and the sea water strainers;
+    - colour-coded pipe runs on brackets;
+    - extinguishers, a fire hose reel, oil drums on a spill pallet and a spares rack;
+    - sounding pipes, and a caged escape ladder.
+  - **Overhead and round the engines:**
+    - lagged exhaust uptakes with bellows;
+    - lifting rails with chain blocks;
+    - cable trays and a ventilation duct;
+    - supply fans and CO₂ nozzles;
+    - frame knees and light fittings;
+    - yellow handrails, with a gap where the ladder comes down;
+    - chequer plate underfoot (the game's pixel paint).
+- **Panels** (`tug/panels.ts`): two canvases. The live one (screens, gauges, local panels) is redrawn 4 times a second; the fixed one (the switchboard, the tool board, the signs) is drawn once. The alarms come from her state: jacket water and lube oil temperatures, oil level, sea water pump fault, oil pressure with the key on and the engine stopped, low fuel.
+- **Cost, measured headless:**
+  - below in the tug: 5–10 draw calls and about 105,000 triangles (the merged room, the window's glass, two panel meshes, two shaft lines, three lamps and two room lights);
+  - on deck: 127–153 calls and about 330,000 triangles;
+  - built in under 0.4 s the first time you go below.
+- **Tests:** tests/engineRoom.test.ts covers:
+  - her longer room and its control room, gensets, tanks and receivers;
+  - a way from the ladder through the aisle and the door into the control room, not through its walls, the switchboard or the gensets;
+  - the alarm list.
+- **Checked headless:** the aisle, the control room inside and through its window, aft, forward to starboard, the port walkway, with her engines running; no errors.
+- **Not checked:** VR, the Quest's frame rate below.
+- **Shared changes:** none.
+
 ### Engine rooms, milestone 1: going below on the tug and the trawler (27 Oct 2026)
 
 Owner: an engine room as a separate game, for performance; agreed instead (same performance, multiplayer and the simulation kept): in the same page, only the room drawn while you're below; the harbour tug and the stern trawler first. The plan and what's next for the Shipyard and modular builder chats: `docs/ENGINE_ROOM.md`.

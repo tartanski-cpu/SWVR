@@ -24,6 +24,18 @@ The owner, 27 Oct 2026: a detailed engine room you go down into, for performance
 
   It's one merged mesh, one canvas panel and two cheap lights: 3–4 draw calls and about 2,000 triangles, against 127–153 draw calls and about 330,000 triangles on deck (measured headless, Oban).
 
+## The harbour tug's, in detail (27 Oct 2026)
+
+Her room is longer (`CONFIG.engineRoom.big`) and drawn in detail by `src/app/engineRoom/tug/`. Her engines are detailed V16s in the same envelope. Around them:
+- an engine control room with live screens, a switchboard and brass gauges;
+- fire pumps;
+- shaft lines turning with her revs;
+- generator sets, day tanks and air receivers;
+- the bench, pumps and strainers;
+- colour-coded pipe runs, and the overhead gear.
+
+It's 5–10 draw calls and about 105,000 triangles while you're below; see `docs/progress/game.md`. The other rooms (the trawler's, the dive ship's) are still the plain milestone 1 room.
+
 ## For the Shipyard chat (its files: `src/shipyard/`)
 
 - Show the engine room in the Shipyard: the space from `engineRoomPlan`, in the cutaway or the Engine step, with a line like "Engine room 7.5 × 8.8 m, 2.5 m headroom" or "No engine room: hatch access only".

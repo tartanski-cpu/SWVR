@@ -15,6 +15,8 @@ import { engineGeometry } from '../../vessel/view/engineModels';
 import { mergeParts, part } from '../../render/geometryUtils';
 import type { VesselState, EngineState } from '../../vessel/vesselState';
 import type { EngineRoomPlan } from './plan';
+import { tugLayout } from './tug/layout';
+import { TugRoom } from './tug/room';
 
 const PLATE = 0x8d9296; // chequer plate, worn grey
 const LINING = 0xd9dcd6; // painted lining, off-white
@@ -37,17 +39,21 @@ export class EngineRoomView {
   private readonly texture: THREE.CanvasTexture;
   private readonly panelsAt: { engine: number; side: 'port' | 'stbd' | 'single' }[] = [];
   private sinceDraw = 1;
+  /** The harbour tug's room in detail (tug/room.ts), in place of the plain one's contents. */
+  private readonly tug: TugRoom | null = null;
 
-  constructor(readonly plan: EngineRoomPlan) {
+  /** @param name her name, for the tug's screens */
+  constructor(readonly plan: EngineRoomPlan, name = '') {
     const p = plan;
     const parts: THREE.BufferGeometry[] = [];
+    const layout = tugLayout(p);
     const w = 2 * p.halfWidth;
     const len = p.z1 - p.z0;
     const zm = (p.z0 + p.z1) / 2;
     const h = p.deckhead - p.sole;
     const ym = (p.sole + p.deckhead) / 2;
-    // Floor plates, and the sides, the deckhead and the two bulkheads: a closed box.
-    parts.push(box(w, 0.04, len, 0, p.sole - 0.02, zm, PLATE));
+    // Floor plates (the tug's are her own), and the sides, the deckhead and the two bulkheads: a closed box.
+    if (!layout) parts.push(box(w, 0.04, len, 0, p.sole - 0.02, zm, PLATE));
     for (const s of [-1, 1]) parts.push(box(0.04, h, len, s * (p.halfWidth + 0.02), ym, zm, LINING));
     parts.push(box(w, 0.04, len, 0, p.deckhead + 0.02, zm, DECKHEAD));
     parts.push(box(w, h, 0.04, 0, ym, p.z0 - 0.02, BULKHEAD));
@@ -58,15 +64,15 @@ export class EngineRoomView {
       parts.push(box(w, 0.14, 0.08, 0, p.deckhead - 0.07, z, FRAME));
     }
     // A watertight door in the forward bulkhead (shut: the forepeak beyond isn't built yet).
-    parts.push(box(0.75, 1.6, 0.06, -p.halfWidth / 2, p.sole + 0.95, p.z0 + 0.03, DOOR));
+    if (!layout) parts.push(box(0.75, 1.6, 0.06, -p.halfWidth / 2, p.sole + 0.95, p.z0 + 0.03, DOOR));
     // Her engines, as the boat's own are drawn (vessel/view/engineModels.ts), and their shafts aft through the bulkhead.
-    for (const e of p.engines) {
+    for (const e of layout ? [] : p.engines) {
       parts.push(...engineGeometry(e.model, e.size, { x: e.x, flangeY: e.flangeY, flangeZ: e.flangeZ, angleDeg: e.angleDeg }));
       const shaftLen = Math.max(0.1, p.z1 - e.flangeZ);
       parts.push(part(new THREE.CylinderGeometry(0.06, 0.06, shaftLen, 10).rotateX(Math.PI / 2).translate(e.x, e.flangeY, e.flangeZ + shaftLen / 2), SHAFT));
     }
     // Light fittings along the deckhead (they light nothing themselves: the room's lights do).
-    for (let z = p.z0 + 1; z < p.z1 - 0.5; z += 2) for (const x of [-p.halfWidth / 2, p.halfWidth / 2]) parts.push(box(0.12, 0.05, 1.2, x, p.deckhead - 0.17, z, LAMP));
+    if (!layout) for (let z = p.z0 + 1; z < p.z1 - 0.5; z += 2) for (const x of [-p.halfWidth / 2, p.halfWidth / 2]) parts.push(box(0.12, 0.05, 1.2, x, p.deckhead - 0.17, z, LAMP));
     // The ladder: two stringers from the foot to the hatch's edge, rungs every 0.28 m.
     const L = p.ladder;
     const rise = L.head - L.foot;
@@ -82,6 +88,14 @@ export class EngineRoomView {
     mesh.matrixAutoUpdate = false;
     this.root.add(mesh);
 
+    // The harbour tug's in detail: everything else is hers.
+    if (layout) {
+      this.tug = new TugRoom(p, layout, name);
+      this.root.add(this.tug.root);
+      this.texture = new THREE.CanvasTexture(this.canvas);
+      this.root.matrixAutoUpdate = false;
+      return;
+    }
     // The gauge panels: one per engine, on the forward bulkhead, at eye height.
     const engines = p.engines.length ? p.engines : [];
     const sides = engines.length >= 2 ? (['port', 'stbd'] as const) : (['single'] as const);
@@ -103,9 +117,10 @@ export class EngineRoomView {
   }
 
   /** Each frame while below: moved with her (her root's world matrix), the gauges redrawn a few times a second. */
-  update(boatRoot: THREE.Object3D, v: VesselState | undefined, dt: number): void {
+  update(boatRoot: THREE.Object3D, v: VesselState | undefined, dt: number, time = 0): void {
     this.root.matrix.copy(boatRoot.matrixWorld);
     this.root.matrixWorldNeedsUpdate = true;
+    if (this.tug) return this.tug.update(v, time, dt);
     this.sinceDraw += dt;
     if (!v || this.sinceDraw < 0.2) return;
     this.sinceDraw = 0;
@@ -181,5 +196,6 @@ export class EngineRoomView {
       (m.material as THREE.Material).dispose();
     });
     this.texture.dispose();
+    this.tug?.dispose();
   }
 }

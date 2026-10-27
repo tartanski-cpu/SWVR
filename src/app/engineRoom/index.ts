@@ -20,6 +20,8 @@ import type { WorldState } from '../../core/world';
 import { roomEngines } from './engines';
 import { engineRoomPlan, type EngineRoomPlan } from './plan';
 import { roomWalkArea } from './walk';
+import { tugLayout } from './tug/layout';
+
 import type { EngineRoomView } from './view';
 
 const PLANS = new Map<string, EngineRoomPlan | null>();
@@ -39,6 +41,8 @@ export interface BelowContext {
   /** What must stay drawn whatever happens: the player's rig (its camera, hands, overlay), the menu, the marks. */
   keep: () => THREE.Object3D[];
   notify: (text: string, seconds: number) => void;
+  /** Her name, for the screens. */
+  boatName: (defId: string) => string;
 }
 
 export class BelowDecks {
@@ -69,7 +73,7 @@ export class BelowDecks {
       let view = this.views.get(boatId);
       if (!view) {
         const { EngineRoomView } = await import('./view');
-        view = new EngineRoomView(plan);
+        view = new EngineRoomView(plan, this.ctx.boatName(v.defId));
         this.views.set(boatId, view);
       }
       // (She may have gone while it loaded, or we've stepped off her.)
@@ -78,7 +82,7 @@ export class BelowDecks {
       this.ctx.scene.add(view.root);
       view.update(root, v, 1);
       this.here = { boatId, plan, view, deckArea: this.ctx.walkAreas.get(boatId) };
-      this.ctx.walkAreas.set(boatId, roomWalkArea(plan));
+      this.ctx.walkAreas.set(boatId, roomWalkArea(plan, tugLayout(plan)?.solids));
       // A step forward of the ladder's foot, facing forward along her (toward the gauges).
       p.position = [plan.ladder.x, plan.sole, Math.max(plan.z0 + 0.6, plan.ladder.z - 1.2)];
       p.yaw = 0;
@@ -111,7 +115,7 @@ export class BelowDecks {
     const p = w.players[this.ctx.playerId()];
     const root = this.ctx.boatRoot(h.boatId);
     if (!p || p.aboardVesselId !== h.boatId || !w.vessels[h.boatId] || !root) return this.leave();
-    h.view.update(root, w.vessels[h.boatId], dt);
+    h.view.update(root, w.vessels[h.boatId], dt, w.time);
     this.hideOutside(h.view.root);
   }
 
