@@ -10,6 +10,46 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku: cruise ships building at Perno (26 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner (who worked at the yard): "I'd like to have some partially completed cruise ships in the yard ... use the images and build up something that looks convincing."
+
+- **Two ships, an original design** (not a real ship or class), placed from the map by the request (`turku.yaml` `yardShips`; `common.ts`, `package.ts`):
+  - **In the building dock** (the map's dry dock, 368 by 81 m, read by the features stage as `drydocks`): 330 m, about half built (`stage` 0.45). She stands on her keel blocks on the dock floor (the dock is dry ground in the map): red bottom, the hull a patchwork of primer-grey, light-grey and white blocks (a few already navy), the superstructure lifted on block by block, each to its own height, under the two gantries.
+  - **At the outfitting pier** (the yard's berth along the 209 m pier): 300 m, nearly finished (`stage` 0.88), afloat (keel 8.5 m down). Navy hull, white decks each with a thin glass-and-balcony line, the front raked back, the stern terraced, the bridge with its wings, the funnel, a water-park aft (coloured slides, a tower, a dome), the orange lifeboats along her sides, a few blocks still in primer.
+  - Two of the yard's yellow luffing cranes along each (portal, slewing house, jib raised over her).
+- **Drawing** (`coastStructures.ts` `yardShipParts`): the hull and every deck built as prisms over the hull's plan (a parallel body, a fine bow over its last 22 %, the stern's corners rounded); merged into the region's one landmark mesh, so no extra draw call. Both ships together are about 4,300 triangles.
+- **Settings** `CONFIG.structures.yardShip` (hull depth 6.5 % of her length, decks of 3 m, 16 of them, the superstructure from 6 % to 78 % of her length, rake 1.4 m a deck, terraces every 3 decks, blocks 24 m, lifeboats every 15 m, colours); in the pipeline `T.yardBeam` (14 % of her length), `yardDraught`, `yardBerthOff`.
+- **Tests** (`coastTurku.test.ts`): the half-built ship in the dock, between the gantry's rails, on its floor; the finished one afloat by the yard's berth; she stands over 60 m above the water, the half-built one lower; under 6,000 triangles together. `npm run test:map` and the typecheck pass. Seen in the game headless from the water and from above (the dock ship under the gantries, the finished one at the pier).
+- **Not solid** (like the bridges and the gantries): you can sail through them. Making them solid would need new physics shapes, so it's the owner's call.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`YardShipDef`, `RegionDef.yardShips`).
+
+### Turku and the Archipelago Sea: a new Voyage map, and the Baltic theme (26 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, after the "Next Waters" research page: "Go ahead with Turku as the next map".
+
+- **The map:** `tools/coast/requests/turku.yaml`, box [21.78, 60.16, 22.45, 60.50], 36.9 by 37.8 km, chunked like the Clyde (359 chunks, the biggest 10,392 faces, within the 12,000 budget; 28 MB of mesh). Turku and its port, the Meyer Turku yard at Perno, Ruissalo, the Airisto fairway, Naantali, Pargas, Nagu and the islands between. Voyage starts at the Port of Turku's cargo berth (4.2 m of water), in its live weather (read at 60.3 N, 22.1 E). Landing page: a Turku line under Voyage.
+- **Data:** the same sources as the other maps (OpenStreetMap, Copernicus GLO-30, ESA WorldCover, EMODnet, which covers the Baltic). No new source was needed. OpenStreetMap here is very full: 2.1 million points, about six times the Clyde's.
+- **The Baltic theme** (`tools/coast/src/themes.ts` `BALTIC`): grey-pink granite shores rounded by the ice, reed beds, hay fields; Scots pine on the rock, spruce in the hollows, birch at the edges, juniper scrub, not planted in rows; wooden houses in red ochre and yellow (some white or pale grey) with dark metal or red roofs, red-ochre sheds and boathouses, Turku's blocks rendered cream and grey, three storeys; motor cruisers and yachts at the guest-harbour pontoons, few swinging moorings. Invented Finnish and Swedish ferry names (`FERRY_NAMES.baltic`). Its weather in `world/maps.ts` (`BALTIC_WEATHER`): grey and changeable, overcast spells longest, rain and fog often.
+- **Keeping a crowded archipelago the size of the others**, three new request options (`common.ts`), off for the other maps, which re-package unchanged:
+  - `privateJetties`: the map marks every summer cottage's jetty as a pier, which gave 471 harbours and 259 ports (the Clyde has 56). A group of piers with no name of its own and no quay wall is now drawn and solid but isn't a port, has no moorings round it, and brings in only the buildings within 80 m (`harbours.ts` `privateReach`). Turku: 48 ports, 8,357 buildings (from 18,152), 338 moorings (from 1,684).
+  - `pottingApart` 1200: creel grounds no closer than 1.2 km (1,706 to 215; every charted rock had one).
+  - `ferriesNamed`: only named ferry routes, the longest piece of each name (45 to 12): the road ferries (Prostvik to Lillmälö, Haverö, Käldö), the archipelago boats to Seili, Röölä, Vepsä and Naantali, the ring routes round Nagu, and the Finnlines ship from Travemünde up the fairway.
+  - For every map: a ferry route more than a fifth over the game's land is left out (Turku's Aura river water bus: rivers are land in the game for now). No other map had one.
+- **Names, by hand** (`turku.edits.yaml`): the harbour the map calls "Silja Line: Turku pier" is the Port of Turku (`port-of-turku`, the Voyage start); "Outfitting place 4-5" is Perno shipyard; "D" is Tammisto jetty; "Boatservices, storage" is Västörä boatyard; "Tiilitehtaanranta A" is Tiilitehtaanranta quay.
+- **Pipeline speed:** the harbours stage looked up the list of every tagged map point once per point (quadratic). On Turku it took 37 minutes; now 64 seconds, with the same result (Oban checked).
+- **Tests:** `tests/coastTurku.test.ts`: the box, the chunks within budget, the Baltic theme; the Port of Turku reads 60.44 N, 22.22 E; the start berth in water; Perno, Pargas, Nagu and Naantali are ports; the private jetties aren't ports but every piece is drawn; 30 to 70 ports, none with a stub name; named ferries only, each once, over water; creel grounds 1.2 km apart. `npm run test:map` (138), the typecheck and all of `npm test` (1,639) pass.
+- **Checked in the game** (headless): Turku loads in about 10 s with no errors, moored at the Port of Turku, the GPS reading 60.436 N, 22.218 E; 161 draw calls at the port. Screenshots at the port, off the Perno yard and off Nagu: the wooden houses in their colours, pine and spruce woods to the water, yachts at anchor, a ferry at the terminal.
+- **Not checked:** on the Quest (frame rate, memory on a long voyage; Turku's mesh is 28 MB against the Clyde's 25 MB, and it has more buildings); ferry schedules by eye; the chart and the radio's place names in Finnish and Swedish (the map has both; the game shows whichever the map gives).
+- **The Perno yard's gantry cranes** (owner, with photos of the yard): the features stage now reads a shipyard's gantry crane track from the map (`man_made=crane`, `crane:type=gantry_crane`, drawn as an area: its long side is the way it runs, across it the span; `count` gantries; `gantryMinSpan` 40 m). Perno's: 743 m along the building dock, 156 m between the rails, two gantries. Each is drawn (`coastStructures.ts` `gantryParts`) as an A-frame of two legs on their bogies on each rail, a box girder across, a cab trolley on top, a hoist trolley under it with ropes and a hook block, and a T-crane on top of one leg, dark blue with yellow-orange trolleys; the rails along the whole track. An original low-poly form to the map's track: no names or logos. Merged into the region's one landmark mesh (no extra draw call), under 2,000 triangles a gantry. Settings `CONFIG.structures.gantry` (height 100 m to the girder's top, girder 11 by 9 m, legs 4 m, feet 34 m apart, where each stands along the track, mast 20 m, jib 42 m, hoist 45 m, colours). Not solid, like the bridges.
+- **Next, if wanted:** a cruise ship fitting out under the gantries; winter ice; a ferry livery of its own for the Finnish road ferries (they use the plain one for now).
+- **Shared changes:** `index.html` (a Turku line on the landing page); `src/world/defs.ts` (`GantryDef`, `RegionDef.gantries`). `src/world/maps.ts` is this area's.
+
 ### Career: Brannock Pier the deep-water berth; deep boats start there (25 Oct 2026)
 
 **Owner approved; merged into `next`.**

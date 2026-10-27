@@ -87,6 +87,8 @@ const T = {
   clusterGap: 250,
   /** Buildings this close to a harbour piece are built (m); smaller footprints are skipped (m²). */
   buildingReach: 400,
+  /** ...and this close to a private jetty's (the request's `privateJetties`): the cottage by it, not the whole shore (m). */
+  privateReach: 80,
   /** The house kit: full detail (chimneys, doors, signs) within this of a harbour piece (m), plain blocks beyond. */
   fullReach: 200,
   /** Terraces this close to a harbour piece are its painted front (m). */
@@ -494,6 +496,8 @@ interface Harbour {
   berths: number;
   fetch: number;
   role?: string;
+  /** A private jetty (the request's `privateJetties`): drawn, not a port. */
+  private?: boolean;
 }
 const items = [
   // (A sparse outline as one piece where its box was, in its place in the list: it groups with
@@ -510,8 +514,8 @@ const find = (i: number): number => (group[i] === i ? i : (group[i] = find(group
 for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) if (Math.hypot(items[i].x - items[j].x, items[i].z - items[j].z) < T.clusterGap) group[find(i)] = find(j);
 const clusters = new Map<number, typeof items>();
 items.forEach((it, i) => clusters.set(find(i), [...(clusters.get(find(i)) ?? []), it]));
-const places = Object.values(osm.nodeTags)
-  .map((t, i) => ({ t, p: osm.nodes[Object.keys(osm.nodeTags)[i]] }))
+const places = Object.entries(osm.nodeTags)
+  .map(([id, t]) => ({ t, p: osm.nodes[id] }))
   .filter(({ t, p }) => p && t.name && ['town', 'village', 'hamlet', 'suburb', 'locality'].includes(t.place))
   .map(({ t, p }) => ({ name: nameOf(t), at: P.fwd(p[0], p[1]) }));
 
@@ -558,7 +562,11 @@ for (const list of clusters.values()) {
   const at = nb.length ? nb : [{ x: cx, z: cz }];
   const f = at.reduce((s, b) => s + fetch(b.x, b.z), 0) / at.length;
   const id = slug(name);
-  harbours.push({ id, name, kind: isHarbour ? 'harbour' : 'pier', x: r1(cx), z: r1(cz), pieces: [...new Set(sources)], berths: nb.length, fetch: Math.round(f) });
+  // Private jetties: nothing names them but the nearest place, no quay wall, no harbour area
+  // (a shore of cottage jetties, each within clusterGap of the next, chains into one group).
+  const unnamed = !marina && !named?.name && !terminalName;
+  const walled = list.some((it) => it.kind === 'quay') || !!area;
+  harbours.push({ id, name, kind: isHarbour ? 'harbour' : 'pier', x: r1(cx), z: r1(cz), pieces: [...new Set(sources)], berths: nb.length, fetch: Math.round(f), ...(req.privateJetties && unnamed && !walled ? { private: true } : {}) });
 }
 // Unique ids.
 const seenIds = new Map<string, number>();
@@ -571,7 +579,7 @@ for (const h of harbours) {
 // ── Spine roles ──
 const spine = req.spine ?? {};
 const byName = (v: string) => harbours.find((h) => h.name.toLowerCase() === v.toLowerCase() || h.id === v);
-const usable = harbours.filter((h) => h.berths > 0);
+const usable = harbours.filter((h) => h.berths > 0 && !h.private);
 const assign = (role: string, pick: () => Harbour | undefined) => {
   const v = spine[role];
   if (!v || typeof v !== 'string') return;
@@ -612,7 +620,9 @@ if (namedAnchorage) {
 if (!harbours.some((h) => h.role === 'harbour.sheltered') && spine['harbour.sheltered']) warnings.push('no sheltered harbour found');
 
 // ── Buildings near the harbours ──
-const pieces = [...blocks.map((b) => [b.x, b.z]), ...slipways.map((s) => [s.x, s.z])];
+// Each piece with how far round it buildings are built (a private jetty's: only the cottage by it).
+const privatePieces = new Set(harbours.filter((h) => h.private).flatMap((h) => h.pieces));
+const pieces = [...blocks.map((b) => [b.x, b.z, privatePieces.has(b.source) ? T.privateReach : T.buildingReach]), ...slipways.map((s) => [s.x, s.z, privatePieces.has(s.source) ? T.privateReach : T.buildingReach])];
 const hash = (s: string) => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
@@ -696,8 +706,14 @@ for (const [id, w] of Object.entries(osm.ways)) {
   if (p.length < 4) continue;
   const c = p.reduce(([sx, sz], [x, z]) => [sx + x / p.length, sz + z / p.length], [0, 0]);
   if (!inBox(c[0], c[1])) continue;
-  const toPiece = Math.min(...pieces.map(([x, z]) => Math.hypot(x - c[0], z - c[1])));
-  if (toPiece >= T.buildingReach) {
+  let toPiece = Infinity;
+  let near = false;
+  for (const [x, z, reach] of pieces) {
+    const d = Math.hypot(x - c[0], z - c[1]);
+    if (d < toPiece) toPiece = d;
+    if (d < reach) near = true;
+  }
+  if (!near) {
     skippedFar++;
     continue;
   }

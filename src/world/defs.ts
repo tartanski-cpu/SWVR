@@ -578,6 +578,39 @@ export interface FollyDef {
 }
 
 /**
+ * A shipyard's gantry crane track from the map (Perno, Turku): its middle, the bearing it runs
+ * along (deg), its length and the span between its rails (m), how many gantries share it, and
+ * the ground its rails are on (m). Drawn by world/coastStructures.ts.
+ */
+export interface GantryDef {
+  name: string;
+  x: number;
+  z: number;
+  yawDeg: number;
+  length: number;
+  span: number;
+  count: number;
+  base: number;
+}
+
+/**
+ * A ship under construction at a yard (Perno): where her middle is, the way her bow points
+ * (deg), her length and beam (m), the height of her keel (m: on a dry dock's floor, or below
+ * the water afloat at the outfitting quay), how far on she is (0 to 1) and a seed for her
+ * blocks' colours. Drawn by world/coastStructures.ts; an original design, not a real ship.
+ */
+export interface YardShipDef {
+  x: number;
+  z: number;
+  yawDeg: number;
+  length: number;
+  beam: number;
+  keel: number;
+  stage: number;
+  seed: number;
+}
+
+/**
  * A place name from the map (the coast extras plan, C4; a coast map's): a town, village,
  * island or islet, or the sea's own (a bay, a headland, a strait). On the charts by `rank`
  * (1 shown farthest out, 4 only close in), and in the radio's calls (world/places.ts).
@@ -707,6 +740,10 @@ export interface RegionDef {
   /** Its bridges over the sea and follies (a coast map's; world/coastStructures.ts). */
   bridges?: BridgeDef[];
   follies?: FollyDef[];
+  /** A shipyard's gantry cranes (a coast map's; world/coastStructures.ts). */
+  gantries?: GantryDef[];
+  /** Ships under construction at a yard (a coast map's; world/coastStructures.ts). */
+  yardShips?: YardShipDef[];
   /** Boats lying in its harbours, on moorings and at anchor (a coast map's; world/harbourBoats.ts). */
   harbourBoats?: HarbourBoatsDef;
   gusts?: GustZoneDef[];

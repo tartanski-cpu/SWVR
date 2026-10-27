@@ -14,6 +14,33 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### (From the main game chat) A code ready once her gearbox is matched (26 Oct 2026)
+
+Owner, in the main game chat: the harbour tug took forever on the Quest before she could be saved. The tug's fixed gearbox is the entry below (this chat's, merged here); on top of it, for every boat:
+- `worker.ts` posts the matched gearbox at once (`matched: true`), then runs the sea trials; `page.ts` takes it as her code ready (save, Play, link) while the trials run on (the tug's took 27.8 s on this computer). The search and compare workers wait for the trials as before.
+- Checked: `npm run test:shipyard`; headless, the tug says "Running her trials..." from the start and can be saved meanwhile. Not checked on the Quest.
+
+### Service liveries: police, fire, rescue, coastguard (approved by the owner 26 Oct 2026; on next)
+
+Owner, 26 Oct 2026: "I'd like to add some liveries for the pilot boat and the fast, what's it called, landing craft, probably police, fire, and rescue. And Coast Guard."
+
+- **New choice** at the top of the Paint step: **Livery**, None, Police, Fire, Rescue or Coastguard (design `markings`, `MARKING_STEPS` 5; not in the code: a link or file). Picking one sets her colours for it (topsides, wheelhouse walls, roof, frames: `SERVICE_LIVERIES[].colours`), still the player's to change, and puts its markings on her topsides. Our own schemes, not any real service's: Police white with a blue and yellow chequer band; Fire red with white and yellow bands; Rescue orange with an orange and white chequer and a dark blue line; Coastguard white with a red band over a thin dark blue one (we kept clear of the real coastguards' diagonal stripes). Each with the service's name forward on both sides, reading the right way on each.
+- **How it's drawn** (parts/markings.ts, the shared module modules/markings `hull.markings`): a thin skin `offset` 0.012 m proud of her side, worked out on her own stations (deck edge, spray chine, chine or bilge), from `topDrop` 0.16 m under the top of her bulwark (its plate stands on her deck edge, so her side carries up it: on the landing craft the markings are on her high bulwarked sides) down `depthShare` 0.8 of her least side height, from `from` 0.04 to `to` 0.9 along her, `rows` 6 deep; its picture painted once from the bands and name (`pxPerM` 64, at most `maxPx` 2048 across; the name centred `textAt` 0.6 along her, at most `textShare` 0.4 of the skin's length): `CONFIG.shipyard.markings`. Clear where the picture is clear. **One mesh for both sides, one draw call** per marked boat. No weight. A monohull's only: on the catamaran she gets the colours and the Shipyard says the markings need a single hull.
+- Choosing or changing a livery doesn't re-match her gearbox (paint: `matchKey` leaves out `markings`).
+- Tests: tests/shipyard/serviceLiveries.test.ts (each livery on the pilot boat and the landing craft: both sides, proud of her plating, the recipe sound, her figures unchanged; up the landing craft's bulwark; none on the catamaran, saying so; a link or file). designDoc.test.ts: `markings` not in the code. The full `npm test` (1645 tests) and the typecheck pass.
+- Checked in the browser: all four on the pilot boat and the landing craft, from both quarters (pictures to the owner); a marked pilot boat taken into the game (the markings drawn, no errors).
+- Not checked: in VR, at night.
+- README: the liveries.
+- **Shared changes:** a new module src/modules/markings/index.ts (`hull.markings`), registered in src/boats/library.ts.
+
+### Fix: the harbour tug’s gearbox fixed with her drives, so her link is ready at once (approved by the owner 26 Oct 2026; on next)
+
+Owner, 26 Oct 2026 (in VR): "it won't resolve the gearbox. So it doesn't give me a code, so it doesn't let me load it in the game. And on this boat, because it's a fixed design, there should be a fixed engine configuration and a fixed propulsion, so there shouldn't be any resolving of the gearbox."
+
+- **Why:** the page matched her gearbox by trial in the background (a few seconds on a desktop, far longer for a 480 t boat on the Quest), and her link, Play and 💾 Save all waited for it.
+- **Now:** her gearbox step is one of her fixed choices (`HARBOUR_TUG_FIXED.gear` = `CONFIG.shipyard.harbourTug.gear`, 14: the step the trial matched for her twin 1850 kW on her azimuth drives, about 12 kn flat out at rated revs). The page (`matched()`) and its trial worker never match a gearbox fixed with her type (`gearFixed`, catalog.ts): her link, Play and Save are ready as soon as she's drawn. Her figures say "fixed with her drives". Her sea trials still run in the background for the figures.
+- Tests: harbourTugYard.test.ts (her gear fixed whatever the design says). The typecheck and the Shipyard tests pass.
+
 ### Exhaust stacks as a part of their own: on the deckhouse, moved along it, round or square casings (approved by the owner 26 Oct 2026; on next)
 
 Owner, 26 Oct 2026: "the Fair Play reference tag has the exhaust pipes in a kind of standalone box ... split these exhaust pipes out as something that you can control. So in a bigger ship, we can make the wheelhouse smaller. And then I'd like to be able to move the twin exhaust pipes forward and aft on this deck house and choose whether they've got like a circular or a square kind of box around them"; then "Do the Funnel stack part next".
