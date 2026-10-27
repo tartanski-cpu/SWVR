@@ -14,6 +14,9 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { azimuthDemand } from '../src/modules/dieselInboard';
+import { AZIMUTH_SYNC } from '../src/modules/azimuthLevers/sync';
+import { Button } from '../src/controls/Button';
+import type { VesselState } from '../src/vessel/vesselState';
 import { AzimuthLever, snapTo } from '../src/modules/azimuthLevers/lever';
 import { InteractionSystem, type HandFrame } from '../src/controls/InteractionSystem';
 import { buildDesign, DESIGN_HULLS } from '../src/shipyard/build';
@@ -82,6 +85,10 @@ describe('azimuth drives', { timeout: 300000 }, () => {
       expect(slots[socket].position[0]).toBeCloseTo(x, 3);
     }
     expect(helm.modules!.find((m) => m.socket === 'aziTransit')!.bind).toEqual({ value: 'azimuth.transit' });
+    // SYNC on the port pedestal, ahead of its lever (TRANSIT's mirror).
+    expect(helm.modules!.find((m) => m.socket === 'aziSync')!.module).toBe('control.azimuth-sync');
+    expect(slots.aziSync.position[0]).toBeCloseTo(-ac.leverX, 3);
+    expect(slots.aziSync.position[2]).toBeCloseTo(slots.aziTransit.position[2], 3);
     expect(helm.modules!.find((m) => m.socket === 'wheel')!.config).toMatchObject({ radius: ac.wheelRadius });
     expect(helm.modules!.some((m) => m.socket === 'start2')).toBe(true);
     // Her driving guide on the port wall, facing in; no other boat has it.
@@ -331,5 +338,24 @@ describe('azimuth drives', { timeout: 300000 }, () => {
     for (let i = 0; i < 60; i++) lever.tick(1 / 60);
     expect(lever.power).toBeCloseTo(0.5, 1);
     lever.keySteer(0, 0);
+  });
+
+  it('SYNC: a press synchronises the throttles, a press again splits them; lit while synchronised', () => {
+    const sent: [string, number][] = [];
+    const shared: unknown[] = [];
+    const view = AZIMUTH_SYNC.view!.build({ config: { color: 0x3a9ad9 }, share: (m: unknown) => shared.push(m) } as never);
+    const button = view.controls[0] as Button;
+    button.bind({ emit: (ch: string, v: number) => sent.push([ch, v]), haptic: () => {} } as never);
+    const state = { controls: { aziSync: 0 } } as never as VesselState;
+    button.sync(state);
+    button.pressStart();
+    button.pressEnd();
+    expect(sent.at(-1)).toEqual(['aziSync', 1]);
+    (state.controls as { aziSync: number }).aziSync = 1;
+    button.sync(state);
+    button.pressStart();
+    button.pressEnd();
+    expect(sent.at(-1)).toEqual(['aziSync', 0]);
+    expect(shared.length).toBe(1);
   });
 });

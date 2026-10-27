@@ -44,6 +44,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **The tug's SYNC button** (this log). At the tug's helm, the blue SYNC on the port pedestal ahead of the red lever: press it (desktop: click), then move one lever's power: both go together; press again and they're separate. It's lit while synchronised.
 - [ ] **The tug's levers: the thumbstick only** (this log). VR: grab a lever's bar and move and twist your hand: nothing moves. Now the thumbstick of that hand: sideways twists it, forward gives power.
 - [ ] **The driving guide poster in the harbour tug's wheelhouse** (this log). Start the harbour tug, stand at the wheel and turn to port: the poster is on the port wall below the windows. Can you read it in the headset (lean in)? Is it at a good height and place? At night it goes red with the instruments.
 - [ ] **The harbour tug's azimuth drives and their twist-and-throttle levers** (this log). Shipyard → Harbour tug, then start the game in her. Key on, START P, START S. At the helm: the red lever left of the small wheel is the port drive, the green right of it the starboard. VR: grab one by its bar, turn your wrist to turn the head (the white pointer is the way it pushes), push the bar forward for power; then both at once, one in each hand: both ahead (she goes ahead), both astern, one ahead and one astern (she turns on the spot), both turned out to port. Desktop: drag a lever sideways and up, or click it and A / D, W / S. Press **TRANSIT** (ahead of the green lever): the wheel steers both drives, the levers only set the power. Watch the dials on the ENGINE screen. Tell me how far forward and how close together the levers want to be, and how much the twist should turn them (`twistGain`).
@@ -73,6 +74,13 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### The tug's SYNC button: synchronise the throttles from the console (done; on next, in your test round)
+
+Owner, 27 Oct 2026: "The only thing that hasn't made it through ... is a switch that synchronizes the throttles." Synchronising was there only as a VR thumbstick click (the main game chat, `aziSync`); now there's a blue **SYNC** button on the port lever's pedestal, ahead of it, TRANSIT's mirror on the starboard side. A press synchronises them (both at the port lever's power; from then on either lever sets both), a press again splits them; it's lit while they're synchronised. It sends the same `aziSync` intent as the stick click, so button, click and the on-screen dials agree. Works for desktop players too (click it).
+- A new module, `control.azimuth-sync` (`src/modules/azimuthLevers/sync.ts`); its cap shared with every other button (no extra draw call).
+- Tests: `tests/azimuth.test.ts` (the Shipyard puts it on the port pedestal; a press sends sync on, then off when synchronised). Checked headless: SYNC on the tug's helm beside the red lever.
+- **Shared changes:** `src/shipyard/parts/recipe.ts` (its slot and module on the tug), `src/boats/library.ts` (registered). The poster and README mention it.
 
 ### The tug's levers in VR: the thumbstick only, the hand just holds (done; on next, in your test round)
 
