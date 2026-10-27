@@ -838,7 +838,11 @@ export const MODULES_CONFIG = {
      *                   a degree of the hand's twist (`twistGain`: a wrist turns about 90 deg
      *                   comfortably, so a full turn round is a few grabs), its turntable's radius
      *                   (m), colours (`handle` the head's black, `tip` its pointer, `port` /
-     *                   `stbd` the bands round the drum, `base` the housing)
+     *                   `stbd` the bands round the drum, `base` the housing). `snapDeg` (owner,
+     *                   Oct 2026: snap to "12 o'clock, 3 o'clock, 6 o'clock and 9 o'clock to make
+     *                   it a bit easier to find those key positions"): within this many degrees
+     *                   of ahead, abeam or astern it clicks onto it, a notch the hand or stick
+     *                   turns on through.
      *   console         where the Shipyard puts them (control.azimuth-lever ×2, the helm console's
      *                   slots, from its centre): each lever `leverX` out from the wheel's middle
      *                   (either side) and `leverZ` aft of the console top's aft face, on its own
@@ -855,7 +859,7 @@ export const MODULES_CONFIG = {
       driveRatio: 1.6,
       hullClear: 0.15,
       look: { legWidth: 0.24, legChord: 0.75, housing: 0.11, nozzleLength: 0.5, nozzleWall: 0.09, colour: 0x4a5560, nozzleColour: 0x30363c },
-      lever: { length: 0.1, maxTiltDeg: 35, detent: 0.07, twistGain: 1.5, turntableRadius: 0.065, drumRadius: 0.045, drumWidth: 0.11, barRadius: 0.012, colours: { port: 0xd03a2a, stbd: 0x2a9a4a, handle: 0x1b1e21, tip: 0xf2f2f2, base: 0x23282c } },
+      lever: { length: 0.1, maxTiltDeg: 35, detent: 0.07, snapDeg: 8, twistGain: 1.5, turntableRadius: 0.065, drumRadius: 0.045, drumWidth: 0.11, barRadius: 0.012, colours: { port: 0xd03a2a, stbd: 0x2a9a4a, handle: 0x1b1e21, tip: 0xf2f2f2, base: 0x23282c } },
       console: { leverX: 0.3, leverZ: 0.2, transitZ: -0.065, joystickShift: 0.2, wheelRadius: 0.13 },
     },
 

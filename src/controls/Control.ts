@@ -149,6 +149,14 @@ export abstract class Control {
   readonly keySteerable: boolean = false;
   keySteer(_x: number, _y: number): void {}
   /**
+   * VR: while a hand holds this control, that hand's thumbstick works it (x right, y forward,
+   * -1..1, dead zone taken off; 0, 0 when the stick is let go or the control is). Controls
+   * that support it set `stickSteerable`. (Any held control keeps its hand's stick from
+   * walking or turning the player: App, InteractionSystem.holding.)
+   */
+  readonly stickSteerable: boolean = false;
+  stickSteer(_x: number, _y: number): void {}
+  /**
    * Desktop: while this control is keyboard-steered, these keys work its companion buttons
    * (held down, the button is held: the deck crane's hoist, boom and hook). Those keys do
    * nothing else meanwhile (Keyboard.claim).
