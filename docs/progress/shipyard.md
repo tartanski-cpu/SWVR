@@ -14,7 +14,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### The stair across a deckhouse's aft face wider (preview/shipyard)
+### The stair across a deckhouse's aft face wider (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "The transverse stairs are still difficult to get up on the deck house. I think they're a bit narrow, and it could be that making them a bit wider will just make it easier to get up."
 
