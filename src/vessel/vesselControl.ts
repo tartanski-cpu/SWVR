@@ -75,6 +75,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
   // 'throttle.demand': checked and written by the bus (range, holds), as the cases below do.
   if (isKeyName(intent.control)) {
     applyBusIntent(s, intent.control, intent.value, intent.playerId);
+    // Azimuth drives with their throttles synchronised (aziSync): one lever's power is both's.
+    if (s.controls.aziSync && (intent.control === 'throttle.demand' || intent.control === 'throttle.demand2')) {
+      applyBusIntent(s, intent.control === 'throttle.demand' ? 'throttle.demand2' : 'throttle.demand', intent.value, intent.playerId);
+    }
     return;
   }
   // A grab control someone else has a hand on only answers to them.
@@ -220,6 +224,22 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
         s.electrics.selector = v >= 1 && v <= 3 ? v : s.electrics.selector === 1 ? 3 : s.electrics.selector === 3 ? 2 : 1;
       }
       break;
+    case 'aziSync': {
+      // Azimuth drives (owner, 27 Oct 2026: "a button which synchronizes the throttles ... the
+      // throttles are at the same power"; a lever's thumbstick clicked in): 1 on, both at the
+      // port lever's power; 2 on, at the starboard's; 0 split again.
+      if (!gearOf(s, 'diesel')?.azimuth) break;
+      const v = Math.round(intent.value);
+      if (v <= 0) {
+        s.controls.aziSync = 0;
+        break;
+      }
+      const power = v === 2 ? (s.controls.lever2 ?? s.controls.lever) : s.controls.lever;
+      s.controls.aziSync = 1;
+      applyBusIntent(s, 'throttle.demand', power, intent.playerId);
+      applyBusIntent(s, 'throttle.demand2', power, intent.playerId);
+      break;
+    }
     case 'quickStart':
       // One press does it all (quick-start option / debug): master, main breakers, start
       // (the harbour tug's engine room readied first: plant/plant.ts).

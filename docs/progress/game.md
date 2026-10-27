@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The tug's levers in VR: the hand twists, the stick sets the power; a click synchronises the throttles (27 Oct 2026)
+
+Owner: "the throttles are on the stick, which is right, but I don't want the twist to be on the sticks. I want the twist to be with hand controllers"; "I need a button which synchronizes the throttles ... the throttles are at the same power. Maybe ... a click in, so you can do it while you're on the hand controllers."
+- **Twist by hand, power by stick** (`modules/azimuthLevers/lever.ts`, `CONFIG.modules.azimuth.lever.vrTwist` 'hand'; 'stick' brings back the stick's sideways twist): holding a lever, turn your wrist and it turns (`twistGain` 1.5 degrees a degree, from the grab; the notches as ever); the thumbstick forward and back sets its power; the stick's sideways and pushing the hand do nothing. `handMoves` stays off.
+- **Synchronised throttles:** the thumbstick clicked in while a hand holds a lever (`Control.stickClick`, `HandFrame.stickPressed`) sends `aziSync` (1 or 2: on, at the port or starboard lever's power; 0: split). On, the host sets both throttles to that lever's power, and from then on a `throttle.demand` or `throttle.demand2` sets both (`vessel/vesselControl.ts`, `VesselControls.aziSync`, holds respected). A held lever whose stick is still follows the other's power. A buzz and a notice ("Throttles synchronised"); the desktop dials say SYNC.
+- **That click is the lever's** while the hand holds it: the left stick's click doesn't board / go ashore, the right's doesn't work the laser.
+- The driving guide poster and the README say the new way.
+- **Tests:** tests/azimuth.test.ts (the modular-builder chat's thumbstick-only test rewritten for the new split: the hand twists, the stick's sideways doesn't, its forward gives power, the hand turning back follows; the click sends the sync); tests/plant.test.ts (synchronised: both to the clicked lever's power, either sets both, split again).
+- **Not checked:** VR (the twist's feel, the click). No visible change on the desktop beyond the dials' SYNC.
+- **Shared changes:**
+  - `src/modules/azimuthLevers/lever.ts` (`vrTwist`, `stickClick`, a held lever following the power), `src/modules/azimuthLevers/index.ts`, `src/config/modules.ts` (`vrTwist`), `src/modules/poster/azimuthGuide.ts` (one line): the modular builder chat's files, for the owner's ask;
+  - `src/vessel/vesselState.ts` (`aziSync`), `src/vessel/vesselControl.ts` (the `aziSync` intent; synchronised throttles).
+
 ### Driving the harbour tug from the keyboard and a game controller (27 Oct 2026)
 
 The owner: "I want my non-VR friends to be able to drive this tug"; built from the modular-builder chat's handover (below), with the owner's decisions. Only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`), on the desktop (F by her wheel, or a controller's A); every other boat's helm is as it was.

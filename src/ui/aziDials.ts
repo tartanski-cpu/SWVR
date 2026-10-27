@@ -16,6 +16,8 @@ export interface DialShows {
   deg: number;
   askDeg: number;
   power: number;
+  /** The throttles synchronised (a lever's stick clicked in): shown on both. */
+  sync?: boolean;
 }
 
 export class AziDials {
@@ -52,7 +54,7 @@ export class AziDials {
     }
     if (!drives) return;
     drives.forEach((d, i) => {
-      const key = `${Math.round(d.deg)} ${Math.round(d.askDeg)} ${Math.round(d.power * 50)}`;
+      const key = `${Math.round(d.deg)} ${Math.round(d.askDeg)} ${Math.round(d.power * 50)} ${d.sync ? 1 : 0}`;
       if (key === this.shown[i]) return;
       this.shown[i] = key;
       this.draw(this.canvases[i], d, i);
@@ -71,7 +73,7 @@ export class AziDials {
     g.fillStyle = '#f2f5f5';
     g.font = '600 13px system-ui, sans-serif';
     g.textAlign = 'center';
-    g.fillText(i ? 'STBD DRIVE' : 'PORT DRIVE', 75, 18);
+    g.fillText(`${i ? 'STBD DRIVE' : 'PORT DRIVE'}${d.sync ? ' · SYNC' : ''}`, 75, 18);
     azimuthDial(g, 75, 86, d.deg, d.askDeg, colour);
     // Its power: a bar under the dial, and the figure.
     g.fillStyle = 'rgba(255, 255, 255, 0.18)';

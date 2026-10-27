@@ -178,3 +178,24 @@ describe('the harbour tug, from dead ship', { timeout: 300000 }, () => {
     expect(v.engine.stbd?.phase).toBe('running');
   });
 });
+
+describe('the harbour tug\'s throttles synchronised', { timeout: 300000 }, () => {
+  it('on: both at the clicked lever\'s power, then either lever sets both; off: each its own again', () => {
+    const t = deadShip();
+    const { v, send } = t;
+    send('throttle.demand', 0.3);
+    send('throttle.demand2', 0.7);
+    send('aziSync', 2);
+    expect(v.controls.aziSync).toBe(1);
+    expect(v.controls.lever).toBeCloseTo(0.7);
+    expect(v.controls.lever2).toBeCloseTo(0.7);
+    send('throttle.demand', 0.5);
+    expect(v.controls.lever2).toBeCloseTo(0.5);
+    send('throttle.demand2', 0.9);
+    expect(v.controls.lever).toBeCloseTo(0.9);
+    send('aziSync', 0);
+    send('throttle.demand', 0.2);
+    expect(v.controls.lever).toBeCloseTo(0.2);
+    expect(v.controls.lever2).toBeCloseTo(0.9);
+  });
+});

@@ -1722,7 +1722,8 @@ export class App {
     if (k.actionPressed('couplingDown')) dc = -0.1;
     if (k.actionPressed('couplingUp')) dc = 0.1;
     if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
-    if ((k.actionPressed('board') && !cam) || this.xrInput.wasPressed('left', XR_BUTTON.stick)) this.toggleBoard();
+    // (The left stick's click, while that hand holds a control that takes its stick, is the control's: the tug's levers' sync.)
+    if ((k.actionPressed('board') && !cam) || (this.xrInput.wasPressed('left', XR_BUTTON.stick) && !this.interaction?.holding('left')?.stickSteerable)) this.toggleBoard();
     if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
     if (k.actionPressed('seaState')) {
       // Cycle the weather presets (each eases in; the sea follows the wind).
@@ -4718,6 +4719,7 @@ export class App {
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start' || channel === 'ignition.start2') && value > 0) this.startInGearHint();
         if (channel === 'dipstick' || channel === 'propulsion.oilCheck') this.readDipstick();
+        if (tv.control === 'aziSync') this.overlay.notify(value > 0 ? 'Throttles synchronised: either lever sets both (click the stick in again to split them)' : 'Throttles split: each lever its own drive', 3);
         if (channel === 'cleat') this.cleatHint(value);
         if (channel === 'sos') return value > 0 ? this.sendSos() : undefined;
         // The dive A-frame's DIVE: into the submersible game (the app leaves the page; nothing to the boat).
@@ -4869,8 +4871,8 @@ export class App {
     this.aziDials.update(
       azi
         ? [
-            { deg: ((azi.engine.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle ?? 0, power: Math.max(0, azi.controls.lever) },
-            { deg: ((azi.engine.stbd?.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle2 ?? 0, power: Math.max(0, azi.controls.lever2 ?? azi.controls.lever) },
+            { deg: ((azi.engine.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle ?? 0, power: Math.max(0, azi.controls.lever), sync: !!azi.controls.aziSync },
+            { deg: ((azi.engine.stbd?.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle2 ?? 0, power: Math.max(0, azi.controls.lever2 ?? azi.controls.lever), sync: !!azi.controls.aziSync },
           ]
         : null,
     );
@@ -5364,6 +5366,7 @@ export class App {
         f.triggerPressed = this.xrInput.wasPressed(h, XR_BUTTON.trigger);
         f.trigger = this.xrInput.hands[h].values[XR_BUTTON.trigger] ?? (f.triggerDown ? 1 : 0);
         f.stick = this.xrInput.hands[h].stick;
+        f.stickPressed = this.xrInput.wasPressed(h, XR_BUTTON.stick);
       }
       // The menu gets the right hand first; while it's on the menu its trigger is the menu's.
       if (this.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
@@ -5464,7 +5467,8 @@ export class App {
    */
   private updateLaser(dt: number): void {
     const inXR = this.renderer.xr.isPresenting;
-    const on = inXR ? this.xrInput.isDown('right', XR_BUTTON.stick) && this.hands.right.tracked : !!this.pointer?.laserDown;
+    // (Not while the right hand holds a control that takes its stick: its click is the control's.)
+    const on = inXR ? this.xrInput.isDown('right', XR_BUTTON.stick) && this.hands.right.tracked && !this.interaction?.holding('right')?.stickSteerable : !!this.pointer?.laserDown;
     if (!on) return this.laser.off();
     if (inXR) return this.laser.update(dt, this.hands.right.ray);
     const ray = this.laserRay;

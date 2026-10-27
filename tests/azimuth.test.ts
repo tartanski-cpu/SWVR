@@ -234,38 +234,45 @@ describe('azimuth drives', { timeout: 300000 }, () => {
     expect(lever.held).toBe(false);
   });
 
-  it('as set (handMoves off): a hand holding it only holds it; moving or twisting the hand does nothing, the thumbstick works it', () => {
+  it('as set (owner, 27 Oct 2026): in VR the hand twists it and its thumbstick sets the power; the stick\'s sideways and the hand\'s push do nothing', () => {
     const c = CONFIG.modules.azimuth.lever;
     expect(c.handMoves).toBe(false);
-    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, handMoves: c.handMoves, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    expect(c.vrTwist).toBe('hand');
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, handMoves: c.handMoves, vrTwist: c.vrTwist, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    const sent: [string, number][] = [];
     lever.root.updateMatrixWorld(true);
-    const sys = new InteractionSystem([lever], () => {}, () => {});
-    const frame = (grip: THREE.Vector3, down: boolean, pressed: boolean, stick: [number, number], yawDeg = 0): HandFrame => ({ tracked: true, grip, ray: new THREE.Ray(grip.clone(), new THREE.Vector3(0, 0, -1)), quat: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-yawDeg * Math.PI) / 180), gripDown: down, gripPressed: pressed, triggerDown: false, triggerPressed: false, stick });
+    const sys = new InteractionSystem([lever], (ch, v) => sent.push([ch, v]), () => {});
+    const frame = (grip: THREE.Vector3, down: boolean, pressed: boolean, stick: [number, number], yawDeg = 0, click = false): HandFrame => ({ tracked: true, grip, ray: new THREE.Ray(grip.clone(), new THREE.Vector3(0, 0, -1)), quat: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-yawDeg * Math.PI) / 180), gripDown: down, gripPressed: pressed, triggerDown: false, triggerPressed: false, stick, stickPressed: click });
     const far = new THREE.Vector3(5, 5, 5);
     const at = lever.grabPoint(new THREE.Vector3());
     const hands = (l: HandFrame) => ({ left: l, right: frame(far, false, false, [0, 0]) });
     sys.updateXR(hands(frame(at, true, true, [0, 0])));
     expect(sys.holding('left')).toBe(lever);
-    // The hand pushed well forward and twisted 60 deg: nothing moves.
+    // The hand pushed well forward and twisted 20 deg: it turns (20 x twistGain), no power.
     const pushed = at.clone().add(new THREE.Vector3(0.03, -0.02, -0.12));
-    for (let i = 0; i < 5; i++) sys.updateXR(hands(frame(pushed, true, false, [0, 0], 60)));
+    for (let i = 0; i < 5; i++) sys.updateXR(hands(frame(pushed, true, false, [0, 0], 20)));
+    expect(lever.angle).toBeCloseTo(20 * c.twistGain, 0);
     expect(lever.power).toBe(0);
-    expect(lever.angle).toBe(0);
-    // The stick, sideways then forward: it twists, then gives power.
+    // The stick sideways: no twist. Forward: power.
+    const turned = lever.angle;
     for (let i = 0; i < 5; i++) {
-      sys.updateXR(hands(frame(pushed, true, false, [1, 0], 60)));
+      sys.updateXR(hands(frame(pushed, true, false, [1, 0], 20)));
       lever.tick(0.1);
     }
-    expect(lever.angle).toBeGreaterThan(30);
+    expect(lever.angle).toBeCloseTo(turned, 5);
     for (let i = 0; i < 5; i++) {
-      sys.updateXR(hands(frame(pushed, true, false, [0, -1], 60)));
+      sys.updateXR(hands(frame(pushed, true, false, [0, -1], 20)));
       lever.tick(0.1);
     }
     expect(lever.power).toBeGreaterThan(0.2);
-    // And the hand moving back afterwards still changes nothing.
-    const kept = [lever.angle, lever.power];
-    for (let i = 0; i < 5; i++) sys.updateXR(hands(frame(at, true, false, [0, 0], -40)));
-    expect([lever.angle, lever.power]).toEqual(kept);
+    // The hand turned back: the twist follows it; the power stays where the stick left it.
+    const power = lever.power;
+    for (let i = 0; i < 5; i++) sys.updateXR(hands(frame(at, true, false, [0, 0], 0)));
+    expect(lever.angle).toBeCloseTo(0, 0);
+    expect(lever.power).toBeCloseTo(power, 5);
+    // The stick clicked in: the throttles synchronised, to this (the port) lever's power.
+    sys.updateXR(hands(frame(at, true, false, [0, 0], 0, true)));
+    expect(sent.at(-1)).toEqual(['aziSync', 1]);
   });
 
   it('a hand holding it: the interaction system gives it that hand\'s stick, and says the hand holds it (so the stick neither walks nor turns you)', () => {

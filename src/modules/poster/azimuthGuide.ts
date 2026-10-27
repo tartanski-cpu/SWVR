@@ -221,7 +221,7 @@ export function paintAzimuthGuide(g: G, W: number, H: number): void {
   const lh = H * 0.032;
   const notes = [
     'The arrow (on the lever, its white pointer) is the way that drive pushes her.',
-    'VR: grab the bar and use that hand\'s THUMBSTICK: sideways twists it, forward and back the power.',
+    'VR: grab the bar, twist your WRIST to turn it; that hand\'s THUMBSTICK forward / back is the power. Click the stick in: both throttles together.',
     'Desktop: drag it, or click it and A / D, W / S. Upright is idle.',
     'The drives follow at 12° a second: 15 s from ahead to astern. Point them first.',
     'ENGINE screen: the arrow is where each drive is, the ring where its lever asks.',

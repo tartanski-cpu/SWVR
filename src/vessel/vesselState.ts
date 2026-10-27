@@ -23,6 +23,8 @@ export interface VesselControls {
   aziAngle?: number;
   aziAngle2?: number;
   aziTransit?: number;
+  /** Azimuth drives: the two throttles synchronised (1): either lever's power sets both (vessel/vesselControl.ts). */
+  aziSync?: number;
   /** Helm (wheel) position, -1 (hard to port) .. +1 (hard to starboard). */
   helm: number;
   /** Navigation lights switch, 0 off / 1 on. */
