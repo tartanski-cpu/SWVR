@@ -47,6 +47,29 @@ function generate(): BerthDef[] {
   const out: BerthDef[] = [...BERTHS];
   const off = 2.5; // boat centreline to the face: half beam plus fenders
   let n = 0;
+  // The blocks by where they are, and the berths made so far likewise: each spot is checked
+  // against those near it, not every one on the map (Turku, owner: "takes a while to load";
+  // its 3,276 jetty pieces made this 2.6 s, every spot against every block and berth).
+  // The same answers, so the same berths and ids.
+  const blocksAt = new GridIndex(BLOCKS, (o) => {
+    const r = Math.hypot(o.halfLength, o.halfWidth) + 1;
+    return [o.x - r, o.z - r, o.x + r, o.z + r];
+  }, 50);
+  const anyBlock = (x: number, z: number, test: (o: BlockDef) => boolean) => blocksAt.at(x, z).some(test);
+  const MADE = 10;
+  const made = new Map<string, BerthDef[]>();
+  const keep = (q: BerthDef) => {
+    const k = `${Math.floor(q.x / MADE)},${Math.floor(q.z / MADE)}`;
+    const list = made.get(k);
+    if (list) list.push(q);
+    else made.set(k, [q]);
+  };
+  for (const q of out) keep(q);
+  const berthWithin9 = (x: number, z: number) => {
+    const [i, j] = [Math.floor(x / MADE), Math.floor(z / MADE)];
+    for (let a = i - 1; a <= i + 1; a++) for (let c = j - 1; c <= j + 1; c++) if (made.get(`${a},${c}`)?.some((q) => Math.hypot(q.x - x, q.z - z) < 9)) return true;
+    return false;
+  };
   for (const b of BLOCKS) {
     if (b.farm) continue; // a fish farm's rings and lines: solid, but nowhere to tie up
     const faces = [
@@ -82,7 +105,7 @@ function generate(): BerthDef[] {
         // pontoons stand across the main pontoon's face between them). Pontoons only: the
         // hand-built regions' berths stay as they were.
         // (A pontoon's own berths keep clear of everything: one may lie along a quay's foot.)
-        const blocked = [-1, 0, 1].some((k) => BLOCKS.some((o) => o !== b && (isPontoon(o) || isPontoon(b)) && inBlock(o, p.x + ax * k * ROOM, p.z + az * k * ROOM)));
+        const blocked = [-1, 0, 1].some((k) => anyBlock(p.x + ax * k * ROOM, p.z + az * k * ROOM, (o) => o !== b && (isPontoon(o) || isPontoon(b)) && inBlock(o, p.x + ax * k * ROOM, p.z + az * k * ROOM)));
         if (blocked) continue;
         // A pontoon's lines go to cleats on a pontoon (half a metre in from the edge, as the lines
         // are drawn), not up to a quay or breakwater it meets.
@@ -91,13 +114,13 @@ function generate(): BerthDef[] {
           const onDeck = [-1, 1].every((k) => {
             const cx = p.x + ax * k * half - nx * (off + 0.5);
             const cz = p.z + az * k * half - nz * (off + 0.5);
-            return BLOCKS.some((o) => isPontoon(o) && inBlock(o, cx, cz, 0)) && !BLOCKS.some((o) => !isPontoon(o) && inBlock(o, cx, cz, 0.3));
+            return anyBlock(cx, cz, (o) => isPontoon(o) && inBlock(o, cx, cz, 0)) && !anyBlock(cx, cz, (o) => !isPontoon(o) && inBlock(o, cx, cz, 0.3));
           });
           if (!onDeck) continue;
         }
-        if (out.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 9)) continue; // a named berth here already
+        if (berthWithin9(p.x, p.z)) continue; // a named berth here already
         const port = nearestPort(p.x, p.z);
-        out.push({
+        const berth: BerthDef = {
           id: `${port.id}-${b.kind}-${++n}`,
           portId: port.id,
           name: `${port.name} (${b.kind} berth)`,
@@ -109,7 +132,9 @@ function generate(): BerthDef[] {
           shoreDist: off,
           deckY: b.top,
           ...(short ? { bollardHalf: shortCleat(f.half) } : {}),
-        });
+        };
+        out.push(berth);
+        keep(berth);
       }
     }
   }

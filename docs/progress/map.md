@@ -10,6 +10,21 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku loads faster: the piers' kit made as you come near, the berths and steps by a grid (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "The Turku map takes a while to load. Can you make sure it's not doing the same thing as the Firth of Clyde map with all the piers?"
+
+- **Measured** (a CPU profile of the page loading, headless): the world ready 20.8 s after the reload, of which the game's own start-up was 10.4 s. Two parts of it went over all of Turku's 3,276 jetty pieces (the Clyde has 308): making the harbour kit of every pier on the map before the first frame (5.6 s), though a square of it is drawn only within 2.5 km of you; and working out every berth along every pier face (2.6 s, each spot checked against every block and every berth so far), wanted at the start only to put you on the quay. The Clyde's old trouble (laying out its cargo, fixed by the main game chat on 24 Oct) is fine here: 0.7 s.
+- **The harbour kit square by square** (`world/view/worldView.ts` `CoastKit`; `coastView.ts` `addStructure`): a coast region's lighthouses and landmarks are made at once; its 1 km squares (`coastStructureCell`) as the viewer comes within `coastStructureDistance` and a square more of them, nearest first, piece by piece, `coastKitMs` (4) ms a frame, each merged when whole; those round the start before the first frame. A square never visited is never made (memory saved too). Drawing only: the piers are solid and walkable from the start, as before. Arriving somewhere by the Voyage tab's Go, its piers may draw in over a second or two.
+- **Berths by a grid** (`world/berths.ts` `generate`): each spot is checked against the blocks and berths near it (`GridIndex`), not every one on the map; the same berths, in the same order, with the same ids (checked on all six worlds, career included: identical).
+- **The piers' drawing steps by a grid** (`world/blockSteps.ts`): the same greedy colouring, each block against the earlier blocks near it: Turku's 779 ms to 60 ms, identical on every map.
+- **Now:** the game's own start-up 2.6 s (from 10.4), the world ready 11.9 s after the reload in the headless browser (from 20.8; the rest is the browser loading the code, the 2.6 MB map file and the shaders, and waiting on the downloads). The Clyde in the same setup: 9.6 s, its start-up 2.7 s. What's left of the game's own: about 0.7 s laying out the crane cargo (`cargo.ts`, the main game's: each crane item against all the cargo), told to the main game chat rather than changed here.
+- **Tests:** `tests/coastLoad.test.ts` (the drawing steps by the grid against every pair, on every coast map; Turku's under a quarter of a second). `npm run test:map`, the typecheck and all of `npm test` pass. Headless: the start harbour complete at the first frame; off Nagu the 24 squares round it made as she came.
+- **Not checked:** on the Quest (how long it really loads there, and whether making a square ever shows as a stutter).
+- **Shared changes:** `src/world/view/worldView.ts` (the coast kit square by square; `structureParts` takes the steps), `src/world/berths.ts` and `src/world/blockSteps.ts` (by a grid, the same results). Setting `CONFIG.regions.coastKitMs`.
+
 ### Turku: the yard's ships 20 decks high, five in the hull (27 Oct 2026)
 
 **Owner approved; merged into `next`.**

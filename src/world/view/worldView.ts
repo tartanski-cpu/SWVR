@@ -16,6 +16,7 @@ import { CoastTerrainView, coastSilhouetteArrays } from './coastView';
 import { buildKitHouse, isKitBuilding } from './houseKit';
 import { faceBollards, shortCleat } from '../berths';
 import { blockSteps } from '../blockSteps';
+import { startBerthId } from '../startSpot';
 
 /**
  * Everything static in the world, region by region (regions, milestone 2):
@@ -91,6 +92,7 @@ export class WorldView {
     for (const v of this.views) if (v.pending) v.buildStep();
     // A coast region's chunks: in full near the viewer, coarse beyond (coastView.ts).
     for (const v of this.views) if (v.coast && v.resident) v.coast.update(viewer.x, viewer.z, 2, Math.min(visibility, CONFIG.environment.hazeFar));
+    for (const v of this.views) if (v.kit && v.resident) v.kit.update(viewer.x, viewer.z, CONFIG.regions.coastKitMs);
     this.sinceCheck += dt;
     if (this.sinceCheck < CONFIG.regions.residencyEvery) return;
     this.sinceCheck = 0;
@@ -201,6 +203,8 @@ class RegionView {
   pending: { terrain: TerrainArrays | null; trees: Float32Array; step: number; parts?: Map<string, THREE.BufferGeometry[]>; making?: Generator<void> } | null = null;
   /** A coast region's terrain (coastView.ts), once built. */
   coast: CoastTerrainView | null = null;
+  /** A coast region's harbour kit, built a square at a time near the viewer (CoastKit). */
+  kit: CoastKit | null = null;
 
   constructor(readonly region: RegionDef) {
     this.full.name = `region:${region.id}`;
@@ -250,6 +254,12 @@ class RegionView {
         terrainMesh.name = 'terrain';
         this.full.add(terrainMesh);
       }
+    } else if (p.step === 1 && this.region.coast && this.coast) {
+      // A coast region's harbour kit: its lighthouses and landmarks now; its 1 km squares as
+      // the viewer comes near them, nearest first (CoastKit), those round the start now.
+      this.kit = new CoastKit(this.region, this.full, this.coast);
+      const start = this.region.berths.find((b) => b.id === startBerthId()) ?? this.region.berths[0];
+      if (start) this.kit.update(start.x, start.z, Infinity);
     } else if (p.step === 1) {
       // The structures: all at once, or for a coast region (a harbourful of pieces) a few
       // milliseconds a frame, staying on this step until they're all made.
@@ -312,6 +322,106 @@ function arraysToGeometry(a: TerrainArrays): THREE.BufferGeometry {
   return geo;
 }
 
+/**
+ * A coast region's harbour kit, made a 1 km square at a time (owner, of Turku: "takes a while
+ * to load"; its 3,276 jetty pieces took 5.6 s to build at the start, though each square is
+ * drawn only within `coastStructureDistance` of the viewer). Its lighthouses and landmarks,
+ * seen from afar, are made at once; then each frame, for up to `coastKitMs` ms, piece by piece,
+ * the nearest square not yet made within that distance (and a square more), merged when it's
+ * whole; the rest only if the viewer comes near. Those round the start before the first frame. Each square its own merged mesh, shown near the viewer only
+ * (coastView.ts), as before. Drawing only: the blocks are in the world from the start.
+ */
+/** A square of a coast region's kit: where it is, its own pieces, their drawing steps, and whether it's made. */
+interface KitSquare {
+  key: string;
+  x: number;
+  z: number;
+  region: RegionDef;
+  steps: number[];
+  made: boolean;
+}
+
+class CoastKit {
+  private readonly squares: KitSquare[] = [];
+  private readonly mat = flatVertexColorMaterial();
+  private readonly cell = CONFIG.regions.coastStructureCell;
+
+  constructor(
+    region: RegionDef,
+    private readonly full: THREE.Group,
+    private readonly coast: CoastTerrainView,
+  ) {
+    const cell = this.cell;
+    coast.setStructures([], cell);
+    const empty = { blocks: [], slipways: [], ridges: [], wrecks: [], falls: [], farms: [], lamps: [], berths: [], yards: [], lights: [], landmarks: [], buildings: [] };
+    const byKey = new Map<string, KitSquare>();
+    const square = (x: number, z: number) => {
+      const key = `${Math.floor(x / cell)},${Math.floor(z / cell)}`;
+      let sq = byKey.get(key);
+      if (!sq) {
+        const [i, j] = key.split(',').map(Number);
+        sq = { key, x: (i + 0.5) * cell, z: (j + 0.5) * cell, region: { ...region, ...structuredClone(empty) } as RegionDef, steps: [], made: false };
+        byKey.set(key, sq);
+        this.squares.push(sq);
+      }
+      return sq.region;
+    };
+    // Each piece into its square (where structureParts would put it), the blocks with their steps.
+    const steps = blockSteps(region.blocks);
+    region.blocks.forEach((b, i) => {
+      square(b.x, b.z).blocks.push(b);
+      byKey.get(`${Math.floor(b.x / cell)},${Math.floor(b.z / cell)}`)!.steps.push(steps[i]);
+    });
+    for (const x of region.slipways) square(x.x, x.z).slipways.push(x);
+    for (const r of region.ridges) square(r.ax, r.az).ridges.push(r);
+    for (const w of region.wrecks) square(w.x, w.z).wrecks.push(w);
+    for (const f of region.falls ?? []) square(f.x, f.z).falls!.push(f);
+    for (const f of region.farms ?? []) square(f.x, f.z).farms!.push(f);
+    for (const l of region.lamps) square(l.x, l.z).lamps.push(l);
+    for (const b of region.berths) square(b.x, b.z).berths.push(b);
+    for (const y of region.yards ?? []) square(y.crane.x, y.crane.z).yards!.push(y);
+    // The lighthouses and landmarks (seen from afar): now, one mesh, always drawn.
+    const far: THREE.BufferGeometry[] = [];
+    for (const _ of structureParts({ ...region, ...structuredClone(empty), lights: region.lights, landmarks: region.landmarks } as RegionDef, () => far, [])) void _;
+    if (far.length) this.add(far, null);
+  }
+
+  private add(parts: THREE.BufferGeometry[], sq: { x: number; z: number } | null): void {
+    const mesh = new THREE.Mesh(mergeParts(parts), this.mat);
+    mesh.name = 'structures';
+    mesh.matrixAutoUpdate = false;
+    mesh.updateMatrix();
+    this.full.add(mesh);
+    if (sq) this.coast.addStructure({ x: sq.x, z: sq.z, mesh });
+  }
+
+  /** The square being made: its pieces so far, piece by piece over frames (a dense marina's would stall one). */
+  private making: { sq: KitSquare; gen: Generator<void>; parts: THREE.BufferGeometry[] } | null = null;
+
+  /** Make the nearest squares not yet made within reach of (x, z), for up to `ms` ms a call, piece by piece. */
+  update(x: number, z: number, ms: number): void {
+    const t0 = performance.now();
+    const reach = CONFIG.regions.coastStructureDistance + this.cell;
+    const half = this.cell / 2;
+    const dist = (sq: { x: number; z: number }) => Math.hypot(Math.max(Math.abs(sq.x - x) - half, 0), Math.max(Math.abs(sq.z - z) - half, 0));
+    while (performance.now() - t0 < ms) {
+      if (!this.making) {
+        let next: KitSquare | null = null;
+        for (const sq of this.squares) if (!sq.made && dist(sq) < reach && (!next || dist(sq) < dist(next))) next = sq;
+        if (!next) return;
+        const parts: THREE.BufferGeometry[] = [];
+        this.making = { sq: next, gen: structureParts(next.region, () => parts, next.steps), parts };
+      }
+      const m = this.making;
+      if (m.gen.next().done) {
+        m.sq.made = true;
+        if (m.parts.length) this.add(m.parts, m.sq);
+        this.making = null;
+      }
+    }
+  }
+}
+
 // ── Structures ───────────────────────────────────────────────────────────────────
 
 const CONCRETE = 0x9c9a94;
@@ -324,10 +434,10 @@ const BOLLARD = 0x2a2c30;
  * The region's structures, one piece at a time into `parts` (a generator: a coast region's
  * many are built a few milliseconds a frame, RegionView.buildStep; the others all at once).
  */
-function* structureParts(region: RegionDef, at: (x: number, z: number, far?: boolean) => THREE.BufferGeometry[]): Generator<void> {
+function* structureParts(region: RegionDef, at: (x: number, z: number, far?: boolean) => THREE.BufferGeometry[], steps = blockSteps(region.blocks)): Generator<void> {
   let parts: THREE.BufferGeometry[];
-  // Blocks overlapping at one deck height drawn a step apart (world/blockSteps.ts).
-  const steps = blockSteps(region.blocks);
+  // Blocks overlapping at one deck height drawn a step apart (world/blockSteps.ts; given, for
+  // a coast region's square, from the whole region's, so neighbours across its edge differ).
   for (const [i, b] of region.blocks.entries()) {
     buildBlock(b, at(b.x, b.z), steps[i] * CONFIG.render.blockStepM);
     yield;

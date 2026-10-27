@@ -11,6 +11,7 @@
  * lower and narrower. Drawing only: walking, mooring and collisions use the blocks as they are.
  */
 import type { BlockDef } from './defs';
+import { GridIndex } from './gridIndex';
 
 /** Corners (x, z) of a block in plan, in the frame world/berths.ts inBlock uses. */
 function corners(b: BlockDef): [number, number][] {
@@ -42,12 +43,29 @@ export function blocksOverlap(a: BlockDef, b: BlockDef): boolean {
   return true;
 }
 
-/** Each block's drawing step (0, 1, 2 ...): different from every earlier block it overlaps at the same deck height. */
+/**
+ * Each block's drawing step (0, 1, 2 ...): different from every earlier block it overlaps at
+ * the same deck height. (Each is checked against the earlier blocks near it, by a grid: the
+ * same answer as against them all, which on Turku's 3,276 jetty pieces took half a second.)
+ */
 export function blockSteps(blocks: readonly BlockDef[]): number[] {
   const steps: number[] = [];
+  const reach = (b: BlockDef) => Math.hypot(b.halfLength, b.halfWidth);
+  const index = new GridIndex(
+    blocks.map((_, i) => i),
+    (i) => {
+      const r = reach(blocks[i]);
+      return [blocks[i].x - r, blocks[i].z - r, blocks[i].x + r, blocks[i].z + r];
+    },
+    50,
+  );
   blocks.forEach((b, i) => {
     const used = new Set<number>();
-    for (let j = 0; j < i; j++) if (Math.abs(blocks[j].top - b.top) < 0.01 && blocksOverlap(blocks[j], b)) used.add(steps[j]);
+    // The earlier blocks whose box shares a cell with this one's.
+    const near = new Set<number>();
+    const r = reach(b);
+    for (let z = b.z - r; z <= b.z + r + 50; z += 50) for (let x = b.x - r; x <= b.x + r + 50; x += 50) for (const j of index.at(Math.min(x, b.x + r), Math.min(z, b.z + r))) if (j < i) near.add(j);
+    for (const j of [...near].sort((p, q) => p - q)) if (Math.abs(blocks[j].top - b.top) < 0.01 && blocksOverlap(blocks[j], b)) used.add(steps[j]);
     let s = 0;
     while (used.has(s)) s++;
     steps.push(s);

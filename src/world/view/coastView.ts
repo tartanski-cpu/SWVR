@@ -152,6 +152,11 @@ export class CoastTerrainView {
     this.structureHalf = cell / 2;
   }
 
+  /** One more square of the kit, made as the viewer came near it (worldView CoastKit). */
+  addStructure(sq: { x: number; z: number; mesh: THREE.Mesh }): void {
+    this.structures.push(sq);
+  }
+
   /**
    * @param buildTown merges a chunk's buildings into one geometry (worldView's builder)
    */
