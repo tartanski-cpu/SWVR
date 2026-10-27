@@ -31,7 +31,8 @@ import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS, wetOutlet } from '../vessel/vesselDef';
 import { isPlaneSheet, PLANES, PlaneInk, planeAt, planeFacing, planeSheet, toPlane, type PlaneName } from './planeSketch';
 import { buildMachinery } from './enginePreview';
-import { LiveTrial, type LiveSample, type LiveTest } from './liveTrial';
+import { LiveTrial, stabilityOf, type LiveSample, type LiveTest } from './liveTrial';
+import { StabilityView } from './stabilityView';
 import { flatVertexColorMaterial, mergeParts } from '../render/geometryUtils';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { hullCards } from './hullCards';
@@ -447,8 +448,12 @@ function look3(m: THREE.Mesh | null, how: 'solid' | 'ghost' | 'off'): void {
 let live: LiveTrial | null = null;
 /** The inclining weight, on her deck while that test runs. */
 let liveWeight: THREE.Mesh | null = null;
-/** The game's physics debug overlay (buoyancy by station, her CG) on her while a test runs. */
+/** The drop: the game's physics debug overlay (buoyancy by station, her CG) on her while it runs. */
 let liveHydro: HydroDebugView | null = null;
+/** The roll and the inclining: her G, B, Z and M, GZ and GM, on her (stabilityView.ts). */
+let liveStab: StabilityView | null = null;
+/** The roll's righting levers as she swings: heel (deg, either way) and GZ (m), for its GZ curve. */
+let liveCurve: [number, number][] = [];
 // The buttons say what each test does (from the config).
 document.querySelector<HTMLElement>('[data-live=drop]')!.textContent = `Drop her from ${CONFIG.shipyard.live.dropM} m`;
 document.querySelector<HTMLElement>('[data-live=roll]')!.textContent = `Roll from ${CONFIG.shipyard.live.rollDeg}°`;
@@ -473,9 +478,18 @@ function startLive(test: LiveTest): void {
   if (test === 'drop') look([1.5 * L, 0.55 * L, 1.1 * L], [0, 1.6, 0]);
   else if (test === 'incline') look([0, 0.45 * L, 1.7 * L], [0, 0.6, 0]); // over the weight on deck
   else setView('Stern');
-  if (boatRoot) {
+  // The drop shows the physics' buoyancy by station; the roll and the inclining her stability
+  // (owner, 27 Oct 2026: they "should show the GZ and GM"), each with its key under the chart.
+  liveCurve = [];
+  $('liveKeyDrop').hidden = test !== 'drop';
+  $('liveKeyStab').hidden = test === 'drop';
+  if (boatRoot && test === 'drop') {
     liveHydro = new HydroDebugView(VESSEL_DEFS.design, true);
     boatRoot.add(liveHydro.root);
+  } else if (boatRoot) {
+    const ys = VESSEL_DEFS.design.hull.stations.flatMap((s) => s.polygon.map((p) => p[1]));
+    liveStab = new StabilityView(Math.min(0.9, Math.max(0.3, L / 30)), Math.min(...ys), Math.max(...ys) + 1.5);
+    boatRoot.add(liveStab.root);
   }
   $('liveResult').textContent = '';
 }
@@ -485,6 +499,9 @@ function stopLive(): void {
   liveWeight = null;
   liveHydro?.root.removeFromParent();
   liveHydro = null;
+  liveStab?.root.removeFromParent();
+  liveStab?.dispose();
+  liveStab = null;
   document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => b.classList.remove('on'));
   if (boatRoot) {
     boatRoot.position.set(0, 0, 0);
@@ -505,11 +522,23 @@ function stepLive(dt: number): void {
   const hydro = live.debug.get(v.id);
   liveHydro?.update(hydro);
   const s = live.samples[live.samples.length - 1];
-  // Immersed: what the water holds up (as the game's debug readout), against her weight.
-  const immersed = ((hydro?.submergedVolume ?? 0) * CONFIG.ocean.density) / 1000;
-  $('liveNow').textContent = `${s.t.toFixed(1)} s · heel ${s.heelDeg.toFixed(1)}° · trim ${s.trimDeg.toFixed(1)}° · heave ${s.heaveM >= 0 ? '+' : ''}${s.heaveM.toFixed(2)} m · immersed ${immersed.toFixed(1)} t of ${(VESSEL_DEFS.design.mass / 1000).toFixed(1)} t${live.done ? ' · done' : ''}`;
+  const done = live.done ? ' · done' : '';
+  if (live.test === 'drop') {
+    // Immersed: what the water holds up (as the game's debug readout), against her weight.
+    const immersed = ((hydro?.submergedVolume ?? 0) * CONFIG.ocean.density) / 1000;
+    $('liveNow').textContent = `${s.t.toFixed(1)} s · heel ${s.heelDeg.toFixed(1)}° · trim ${s.trimDeg.toFixed(1)}° · heave ${s.heaveM >= 0 ? '+' : ''}${s.heaveM.toFixed(2)} m · immersed ${immersed.toFixed(1)} t of ${(VESSEL_DEFS.design.mass / 1000).toFixed(1)} t${done}`;
+  } else {
+    // Her righting lever now, from the physics' buoyancy (liveTrial.ts stabilityOf).
+    const st = hydro ? stabilityOf(hydro, VESSEL_DEFS.design.cg, s.heelDeg) : null;
+    liveStab?.update(st);
+    if (st && live.test === 'roll' && !live.done) liveCurve.push([Math.abs(s.heelDeg), st.gzM]);
+    const gz = st ? `GZ ${st.gzM.toFixed(3)} m` : 'GZ --';
+    // (GM: her figure from her lines and weights; the inclining finds its own, below.)
+    $('liveNow').textContent = `${s.t.toFixed(1)} s · heel ${s.heelDeg.toFixed(1)}° · ${gz} · GM ${boat.figures.gmM.toFixed(2)} m (her figure)${done}`;
+  }
   $('liveResult').textContent = live.result() ?? '';
-  drawLiveChart(live);
+  if (live.test === 'roll') drawGzCurve();
+  else drawLiveChart(live);
   if (live.done) document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => b.classList.remove('on'));
 }
 /** The test so far against time: heel (roll, inclining) or heave (drop), the whole run to scale. */
@@ -540,6 +569,62 @@ function drawLiveChart(t: LiveTrial): void {
   g.beginPath();
   t.samples.forEach((s, i) => (i ? g.lineTo(x(s.t), y(val(s))) : g.moveTo(x(s.t), y(val(s)))));
   g.stroke();
+}
+/**
+ * The roll's GZ curve: her righting lever against her heel (either way), as she swings back
+ * from 45° (green: the physics' own GZ each moment), with the line of her GM from her figures,
+ * GZ = GM sin φ (amber, dashed), that the curve follows at small heels.
+ */
+function drawGzCurve(): void {
+  const c = $('liveChart') as HTMLCanvasElement;
+  const g = c.getContext('2d')!;
+  const W = c.width;
+  const H = c.height;
+  g.clearRect(0, 0, W, H);
+  const maxHeel = Math.ceil(Math.max(CONFIG.shipyard.live.rollDeg, ...liveCurve.map((p) => p[0])) / 10) * 10;
+  const top = Math.max(0.05, ...liveCurve.map((p) => p[1])) * 1.25;
+  const low = Math.min(0, ...liveCurve.map((p) => p[1]));
+  const x = (deg: number) => 40 + (deg / maxHeel) * (W - 50);
+  const y = (gz: number) => H - 16 - ((gz - low) / (top - low)) * (H - 28);
+  g.strokeStyle = '#3b5262';
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(40, y(0));
+  g.lineTo(W - 10, y(0));
+  g.moveTo(40, 8);
+  g.lineTo(40, H - 16);
+  g.stroke();
+  g.fillStyle = '#93a8b5';
+  g.font = '11px system-ui, sans-serif';
+  g.fillText(`${top.toFixed(2)} m`, 2, 14);
+  g.fillText('GZ', 2, y(0) - 4);
+  for (let d = 10; d <= maxHeel; d += 10) g.fillText(`${d}°`, x(d) - 8, H - 3);
+  // Her GM's line: GZ = GM sin φ.
+  const gm = boat.figures.gmM;
+  g.strokeStyle = '#d89a18';
+  g.setLineDash([5, 4]);
+  g.beginPath();
+  for (let d = 0; d <= maxHeel; d += 1) {
+    const v = gm * Math.sin((d * Math.PI) / 180);
+    if (v > top) break;
+    if (d) g.lineTo(x(d), y(v));
+    else g.moveTo(x(d), y(v));
+  }
+  g.stroke();
+  g.setLineDash([]);
+  g.fillStyle = '#d89a18';
+  g.fillText(`GM ${gm.toFixed(2)} m`, W - 80, 14);
+  // Her GZ as she swings.
+  g.strokeStyle = '#3fbf6a';
+  g.lineWidth = 2;
+  g.beginPath();
+  liveCurve.forEach(([d, v], i) => (i ? g.lineTo(x(d), y(v)) : g.moveTo(x(d), y(v))));
+  g.stroke();
+  if (liveCurve.length) {
+    const best = liveCurve.reduce((a, b) => (b[1] > a[1] ? b : a));
+    g.fillStyle = '#3fbf6a';
+    g.fillText(`max GZ ${best[1].toFixed(2)} m at ${best[0].toFixed(0)}°`, x(best[0]) + 4, Math.max(24, y(best[1]) - 4));
+  }
 }
 document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => (b.onclick = () => startLive(b.dataset.live as LiveTest)));
 $('liveStop').onclick = () => stopLive();

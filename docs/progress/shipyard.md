@@ -14,6 +14,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Live trials: the roll and the inclining show GZ and GM, not the buoyancy debug (preview/shipyard)
+
+Owner, 27 Oct 2026: "On the sea trials page the 45 degree tilt and inclining experiment should not show the buoyancy debug, they should show the Gz and Gm."
+
+- **Her stability from the physics' own buoyancy** (liveTrial.ts `stabilityOf`): each tick, B is her stations' immersed centroids weighted by their buoyant force; the buoyancy acts straight up through B; GZ is the horizontal distance from G to that line (+ when it rights her); M is where the line crosses her centreline (the true metacentre at small heels, GM = GZ / sin φ). Checked: in the inclining, held at its steady heel, GZ equals w·d / Δ (the weight's moment over her displacement), as it must.
+- **On her model** (new stabilityView.ts, in her own axes, seen square on from astern, over everything): G (red), B (blue) and the buoyancy's line up through it, GZ from G to Z (green; red if it would capsize her), M (amber) joined to G, and her centreline dashed. A few lines and four labels, only while a test runs. The drop keeps the buoyancy-by-station overlay.
+- **The roll's chart is her GZ curve**: her GZ against her heel as she swings back from 45° (green), with her largest GZ and its angle, beside her GM's line, GZ = GM sin φ (amber, dashed, GM from her figures). The landing craft as she comes: largest GZ about 0.27 m at about 17°, following the GM line at small heels. (A curve taken while she rolls, not a static one: her roll's own motion adds a little.) The readings give her GZ now and her GM figure; the inclining's result gives the GM it finds, as before. The key under the chart says what's drawn for each test.
+- Tests: `liveTrial` (GZ at the inclining's steady heel equals w·d/Δ; M above G by about GZ / sin φ; at 45° she still rights herself with B out to her low side). The Shipyard tests pass. Checked in the browser: the landing craft's roll (her GZ curve) and inclining (M, G, B on her; GM 0.77 m found against her 0.76 m figure) (screenshots).
+
 ### The stair across a deckhouse's aft face wider (approved by the owner 27 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "The transverse stairs are still difficult to get up on the deck house. I think they're a bit narrow, and it could be that making them a bit wider will just make it easier to get up."

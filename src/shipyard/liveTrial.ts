@@ -15,11 +15,20 @@
  *            a heeling couple, so her displacement and centre of gravity are unchanged.
  *
  * Simulation only (plain world state, no drawing): the page moves her model from it.
+ *
+ * Her stability as she heels (owner, 27 Oct 2026: the roll and the inclining experiment
+ * "should show the GZ and GM"; `stabilityOf`): from the physics' own buoyancy, station by
+ * station, each tick. B, her centre of buoyancy, is the stations' immersed centroids weighted
+ * by their buoyant force; the buoyancy acts straight up through B. GZ, her righting lever, is
+ * the horizontal distance from G (her centre of gravity) to that line, + when it rights her.
+ * M, the metacentre, is where that line crosses her centreline (at small angles the true
+ * metacentre, GM = GZ / sin φ; at large ones a "false" one, shown only for the picture).
  */
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { IdFactory } from '../core/ids';
 import { stepWorld, type SimDebug } from '../core/simulation';
+import type { HydroDebug } from '../vessel/physics/vesselPhysics';
 import { createWorld, type WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -151,6 +160,44 @@ export class LiveTrial {
     const settled = Math.abs(s[s.length - 1].heaveM) < 0.03 && Math.abs(s[s.length - 1].heelDeg) < 1;
     return `Heave period ${period.toFixed(1)} s; plunged ${Math.abs(Math.min(...s.map((x) => x.heaveM))).toFixed(2)} m below her waterline; heeled up to ${maxHeel.toFixed(1)}°${settled ? '; back at rest' : ''}`;
   }
+}
+
+/** Her stability now (boat axes, x starboard, y up, z aft): G, B, Z (the foot of GZ on the buoyancy's line), M, world up, and GZ (m, + righting). */
+export interface Stability {
+  g: [number, number, number];
+  b: [number, number, number];
+  z: [number, number, number];
+  m: [number, number, number] | null;
+  up: [number, number, number];
+  gzM: number;
+}
+
+/**
+ * Her stability from one tick of the physics' buoyancy (see above), G at `cg` (boat axes),
+ * heeled `heelDeg` (+ to starboard; the sign of a righting GZ). Null with nothing immersed.
+ */
+export function stabilityOf(h: HydroDebug, cg: readonly number[], heelDeg: number): Stability | null {
+  let sum = 0;
+  const b = [0, 0, 0];
+  for (const s of h.stations) {
+    sum += s.force;
+    b[0] += s.force * s.x;
+    b[1] += s.force * s.y;
+    b[2] += s.force * s.z;
+  }
+  if (sum <= 0) return null;
+  const B: [number, number, number] = [b[0] / sum, b[1] / sum, b[2] / sum];
+  const u = h.upLocal;
+  // Z: G's foot on the line up through B; GZ is G to Z, across her (its fore-and-aft part left out).
+  const d = [cg[0] - B[0], cg[1] - B[1], cg[2] - B[2]];
+  const along = d[0] * u[0] + d[1] * u[1] + d[2] * u[2];
+  const Z: [number, number, number] = [B[0] + along * u[0], B[1] + along * u[1], cg[2]];
+  // Signed in the athwartships plane: + when B lies on the low side of G (she rights herself).
+  const cross = (B[0] - cg[0]) * u[1] - (B[1] - cg[1]) * u[0];
+  const gzM = Math.abs(heelDeg) < 1e-6 ? 0 : cross * Math.sign(heelDeg);
+  // M: the buoyancy's line across her centreline (none when she's upright: it runs along it).
+  const m: [number, number, number] | null = Math.abs(u[0]) > 0.01 ? [0, B[1] - (B[0] / u[0]) * u[1], B[2]] : null;
+  return { g: [cg[0], cg[1], cg[2]], b: B, z: Z, m, up: [u[0], u[1], u[2]], gzM };
 }
 
 /** The peaks (either way) of a series that has started swinging: index and value. */
