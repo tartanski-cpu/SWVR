@@ -252,11 +252,14 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     consoleMount.modules!.push(
       { socket: 'throttle2', module: 'control.azimuth-lever', config: { id: 'lever2', side: 'stbd', name: 'STBD' }, bind: { angle: 'azimuth.demand2', power: 'throttle.demand2' } },
       { socket: 'aziTransit', module: 'control.toggle', config: { label: 'TRANSIT: the wheel steers both drives as rudders; the levers set the power (off: the levers steer)', engrave: 'TRANSIT' }, bind: { value: 'azimuth.transit' } },
+      // SYNC (owner, 27 Oct 2026): on the port pedestal, ahead of its lever, TRANSIT's mirror.
+      { socket: 'aziSync', module: 'control.azimuth-sync', config: { color: 0x3a9ad9 } },
     );
     const y = cc.slots.throttle.position[1];
     cc.slots.throttle.position = [-ac.leverX, y, ac.leverZ];
     cc.slots.throttle2 = { position: [ac.leverX, y, ac.leverZ] };
     cc.slots.aziTransit = { position: [ac.leverX, y, ac.transitZ] };
+    cc.slots.aziSync = { position: [-ac.leverX, y, ac.transitZ] };
     const outmost = -(dashHalf - cc.pedestals.halfWidth);
     const out = (x: number) => Math.round(Math.max(outmost, x - ac.joystickShift) * 1000) / 1000;
     for (const id of ['spotJoystick', 'monJoystick']) if (cc.slots[id]) cc.slots[id].position = [out(cc.slots[id].position[0]), cc.slots[id].position[1], cc.slots[id].position[2]];
@@ -337,7 +340,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     consoleMount.modules!.push({ socket: clockId, module: 'instrument.screen', config: { screen: clockId } });
   }
   // What the basic controls keep at the helm (the rest comes off with them, below).
-  const BASIC_KEEP = ['wheel', 'throttle', 'throttle2', 'aziTransit', 'podJoystick', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
+  const BASIC_KEEP = ['wheel', 'throttle', 'throttle2', 'aziTransit', 'aziSync', 'podJoystick', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
   /** The switch panel's groups (CS2) from whichever switches she has (`has`). */
   const panelGroups = (has: (id: string) => boolean): PanelGroup[] => {
     const search = ['spotlight', 'firePump'].filter(has);
