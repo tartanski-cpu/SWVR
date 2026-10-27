@@ -4878,8 +4878,8 @@ export class App {
         ? this.craneRemotePrompt
         : this.atHelm && v && gearOf(v, 'diesel')?.azimuth
         ? ctl
-          ? 'At the helm · left stick: port drive · right stick: starboard drive (point it the way to push, push for power; let go: idle) · LB + right stick: look (tap LB: look ahead) · RB: TRANSIT · B: both idle · Y: camera view · A: leave'
-          : 'At the helm · W S A D: port drive (power, twist) · ↑ ↓ ← →: starboard drive · X: both idle · T: TRANSIT · Q / E: look over your shoulder, both or Tab: aft · F: leave'
+          ? 'At the helm · left stick: port drive · right stick: starboard drive\npoint a stick the way to push, push it for power; let go: idle\nLB + right stick: look (tap LB: ahead) · RB: TRANSIT · B: both idle · Y: camera · A: leave'
+          : 'At the helm · W S A D: port drive (power, twist) · ↑ ↓ ← →: starboard drive\nX: both idle · T: TRANSIT · Q / E: look over a shoulder, both or Tab: aft · F: leave'
         : this.atHelm
         ? ctl
           ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · Y: camera view · A: leave\nD-pad: anchor up ↑ / down ↓, horn ←, wipers → · left stick click: searchlight · right stick click: laser · X: fire pump'

@@ -19,7 +19,15 @@ The owner: "I want my non-VR friends to be able to drive this tug"; built from t
 - **On-screen dials** (`ui/aziDials.ts`, `CONFIG.aziHelm.dialPx` 150): bottom left the port drive, bottom right the starboard: the ENGINE screen's dial (`controls/instruments.ts` `azimuthDial`, now exported), the arrow where the drive pushes, the ring where its lever asks, and a power bar. Desktop only, at her helm; redrawn only when they change.
 - **The helm prompt** says all this, keys or controller.
 - **Tests:** tests/aziHelm.test.ts (the keys' rates, idle floor, notches and on through; point and push; the glance; the claimed keys).
-- **Checked headless:** see below this list. **Not checked:** a real game controller (none here), and with the controls in a friend's hands.
+- **Checked headless** (desktop, Oban, the tug readied by Quick start), with real key presses:
+  - F took her helm and the prompt changed;
+  - W raised the port drive's power and D twisted it, clicking into 3 o'clock; ↑ raised the starboard drive's power and ← turned it to port; the drives followed;
+  - Q and Tab turned the view (115°, aft), and it came back;
+  - T switched TRANSIT on and off; E no longer stopped her engine;
+  - the dials showed both drives, and went away when she was left.
+
+  The headless browser runs her deck at under a frame a second, so key holds were long.
+- **Not checked:** a real game controller (none here; its sums are tested), and in a friend's hands.
 - **Shared changes:** `src/modules/azimuthLevers/lever.ts` exports `KEY_TURN` and `KEY_LEAN` (no other change).
 
 ### The harbour tug's start-up from dead ship, part 1 (27 Oct 2026)
