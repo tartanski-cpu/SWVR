@@ -353,9 +353,10 @@ export const MAP_CONFIG = {
       colours: { frame: 0x2c55a8, trolley: 0xf2a040, crane: 0xf0c840, dark: 0x3a3e44, rail: 0x55585a, sign: 0xffffff },
     },
     /**
-     * A cruise ship under construction at a yard (Perno), an original design: her hull to the
-     * main deck (`depth`, a share of her length), decks of `deck` m on top, `decks` of them
-     * when finished; her superstructure from `aft` to `fore` (shares of her length from the
+     * A cruise ship under construction at a yard (Perno), an original design: decks of `deck` m,
+     * `hullDecks` of them in her hull to the main deck and `decks` on top when finished (owner:
+     * the Icon class is about 20 decks high, 5 of them in the hull); finished, her blue band
+     * `band` of her freeboard, white above; her superstructure from `aft` to `fore` (shares of her length from the
      * stern: owner, from the Icon class, it runs nearly to her bow), its decks from the
      * `overhangFrom`th up `superWidth` times her hull's width (the overhang over her lifeboats),
      * over a full bow (the last `bowLength` of her, the larger `bowFullness` the fuller); its front raked back `rake` m a deck (owner: "less sloped") and rounded in three
@@ -366,9 +367,10 @@ export const MAP_CONFIG = {
      * water-park; the yard's luffing cranes (`cranes` along each ship).
      */
     yardShip: {
-      depth: 0.065,
+      hullDecks: 5,
       deck: 3,
-      decks: 16,
+      decks: 15,
+      band: 0.7,
       aft: 0.04,
       fore: 0.9,
       bowLength: 0.2,

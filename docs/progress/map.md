@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku: the yard's ships 20 decks high, five in the hull (27 Oct 2026)
+
+Owner: "still looks too high. The Icon class is 20 decks high approximately, but ... five of those decks are in the hull."
+
+- **Her height by decks** (`CONFIG.structures.yardShip`): `hullDecks` 5 of `deck` 3 m from her keel to her main deck (15 m, from 6.5 % of her length, 19.5 m on the 300 m ship), and `decks` 15 on top (from 16): 20 in all, 60 m from her keel. Afloat at 8.5 m, her main deck is 6.5 m over the water and her top deck about 51 m (from 59), the funnel over it.
+- **Her hull's paint:** the blue band is `band` 0.7 of her freeboard, a strip of white above it (it was 8 m of blue, more than the freeboard has now).
+- Both ships take it. **Tests** (`coastTurku.test.ts`: 20 decks, 5 in the hull), `npm run test:map` and the typecheck pass. Seen in the game headless.
+- **Not checked:** on the Quest.
+
 ### Turku: the yard's ships wider, their superstructure running nearly to the bow (27 Oct 2026)
 
 Owner, from a picture of the finished ship: "it's way too narrow, and the superstructure starts way too far back. Take a look at pictures of Icon of the Seas or Legend of the Seas for inspiration."

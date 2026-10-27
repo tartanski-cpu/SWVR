@@ -166,6 +166,9 @@ describe('Turku: the cruise ships building at Perno (owner, who worked there)', 
     const c = CONFIG.structures.yardShip;
     // Her front sets back under a metre a deck: under 10 m over all her decks.
     expect(c.rake * c.decks).toBeLessThan(10);
+    // Twenty decks from her keel, five of them in the hull (owner, from the Icon class).
+    expect(c.hullDecks + c.decks).toBe(20);
+    expect(c.hullDecks).toBe(5);
     const q = bounds(yardShipParts(quay));
     const d = bounds(yardShipParts(dock));
     expect(q.y0).toBeLessThan(-5);

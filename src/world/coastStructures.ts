@@ -356,7 +356,8 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
   const B = y.beam;
   const parts: THREE.BufferGeometry[] = [];
   const keel = y.keel;
-  const main = keel + c.depth * L;
+  // Her main deck: `hullDecks` decks over her keel (the Icon class: about 5 of her 20 in the hull).
+  const main = keel + c.hullDecks * c.deck;
   // Her waterline: afloat, the sea's; in the dock, where it will be (her draught from the keel).
   const wl = keel < 0 ? 0 : keel + 8.5;
   // The plan between two stations, sampled along.
@@ -399,8 +400,10 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     const ring = slice(u0, u1);
     parts.push(prism(ring, keel, wl, w, k.red));
     if (finished) {
-      parts.push(prism(ring, wl, wl + 8, w, k.hull));
-      parts.push(prism(ring, wl + 8, main, w, k.white));
+      // Her blue band most of her freeboard, a strip of white above it.
+      const band = wl + (main - wl) * c.band;
+      parts.push(prism(ring, wl, band, w, k.hull));
+      parts.push(prism(ring, band, main, w, k.white));
     } else if (painted) parts.push(prism(ring, wl, main, w, k.hull));
     else {
       const mid = (wl + main) / 2;
