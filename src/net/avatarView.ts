@@ -98,6 +98,12 @@ export class AvatarsView {
   /** Recording cameras by player id (to grab one: their world position). */
   readonly cameras = new Map<EntityId, THREE.Object3D>();
 
+  /** A player's figure and their laser (to keep them drawn: a crew-mate in the engine room with us, app/engineRoom). */
+  partsOf(id: EntityId): THREE.Object3D[] {
+    const a = this.avatars.get(id);
+    return a ? [a.root, a.laser.root] : [];
+  }
+
   /**
    * @param heldGrip  where a camera we're holding goes: our grip (its lens at CONFIG.camera.lens
    *                  in it), so it's in our hand without the network's lag; null if not ours.
