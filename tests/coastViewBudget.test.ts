@@ -32,7 +32,7 @@ beforeAll(() => {
 const named = (n: string) => view.root.children.filter((m) => m.name === n);
 
 describe('the coast drawing on a long voyage', () => {
-  it('a 30 km run at 10 m/s in drifting visibility: the far hills merged a handful of times, the passed chunks freed', () => {
+  it('a 30 km run at 10 m/s in drifting visibility: the far hills merged a handful of times, the passed chunks freed', async () => {
     const c = CONFIG.regions;
     // Every far copy made first (as at the quay while the map settles).
     for (let i = 0; i < 400 && !view.ready; i++) view.update(0, -15000, 2, 8000);
@@ -50,13 +50,21 @@ describe('the coast drawing on a long voyage', () => {
       mostMid = Math.max(mostMid, named('coast-coarse').length);
       mostTown = Math.max(mostTown, named('coast-town').length);
     }
-    // A chunk is 2 km: a row of them leaves the coarse ring each 2 km (15 rows), and the fog
-    // comes and goes. Merging for each chunk as it crossed a line took 166 merges on this run;
-    // one merge a row, about 15.
-    expect(merges).toBeLessThan(25);
+    // A chunk is 2 km: a row of them leaves the coarse ring each 2 km behind, another enters
+    // it ahead (both take a merge: the far grid mustn't lie under nearer ground), and the fog
+    // comes and goes. Merging for each chunk at every change took 166 merges on this run.
+    expect(merges).toBeLessThan(100);
     // The coarse copies kept: those within 1.5 × 6 km (a 22 km wide disc of 2 km chunks), not every one passed.
     const ring = Math.PI * ((c.coastMidDistance * c.coastDropFactor + 2000) / 2000) ** 2;
     expect(mostMid).toBeLessThan(ring);
     expect(mostTown).toBeLessThan(Math.PI * ((c.coastBuildingDistance * c.coastDropFactor + 2000) / 2000) ** 2);
+    // Settled (a moment later), no chunk drawn nearer is in the far mesh as well (owner, at
+    // Naantali: the far grid stood as grey slopes over a narrow sound, and you sailed through it).
+    await new Promise((r) => setTimeout(r, (CONFIG.regions.coastFarRebuild + 0.1) * 1000));
+    view.update(0, 15000, 2, 8000);
+    const v = view as unknown as { farSet: Set<number>; chunks: { k: number; fine: THREE.Mesh | null; mid: THREE.Mesh | null }[] };
+    const nearer = v.chunks.filter((ch) => ch.fine?.visible || ch.mid?.visible).map((ch) => ch.k);
+    expect(nearer.length).toBeGreaterThan(0);
+    expect(nearer.filter((k) => v.farSet.has(k))).toEqual([]);
   });
 });

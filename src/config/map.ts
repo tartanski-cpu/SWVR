@@ -41,12 +41,12 @@ export const MAP_CONFIG = {
      *   coastHysteresis a chunk keeps its coarse copy, or its place in the far set, this far (m)
      *                   past its line, so a boat on a line doesn't swap it back and forth
      *   coastResort     the chunks are re-sorted by distance only when the viewer has moved this far (m)
-     *   coastFarAhead   a merge takes in the chunks within this far (m) of needing it too
-     *                   (the next row about to leave the coarse ring, the hills just beyond
-     *                   the fog), so one merge serves a whole row; drawn under the nearer ground, unseen
-     *   coastFarSlack, coastFarTidy  a chunk no longer needed far (now drawn nearer, which hides
-     *                   it, or now in the fog) stays in the merged mesh; when that's more than
-     *                   coastFarSlack of it, it's tidied, at most every coastFarTidy s
+     *   coastFarAhead   a merge takes in the chunks within this far (m) beyond the fog too,
+     *                   so the fog lifting a little needs no merge
+     *   coastFarSlack, coastFarTidy  a chunk gone into the fog stays in the merged mesh,
+     *                   unseen; when that's more than coastFarSlack of it, it's tidied, at most
+     *                   every coastFarTidy s (one now drawn nearer leaves it at once: the far
+     *                   grid is too coarse for a narrow sound and stands over its water)
      */
     coastFogStep: 500,
     coastHysteresis: 300,
@@ -335,7 +335,8 @@ export const MAP_CONFIG = {
      * depth and width, its legs' section and how far apart each A-frame's feet stand along the
      * rails, where its gantries stand along the track (shares of its length, for one, two or
      * more), the T-crane on top of one leg (mast height, jib length), the hoist's drop below
-     * the girder. An original low-poly form to the map's track, not a copy of the yard's.
+     * the girder. An original low-poly form to the map's track, not a copy of the yard's; the
+     * yard's name along the girder where the map asks for it (`signHeight`).
      */
     gantry: {
       height: 100,
@@ -347,31 +348,44 @@ export const MAP_CONFIG = {
       mast: 20,
       jib: 42,
       hoist: 45,
-      colours: { frame: 0x2c55a8, trolley: 0xf2a040, crane: 0xf0c840, dark: 0x3a3e44, rail: 0x55585a },
+      /** The sign along its girder (the map's `gantrySign`): its letters' height (m). */
+      signHeight: 6.5,
+      colours: { frame: 0x2c55a8, trolley: 0xf2a040, crane: 0xf0c840, dark: 0x3a3e44, rail: 0x55585a, sign: 0xffffff },
     },
     /**
-     * A cruise ship under construction at a yard (Perno), an original design: her hull to the
-     * main deck (`depth`, a share of her length), decks of `deck` m on top, `decks` of them
-     * finished; her superstructure from `aft` to `fore` (shares of her length from the stern),
-     * its front raked back `rake` m a deck, terraced aft every `terrace` decks by `terraceStep`
-     * m; her blocks `block` m long. Lifeboats every `boatEvery` m along `boatSpan` of her
-     * length. Colours: the finished ship's navy and white, red bottom, primer grey, the
-     * lifeboats' orange, the water-park aft. The yard's luffing cranes along the quay.
+     * A cruise ship under construction at a yard (Perno), an original design: decks of `deck` m,
+     * `hullDecks` of them in her hull to the main deck and `decks` on top when finished (owner:
+     * the Icon class is about 20 decks high, 5 of them in the hull); finished, her blue band
+     * `band` of her freeboard, white above; her superstructure from `aft` to `fore` (shares of her length from the
+     * stern: owner, from the Icon class, it runs nearly to her bow), its decks from the
+     * `overhangFrom`th up `superWidth` times her hull's width (the overhang over her lifeboats),
+     * over a full bow (the last `bowLength` of her, the larger `bowFullness` the fuller); its front raked back `rake` m a deck (owner: "less sloped") and rounded in three
+     * facets, the two outer swept back `frontFacet` of her beam; terraced aft every `terrace` decks by
+     * `terraceStep` m; her blocks `block` m long. Finished, lifeboats every `boatEvery` m along
+     * `boatSpan` of her length. Colours: the finished ship's white and blue hull, red bottom,
+     * the blocks' primer and light grey, the windows' band, the lifeboats, funnel and
+     * water-park; the yard's luffing cranes (`cranes` along each ship).
      */
     yardShip: {
-      depth: 0.065,
+      hullDecks: 5,
       deck: 3,
-      decks: 16,
-      aft: 0.06,
-      fore: 0.78,
-      rake: 1.4,
+      decks: 15,
+      band: 0.7,
+      aft: 0.04,
+      fore: 0.9,
+      bowLength: 0.2,
+      bowFullness: 2.2,
+      superWidth: 1.2,
+      overhangFrom: 3,
+      rake: 0.6,
+      frontFacet: 0.2,
       terrace: 3,
       terraceStep: 7,
       block: 24,
       boatEvery: 15,
       boatSpan: [0.3, 0.68] as [number, number],
       cranes: 2,
-      colours: { navy: 0x1d2f5e, white: 0xffffff, glass: 0x7f93a8, red: 0x9a2a24, primer: 0x8e9396, light: 0xb9bdbf, boat: 0xf08a28, deck: 0x8a8278, funnel: 0xeef0ee, park: [0xd8402c, 0x2e7fd0, 0xf0c030, 0x3aa86a, 0x8a4fc0], crane: 0xf0c840 },
+      colours: { hull: 0x1f3f8a, white: 0xffffff, glass: 0x7f93a8, red: 0x9a2a24, primer: 0x8e9396, light: 0xb9bdbf, boat: 0xf08a28, funnel: 0xffffff, park: [0xd8402c, 0x2e7fd0, 0xf0c030, 0x3aa86a, 0x8a4fc0], crane: 0xf0c840 },
     },
     folly: { height: 11, tiers: 2, bay: 3.8, pier: 1.3, thick: 1.2, sill: 0.8, band: 1.2, cornice: 0.8, colours: { wall: 0xb9b2a4, cornice: 0xa39c8e } },
   },

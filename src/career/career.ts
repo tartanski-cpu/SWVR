@@ -82,6 +82,8 @@ export interface CareerState {
   /** Refuelling under way: litres taken so far (billed when it stops); the oil level last tick. */
   fuelTaken: number;
   lastFuel?: number;
+  /** Shore power taken while she's plugged in (kWh), billed when she unplugs. */
+  shoreKWh?: number;
   lastOil?: number;
   contractsDone: number;
   /** The workboat's condition as last saved (phase 2: it carries over to the next session). */
@@ -398,6 +400,12 @@ export function stepCareer(world: WorldState): void {
       c.fuelTaken = 0;
     }
     c.lastFuel = fuel;
+    // Shore power (vessel/shorePower.ts): what she's taken from a quay charger, billed when she unplugs.
+    if (v.shore) c.shoreKWh = v.shore.kWh;
+    else if ((c.shoreKWh ?? 0) > 0.05) {
+      spend(world, c.shoreKWh! * CONFIG.charger.pricePerKWh, `Shore power, ${c.shoreKWh!.toFixed(1)} kWh`);
+      c.shoreKWh = 0;
+    }
     // Oil: a top-up (the level jumps back up) is a can of oil.
     const oil = v.engine.oil;
     if (oil !== undefined && c.lastOil !== undefined && oil - c.lastOil > 0.05) spend(world, CONFIG.career.costs.oil, 'Engine oil');

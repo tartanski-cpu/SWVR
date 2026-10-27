@@ -227,6 +227,18 @@ export const CONFIG = {
     latitudeDeg: 50,
     solarDeclinationDeg: 12,
     /**
+     * Sunlight at sea level for solar panels (environment/sunlight.ts; owner, 27 Oct 2026: the
+     * solar catamaran's charging, "a realistic model"):
+     *   clearSky     the Haurwitz clear sky: GHI = a sin(h) exp(-b / sin(h)) (W/m2, h the
+     *                sun's height): a 1098, b 0.057 (about 1000 W/m2 with the sun overhead)
+     *   solarConstant  the sun's light above the air (W/m2), for the direct/diffuse split
+     *   cloudCut, cloudPower  Kasten and Czeplak's cloud: GHI x (1 - cut C^power), C the cover
+     *                (weather.now.cloud, 0..1): overcast leaves about a quarter
+     *   rainCut      rain's own dimming on top of its cloud (x (1 - rainCut x rain))
+     *   albedo       the light the sea throws back up onto a tilted panel (a share of GHI)
+     */
+    sunlight: { clearSky: [1098, 0.057] as [number, number], solarConstant: 1361, cloudCut: 0.75, cloudPower: 3.4, rainCut: 0.5, albedo: 0.06 },
+    /**
      * The clearest day's haze (m): scene fog runs out to the visibility, or to this, whichever
      * is less, so even on a clear day the sea and the far land dissolve into the sky by here
      * (the camera's far plane sits just beyond). Was 2600 before the regions: the next
@@ -2559,6 +2571,31 @@ export const CONFIG = {
    *   desk        desktop reach for clicks (m), and where the nozzle rides in the "hand"
    *               (m right, up, forward of the eyes)
    */
+  /**
+   * Shore power for electric boats (owner, 27 Oct 2026; vessel/shorePower.ts, fuel/fuelHose.ts
+   * stations): a `postKw` post on the quay at each berth (but the fuel berths), `postInland` m in
+   * from its edge and `postAft` m along it toward her stern; a `fastKw` fast charger beside each fuel pump (`fastBeside` m along, in the
+   * pump's axes). Their cables carried and plugged in as the fuel hose is (CONFIG.fuelHose's
+   * reach and pull-out). On the game's clock: `chargeEff` of the power into the battery, all
+   * of it up to `taperFrom` of full, then less, stopping at `fullAt` (full); the house batteries topped up
+   * `houseSocPerHour` a game hour. `pricePerKWh` (£) billed in the career when she unplugs.
+   * The post's and the fast charger's parts in their axes (+z toward the berth): `size`, the
+   * cable's `outlet`, its plug's `holster`, the `light` showing it's charging.
+   */
+  charger: {
+    postKw: 22,
+    fastKw: 150,
+    postInland: 0.8,
+    postAft: 5,
+    fastBeside: -1.4,
+    chargeEff: 0.95,
+    taperFrom: 0.9,
+    fullAt: 0.998,
+    houseSocPerHour: 0.5,
+    pricePerKWh: 0.35,
+    post: { size: [0.28, 1.15, 0.22] as [number, number, number], outlet: [0.15, 0.55, 0.05] as [number, number, number], holster: [0, 0.85, 0.13] as [number, number, number], light: [0, 1.05, 0.115] as [number, number, number] },
+    fast: { size: [0.7, 1.9, 0.5] as [number, number, number], outlet: [0.36, 0.8, 0.12] as [number, number, number], holster: [-0.18, 1.05, 0.27] as [number, number, number], light: [0, 1.6, 0.255] as [number, number, number] },
+  },
   fuelHose: {
     reach: 10,
     pullOut: 1.5,
@@ -2775,6 +2812,8 @@ export const CONFIG = {
    * reading: a boat speeding up burns more than she will at that speed). Up to `maxKn`.
    */
   efficiency: { binKn: 0.5, blend: 0.25, sampleS: 0.5, minKn: 0.8, steadyKn: 0.15, maxKn: 50 },
+  /** The SOLAR & BATTERY screen's chart (controls/instruments.ts): a point every `sampleS` real seconds, over the last `windowS`. */
+  solarScreen: { sampleS: 30, windowS: 3600 },
   engineVoices: {
     /**
      * The workboat's 400 kW engine: a worn, naturally aspirated straight six, dark and
@@ -2890,6 +2929,31 @@ export const CONFIG = {
       drive: 1.4,
       hiss: { base: 0.002, load: 0.01 },
       turbo: null as { idleHz: number; boostHz: number; gain: number } | null,
+    },
+    /**
+     * An electric motor (the solar catamaran's pod motors; physics/electricMotor.ts): no
+     * combustion, so no beat (`cylinders` 0: the pulses, thump and intake hiss are silent). What
+     * is heard is its whine, the motor's and its controller's switching and the pod's gears: a
+     * soft tone rising with the motor's speed, from `turbo.idleHz` (just turning) to
+     * `turbo.boostHz` (rated speed), a little louder under load, silent at rest. Quiet: an
+     * electric boat is heard mostly by her wash.
+     */
+    electric: {
+      cylinders: 0,
+      strength: [0],
+      jitter: 0,
+      grit: 0,
+      mech: 0,
+      mechBand: null as readonly [number, number] | null,
+      pulseTau: 0.011,
+      pulseTauLow: 0.005,
+      body: { freq: 85, q: 0.9, gain: 0 },
+      stack: { freq: 132, q: 2.0, gain: 0 },
+      lp: { base: 160, rpm: 140, load: 200 },
+      thump: { base: 0, rpm: 0, load: 0 },
+      drive: 1,
+      hiss: { base: 0, load: 0 },
+      turbo: { idleHz: 300, boostHz: 1500, gain: 0.02 } as { idleHz: number; boostHz: number; gain: number } | null,
     },
   },
 

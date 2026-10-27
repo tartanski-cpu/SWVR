@@ -33,8 +33,8 @@ const T = {
   namedApart: 30,
   /** A bridge's deck stands at least this high over the sea (m), whatever the ground at its ends. */
   bridgeMinDeck: 6,
-  /** A yard's ship under construction: her beam as a share of her length; afloat at the quay she draws this (m), her side this much nearer the face than a small boat's berth (which lies 2.2 m off it) (m). */
-  yardBeam: 0.14,
+  /** A yard's ship under construction: her beam as a share of her length (the Icon class: 48 m on 365); afloat at the quay she draws this (m), her side this much nearer the face than a small boat's berth (which lies 2.2 m off it) (m). */
+  yardBeam: 0.145,
   yardDraught: 8.5,
   yardBerthOff: 1.2,
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
@@ -415,7 +415,7 @@ const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; y
   const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
   let base = Infinity;
   for (const side of [-1, 1]) for (let k = -2; k <= 2; k++) base = Math.min(base, hAt(g.x + vx * side * (g.span / 2) + (ux * k * g.length) / 5, g.z + vz * side * (g.span / 2) + (uz * k * g.length) / 5));
-  return { ...g, x: r1(g.x), z: r1(g.z), base: r1(Math.max(0.5, base)) };
+  return { ...g, x: r1(g.x), z: r1(g.z), base: r1(Math.max(0.5, base)), ...(req.gantrySign ? { sign: req.gantrySign } : {}) };
 });
 // Ships under construction at a yard (the request's `yardShips`; Perno): in a mapped dry dock,
 // standing on her keel blocks on its floor, or afloat alongside a berth (the outfitting quay),
@@ -430,7 +430,7 @@ for (const [i, y] of (req.yardShips ?? []).entries()) {
       warnings.push(`yard ship ${i + 1}: no dry dock "${y.dock}"`);
       continue;
     }
-    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(hAt(d.x, d.z) + 1), stage: y.stage, seed: i + 1 });
+    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(hAt(d.x, d.z) + 1), stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
   } else if (y.berth) {
     const b = (berths as { id: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number }[]).find((k) => k.id === y.berth);
     if (!b) {
@@ -438,7 +438,7 @@ for (const [i, y] of (req.yardShips ?? []).entries()) {
       continue;
     }
     const off = beam / 2 - T.yardBerthOff;
-    yardShips.push({ x: r1(b.x - b.shoreX * off), z: r1(b.z - b.shoreZ * off), yawDeg: (b.headingDeg + (y.bow === -1 ? 180 : 0)) % 360, length: y.length, beam, keel: -T.yardDraught, stage: y.stage, seed: i + 1 });
+    yardShips.push({ x: r1(b.x - b.shoreX * off), z: r1(b.z - b.shoreZ * off), yawDeg: (b.headingDeg + (y.bow === -1 ? 180 : 0)) % 360, length: y.length, beam, keel: -T.yardDraught, stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
   }
 }
 // Ferries (the coast extras plan, C7): each mapped ferry route, cut to the map (its longest

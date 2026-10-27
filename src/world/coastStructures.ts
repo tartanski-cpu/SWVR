@@ -17,12 +17,14 @@
  *               and hook block, a T-crane on top of one leg; the rails along the whole track.
  *   yard ship   a cruise ship under construction (Perno), an original design: a hull with a
  *               fine bow and a full stern, to her main deck; deck upon deck of superstructure
- *               with a raked front and terraces aft, each deck a white band over a dark one of
- *               windows and balconies, a bridge with its wings, a funnel, a water-park aft, the
- *               lifeboats along her sides. How far on she is (`stage`) decides what's there: in
- *               the dock, a patchwork of primer-grey and white hull blocks with the
- *               superstructure stacked over part of her; nearly done at the quay, painted, a few
- *               blocks still in primer. The yard's yellow luffing cranes along her.
+ *               with a raked front and terraces aft. How far on she is (`stage`) decides what's
+ *               there: in the dock, a patchwork of primer-grey and white hull blocks with the
+ *               superstructure stacked block by block over part of her, each deck a band of
+ *               windows under its white; `painted` (the ship at the outfitting pier, owner: "the
+ *               same shape but with fresh paint, lifeboats and windows"), white over a blue
+ *               hull with her lifeboats; finished (`stage` 0.8 on), every deck up, with her
+ *               bridge and its wings, a funnel and a water-park aft as well. The yard's yellow luffing
+ *               cranes along her.
  *   folly       a ring of arches along its mapped footprint (McCaig's Tower above Oban: two
  *               tiers): a pier every `bay` m round it, two tiers of openings between them
  *               under a band each, a cornice on top; its walls from the lowest ground round it.
@@ -193,6 +195,53 @@ export function follyParts(f: FollyDef): THREE.BufferGeometry[] {
   return parts;
 }
 
+/**
+ * Block capitals as strokes on a 4 by 6 grid (x along, y up), for a sign: the letters the
+ * yards' signs need so far; any other character is a space.
+ */
+const STROKES: Record<string, [number, number, number, number][]> = {
+  A: [[0, 0, 2, 6], [2, 6, 4, 0], [1, 2.5, 3, 2.5]],
+  E: [[0, 0, 0, 6], [0, 6, 4, 6], [0, 3, 3, 3], [0, 0, 4, 0]],
+  K: [[0, 0, 0, 6], [4, 6, 0, 2.5], [1.3, 3.5, 4, 0]],
+  M: [[0, 0, 0, 6], [0, 6, 2, 3], [2, 3, 4, 6], [4, 6, 4, 0]],
+  N: [[0, 0, 0, 6], [0, 6, 4, 0], [4, 0, 4, 6]],
+  O: [[0, 1, 0, 5], [0, 5, 1, 6], [1, 6, 3, 6], [3, 6, 4, 5], [4, 5, 4, 1], [4, 1, 3, 0], [3, 0, 1, 0], [1, 0, 0, 1]],
+  R: [[0, 0, 0, 6], [0, 6, 3, 6], [3, 6, 4, 5], [4, 5, 4, 4], [4, 4, 3, 3], [3, 3, 0, 3], [2, 3, 4, 0]],
+  T: [[0, 6, 4, 6], [2, 6, 2, 0]],
+  U: [[0, 6, 0, 1], [0, 1, 1, 0], [1, 0, 3, 0], [3, 0, 4, 1], [4, 1, 4, 6]],
+  Y: [[0, 6, 2, 3], [4, 6, 2, 3], [2, 3, 2, 0]],
+};
+
+/**
+ * A sign's letters as flat strokes standing proud of a face: centred at `centre`, reading along
+ * `right` (unit, horizontal), facing out along `normal`, `height` m tall.
+ */
+function signParts(text: string, centre: V3, right: THREE.Vector3, normal: THREE.Vector3, height: number, color: number): THREE.BufferGeometry[] {
+  const unit = height / 6;
+  const advance = 5.4 * unit;
+  const stroke = Math.max(0.3, unit * 0.85);
+  const parts: THREE.BufferGeometry[] = [];
+  const width = text.length * advance - 1.4 * unit;
+  const up = new THREE.Vector3(0, 1, 0);
+  const o = new THREE.Vector3(...centre).addScaledVector(right, -width / 2).addScaledVector(up, -height / 2).addScaledVector(normal, 0.3);
+  [...text.toUpperCase()].forEach((ch, i) => {
+    for (const [x0, y0, x1, y1] of STROKES[ch] ?? []) {
+      const p = o.clone().addScaledVector(right, i * advance + x0 * unit).addScaledVector(up, y0 * unit);
+      const q = o.clone().addScaledVector(right, i * advance + x1 * unit).addScaledVector(up, y1 * unit);
+      const along = new THREE.Vector3().subVectors(q, p);
+      const len = along.length() + stroke;
+      along.normalize();
+      const across = new THREE.Vector3().crossVectors(normal, along).normalize();
+      // A flat panel just proud of the face (only its front is ever seen): two triangles a stroke.
+      const g = new THREE.PlaneGeometry(len, stroke);
+      g.applyMatrix4(new THREE.Matrix4().makeBasis(along, across, normal));
+      g.translate((p.x + q.x) / 2, (p.y + q.y) / 2, (p.z + q.z) / 2);
+      parts.push(part(g, color));
+    }
+  });
+  return parts;
+}
+
 /** A gantry track's parts: its rails, and each of its gantries where it stands along them. */
 export function gantryParts(g: GantryDef): THREE.BufferGeometry[] {
   const c = CONFIG.structures.gantry;
@@ -226,6 +275,16 @@ export function gantryParts(g: GantryDef): THREE.BufferGeometry[] {
       const tw = (c.legBase / 2) * (2 / 3) + (c.girderWidth / 2) * (1 / 3);
       parts.push(member(at(s - tw, w, ty), at(s + tw, w, ty), 2, 2, k.frame));
     }
+    // Its sign along the girder, on both faces, a little to one side of the middle (owner).
+    if (g.sign) {
+      for (const f of [-1, 1]) {
+        const normal = new THREE.Vector3(ux * f, 0, uz * f);
+        // Reading left to right for someone facing the face: right = (-normal) x up.
+        const right = new THREE.Vector3().crossVectors(normal.clone().negate(), new THREE.Vector3(0, 1, 0)).normalize();
+        const mid = at(s + (f * c.girderWidth) / 2, -half * 0.12, H - c.girderDepth / 2);
+        parts.push(...signParts(g.sign, mid, right, normal, c.signHeight, k.sign));
+      }
+    }
     // The cab trolley riding on the girder, and the hoist trolley under it with its ropes and hook block.
     parts.push(member(at(s, -half * 0.45 - 7, H + 3), at(s, -half * 0.45 + 7, H + 3), c.girderWidth + 2, 6, k.trolley));
     const hw = half * 0.15;
@@ -247,10 +306,11 @@ function hash01(...k: number[]): number {
   return ((h >>> 0) % 10007) / 10007;
 }
 
-/** A yard ship's half-breadth (m) at `u` m from her middle (forward +): a parallel body, a fine bow over its last 22 %, the stern's corners rounded. */
+/** A yard ship's half-breadth (m) at `u` m from her middle (forward +): a parallel body, a full bow over its last `bowLength` of her, the stern's corners rounded. */
 function halfBreadth(L: number, B: number, u: number): number {
-  const bow = L / 2 - 0.22 * L;
-  if (u > bow) return (B / 2) * Math.max(0, 1 - ((u - bow) / (0.22 * L)) ** 1.7);
+  const c = CONFIG.structures.yardShip;
+  const bow = L / 2 - c.bowLength * L;
+  if (u > bow) return (B / 2) * Math.max(0, 1 - ((u - bow) / (c.bowLength * L)) ** c.bowFullness);
   const fromStern = u + L / 2;
   return (B / 2) * (fromStern < 8 ? 0.88 + (0.12 * fromStern) / 8 : 1);
 }
@@ -296,24 +356,42 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
   const B = y.beam;
   const parts: THREE.BufferGeometry[] = [];
   const keel = y.keel;
-  const main = keel + c.depth * L;
+  // Her main deck: `hullDecks` decks over her keel (the Icon class: about 5 of her 20 in the hull).
+  const main = keel + c.hullDecks * c.deck;
   // Her waterline: afloat, the sea's; in the dock, where it will be (her draught from the keel).
   const wl = keel < 0 ? 0 : keel + 8.5;
   // The plan between two stations, sampled along.
   // (Every 8 m in the fine bow; along the straight body only at the block's ends.)
-  const bowStart = L / 2 - 0.22 * L;
-  const slice = (u0: number, u1: number, scale = 1): [number, number][] => {
+  const bowStart = L / 2 - c.bowLength * L;
+  const hull = (u: number) => halfBreadth(L, B, u);
+  const slice = (u0: number, u1: number, scale = 1, half = hull): [number, number][] => {
     const us: number[] = [];
     for (let u = u0; u < u1; u += u >= bowStart - 8 ? 8 : Math.max(8, Math.min(u1, bowStart) - u)) us.push(u);
     us.push(u1);
-    const side = us.map((u) => [u, -halfBreadth(L, B, u) * scale] as [number, number]);
-    const other = [...us].reverse().map((u) => [u, halfBreadth(L, B, u) * scale] as [number, number]);
+    const side = us.map((u) => [u, -half(u) * scale] as [number, number]);
+    const other = [...us].reverse().map((u) => [u, half(u) * scale] as [number, number]);
     // (At the stem the two sides meet: one point.)
     return [...side, ...other.filter((p, i) => i > 0 || p[1] > 0.5)];
   };
+  // A deck's front block: its front rounded in three facets (owner: "the front of the cruise
+  // ships are curved ... three facets"): a flat middle face across the middle third of her,
+  // and an angled face each side swept back `frontFacet` of her beam to her side.
+  const front3 = (u0: number, u1: number, scale: number, width = hull): [number, number][] => {
+    const back = u1 - c.frontFacet * B;
+    if (back - u0 < 4) return slice(u0, u1, scale, width);
+    const ring = slice(u0, back, scale, width);
+    const half = width(back) * scale;
+    // (The plan runs down one side to its end, then back up the other: the facets go between.)
+    const turn = ring.findIndex((p) => p[1] > 0);
+    return [...ring.slice(0, turn), [u1, -half / 3], [u1, half / 3], ...ring.slice(turn)];
+  };
+  // How far her blocks are built (all her decks once `stage` reaches 0.8), and whether she's
+  // painted (the owner's ship at the outfitting pier: the dock ship's shape, in fresh paint).
   const finished = y.stage >= 0.8;
-  // The hull: her bottom red to the waterline; above it, finished, navy then white to the main
-  // deck; or, earlier, block by block in primer grey, light grey or white (a few already painted).
+  const painted = y.painted ?? finished;
+  // The hull: her bottom red to the waterline; above it, finished, a blue band then white to
+  // the main deck; painted, blue to it; or,
+  // earlier, block by block in primer grey, light grey or white (a few already painted blue).
   const blocks = Math.ceil(L / c.block);
   for (let b = 0; b < blocks; b++) {
     const u0 = -L / 2 + b * c.block;
@@ -322,13 +400,16 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     const ring = slice(u0, u1);
     parts.push(prism(ring, keel, wl, w, k.red));
     if (finished) {
-      parts.push(prism(ring, wl, wl + 8, w, k.navy));
-      parts.push(prism(ring, wl + 8, main, w, hash01(y.seed, b, 1) < 0.08 ? k.primer : k.white));
-    } else {
+      // Her blue band most of her freeboard, a strip of white above it.
+      const band = wl + (main - wl) * c.band;
+      parts.push(prism(ring, wl, band, w, k.hull));
+      parts.push(prism(ring, band, main, w, k.white));
+    } else if (painted) parts.push(prism(ring, wl, main, w, k.hull));
+    else {
       const mid = (wl + main) / 2;
       for (const [y0, y1, t] of [[wl, mid, 2], [mid, main, 3]] as [number, number, number][]) {
         const r = hash01(y.seed, b, t);
-        parts.push(prism(ring, y0, y1, w, r < 0.4 ? k.primer : r < 0.7 ? k.light : r < 0.9 ? k.white : k.navy));
+        parts.push(prism(ring, y0, y1, w, r < 0.4 ? k.primer : r < 0.7 ? k.light : r < 0.9 ? k.white : k.hull));
       }
     }
   }
@@ -344,15 +425,19 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     const back = sAft + Math.floor(d / c.terrace) * c.terraceStep * (d > c.decks / 2 ? 1.6 : 1);
     if (front - back < 20) break;
     const narrow = d >= c.decks - 3 ? 0.78 : 0.97;
+    // Above her lifeboats her decks overhang the hull (`superWidth`), as on the big ships of
+    // today, narrowing with the bow under them; below, the hull's width.
+    const width = d >= c.overhangFrom ? (u: number) => hull(u) * c.superWidth : hull;
     // Along her in blocks, those this high so far (finished: the deck the length of her).
     for (let u0 = back; u0 < front - 1; u0 += finished ? front - back : c.block) {
       const u1 = finished ? front : Math.min(front, u0 + c.block);
       if (blockDecks(u0) <= d) continue;
-      const ring = slice(u0, u1, narrow);
-      const r = hash01(y.seed, u0, d);
-      const primer = finished ? r < 0.05 : r < 0.45;
+      const plan = u1 >= front - 0.01 ? front3 : slice;
+      const ring = plan(u0, u1, narrow, width);
+      // Each deck a band of windows and balconies under its white (painted: no primer left).
+      const primer = !painted && hash01(y.seed, u0, d) < 0.45;
       parts.push(prism(ring, y0, y0 + 0.7, w, primer ? k.primer : k.glass));
-      parts.push(prism(slice(u0, u1, narrow * 0.985), y0 + 0.7, y0 + c.deck, w, primer ? k.light : k.white));
+      parts.push(prism(plan(u0, u1, narrow * 0.985, width), y0 + 0.7, y0 + c.deck, w, primer ? k.light : k.white));
     }
   }
   if (finished) {
@@ -360,12 +445,13 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     const bridgeDeck = main + (c.decks - 4) * c.deck;
     const bridgeU = sFore - (c.decks - 4) * c.rake;
     // The bridge across her, its wings out over her sides, its windows.
-    parts.push(member(w(bridgeU - 6, -B / 2 - 3, bridgeDeck + 1.5), w(bridgeU - 6, B / 2 + 3, bridgeDeck + 1.5), 9, 3, k.white));
-    parts.push(member(w(bridgeU - 1.8, -B / 2 - 3, bridgeDeck + 2), w(bridgeU - 1.8, B / 2 + 3, bridgeDeck + 2), 1, 1.4, k.glass));
+    const wing = (B / 2) * c.superWidth + 3;
+    parts.push(member(w(bridgeU - 6, -wing, bridgeDeck + 1.5), w(bridgeU - 6, wing, bridgeDeck + 1.5), 9, 3, k.white));
+    parts.push(member(w(bridgeU - 1.8, -wing, bridgeDeck + 2), w(bridgeU - 1.8, wing, bridgeDeck + 2), 1, 1.4, k.glass));
     // The funnel, a third of her length from the stern, raked aft.
     const fu = -L / 2 + 0.36 * L;
     parts.push(member(w(fu, 0, top - 2), w(fu - 6, 0, top + 16), 10, 18, k.funnel));
-    parts.push(member(w(fu - 5.4, 0, top + 14.5), w(fu - 6.4, 0, top + 17), 10.5, 18.5, k.navy));
+    parts.push(member(w(fu - 5.4, 0, top + 14.5), w(fu - 6.4, 0, top + 17), 10.5, 18.5, k.hull));
     // The water-park aft: slides in their colours twisting down from a tower, and a dome.
     const pu = sAft + Math.floor((c.decks - 1) / c.terrace) * c.terraceStep * 1.6 + 12;
     for (let i = 0; i < 5; i++) {
@@ -376,9 +462,15 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
     }
     parts.push(member(w(pu, 0, top), w(pu, 0, top + 11), 5, 5, k.white));
     parts.push(part(new THREE.SphereGeometry(7, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).translate(...w(pu + 30, 0, top)), k.glass));
-    // The lifeboats along her sides, a little out from the hull.
-    const boatY = main + 2 * c.deck + 1;
-    for (let u = -L / 2 + c.boatSpan[0] * L; u < -L / 2 + c.boatSpan[1] * L; u += c.boatEvery) for (const side of [-1, 1]) parts.push(member(w(u - 5.5, side * (B / 2 + 1.5), boatY), w(u + 5.5, side * (B / 2 + 1.5), boatY), 4, 3.2, k.boat));
+  }
+  // Painted, her lifeboats along her sides, a little out from the hull, where her decks are up to them.
+  if (painted) {
+    // (Under the decks that overhang them.)
+    const boatY = main + (c.overhangFrom - 1) * c.deck + 1;
+    for (let u = -L / 2 + c.boatSpan[0] * L; u < -L / 2 + c.boatSpan[1] * L; u += c.boatEvery) {
+      if (blockDecks(u) < 4) continue;
+      for (const side of [-1, 1]) parts.push(member(w(u - 5.5, side * (B / 2 + 1.5), boatY), w(u + 5.5, side * (B / 2 + 1.5), boatY), 4, 3.2, k.boat));
+    }
   }
   // The yard's luffing cranes along her: on the quay beside her (or the dock's side), each a
   // portal on rails, its slewing house and a jib raised over her.

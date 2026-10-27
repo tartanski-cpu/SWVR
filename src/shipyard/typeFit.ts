@@ -130,8 +130,8 @@ export const TYPE_FACTS: TypeFacts[] = [
     fits: [fit(5, 1, 11.8, 903, 30.8, 1_408_000)],
   },
   {
-    // The solar catamaran (a one-off: all fixed but her battery, so one fit; measured 26 Oct
-    // 2026 on her stand-in drives, 100 kWh; her range is her battery's at an easy cruise,
+    // The solar catamaran (a one-off: all fixed but her battery, so one fit; measured 27 Oct
+    // 2026 on her electric drives, 100 kWh; her range is her battery's at an easy cruise,
     // parts/solar.ts, not a fuel tank's).
     what: 'A one-off solar catamaran: 16 m of foam and plywood, a long house under a solar roof, quiet electric pods; long, slow passages on sun and battery.',
     goodFor: [],
@@ -139,7 +139,7 @@ export const TYPE_FACTS: TypeFacts[] = [
     pots: 0,
     maxCrates: 0,
     maxPots: 0,
-    fits: [fit(6, 1, 8.5, 62, 0.7, 446_000)],
+    fits: [fit(6, 1, 10, 52, 0.7, 446_000)],
   },
 ];
 

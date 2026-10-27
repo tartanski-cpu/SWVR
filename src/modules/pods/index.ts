@@ -27,6 +27,12 @@
  *              back to the wheel.
  * Each pod's heading is kept in VesselState.pods (sent to the crew and saved), so the view
  * swings each one by its own.
+ *
+ * Electric (`electric`; owner, 27 Oct 2026, the Shipyard's solar catamaran): an electric motor
+ * in place of each diesel, from her battery (physics/electricMotor.ts): the key switches the
+ * motors on, the throttle sets their speed ahead or astern; no fuel, heat, oil or wear, no
+ * starter, and in place of the alternators her battery's converter keeps the 12 V side charged
+ * while they're on. Her battery's charge is VesselState.battery.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
@@ -36,6 +42,7 @@ import type { ModuleDefinition } from '../../modular/module';
 import { flatVertexColorMaterial, mergeParts } from '../../render/geometryUtils';
 import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
 import { allocatePods } from '../../vessel/physics/podAllocation';
+import { motorStep, type MotorSpec } from '../../vessel/physics/electricMotor';
 import { engineStep, rudderForceAt, steeringStep, type DieselInputs, type RudderSpec } from '../../vessel/physics/propulsion';
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
@@ -69,6 +76,8 @@ export interface PodsConfig {
   massKg: number;
   maintenance: typeof wb.maintenance;
   voice?: keyof typeof CONFIG.engineVoices;
+  /** Electric motors in place of the diesels (see above): their efficiency, inertia and controller, and her battery's usable kWh. */
+  electric?: MotorSpec;
   installed?: { model: number; size: [number, number, number]; xs: number[]; flangeY: number; flangeZ: number; angleDeg: number };
 }
 
@@ -78,6 +87,8 @@ export interface PodsState {
   swing: number;
   angles: number[];
   controls: VesselControls;
+  /** Electric: her battery's charge, 0 (flat) .. 1 (full). */
+  battery: number;
 }
 
 /** The propellers' centre straight ahead (boat axes, the row's middle: x 0). */
@@ -144,22 +155,26 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
     portAngle: { dir: 'write', key: 'pods.angle.port' },
     stbdAngle: { dir: 'write', key: 'pods.angle.stbd' },
   },
-  needs: () => [{ fuel: 'diesel' }],
+  needs: (c) => (c.electric ? [] : [{ fuel: 'diesel' }]),
   // Power for the deck hydraulics off the engines' power take-off, as an inboard's.
   provides: () => [{ gear: 'diesel' }, { gear: 'rudder' }, { power: 'pto' }],
   gear: (raw) => {
     const c = placed(raw);
     return {
-      diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, units: c.units, twin: true, twinX: Math.max(...c.units.map(Math.abs)) },
+      diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, units: c.units, twin: true, twinX: Math.max(...c.units.map(Math.abs)), ...(c.electric ? { electric: c.electric } : {}) },
       // The ENGINE screen shows the pods' swing.
       rudder: strutSpec(c).rudder,
     };
   },
   physical: (c) => ({ powerKw: c.engine.powerKw * c.units.length, massKg: c.massKg * c.units.length }),
-  power: (c) => [
-    { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * c.units.length * clamp(io.num('rpm') / c.engine.idleRpm, 0, 1) : 0) },
-    { role: 'load', amps: (io) => (io.get('state') === 'cranking' ? c.starterAmps : 0) },
-  ],
+  power: (c) =>
+    c.electric
+      ? // (Electric: her battery's converter charges the 12 V side while the motors are on, at the alternators' rate.)
+        [{ role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * c.units.length : 0) }]
+      : [
+          { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * c.units.length * clamp(io.num('rpm') / c.engine.idleRpm, 0, 1) : 0) },
+          { role: 'load', amps: (io) => (io.get('state') === 'cranking' ? c.starterAmps : 0) },
+        ],
   sim: {
     init: () => {
       throw new Error('the pods keep their state in VesselState (engine, rudder, pods) until 6d');
@@ -180,6 +195,12 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       // (The joystick's switch is in her controls: the sim lets it go when the throttle moves.)
       get controls() {
         return v.controls;
+      },
+      get battery() {
+        return v.battery ?? 0;
+      },
+      set battery(x: number) {
+        v.battery = x;
       },
     }),
     physics(port, { config: raw, io }, s, dt) {
@@ -244,24 +265,32 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       const flow = port.flowAt(p.position);
       const D = p.diameter;
       const wet = Math.min(1, Math.max(0, (port.depthAt(p.position) + D / 2) / D));
-      const fuelL = io.num('fuel');
-      const inputs: DieselInputs = {
-        lever: throttle,
-        heat: io.num('heat'),
-        start: io.num('start'),
-        powered: !!io.get('powered'),
-        starterFactor: io.has('volts') ? clamp((io.num('volts') - 9) / 2.5, 0, 1) : 1,
-        fuelL,
-      };
       // The speed of advance: the water's along the first pod's heading.
       const d0 = s.angles[0];
       const along = -flow.z * Math.cos(d0) - flow.x * Math.sin(d0);
-      const thrust = engineStep(e, c, inputs, along, wet, dt);
+      let thrust: number;
+      if (c.electric) {
+        // Electric: both motors from her battery, switched on by the key, with 12 V for their controllers.
+        thrust = motorStep(e, c, c.electric, { lever: throttle, on: io.num('key') > 0 && !!io.get('powered'), charge: s.battery }, along, wet, dt, used);
+        s.battery = clamp(s.battery - (n * used.kWh) / c.electric.usableKWh, 0, 1);
+        e.powerKw = (e.powerKw ?? 0) * n;
+      } else {
+        const fuelL = io.num('fuel');
+        const inputs: DieselInputs = {
+          lever: throttle,
+          heat: io.num('heat'),
+          start: io.num('start'),
+          powered: !!io.get('powered'),
+          starterFactor: io.has('volts') ? clamp((io.num('volts') - 9) / 2.5, 0, 1) : 1,
+          fuelL,
+        };
+        thrust = engineStep(e, c, inputs, along, wet, dt);
+        const left = fuelAndHeatStep(e, c, fuelL, dt);
+        io.set('fuel', Math.max(0, fuelL - n * (fuelL - left)));
+        e.fuelFlowLph *= n;
+      }
       io.set('thrust', thrust);
       io.set('immersion', wet);
-      const left = fuelAndHeatStep(e, c, fuelL, dt);
-      io.set('fuel', Math.max(0, fuelL - n * (fuelL - left)));
-      e.fuelFlowLph *= n;
       // Each pod: its net push T(1 - t) times its share, along its heading, from its propellers
       // (forward of the axis, where its heading has swung them); and its strut's lift.
       const spec = strutSpec(c, joy);
@@ -276,6 +305,8 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       }
     },
     tick({ config: c }, s, dt) {
+      // (Electric motors: no oil to use, nothing to wear here.)
+      if (c.electric) return;
       oilStep(s.engine, c.oilUse, dt);
       engineWearStep(s.engine, dt);
     },
@@ -288,7 +319,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       const inst = c.installed;
       const space = hull.engineSpace;
       if (inst) for (const x of inst.xs) staticParts.push(...engineGeometry(inst.model, inst.size, { x, flangeY: inst.flangeY, flangeZ: inst.flangeZ, angleDeg: inst.angleDeg }));
-      if (inst && space) staticParts.push(...oilShelfParts(c.maintenance, space.top, space.outboardX));
+      if (inst && space && !c.electric) staticParts.push(...oilShelfParts(c.maintenance, space.top, space.outboardX));
       // The pods: one shape, drawn once per pod (one draw call), each swung by its own heading.
       const unit = mergeParts(podParts(c.look, c.strut, c.propeller.diameter));
       const mesh = new THREE.InstancedMesh(unit, flatVertexColorMaterial(), c.units.length);
@@ -333,4 +364,5 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
 };
 
 const lift = { x: 0, z: 0 };
+const used = { kWh: 0 };
 const pushes: number[] = [];

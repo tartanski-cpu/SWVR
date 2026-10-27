@@ -289,20 +289,37 @@ export const SHIPYARD_CONFIG = {
      *   podKg         each of her two pods, with its electric motor's housing and strut
      *                 (her motors themselves are ENGINES' '25 kW electric pod motor');
      *   cruiseKw      the power her range is given at (both motors together): her easy cruise,
-     *                 the speed it makes worked out on her resistance at `propulsiveEff` (the
-     *                 game's usual share of a motor's power that ends up pushing her);
-     *   standInRatio  until her electric drives come (the modular builder chat), her motors run
-     *                 in the game as a small diesel each: geared down this much more than her
-     *                 gearbox (a pod's own reduction), so it can turn her big slow propellers;
+     *                 the speed it makes worked out on her calm-water resistance at
+     *                 `propulsiveEff`, the share of her battery's power that it accounts for in
+     *                 the game, measured 27 Oct 2026 on her electric drives at about 6 kn (0.31:
+     *                 her motors, gears and propellers take about 0.6 of it; the rest is the
+     *                 other drag the game's water puts on her, past her calm-water resistance);
+     *   motor         her pod motors in the game (physics/electricMotor.ts; owner, 27 Oct 2026):
+     *                 `efficiency` the motor and its controller's (permanent-magnet motors run
+     *                 about 92 to 95 %), `inertia` its rotor's (kg m2), `propInertia` each pod's
+     *                 propeller's (kg m2, a 0.7 m propeller), `responseS` how quickly its
+     *                 controller brings it to the speed asked for (s) (her charging at the quay:
+     *                 CONFIG.charger);
      *   roof          her solar roof's look (modules/solarRoof): each panel `panel` m (across,
      *                 along) with `gap` between; the roof no wider than `wingClear` m inside her beam; each
      *                 wing `wingWidth` m wide (stowed, folded in over the roof's edge);
      *                 the foredeck rack `rack.length` m long, `rack.clear` m forward of the
      *                 house, its top `rack.height` m over her deck, `rack.inset` m in from her sides;
+     *   solar         her panels charging her battery in the game (modules/solarRoof; owner, 27
+     *                 Oct 2026, "a realistic model", on real-time power): `panelEff` the panels'
+     *                 (good monocrystalline, about 21 %), `tempCoeff` what they lose a degree
+     *                 their cells run over 25 C (-0.4 %), `noctC` their cells' temperature in
+     *                 800 W/m2 at 20 C (45 C: hotter in more sun), `airTempC` the air's, the
+     *                 charge controller's and the battery's charging efficiencies, and
+     *                 `taperFrom` the charge above which the battery takes less and less (90 %);
+     *   pack          how her battery's drawn on the Engine step (page.ts): its packs, one low in
+     *                 each hull amidships, `litresPerKWh` of pack a kWh (lithium iron phosphate
+     *                 modules with their housings, about 6 L a kWh), `height` x `width` (m) in
+     *                 section, as long as that makes them;
      *   wetDeckWarn   the least clearance under her wet deck (m) before the Shipyard warns:
      *                 less slams in a chop.
      */
-    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.55, standInRatio: 2.5, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
+    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.31, motor: { efficiency: 0.93, inertia: 0.05, propInertia: 0.4, responseS: 0.4 }, solar: { panelEff: 0.21, tempCoeff: -0.004, noctC: 45, airTempC: 16, controllerEff: 0.97, chargeEff: 0.96, taperFrom: 0.9 }, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing
@@ -490,7 +507,9 @@ export const SHIPYARD_CONFIG = {
      * the pieces' sizes are CONFIG.modules.furniture). Kept clear of: the helm's standing room
      * (`helmRoom`: either side of the wheel, aft of the console), the doorways (`doorWay`: across
      * the aft door, and in from the side door), room to sit at the chart table (`chartRoom` out
-     * from it), the companionway and other openings (`holeClear` round them). A piece slides
+     * from it), the companionway and other openings (`holeClear` round them), the panels on the
+     * wall by the helm (the breakers, the helm assist; `panelRoom` m out from the wall to stand
+     * at them). A piece slides
      * along its wall up to `reach` each way from its pin to fit; more than `movedOver` from it,
      * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
      * (`pricePerKg`, GBP). The Furniture step opens with the section tool cut at a waterline
@@ -498,7 +517,7 @@ export const SHIPYARD_CONFIG = {
      * A TV on the wall keeps `tvCeiling` (m) under the ceiling, coming down to do so, and its
      * screen's foot no lower than `tvLowest` over the floor (else it's left off).
      */
-    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25, tvCeiling: 0.1, tvLowest: 0.8 },
+    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, panelRoom: 0.6, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25, tvCeiling: 0.1, tvLowest: 0.8 },
     /**
      * The Shipyard's section tool (owner: "cut the ship through as you want"): her drawing cut by
      * a waterline (level), a buttock (fore and aft, upright) or a station (athwartships, upright)

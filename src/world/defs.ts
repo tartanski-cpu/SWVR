@@ -591,6 +591,8 @@ export interface GantryDef {
   span: number;
   count: number;
   base: number;
+  /** Lettering along each girder, both faces (block capitals: world/coastStructures.ts). */
+  sign?: string;
 }
 
 /**
@@ -608,6 +610,8 @@ export interface YardShipDef {
   keel: number;
   stage: number;
   seed: number;
+  /** In fresh paint (white over a blue hull, her lifeboats) whatever her stage; otherwise painted once finished. */
+  painted?: boolean;
 }
 
 /**

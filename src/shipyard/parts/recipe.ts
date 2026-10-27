@@ -20,6 +20,7 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 import type { HullDefPart } from './hullDef';
 import type { FurniturePart } from './furniture';
 import type { HoldPart } from './hold';
+import { motorSpec } from './solar';
 
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
@@ -119,10 +120,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       socket: 'pods',
       module: 'propulsion.pods',
       config: {
-        // (The solar catamaran's stand-in for her electric motors: a small diesel geared down by
-        // CONFIG.shipyard.solarCat.standInRatio more, so it can swing her big slow propellers.)
-        engine: p.electric ? { ...engine.engine, gearRatio: Math.round(engine.engine.gearRatio * CONFIG.shipyard.solarCat.standInRatio * 1000) / 1000 } : engine.engine,
-        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02 },
+        engine: engine.engine,
+        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02, ...(p.electric ? { inertia: CONFIG.shipyard.solarCat.motor.propInertia } : {}) },
         ...podSet,
         steering: pdc.steering,
         look: pdc.look,
@@ -135,8 +134,16 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         maintenance: engine.maintenance,
         voice: eng.voice,
         installed: engine.installed,
+        // The solar catamaran's electric motors, from her battery (CONFIG.shipyard.solarCat.motor; modules/pods).
+        ...(p.electric ? { electric: motorSpec(d) } : {}),
       },
     });
+    // (Electric motors have no oil to check: no dipstick or oil can.)
+    if (p.electric) {
+      recipe.modules = recipe.modules.filter((m) => m.socket !== 'dipstick' && m.socket !== 'oilCan');
+      const oily = (x: string) => x === 'control:dipstick' || x === 'control:oilCan';
+      recipe.interlocks = (recipe.interlocks ?? []).filter((l) => l.limit || !l.disable?.every(oily)).map((l) => (l.disable ? { ...l, disable: l.disable.filter((x) => !oily(x)) } : l));
+    }
   }
   if (outboards) {
     // Her outboards in place of the inboard and its rudder; her upkeep (the oil checks) at the hatch as before.
@@ -284,6 +291,12 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.slots.efficiency = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
     consoleMount.modules!.push({ socket: 'efficiency', module: 'instrument.screen', config: { screen: 'efficiency' } });
   }
+  // SOLAR & BATTERY (owner, 27 Oct 2026; the solar catamaran's): with the advanced instruments
+  // on an electric boat, after the efficiency screen (on a touchscreen, its SOLAR page).
+  if (d.controls && p.electric) {
+    cc.slots.solar = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
+    consoleMount.modules!.push({ socket: 'solar', module: 'instrument.screen', config: { screen: 'solar' } });
+  }
   // ANCHOR (owner, Oct 2026: "is the chain going down? Is the anchor set? Is the chain going
   // up? Is it in?"): a quarter screen beside the speed screen, on any boat with an anchor.
   if (anchorAt) {
@@ -309,8 +322,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const touch = d.controls ? Math.max(0, Math.min(2, d.touch ?? 0)) : 0;
   const touchIds = touch ? ['touch1', 'touch2'].slice(0, touch) : [];
   if (touch) {
-    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
-    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'towline'].includes(m.socket));
+    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(p.electric ? (['solar'] as const) : []), ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
+    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline'].includes(m.socket));
     touchIds.forEach((id, k) => {
       cc.slots[id] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
       consoleMount.modules!.push({ socket: id, module: 'instrument.screen', config: { screen: 'touch', pages, channel: k ? 'touchPage2' : 'touchPage1', first: k ? 2 : 0 } });
@@ -381,7 +394,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // CS6, `lampsUpBelow`, it would run under the wheel's rim, so it goes up on the face too.)
   const lampsUp = !lowSills(d) && !panelPinned && !toFace.includes('ENGINE') && fitted('lamps') && 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow;
   const faceItems = [...faceItemsFor(toFace), ...(lampsUp ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])];
-  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
+  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
   // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
   // by its rules in this order, the half-height ones stacked two high in one screen's place
@@ -746,7 +759,10 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     const kickAft = Math.max(0, -p.ahead);
     const rackX = kickAft > 0.3 ? 0 : Math.min(q.halfBeam(rackZ0), q.halfBeam(rackZ1)) - sr.rack.inset;
     const deckY = Math.max(q.deckY(rackZ0), q.deckY(rackZ1));
-    recipe.modules.push({
+    // (Her house is the player's: one too small for a field of panels on its roof gets none, and says so.)
+    const roomy = rx - 0.3 > sr.panel[0] / 2 && z0 - roofFront > sr.panel[1];
+    if (!roomy) p.warnings.push('Her roof is too small for her solar panels: she has none, and charges only at the quay. A longer or wider wheelhouse takes them.');
+    if (roomy) recipe.modules.push({
       socket: 'solarRoof',
       module: 'deck.solar-roof',
       config: {
@@ -756,6 +772,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         ...(kickAft > 0.3 ? { slope: { x0: rnd(-hw + 0.1), x1: rnd(hw - 0.1), z0: rnd(front), y0: rnd(house.lowerFromY), z1: rnd(front + kickAft), y1: rnd(p.floorY + p.sill) } } : {}),
         panel: sr.panel,
         gap: sr.gap,
+        // Charging her battery from the sun (CONFIG.shipyard.solarCat.solar; modules/solarRoof).
+        charge: { ...CONFIG.shipyard.solarCat.solar, batteryKWh: motorSpec(d).usableKWh },
       },
     });
   }

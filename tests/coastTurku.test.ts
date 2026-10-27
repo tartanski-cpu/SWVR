@@ -143,30 +143,36 @@ describe('Turku: the cruise ships building at Perno (owner, who worked there)', 
     return { y0, y1, tris };
   };
 
-  it('one half built, standing in the building dock under the gantries; one nearly finished afloat at the outfitting pier', () => {
+  it('one half built, standing in the drained building dock under the gantries; one nearly finished afloat at the outfitting pier', () => {
     const r = mapRegion(voyageMap('turku')!);
     const [dock, quay] = r.yardShips!;
     const g = r.gantries![0];
-    // In the dock: on its floor (dry), between the gantry's rails.
+    // In the dock: on its floor (dry), between the gantry's rails, unpainted.
     expect(dock.stage).toBeLessThan(0.6);
+    expect(dock.painted).toBeFalsy();
     expect(dock.keel).toBeGreaterThan(0);
     expect(Math.hypot(dock.x - g.x, dock.z - g.z)).toBeLessThan(g.length / 2);
     expect(dock.beam).toBeLessThan(g.span);
-    // At the pier: afloat, her keel under the water, by the yard's berth.
+    // At the pier: nearly finished, afloat, her keel under the water, by the yard's berth.
     expect(quay.stage).toBeGreaterThan(0.8);
     expect(quay.keel).toBeLessThan(-5);
     const b = r.berths.find((x) => x.id === 'perno-shipyard-cargo')!;
     expect(Math.hypot(quay.x - b.x, quay.z - b.z)).toBeLessThan(quay.beam);
   });
 
-  it('the finished ship stands some 70 m over the water, the half-built one lower; both within the Quest\'s budget', () => {
+  it('the finished ship: her front nearly upright (owner: "less sloped") and rounded in three facets; her funnel over 60 m up; both within the Quest\'s budget', () => {
     const r = mapRegion(voyageMap('turku')!);
     const [dock, quay] = r.yardShips!;
+    const c = CONFIG.structures.yardShip;
+    // Her front sets back under a metre a deck: under 10 m over all her decks.
+    expect(c.rake * c.decks).toBeLessThan(10);
+    // Twenty decks from her keel, five of them in the hull (owner, from the Icon class).
+    expect(c.hullDecks + c.decks).toBe(20);
+    expect(c.hullDecks).toBe(5);
     const q = bounds(yardShipParts(quay));
     const d = bounds(yardShipParts(dock));
-    expect(q.y1).toBeGreaterThan(60);
     expect(q.y0).toBeLessThan(-5);
-    expect(d.y1 - dock.keel).toBeLessThan(q.y1 - quay.keel);
-    expect(q.tris + d.tris).toBeLessThan(6000);
+    expect(q.y1).toBeGreaterThan(60);
+    expect(q.tris + d.tris).toBeLessThan(8000);
   });
 });

@@ -1300,7 +1300,8 @@ export class App {
       // pressure with the key on and the engine stopped (it stops when she runs, owner).
       const diesel = gearOf(v, 'diesel');
       const al = diesel ? engineAlarms(v, diesel) : { highTemp: false, lowFuel: false };
-      const noOilPressure = !!diesel && v.engine.key > 0 && v.engine.phase !== 'running' && isPowered(v, 'instruments');
+      // (Electric motors: no oil pressure to lose.)
+      const noOilPressure = !!diesel && !diesel.electric && v.engine.key > 0 && v.engine.phase !== 'running' && isPowered(v, 'instruments');
       const consoleDist = this.homeView?.dashAnchor ? this.homeView.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
       this.sound.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running') || noOilPressure, consoleDist);
     }
