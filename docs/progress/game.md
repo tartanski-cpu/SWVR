@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Driving the harbour tug from the keyboard and a game controller (27 Oct 2026)
+
+The owner: "I want my non-VR friends to be able to drive this tug"; built from the modular-builder chat's handover (below), with the owner's decisions. Only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`), on the desktop (F by her wheel, or a controller's A); every other boat's helm is as it was.
+- **Keys** (`player/aziHelm.ts`, `App.driveAzimuth`): W / S / A / D the port drive (power, twist), the arrow keys the starboard one, at the levers' own rates (`KEY_TURN` 90°/s, `KEY_LEAN` 0.5 a second, now exported from `modules/azimuthLevers/lever.ts`) and with their notches (`snapTo`: the turn clicks at ahead, abeam and astern and on through). Power stops at idle; astern is twisting round. X both to idle; T TRANSIT on / off. In TRANSIT, A / D (← →) steer the wheel and W / S (↑ ↓) set both throttles, as on any boat. Sent as the levers' own intents (`azimuth.demand`, `throttle.demand` and their `2`s, `azimuth.transit`, `helm.demand`), so a VR crew-mate sees the levers move, and the engine room's handover (`plant.bridge`) still governs them.
+- **Looking:** Q over the port shoulder, E over the starboard one, Q + E or Tab aft, held (`CONFIG.aziHelm.glanceDeg` 115°, easing over `glanceTau` 0.12 s; `DesktopController.glance`, on top of the mouse look). At her helm the keyboard claims W A S D, the arrows, X, T, Q, E and Tab (`AZI_HELM_CODES`): their usual jobs wait (Q cargo, E engine, T sea trials), and Tab doesn't move the page's focus.
+- **Controller:** point and push (`pointAndPush`): each stick's direction is its drive's (up ahead, right to starboard, back astern; notched), how far its power; let go, idle, still pointing there. Hold LB: the right stick looks round instead (the starboard drive holds); a tap of LB looks ahead. RB TRANSIT (then the left stick steers, the right stick's up sets both throttles); B both to idle. The orbit and flyby views swing on LB + the right stick.
+- **On-screen dials** (`ui/aziDials.ts`, `CONFIG.aziHelm.dialPx` 150): bottom left the port drive, bottom right the starboard: the ENGINE screen's dial (`controls/instruments.ts` `azimuthDial`, now exported), the arrow where the drive pushes, the ring where its lever asks, and a power bar. Desktop only, at her helm; redrawn only when they change.
+- **The helm prompt** says all this, keys or controller.
+- **Tests:** tests/aziHelm.test.ts (the keys' rates, idle floor, notches and on through; point and push; the glance; the claimed keys).
+- **Checked headless:** see below this list. **Not checked:** a real game controller (none here), and with the controls in a friend's hands.
+- **Shared changes:** `src/modules/azimuthLevers/lever.ts` exports `KEY_TURN` and `KEY_LEAN` (no other change).
+
 ### The harbour tug's start-up from dead ship, part 1 (27 Oct 2026)
 
 Owner: "the only thing I want for the engine room is a realistic startup procedure. So it's go downstairs, turn the fuel and whatever is appropriate for the generator, get power on"; the plan agreed, "go ahead with part 1".
@@ -51,7 +63,7 @@ Owner: "the only thing I want for the engine room is a realistic startup procedu
   - `src/modular/busKeys.ts`: the `plant.bridge` key;
   - `src/modules/dieselInboard/index.ts`: its `bridge` port. Until she's handed over, the bridge's levers and STARTs don't reach her engines.
   - the golden runs' fixtures (`tests/golden/fixtures/`) and `docs/BUS_KEYS.md` regenerated: they record every bus key, so `plant.bridge` (always on for a boat without an engine room) is new in them; nothing else in them changed.
-### (From the modular-builder chat) HANDOVER, not built: driving the harbour tug from the keyboard and a game controller
+### (From the modular-builder chat) HANDOVER, built 27 Oct 2026 (see the entry above): driving the harbour tug from the keyboard and a game controller
 
 The owner, 27 Oct 2026: "I want my non-VR friends to be able to drive this tug", reviewed a proposal from the modular-builder chat and chose: arrow keys, power stops at idle, point-and-push sticks, glance keys and LB to look, the on-screen dials, "Handover" (to this chat: it's the helm mode, keys and controller, `src/app/` and `src/player/`). **What to build**, only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`); every other boat's helm stays as it is:
 

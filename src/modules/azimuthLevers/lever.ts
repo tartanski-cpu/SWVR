@@ -53,8 +53,8 @@ export interface AzimuthLeverOptions {
 
 const RAD = Math.PI / 180;
 /** Desktop: how fast the keys twist it (deg/s) and set the power (per s). */
-const KEY_TURN = 90;
-const KEY_LEAN = 0.5;
+export const KEY_TURN = 90;
+export const KEY_LEAN = 0.5;
 
 export class AzimuthLever extends Control {
   readonly kind = 'grab' as const;

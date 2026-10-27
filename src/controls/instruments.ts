@@ -1147,7 +1147,7 @@ const paintClock: Painter = (g, _s, _def, env) => {
 };
 
 /** An azimuth drive's dial (centre x, y): her bow up, the drive's arrow (deg, + to starboard), its lever's ring. */
-function azimuthDial(g: CanvasRenderingContext2D, cx: number, cy: number, deg: number, askDeg: number, colour: string): void {
+export function azimuthDial(g: CanvasRenderingContext2D, cx: number, cy: number, deg: number, askDeg: number, colour: string): void {
   const r = 52;
   g.strokeStyle = DIM;
   g.lineWidth = 2;

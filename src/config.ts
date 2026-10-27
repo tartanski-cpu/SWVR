@@ -1832,6 +1832,13 @@ export const CONFIG = {
    * looks round (rad/s at full deflection).
    */
   gamepad: { deadZone: 0.15, steerCurve: 1.5, helmReach: 1.6, lookRate: 2.4 },
+  /**
+   * At the helm of a boat with azimuth drives (the harbour tug), desktop (player/aziHelm.ts;
+   * owner, 27 Oct 2026): Q / E glance this far round over the port / starboard shoulder (deg;
+   * both, or Tab, straight aft), easing there and back over about `glanceTau` s; the on-screen
+   * dials' size (px).
+   */
+  aziHelm: { glanceDeg: 115, glanceTau: 0.12, dialPx: 150 },
 
   /**
    * The boatyard (owner, Oct 2026): where she's fitted out and mended, on the Calder Haven
