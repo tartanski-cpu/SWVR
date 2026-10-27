@@ -165,7 +165,7 @@ describe('azimuth drives', { timeout: 300000 }, () => {
   it('the lever: twist the hand and it turns, `twistGain` a degree; push the grip along its arrow for power; idle near upright; it stays where it is left', () => {
     const c = CONFIG.modules.azimuth.lever;
     const sent: [string, number][] = [];
-    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, handMoves: true, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
     lever.bind({ emit: (ch: string, v: number) => sent.push([ch, v]), haptic: () => {} } as never);
     lever.root.updateMatrixWorld(true);
     const grip = lever.grabPoint(new THREE.Vector3());
@@ -201,7 +201,7 @@ describe('azimuth drives', { timeout: 300000 }, () => {
 
   it('held in VR, its thumbstick works it (forward more power, sideways a twist), and the hand then holds it where the stick left it', () => {
     const c = CONFIG.modules.azimuth.lever;
-    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, handMoves: true, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
     lever.bind({ emit: () => {}, haptic: () => {} } as never);
     lever.root.updateMatrixWorld(true);
     const hand = { position: lever.grabPoint(new THREE.Vector3()), quaternion: new THREE.Quaternion() } as never;
@@ -231,9 +231,43 @@ describe('azimuth drives', { timeout: 300000 }, () => {
     expect(lever.held).toBe(false);
   });
 
+  it('as set (handMoves off): a hand holding it only holds it; moving or twisting the hand does nothing, the thumbstick works it', () => {
+    const c = CONFIG.modules.azimuth.lever;
+    expect(c.handMoves).toBe(false);
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, handMoves: c.handMoves, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    lever.root.updateMatrixWorld(true);
+    const sys = new InteractionSystem([lever], () => {}, () => {});
+    const frame = (grip: THREE.Vector3, down: boolean, pressed: boolean, stick: [number, number], yawDeg = 0): HandFrame => ({ tracked: true, grip, ray: new THREE.Ray(grip.clone(), new THREE.Vector3(0, 0, -1)), quat: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-yawDeg * Math.PI) / 180), gripDown: down, gripPressed: pressed, triggerDown: false, triggerPressed: false, stick });
+    const far = new THREE.Vector3(5, 5, 5);
+    const at = lever.grabPoint(new THREE.Vector3());
+    const hands = (l: HandFrame) => ({ left: l, right: frame(far, false, false, [0, 0]) });
+    sys.updateXR(hands(frame(at, true, true, [0, 0])));
+    expect(sys.holding('left')).toBe(lever);
+    // The hand pushed well forward and twisted 60 deg: nothing moves.
+    const pushed = at.clone().add(new THREE.Vector3(0.03, -0.02, -0.12));
+    for (let i = 0; i < 5; i++) sys.updateXR(hands(frame(pushed, true, false, [0, 0], 60)));
+    expect(lever.power).toBe(0);
+    expect(lever.angle).toBe(0);
+    // The stick, sideways then forward: it twists, then gives power.
+    for (let i = 0; i < 5; i++) {
+      sys.updateXR(hands(frame(pushed, true, false, [1, 0], 60)));
+      lever.tick(0.1);
+    }
+    expect(lever.angle).toBeGreaterThan(30);
+    for (let i = 0; i < 5; i++) {
+      sys.updateXR(hands(frame(pushed, true, false, [0, -1], 60)));
+      lever.tick(0.1);
+    }
+    expect(lever.power).toBeGreaterThan(0.2);
+    // And the hand moving back afterwards still changes nothing.
+    const kept = [lever.angle, lever.power];
+    for (let i = 0; i < 5; i++) sys.updateXR(hands(frame(at, true, false, [0, 0], -40)));
+    expect([lever.angle, lever.power]).toEqual(kept);
+  });
+
   it('a hand holding it: the interaction system gives it that hand\'s stick, and says the hand holds it (so the stick neither walks nor turns you)', () => {
     const c = CONFIG.modules.azimuth.lever;
-    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, handMoves: true, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
     lever.root.updateMatrixWorld(true);
     const sys = new InteractionSystem([lever], () => {}, () => {});
     const frame = (grip: THREE.Vector3, down: boolean, pressed: boolean, stick: [number, number]): HandFrame => ({ tracked: true, grip, ray: new THREE.Ray(grip.clone(), new THREE.Vector3(0, 0, -1)), quat: new THREE.Quaternion(), gripDown: down, gripPressed: pressed, triggerDown: false, triggerPressed: false, stick });
@@ -269,7 +303,7 @@ describe('azimuth drives', { timeout: 300000 }, () => {
     expect(snapTo(-95, c.snapDeg)).toBe(-90);
     expect(snapTo(3, c.snapDeg)).toBe(0);
     expect(snapTo(45, c.snapDeg)).toBe(null);
-    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
+    const lever = new AzimuthLever('l', { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, handMoves: true, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: 0, tipColour: 0xffffff, colour: 0xff0000, baseColour: 0 }, { angle: 'azimuth.demand', power: 'throttle.demand' }, { angle: () => 0, power: () => 0 }, 'test');
     let clicks = 0;
     lever.bind({ emit: () => {}, haptic: () => clicks++ } as never);
     // The desktop keys, a frame at a time: D turns it on through 3 o'clock, with a click there.

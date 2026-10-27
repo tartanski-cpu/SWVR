@@ -14,9 +14,11 @@
  * white pointer on the drum's front the way the drive pushes. The bar lies across the drive's
  * direction, so its set shows where the drive points; pushing it forward rolls the drum forward
  * along the pointer. The drum's ends are banded red (port) or green (starboard).
- * VR: grab the bar. Twist your wrist (turn the hand about the upright, as a door knob) and the
- * turntable turns with it, `twistGain` degrees a degree; let go and grab again to turn further.
- * Push the hand forward along the arrow for power, back toward upright for less. Desktop: drag
+ * VR: grab the bar and work it with that hand's thumbstick (sideways twists it, forward and back
+ * the power); the hand only holds it (owner, Oct 2026: "the only way in VR to control the
+ * throttles is with the joysticks"; `handMoves` off). With `handMoves` on, the hand works it
+ * too: twist your wrist (as a door knob) and the turntable turns with it, `twistGain` degrees a
+ * degree; push the hand forward along the arrow for power. Desktop: drag
  * it (sideways twists it, up and down sets the power), or click it and steer with the keys
  * (A / D twist it, W / S more or less power). It sends its direction (deg) and power (0..1) as
  * two intents while it moves (absolute values, so a late or repeated one is harmless).
@@ -33,6 +35,8 @@ export interface AzimuthLeverOptions {
   detent: number;
   /** Within this many degrees of ahead, abeam or astern (12, 3, 6 and 9 o'clock) it clicks onto it (0: no notches). */
   snapDeg: number;
+  /** VR: the hand's own twist and push work it (false: the hand only holds it; its thumbstick works it). */
+  handMoves: boolean;
   twistGain: number;
   turntableRadius: number;
   /** The drum across the head: its radius and width (m); the bar's radius (m). */
@@ -162,6 +166,8 @@ export class AzimuthLever extends Control {
       this.reanchor = false;
       return this.anchor(p);
     }
+    // (The hand only holds it: the stick works it.)
+    if (!this.opts.handMoves) return;
     // Twist: the hand's turn about the upright since the grab turns the turntable.
     const t = this.handTwist(p);
     const angle = Number.isNaN(t) || Number.isNaN(this.twist0) ? this.turn : this.angle0 + wrapDeg(t - this.twist0) * this.opts.twistGain;
