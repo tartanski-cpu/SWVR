@@ -2537,6 +2537,31 @@ export const CONFIG = {
    *   desk        desktop reach for clicks (m), and where the nozzle rides in the "hand"
    *               (m right, up, forward of the eyes)
    */
+  /**
+   * Shore power for electric boats (owner, 27 Oct 2026; vessel/shorePower.ts, fuel/fuelHose.ts
+   * stations): a `postKw` post on the quay at each berth (but the fuel berths), `postInland` m in
+   * from its edge and `postAft` m along it toward her stern; a `fastKw` fast charger beside each fuel pump (`fastBeside` m along, in the
+   * pump's axes). Their cables carried and plugged in as the fuel hose is (CONFIG.fuelHose's
+   * reach and pull-out). On the game's clock: `chargeEff` of the power into the battery, all
+   * of it up to `taperFrom` of full, then less, stopping at `fullAt` (full); the house batteries topped up
+   * `houseSocPerHour` a game hour. `pricePerKWh` (£) billed in the career when she unplugs.
+   * The post's and the fast charger's parts in their axes (+z toward the berth): `size`, the
+   * cable's `outlet`, its plug's `holster`, the `light` showing it's charging.
+   */
+  charger: {
+    postKw: 22,
+    fastKw: 150,
+    postInland: 0.8,
+    postAft: 5,
+    fastBeside: -1.4,
+    chargeEff: 0.95,
+    taperFrom: 0.9,
+    fullAt: 0.998,
+    houseSocPerHour: 0.5,
+    pricePerKWh: 0.35,
+    post: { size: [0.28, 1.15, 0.22] as [number, number, number], outlet: [0.15, 0.55, 0.05] as [number, number, number], holster: [0, 0.85, 0.13] as [number, number, number], light: [0, 1.05, 0.115] as [number, number, number] },
+    fast: { size: [0.7, 1.9, 0.5] as [number, number, number], outlet: [0.36, 0.8, 0.12] as [number, number, number], holster: [-0.18, 1.05, 0.27] as [number, number, number], light: [0, 1.6, 0.255] as [number, number, number] },
+  },
   fuelHose: {
     reach: 10,
     pullOut: 1.5,

@@ -8,6 +8,7 @@ import { toggleCleat, toggleDock } from './physics/mooring';
 import { gearOf } from '../boats/sims';
 import { VESSEL_DEFS } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
+import { plugIn } from './shorePower';
 import { BERTHS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
 import { berthPose } from './physics/mooring';
 import { applyRodIntent } from '../fishing/rod';
@@ -413,16 +414,15 @@ export function canRefuel(s: VesselState): boolean {
 export function stepRefuelling(s: VesselState, dt: number, archipelago: boolean): void {
   const diesel = gearOf(s, 'diesel');
   if (!s.refuelling || !diesel) return;
-  // Electric motors (modules/pods `electric`): the berth's charger fills her battery instead,
-  // until the quayside chargers come (owner, 27 Oct 2026; the hose stands in for its cable).
+  // Electric motors (modules/pods `electric`): the menu's Refuel plugs her into the fuel
+  // berth's fast charger (vessel/shorePower.ts charges her) until she's full or leaves.
   if (diesel.electric) {
     if (!archipelago || !canRefuel(s) || (s.battery ?? 0) >= 1) {
       s.refuelling = false;
+      if (s.shore?.menu) delete s.shore;
       return;
     }
-    // (Its kW on the game's clock: CONFIG.environment.timeScale game hours to each real second.)
-    const gameS = dt * CONFIG.environment.timeScale * 3600;
-    s.battery = Math.min(1, (s.battery ?? 0) + (diesel.electric.berthChargeKw * gameS) / 3600 / diesel.electric.usableKWh);
+    if (!s.shore) plugIn(s, CONFIG.charger.fastKw, true);
     return;
   }
   const f = diesel.engine.fuel;

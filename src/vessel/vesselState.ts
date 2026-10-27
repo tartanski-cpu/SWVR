@@ -328,8 +328,8 @@ export interface VesselState {
    * her panels make (kW, after their controller) and what goes into her battery (kW).
    */
   solar?: { wm2: number; panelKw: number; chargeKw: number };
-  /** Plugged in at a quay charger (vessel/shorePower.ts): its rating and what goes into her battery now (kW). */
-  shore?: { ratedKw: number; chargeKw: number };
+  /** Plugged in at a quay charger (vessel/shorePower.ts): its rating and what goes into her battery now (kW), and the energy taken from it (kWh, to be billed). */
+  shore?: { ratedKw: number; chargeKw: number; kWh: number; /** By the menu's Refuel at a fuel berth (no cable). */ menu?: boolean };
   /** A ship's tender: whose crane she belongs to and where she is (vessel/tenderCrane.ts). */
   tender?: TenderState;
   /** Landing on (or landed on) a slipway, her bow ramp down on it (world/slipway.ts). Absent: not. */

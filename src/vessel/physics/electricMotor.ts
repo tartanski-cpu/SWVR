@@ -42,8 +42,6 @@ export interface MotorSpec {
   inertia: number;
   /** How quickly its controller brings it to the speed asked for (s). */
   responseS: number;
-  /** What the fuel berth's charger gives her battery while the hose is on (kW, on the game's clock), until the quayside chargers come. */
-  berthChargeKw: number;
 }
 
 /** What the motor reads: the lever (-1..1), switched on with 12 V, and her battery's charge (0..1). */

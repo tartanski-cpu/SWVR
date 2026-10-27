@@ -37,6 +37,7 @@ import { applyFireIntent, isFireIntent, stepFire } from '../fire/fire';
 import { stepExtinguisher } from '../fire/extinguisher';
 import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/potting';
 import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
+import { stepShorePower } from '../vessel/shorePower';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { applyTimberSell, stepTimberLogs } from '../voyage/timber';
@@ -171,6 +172,9 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   // Everyone lying in a berth: asleep, the clock runs on (player/health.ts).
   const slept = sleepHours(world, dt);
   if (slept) world.environment.timeOfDay = (world.environment.timeOfDay + slept) % 24;
+  // The game hours gone by this tick (the clock, or its usual pace when it's stopped, and any
+  // sleep): what a quay charger counts (vessel/shorePower.ts).
+  const gameHours = (world.environment.timeScale || CONFIG.environment.timeScale) * dt + slept;
   // The weather director follows the profile of the region the home boat is in.
   const hv = homeVessel(world);
   const hvRegion = hv ? regionAt(hv.position[0], hv.position[2]) : undefined;
@@ -227,6 +231,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepSlipway(vessel, dt);
     stepDeckCargo(world, vessel, deckBefore, dt);
     stepRefuelling(vessel, dt, world.geography === 'archipelago');
+    stepShorePower(vessel, gameHours);
     // Her modules (every boat is built from a recipe since M6a): the energy network, the
     // hull's leak, the modules' upkeep (bilge pump, the engine's oil and wear), the hull's damage.
     const machinery = vesselRuntime(vessel)!;

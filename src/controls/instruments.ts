@@ -775,7 +775,7 @@ const paintSolar: Painter = (g, s, def) => {
   text(g, `MOTORS ${f.out.toFixed(1)} kW`, 22, 170, AMBER);
   text(g, `NET ${f.net >= 0 ? '+' : ''}${f.net.toFixed(1)} kW`, 22, 194, f.net >= 0 ? GREEN : RED);
   const hours = f.net > 0.05 ? ((1 - soc) * usable) / f.net : f.net < -0.05 ? (soc * usable) / -f.net : Infinity;
-  text(g, f.net > 0.05 ? `FULL IN ${hoursText(hours)}` : f.net < -0.05 ? `FLAT IN ${hoursText(hours)}` : 'STEADY', 22, 218, DIM);
+  text(g, f.net > 0.05 ? `FULL IN ${hoursText(hours)}` : f.net < -0.05 ? `FLAT IN ${hoursText(hours)}` : 'STEADY', 22, 220, DIM, SMALL_PX);
   // Top right: the sunlight, or shore power when plugged in.
   if (s.shore) text(g, `SHORE POWER ${s.shore.ratedKw} kW`, 492, 18, GREEN, SMALL_PX, 'right');
   else text(g, `SUN ${Math.round(s.solar?.wm2 ?? 0)} W/m²`, 492, 18, DIM, SMALL_PX, 'right');

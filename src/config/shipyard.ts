@@ -298,9 +298,8 @@ export const SHIPYARD_CONFIG = {
      *                 `efficiency` the motor and its controller's (permanent-magnet motors run
      *                 about 92 to 95 %), `inertia` its rotor's (kg m2), `propInertia` each pod's
      *                 propeller's (kg m2, a 0.7 m propeller), `responseS` how quickly its
-     *                 controller brings it to the speed asked for (s), and `berthChargeKw`, the
-     *                 fuel berths' charger (a fast DC charger's 150 kW, on the game's clock:
-     *                 her 100 kWh in about three real minutes) until the quayside chargers come;
+     *                 controller brings it to the speed asked for (s) (her charging at the quay:
+     *                 CONFIG.charger);
      *   roof          her solar roof's look (modules/solarRoof): each panel `panel` m (across,
      *                 along) with `gap` between; the roof no wider than `wingClear` m inside her beam; each
      *                 wing `wingWidth` m wide (stowed, folded in over the roof's edge);
@@ -320,7 +319,7 @@ export const SHIPYARD_CONFIG = {
      *   wetDeckWarn   the least clearance under her wet deck (m) before the Shipyard warns:
      *                 less slams in a chop.
      */
-    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.31, motor: { efficiency: 0.93, inertia: 0.05, propInertia: 0.4, responseS: 0.4, berthChargeKw: 150 }, solar: { panelEff: 0.21, tempCoeff: -0.004, noctC: 45, airTempC: 16, controllerEff: 0.97, chargeEff: 0.96, taperFrom: 0.9 }, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
+    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.31, motor: { efficiency: 0.93, inertia: 0.05, propInertia: 0.4, responseS: 0.4 }, solar: { panelEff: 0.21, tempCoeff: -0.004, noctC: 45, airTempC: 16, controllerEff: 0.97, chargeEff: 0.96, taperFrom: 0.9 }, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing

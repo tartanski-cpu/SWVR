@@ -18,6 +18,7 @@ import { SOLAR_CAT } from '../../src/shipyard/parts/catalog';
 import { motorStep, type MotorSpec } from '../../src/vessel/physics/electricMotor';
 import { engineAlarms } from '../../src/vessel/physics/engineThermal';
 import { placeVessel, stepRefuelling } from '../../src/vessel/vesselControl';
+import { stepShorePower } from '../../src/vessel/shorePower';
 import { createVesselState, type EngineState } from '../../src/vessel/vesselState';
 import { PORTS } from '../../src/world/archipelago';
 
@@ -46,7 +47,7 @@ function afloat() {
 
 describe('an electric motor (physics/electricMotor.ts)', () => {
   const def = { engine: { ...CONFIG.vessels.workboat.engine, powerKw: 25, ratedRpm: 1800, gearRatio: 3, neutralBand: 0.08 }, propeller: { ...CONFIG.vessels.workboat.propeller, diameter: 0.7, inertia: 0.4 } };
-  const m: MotorSpec = { usableKWh: 90, efficiency: 0.93, inertia: 0.05, responseS: 0.4, berthChargeKw: 150 };
+  const m: MotorSpec = { usableKWh: 90, efficiency: 0.93, inertia: 0.05, responseS: 0.4 };
   const fresh = (): EngineState => ({ phase: 'off', crank: 0, rpm: 0, rack: 0, gear: 0, shift: 0, fuelL: 0, fuelFlowLph: 0, coolantC: 15, oilC: 15, coolingFault: false, key: 1, glow: 0 });
   const used = { kWh: 0 };
   const spin = (e: EngineState, lever: number, s: number, charge = 1, speed = 0) => {
@@ -155,7 +156,7 @@ describe('the solar catamaran on her electric drives', () => {
     expect(v.thrust).toBeLessThan(0);
   });
 
-  it('warns LOW BATT under the low mark, and the fuel berth charges her battery', () => {
+  it('warns LOW BATT under the low mark, and the menu’s Refuel at a fuel berth puts her on its fast charger', () => {
     useDesign(cat);
     const v = createVesselState('v', 'design');
     const diesel = gearOf(v, 'diesel')!;
@@ -164,12 +165,19 @@ describe('the solar catamaran on her electric drives', () => {
     const port = PORTS.find((p) => p.fuel)!;
     placeVessel(v, port.fuel!.x, 0, port.fuel!.z, 0);
     v.refuelling = true;
-    // A minute at the berth's charger (150 kW on the game's clock, x12): 30 kWh of her 90.
-    const was = v.battery;
-    for (let i = 0; i < 60 / DT; i++) stepRefuelling(v, DT, true);
-    expect(v.battery!).toBeCloseTo(was + (150 * 60 * CONFIG.environment.timeScale) / 90, 2);
-    for (let i = 0; i < 300 / DT; i++) stepRefuelling(v, DT, true);
+    const tick = () => {
+      stepRefuelling(v, DT, true);
+      stepShorePower(v, CONFIG.environment.timeScale * DT);
+    };
+    // A minute on the fast charger (150 kW on the game's clock, x12): 28.5 kWh of her 90.
+    const was = v.battery!;
+    for (let i = 0; i < 60 / DT; i++) tick();
+    expect(v.shore?.ratedKw).toBe(CONFIG.charger.fastKw);
+    expect(v.battery!).toBeCloseTo(was + (150 * CONFIG.charger.chargeEff * 60 * CONFIG.environment.timeScale) / 90, 2);
+    // Slowing above 90 %, then full: it stops, and she's unplugged.
+    for (let i = 0; i < 900 / DT && v.refuelling; i++) tick();
     expect(v.battery).toBe(1);
     expect(v.refuelling).toBe(false);
+    expect(v.shore).toBeUndefined();
   });
 });

@@ -50,5 +50,5 @@ export function solarFigures(d: ShipDesign, hull: HullDefinition, shape: HullFor
 export function motorSpec(d: ShipDesign): MotorSpec {
   const c = CONFIG.shipyard.solarCat;
   const m = c.motor;
-  return { usableKWh: Math.round(batteryKWh(d.battery ?? BATTERY_DEFAULT) * c.usableShare * 10) / 10, efficiency: m.efficiency, inertia: m.inertia, responseS: m.responseS, berthChargeKw: m.berthChargeKw };
+  return { usableKWh: Math.round(batteryKWh(d.battery ?? BATTERY_DEFAULT) * c.usableShare * 10) / 10, efficiency: m.efficiency, inertia: m.inertia, responseS: m.responseS };
 }
