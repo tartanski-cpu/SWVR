@@ -289,11 +289,18 @@ export const SHIPYARD_CONFIG = {
      *   podKg         each of her two pods, with its electric motor's housing and strut
      *                 (her motors themselves are ENGINES' '25 kW electric pod motor');
      *   cruiseKw      the power her range is given at (both motors together): her easy cruise,
-     *                 the speed it makes worked out on her resistance at `propulsiveEff` (the
-     *                 game's usual share of a motor's power that ends up pushing her);
-     *   standInRatio  until her electric drives come (the modular builder chat), her motors run
-     *                 in the game as a small diesel each: geared down this much more than her
-     *                 gearbox (a pod's own reduction), so it can turn her big slow propellers;
+     *                 the speed it makes worked out on her calm-water resistance at
+     *                 `propulsiveEff`, the share of her battery's power that it accounts for in
+     *                 the game, measured 27 Oct 2026 on her electric drives at about 6 kn (0.31:
+     *                 her motors, gears and propellers take about 0.6 of it; the rest is the
+     *                 other drag the game's water puts on her, past her calm-water resistance);
+     *   motor         her pod motors in the game (physics/electricMotor.ts; owner, 27 Oct 2026):
+     *                 `efficiency` the motor and its controller's (permanent-magnet motors run
+     *                 about 92 to 95 %), `inertia` its rotor's (kg m2), `propInertia` each pod's
+     *                 propeller's (kg m2, a 0.7 m propeller), `responseS` how quickly its
+     *                 controller brings it to the speed asked for (s), and `berthChargeKw`, the
+     *                 fuel berths' charger (a fast DC charger's 150 kW, on the game's clock:
+     *                 her 100 kWh in about three real minutes) until the quayside chargers come;
      *   roof          her solar roof's look (modules/solarRoof): each panel `panel` m (across,
      *                 along) with `gap` between; the roof no wider than `wingClear` m inside her beam; each
      *                 wing `wingWidth` m wide (stowed, folded in over the roof's edge);
@@ -306,7 +313,7 @@ export const SHIPYARD_CONFIG = {
      *   wetDeckWarn   the least clearance under her wet deck (m) before the Shipyard warns:
      *                 less slams in a chop.
      */
-    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.55, standInRatio: 2.5, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
+    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.31, motor: { efficiency: 0.93, inertia: 0.05, propInertia: 0.4, responseS: 0.4, berthChargeKw: 150 }, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing

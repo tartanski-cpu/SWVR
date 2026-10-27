@@ -2857,6 +2857,31 @@ export const CONFIG = {
       hiss: { base: 0.002, load: 0.01 },
       turbo: null as { idleHz: number; boostHz: number; gain: number } | null,
     },
+    /**
+     * An electric motor (the solar catamaran's pod motors; physics/electricMotor.ts): no
+     * combustion, so no beat (`cylinders` 0: the pulses, thump and intake hiss are silent). What
+     * is heard is its whine, the motor's and its controller's switching and the pod's gears: a
+     * soft tone rising with the motor's speed, from `turbo.idleHz` (just turning) to
+     * `turbo.boostHz` (rated speed), a little louder under load, silent at rest. Quiet: an
+     * electric boat is heard mostly by her wash.
+     */
+    electric: {
+      cylinders: 0,
+      strength: [0],
+      jitter: 0,
+      grit: 0,
+      mech: 0,
+      mechBand: null as readonly [number, number] | null,
+      pulseTau: 0.011,
+      pulseTauLow: 0.005,
+      body: { freq: 85, q: 0.9, gain: 0 },
+      stack: { freq: 132, q: 2.0, gain: 0 },
+      lp: { base: 160, rpm: 140, load: 200 },
+      thump: { base: 0, rpm: 0, load: 0 },
+      drive: 1,
+      hiss: { base: 0, load: 0 },
+      turbo: { idleHz: 300, boostHz: 1500, gain: 0.02 } as { idleHz: number; boostHz: number; gain: number } | null,
+    },
   },
 
   /**

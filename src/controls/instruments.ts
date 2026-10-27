@@ -228,7 +228,19 @@ function engineKey(s: VesselState): string {
   const e = s.engine;
   const al = engineAlarms(s, diesel);
   const alarmBlink = al.highTemp || al.lowFuel ? Math.floor(performance.now() / 400) % 2 : 0;
-  return [e.coolantC.toFixed(0), e.oilC.toFixed(0), e.fuelL.toFixed(0), e.fuelFlowLph.toFixed(1), al.highTemp ? 1 : 0, al.lowFuel ? 1 : 0, alarmBlink, e.coolingFault ? 1 : 0, (s.damage ?? 0).toFixed(2), (e.wear ?? 0).toFixed(2), (s.electrics?.volts ?? 0).toFixed(1)].join('|');
+  return [e.coolantC.toFixed(0), e.oilC.toFixed(0), e.fuelL.toFixed(0), e.fuelFlowLph.toFixed(1), al.highTemp ? 1 : 0, al.lowFuel ? 1 : 0, alarmBlink, e.coolingFault ? 1 : 0, (s.damage ?? 0).toFixed(2), (e.wear ?? 0).toFixed(2), (s.electrics?.volts ?? 0).toFixed(1), Math.round((s.battery ?? 0) * 1000), (e.powerKw ?? 0).toFixed(1)].join('|');
+}
+
+/** Electric motors (modules/pods `electric`): her battery's usable kWh; null for a diesel. */
+function batteryKWhOf(s: VesselState): number | null {
+  return gearOf(s, 'diesel')?.electric?.usableKWh ?? null;
+}
+/** What she's using now: a diesel's litres an hour, or electric motors' kilowatts from her battery. */
+function burnOf(s: VesselState): number {
+  return batteryKWhOf(s) === null ? s.engine.fuelFlowLph : Math.max(0, s.engine.powerKw ?? 0);
+}
+function burnText(s: VesselState): string {
+  return batteryKWhOf(s) === null ? `${s.engine.fuelFlowLph.toFixed(1)} L/h` : `${Math.max(0, s.engine.powerKw ?? 0).toFixed(1)} kW`;
 }
 
 function title(g: CanvasRenderingContext2D, text: string): void {
@@ -421,8 +433,8 @@ const paintRpm: Painter = (g, s) => {
   const color = e.phase !== 'running' ? (e.phase === 'cranking' ? AMBER : RED) : e.gear === 1 ? GREEN : e.gear === -1 ? RED : AMBER;
   g.textAlign = 'right';
   big(g, gear, 488, 54, 28, color);
-  // (Fuel burn; the coolant's on the ENGINE MONITOR: owner, Oct 2026.)
-  text(g, `${e.fuelFlowLph.toFixed(1)} L/h`, 488, 78, DIM, TEXT_PX, 'right');
+  // (Fuel burn, or an electric boat's power; the coolant's on the ENGINE MONITOR: owner, Oct 2026.)
+  text(g, burnText(s), 488, 78, DIM, TEXT_PX, 'right');
   // Load (fuel rack) bar.
   text(g, 'LOAD', 24, 108, DIM, SMALL_PX);
   g.fillStyle = '#1f2a24';
@@ -555,15 +567,6 @@ const paintEngineMonitor: Painter = (g, s) => {
     big(g, value, 488, y, 26, color);
   };
   const tFrac = (c: number) => (c - 40) / 80;
-  const tempColor = e.coolantC > th.alarmC ? RED : e.coolantC < 60 ? '#7fb8ff' : GREEN;
-  bar(60, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
-  bar(90, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
-  const fuelFrac = e.fuelL / (e.tankL ?? diesel.engine.fuel.tankL);
-  bar(120, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [diesel.engine.fuel.lowFraction]);
-  // Fuel burn and the battery, then the alarm lamps.
-  text(g, `${e.fuelFlowLph.toFixed(1)} L/h`, 24, 142);
-  const volts = s.electrics?.volts;
-  if (volts !== undefined) text(g, `BATT ${volts.toFixed(1)} V`, 24, 166, volts < 11.8 ? RED : DIM);
   const lamp = (x: number, t: string, on: boolean) => {
     g.fillStyle = on ? (blink ? RED : '#7a1c12') : '#2a1a16';
     g.fillRect(x, 146, 112, 30);
@@ -573,8 +576,30 @@ const paintEngineMonitor: Painter = (g, s) => {
     g.textBaseline = 'middle';
     g.fillText(t, x + 56, 162);
   };
-  lamp(250, 'HIGH TEMP', al.highTemp);
-  lamp(376, 'LOW FUEL', al.lowFuel);
+  const usable = batteryKWhOf(s);
+  const volts = s.electrics?.volts;
+  if (usable !== null) {
+    // Electric motors: her battery's charge and the kWh left, what the motors draw (of their
+    // most; green while they give some back), the 12 V side, and LOW BATT.
+    const soc = s.battery ?? 0;
+    bar(60, 'BATT', soc, `${Math.round(soc * 100)}%`, al.lowFuel ? RED : GREEN, [diesel.engine.fuel.lowFraction]);
+    const kw = e.powerKw ?? 0;
+    bar(90, 'POWER', Math.abs(kw) / (diesel.engine.powerKw * (diesel.units?.length ?? 1)), `${kw.toFixed(1)} kW`, kw < 0 ? GREEN : AMBER);
+    text(g, `${(soc * usable).toFixed(1)} kWh LEFT`, 24, 142);
+    if (volts !== undefined) text(g, `12 V ${volts.toFixed(1)} V`, 24, 166, volts < 11.8 ? RED : DIM);
+    lamp(376, 'LOW BATT', al.lowFuel);
+  } else {
+    const tempColor = e.coolantC > th.alarmC ? RED : e.coolantC < 60 ? '#7fb8ff' : GREEN;
+    bar(60, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
+    bar(90, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
+    const fuelFrac = e.fuelL / (e.tankL ?? diesel.engine.fuel.tankL);
+    bar(120, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [diesel.engine.fuel.lowFraction]);
+    // Fuel burn and the battery, then the alarm lamps.
+    text(g, `${e.fuelFlowLph.toFixed(1)} L/h`, 24, 142);
+    if (volts !== undefined) text(g, `BATT ${volts.toFixed(1)} V`, 24, 166, volts < 11.8 ? RED : DIM);
+    lamp(250, 'HIGH TEMP', al.highTemp);
+    lamp(376, 'LOW FUEL', al.lowFuel);
+  }
   // Her condition (wear.ts; owner: damage and wear were invisible): two small bars, full when sound.
   const cond = (x: number, label: string, sound: number) => {
     g.fillStyle = DIM;
@@ -589,7 +614,7 @@ const paintEngineMonitor: Painter = (g, s) => {
     g.fillText(`${Math.round(sound * 100)}%`, x + 182, 214);
   };
   cond(24, 'HULL', 1 - (s.damage ?? 0));
-  cond(264, 'ENGINE', 1 - (e.wear ?? 0));
+  cond(264, usable !== null ? 'MOTORS' : 'ENGINE', 1 - (e.wear ?? 0));
 };
 
 /**
@@ -608,23 +633,27 @@ function effLog(def: VesselDef): EfficiencyLog {
 function efficiencyKey(s: VesselState, def: VesselDef): string {
   const log = effLog(def);
   const kn = logKnots(s);
-  record(log, performance.now() / 1000, kn, s.engine.fuelFlowLph);
-  const l = litresPerNm(s.engine.fuelFlowLph, kn);
-  return [l === null ? '-' : l.toFixed(2), kn.toFixed(1), s.engine.fuelFlowLph.toFixed(1), Math.round(s.engine.fuelL), log.version].join('|');
+  const burn = burnOf(s);
+  record(log, performance.now() / 1000, kn, burn);
+  const l = litresPerNm(burn, kn);
+  return [l === null ? '-' : l.toFixed(2), kn.toFixed(1), burn.toFixed(1), Math.round(s.engine.fuelL), Math.round((s.battery ?? 0) * 1000), log.version].join('|');
 }
 const paintEfficiency: Painter = (g, s, def) => {
   title(g, 'EFFICIENCY');
   const log = effLog(def);
   const kn = logKnots(s);
-  const flow = s.engine.fuelFlowLph;
+  // (Electric motors: kilowatt-hours a mile, from what they draw; the range from her battery's charge.)
+  const usable = batteryKWhOf(s);
+  const unit = usable === null ? 'L' : 'kWh';
+  const flow = burnOf(s);
   const l = litresPerNm(flow, kn);
   // Left: litres a mile now, then the flow and speed it's from, and the range at this speed.
   g.textAlign = 'left';
   big(g, l === null ? '--' : l < 10 ? l.toFixed(2) : l.toFixed(1), 20, 84, 52);
-  text(g, 'L / nm', 22, 114, AMBER);
-  text(g, `${flow.toFixed(1)} L/h`, 22, 150);
+  text(g, `${unit} / nm`, 22, 114, AMBER);
+  text(g, burnText(s), 22, 150);
   text(g, `${kn.toFixed(1)} kn`, 22, 174);
-  const r = rangeNm(s.engine.fuelL, l);
+  const r = rangeNm(usable === null ? s.engine.fuelL : (s.battery ?? 0) * usable, l);
   text(g, r === null ? 'RANGE --' : `RANGE ${Math.round(r)} nm`, 22, 206, r !== null && r < 10 ? RED : GREEN);
   // Right: the sweet-spot chart (speed across, litres a mile up), its axes scaled to what's seen.
   const x0 = 200;
@@ -651,7 +680,7 @@ const paintEfficiency: Painter = (g, s, def) => {
   g.lineTo(x0, y0);
   g.lineTo(x1, y0);
   g.stroke();
-  text(g, `${topL} L/nm`, x0 + 6, y1 - 4, DIM, SMALL_PX);
+  text(g, `${topL} ${unit}/nm`, x0 + 6, y1 - 4, DIM, SMALL_PX);
   text(g, `${topKn} kn`, x1, y0 + 6, DIM, SMALL_PX, 'right');
   // Her readings: a dot each speed she's been steady at, joined in order of speed.
   const pts: [number, number][] = [];
@@ -671,7 +700,7 @@ const paintEfficiency: Painter = (g, s, def) => {
     g.beginPath();
     g.arc(X(best.knots), Y(best.lpnm), 7, 0, Math.PI * 2);
     g.fill();
-    text(g, `BEST ${best.knots.toFixed(1)} kn ${best.lpnm.toFixed(2)} L/nm`, x1, 18, GREEN, SMALL_PX, 'right');
+    text(g, `BEST ${best.knots.toFixed(1)} kn ${best.lpnm.toFixed(2)} ${unit}/nm`, x1, 18, GREEN, SMALL_PX, 'right');
   } else text(g, 'DRIVE STEADY TO FILL', x1, 18, DIM, SMALL_PX, 'right');
   if (l !== null && kn <= topKn && l <= topL) {
     g.strokeStyle = '#ffe6b0';
@@ -1007,6 +1036,8 @@ const paintDialTemp: Painter = (g, s) => {
 };
 /** Fuel, empty to full (E, half, F), red under her low-fuel mark. */
 const paintDialFuel: Painter = (g, s) => {
+  // (Electric motors: her battery's charge.)
+  if (batteryKWhOf(s) !== null) return dial(g, { min: 0, max: 1, value: s.battery ?? 0, ticks: 2, label: 'BATT', fig: (v) => (v === 0 ? 'E' : v === 1 ? 'F' : '½') });
   const diesel = gearOf(s, 'diesel');
   const tank = s.engine.tankL ?? diesel?.engine.fuel.tankL ?? 1;
   dial(g, { min: 0, max: 1, value: s.engine.fuelL / tank, ticks: 2, label: 'FUEL', fig: (v) => (v === 0 ? 'E' : v === 1 ? 'F' : '½') });
@@ -1191,7 +1222,7 @@ function azimuthDial(g: CanvasRenderingContext2D, cx: number, cy: number, deg: n
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
   heading: { paint: paintHeading, key: (s) => [Math.round(headingDeg(s)), knots(s) > 0.3 ? Math.round(cogDeg(s)) : -1].join('|') },
-  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, s.engine.stbd ? `${Math.round(s.engine.stbd.rpm / 10)}${s.engine.stbd.phase}${s.engine.stbd.gear}` : '', s.engine.azimuth === undefined ? '' : `${Math.round((s.engine.azimuth * 180) / Math.PI)},${Math.round(((s.engine.stbd?.azimuth ?? 0) * 180) / Math.PI)},${Math.round(s.controls.aziAngle ?? 0)},${Math.round(s.controls.aziAngle2 ?? 0)},${s.controls.aziTransit ?? 0},${Math.sign(s.controls.lever)},${Math.sign(s.controls.lever2 ?? 0)}`, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
+  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, s.engine.stbd ? `${Math.round(s.engine.stbd.rpm / 10)}${s.engine.stbd.phase}${s.engine.stbd.gear}` : '', s.engine.azimuth === undefined ? '' : `${Math.round((s.engine.azimuth * 180) / Math.PI)},${Math.round(((s.engine.stbd?.azimuth ?? 0) * 180) / Math.PI)},${Math.round(s.controls.aziAngle ?? 0)},${Math.round(s.controls.aziAngle2 ?? 0)},${s.controls.aziTransit ?? 0},${Math.sign(s.controls.lever)},${Math.sign(s.controls.lever2 ?? 0)}`, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), (s.engine.powerKw ?? 0).toFixed(1), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   efficiency: { paint: paintEfficiency, key: efficiencyKey },
@@ -1202,7 +1233,7 @@ export const SCREENS = {
   dialSpeed: { paint: paintDialSpeed, cells: [1, 1], round: true, key: (s) => logKnots(s).toFixed(1) },
   dialDepth: { paint: paintDialDepth, cells: [1, 1], round: true, key: (s, def) => Math.min(60, depthUnderKeel(s, def)).toFixed(1) },
   dialTemp: { paint: paintDialTemp, cells: [1, 1], round: true, key: (s) => s.engine.coolantC.toFixed(0) },
-  dialFuel: { paint: paintDialFuel, cells: [1, 1], round: true, key: (s) => s.engine.fuelL.toFixed(0) },
+  dialFuel: { paint: paintDialFuel, cells: [1, 1], round: true, key: (s) => `${s.engine.fuelL.toFixed(0)}|${Math.round((s.battery ?? 0) * 100)}` },
   dialCompass: { paint: paintDialCompass, cells: [1, 1], round: true, key: (s) => Math.round(headingDeg(s)).toString() },
   dialChain: {
     paint: paintDialChain,

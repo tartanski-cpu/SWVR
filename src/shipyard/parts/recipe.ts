@@ -20,6 +20,7 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 import type { HullDefPart } from './hullDef';
 import type { FurniturePart } from './furniture';
 import type { HoldPart } from './hold';
+import { motorSpec } from './solar';
 
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
@@ -119,10 +120,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       socket: 'pods',
       module: 'propulsion.pods',
       config: {
-        // (The solar catamaran's stand-in for her electric motors: a small diesel geared down by
-        // CONFIG.shipyard.solarCat.standInRatio more, so it can swing her big slow propellers.)
-        engine: p.electric ? { ...engine.engine, gearRatio: Math.round(engine.engine.gearRatio * CONFIG.shipyard.solarCat.standInRatio * 1000) / 1000 } : engine.engine,
-        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02 },
+        engine: engine.engine,
+        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02, ...(p.electric ? { inertia: CONFIG.shipyard.solarCat.motor.propInertia } : {}) },
         ...podSet,
         steering: pdc.steering,
         look: pdc.look,
@@ -135,8 +134,16 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         maintenance: engine.maintenance,
         voice: eng.voice,
         installed: engine.installed,
+        // The solar catamaran's electric motors, from her battery (CONFIG.shipyard.solarCat.motor; modules/pods).
+        ...(p.electric ? { electric: motorSpec(d) } : {}),
       },
     });
+    // (Electric motors have no oil to check: no dipstick or oil can.)
+    if (p.electric) {
+      recipe.modules = recipe.modules.filter((m) => m.socket !== 'dipstick' && m.socket !== 'oilCan');
+      const oily = (x: string) => x === 'control:dipstick' || x === 'control:oilCan';
+      recipe.interlocks = (recipe.interlocks ?? []).filter((l) => l.limit || !l.disable?.every(oily)).map((l) => (l.disable ? { ...l, disable: l.disable.filter((x) => !oily(x)) } : l));
+    }
   }
   if (outboards) {
     // Her outboards in place of the inboard and its rudder; her upkeep (the oil checks) at the hatch as before.

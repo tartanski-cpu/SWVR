@@ -14,6 +14,7 @@
 import { CONFIG } from '../../config';
 import type { HullDefinition } from '../../modular/hull';
 import type { HullForm } from '../../vessel/hullForm';
+import type { MotorSpec } from '../../vessel/physics/electricMotor';
 import { calmWaterResistance } from '../../vessel/physics/propulsion';
 import { wettedSurfaceAtDWL, type VesselDef } from '../../vessel/vesselDef';
 import { BATTERY_DEFAULT, batteryKWh, type ShipDesign } from '../design';
@@ -43,4 +44,11 @@ export function solarFigures(d: ShipDesign, hull: HullDefinition, shape: HullFor
   const hours = (kWh * c.usableShare) / c.cruiseKw;
   const r1 = (v: number) => Math.round(v * 10) / 10;
   return { batteryKWh: kWh, cruiseKw: c.cruiseKw, cruiseKn: r1(cruiseKn), hours: r1(hours), rangeNm: Math.round(hours * cruiseKn), wetDeckM: Math.round((shape.catamaran?.tunnel ?? 0) * 100) / 100 };
+}
+
+/** Her pod motors in the game (modules/pods `electric`; CONFIG.shipyard.solarCat.motor), from her battery's usable share. */
+export function motorSpec(d: ShipDesign): MotorSpec {
+  const c = CONFIG.shipyard.solarCat;
+  const m = c.motor;
+  return { usableKWh: Math.round(batteryKWh(d.battery ?? BATTERY_DEFAULT) * c.usableShare * 10) / 10, efficiency: m.efficiency, inertia: m.inertia, responseS: m.responseS, berthChargeKw: m.berthChargeKw };
 }

@@ -225,6 +225,8 @@ export interface EngineState {
   tankL?: number;
   /** Current fuel flow (L/h), for displays and the trials report. */
   fuelFlowLph: number;
+  /** Electric motors (physics/electricMotor.ts): the power they draw from her battery (kW; - while they give some back). */
+  powerKw?: number;
   /** Coolant (block) and lube oil temperatures (°C). */
   coolantC: number;
   oilC: number;
@@ -319,7 +321,7 @@ export interface VesselState {
    * hand keeps it until it lets go; other players' intents for it are ignored meanwhile.
    */
   holds: Record<string, EntityId>;
-  /** Outboard boats: battery charge, 0 (flat) .. 1 (full). */
+  /** Outboard boats and electric pod motors (modules/pods `electric`): battery charge, 0 (flat) .. 1 (full). */
   battery?: number;
   /** A ship's tender: whose crane she belongs to and where she is (vessel/tenderCrane.ts). */
   tender?: TenderState;
@@ -432,7 +434,8 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     mooring: { phase: 'free', berthId: null, reversed: false, t: 0, bow: 0, stern: 0 },
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
-    ...(gearOf(v, 'outboard') ? { battery: 1 } : {}),
+    // (Her battery's charge: an electric outboard's, or electric pod motors'.)
+    ...(gearOf(v, 'outboard') || gearOf(v, 'diesel')?.electric ? { battery: 1 } : {}),
     ...(gearOf(v, 'bilgePump') ? { bilge: 0, damage: 0 } : {}),
     // Warm by default (tests, trials): master on, both batteries full. The game itself
     // starts cold and dark (createWorld `cold`).

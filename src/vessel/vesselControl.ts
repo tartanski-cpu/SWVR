@@ -413,6 +413,18 @@ export function canRefuel(s: VesselState): boolean {
 export function stepRefuelling(s: VesselState, dt: number, archipelago: boolean): void {
   const diesel = gearOf(s, 'diesel');
   if (!s.refuelling || !diesel) return;
+  // Electric motors (modules/pods `electric`): the berth's charger fills her battery instead,
+  // until the quayside chargers come (owner, 27 Oct 2026; the hose stands in for its cable).
+  if (diesel.electric) {
+    if (!archipelago || !canRefuel(s) || (s.battery ?? 0) >= 1) {
+      s.refuelling = false;
+      return;
+    }
+    // (Its kW on the game's clock: CONFIG.environment.timeScale game hours to each real second.)
+    const gameS = dt * CONFIG.environment.timeScale * 3600;
+    s.battery = Math.min(1, (s.battery ?? 0) + (diesel.electric.berthChargeKw * gameS) / 3600 / diesel.electric.usableKWh);
+    return;
+  }
   const f = diesel.engine.fuel;
   const tank = fuelTankL(s);
   if (!archipelago || !canRefuel(s) || s.engine.fuelL >= tank) {

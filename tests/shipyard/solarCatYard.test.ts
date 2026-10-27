@@ -77,13 +77,15 @@ describe('the solar catamaran in the Shipyard', () => {
     expect(big.draughtM).toBeGreaterThan(small.draughtM);
     expect(big.solar!.wetDeckM).toBeLessThan(small.solar!.wetDeckM);
     expect(big.solar!.rangeNm).toBeGreaterThan(5 * small.solar!.rangeNm);
-    // 100 kWh: about 7 kn on 10 kW, 9 hours, 60-odd miles (the hull chat's 66 on all of it).
+    // 100 kWh: about 6 kn on 10 kW, 9 hours, 50-odd miles (as she does in the game on her
+    // electric drives: solarCatDrive.test.ts; the hull chat's 66 was on all of it, with a better
+    // propulsive efficiency than the game gives her).
     const mid = at(8).solar!;
     expect(batteryKWh(8)).toBe(100);
-    expect(mid.cruiseKn).toBeGreaterThan(6.5);
-    expect(mid.cruiseKn).toBeLessThan(7.5);
-    expect(mid.rangeNm).toBeGreaterThan(55);
-    expect(mid.rangeNm).toBeLessThan(70);
+    expect(mid.cruiseKn).toBeGreaterThan(5.4);
+    expect(mid.cruiseKn).toBeLessThan(6.3);
+    expect(mid.rangeNm).toBeGreaterThan(46);
+    expect(mid.rangeNm).toBeLessThan(58);
     expect(mid.wetDeckM).toBeGreaterThan(0.9);
   });
 

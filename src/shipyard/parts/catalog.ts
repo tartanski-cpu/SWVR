@@ -425,8 +425,10 @@ const SOLAR_CAT_FIXED: Partial<ShipDesign> = {
   overhead: 2.5,
   dhLength: 0,
   engine: SOLAR_MOTOR,
-  // Her gearbox fixed (no matching): the step her stand-in's trial matched, 26 Oct 2026 (with CONFIG.shipyard.solarCat.standInRatio: about 8.5 kn at full revs).
-  gear: 4,
+  // Her pods' reduction fixed (no matching): the step the yard's trial matches for her electric
+  // motors, 27 Oct 2026 (3.14 : 1; about 10 kn flat out, the motors at their full torque just
+  // under their rated revs).
+  gear: 12,
   twin: 1,
   pods: 1,
   outboards: 0,
@@ -655,7 +657,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     name: 'Solar catamaran: 16 m foam and plywood, solar and battery power, a one-off',
     material: 'foam and plywood',
     catamaran: true,
-    // No fuel of her own: a token tank for the stand-in her motors run as in the game until the electric drives come.
+    // No fuel of her own: her motors run on her battery (a token tank, as every recipe has one, never drawn on).
     fuelL: 40,
     // As drawn: no scaling, no bow choice; her centre bow kept (catamaran.centreBow).
     form: () => ({ kind: 'lofted', design: { ...scaledStudy(study('solarCat'), 1, 1, 1, null, false, 0), catamaran: study('solarCat').catamaran } }),
@@ -704,9 +706,8 @@ export const ENGINES = [
   // as her draught aft allows. Heavy and long: only she has the room for it.
   { name: '1850 kW harbour tug diesel (V16, 1600 rpm)', kw: 1850, kg: 8500, voice: 'v8' as const, rackRise: 1.2, ratedRpm: 1600, idleRpm: 600, propMaxM: 2.4, pricePerKw: 200, size: [4.4, 1.7, 2.1] as const, only: [HARBOUR_TUG] as readonly number[], about: 'The harbour tug’s: a big high-power diesel for her bollard pull. A stand-in on a shaft until her azimuth drives come.' },
   // The solar catamaran's (owner, 26 Oct 2026): an electric motor driving each of her pods,
-  // from her battery. A stand-in in the game until the electric drives come (the modular
-  // builder chat): it runs as a small diesel there.
-  { name: '25 kW electric pod motor', kw: 25, kg: 60, voice: 'inlineSix' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.7, pricePerKw: 300, size: [0.7, 0.4, 0.4] as const, only: [SOLAR_CAT] as readonly number[], electric: true, about: 'The solar catamaran’s: an electric motor for each of her pods, quiet and clean, running on her battery.' },
+  // from her battery (in the game: physics/electricMotor.ts, through her pods; 27 Oct 2026).
+  { name: '25 kW electric pod motor', kw: 25, kg: 60, voice: 'electric' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.7, pricePerKw: 300, size: [0.7, 0.4, 0.4] as const, only: [SOLAR_CAT] as readonly number[], electric: true, about: 'The solar catamaran’s: an electric motor for each of her pods, quiet and clean, running on her battery.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */

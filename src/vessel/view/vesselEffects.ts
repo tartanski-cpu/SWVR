@@ -33,7 +33,8 @@ class Equipment {
     const diesel = gearOf(her, 'diesel');
     // Turbocharged if her engine's voice has a turbo (CONFIG.engineVoices): the smoke model's air.
     const turbo = !!diesel?.voice && !!CONFIG.engineVoices[diesel.voice]?.turbo;
-    this.smoke = def.exhaust && diesel ? { view: new ExhaustSmoke(turbo, diesel), exhaust: def.exhaust } : null;
+    // (Electric motors make no smoke.)
+    this.smoke = def.exhaust && diesel && !diesel.electric ? { view: new ExhaustSmoke(turbo, diesel), exhaust: def.exhaust } : null;
     this.chain = gearOf(her, 'anchor') ? new AnchorChainView() : null;
     this.lines = gearOf(her, 'bowCleat') && gearOf(her, 'sternCleat') ? new MooringLines() : null;
     for (const o of [this.smoke?.view.root, this.chain?.line, this.lines?.mesh]) if (o) world.add(o);
