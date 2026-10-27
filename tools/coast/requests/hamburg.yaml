@@ -1,0 +1,20 @@
+# Region request: the Port of Hamburg (owner, Oct 2026: "I'd like a Hamburg harbour map"): the
+# Elbe from Finkenwerder and Övelgönne up to the Elbe bridges, the Landungsbrücken, the
+# Speicherstadt and HafenCity, the container terminals (Burchardkai, Eurogate, Altenwerder),
+# the Köhlbrand and Wilhelmsburg. Full scale, about 14 x 8 km, in chunks. A river port: there
+# is no coastline here in the map data, so its water comes from the map's river, canal and
+# dock outlines (reconcile.ts `inlandWater`), and its depth is held to a dredged fairway's.
+id: hamburg
+name: The Port of Hamburg
+bbox: [9.82, 53.49, 10.03, 53.56]   # lon/lat min, max
+theme: hanseatic
+chunked: true
+inlandWater: true
+inlandDepth: 15
+spine:
+  harbour.sheltered: auto
+  pier.exposed: auto
+  anchorage: auto
+weatherProfile: north-sea
+fish: []
+goods: [building-materials, groceries, feed]

@@ -54,6 +54,14 @@ export interface RegionRequest {
   yardShips?: { dock?: string; berth?: string; stage: number; length: number; bow?: 1 | -1; painted?: boolean; seed?: number }[];
   /** The lettering along a yard's gantry cranes' girders (both faces), as the owner asks (package.ts). */
   gantrySign?: string;
+  /**
+   * A river port with no coastline in the map data (Hamburg): its water from the map's river,
+   * canal and dock outlines (each outline a boundary, each patch between them water where most
+   * of it is water in the land cover), and its depth no more than `inlandDepth` m (a dredged
+   * fairway's; reconcile.ts).
+   */
+  inlandWater?: boolean;
+  inlandDepth?: number;
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

@@ -12,6 +12,10 @@
  *                low ground is lifted, never high ground lowered).
  *   Sea          always under water: near the shore a gentle procedural shelf (the coarse
  *                bathymetry misses the shallows), blending out into the bathymetry.
+ *   Inland water A river port with no coastline (the request's `inlandWater`): the map's
+ *                river, canal and dock outlines are barriers too, and a patch with no coastline
+ *                seeds is water where most of its cells are the land cover's water; its depth
+ *                held to `inlandDepth`.
  *   Cover        ESA WorldCover's class per cell, for the colours.
  *
  * Writes data/work/<id>/grid.json and heights.bin (Float32), cover.bin and land.bin (Uint8),
@@ -64,6 +68,7 @@ for (let j = 0; j < H; j++)
 const osm = JSON.parse(readFileSync(join(D.raw, 'osm.json'), 'utf8')) as {
   nodes: Record<string, [number, number]>;
   ways: Record<string, { nodes: number[]; tags: Record<string, string> }>;
+  relations?: Record<string, { members: { type: string; ref: number; role: string }[]; tags?: Record<string, string> }>;
 };
 const coast: [number, number][][] = [];
 for (const w of Object.values(osm.ways)) {
@@ -72,6 +77,24 @@ for (const w of Object.values(osm.ways)) {
   if (line.length >= 2) coast.push(line);
 }
 console.log(`coastline: ${coast.length} ways, ${coast.reduce((n, l) => n + l.length, 0)} points`);
+
+// ── Inland water (a river port: the request's `inlandWater`) ──
+// The map's river, canal and dock outlines (areas tagged as water, and the ways of water
+// multipolygons such as the Elbe's, however little of them is in the box), each a boundary
+// line. They carry no side (an outline running off the box can't be closed): which side is
+// water is the land cover's say, patch by patch, below.
+const waterLines: [number, number][][] = [];
+if (req.inlandWater) {
+  const isWater = (t: Record<string, string> | undefined) => !!t && (t.natural === 'water' || t.waterway === 'riverbank' || t.waterway === 'dock' || t.water !== undefined);
+  const lineOf = (nodes: number[]) => nodes.map((n) => osm.nodes[n]).filter(Boolean).map(([lon, lat]) => P.fwd(lon, lat));
+  const seen = new Set<string>();
+  for (const [id, w] of Object.entries(osm.ways)) if (isWater(w.tags)) (seen.add(id), waterLines.push(lineOf(w.nodes)));
+  for (const r of Object.values(osm.relations ?? {})) {
+    if (!isWater(r.tags)) continue;
+    for (const m of r.members) if (m.type === 'way' && osm.ways[m.ref] && !seen.has(String(m.ref))) (seen.add(String(m.ref)), waterLines.push(lineOf(osm.ways[m.ref].nodes)));
+  }
+  console.log(`inland water: ${waterLines.length} outlines, ${waterLines.reduce((n, l) => n + l.length, 0)} points`);
+}
 
 const BARRIER = 255;
 const label = new Uint8Array(N); // 0 free, BARRIER coast
@@ -107,13 +130,29 @@ for (const line of coast) {
   }
 }
 
-// Patches between the barriers: flood fill, then each takes the side most of its seeds say.
+// The inland water's outlines: barriers too, with no seeds.
+for (const line of waterLines)
+  for (let s = 0; s + 1 < line.length; s++) {
+    const [ax, az] = line[s];
+    const [bx, bz] = line[s + 1];
+    const n = Math.ceil(Math.hypot(bx - ax, bz - az) / (T.cell * 0.3));
+    for (let t = 0; t <= n; t++) {
+      const k = cellOf(ax + ((bx - ax) * t) / n, az + ((bz - az) * t) / n);
+      if (k >= 0) label[k] = BARRIER;
+    }
+  }
+
+// Patches between the barriers: flood fill, then each takes the side most of its seeds say
+// (or, with no seeds, inland water: water where most of it is the land cover's water).
 const patch = new Int32Array(N).fill(-1);
 const patchLand: number[] = [];
 const patchSea: number[] = [];
 const patchDem: number[] = [];
 const patchSize: number[] = [];
+const patchWet: number[] = [];
 const stack = new Int32Array(N);
+/** ESA WorldCover's class for permanent water. */
+const COVER_WATER = 80;
 for (let start = 0; start < N; start++) {
   if (label[start] === BARRIER || patch[start] >= 0) continue;
   const id = patchSize.length;
@@ -121,6 +160,7 @@ for (let start = 0; start < N; start++) {
   let sea = 0;
   let demSum = 0;
   let size = 0;
+  let wet = 0;
   let sp = 0;
   stack[sp++] = start;
   patch[start] = id;
@@ -130,6 +170,7 @@ for (let start = 0; start < N; start++) {
     land += label[k] === BARRIER ? 0 : landSeed[k];
     sea += label[k] === BARRIER ? 0 : seaSeed[k];
     demSum += Number.isFinite(demH[k]) ? demH[k] : 0;
+    if (coverC[k] === COVER_WATER) wet++;
     const i = k % W;
     const j = (k - i) / W;
     const nb = [i > 0 ? k - 1 : -1, i < W - 1 ? k + 1 : -1, j > 0 ? k - W : -1, j < H - 1 ? k + W : -1];
@@ -139,8 +180,9 @@ for (let start = 0; start < N; start++) {
   patchSea.push(sea);
   patchDem.push(demSum / size);
   patchSize.push(size);
+  patchWet.push(wet);
 }
-const isLandPatch = patchSize.map((_, p) => (patchLand[p] + patchSea[p] > 0 ? patchLand[p] >= patchSea[p] : patchDem[p] > 2));
+const isLandPatch = patchSize.map((_, p) => (patchLand[p] + patchSea[p] > 0 ? patchLand[p] >= patchSea[p] : req.inlandWater ? patchWet[p] < 0.5 * patchSize[p] : patchDem[p] > 2));
 const land = new Uint8Array(N);
 for (let k = 0; k < N; k++) if (label[k] !== BARRIER) land[k] = isLandPatch[patch[k]] ? 1 : 0;
 // The barrier cells themselves: the side most of their neighbours are on.
@@ -216,7 +258,8 @@ for (let k = 0; k < N; k++) {
     }
     deep = Math.min(deep, -T.minDepth);
     const h = shelf + (deep - shelf) * smooth(d / T.shelf.blend);
-    heights[k] = Math.max(-T.floor, Math.min(-T.minDepth, h));
+    // (A river port: no deeper than its dredged fairway.)
+    heights[k] = Math.max(-(req.inlandDepth ?? T.floor), -T.floor, Math.min(-T.minDepth, h));
   }
 }
 
@@ -224,7 +267,7 @@ writeFileSync(join(D.work, 'heights.bin'), Buffer.from(heights.buffer));
 writeFileSync(join(D.work, 'cover.bin'), Buffer.from(coverC.buffer));
 writeFileSync(join(D.work, 'land.bin'), Buffer.from(land.buffer));
 writeFileSync(join(D.work, 'dist.bin'), Buffer.from(dist.buffer));
-writeFileSync(join(D.work, 'coast.json'), JSON.stringify(coast.map((l) => l.map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10]))));
+writeFileSync(join(D.work, 'coast.json'), JSON.stringify([...coast, ...waterLines].map((l) => l.map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10]))));
 const landShare = land.reduce((s, v) => s + v, 0) / N;
 const grid = { id: req.id, cell: T.cell, width: W, height: H, x0: P.x0, z0: P.z0, lon0: P.lon0, lat0: P.lat0, landShare, conflicts, missingDepth };
 writeFileSync(join(D.work, 'grid.json'), JSON.stringify(grid, null, 1));
