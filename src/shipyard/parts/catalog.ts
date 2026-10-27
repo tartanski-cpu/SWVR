@@ -386,14 +386,18 @@ export const SOLAR_CAT = 8;
 export const SOLAR_MOTOR = 6;
 
 /**
- * The solar catamaran, all fixed but her battery (owner, 26 Oct 2026: "a bit of a one-off
+ * The solar catamaran, all fixed but her battery and her paint (owner, 26 Oct 2026: "a bit of a one-off
  * build. I would say the only thing that should be options are the number of batteries"):
  * every choice a design has, as she is, but `battery`. Her long house is the wheelhouse run on
  * aft as a saloon under one roof, the full width between narrow side decks, a strip of windows
  * down each side; her cockpit aft under the solar roof carried on aft (the overhead). Twin
  * electric pod motors (SOLAR_MOTOR), one pod under each hull's stern.
  */
-const { battery: _battery, ...EVERYTHING } = DEFAULT_DESIGN;
+// (Her paint is the player's too, owner 27 Oct 2026: "should get the paint options as well, the
+// ones that are appropriate": her topsides, house, frames, roof, its top and her finish. Not a
+// service livery's markings, which want a single hull.)
+const SOLAR_PAINT = { paint: 5, houseColour: 0, frames: 0, roofPaint: 4, roofTop: 0, finish: 2 };
+const { battery: _battery, paint: _p, houseColour: _h, frames: _f, roofPaint: _r, roofTop: _t, finish: _fi, ...EVERYTHING } = DEFAULT_DESIGN;
 const SOLAR_CAT_FIXED: Partial<ShipDesign> = {
   ...EVERYTHING,
   ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 0, bow: 0, visor: 1, lowerFront: 0 }),
@@ -429,11 +433,6 @@ const SOLAR_CAT_FIXED: Partial<ShipDesign> = {
   bowFender: 0,
   noAnchor: 0,
   lifeRing: 1,
-  paint: 4,
-  houseColour: 1,
-  roofPaint: 2,
-  frames: 0,
-  finish: 2,
   // A basic interior (owner: "it should have a sort of basic interior"): a settee each side
   // of the saloon, a galley aft to starboard, a berth forward to port behind the helm and the
   // head across from it (pins on the grid: x from her centreline, metres forward of her transom).
@@ -661,8 +660,9 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 2.5,
     foredeck: 2.0,
     fixed: SOLAR_CAT_FIXED,
-    oneOffNote: 'She’s a one-off, built as designed: her hull, her house and solar roof, her motors, her colours and her inside are all fixed. Her one choice is her battery (Engine step).',
-    defaults: { ...SOLAR_CAT_FIXED, battery: BATTERY_DEFAULT },
+    oneOffNote: 'She’s a one-off, built as designed: her hull, her house and solar roof, her motors and her inside are all fixed. Yours to choose: her battery (Engine step) and her paint (Paint step).',
+    // Black, as her pictures (owner: "Of course, it needs to be black"): black topsides, her paint's own light house, a black roof edge.
+    defaults: { ...SOLAR_CAT_FIXED, ...SOLAR_PAINT, battery: BATTERY_DEFAULT },
   },
 ];
 

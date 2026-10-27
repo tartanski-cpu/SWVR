@@ -14,6 +14,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The solar catamaran's paint the player's; black as she comes (preview/shipyard)
+
+Owner, 27 Oct 2026: "The solar catamaran should get the paint options as well, the ones that are appropriate. Of course, it needs to be black."
+
+- Her paint left out of her fixed choices (catalog.ts `SOLAR_PAINT`): her topsides (`paint`), finish, wheelhouse walls (`houseColour`), window frames, roof colour and its top panel are the player's, on the Paint step as on any boat. She comes black (LIVERIES 'Black': her house its light grey), black frames, a black roof edge, as new. Not the service liveries' markings (`markings` stays fixed: they want a single hull). Her one-off note says what's hers now.
+- Tests: solarCatYard.test.ts (her paint not fixed, black as she comes, another paint builds the same boat; the markings stay off). The Shipyard tests and the typecheck pass.
+- Checked in the browser: black, with the Paint step's rows.
+- README: her paint.
+- Merged origin/next (the tug's driving guide poster; the solar cat's hull now on next, the same as merged from the hull chat's branch).
+
 ### The front windows swept back to 60°; the solar catamaran's house low and swept (preview/shipyard)
 
 Owner, 27 Oct 2026, on the solar catamaran's house: "what I would do if I had the sliders is I would slide this down and I would make then the window as raked as possible ... lower the head height, move it to the sides"; then "would expect it to have near standing headroom ... the windows probably need to rake back more than 30 degrees. It's probably more like 60. That'd be good to have a slide. Generally, it would be good to have that slider work more like that."

@@ -51,10 +51,20 @@ describe('the solar catamaran in the Shipyard', () => {
     for (const k of ['setteeAt', 'setteeAt2', 'galleyAt', 'berthAt', 'headAt'] as const) expect(b.placed[k]?.moved).toBe(false);
   });
 
-  it('everything fixed but her battery, whatever the design says', () => {
+  it('everything fixed but her battery and her paint, whatever the design says', () => {
     const as = buildDesign(cat);
-    const tried = buildDesign({ ...cat, length: 0, houseLength: 3, engine: 0, twin: 0, pods: 0, paint: 0, deckCrane: 1, setteeAt: 0, gear: 9 });
+    const tried = buildDesign({ ...cat, length: 0, houseLength: 3, engine: 0, twin: 0, pods: 0, deckCrane: 1, setteeAt: 0, gear: 9, markings: 1 });
     expect(tried.figures).toEqual(as.figures);
+    expect(tried.recipe.modules.some((m) => m.module === 'hull.markings')).toBe(false);
+  });
+
+  it('her paint is the player\'s (owner: "the paint options as well"), black as she comes', () => {
+    expect(cat.paint).toBe(5);
+    const fixed = DESIGN_HULLS[SOLAR_CAT].fixed!;
+    for (const k of ['paint', 'houseColour', 'frames', 'roofPaint', 'roofTop', 'finish'] as const) expect(k in fixed, k).toBe(false);
+    const white = useDesign({ ...cat, paint: 4, finish: 0 });
+    expect(white.warnings).toEqual([]);
+    expect(white.figures.massT).toBeCloseTo(buildDesign(cat).figures.massT, 6);
   });
 
   it('her battery: more is heavier, deeper, less under her wet deck, and further on a charge', () => {
