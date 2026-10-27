@@ -114,7 +114,7 @@ describe('Shipyard: the boats it builds', () => {
     const one = touch({ controls: 1, touch: 1 });
     expect(one.screens.map((c) => c.screen)).toEqual(['touch']);
     // She has an anchor: its page; no tow point on the default boat: no TOW page.
-    expect(one.screens[0].pages).toEqual(['speed', 'heading', 'rpm', 'engineMonitor', 'anchor', 'nav']);
+    expect(one.screens[0].pages).toEqual(['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'anchor', 'nav']);
     const two = touch({ controls: 1, touch: 2 });
     expect(two.screens.map((c) => [c.channel, c.first])).toEqual([['touchPage1', 0], ['touchPage2', 2]]);
     // A tow point (her stern roller): the TOW page too.

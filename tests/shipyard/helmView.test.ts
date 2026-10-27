@@ -37,8 +37,8 @@ describe('the helm in view on a wide wheelhouse', () => {
   it('the screens stand in one row over the wheel, as on the reference console, however wide the dash', () => {
     for (const d of [type(2, { beam: 15, houseWidth: 1 }), type(4, { beam: 15, houseWidth: 1 }), type(2)]) {
       const { cfg, row } = helmOf(d);
-      // Speed, the ANCHOR quarter (the clock quarter under it, CS5), heading, rpm, the engine monitor.
-      expect(row).toHaveLength(5);
+      // Speed, the ANCHOR quarter (the clock quarter under it, CS5), heading, rpm, the engine monitor, EFFICIENCY.
+      expect(row).toHaveLength(6);
       inRow(row);
       expect(cfg.dash.halfWidth).toBeLessThanOrEqual(CONFIG.shipyard.helm.maxConsole / 2); // (cut short on a wide one)
     }
@@ -70,7 +70,7 @@ describe('the helm in view on a wide wheelhouse', () => {
       expect(b.hull.helm.stand[0]).toBeCloseTo(cx, 3);
       expect(sock('navDisplay')?.[0] ?? cx).toBeCloseTo(cx, 3);
       expect(cfg.dash.halfWidth).toBeCloseTo(CONFIG.shipyard.helm.maxConsole / 2 - 0.11, 3);
-      expect(screens).toHaveLength(6);
+      expect(screens).toHaveLength(7); // (with EFFICIENCY)
       for (const id of ['vhf', 'chartplotter', 'fm']) {
         const p = sock(id);
         if (p) expect(Math.abs(p[0] - cx), id).toBeLessThanOrEqual(CONFIG.shipyard.helm.hungReach + 1e-6);
