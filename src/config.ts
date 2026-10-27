@@ -1706,6 +1706,15 @@ export const CONFIG = {
        */
       jetTau: 2.2,
       washSpread: 0.9,
+      /**
+       * Azimuth drives (owner, Oct 2026: "the prop wash effects do not respect the direction
+       * of the Kort nozzles"): each drive lays its own wash, from its propeller, carried the
+       * opposite way to its push, at its own thrust. `drivePoints` trail points each (enough
+       * for `washLife` at full speed); the wash starts `driveHalfWidth` x the propeller's
+       * diameter either side of the jet's axis (a nozzle's jet hardly spreads at first).
+       */
+      drivePoints: 64,
+      driveHalfWidth: 0.55,
       /** A planing hull's wake (owner: more pronounced): spread up to `planingSpread` x maxSpread, the white water astern full. */
       planingSpread: 1.6,
     },

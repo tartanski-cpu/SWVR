@@ -147,7 +147,7 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   },
   needs: () => [{ fuel: 'diesel' }],
   provides: () => [{ power: 'pto' }, { gear: 'diesel' }],
-  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, ...(c.nozzle ? { nozzle: true } : {}), ...(c.twin ? { twin: true, twinX: c.twin.x, ...(c.twin.split ? { split: true } : {}) } : {}), ...(c.azimuth ? { azimuth: true } : {}) } }),
+  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, ...(c.nozzle ? { nozzle: true } : {}), ...(c.twin ? { twin: true, twinX: c.twin.x, ...(c.twin.split ? { split: true } : {}) } : {}), ...(c.azimuth ? { azimuth: { legZ: c.azimuth.legZ, propY: c.azimuth.propY } } : {}) } }),
   // Its mass at its bed (the socket): it's part of the boat's mass, CG and inertia (M6).
   physical: (c) => ({ powerKw: c.engine.powerKw * (c.twin ? 2 : 1), massKg: c.massKg * (c.twin ? 2 : 1) }),
   power: (c) => [

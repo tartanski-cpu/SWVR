@@ -18,7 +18,12 @@ function run(trail: WakeTrail, speed: number, thrust: number, seconds: number, s
   return { t, root, s };
 }
 
-const internals = (w: WakeTrail) => w as unknown as { order: number[]; stripStart: Uint8Array; mesh: THREE.Mesh; jet: Float32Array };
+type Inside = { streams: { order: number[] }[]; stripStart: Uint8Array; mesh: THREE.Mesh; jet: Float32Array; perp: Float32Array; center: Float32Array; params: Float32Array };
+/** The trail's insides; `order` her transom's ribbon's points. */
+const internals = (w: WakeTrail) => {
+  const it = w as unknown as Inside;
+  return { ...it, order: it.streams[0].order };
+};
 /** The workboat's propeller and length; no planing. */
 const BOAT = { propD: 1.0, length: 12 };
 /** The jet and planing values of the last point laid. */
@@ -83,7 +88,52 @@ describe('wake trail', () => {
     const it = internals(w);
     const v = it.order[it.order.length - 1] * 9;
     expect(lastJet(w).planing).toBe(1);
-    const params = (w as unknown as { params: Float32Array }).params;
-    expect(params[v * 3 + 1]).toBeCloseTo(0.85, 6); // the wash
+    expect(it.params[v * 4 + 1]).toBeCloseTo(0.85, 6); // the wash
+  });
+
+  it("azimuth drives: each lays its own wash from its propeller, carried the opposite way to its push", () => {
+    // Twin drives 2 m either side, legs 5 m aft; the port drive pushing to starboard (90 deg),
+    // the starboard one astern (180 deg), both engines in gear at the same revs.
+    const drives = { x: [-2, 2], legZ: 5, propY: -2, fwd: 0.4 };
+    const w = new WakeTrail({}, 5.8, { propD: 2, length: 25, drives });
+    const s = createVesselState('v', 'workboat');
+    s.engine.azimuth = Math.PI / 2;
+    s.engine.gear = 1;
+    s.engine.rpm = 1000;
+    s.engine.stbd = { ...s.engine, stbd: undefined, azimuth: Math.PI };
+    s.thrust = 50000;
+    const root = new THREE.Object3D();
+    root.updateMatrixWorld(true);
+    for (let t = 0; t < 2; t += 1 / 30) w.update(s, root, [], t);
+    const it = w as unknown as Inside;
+    // The transom keeps the Kelvin arms only: at rest, no foam there.
+    expect(it.streams[0].order.length).toBe(0);
+    // The way each drive's foam is carried, (-perp.z, perp.x) x jet, and where it starts.
+    const carried = (i: number) => {
+      const v = it.streams[i + 1].order.at(-1)! * 9;
+      const j = it.jet[v * 2];
+      return { x: -it.perp[v * 2 + 1] * j, z: it.perp[v * 2] * j, at: [it.center[v * 2], it.center[v * 2 + 1]], wash: it.params[v * 4 + 1] };
+    };
+    const port = carried(0);
+    const stbd = carried(1);
+    // Port drive pushing to starboard (+x): its wash goes to port (-x), from its propeller
+    // 0.4 m to starboard of its leg. Each throws half her thrust (2 x the mean, shared evenly).
+    expect(port.x).toBeLessThan(-5);
+    expect(Math.abs(port.z)).toBeLessThan(1e-6);
+    expect(port.at[0]).toBeCloseTo(-1.6, 5);
+    expect(port.at[1]).toBeCloseTo(5, 5);
+    expect(port.wash).toBeCloseTo(Math.min(1, 50000 / 25000), 5);
+    // Starboard drive pushing astern (+z): its wash runs forward (-z), from 0.4 m aft of its leg.
+    expect(stbd.z).toBeLessThan(-5);
+    expect(Math.abs(stbd.x)).toBeLessThan(1e-6);
+    expect(stbd.at[0]).toBeCloseTo(2, 5);
+    expect(stbd.at[1]).toBeCloseTo(5.4, 5);
+    // A drive out of gear throws none.
+    s.engine.stbd.gear = 0;
+    const w2 = new WakeTrail({}, 5.8, { propD: 2, length: 25, drives });
+    for (let t = 0; t < 2; t += 1 / 30) w2.update(s, root, [], t);
+    const it2 = w2 as unknown as Inside;
+    expect(it2.streams[2].order.length).toBe(0);
+    expect(it2.streams[1].order.length).toBeGreaterThan(3);
   });
 });

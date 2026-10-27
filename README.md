@@ -20,7 +20,7 @@ Since the MVP:
 - **Fuel and engine temperatures:** an engine monitor, alarms and refuelling.
 - **A small archipelago** with three kinds of port (see below), groundings and collisions, an anchor and windlass, sheltered water and an echo sounder.
 - **Cargo runs** between the ports, with real deadweight.
-- **Wake and spray:** foam that rides the swell, a prop wash astern on a high throttle (even pulling slowly, as a tug does), a wider, whiter wake and sheets of spray when a boat planes, spray when the bow slams, and water and splash sounds.
+- **Wake and spray:** foam that rides the swell, a prop wash astern on a high throttle (even pulling slowly, as a tug does; the harbour tug's wash comes from each azimuth drive's nozzle and runs the way that drive throws it: sideways, forward under her bow, or one each way), a wider, whiter wake and sheets of spray when a boat planes, spray when the bow slams, and water and splash sounds.
 - **Wind on the sea:** white horses from force 4, and faint streaks along the wind from force 6.
 - **Surf on the beaches:** waves break as they shoal, white water and a line of wash along the sand, more the bigger the sea.
 - **A moon** lights the night: its disc, the clouds, a glitter path on the sea and soft shadows; cloud dims it.

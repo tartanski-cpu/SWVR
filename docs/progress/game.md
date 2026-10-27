@@ -10,6 +10,14 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug's prop wash follows her drives (27 Oct 2026)
+
+Owner: "The prop wash effects do not respect the direction of the kort nozzels."
+- **Found:** the wake (`vessel/view/wakeTrail.ts`) had one ribbon of foam, laid at the transom and always carried straight aft by her mean thrust: right for a propeller on a shaft, wrong for the tug's azimuth drives, whose nozzles throw their jets any way round.
+- **Now:** each azimuth drive lays its own ribbon of wash in the same mesh (no extra draw call), from its propeller (ahead of its leg along its push), carried the opposite way to its push at its own thrust (momentum theory as before, its speed of advance the water along its push). Drives turned athwartships throw the wash out to the side; turned astern, it runs forward under her and out past the bow; one each way, two ribbons. Her transom's ribbon keeps the Kelvin arms only. Each drive's share of her thrust (the state keeps the mean of the two): its revs squared, in gear. New: `CONFIG.effects.wake.drivePoints` (64 points per drive) and `driveHalfWidth` (0.55 x the propeller's diameter either side of the jet's axis at the nozzle).
+- **Tests:** the full suite (no new test: drawing only). **Checked headless** with the tug in open water: drives athwartships (port drive pushing to starboard, starboard to port: a ribbon out either side of her stern), both astern, and split (45° and −135°: one ribbon each way, curling as she turns): screenshots from overhead and the quarter. Two drives laying a point in the same frame each keep their own GPU upload (the first went missing at first). **Not checked:** VR; the Quest's frame rate (a few hundred more vertices in the one wake mesh).
+- **Shared changes:** `src/modular/module.ts` (the diesel's gear facts: `azimuth` now says where the legs stand, `{ legZ, propY }`, instead of `true`; every reader only asks whether it's there) and `src/modules/dieselInboard/index.ts` (fills it in), `src/vessel/view/wakeTrail.ts` and `vesselEffects.ts` (the wash per drive).
+
 ### Quick start works on the tug whatever she was left like; her batteries charge from the generator (27 Oct 2026)
 
 Owner: "Quick start wasn't working in the tug I had in my favourites."
