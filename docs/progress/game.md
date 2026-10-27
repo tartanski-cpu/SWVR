@@ -25,7 +25,7 @@ Owner: "we'll come back to engine sounds, because we need a big rumbling noise f
 - **In her engine room** (`CONFIG.engineRoom.sound`: `level` 1.2, `mech` 5, `compress` −22 dB at 8 : 1; `EngineSound.set`'s `room`, App): louder than on deck, the clatter five times up, no wet-exhaust muffling, through a compressor that's open (0 dB) everywhere else, so two engines flat out are loud and dense without clipping.
 - **Rendered offline** (headless Chromium, the game's own engine sound, both engines as the game plays a twin, 3 m off, idle then opened up to full): flat out, 54 % of the V16's sound is under 150 Hz on deck (37 % at first try; the old V8 voice at her revs 93 %, but a small engine's thin beat), idle 97 %; peaks 0.70 on deck, 1.09 in the engine room before the game's volume (0.72 after it: no clipping). The clips were sent to the owner to judge by ear.
 - **Not checked:** by ear (no speakers here); in VR.
-- **Shared changes:** `src/shipyard/parts/catalog.ts` (the tug's engine's voice, one word: the Shipyard chat's file, for the owner's ask); `src/audio/engineAudio.ts` (the engine room's `room`, clatter level and compressor; other boats unchanged: the compressor is open and `room` 0 for them).
+- **Shared changes:** `src/shipyard/parts/catalog.ts` (the tug's engine's voice, one word: the Shipyard chat's file, for the owner's ask) and `tests/shipyard/tugVoice.test.ts` (its list of the engines' voices: the harbour tug's now `v16`); `src/audio/engineAudio.ts` (the engine room's `room`, clatter level and compressor; other boats unchanged: the compressor is open and `room` 0 for them).
 
 ### The tug's engine room labelled; no flicker; the gauge board clear (27 Oct 2026)
 
