@@ -104,6 +104,10 @@ export const SHIPYARD_CONFIG = {
     materials: {
       aluminium: { shellKgPerM2: 35, houseKgPerM2: 18, pricePerKg: 20 },
       steel: { shellKgPerM2: 85, houseKgPerM2: 50, pricePerKg: 5 },
+      // Foam-cored plywood (the solar catamaran's, owner, Oct 2026: her real sister is being
+      // built of foam and plywood): under half aluminium's weight a square metre; dear to build
+      // by the kilo (hand laid-up), cheap by the boat.
+      'foam and plywood': { shellKgPerM2: 16, houseKgPerM2: 9, pricePerKg: 40 },
     },
     /**
      * Her other weights (build.ts), and her load as trialled:
@@ -263,6 +267,61 @@ export const SHIPYARD_CONFIG = {
      */
     finish: [1, 0.5, 0],
     /**
+     * Service liveries' markings on her topsides (owner, 26 Oct 2026: "liveries for the pilot
+     * boat and the fast landing craft ... police, fire, and rescue. And Coast Guard";
+     * design.markings, parts/markings.ts, modules/markings): a thin skin `offset` m proud of her
+     * side, from `topDrop` m under the top of her bulwark (or her deck edge, with none) down
+     * `depthShare` of her least height of side there, from `from` to `to` along her (0 her transom, 1 her stem),
+     * `rows` rows deep so it follows her flare. Its picture drawn at `pxPerM` pixels a metre (at
+     * most `maxPx` across); the service's name centred `textAt` along her, at most `textShare`
+     * of her length long. One mesh for both sides: one draw call.
+     */
+    /**
+     * The solar catamaran (owner, 26 Oct 2026: a one-off, "the only thing that should be
+     * options are the number of batteries"; the hull modifications chat's `solarCat` lines,
+     * 16 x 5.2 m): all of her fixed but her battery (design.battery: 20 to 200 kWh in tens,
+     * design.ts batteryKWh).
+     *   batteryKgPerKWh, batteryPricePerKWh  lithium iron phosphate packs with their housings
+     *                 and management (about 7 kg a kWh), low in her hulls amidships;
+     *   usableShare   how much of it she uses before it's flat (kept off empty for its life);
+     *   solarM2, solarKg, solarPrice  her solar roof: about 70 m2 of panels with their frames
+     *                 and the wings' hinges (0.8 t), on and over her roof;
+     *   podKg         each of her two pods, with its electric motor's housing and strut
+     *                 (her motors themselves are ENGINES' '25 kW electric pod motor');
+     *   cruiseKw      the power her range is given at (both motors together): her easy cruise,
+     *                 the speed it makes worked out on her calm-water resistance at
+     *                 `propulsiveEff`, the share of her battery's power that it accounts for in
+     *                 the game, measured 27 Oct 2026 on her electric drives at about 6 kn (0.31:
+     *                 her motors, gears and propellers take about 0.6 of it; the rest is the
+     *                 other drag the game's water puts on her, past her calm-water resistance);
+     *   motor         her pod motors in the game (physics/electricMotor.ts; owner, 27 Oct 2026):
+     *                 `efficiency` the motor and its controller's (permanent-magnet motors run
+     *                 about 92 to 95 %), `inertia` its rotor's (kg m2), `propInertia` each pod's
+     *                 propeller's (kg m2, a 0.7 m propeller), `responseS` how quickly its
+     *                 controller brings it to the speed asked for (s) (her charging at the quay:
+     *                 CONFIG.charger);
+     *   roof          her solar roof's look (modules/solarRoof): each panel `panel` m (across,
+     *                 along) with `gap` between; the roof no wider than `wingClear` m inside her beam; each
+     *                 wing `wingWidth` m wide (stowed, folded in over the roof's edge);
+     *                 the foredeck rack `rack.length` m long, `rack.clear` m forward of the
+     *                 house, its top `rack.height` m over her deck, `rack.inset` m in from her sides;
+     *   solar         her panels charging her battery in the game (modules/solarRoof; owner, 27
+     *                 Oct 2026, "a realistic model", on real-time power): `panelEff` the panels'
+     *                 (good monocrystalline, about 21 %), `tempCoeff` what they lose a degree
+     *                 their cells run over 25 C (-0.4 %), `noctC` their cells' temperature in
+     *                 800 W/m2 at 20 C (45 C: hotter in more sun), `airTempC` the air's, the
+     *                 charge controller's and the battery's charging efficiencies, and
+     *                 `taperFrom` the charge above which the battery takes less and less (90 %);
+     *   pack          how her battery's drawn on the Engine step (page.ts): its packs, one low in
+     *                 each hull amidships, `litresPerKWh` of pack a kWh (lithium iron phosphate
+     *                 modules with their housings, about 6 L a kWh), `height` x `width` (m) in
+     *                 section, as long as that makes them;
+     *   wetDeckWarn   the least clearance under her wet deck (m) before the Shipyard warns:
+     *                 less slams in a chop.
+     */
+    solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.31, motor: { efficiency: 0.93, inertia: 0.05, propInertia: 0.4, responseS: 0.4 }, solar: { panelEff: 0.21, tempCoeff: -0.004, noctC: 45, airTempC: 16, controllerEff: 0.97, chargeEff: 0.96, taperFrom: 0.9 }, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
+    markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
+    /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing
      * heavier than the usual steel by `scantlings` (built heavy, for pushing ships), and her
      * `ballastKg`, so she floats near her lines' 3.3 m draught: a real tug's 494 t is far more
@@ -278,7 +337,14 @@ export const SHIPYARD_CONFIG = {
     // Her fendering (parts/fendering.ts): `fenderingKg` of rubber (belts, stern and bow
     // cylinders, the bow's blocks: about 6 t on a 25 m tug); its contact points one to each
     // `probeCell` m cell of its outer face.
-    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9 },
+    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9,
+      /**
+       * Her gearbox step (design.gear, 0..15), fixed (owner, 26 Oct 2026: "a fixed engine
+       * configuration and a fixed propulsion, so there shouldn't be any resolving of the
+       * gearbox"): the step the yard's trial matched for her twin 1850 kW and azimuth drives
+       * (about 12 kn flat out, the engines at their rated revs). Never matched again by the page.
+       */
+      gear: 14 },
     /**
      * How far (m) the console stands clear of the front glass (owner: with the sill below the
      * dash top, the dash rose into the window band against the glass): the console, and what's
@@ -441,7 +507,9 @@ export const SHIPYARD_CONFIG = {
      * the pieces' sizes are CONFIG.modules.furniture). Kept clear of: the helm's standing room
      * (`helmRoom`: either side of the wheel, aft of the console), the doorways (`doorWay`: across
      * the aft door, and in from the side door), room to sit at the chart table (`chartRoom` out
-     * from it), the companionway and other openings (`holeClear` round them). A piece slides
+     * from it), the companionway and other openings (`holeClear` round them), the panels on the
+     * wall by the helm (the breakers, the helm assist; `panelRoom` m out from the wall to stand
+     * at them). A piece slides
      * along its wall up to `reach` each way from its pin to fit; more than `movedOver` from it,
      * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
      * (`pricePerKg`, GBP). The Furniture step opens with the section tool cut at a waterline
@@ -449,7 +517,7 @@ export const SHIPYARD_CONFIG = {
      * A TV on the wall keeps `tvCeiling` (m) under the ceiling, coming down to do so, and its
      * screen's foot no lower than `tvLowest` over the floor (else it's left off).
      */
-    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25, tvCeiling: 0.1, tvLowest: 0.8 },
+    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, panelRoom: 0.6, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25, tvCeiling: 0.1, tvLowest: 0.8 },
     /**
      * The Shipyard's section tool (owner: "cut the ship through as you want"): her drawing cut by
      * a waterline (level), a buttock (fore and aft, upright) or a station (athwartships, upright)

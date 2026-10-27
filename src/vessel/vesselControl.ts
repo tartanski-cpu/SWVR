@@ -1,3 +1,4 @@
+import { applyPlantIntent, plantReady } from '../plant/plant';
 import { BREAKERS, type BreakerName } from './vesselState';
 import * as THREE from 'three';
 import type { Intent } from '../core/intents';
@@ -8,6 +9,7 @@ import { toggleCleat, toggleDock } from './physics/mooring';
 import { gearOf } from '../boats/sims';
 import { VESSEL_DEFS } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
+import { plugIn } from './shorePower';
 import { BERTHS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
 import { berthPose } from './physics/mooring';
 import { applyRodIntent } from '../fishing/rod';
@@ -73,6 +75,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
   // 'throttle.demand': checked and written by the bus (range, holds), as the cases below do.
   if (isKeyName(intent.control)) {
     applyBusIntent(s, intent.control, intent.value, intent.playerId);
+    // Azimuth drives with their throttles synchronised (aziSync): one lever's power is both's.
+    if (s.controls.aziSync && (intent.control === 'throttle.demand' || intent.control === 'throttle.demand2')) {
+      applyBusIntent(s, intent.control === 'throttle.demand' ? 'throttle.demand2' : 'throttle.demand', intent.value, intent.playerId);
+    }
     return;
   }
   // A grab control someone else has a hand on only answers to them.
@@ -218,8 +224,26 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
         s.electrics.selector = v >= 1 && v <= 3 ? v : s.electrics.selector === 1 ? 3 : s.electrics.selector === 3 ? 2 : 1;
       }
       break;
+    case 'aziSync': {
+      // Azimuth drives (owner, 27 Oct 2026: "a button which synchronizes the throttles ... the
+      // throttles are at the same power"; a lever's thumbstick clicked in): 1 on, both at the
+      // port lever's power; 2 on, at the starboard's; 0 split again.
+      if (!gearOf(s, 'diesel')?.azimuth) break;
+      const v = Math.round(intent.value);
+      if (v <= 0) {
+        s.controls.aziSync = 0;
+        break;
+      }
+      const power = v === 2 ? (s.controls.lever2 ?? s.controls.lever) : s.controls.lever;
+      s.controls.aziSync = 1;
+      applyBusIntent(s, 'throttle.demand', power, intent.playerId);
+      applyBusIntent(s, 'throttle.demand2', power, intent.playerId);
+      break;
+    }
     case 'quickStart':
-      // One press does it all (quick-start option / debug): master, main breakers, start.
+      // One press does it all (quick-start option / debug): master, main breakers, start
+      // (the harbour tug's engine room readied first: plant/plant.ts).
+      if (s.engine.phase === 'off') plantReady(s);
       quickStart(s);
       break;
     case 'master':
@@ -227,6 +251,8 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       if (s.electrics) s.electrics.master = intent.value > 0.5 ? 1 : 0;
       break;
     default:
+      // The harbour tug's engine room: 'er.<what>' (plant/plant.ts).
+      if (intent.control.startsWith('er.')) applyPlantIntent(s, intent.control.slice(3), intent.value);
       // Breakers: 'brk_<name>' 1 on / 0 off.
       if (intent.control.startsWith('brk_') && s.electrics) {
         const k = intent.control.slice(4) as BreakerName;
@@ -413,6 +439,17 @@ export function canRefuel(s: VesselState): boolean {
 export function stepRefuelling(s: VesselState, dt: number, archipelago: boolean): void {
   const diesel = gearOf(s, 'diesel');
   if (!s.refuelling || !diesel) return;
+  // Electric motors (modules/pods `electric`): the menu's Refuel plugs her into the fuel
+  // berth's fast charger (vessel/shorePower.ts charges her) until she's full or leaves.
+  if (diesel.electric) {
+    if (!archipelago || !canRefuel(s) || (s.battery ?? 0) >= 1) {
+      s.refuelling = false;
+      if (s.shore?.menu) delete s.shore;
+      return;
+    }
+    if (!s.shore) plugIn(s, CONFIG.charger.fastKw, true);
+    return;
+  }
   const f = diesel.engine.fuel;
   const tank = fuelTankL(s);
   if (!archipelago || !canRefuel(s) || s.engine.fuelL >= tank) {

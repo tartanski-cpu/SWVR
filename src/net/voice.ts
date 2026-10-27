@@ -65,6 +65,8 @@ interface Remote {
   radio: GainNode;
   /** On the air last frame (for the squelch bursts). */
   onAir: boolean;
+  /** When the call was placed or answered (s, the context's clock): no voice by `answerS`, it's tried again. */
+  since: number;
 }
 
 export type MicState = 'asking' | 'on' | 'none';
@@ -163,7 +165,15 @@ export class VoiceChat {
     const myId = this.peer.id;
     const now = this.ctx.currentTime;
     const present = new Set(speakers.map((s) => s.peerId));
-    for (const [id, r] of this.remotes) if (!present.has(id)) this.drop(id, r);
+    for (const [id, r] of this.remotes) {
+      if (!present.has(id)) this.drop(id, r);
+      // A call with no voice after a while (multiplayer study #7: placed before they had voice
+      // on, it was never answered, and never tried again): dropped, tried again shortly.
+      else if (!r.el && now - r.since > CONFIG.voice.answerS) {
+        this.drop(id, r);
+        this.retryAt.set(id, now + CONFIG.voice.retryS);
+      }
+    }
     let hiss = 0;
     for (const s of speakers) {
       let r = this.remotes.get(s.peerId);
@@ -219,7 +229,7 @@ export class VoiceChat {
     const radio = ctx.createGain();
     radio.gain.value = 0;
     radio.connect(this.radioIn);
-    const r: Remote = { call, el: null, src: null, near, panner, radio, onAir: false };
+    const r: Remote = { call, el: null, src: null, near, panner, radio, onAir: false, since: ctx.currentTime };
     this.remotes.set(call.peer, r);
     call.on('stream', (stream) => {
       if (r.el || this.closed) return;

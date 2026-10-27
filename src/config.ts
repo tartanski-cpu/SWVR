@@ -227,6 +227,18 @@ export const CONFIG = {
     latitudeDeg: 50,
     solarDeclinationDeg: 12,
     /**
+     * Sunlight at sea level for solar panels (environment/sunlight.ts; owner, 27 Oct 2026: the
+     * solar catamaran's charging, "a realistic model"):
+     *   clearSky     the Haurwitz clear sky: GHI = a sin(h) exp(-b / sin(h)) (W/m2, h the
+     *                sun's height): a 1098, b 0.057 (about 1000 W/m2 with the sun overhead)
+     *   solarConstant  the sun's light above the air (W/m2), for the direct/diffuse split
+     *   cloudCut, cloudPower  Kasten and Czeplak's cloud: GHI x (1 - cut C^power), C the cover
+     *                (weather.now.cloud, 0..1): overcast leaves about a quarter
+     *   rainCut      rain's own dimming on top of its cloud (x (1 - rainCut x rain))
+     *   albedo       the light the sea throws back up onto a tilted panel (a share of GHI)
+     */
+    sunlight: { clearSky: [1098, 0.057] as [number, number], solarConstant: 1361, cloudCut: 0.75, cloudPower: 3.4, rainCut: 0.5, albedo: 0.06 },
+    /**
      * The clearest day's haze (m): scene fog runs out to the visibility, or to this, whichever
      * is less, so even on a clear day the sea and the far land dissolve into the sky by here
      * (the camera's far plane sits just beyond). Was 2600 before the regions: the next
@@ -703,6 +715,60 @@ export const CONFIG = {
    * the chart's wreck mark, its name and its depth; on the paper chart as a wreck mark and
    * its depth.
    */
+  /**
+   * The engine room you go down into (src/app/engineRoom/; owner, 27 Oct 2026: a detailed
+   * engine room drawn only while you're below, in the same page; the harbour tug and the stern
+   * trawler first). Where one fits (plan.ts): a boat at least `minLoaM` long whose hull under
+   * the engine hatch has `headroomM` of standing room (floor plates to the underside of the
+   * deck, `deckheadM` of plating and beams) over a floor `minWidthM` wide, for at least
+   * `minLengthM` along her, and room for a walkway `walkwayM` wide outboard of each engine;
+   * grown fore and aft from under the hatch to `lengthShare` of her
+   * length (at most `maxLengthM`), kept `endClearShare` of her length from each end (the
+   * forepeak, the steering flat). Its sides stand `liningM` in from her plating. A big boat
+   * (`big.fromLoaM` and over: the harbour tug) gets a longer one, `big.lengthShare` of her
+   * length up to `big.maxLengthM`: room forward of her engines for an engine control room.
+   */
+  engineRoom: {
+    minLoaM: 18,
+    headroomM: 1.95,
+    deckheadM: 0.25,
+    minWidthM: 2.2,
+    walkwayM: 0.7,
+    minLengthM: 3,
+    lengthShare: 0.3,
+    maxLengthM: 8,
+    endClearShare: 0.12,
+    liningM: 0.12,
+    big: { fromLoaM: 24, lengthShare: 0.42, maxLengthM: 10.5 },
+  },
+
+  /**
+   * The harbour tug's start-up from dead ship (owner, 27 Oct 2026: "a realistic startup
+   * procedure ... go downstairs, turn the fuel and whatever is appropriate for the generator,
+   * get power on"; src/plant/plant.ts). Times are shortened from real life to keep it playable.
+   *   genRunUpS      the generator from START to 400 V 50 Hz (s)
+   *   starveS        an engine or the generator runs on this long once its fuel is shut (s)
+   *   prelubeBar     the oil pressure the pre-lube pump builds, in `prelubeS`; `lubeStartBar`
+   *                  is what a start needs (the engine's own pump gives `lubeRunBar` running);
+   *                  with the pump off it falls `lubeDecayBarS` a second
+   *   airMaxBar      the starting air bottles full; the compressor fills them `airFillBarS` a
+   *                  second (about 40 s from empty); each start takes `startAirBar`, and a start
+   *                  needs `airStartMinBar`
+   */
+  plant: {
+    genRunUpS: 8,
+    starveS: 6,
+    prelubeBar: 1.5,
+    prelubeS: 15,
+    lubeStartBar: 1.0,
+    lubeRunBar: 4.2,
+    lubeDecayBarS: 0.05,
+    airMaxBar: 30,
+    airFillBarS: 0.75,
+    startAirBar: 4,
+    airStartMinBar: 12,
+  },
+
   dive: {
     radius: 50,
     /**
@@ -1677,8 +1743,10 @@ export const CONFIG = {
    *   radius      how big a target it is (m): the ring's radius, and the pointer's hit
    *   reach       how far away it can be pointed at (m)
    *   aboardRange shown over a moored boat when you're ashore within this of her (m)
+   *   hatchRange  "Go below" (a boat with an engine room, her hatch open) within this of the hatch (m)
+   *   ladderRange "Climb up" below, within this of the ladder's foot (m)
    */
-  gangway: { up: 1.6, ashoreUp: 0.8, edgeIn: 0.6, radius: 0.35, reach: 25, aboardRange: 14 },
+  gangway: { up: 1.6, ashoreUp: 0.8, edgeIn: 0.6, radius: 0.35, reach: 25, aboardRange: 14, hatchRange: 3, ladderRange: 2.5 },
 
   contacts: {
     /** The values below are for a boat of this mass (the workboat); lighter ones scale them down. */
@@ -1776,6 +1844,13 @@ export const CONFIG = {
    * looks round (rad/s at full deflection).
    */
   gamepad: { deadZone: 0.15, steerCurve: 1.5, helmReach: 1.6, lookRate: 2.4 },
+  /**
+   * At the helm of a boat with azimuth drives (the harbour tug), desktop (player/aziHelm.ts;
+   * owner, 27 Oct 2026): Q / E glance this far round over the port / starboard shoulder (deg;
+   * both, or Tab, straight aft), easing there and back over about `glanceTau` s; the on-screen
+   * dials' size (px).
+   */
+  aziHelm: { glanceDeg: 115, glanceTau: 0.12, dialPx: 150 },
 
   /**
    * The boatyard (owner, Oct 2026): where she's fitted out and mended, on the Calder Haven
@@ -2392,6 +2467,11 @@ export const CONFIG = {
      * so they are no harder to press in VR.
      */
     switchScale: 0.75,
+    /**
+     * VR: a held control that takes its hand's thumbstick (the tug's azimuth levers) ignores
+     * this much of the stick's travel round centre (0..1), so a resting thumb doesn't creep it.
+     */
+    stickDeadZone: 0.2,
     /** Pointer-ray fallback length (m) for controls just out of reach. */
     rayLength: 1.5,
     /** Desktop reticle reach (m). */
@@ -2491,6 +2571,31 @@ export const CONFIG = {
    *   desk        desktop reach for clicks (m), and where the nozzle rides in the "hand"
    *               (m right, up, forward of the eyes)
    */
+  /**
+   * Shore power for electric boats (owner, 27 Oct 2026; vessel/shorePower.ts, fuel/fuelHose.ts
+   * stations): a `postKw` post on the quay at each berth (but the fuel berths), `postInland` m in
+   * from its edge and `postAft` m along it toward her stern; a `fastKw` fast charger beside each fuel pump (`fastBeside` m along, in the
+   * pump's axes). Their cables carried and plugged in as the fuel hose is (CONFIG.fuelHose's
+   * reach and pull-out). On the game's clock: `chargeEff` of the power into the battery, all
+   * of it up to `taperFrom` of full, then less, stopping at `fullAt` (full); the house batteries topped up
+   * `houseSocPerHour` a game hour. `pricePerKWh` (£) billed in the career when she unplugs.
+   * The post's and the fast charger's parts in their axes (+z toward the berth): `size`, the
+   * cable's `outlet`, its plug's `holster`, the `light` showing it's charging.
+   */
+  charger: {
+    postKw: 22,
+    fastKw: 150,
+    postInland: 0.8,
+    postAft: 5,
+    fastBeside: -1.4,
+    chargeEff: 0.95,
+    taperFrom: 0.9,
+    fullAt: 0.998,
+    houseSocPerHour: 0.5,
+    pricePerKWh: 0.35,
+    post: { size: [0.28, 1.15, 0.22] as [number, number, number], outlet: [0.15, 0.55, 0.05] as [number, number, number], holster: [0, 0.85, 0.13] as [number, number, number], light: [0, 1.05, 0.115] as [number, number, number] },
+    fast: { size: [0.7, 1.9, 0.5] as [number, number, number], outlet: [0.36, 0.8, 0.12] as [number, number, number], holster: [-0.18, 1.05, 0.27] as [number, number, number], light: [0, 1.6, 0.255] as [number, number, number] },
+  },
   fuelHose: {
     reach: 10,
     pullOut: 1.5,
@@ -2697,6 +2802,18 @@ export const CONFIG = {
    *   turbo          a turbocharger's whine (a sine, Hz from idle to full boost) at `gain`
    *                  under full boost; null if naturally aspirated
    */
+  /**
+   * The EFFICIENCY screen (owner, 27 Oct 2026: "an efficiency instrument ... litres per nautical
+   * mile, so that basically we can find the sweet spot"; controls/efficiency.ts): litres a mile
+   * from the engines' fuel flow over her speed through the water. Its sweet-spot chart keeps
+   * her litres a mile against her speed, in bins `binKn` wide, each the running mean of what she
+   * did there (`blend` of each new reading), read at most every `sampleS` seconds, only above
+   * `minKn` and only while her speed is steady (changed by under `steadyKn` since the last
+   * reading: a boat speeding up burns more than she will at that speed). Up to `maxKn`.
+   */
+  efficiency: { binKn: 0.5, blend: 0.25, sampleS: 0.5, minKn: 0.8, steadyKn: 0.15, maxKn: 50 },
+  /** The SOLAR & BATTERY screen's chart (controls/instruments.ts): a point every `sampleS` real seconds, over the last `windowS`. */
+  solarScreen: { sampleS: 30, windowS: 3600 },
   engineVoices: {
     /**
      * The workboat's 400 kW engine: a worn, naturally aspirated straight six, dark and
@@ -2813,6 +2930,31 @@ export const CONFIG = {
       hiss: { base: 0.002, load: 0.01 },
       turbo: null as { idleHz: number; boostHz: number; gain: number } | null,
     },
+    /**
+     * An electric motor (the solar catamaran's pod motors; physics/electricMotor.ts): no
+     * combustion, so no beat (`cylinders` 0: the pulses, thump and intake hiss are silent). What
+     * is heard is its whine, the motor's and its controller's switching and the pod's gears: a
+     * soft tone rising with the motor's speed, from `turbo.idleHz` (just turning) to
+     * `turbo.boostHz` (rated speed), a little louder under load, silent at rest. Quiet: an
+     * electric boat is heard mostly by her wash.
+     */
+    electric: {
+      cylinders: 0,
+      strength: [0],
+      jitter: 0,
+      grit: 0,
+      mech: 0,
+      mechBand: null as readonly [number, number] | null,
+      pulseTau: 0.011,
+      pulseTauLow: 0.005,
+      body: { freq: 85, q: 0.9, gain: 0 },
+      stack: { freq: 132, q: 2.0, gain: 0 },
+      lp: { base: 160, rpm: 140, load: 200 },
+      thump: { base: 0, rpm: 0, load: 0 },
+      drive: 1,
+      hiss: { base: 0, load: 0 },
+      turbo: { idleHz: 300, boostHz: 1500, gain: 0.02 } as { idleHz: number; boostHz: number; gain: number } | null,
+    },
   },
 
   /**
@@ -2882,7 +3024,7 @@ export const CONFIG = {
    * `togetherLeadS`: the Shipyard waits this long after telling the others before going into
    * the game itself, so the message is out before its page closes.
    * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
-   * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
+   * without saying) is tried `hostTries` times in all, each wait `hostRetryS` longer than the last.
    * A crew-mate the host hasn't heard from for `crewHoldS` s lets go of what they held (the
    * wheel, a lever), and after `crewSilentS` s is taken out of its world (put back if heard
    * from again; net/hostSession.ts): a page gone without saying leaves no frozen avatar. A
@@ -2890,15 +3032,19 @@ export const CONFIG = {
    * `onOtherBuild`) and tries again, `olderHostRetryS` s, then as "sent in together".
    * A crew-mate's own boat waits `crewBoatGraceS` s for them once they've left (owner, 26 Oct
    * 2026: two minutes), theirs again if they rejoin from the same tab (core/launch.ts). The
-   * host's page reloaded hosts the game again as it left it, within `hostWorldKeepS` s.
+   * host's page reloaded hosts the game again as it left it, within `hostWorldKeepS` s. A crew
+   * page going to the host's map, mode or version says so `reloadNoticeS` s before it goes.
+   * A join not in after `joinTimeoutS` s gives up (`joinLoadS` once the world is coming); a
+   * game link (`?game=`) is tried `linkTries` times, not `togetherTries` (study #8, #23).
    * The heartbeat the other way (multiplayer study #1): a host not heard from for
    * `hostSilentS` s is "not responding", for `hostLostS` s lost (the takeover's wait starts,
    * `takeoverDelayS`: long enough for a host's page to reload, even a Quest's). A host whose
-   * page is hidden keeps its game going, a step every `hiddenStepS` s (a background tab's
-   * timers run about once a second). A host whose link to the game finder drops reconnects,
+   * page is hidden keeps its game going, stepped every `hiddenStepS` s from a worker's clock
+   * (a background tab's own timers run only about once a second: the crew saw one step a
+   * second; owner, 26 Oct 2026). A host whose link to the game finder drops reconnects,
    * `finderRetryS` (first, most) apart, doubling.
    */
-  net: { crewBoatGraceS: 120, hostWorldKeepS: 180, crewHoldS: 3, crewSilentS: 12, hostSilentS: 4, hostLostS: 10, hiddenStepS: 1, finderRetryS: [2, 30] as [number, number], olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 25 },
+  net: { crewBoatGraceS: 120, hostWorldKeepS: 180, reloadNoticeS: 1.5, joinTimeoutS: 20, joinLoadS: 60, linkTries: 5, crewHoldS: 3, crewSilentS: 12, hostSilentS: 4, hostLostS: 10, hiddenStepS: 0.05, finderRetryS: [2, 30] as [number, number], olderHostRetryS: 6, togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 5, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 25 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's
@@ -2916,6 +3062,7 @@ export const CONFIG = {
    *                          that's transmitting hears nobody (one talks at a time, as on VHF).
    *   squelchS / squelchGain the short burst of noise as a transmission starts and ends.
    *   retryS                 a call that failed is tried again after this (s).
+   *   answerS                a call with no voice coming after this (s) is dropped and tried again.
    */
   voice: {
     nearFull: 2,
@@ -2930,6 +3077,7 @@ export const CONFIG = {
     squelchS: 0.12,
     squelchGain: 0.25,
     retryS: 5,
+    answerS: 8,
     /** Your own handset's talk button (audio/handsetAudio.ts): the switch's click and the squelch burst after it. */
     handset: { clickHz: 2200, clickGain: 0.5, squelchS: 0.09, squelchGain: 0.18 },
   },

@@ -73,6 +73,8 @@ export interface CareerHost {
   vesselId(): string;
   /** A crew-mate plays the host's career: no slots, no saving here. */
   isClient(): boolean;
+  /** Aboard someone else's game as crew (not just a page that doesn't save). */
+  isCrew(): boolean;
   notify(text: string, seconds: number): void;
   /** An environment intent (career, tutorial). */
   pushEnv(control: string, value: number, ref?: string): void;
@@ -171,6 +173,9 @@ export class CareerSession {
     const w = () => h.world();
     const c = () => w().career;
     const own = () => !h.isClient();
+    // Gear the yard fits aboard starts everyone's game again in her: the skipper's call, not a
+    // crew-mate's (multiplayer study #31: a crew-mate's Buy restarted the host and the whole crew).
+    const crewFitBlocker = (u: (typeof CONFIG.career.upgrades)[number]) => (h.isCrew() && u.fit?.length ? 'Ask the skipper: fitting her out starts everyone again in her' : null);
     return {
       balance: () => (c() ? `${money(c()!.money)}  ·  ${c()!.contractsDone} contracts done  ·  ${c()!.upgrades.length} upgrades` : '-'),
       reputation: () => PORTS.map((p) => `${p.name.replace(' (anchorage)', '').split(' ')[0]} ${repOf(c(), p.id)}`).join('  ·  '),
@@ -207,11 +212,14 @@ export class CareerSession {
       },
       upgradeStatus: (i: number) => {
         const u = CONFIG.career.upgrades[i];
-        return u ? (buyBlocker(w(), u.id) ?? '') : '';
+        return u ? (crewFitBlocker(u) ?? buyBlocker(w(), u.id) ?? '') : '';
       },
       buyUpgrade: (i: number) => {
         const u = CONFIG.career.upgrades[i];
-        if (u && !buyBlocker(w(), u.id)) h.pushEnv('careerBuy', 1, u.id);
+        if (!u) return;
+        const crew = crewFitBlocker(u);
+        if (crew) return h.notify(crew, 4);
+        if (!buyBlocker(w(), u.id)) h.pushEnv('careerBuy', 1, u.id);
       },
       debugCash: (amount?: number) => h.pushEnv('careerDebugCash', amount ?? 1),
       // A construction project (career/projects.ts): the one under way, or the one offered here.

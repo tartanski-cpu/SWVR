@@ -26,6 +26,10 @@ import type { Handedness } from './xrInput';
  *                          platform, while she's still held there, one over her bow,
  *                          "Step aboard".
  *
+ * And on a boat with an engine room (app/engineRoom/; owner, 27 Oct 2026), with her engine
+ * hatch open and you by it, one over the hatch, "Go below"; below, one at the ladder's head,
+ * "Climb up". Those move you yourself (App), not by the board intent.
+ *
  * Point at it and press: VR, a free hand's trigger (its ray on the ring); desktop, a click
  * with the reticle on it. It sends the same `board` intent as the board key (the host puts
  * you there: player/playerControl.ts). A ring with a down arrow and its words, turned to
@@ -41,10 +45,19 @@ export interface GangwayContext {
   board: (ref?: string) => void;
   notify: (text: string) => void;
   pulse: (h: Handedness, intensity: number, ms: number) => void;
+  /** Her engine room, if she has one (app/engineRoom/plan.ts): the hatch and the ladder, in her axes. */
+  room?: (boatId: string) => { hatch: { x0: number; x1: number; z0: number; z1: number; y: number }; ladder: { x: number; z: number; foot: number; head: number } } | null;
+  /** The boat whose engine room we're in, or null. */
+  below?: () => string | null;
+  goBelow?: (boatId: string) => void;
+  goUp?: () => void;
 }
 
 /** Ashore, aboard, or (crew transfer) across from a boat on a turbine's landing onto its platform: `turbine` "farm:turbine". */
-type Target = { kind: 'ashore' | 'aboard' | 'across'; boatId: string; turbine?: string };
+type Target = { kind: 'ashore' | 'aboard' | 'across' | 'below' | 'up'; boatId: string; turbine?: string };
+
+/** The words on the mark for each. */
+const WORDS: Record<Target['kind'], string> = { ashore: 'Step ashore', aboard: 'Step aboard', across: 'Step across', below: 'Go below', up: 'Climb up' };
 
 const AMBER = 0xf0b030;
 
@@ -86,7 +99,7 @@ export class Gangway {
     this.target = this.find(ctx);
     this.root.visible = !!this.target && this.place(ctx, this.target);
     if (!this.root.visible) return;
-    this.paint(this.target!.kind === 'ashore' ? 'Step ashore' : this.target!.kind === 'across' ? 'Step across' : 'Step aboard');
+    this.paint(WORDS[this.target!.kind]);
     // Face the viewer, upright.
     this.root.lookAt(viewer.x, this.root.position.y, viewer.z);
   }
@@ -95,6 +108,22 @@ export class Gangway {
   private find(ctx: GangwayContext): Target | null {
     const p = ctx.world.players[ctx.playerId];
     if (!p || p.mode !== 'walk') return null;
+    // Below: the way up, from near the ladder's foot.
+    const below = ctx.below?.();
+    if (below) {
+      const r = ctx.room?.(below);
+      return r && Math.hypot(p.position[0] - r.ladder.x, p.position[2] - r.ladder.z) < CONFIG.gangway.ladderRange ? { kind: 'up', boatId: below } : null;
+    }
+    // By her open engine hatch, on a boat with an engine room: the way down.
+    if (p.aboardVesselId) {
+      const v = ctx.world.vessels[p.aboardVesselId];
+      const r = v ? ctx.room?.(v.id) : null;
+      if (v && r && (v.controls.engineHatch ?? 0) > 0.5) {
+        const hx = (r.hatch.x0 + r.hatch.x1) / 2;
+        const hz = (r.hatch.z0 + r.hatch.z1) / 2;
+        if (Math.hypot(p.position[0] - hx, p.position[2] - hz) < CONFIG.gangway.hatchRange) return { kind: 'below', boatId: v.id };
+      }
+    }
     if (p.aboardVesselId) {
       const v = ctx.world.vessels[p.aboardVesselId];
       // Held on a wind turbine's landing (crew transfer: transfer/transfer.ts): across onto its platform.
@@ -124,6 +153,17 @@ export class Gangway {
     const v = ctx.world.vessels[t.boatId];
     if (!v) return false;
     const up = CONFIG.gangway.up;
+    if (t.kind === 'below' || t.kind === 'up') {
+      // Over the open hatch; below, up the ladder toward it (under the deckhead).
+      const root = ctx.boatRoot(v.id);
+      const r = ctx.room?.(v.id);
+      if (!root || !r) return false;
+      if (t.kind === 'below') root.localToWorld(this.at.set((r.hatch.x0 + r.hatch.x1) / 2, r.hatch.y + 0.9, (r.hatch.z0 + r.hatch.z1) / 2));
+      // (Below: up at the hatch, over the ladder's head: you look up the ladder to it.)
+      else root.localToWorld(this.at.set(r.ladder.x, r.ladder.head - 0.35, r.ladder.z - 0.2));
+      this.root.position.copy(this.at);
+      return true;
+    }
     if (t.kind === 'across' || t.turbine) {
       // Across: over the landing's tubes at her bow. Back aboard: over her bow, seen from the platform.
       const [f, i] = (t.turbine ?? '').split(':').map(Number);
@@ -192,7 +232,9 @@ export class Gangway {
     const now = performance.now();
     if (!this.target || now - this.lastPress < 500) return;
     this.lastPress = now;
-    if (this.target.kind === 'ashore') ctx.board();
+    if (this.target.kind === 'below') ctx.goBelow?.(this.target.boatId);
+    else if (this.target.kind === 'up') ctx.goUp?.();
+    else if (this.target.kind === 'ashore') ctx.board();
     else if (this.target.kind === 'across') ctx.board(`turbine:${this.target.turbine}`);
     else ctx.board(this.target.boatId);
     if (hand !== 'desk') ctx.pulse(hand, 0.5, 40);

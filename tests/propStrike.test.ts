@@ -13,7 +13,7 @@ import { createWorld } from '../src/core/world';
 import { gearOf, useDesign } from '../src/boats/sims';
 import { struckByPropeller, turningPropellers } from '../src/rescue/propStrike';
 import { createPlayerState } from '../src/player/playerState';
-import { vesselToWorld } from '../src/rescue/recovery';
+import { ringIn, vesselToWorld } from '../src/rescue/recovery';
 import { DEFAULT_DESIGN } from '../src/shipyard/design';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { afterAll } from 'vitest';
@@ -79,12 +79,12 @@ describe('into the propeller', () => {
     send('ringTake');
     send('ringThrow', 1, [3, 2, -390, 0, 0, 0]);
     for (let i = 0; i < 60; i++) stepWorld(world, [], DT);
-    mate.position = [world.rescue!.ring!.pos[0], -1.4, world.rescue!.ring!.pos[2]];
+    mate.position = [ringIn(world, world.homeVesselId!)!.pos[0], -1.4, ringIn(world, world.homeVesselId!)!.pos[2]];
     send('ringGrab', 1, undefined, mate.id);
-    expect(world.rescue!.ring!.player).toBe(mate.id);
+    expect(ringIn(world, world.homeVesselId!)!.player).toBe(mate.id);
     send('rescuePropStrike', 1, [1, -0.6, -395], mate.id);
     expect(world.rescue!.strike).toEqual({ seq: 1, pos: [1, -0.6, -395], player: mate.id });
-    expect(world.rescue!.ring!.player).toBeNull();
+    expect(ringIn(world, world.homeVesselId!)!.player).toBeNull();
     expect(world.rescue!.shout?.text).toMatch(/Mate went into the propeller/);
     send('rescuePropStrike', 1, [Number.NaN, 0, 0], mate.id);
     expect(world.rescue!.strike!.seq).toBe(1); // junk ignored

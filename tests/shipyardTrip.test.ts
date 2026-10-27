@@ -14,7 +14,7 @@ vi.mock('../src/ui/wristMenu', () => ({
 }));
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { backUrl, designPrice, isSeaTrial, refitCost, refitReturn, shipyardUrl } from '../src/app/shipyardTrip';
+import { backUrl, designPrice, isSeaTrial, isTryOut, refitCost, refitReturn, shipyardUrl } from '../src/app/shipyardTrip';
 import { FLEET } from '../src/boats/fleet';
 import { createCareer, parseCareer, serializeCareer } from '../src/career/career';
 import { designToken } from '../src/shipyard/designDoc';
@@ -74,6 +74,19 @@ describe('to the Shipyard and back', () => {
     expect(isSeaTrial('career', q(big, '&join=12345'), small)).toBe(false); // crew in the host's boat
     expect(isSeaTrial('voyage', q(big), undefined)).toBe(false); // the sandbox
     expect(isSeaTrial('career', '', small)).toBe(false); // her own boat, no design on the address
+  });
+
+  it('Try her together, or following the host into her, is a try-out: no clock, nothing saved (multiplayer study #4, #26)', () => {
+    const small = code('starterBoat');
+    const big = code('pilotBoat');
+    const q = (c: string, extra = '') => `?design=${encodeURIComponent(c)}${extra}`;
+    for (const extra of ['&host=12345', '&together=12345']) {
+      expect(isSeaTrial('career', q(big, extra), small)).toBe(false);
+      expect(isTryOut('career', q(big, extra), small)).toBe(true);
+    }
+    expect(isTryOut('career', q(big, '&host=12345'), big)).toBe(false); // her own boat
+    expect(isTryOut('career', q(big), small)).toBe(false); // alone: a sea trial
+    expect(isTryOut('voyage', q(big, '&host=12345'), undefined)).toBe(false);
   });
 });
 

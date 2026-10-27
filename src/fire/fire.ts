@@ -19,11 +19,12 @@
  *
  * Random choices use a deterministic hash of a counter in the state.
  */
+import { missionBoat } from '../core/launch';
 import { placePhrase } from '../world/places';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
-import { homeVessel, type WorldState } from '../core/world';
+import { type WorldState } from '../core/world';
 import { playerBoats } from '../core/launch';
 import { windVector } from '../environment/weather';
 import { formatPosition } from '../nav/geo';
@@ -84,9 +85,9 @@ function rand(f: FireState): number {
 const between = (f: FireState, [a, b]: readonly [number, number]) => a + (b - a) * rand(f);
 
 function tug(world: WorldState): VesselState | undefined {
-  // The home boat, if she has a fire monitor to fight a fire with (M7: not every boat does).
-  const v = homeVessel(world);
-  return v && gearOf(v, 'fireMonitor') ? v : undefined;
+  // Of the players' boats with a fire monitor to fight a fire with (M7: not every boat does),
+  // the one with the most aboard (multiplayer study #27; the home boat on a tie).
+  return missionBoat(world, (v) => !!gearOf(v, 'fireMonitor'));
 }
 
 /** Is any job (rescue, tow, fire) on? Only one at a time. */

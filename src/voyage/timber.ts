@@ -27,6 +27,7 @@
  *
  * Plain JSON in the world, as everything the host decides; no page or scene here.
  */
+import { boatOf } from '../core/launch';
 import { CONFIG } from '../config';
 import { earn, post, createCareer, money } from '../career/career';
 import type { WorldState } from '../core/world';
@@ -241,6 +242,16 @@ export function sellBarge(world: WorldState, bargeId: EntityId, merchant: Mercha
   for (const [boat, line] of Object.entries(world.tow?.lines ?? {})) if (line.target === `v:${bargeId}`) delete world.tow!.lines[boat];
   post(world, (world.career ??= createCareer()), `${b.logs} logs sold to ${merchant.name}`, total);
   return total;
+}
+
+/**
+ * The `timberSell` intent (ref: the barge): sold if she's on offer to the boat the player is
+ * aboard (multiplayer study #35: a crew-mate who brought a barge in could only watch the host
+ * sell it). On the host's map (`world.build.map`).
+ */
+export function applyTimberSell(world: WorldState, playerId: EntityId, bargeId: string | undefined): void {
+  const sale = saleOffer(world, boatOf(world, playerId), world.build?.map ?? null);
+  if (sale && sale.bargeId === bargeId) sellBarge(world, sale.bargeId, sale.merchant);
 }
 
 /** "20 logs × £2,000 = £40,000" (a saved barge's sale). */

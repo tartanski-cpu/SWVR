@@ -30,6 +30,8 @@ export const ENGINE_LOOKS = [
   { kind: 'bigSix', block: 0x8c5a3c },
   // The harbour tug's 1850 kW V16 (Shipyard ENGINES): drawn as a V engine, its length its own.
   { kind: 'v8', block: 0x3f5f7a },
+  // The solar catamaran's electric pod motor (Shipyard ENGINES, owner Oct 2026): a finned can.
+  { kind: 'electric', block: 0x8a96a0 },
 ] as const;
 
 const mats = new Map<number, THREE.MeshStandardMaterial>();
@@ -63,6 +65,19 @@ export function drum(g: THREE.Group, r: number, l: number, x: number, y: number,
 export function buildEngineModel(type: number, size: readonly [number, number, number]): { group: THREE.Group; length: number; height: number } {
   const look = ENGINE_LOOKS[type] ?? ENGINE_LOOKS[0];
   const [L0, W, H] = size;
+  if (look.kind === 'electric') {
+    // An electric motor: a finned round can along her length, its junction box on top, its
+    // output flange aft at the origin (no gearbox, sump or exhaust).
+    const g = new THREE.Group();
+    const r = Math.min(W, H) * 0.45;
+    const zMid = -L0 / 2;
+    drum(g, r, L0 * 0.8, 0, 0, zMid, look.block, 18);
+    for (let i = 0; i < 7; i++) drum(g, r * 1.08, 0.02, 0, 0, zMid - L0 * 0.32 + (i * L0 * 0.64) / 6, DARK, 18);
+    drum(g, r * 0.7, L0 * 0.1, 0, 0, -L0 * 0.05, DARK, 14);
+    box(g, W * 0.4, H * 0.18, L0 * 0.3, 0, r + H * 0.06, zMid, 0x2f3438);
+    for (const s of [-1, 1]) box(g, 0.08, 0.06, L0 * 0.6, s * r * 0.8, -r * 0.9, zMid, DARK);
+    return { group: g, length: L0, height: H };
+  }
   const gearShare = look.kind === 'bigSix' ? 0.55 : 0.32;
   const L = L0 - gearShare;
   const g = new THREE.Group();

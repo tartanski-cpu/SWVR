@@ -40,9 +40,10 @@ import { alongAxis, HANDLES, nearestStep, type HandleDef, type V3 as HV3 } from 
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
-import { buildDesign, withFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
+import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
+import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -105,8 +106,8 @@ if (!sessionId && 'design' in fromHash) {
 if ('design' in fromHash) history.replaceState(null, '', `${location.pathname}${location.search}`);
 let design: ShipDesign = { ...startDoc.variants.find((v) => v.id === active)!.design };
 let boat: DesignedBoat = useDesign(design);
-/** The choices her gearbox was matched for (not the paint or the controls, which don't change it). */
-const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, controls: 0 });
+/** The choices her gearbox was matched for (not the paint, its markings or the controls, which don't change it). */
+const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, markings: 0, controls: 0 });
 /**
  * Does a loaded design come with its gearing matched? An inboard's code does (the yard
  * matched it before it was issued). Outboards' lower units are matched from the same step
@@ -115,6 +116,12 @@ const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, co
  */
 const comesMatched = (d: ShipDesign) => outboardCount(d) === 0;
 let matchedFor: string | null = comesMatched(design) ? matchKey(design) : null;
+/**
+ * Is her gearbox matched for what she is now? Always, on a one-off whose gearbox is fixed with
+ * her type (the harbour tug, owner: "a fixed engine configuration and a fixed propulsion, so
+ * there shouldn't be any resolving of the gearbox"): her code or link is ready at once.
+ */
+const matched = (): boolean => gearFixed(design) || matchedFor === matchKey(design);
 let trial: SeaTrialResults | null = null;
 /** The choices `trial` was run for: while they differ from now, its figures are greyed (a new run is coming). */
 let trialFor = '';
@@ -377,6 +384,27 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   ptag.position.set(0, lowest - propD / 2 - 0.35, prop?.[2] ?? 0);
   // (A stern drive's propellers are on its legs: no tag down there.)
   g.add(...(sd ? [tag] : [tag, ptag]));
+  // The solar catamaran's battery (owner, Oct 2026: "I'd like the batteries to show up so you
+  // can kind of see how big the battery packs are"): a pack low in each hull amidships, as long
+  // as her kWh make it (CONFIG.shipyard.solarCat.pack), where her weights put it.
+  const solar = boat.figures.solar;
+  const cell = boat.weights.items.find((it) => it.name.startsWith('Battery ('));
+  if (solar && cell) {
+    const pk = CONFIG.shipyard.solarCat.pack;
+    const half = (VESSEL_DEFS.design.hull.catamaran?.spacing ?? 0) / 2;
+    const xs = half ? [-half, half] : [0];
+    const len = (solar.batteryKWh * pk.litresPerKWh) / 1000 / (pk.height * pk.width * xs.length);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x35c46a, emissive: 0x0e4a24, metalness: 0.2, roughness: 0.6 });
+    for (const x of xs) {
+      const pack = new THREE.Mesh(new THREE.BoxGeometry(pk.width, pk.height, len), mat);
+      pack.position.set(x, cell.y, cell.z);
+      pack.name = 'battery';
+      g.add(pack);
+    }
+    const btag = nameTag(`Battery ${solar.batteryKWh} kWh${xs.length > 1 ? `: ${xs.length} packs, ${len.toFixed(1)} m long` : ''}`, '#1f8a4c');
+    btag.position.set(0, cell.y + 0.6, cell.z);
+    g.add(btag);
+  }
   root.add(g);
   return g;
 }
@@ -647,7 +675,7 @@ function section(title: string): HTMLElement {
   el.className = 'step';
   el.dataset.step = name.toLowerCase();
   el.dataset.title = name;
-  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}<p class="oneOffNote meta" hidden>Her hull is a one-off, fixed as she’s drawn, and so are her fendering and her engines. Her wheelhouse and deckhouse, her colours, the inside and her deck gear are yours to choose.</p>`;
+  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}<p class="oneOffNote meta" hidden></p>`;
   const guide = el.querySelector<HTMLElement>('.guide');
   if (guide && STEP_MORE[name]) aboutHeading(guide, STEP_MORE[name], true);
   stepBody.insertBefore(el, handoverStep);
@@ -756,7 +784,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'solarBattery' ? DESIGN_HULLS[design.hull]?.material === 'foam and plywood' : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -908,6 +936,8 @@ section('2. Wheelhouse');
     { icon: HOUSE_ICONS.aftFacets, name: 'Three facets', info: 'Her aft windows in three facets, as the front’s can be: the middle square across her with the door in it, the outer two angled forward to the sides. With the windows raked out all round, they lean out with the rest. Not with a cockpit overhead. Travels as a link or file, not a code.' },
   ]);
   measure('windowRake', 'Front rake', (a) => (Math.abs(a) < 0.5 ? 'upright' : a > 0 ? `${a.toFixed(0)}° reverse` : `${(-a).toFixed(0)}° back`)).dataset.unless = 'flare';
+  // The front below the windows sloped back from its foot (owner, Oct 2026: the solar catamaran's "kicked out").
+  slider('kick', 'Below the windows', (i) => (i ? `sloped ${kickDeg(i)}°` : 'upright'));
   // (Raked out all round, the front leans out with them: its own rake stands aside.)
   optionTiles('flare', 'Sides & aft', [
     { icon: HOUSE_ICONS.upright, name: 'Upright', info: 'Her side and aft windows upright.' },
@@ -1030,13 +1060,18 @@ section('5. Engine');
 // drawing, its name and one line, the full description behind its ⓘ button.
 {
   const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug, ENGINE_ICONS.medium, ENGINE_ICONS.v8big];
-  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six', 'tug V16'];
+  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six', 'tug V16', 'electric'];
   pickTiles(
     controls,
     'engine',
     ENGINES.map((e, i) => ({ icon: looks[i] ?? ENGINE_ICONS.six, name: `${e.kw} kW`, sub: `${kinds[i] ?? ''} · ${e.kg} kg`, info: `${e.name}. ${'about' in e ? `${e.about} ` : ''}${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })),
     (i) => change({ engine: i, ...(SINGLE_ONLY_ENGINES.includes(i) ? { twin: 0 } : {}) }),
   );
+}
+// The solar catamaran's one choice (owner, 26 Oct 2026): her battery, 20 to 200 kWh (its weight and range in her figures).
+{
+  group('Battery', 'Her lithium battery, low in her hulls amidships: about 7 kg a kWh. More is more range on her motors, and more weight: she sits lower, with less room under her wet deck. Her figures give her range at an easy cruise.').dataset.when = 'solarBattery';
+  slider('battery', 'Battery', (v) => `${batteryKWh(v)} kWh`).dataset.when = 'solarBattery';
 }
 toggleTiles(
   controls,
@@ -1198,6 +1233,15 @@ function paintRow(key: keyof ShipDesign, label: string, paints: { name: string; 
   });
   controls.appendChild(row);
 }
+group('Service livery', 'A service’s livery (owner, Oct 2026): police, fire, rescue or coastguard. It paints her in its colours (yours to change after) and puts its markings on her topsides: its bands and its name along each side forward. A monohull’s only. Marked, she travels as a link or file, not a code.');
+// Choosing one sets her colours for it too (SERVICE_LIVERIES); None takes the markings off, and leaves her colours.
+{
+  const box = options('markings', 'Livery', [...MARKING_NAMES]).querySelector('div')!;
+  box.querySelectorAll<HTMLElement>('.choice').forEach((el) => {
+    const i = Number(el.dataset.i);
+    el.onclick = () => change({ markings: i, ...(i ? SERVICE_LIVERIES[i - 1].colours : {}) });
+  });
+}
 group('Hull', 'Her topsides, above the waterline. Below it she has her antifouling, and her deck its own grey or green to go with her paint. Her finish: as new (clean paint), worked, or well used (grime along her waterline, rust running down from her deck edge, faded paint).');
 paintRow('paint', 'Topsides', LIVERIES.map((l) => ({ name: l.name, colour: l.livery.topsides ?? 0xd9622b })));
 // Her finish (owner, Oct 2026: "pre-configure a boat to look used or new"): as new, worked or well used (shown in that order).
@@ -1263,7 +1307,11 @@ function lockOneOff(): void {
     for (; el && el.tagName !== 'H2'; el = el.nextElementSibling as HTMLElement | null) if (!el.classList.contains('oneOffHidden') && el.style.display !== 'none' && !el.classList.contains('tileInfo')) any = true;
     h.classList.toggle('oneOffHidden', !any && Object.keys(fixed).length > 0);
   });
-  document.querySelectorAll<HTMLElement>('.oneOffNote').forEach((n) => (n.hidden = !Object.keys(fixed).length));
+  // (Each one-off says what's fixed and what's yours: DesignHull.oneOffNote.)
+  document.querySelectorAll<HTMLElement>('.oneOffNote').forEach((n) => {
+    n.hidden = !Object.keys(fixed).length;
+    n.textContent = DESIGN_HULLS[design.hull]?.oneOffNote ?? '';
+  });
   // An engine only some types take (ENGINES `only`: the harbour tug's): its tile on those only.
   document.querySelectorAll<HTMLElement>('[data-key=engine][data-i]').forEach((el) => {
     const only = (ENGINES[Number(el.dataset.i)] as { only?: readonly number[] }).only;
@@ -1372,7 +1420,7 @@ function showConsoleEditor(): void {
   const panelY = dashY + dg.rows * cellH + 26;
   const panelH = 34;
   const H = panelY + panelH + 14;
-  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', towline: 'TOW LINE', dialCompass: 'COMPASS', dialSpeed: 'LOG', dialDepth: 'DEPTH', dialChain: 'CHAIN', dialRpm: 'REVS', dialTemp: 'TEMP', dialFuel: 'FUEL', clock: 'CLOCK', dialClock: 'CLOCK', touch1: 'TOUCH', touch2: 'TOUCH 2' };
+  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', efficiency: 'ECO', solar: 'SOLAR', towline: 'TOW LINE', dialCompass: 'COMPASS', dialSpeed: 'LOG', dialDepth: 'DEPTH', dialChain: 'CHAIN', dialRpm: 'REVS', dialTemp: 'TEMP', dialFuel: 'FUEL', clock: 'CLOCK', dialClock: 'CLOCK', touch1: 'TOUCH', touch2: 'TOUCH 2' };
   const picked = (kind: string, id: string) => consolePick?.kind === kind && consolePick.id === id;
   let svg = `<svg viewBox="0 0 ${W} ${H}" class="consoleSvg">`;
   // The dash's cells, then its screens.
@@ -1520,9 +1568,23 @@ function figureGroup(key: string, title: string, sum: string, r: ([string, strin
   return `<details class="fold" data-fold="${key}"${isOpen(key, open) ? ' open' : ''}><summary>${title}<span class="sum">${sum}</span></summary><table class="figs">${body}</table>${inner}</details>`;
 }
 const pounds = (x: number) => `£${Math.round(x).toLocaleString('en-GB')}`;
+/** Her roll period, or why there isn't one (a stiff, well-damped hull stops rolling before a second swing can be timed: the solar catamaran). */
+function rollWords(period: number | null): string {
+  return period !== null && Number.isFinite(period) ? `${period.toFixed(1)} s` : 'none to time (stops at once)';
+}
+/** The solar catamaran's battery at full power on both motors (h; undefined: not her). */
+function batteryHoursFlatOut(): number | undefined {
+  const s = boat.figures.solar;
+  return s ? (s.batteryKWh * CONFIG.shipyard.solarCat.usableShare) / (2 * ENGINES[design.engine].kw) : undefined;
+}
+/** ...and how far that takes her at her top speed (nm). */
+function batteryRangeFlatOut(topKn: number): number | undefined {
+  const h = batteryHoursFlatOut();
+  return h === undefined ? undefined : h * topKn;
+}
 function showFigures(): void {
   const f = boat.figures;
-  const matched = matchedFor === matchKey(design);
+  const isMatched = matched();
   const room = deckRoom();
   const t = currentTrial();
   const balance = Math.abs(boat.weights.balanceM) < 0.05 ? 'over her centre of buoyancy' : `${Math.abs(boat.weights.balanceM).toFixed(2)} m ${boat.weights.balanceM > 0 ? 'aft' : 'forward'} of her centre of buoyancy`;
@@ -1530,7 +1592,7 @@ function showFigures(): void {
   $('figures').innerHTML = [
     figureGroup('size', 'Size &amp; form', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`, [
       ['Length × beam', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`],
-      ['Built of', f.material === 'steel' ? 'Steel' : 'Aluminium'],
+      ['Built of', f.material === 'steel' ? 'Steel' : f.material === 'aluminium' ? 'Aluminium' : 'Foam and plywood'],
       ['Displacement', `${f.massT.toFixed(2)} t`],
       ['Draught', `${f.draughtM.toFixed(2)} m`],
       ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
@@ -1539,7 +1601,7 @@ function showFigures(): void {
     figureGroup('stability', 'Stability &amp; balance', `GM ${f.gmM.toFixed(2)} m`, [
       ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
       ['Balance (LCG)', balance],
-      ['Roll period', t ? `${t.motions.rollPeriod.toFixed(1)} s` : 'trial running…'],
+      ['Roll period', t ? rollWords(t.motions.rollPeriod) : 'trial running…'],
     ]),
     figureGroup('deck', 'Deck', `${room.crates} crates`, [
       ['Deck cargo', deckWords(room)],
@@ -1547,10 +1609,21 @@ function showFigures(): void {
       // (Her fish hold, if she has one: as many fish boxes as stack in it.)
       ...(holdBoxes() ? [['Fish hold', `${holdBoxes()} fish boxes`] as [string, string]] : []),
     ]),
+    // The solar catamaran's battery (parts/solar.ts): her range at an easy cruise, and her wet deck's height.
+    ...(f.solar
+      ? [
+          figureGroup('battery', 'Battery &amp; range', `${f.solar.rangeNm} nm`, [
+            ['Battery', `${f.solar.batteryKWh} kWh`],
+            ['Cruise', `${f.solar.cruiseKn.toFixed(1)} kn on ${f.solar.cruiseKw} kW`],
+            ['Range on battery', `${f.solar.rangeNm} nm, ${f.solar.hours.toFixed(1)} h (no sun)`],
+            ['Under her wet deck', `${f.solar.wetDeckM.toFixed(2)} m`],
+          ]),
+        ]
+      : []),
     figureGroup('machinery', 'Machinery', f.engine.split(',')[0], [
       ['Engine', f.engine],
       ['Propeller', `${f.propellerM.toFixed(2)} m`],
-      ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
+      ['Gearbox', isMatched ? `${f.gear.toFixed(2)} : 1 (${gearFixed(design) ? 'fixed with her drives' : 'matched'})` : 'matching...'],
     ], false),
     // Her weights, part by part (build.ts): she floats where they add up to.
     figureGroup('cost', 'Price &amp; weight', pounds(f.price), [
@@ -1597,7 +1670,7 @@ function showKeys(): void {
   const tiles: { k: string; v: string; busy?: boolean; l?: Check; none?: string }[] = [
     { k: 'Price', v: pounds(f.price), l: line((l) => l.label === 'Price'), none: 'no limit set' },
     { k: 'Top speed', v: t ? `${t.topSpeedKn.toFixed(1)} kn` : '…', busy: !fresh, l: line((l) => l.label === 'Top speed') },
-    { k: 'Range flat out', v: t ? `${(t.speedTable.at(-1)?.rangeNm ?? 0).toFixed(0)} nm` : '…', busy: !fresh, l: line((l) => l.label === 'Range flat out') },
+    { k: 'Range flat out', v: t ? `${(batteryRangeFlatOut(t.topSpeedKn) ?? t.speedTable.at(-1)?.rangeNm ?? 0).toFixed(0)} nm` : '…', busy: !fresh, l: line((l) => l.label === 'Range flat out') },
     { k: 'Stability (GM)', v: `${f.gmM.toFixed(2)} m`, l: line((l) => l.label === 'Stability (GM)') },
     pots ? { k: 'Pots on deck', v: `${room.pots}`, l: line((l) => l.label.endsWith('pots on deck')) } : { k: 'Deck cargo', v: `${room.crates} crates`, l: line((l) => l.label.endsWith('crates on deck')) },
   ];
@@ -1640,12 +1713,13 @@ function showTrial(): void {
   rows($('trial'), [
     ['Top speed', `${t.topSpeedKn.toFixed(1)} kn at ${Math.round(top.rpm)} rpm`],
     ['Three-quarter lever', `${three.knots.toFixed(1)} kn`],
-    ['Fuel flat out', `${top.fuelLph.toFixed(0)} L/h, ${top.rangeNm.toFixed(0)} nm`],
+    // (The solar catamaran: her battery, not fuel.)
+    boat.figures.solar ? ['Battery flat out', `${batteryHoursFlatOut()!.toFixed(1)} h, ${batteryRangeFlatOut(t.topSpeedKn)!.toFixed(0)} nm`] : ['Fuel flat out', `${top.fuelLph.toFixed(0)} L/h, ${top.rangeNm.toFixed(0)} nm`],
     ['Rest to 90 % of top speed', `${t.timeTo90Pct.toFixed(1)} s`],
     ['Turning circle (tactical)', `${t.tacticalDiameter.toFixed(0)} m`],
     ['Crash stop', `${t.crashStopDistance.toFixed(0)} m in ${t.crashStopTime.toFixed(1)} s`],
     ['Bollard pull', `${(t.bollard.aheadKN / 9.81).toFixed(2)} t`],
-    ['Roll period', `${t.motions.rollPeriod.toFixed(1)} s`],
+    ['Roll period', rollWords(t.motions.rollPeriod)],
   ]);
 }
 
@@ -1695,10 +1769,10 @@ function showCode(): void {
   btn.disabled = capsizes;
   btn.title = capsizes ? `She would capsize (GM ${boat.figures.gmM.toFixed(2)} m): give her more beam or less depth first.` : '';
   ($('playTogether') as HTMLButtonElement).disabled = capsizes;
-  const matched = matchedFor === matchKey(design);
+  const isMatched = matched();
   const el = $('code');
-  el.classList.toggle('pending', !matched);
-  if (!matched) {
+  el.classList.toggle('pending', !isMatched);
+  if (!isMatched) {
     el.textContent = 'matching...';
     return;
   }
@@ -1735,7 +1809,7 @@ function showCode(): void {
 const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
 let trialId = 0;
 let trialTimer = 0;
-worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: SeaTrialResults; error?: string }>) => {
+worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: SeaTrialResults; error?: string; matched?: boolean }>) => {
   if (e.data.id !== trialId) return; // the design changed since: a newer trial is coming
   if (e.data.error) {
     $('status').textContent = `The trial failed: ${e.data.error}`;
@@ -1745,6 +1819,13 @@ worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: S
   design = { ...design, gear: e.data.design.gear };
   matchedFor = matchKey(design);
   boat = useDesign(design);
+  // Matched, the trials still to come: her code's ready (she can be saved) meanwhile.
+  if (e.data.matched) {
+    $('status').textContent = 'Gearbox matched: running her trials...';
+    showFigures();
+    showCode();
+    return;
+  }
   trial = e.data.trials ?? null;
   trialFor = matchKey(design);
   $('status').textContent = 'Calm water, flat out, hard over, crash stop: the game’s own physics.';
@@ -1755,7 +1836,7 @@ worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: S
 function runTrial(): void {
   clearTimeout(trialTimer);
   const id = ++trialId;
-  const match = matchedFor !== matchKey(design);
+  const match = !matched();
   $('status').textContent = match ? 'Matching her propeller and running her trials...' : 'Running her trials...';
   trialTimer = window.setTimeout(() => worker.postMessage({ id, design, match }), 500);
 }
@@ -1792,13 +1873,13 @@ function floatsUpright(): boolean {
 }
 $('play').onclick = (e) => {
   e.preventDefault();
-  if (matchedFor === matchKey(design) && floatsUpright()) location.assign(gameUrl(designToken(design)));
+  if (matched() && floatsUpright()) location.assign(gameUrl(designToken(design)));
 };
 // "Try her together" (owner, Oct 2026): in a session, one press takes everyone into the game in
 // her, in one multiplayer game. The presser hosts it in a new room; the others join it
 // (session.ts sends them the room; the game waits for the host, App.ts).
 $('playTogether').onclick = () => {
-  if (matchedFor !== matchKey(design) || !link?.side || !floatsUpright()) return;
+  if (!matched() || !link?.side || !floatsUpright()) return;
   const code = designToken(design);
   const room = randomRoomCode();
   link.side.go({ design: code, room });
@@ -1811,20 +1892,20 @@ function showTogether(): void {
 }
 $('copy').onclick = () => {
   const code = shortCode(design);
-  if (matchedFor === matchKey(design) && code) void navigator.clipboard?.writeText(code);
+  if (matched() && code) void navigator.clipboard?.writeText(code);
 };
 // Sharing her as a document (parametric boats P1; designDoc.ts): a link to the Shipyard with
 // her in it (paste it in a message), or a file (send it, keep it, open it here again).
 /** Her name as shared: the brief's, else what she'd be called. */
 const shareName = () => (brief.name ?? '').trim() || defaultName();
 $('shareLink').onclick = () => {
-  if (matchedFor !== matchKey(design)) return;
+  if (!matched()) return;
   const url = `${location.origin}${location.pathname}#${docToken(design, shareName())}`;
   void navigator.clipboard?.writeText(url);
   $('shareMsg').textContent = 'Link copied: paste it in a message. It opens the Shipyard on her.';
 };
 $('saveFile').onclick = () => {
-  if (matchedFor !== matchKey(design)) return;
+  if (!matched()) return;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([docFileText(design, shareName())], { type: 'application/json' }));
   a.download = docFileName(shareName());
@@ -1892,7 +1973,7 @@ function picture(): string {
 }
 function saveFavourite(): void {
   const msg = $('favMsg');
-  if (matchedFor !== matchKey(design)) {
+  if (!matched()) {
     msg.textContent = 'Wait a moment: her gearbox is still being matched (her code isn’t ready).';
     return;
   }
@@ -1937,7 +2018,7 @@ function showFavourites(): void {
 const groupFavCode = (token: string) => (token.startsWith('doc.') ? 'from a link' : token);
 /** Mark the favourite that is the design on show now (if any). */
 function markCurrent(): void {
-  const now = matchedFor === matchKey(design) ? designToken(design) : '';
+  const now = matched() ? designToken(design) : '';
   document.querySelectorAll<HTMLElement>('.fav').forEach((el) => el.classList.toggle('current', el.dataset.code === now));
 }
 $('load').addEventListener('keydown', (e) => e.key === 'Enter' && loadCode());
@@ -3435,8 +3516,8 @@ const searchWorker = new Worker(new URL('./worker.ts', import.meta.url), { type:
 let searchRun = 0;
 function trialOf(d: ShipDesign, id: number): Promise<SeaTrialResults | null> {
   return new Promise((resolve) => {
-    const on = (e: MessageEvent<{ id: number; trials?: SeaTrialResults }>) => {
-      if (e.data.id !== id) return;
+    const on = (e: MessageEvent<{ id: number; trials?: SeaTrialResults; matched?: boolean }>) => {
+      if (e.data.id !== id || e.data.matched) return; // (her gearbox matched: the trials still to come)
       searchWorker.removeEventListener('message', on);
       resolve(e.data.trials ?? null);
     };
@@ -3989,8 +4070,8 @@ function showCompare(): void {
   const results: Record<string, SeaTrialResults | undefined> = {};
   const bars = () => showBars(A, a.boat, a.room, results.a, B, b.boat, b.room, results.b);
   bars();
-  cmpWorker.onmessage = (e: MessageEvent<{ id: number; trials?: SeaTrialResults }>) => {
-    if (Math.floor(e.data.id / 10) !== run) return;
+  cmpWorker.onmessage = (e: MessageEvent<{ id: number; trials?: SeaTrialResults; matched?: boolean }>) => {
+    if (Math.floor(e.data.id / 10) !== run || e.data.matched) return; // (her gearbox matched: the trials still to come)
     results[e.data.id % 10 === 1 ? 'a' : 'b'] = e.data.trials;
     bars();
   };

@@ -10,6 +10,221 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug's start-up, part 2: the START-UP page, the checklist card, the machinery's sounds (27 Oct 2026)
+
+Owner: "go to the next stage in the engine startup" (part 2 of the agreed plan).
+- **The START-UP page** (`app/engineRoom/tug/panels.ts` `startupPage`; the steps from `plant/plant.ts` `startupSteps`): the control room's middle screen shows her nine steps until she's handed to the bridge (then POWER & TANKS again). Each step is ticked from her state as it is; the next is marked and blinks, with where to go or how it stands (the generator's run-up seconds, the oil pressure, the air's bar).
+- **The checklist card** (`FIXED.card`, the fixed canvas now 1024 × 1536): a laminated card, about A3, on the control room's inboard wall beside its door, facing the aisle: the nine steps, where each control is, and what to wait for.
+- **The machinery's sounds** (`audio/plantAudio.ts`, the engine bus; synthesised, no files):
+  - the generator: a small diesel's firing note and clatter, rising in pitch and level as it runs up;
+  - the supply fans' roar on a live switchboard;
+  - the compressor's chug, easing as the bottles fill;
+  - a blast of starting air at each main engine's start.
+
+  Full volume below; on her deck a quarter, muffled through the hull (`App.plantSound`).
+- **Fixed:** below, "Press F to take the helm" showed (the helm is right overhead, and the distance check is level only); F no longer takes the helm from the engine room.
+- **Tests:** tests/plant.test.ts (the steps tick off from dead ship to the bridge; the generator's run-up shown).
+- **Checked headless:** the page part-way through a start (steps 1–4 ticked, step 5 marked, with its place); the card on the wall from the aisle; the sounds following her state (silent dead; the generator quiet and low running up, at 50 Hz on line; the fans and compressor on; a quarter on deck), with no errors. Not heard (no speakers here).
+- **Not checked:** VR, and the sounds' balance with her main engines by ear.
+- **Shared changes:** none.
+
+### The tug's levers in VR: the hand twists, the stick sets the power; a click synchronises the throttles (27 Oct 2026)
+
+Owner: "the throttles are on the stick, which is right, but I don't want the twist to be on the sticks. I want the twist to be with hand controllers"; "I need a button which synchronizes the throttles ... the throttles are at the same power. Maybe ... a click in, so you can do it while you're on the hand controllers."
+- **Twist by hand, power by stick** (`modules/azimuthLevers/lever.ts`, `CONFIG.modules.azimuth.lever.vrTwist` 'hand'; 'stick' brings back the stick's sideways twist): holding a lever, turn your wrist and it turns (`twistGain` 1.5 degrees a degree, from the grab; the notches as ever); the thumbstick forward and back sets its power; the stick's sideways and pushing the hand do nothing. `handMoves` stays off.
+- **Synchronised throttles:** the thumbstick clicked in while a hand holds a lever (`Control.stickClick`, `HandFrame.stickPressed`) sends `aziSync` (1 or 2: on, at the port or starboard lever's power; 0: split). On, the host sets both throttles to that lever's power, and from then on a `throttle.demand` or `throttle.demand2` sets both (`vessel/vesselControl.ts`, `VesselControls.aziSync`, holds respected). A held lever whose stick is still follows the other's power. A buzz and a notice ("Throttles synchronised"); the desktop dials say SYNC.
+- **That click is the lever's** while the hand holds it: the left stick's click doesn't board / go ashore, the right's doesn't work the laser.
+- The driving guide poster and the README say the new way.
+- **Tests:** tests/azimuth.test.ts (the modular-builder chat's thumbstick-only test rewritten for the new split: the hand twists, the stick's sideways doesn't, its forward gives power, the hand turning back follows; the click sends the sync); tests/plant.test.ts (synchronised: both to the clicked lever's power, either sets both, split again).
+- **Not checked:** VR (the twist's feel, the click). No visible change on the desktop beyond the dials' SYNC.
+- **Shared changes:**
+  - `src/modules/azimuthLevers/lever.ts` (`vrTwist`, `stickClick`, a held lever following the power), `src/modules/azimuthLevers/index.ts`, `src/config/modules.ts` (`vrTwist`), `src/modules/poster/azimuthGuide.ts` (one line): the modular builder chat's files, for the owner's ask;
+  - `src/vessel/vesselState.ts` (`aziSync`), `src/vessel/vesselControl.ts` (the `aziSync` intent; synchronised throttles).
+
+### Driving the harbour tug from the keyboard and a game controller (27 Oct 2026)
+
+The owner: "I want my non-VR friends to be able to drive this tug"; built from the modular-builder chat's handover (below), with the owner's decisions. Only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`), on the desktop (F by her wheel, or a controller's A); every other boat's helm is as it was.
+- **Keys** (`player/aziHelm.ts`, `App.driveAzimuth`): W / S / A / D the port drive (power, twist), the arrow keys the starboard one, at the levers' own rates (`KEY_TURN` 90°/s, `KEY_LEAN` 0.5 a second, now exported from `modules/azimuthLevers/lever.ts`) and with their notches (`snapTo`: the turn clicks at ahead, abeam and astern and on through). Power stops at idle; astern is twisting round. X both to idle; T TRANSIT on / off. In TRANSIT, A / D (← →) steer the wheel and W / S (↑ ↓) set both throttles, as on any boat. Sent as the levers' own intents (`azimuth.demand`, `throttle.demand` and their `2`s, `azimuth.transit`, `helm.demand`), so a VR crew-mate sees the levers move, and the engine room's handover (`plant.bridge`) still governs them.
+- **Looking:** Q over the port shoulder, E over the starboard one, Q + E or Tab aft, held (`CONFIG.aziHelm.glanceDeg` 115°, easing over `glanceTau` 0.12 s; `DesktopController.glance`, on top of the mouse look). At her helm the keyboard claims W A S D, the arrows, X, T, Q, E and Tab (`AZI_HELM_CODES`): their usual jobs wait (Q cargo, E engine, T sea trials), and Tab doesn't move the page's focus.
+- **Controller:** point and push (`pointAndPush`): each stick's direction is its drive's (up ahead, right to starboard, back astern; notched), how far its power; let go, idle, still pointing there. Hold LB: the right stick looks round instead (the starboard drive holds); a tap of LB looks ahead. RB TRANSIT (then the left stick steers, the right stick's up sets both throttles); B both to idle. The orbit and flyby views swing on LB + the right stick.
+- **On-screen dials** (`ui/aziDials.ts`, `CONFIG.aziHelm.dialPx` 150): bottom left the port drive, bottom right the starboard: the ENGINE screen's dial (`controls/instruments.ts` `azimuthDial`, now exported), the arrow where the drive pushes, the ring where its lever asks, and a power bar. Desktop only, at her helm; redrawn only when they change.
+- **The helm prompt** says all this, keys or controller.
+- **Tests:** tests/aziHelm.test.ts (the keys' rates, idle floor, notches and on through; point and push; the glance; the claimed keys).
+- **Checked headless** (desktop, Oban, the tug readied by Quick start), with real key presses:
+  - F took her helm and the prompt changed;
+  - W raised the port drive's power and D twisted it, clicking into 3 o'clock; ↑ raised the starboard drive's power and ← turned it to port; the drives followed;
+  - Q and Tab turned the view (115°, aft), and it came back;
+  - T switched TRANSIT on and off; E no longer stopped her engine;
+  - the dials showed both drives, and went away when she was left.
+
+  The headless browser runs her deck at under a frame a second, so key holds were long.
+- **Not checked:** a real game controller (none here; its sums are tested), and in a friend's hands.
+- **Shared changes:** `src/modules/azimuthLevers/lever.ts` exports `KEY_TURN` and `KEY_LEAN` (no other change).
+
+### The harbour tug's start-up from dead ship, part 1 (27 Oct 2026)
+
+Owner: "the only thing I want for the engine room is a realistic startup procedure. So it's go downstairs, turn the fuel and whatever is appropriate for the generator, get power on"; the plan agreed, "go ahead with part 1".
+
+- **The procedure** (`src/plant/plant.ts`, its state `VesselState.plant`, plain JSON stepped by the host after her machinery each tick; `CONFIG.plant`). She comes from port **dead ship**:
+  1. 24 V: the battery master (`electrics.master`), now also on the control room's switchboard;
+  2. the generator: its fuel valve, START on its control box; it runs up in `genRunUpS` 8 s;
+  3. power on: the generator breaker on the main switchboard (refused while it's stopped or running up; it trips if the generator stops). The room's lights come up from the emergency lights' glow;
+  4. fuel: each engine's day tank valve, and the fuel supply pump on the switchboard;
+  5. sea water: each engine's sea suction valve, at the strainers;
+  6. pre-lube: each engine's pre-lube pump, until its oil is at `lubeStartBar` 1 bar (`prelubeBar` 1.5 in `prelubeS` 15 s; falling `lubeDecayBarS` 0.05 a second with the pump off; `lubeRunBar` 4.2 running);
+  7. starting air: the compressor (`airFillBarS` 0.75 bar a second to `airMaxBar` 30) and the main air valve; each start takes `startAirBar` 4 and needs `airStartMinBar` 12;
+  8. START at each engine's own control stand (or from the bridge once handed over);
+  9. the engine control switch (LOCAL / CONTROL ROOM / BRIDGE) to BRIDGE: only then do the bridge's levers and STARTs work her.
+- **Missed steps say so, as her alarms would:** START with no 24 V, oil pressure, fuel, fuel pressure, air valve or air is blocked, with the reason (`plant.note`, said to whoever's aboard: `App.plantNotes`). Running, a day tank valve shut stops that engine after `starveS` 6 s; a sea suction shut is the cooling fault the boats already have (she heats up and alarms); the generator's fuel shut stops it, and its breaker trips: blackout. The bridge's START before the handover says "Engines not ready: the engine room has control".
+- **The controls** (`app/engineRoom/tug/controls.ts`): 18 ordinary controls through intents `er.<what>` (multiplayer works as for any control):
+  - a new handwheel `Valve` (a press opens or shuts it; its wheel turns and its spindle rises when open), toggles, buttons and the battery master;
+  - on the switchboard, the generator, the day tanks, the air bottles and compressor, the strainers, and each engine's **local control stand**: new, a pedestal in the aisle beside each engine with its panel at eye height (the panel on the engine's side was hidden behind its lagging);
+  - built with the room, registered with the interaction system then (`BelowContext.addControls`), working only while you're below.
+- **Quick start** (Menu > Tests, and the Shipyard's sea trial) readies it all and hands her to the bridge (`plantReady`), so nothing that starts her the quick way changes. A tug already running when her plant is first made (a game carried on) starts ready, her pre-lube pumps on.
+- **The screens' alarm list** shows what's still to do: dead ship, breaker open, pumps stopped, valves shut, oil pressure, start air, control not at the bridge.
+- **Tests:** tests/plant.test.ts covers:
+  - dead ship, with the bridge's START dead;
+  - the whole procedure to the bridge, her levers then working her;
+  - each missed step blocking her start, with its reason;
+  - fuel, sea water and the generator's fuel shut while she runs;
+  - Quick start.
+
+  tests/azimuth.test.ts now readies her engine room first.
+- **Checked headless:**
+  - the whole procedure through the controls' real press path (the interaction system's, routed to the host), from dead ship to both engines running and the control at the bridge;
+  - every control seen in place, and the lights going from dead to live;
+  - while below: 7–48 draw calls (was 5–10; the controls are small separate meshes) and about 105,000 triangles.
+- **Not checked:** VR (reaching the valves and switches, especially the low ones), the Quest's frame rate below with the controls, multiplayer with two below.
+- **Shared changes**, all small; other boats unchanged:
+  - `src/vessel/vesselState.ts`: `plant`, `PlantState`;
+  - `src/vessel/vesselControl.ts`: the `er.` intents, and Quick start readies the plant;
+  - `src/core/simulation.ts`: `stepPlant` after her machinery;
+  - `src/modular/busKeys.ts`: the `plant.bridge` key;
+  - `src/modules/dieselInboard/index.ts`: its `bridge` port. Until she's handed over, the bridge's levers and STARTs don't reach her engines.
+  - the golden runs' fixtures (`tests/golden/fixtures/`) and `docs/BUS_KEYS.md` regenerated: they record every bus key, so `plant.bridge` (always on for a boat without an engine room) is new in them; nothing else in them changed.
+### (From the modular-builder chat) HANDOVER, built 27 Oct 2026 (see the entry above): driving the harbour tug from the keyboard and a game controller
+
+The owner, 27 Oct 2026: "I want my non-VR friends to be able to drive this tug", reviewed a proposal from the modular-builder chat and chose: arrow keys, power stops at idle, point-and-push sticks, glance keys and LB to look, the on-screen dials, "Handover" (to this chat: it's the helm mode, keys and controller, `src/app/` and `src/player/`). **What to build**, only at the helm of a boat with azimuth drives (`gearOf(v, 'diesel')?.azimuth`); every other boat's helm stays as it is:
+
+- **Keyboard at the helm (F):** the port drive on **W / S** (power up, down) and **A / D** (twist: A turns its push toward port, D toward starboard); the starboard drive on **↑ / ↓** and **← / →** the same way. Power stops at idle; astern is twisting the drive round (never a throttle below zero). **X** both drives to idle; **T** TRANSIT on / off (at this helm only; T is otherwise the sea-trials test key). In TRANSIT, A / D steer the wheel and W / S work both throttles, as on any boat.
+- **Looking (keyboard):** right-drag mouse look stays as now. Glance keys, held: **Q** over the port shoulder, **E** over the starboard shoulder, **Q + E or Tab** straight aft; let go and the view swings back forward (smoothly).
+- **Game controller at the helm (A):** **point and push**: the left stick is the port drive, the right stick the starboard. The stick's direction is the way that drive pushes (up ahead, right to starboard, back astern: deg = atan2(x, -y), y + down), how far it's pushed past the dead zone its power (0..1). Let go: power to idle, the drive keeps pointing where it was. **Hold LB** and the right stick looks round instead (the starboard drive holds its setting meanwhile); a **tap of LB** (no stick) snaps the view forward. In the orbit / flyby views (Y), LB + right stick swings the camera. **RB** TRANSIT on / off: then the left stick's x steers the wheel and the right stick's y sets both throttles. **B** both to idle. The rest as now (A leave, Y camera view, d-pad anchor / horn / wipers, View talk).
+- **On-screen dials** at the desktop helm (not in VR): two small dials in the bottom corners, port left, starboard right, as on the tug's poster: an arrow where its drive really points, a ring where its lever asks, a power bar.
+
+**What the modular side already gives you** (no changes needed there):
+- Bus keys (send them as intents, absolute values; the levers in the wheelhouse follow them, so a VR crew-mate sees them move): `azimuth.demand` / `azimuth.demand2` (each lever's direction, deg, 0 ahead, + to starboard, -180..180), `throttle.demand` / `throttle.demand2` (each one's power, 0..1 here), `azimuth.transit` (on / off). Read back: `azimuth.angle` / `azimuth.angle2` (where each drive really points, deg; or `EngineState.azimuth`, rad, port in `engine`, starboard in `engine.stbd`).
+- The levers' own rates for keys, to match: 90 deg/s of twist, 0.5 power/s (`src/modules/azimuthLevers/lever.ts` KEY_TURN, KEY_LEAN), and the notches at ahead, abeam and astern: `snapTo(deg, CONFIG.modules.azimuth.lever.snapDeg)` from the same file. The drives follow at `CONFIG.modules.azimuth.slewDegPerS` (12 deg/s).
+- The ENGINE screen's dial drawing (`src/controls/instruments.ts` `azimuthDial`) is the look the on-screen dials should copy.
+
+### The tug's levers: the thumbsticks work them, notches at 12, 3, 6 and 9 o'clock (27 Oct 2026)
+
+Owner: grabbed, "the left and right joystick should be controlling the throttles once you've grabbed them. And not sliding you around"; the same holding the wheel; and the azimuth levers should "snap to ... 12 o'clock, 3 o'clock, 6 o'clock, and 9 o'clock to make it a bit easier to find those key positions". (Neither was on any branch: found nowhere in the history, so built here.)
+
+- **A held control's stick doesn't move you.** While a hand holds any control (a lever, the wheel, a joystick, the tiller), its thumbstick neither walks you (left) nor turns you (right): `App.stickFree`, from `InteractionSystem.holding(hand)`.
+- **On the tug's azimuth levers, it works the lever** (`Control.stickSteerable` / `stickSteer`, the stick in `HandFrame.stick`): forward and back for more or less power, sideways to twist, at the desktop keys' rates (90°/s, half the power a second). The hand keeps hold: let the stick go and the lever stays where the stick left it, and moving the hand works it on from there. A resting thumb doesn't creep it: `CONFIG.interaction.stickDeadZone` 0.2. Only the levers take the stick for now; the wheel and the other controls just stop it moving you.
+- **Notches:** its turn clicks onto ahead, abeam and astern within `CONFIG.modules.azimuth.lever.snapDeg` 8° either side, with a buzz in VR, and turns on through (the lever keeps its own turn under the notch, as its lean under the idle detent).
+- **Fixed on the way:** the desktop keys (W) and the stick couldn't take the lever out of idle: each small step fell inside the idle detent and was put back to 0. Its lean now adds up under the detent.
+- **Tests:** tests/azimuth.test.ts: the stick working a held lever and the hand holding it after; the interaction system giving a holding hand's stick to it, the dead zone, `holding`; the notches, turning on through them, W from idle.
+- **Not checked:** VR on the Quest (the stick and the buzz); not run in the browser (covered by the tests).
+- **Shared changes:** `src/modules/azimuthLevers/` (the lever and its options) and `src/config/modules.ts` (`snapDeg`), the modular builder's files: small, for the owner's ask on the tug.
+
+### Engine rooms: the harbour tug's in detail, with an engine control room (27 Oct 2026)
+
+Owner: "make that engine room much more detailed just for the tug ... keep the engine dimensions and the sort of principles of it ... get that triangles and draw calls count back up and use that Quest processing ... some tugboats have an engine control room ... screens, or it could be steampunk."
+
+- **Her room is longer** (a big boat's, `CONFIG.engineRoom.big`: from 24 m, `lengthShare` 0.42 up to `maxLengthM` 10.5): 10.5 × 8.8 m, 2.2 m headroom, 2.9 m forward of her engines for the control room.
+- **Her engines in detail** (`src/app/engineRoom/tug/engine.ts`), the same 1850 kW V16s in the same 4.4 × 1.7 × 2.1 m envelope on the same shaft line, in her engines' colour, laid out as a medium-speed V16 generally is (our own arrangement):
+  - bedplate on rubber mounts, crankcase doors with their bolts and relief valves;
+  - two banks of eight heads with rocker covers, head bolts, injector pipes from the fuel rails, jacket-water branches and the wiring harness;
+  - lagged exhaust manifolds to two turbochargers on the free end, with their air filters, and the charge-air cooler;
+  - the damper and gear case, engine-driven pumps, the flywheel housing and starters;
+  - duplex lube oil and fuel filters, the dipstick, lifting eyes, and a local operating panel with live gauges and an emergency stop.
+- **The room** (`tug/layout.ts` where things go, plain numbers, also walked round; `tug/room.ts` the drawing; `tug/kit.ts` shapes):
+  - **Control room** forward to port: its window aft onto the port engine; a console with three live screens (the engines and each Z-drive's heading, power and tanks, the alarm list); the main switchboard's cubicles; a chair; a row of brass-rimmed gauges; emergency stops outside.
+  - **Forward:** a workbench with a vice and a tool board; two fuel day tanks with sight glasses and quick-closing valves; two starting-air receivers and their compressor.
+  - **Each engine's free end:** a red fire pump with its fire main.
+  - **Aft:** the shaft lines (couplings, cardan shafts), turning with their engines' revs (shown at a tenth of the speed, so the eye can follow them), under gratings; two generator sets; the thruster room door.
+  - **Down the sides:**
+    - the bilge and ballast valve chest and pumps, and the sea water strainers;
+    - colour-coded pipe runs on brackets;
+    - extinguishers, a fire hose reel, oil drums on a spill pallet and a spares rack;
+    - sounding pipes, and a caged escape ladder.
+  - **Overhead and round the engines:**
+    - lagged exhaust uptakes with bellows;
+    - lifting rails with chain blocks;
+    - cable trays and a ventilation duct;
+    - supply fans and CO₂ nozzles;
+    - frame knees and light fittings;
+    - yellow handrails, with a gap where the ladder comes down;
+    - chequer plate underfoot (the game's pixel paint).
+- **Panels** (`tug/panels.ts`): two canvases. The live one (screens, gauges, local panels) is redrawn 4 times a second; the fixed one (the switchboard, the tool board, the signs) is drawn once. The alarms come from her state: jacket water and lube oil temperatures, oil level, sea water pump fault, oil pressure with the key on and the engine stopped, low fuel.
+- **Cost, measured headless:**
+  - below in the tug: 5–10 draw calls and about 105,000 triangles (the merged room, the window's glass, two panel meshes, two shaft lines, three lamps and two room lights);
+  - on deck: 127–153 calls and about 330,000 triangles;
+  - built in under 0.4 s the first time you go below.
+- **Tests:** tests/engineRoom.test.ts covers:
+  - her longer room and its control room, gensets, tanks and receivers;
+  - a way from the ladder through the aisle and the door into the control room, not through its walls, the switchboard or the gensets;
+  - the alarm list.
+- **Checked headless:** the aisle, the control room inside and through its window, aft, forward to starboard, the port walkway, with her engines running; no errors.
+- **Not checked:** VR, the Quest's frame rate below.
+- **Shared changes:** none.
+
+### Engine rooms, milestone 1: going below on the tug and the trawler (27 Oct 2026)
+
+Owner: an engine room as a separate game, for performance; agreed instead (same performance, multiplayer and the simulation kept): in the same page, only the room drawn while you're below; the harbour tug and the stern trawler first. The plan and what's next for the Shipyard and modular builder chats: `docs/ENGINE_ROOM.md`.
+
+- **Where one fits** (`src/app/engineRoom/plan.ts`, `CONFIG.engineRoom`: `minLoaM` 18, `headroomM` 1.95, `deckheadM` 0.25, `minWidthM` 2.2, `walkwayM` 0.7, `minLengthM` 3, `lengthShare` 0.3, `maxLengthM` 8, `endClearShare` 0.12, `liningM` 0.12): from her own hull sections, engine hatch and installed engines (`engines.ts`, from her recipe). The harbour tug (7.5 × 8.8 m, 2.5 m headroom), the stern trawler (6 × 2.9 m) and the dive ship (on the trawler's hull); every other boat as before.
+- **Going below** (`index.ts` BelowDecks, `player/gangway.ts`): "Go below" over her open engine hatch (`gangway.hatchRange` 3 m), "Climb up" at the ladder's head (`ladderRange` 2.5 m), by the same pointing as Step aboard. Below, everything outside is hidden (again each frame: some views set their own visibility), and only the room, your rig, the menus, the marks and a crew-mate in the room with you are drawn (`AvatarsView.partsOf`); her walk area is the room's (`walk.ts`: its floor, round the engines). Off her (a teleport, the boat gone), you're out of it without a word.
+- **The room** (`view.ts`, its own 4 KB download, fetched the first time): floor plates, lined sides with frames, deck beams and light fittings, a watertight door, her engines as the boat draws them with their shafts, the ladder beside an engine, a live gauge panel per engine (running, rpm, coolant, oil), hemisphere and ambient light. Measured headless, Oban: below 3–4 draw calls and about 2,000 triangles; on deck 127–153 calls and about 330,000.
+- **Tests:** tests/engineRoom.test.ts (which hull types have one; standing room inside her plating; her engines in it with a walkway; the ladder beside them; walking round them).
+- **Checked in headless Chromium:** the trawler and the tug, "Go below" over the open hatch, the room from inside, the gauges, "Climb up" back on deck beside the hatch, no errors. **Not checked:** in VR, on the Quest, with a crew-mate below.
+- **Not yet (milestone 2):** controls in the room (local stops, valves, bilge pump), its sound, a fade, Quest measurements.
+- **Shared changes:** none (`docs/ENGINE_ROOM.md` new).
+
+### Fix: a hidden host steps 20 times a second; the tug's gearbox fixed (26 Oct 2026)
+
+Owner: joined a desktop host's game on the Quest, aboard the tug, "the simulation rate ... like 1 frames per second"; and building the tug "takes forever ... trying to work out its gearbox", so she couldn't be saved on the Quest; "it's a fixed gearbox".
+- **The hidden host.** One step a second is what the crew get from a host whose tab is in the background (minimised, another tab): since batch 1 it keeps going from a timer, and a background tab's timers run about once a second. Now its steps come from a worker's clock (`net/hiddenClock.worker.ts`), which a background tab doesn't slow: `net.hiddenStepS` 1 → 0.05 (20 a second, the rate snapshots go out), the time since stepped in whole ticks with the rest carried. Checked headless (told it was hidden): 19.7 steps a second from the worker, back to the drawn frames when shown. Not checked with a really hidden tab (headless tabs can't be), nor on the Quest. If the host's tab wasn't hidden, this wasn't the cause: the crew page's own work measured light (each snapshot about 6 ms to read on this computer), so it'd want a look on the Quest.
+- **The tug's gearbox:** the Shipyard chat fixed it at the same time (its entry in `docs/progress/shipyard.md`; theirs kept in the merge). Added from here (Shipyard files, logged there): any boat's code is ready to save once her gearbox is matched, the sea trials (27.8 s for the tug on this computer) carrying on behind.
+- **Shared changes:** none (the Shipyard's own files, logged there).
+
+### Multiplayer batch 4: playing together in separate boats, and smaller snapshots (26 Oct 2026)
+
+Owner: "go ahead with multiplayer batch 4" (the study's last batch: #3, #7, #15, #27, #25, #33, #31, #35).
+
+- **#3 Smaller snapshots** (`net/worldDelta.ts`, new). Each send says only what changed since the last: a part of the world whole if it changed, and in a set of things (`vessels`, `cargo`, `players`...) only the things that changed, came or went. Worked out once per send and sent as one text to every crew-mate (it was packed again for each). A crew-mate just welcomed gets the whole world once more with the next send. The crew page keeps the pieces as text and parses the world afresh each time, as it always did, so nothing it holds is shared with the next snapshot. **Measured live** (host and crew through the game finder): the whole world 18 KB (Tayvallich), 37 KB (career), 156 KB (Clyde); a send now 2 to 3 KB on each, the Clyde 48 times smaller. **Not measured on a Quest** (the study asked for before and after there): the host's work per send is one pass over the world, about 1 ms on this computer for the Clyde.
+- **#15 Each boat her own rescue gear.** A life ring and boat hook per boat (`world.rescue.rings`, `hooks`, by boat; `ringOf`, `hookOf`, `ringIn`, `hookIn`; an old save's one ring and hook become the home boat's). Taking, throwing, hauling and the hook work on the boat the player is aboard; a swimmer takes the ring nearest them. A survivor on a ring climbs aboard that boat (`RescueTarget.ring`, `vessel`), sits in her seats, and is landed from her at a quay; people on a raft come across to whichever rescue boat lies alongside. Every boat's ring and hook are drawn on every page (`otherGear` in App), survivors aboard the boat that took them.
+- **#27 Calls follow the players' boats** (`missionBoat`, core/launch.ts): rescue, tow and fire calls come to the players' boat with the most aboard that has the gear for the job (rescue places, a tow point, a fire monitor); the home boat on a tie or with nobody aboard.
+- **#7 Voice in either order:** a crew-mate with voice off isn't called; a call with no voice after `voice.answerS` 8 s is dropped and tried again (`retryS` later); the Crew tab says "voice off" by their name.
+- **#25** Leaving VR, or the page hidden (a headset taken off), lets go of everything your hands held (`InteractionSystem.releaseAll`).
+- **#33** A control someone else holds names them: "Wheel (Bosun has it)" (`HoldRules.holderName`).
+- **#31** A crew-mate can't buy yard gear that's fitted aboard (trawl gear, the skiff: it starts everyone again in her): "Ask the skipper".
+- **#35** A log barge at the merchant's quay can be sold from any page alongside (the `timberSell` intent, voyage/timber.ts `applyTimberSell`); the host's own sale is still made at once.
+- **Shared changes:** `src/core/launch.ts` (`missionBoat`), `src/core/simulation.ts` (the `timberSell` intent). (`src/rescue/`, `src/tow/tow.ts`, `src/fire/fire.ts`, `src/controls/` are the main game's own.)
+- **Tests:** tests/worldDelta.test.ts (new: the world rebuilt exactly over 30 steps with crates and parts coming and going; a send under half the world; an unmoved crate not sent); tests/launch.test.ts (calls follow the crew's boat; her own ring thrown, the survivor aboard her and landed from her); tests/metaverse.test.ts (a crew-mate's barge sale); the rescue tests now read the home boat's ring.
+- **Checked live:** crewcheck 27 of 27 with the new snapshots; the batch 2 reload checks again (a crew reload, the host launching with crew aboard, the host's reload: all as before); the sizes above. **Not checked:** voice (needs two microphones), the Quest (snapshot cost, letting go on taking the headset off), a rescue by two boats live.
+
+### Multiplayer batch 3: joining the right game, clearly (26 Oct 2026)
+
+Owner: "go ahead with multiplayer batch 3" (the study's third batch: #6, #22, #24, #13, #4, #26, #8, #20, #23, #30, #34, #19, #32).
+
+- **#6 The host's game, map and address.** The host's world says its mode and folder (`world.build.mode`, `site`, beside `map`). The crew page checks them first on the welcome (`samePageAsHost`): in the other game, on another Voyage map, or on the other address (#30: the live game and /next/), it goes to the host's page with the code and joins from there. The host doesn't take a crew page from another address as "a newer build" (the hello's `site`).
+- **#22 A notice before each reload** ("The host is in Voyage: Tayvallich and Loch Sween: loading it and joining", the version one too), `net.reloadNoticeS` 1.5 s before it goes. **Leave game goes back to your own page** as it was before the join (kept in the tab, `swvr.ownPage`): your mode, your map, your own boat.
+- **#26** That also drops the host's boat from the address: no "sea trial" of the host's Shipyard boat in your career after following them.
+- **#24** The host's chart is taken only after those checks: a refused join no longer leaves the host's pencil marks in your saved chart.
+- **#4 Try her together** is a try-out (`isTryOut`, shipyardTrip.ts): no five-minute sea-trial clock (it restarted everyone in the beginner boat), nothing saved to the career. The same for a page following its host into a boat its career hasn't paid for. (My call, open to change: the try-out isn't saved as your career boat; buy her at a yard for that.)
+- **#13** The crew page takes the host's world whole (`net/takeWorld.ts`, at the welcome and each snapshot): parts of its own the host hasn't got (its own Voyage plan, its pots) go.
+- **#8 Joins give up:** after `net.joinTimeoutS` 20 s with no answer (`joinLoadS` 60 s once the world has started coming), "No answer from game 12345. Is the host's game open and their headset on? Try again". The Crew tab says the stage: reaching the game finder, looking for the host, linked (the world coming).
+- **#20 Plain error words** (`plainNetError`, net/transport.ts): "Can't reach the game finder: check the internet…", "Found the host, but your networks block a direct link: try home Wi-Fi or a phone hotspot". Hosting tries 5 times (`net.hostTries`), each wait longer, keeping its own game's code.
+- **#23 Old links:** a game link (`?game=`) is tried `net.linkTries` 5 times (not 20), then "Game 99998 isn't open: host your own game or join another", the address cleared. **Stop waiting** on the Crew tab gives up any join or wait (no retry or takeover after it).
+- **#34 Desktop:** with the Crew tab open (on your own), the number keys (both rows) type the code, Backspace, Enter joins; pasting a code or a game link fills the box. The 9 and 0 keys' motion coupling waits meanwhile.
+- **#19** `npm run crewcheck` reads the join box before the leave's reload, and checks the crew's boat now waits (batch 2): all 27 pass.
+- **#32 Docs:** README (no "last code remembered", no restart into the host's boat) and MULTIPLAYER.md (the free relay, the measured snapshot sizes, joining) corrected.
+- **Shared changes:** `src/core/world.ts` (`build.mode`, `build.site`).
+- **Tests:** tests/takeWorld.test.ts (new), tests/net.test.ts (plain error words), tests/shipyardTrip.test.ts (try-outs), tests/menu.test.ts (hooks).
+- **Checked live, two and three browsers through the real game finder:** a Career page joining a Voyage Tayvallich host is told, goes there, joins, and Leave game takes it back to career.html; an old link gives up in about 55 s with the address cleared; crewcheck 27 of 27. **Not checked:** the live game and /next/ together (needs both published), the join time limit against a real sleeping headset, desktop typing by hand, the Quest.
+
 ### Multiplayer batch 2: nobody loses their stuff (26 Oct 2026)
 
 Owner: "go ahead with batch 2" (the multiplayer study's second batch: #5, #11, #16, #12, #28, #29, #17, #18), with two answers: a crew-mate's boat **waits 2 minutes**; on a borrowed career, **block boat changes**.

@@ -249,7 +249,8 @@ export class EngineSound {
       const p = this.worklet.parameters;
       p.get('rpm')!.setTargetAtTime(rpm, t, smooth);
       p.get('load')!.setTargetAtTime(load, t, 0.1);
-      p.get('firing')!.setValueAtTime(e.running ? 1 : 0, t);
+      // (An electric motor, `cylinders` 0: nothing fires.)
+      p.get('firing')!.setValueAtTime(e.running && this.voice.cylinders > 0 ? 1 : 0, t);
     } else if (this.fallback) {
       const fire = (rpm * this.voice.cylinders) / 120;
       this.fallback.osc1.frequency.setTargetAtTime(Math.max(1, fire), t, smooth);
@@ -272,7 +273,11 @@ export class EngineSound {
     this.starterGain.gain.setTargetAtTime(e.cranking ? 0.06 : 0, t, 0.04);
     this.hiss.gain.setTargetAtTime(e.running ? v.hiss.base + v.hiss.load * load * rpmFrac : 0, t, 0.2);
     // The turbo spools up with boost (load at revs) and down slowly (its rotor's inertia).
-    if (this.turbo && v.turbo) {
+    if (this.turbo && v.turbo && !v.cylinders) {
+      // An electric motor's whine (its voice's `turbo`): pitch with its speed, silent at rest.
+      this.turbo.osc.frequency.setTargetAtTime(v.turbo.idleHz + (v.turbo.boostHz - v.turbo.idleHz) * rpmFrac, t, smooth);
+      this.turbo.gain.gain.setTargetAtTime(e.running ? v.turbo.gain * Math.min(1, rpmFrac * 5) * (0.5 + 0.5 * load) : 0, t, 0.1);
+    } else if (this.turbo && v.turbo) {
       const boost = e.running ? Math.sqrt(load * rpmFrac) : 0;
       const k2 = boost > this.lastBoost ? 0.5 : 1.2;
       this.lastBoost = boost;

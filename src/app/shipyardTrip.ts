@@ -24,11 +24,28 @@ import { readDesign, sameDesign } from '../shipyard/designDoc';
  * Is this career page a sea trial (CONFIG.career.seaTrialS; the free career boats, review Oct
  * 2026)? A Shipyard design on the address that isn't the career's own boat (`own`:
  * CareerState.design), not a paid refit or purchase coming back (`refitFrom`), and not a
- * crew-mate joining (the host's boat). Voyage has no trials: it's a sandbox.
+ * crew-mate joining (the host's boat), nor a try-out together (`isTryOut`). Voyage has no
+ * trials: it's a sandbox.
  */
 export function isSeaTrial(mode: string, search: string, own: string | undefined): boolean {
-  if (mode !== 'career') return false;
   const p = new URLSearchParams(search);
+  return unpaid(mode, p, own) && !p.has('host') && !p.has('together');
+}
+
+/**
+ * A try-out together (multiplayer study #4, #26): a career page in a design the career hasn't
+ * paid for, hosted (Try her together, or the host changing boat) or followed (the crew sent
+ * in, or following the host). No clock (a sea trial's ended everyone's game after five
+ * minutes, starting them all again in the beginner boat), and nothing saved: she isn't yours.
+ */
+export function isTryOut(mode: string, search: string, own: string | undefined): boolean {
+  const p = new URLSearchParams(search);
+  return unpaid(mode, p, own) && (p.has('host') || p.has('together'));
+}
+
+/** In the career, in a Shipyard design that isn't her own and wasn't just paid for. */
+function unpaid(mode: string, p: URLSearchParams, own: string | undefined): boolean {
+  if (mode !== 'career') return false;
   const code = p.get('design');
   if (!code || p.has('refitFrom') || p.has('join')) return false;
   return !own || !sameDesign(own, code);

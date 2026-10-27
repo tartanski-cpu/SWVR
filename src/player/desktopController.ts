@@ -15,6 +15,9 @@ export class DesktopController {
   // Start looking slightly down at the scene (also sidesteps a SwiftShader clipping
   // quirk with an exactly level camera in headless test browsers).
   private pitch = -0.12;
+  /** A glance's turn of the view from the mouse look (rad, + to port), as asked and as shown (eased). */
+  glance = 0;
+  private shownGlance = 0;
   private readonly position = new THREE.Vector3(0, CONFIG.desktop.eyeHeight, 0);
   private readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
   private readonly move = new THREE.Vector3();
@@ -146,7 +149,11 @@ export class DesktopController {
       this.shownYaw = this.yaw;
       this.shownPitch = this.pitch;
     }
-    this.euler.set(this.shownPitch, this.shownYaw, 0);
+    // A held glance (the azimuth helm's Q / E / Tab: player/aziHelm.ts) turns the view on top
+    // of the mouse look, easing there and back.
+    this.shownGlance += (this.glance - this.shownGlance) * (1 - Math.exp(-dt / CONFIG.aziHelm.glanceTau));
+    if (Math.abs(this.glance - this.shownGlance) < 1e-3) this.shownGlance = this.glance;
+    this.euler.set(this.shownPitch, this.shownYaw + this.shownGlance, 0);
     this.camera.quaternion.setFromEuler(this.euler);
     this.camera.position.copy(this.position);
   }

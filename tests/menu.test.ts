@@ -237,6 +237,8 @@ function fakeHost() {
     hostGame: () => calls.push('host'),
     leaveGame: () => calls.push('leave'),
     borrowed: () => false,
+    waiting: () => false,
+    stopWaiting: () => calls.push('stop'),
     shipyardCodes: () => yard,
     takeDesign: (code) => calls.push(`take ${code}`),
     workboatAgain: () => calls.push('workboat'),

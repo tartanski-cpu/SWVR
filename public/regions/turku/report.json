@@ -1,0 +1,1765 @@
+{
+ "warnings": [
+  "118 patches where the coastline's sides disagree (check the coast there)",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
+  "features: no fog signals mapped (C5 foghorns: none here)",
+  "features: 32 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
+  "overlapping piers at janessaari-pier (2908, -10335): decks 3.5 m and 2.4 m over 44 m²",
+  "overlapping piers at janessaari-pier (3207, -10315): decks 3.5 m and 2.4 m over 40 m²",
+  "overlapping piers at satama-pier (5281, -11384): decks 3.5 m and 2.4 m over 124 m²",
+  "overlapping piers at student-village-pier (10364, -15077): decks 2.4 m and 0.5 m over 40 m²",
+  "pargas-snackviken: no berth with room for a boat (best blocked at 10 points): not a port",
+  "hanka-pier: no berth with room for a boat (best blocked at 9 points): not a port",
+  "heinanokan-partiovenesatama: no berth with room for a boat (best blocked at 6 points): not a port",
+  "ramsholm-pier: no berth with room for a boat (best blocked at 10 points): not a port",
+  "airismaa-pier-2: no berth with room for a boat (best blocked at 3 points): not a port",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out"
+ ],
+ "nav": {
+  "marks": 646,
+  "lights": 180,
+  "hazards": 1830,
+  "farms": 0,
+  "currents": 0
+ },
+ "houses": {
+  "byType": {
+   "house": 3996,
+   "warehouse": 513,
+   "terrace": 315,
+   "church": 14,
+   "shed": 535,
+   "cottage": 1341,
+   "boathouse": 1642,
+   "ruin": 1
+  },
+  "fromTags": 36,
+  "fromRules": 64,
+  "plain": 2757
+ },
+ "harbours": {
+  "harbours": 471,
+  "blocks": 3276,
+  "berths": 4212,
+  "slipways": 6,
+  "buildings": 8357,
+  "edits": 5,
+  "sparse": [
+   "way/24233477: 545 m2 in a 1423 m2 box, 6.8 m thick",
+   "way/33452332 (Snäckvik III): 377 m2 in a 3457 m2 box, 2.6 m thick",
+   "way/33452415 (Snäckvik II): 366 m2 in a 3547 m2 box, 2.5 m thick",
+   "way/33452445 (Snäckvik I): 337 m2 in a 3268 m2 box, 2.5 m thick",
+   "way/75233634 (Postilaituri): 435 m2 in a 1432 m2 box, 4.9 m thick",
+   "way/114449055: 364 m2 in a 1265 m2 box, 2.8 m thick",
+   "way/118759878: 560 m2 in a 1854 m2 box, 3.4 m thick",
+   "way/126714253: 147 m2 in a 448 m2 box, 2.1 m thick",
+   "way/126725489: 165 m2 in a 643 m2 box, 2.7 m thick",
+   "way/131425347: 62 m2 in a 132 m2 box, 1.8 m thick",
+   "way/131425350: 30 m2 in a 63 m2 box, 1.8 m thick",
+   "way/131426470: 149 m2 in a 473 m2 box, 2.7 m thick",
+   "way/131904303: 1116 m2 in a 4630 m2 box, 8.0 m thick",
+   "way/131904304: 493 m2 in a 2409 m2 box, 2.9 m thick",
+   "way/131904305: 1837 m2 in a 23832 m2 box, 3.1 m thick",
+   "way/131904308: 289 m2 in a 874 m2 box, 5.1 m thick",
+   "way/131904309: 285 m2 in a 2065 m2 box, 3.1 m thick",
+   "way/131904313: 562 m2 in a 2950 m2 box, 3.2 m thick",
+   "way/131904322: 285 m2 in a 1532 m2 box, 3.0 m thick",
+   "way/131904647: 132 m2 in a 614 m2 box, 2.5 m thick",
+   "way/131904648: 530 m2 in a 7269 m2 box, 2.5 m thick",
+   "way/134630394: 470 m2 in a 5626 m2 box, 2.8 m thick",
+   "way/134630395: 524 m2 in a 5986 m2 box, 3.0 m thick",
+   "way/150890882: 236 m2 in a 457 m2 box, 5.2 m thick",
+   "way/169979350: 299 m2 in a 2568 m2 box, 2.3 m thick",
+   "way/169979352: 211 m2 in a 608 m2 box, 2.2 m thick",
+   "way/174188382: 366 m2 in a 731 m2 box, 7.3 m thick",
+   "way/199585434: 150 m2 in a 277 m2 box, 2.2 m thick",
+   "way/199585435: 183 m2 in a 809 m2 box, 2.2 m thick",
+   "way/201175708: 229 m2 in a 577 m2 box, 3.0 m thick",
+   "way/201175709: 777 m2 in a 4587 m2 box, 4.7 m thick",
+   "way/220846306: 214 m2 in a 427 m2 box, 4.9 m thick",
+   "way/223008887: 377 m2 in a 1167 m2 box, 4.4 m thick",
+   "way/229702028: 205 m2 in a 1263 m2 box, 2.5 m thick",
+   "way/363589268: 115 m2 in a 373 m2 box, 2.7 m thick",
+   "way/366927938: 837 m2 in a 2769 m2 box, 7.2 m thick",
+   "way/386810509: 208 m2 in a 1062 m2 box, 2.3 m thick",
+   "way/386810511: 186 m2 in a 1703 m2 box, 1.6 m thick",
+   "way/386810512: 210 m2 in a 1511 m2 box, 2.2 m thick",
+   "way/386810513: 255 m2 in a 3032 m2 box, 1.8 m thick",
+   "way/386810516: 337 m2 in a 3766 m2 box, 2.2 m thick",
+   "way/386810518: 267 m2 in a 3668 m2 box, 1.8 m thick",
+   "way/386810520: 173 m2 in a 1070 m2 box, 1.9 m thick",
+   "way/386810523: 303 m2 in a 3136 m2 box, 2.0 m thick",
+   "way/386810526: 271 m2 in a 3960 m2 box, 2.0 m thick",
+   "way/386810528: 241 m2 in a 2387 m2 box, 1.9 m thick",
+   "way/386810530: 153 m2 in a 675 m2 box, 2.1 m thick",
+   "way/479874874: 457 m2 in a 1619 m2 box, 4.5 m thick",
+   "way/503801200: 86 m2 in a 214 m2 box, 2.3 m thick",
+   "way/528625728: 73 m2 in a 160 m2 box, 2.8 m thick",
+   "way/528879011: 205 m2 in a 752 m2 box, 2.6 m thick",
+   "way/533057429: 153 m2 in a 300 m2 box, 3.7 m thick",
+   "way/548756542: 37 m2 in a 82 m2 box, 2.2 m thick",
+   "way/548902600: 67 m2 in a 130 m2 box, 2.6 m thick",
+   "way/552232704: 3625 m2 in a 12440 m2 box, 16.7 m thick",
+   "way/552232705: 630 m2 in a 1232 m2 box, 4.1 m thick",
+   "way/665011682: 76 m2 in a 140 m2 box, 2.4 m thick",
+   "way/693339015: 202 m2 in a 713 m2 box, 2.0 m thick",
+   "way/693339019: 121 m2 in a 297 m2 box, 2.3 m thick",
+   "way/832149478: 229 m2 in a 477 m2 box, 3.7 m thick",
+   "way/836715827: 31 m2 in a 67 m2 box, 1.6 m thick",
+   "way/836715828: 20 m2 in a 50 m2 box, 1.3 m thick",
+   "way/836716733: 31 m2 in a 60 m2 box, 1.8 m thick",
+   "way/836716734: 23 m2 in a 62 m2 box, 1.6 m thick",
+   "way/836783445: 135 m2 in a 442 m2 box, 3.2 m thick",
+   "way/839015659: 238 m2 in a 1315 m2 box, 3.0 m thick",
+   "way/887148353: 1287 m2 in a 2928 m2 box, 10.9 m thick",
+   "way/913459045: 145 m2 in a 283 m2 box, 4.5 m thick",
+   "way/913459046: 430 m2 in a 1593 m2 box, 4.6 m thick",
+   "way/913859250: 100 m2 in a 196 m2 box, 2.8 m thick",
+   "way/919871676: 1036 m2 in a 2080 m2 box, 9.6 m thick",
+   "way/920119414: 61 m2 in a 377 m2 box, 1.5 m thick",
+   "way/920119419: 65 m2 in a 310 m2 box, 1.4 m thick",
+   "way/923345351: 40 m2 in a 86 m2 box, 2.1 m thick",
+   "way/927519487: 100 m2 in a 273 m2 box, 3.0 m thick",
+   "way/928241923: 21 m2 in a 46 m2 box, 1.4 m thick",
+   "way/933172501: 68 m2 in a 137 m2 box, 2.9 m thick",
+   "way/941579017: 65 m2 in a 195 m2 box, 2.2 m thick",
+   "way/943997333: 38 m2 in a 75 m2 box, 2.4 m thick",
+   "way/943997337: 110 m2 in a 247 m2 box, 2.9 m thick",
+   "way/944205601: 67 m2 in a 170 m2 box, 2.1 m thick",
+   "way/946453156: 119 m2 in a 274 m2 box, 2.4 m thick",
+   "way/946453172: 23 m2 in a 75 m2 box, 1.4 m thick",
+   "way/948961771: 46 m2 in a 98 m2 box, 2.3 m thick",
+   "way/949339803: 74 m2 in a 159 m2 box, 3.3 m thick",
+   "way/993226851: 22 m2 in a 67 m2 box, 1.2 m thick",
+   "way/993226859: 73 m2 in a 139 m2 box, 2.6 m thick",
+   "way/1025768314: 69 m2 in a 183 m2 box, 2.6 m thick",
+   "way/1026749249: 537 m2 in a 2746 m2 box, 3.1 m thick",
+   "way/1052378329: 115 m2 in a 299 m2 box, 2.8 m thick",
+   "way/1052635129: 52 m2 in a 115 m2 box, 2.3 m thick",
+   "way/1056214169: 38 m2 in a 73 m2 box, 2.2 m thick",
+   "way/1056214198: 166 m2 in a 469 m2 box, 3.2 m thick",
+   "way/1056214223: 328 m2 in a 2730 m2 box, 2.9 m thick",
+   "way/1056891655: 52 m2 in a 100 m2 box, 2.5 m thick",
+   "way/1058089178: 1398 m2 in a 5519 m2 box, 4.7 m thick",
+   "way/1082827461: 98 m2 in a 228 m2 box, 3.2 m thick",
+   "way/1082827463: 134 m2 in a 246 m2 box, 4.6 m thick",
+   "way/1083293236: 67 m2 in a 200 m2 box, 2.3 m thick",
+   "way/1083851965: 131 m2 in a 405 m2 box, 3.1 m thick",
+   "way/1084494728: 73 m2 in a 234 m2 box, 2.3 m thick",
+   "way/1085583418: 68 m2 in a 172 m2 box, 2.5 m thick",
+   "way/1085593224: 42 m2 in a 97 m2 box, 1.4 m thick",
+   "way/1085593226: 15 m2 in a 31 m2 box, 1.3 m thick",
+   "way/1086157152: 76 m2 in a 151 m2 box, 3.0 m thick",
+   "way/1086177565: 97 m2 in a 261 m2 box, 2.9 m thick",
+   "way/1086219063: 153 m2 in a 499 m2 box, 2.7 m thick",
+   "way/1089559665: 261 m2 in a 1225 m2 box, 3.9 m thick",
+   "way/1095394915: 81 m2 in a 1246 m2 box, 0.9 m thick",
+   "way/1152880460: 132 m2 in a 397 m2 box, 3.1 m thick",
+   "way/1157581809: 272 m2 in a 794 m2 box, 3.2 m thick",
+   "way/1178035958: 17 m2 in a 35 m2 box, 1.2 m thick",
+   "way/1189826436: 249 m2 in a 861 m2 box, 3.1 m thick",
+   "way/1196042788: 360 m2 in a 735 m2 box, 5.3 m thick",
+   "way/1248900099: 93 m2 in a 321 m2 box, 2.4 m thick",
+   "way/1306339547: 116 m2 in a 375 m2 box, 2.8 m thick",
+   "way/1306339548: 81 m2 in a 156 m2 box, 2.5 m thick",
+   "way/1306339549: 238 m2 in a 444 m2 box, 4.9 m thick",
+   "way/1306339552: 36 m2 in a 67 m2 box, 2.0 m thick",
+   "way/1306339554: 256 m2 in a 682 m2 box, 4.0 m thick",
+   "way/1307285930: 110 m2 in a 281 m2 box, 3.2 m thick",
+   "way/1307285932: 207 m2 in a 462 m2 box, 4.4 m thick",
+   "way/1307285937: 72 m2 in a 156 m2 box, 2.6 m thick",
+   "way/1307285939: 137 m2 in a 519 m2 box, 2.2 m thick",
+   "way/1307285946: 401 m2 in a 2668 m2 box, 2.7 m thick",
+   "way/1319214579: 132 m2 in a 306 m2 box, 2.5 m thick",
+   "way/1319214586: 258 m2 in a 2032 m2 box, 2.0 m thick",
+   "way/1319214587: 351 m2 in a 1321 m2 box, 4.0 m thick",
+   "way/1319665302: 41 m2 in a 77 m2 box, 2.5 m thick",
+   "way/1323411423: 2161 m2 in a 77101 m2 box, 3.0 m thick",
+   "way/1323411447: 56 m2 in a 133 m2 box, 2.5 m thick",
+   "way/1323411448: 65 m2 in a 121 m2 box, 3.0 m thick",
+   "way/1323695807: 352 m2 in a 1111 m2 box, 2.6 m thick",
+   "way/1323695895: 56 m2 in a 120 m2 box, 2.3 m thick",
+   "way/1324678686: 217 m2 in a 1293 m2 box, 2.9 m thick",
+   "way/1327292459: 553 m2 in a 1979 m2 box, 5.3 m thick",
+   "way/1330744955: 171 m2 in a 936 m2 box, 1.7 m thick",
+   "way/1330744956: 33 m2 in a 148 m2 box, 1.4 m thick",
+   "way/1330744957: 68 m2 in a 248 m2 box, 1.4 m thick",
+   "way/1334845157: 80 m2 in a 212 m2 box, 2.5 m thick",
+   "way/1334845158: 110 m2 in a 408 m2 box, 2.3 m thick",
+   "way/1334845184: 1914 m2 in a 44249 m2 box, 3.8 m thick",
+   "way/1337736135: 810 m2 in a 2245 m2 box, 3.7 m thick",
+   "way/1337736138: 2202 m2 in a 38882 m2 box, 4.1 m thick",
+   "way/1340559811: 29 m2 in a 78 m2 box, 1.3 m thick",
+   "way/1341921169: 275 m2 in a 624 m2 box, 3.4 m thick",
+   "way/1341921170: 273 m2 in a 622 m2 box, 3.4 m thick",
+   "way/1342600905: 230 m2 in a 796 m2 box, 3.0 m thick",
+   "way/1342602694: 67 m2 in a 181 m2 box, 2.4 m thick",
+   "way/1343456702: 376 m2 in a 1664 m2 box, 3.1 m thick",
+   "way/1343456725: 434 m2 in a 1578 m2 box, 3.5 m thick",
+   "way/1343456727: 396 m2 in a 1084 m2 box, 3.7 m thick",
+   "way/1416725112: 65 m2 in a 177 m2 box, 2.4 m thick",
+   "way/1424247569 (Seilin vierasvenelaituri): 545 m2 in a 2076 m2 box, 3.8 m thick",
+   "way/1427467305: 171 m2 in a 451 m2 box, 2.0 m thick",
+   "way/1427467325: 97 m2 in a 302 m2 box, 2.6 m thick",
+   "way/1429186541: 91 m2 in a 328 m2 box, 2.1 m thick",
+   "way/1429186559: 33 m2 in a 85 m2 box, 1.0 m thick",
+   "way/1429186561: 70 m2 in a 235 m2 box, 2.3 m thick",
+   "way/1430006076: 79 m2 in a 257 m2 box, 2.3 m thick",
+   "way/1430006077: 19 m2 in a 43 m2 box, 1.3 m thick",
+   "way/1430006078: 183 m2 in a 1251 m2 box, 1.9 m thick",
+   "way/1430006081: 36 m2 in a 75 m2 box, 1.4 m thick",
+   "way/1431794236: 28 m2 in a 52 m2 box, 1.9 m thick",
+   "way/1432377602: 150 m2 in a 488 m2 box, 2.8 m thick",
+   "way/1432377607: 169 m2 in a 675 m2 box, 3.2 m thick",
+   "way/1436123218: 669 m2 in a 5154 m2 box, 3.6 m thick",
+   "way/1442283336: 154 m2 in a 655 m2 box, 3.2 m thick",
+   "way/1484079003: 133 m2 in a 446 m2 box, 2.4 m thick",
+   "way/1537770156 (Nagu Gästhamn): 1491 m2 in a 10120 m2 box, 4.1 m thick",
+   "way/1537772295: 264 m2 in a 626 m2 box, 4.9 m thick",
+   "way/1537772296: 339 m2 in a 2742 m2 box, 2.9 m thick",
+   "way/1537772504: 88 m2 in a 228 m2 box, 2.9 m thick"
+  ],
+  "roles": {
+   "harbour.sheltered": "Pargas Snäckviken",
+   "pier.exposed": "Ängholm pier",
+   "anchorage": "Nuikko anchorage"
+  }
+ },
+ "features": {
+  "farms": {},
+  "landmarks": {
+   "mast": 159,
+   "lighthouse": 10,
+   "tower": 113,
+   "monument": 4,
+   "chimney": 43,
+   "church": 53,
+   "water_tower": 10,
+   "castle": 2
+  },
+  "shore": {
+   "rock": 4212,
+   "sand": 27,
+   "beach": 52,
+   "shingle": 333
+  },
+  "cliffs": 1736,
+  "farmland": 5459,
+  "names": {
+   "city": 1,
+   "suburb": 151,
+   "neighbourhood": 190,
+   "hamlet": 149,
+   "town": 6,
+   "village": 36,
+   "locality": 54,
+   "island": 274,
+   "quarter": 2,
+   "farm": 47,
+   "isolated_dwelling": 340,
+   "bay": 239,
+   "cape": 151,
+   "strait": 58,
+   "peninsula": 3,
+   "islet": 511
+  },
+  "fogSignals": 0,
+  "wrecks": 1,
+  "cables": {
+   "cable": 434,
+   "pipeline": 69
+  },
+  "overhead": 32,
+  "overheadWithClearance": 0,
+  "ferryRoutes": 66,
+  "ferryTerminals": 43
+ },
+ "trees": {
+  "woodedKm2": {
+   "mixed": 360.77,
+   "natural": 125.97,
+   "scrub": 12.03,
+   "broadleaf": 0.95,
+   "plantation": 1.83,
+   "orchard": 0.55
+  },
+  "mappedKm2": {
+   "scrub": 15.98,
+   "mixed": 408.47,
+   "broadleaf": 1.15,
+   "orchard": 0.67,
+   "plantation": 2.11
+  },
+  "clearedCells": 388055,
+  "bytes": 827060
+ },
+ "dredgedCells": 24578,
+ "triangles": 1163921,
+ "deepTriangles": 21347,
+ "vertices": 618499,
+ "bytes": 27924964,
+ "chunks": [
+  {
+   "id": 0,
+   "triangles": 5011
+  },
+  {
+   "id": 1,
+   "triangles": 4273
+  },
+  {
+   "id": 2,
+   "triangles": 4736
+  },
+  {
+   "id": 3,
+   "triangles": 6056
+  },
+  {
+   "id": 4,
+   "triangles": 3778
+  },
+  {
+   "id": 5,
+   "triangles": 2210
+  },
+  {
+   "id": 6,
+   "triangles": 4987
+  },
+  {
+   "id": 7,
+   "triangles": 430
+  },
+  {
+   "id": 8,
+   "triangles": 111
+  },
+  {
+   "id": 9,
+   "triangles": 281
+  },
+  {
+   "id": 10,
+   "triangles": 148
+  },
+  {
+   "id": 11,
+   "triangles": 100
+  },
+  {
+   "id": 12,
+   "triangles": 77
+  },
+  {
+   "id": 13,
+   "triangles": 69
+  },
+  {
+   "id": 14,
+   "triangles": 76
+  },
+  {
+   "id": 15,
+   "triangles": 41
+  },
+  {
+   "id": 16,
+   "triangles": 81
+  },
+  {
+   "id": 17,
+   "triangles": 88
+  },
+  {
+   "id": 18,
+   "triangles": 98
+  },
+  {
+   "id": 19,
+   "triangles": 3027
+  },
+  {
+   "id": 20,
+   "triangles": 3058
+  },
+  {
+   "id": 21,
+   "triangles": 2923
+  },
+  {
+   "id": 22,
+   "triangles": 9184
+  },
+  {
+   "id": 23,
+   "triangles": 3342
+  },
+  {
+   "id": 24,
+   "triangles": 3665
+  },
+  {
+   "id": 25,
+   "triangles": 7452
+  },
+  {
+   "id": 26,
+   "triangles": 593
+  },
+  {
+   "id": 27,
+   "triangles": 258
+  },
+  {
+   "id": 28,
+   "triangles": 2518
+  },
+  {
+   "id": 29,
+   "triangles": 75
+  },
+  {
+   "id": 30,
+   "triangles": 23
+  },
+  {
+   "id": 31,
+   "triangles": 10
+  },
+  {
+   "id": 32,
+   "triangles": 29
+  },
+  {
+   "id": 33,
+   "triangles": 12
+  },
+  {
+   "id": 34,
+   "triangles": 2
+  },
+  {
+   "id": 35,
+   "triangles": 6
+  },
+  {
+   "id": 36,
+   "triangles": 17
+  },
+  {
+   "id": 37,
+   "triangles": 81
+  },
+  {
+   "id": 38,
+   "triangles": 4262
+  },
+  {
+   "id": 39,
+   "triangles": 6818
+  },
+  {
+   "id": 40,
+   "triangles": 41
+  },
+  {
+   "id": 41,
+   "triangles": 4078
+  },
+  {
+   "id": 42,
+   "triangles": 6081
+  },
+  {
+   "id": 43,
+   "triangles": 1457
+  },
+  {
+   "id": 44,
+   "triangles": 4254
+  },
+  {
+   "id": 45,
+   "triangles": 3545
+  },
+  {
+   "id": 46,
+   "triangles": 2756
+  },
+  {
+   "id": 47,
+   "triangles": 4844
+  },
+  {
+   "id": 48,
+   "triangles": 590
+  },
+  {
+   "id": 49,
+   "triangles": 835
+  },
+  {
+   "id": 50,
+   "triangles": 112
+  },
+  {
+   "id": 51,
+   "triangles": 57
+  },
+  {
+   "id": 52,
+   "triangles": 3
+  },
+  {
+   "id": 53,
+   "triangles": 2
+  },
+  {
+   "id": 55,
+   "triangles": 3
+  },
+  {
+   "id": 56,
+   "triangles": 51
+  },
+  {
+   "id": 57,
+   "triangles": 2615
+  },
+  {
+   "id": 58,
+   "triangles": 7570
+  },
+  {
+   "id": 59,
+   "triangles": 439
+  },
+  {
+   "id": 60,
+   "triangles": 83
+  },
+  {
+   "id": 61,
+   "triangles": 5636
+  },
+  {
+   "id": 62,
+   "triangles": 3392
+  },
+  {
+   "id": 63,
+   "triangles": 1991
+  },
+  {
+   "id": 64,
+   "triangles": 5579
+  },
+  {
+   "id": 65,
+   "triangles": 2036
+  },
+  {
+   "id": 66,
+   "triangles": 4860
+  },
+  {
+   "id": 67,
+   "triangles": 5937
+  },
+  {
+   "id": 68,
+   "triangles": 8095
+  },
+  {
+   "id": 69,
+   "triangles": 3502
+  },
+  {
+   "id": 70,
+   "triangles": 59
+  },
+  {
+   "id": 71,
+   "triangles": 6
+  },
+  {
+   "id": 73,
+   "triangles": 1
+  },
+  {
+   "id": 74,
+   "triangles": 27
+  },
+  {
+   "id": 75,
+   "triangles": 116
+  },
+  {
+   "id": 76,
+   "triangles": 3980
+  },
+  {
+   "id": 77,
+   "triangles": 7513
+  },
+  {
+   "id": 78,
+   "triangles": 6726
+  },
+  {
+   "id": 79,
+   "triangles": 1328
+  },
+  {
+   "id": 80,
+   "triangles": 2449
+  },
+  {
+   "id": 81,
+   "triangles": 4283
+  },
+  {
+   "id": 82,
+   "triangles": 5020
+  },
+  {
+   "id": 83,
+   "triangles": 6915
+  },
+  {
+   "id": 84,
+   "triangles": 5386
+  },
+  {
+   "id": 85,
+   "triangles": 6761
+  },
+  {
+   "id": 86,
+   "triangles": 7767
+  },
+  {
+   "id": 87,
+   "triangles": 3848
+  },
+  {
+   "id": 88,
+   "triangles": 4611
+  },
+  {
+   "id": 89,
+   "triangles": 2085
+  },
+  {
+   "id": 90,
+   "triangles": 86
+  },
+  {
+   "id": 91,
+   "triangles": 2
+  },
+  {
+   "id": 92,
+   "triangles": 3
+  },
+  {
+   "id": 93,
+   "triangles": 90
+  },
+  {
+   "id": 94,
+   "triangles": 394
+  },
+  {
+   "id": 95,
+   "triangles": 6585
+  },
+  {
+   "id": 96,
+   "triangles": 1137
+  },
+  {
+   "id": 97,
+   "triangles": 285
+  },
+  {
+   "id": 98,
+   "triangles": 8104
+  },
+  {
+   "id": 99,
+   "triangles": 6330
+  },
+  {
+   "id": 100,
+   "triangles": 9922
+  },
+  {
+   "id": 101,
+   "triangles": 2781
+  },
+  {
+   "id": 102,
+   "triangles": 4552
+  },
+  {
+   "id": 103,
+   "triangles": 9
+  },
+  {
+   "id": 104,
+   "triangles": 2396
+  },
+  {
+   "id": 105,
+   "triangles": 10392
+  },
+  {
+   "id": 106,
+   "triangles": 1146
+  },
+  {
+   "id": 107,
+   "triangles": 1479
+  },
+  {
+   "id": 108,
+   "triangles": 8333
+  },
+  {
+   "id": 109,
+   "triangles": 588
+  },
+  {
+   "id": 110,
+   "triangles": 1242
+  },
+  {
+   "id": 111,
+   "triangles": 4200
+  },
+  {
+   "id": 112,
+   "triangles": 5162
+  },
+  {
+   "id": 113,
+   "triangles": 1232
+  },
+  {
+   "id": 114,
+   "triangles": 4583
+  },
+  {
+   "id": 115,
+   "triangles": 5505
+  },
+  {
+   "id": 116,
+   "triangles": 372
+  },
+  {
+   "id": 117,
+   "triangles": 325
+  },
+  {
+   "id": 118,
+   "triangles": 4261
+  },
+  {
+   "id": 119,
+   "triangles": 6586
+  },
+  {
+   "id": 120,
+   "triangles": 4487
+  },
+  {
+   "id": 121,
+   "triangles": 4731
+  },
+  {
+   "id": 122,
+   "triangles": 670
+  },
+  {
+   "id": 123,
+   "triangles": 7607
+  },
+  {
+   "id": 124,
+   "triangles": 6995
+  },
+  {
+   "id": 125,
+   "triangles": 6129
+  },
+  {
+   "id": 126,
+   "triangles": 9874
+  },
+  {
+   "id": 127,
+   "triangles": 8430
+  },
+  {
+   "id": 128,
+   "triangles": 5952
+  },
+  {
+   "id": 129,
+   "triangles": 3888
+  },
+  {
+   "id": 130,
+   "triangles": 1983
+  },
+  {
+   "id": 131,
+   "triangles": 2929
+  },
+  {
+   "id": 132,
+   "triangles": 790
+  },
+  {
+   "id": 133,
+   "triangles": 1177
+  },
+  {
+   "id": 134,
+   "triangles": 7539
+  },
+  {
+   "id": 135,
+   "triangles": 6495
+  },
+  {
+   "id": 136,
+   "triangles": 6519
+  },
+  {
+   "id": 137,
+   "triangles": 1408
+  },
+  {
+   "id": 138,
+   "triangles": 3959
+  },
+  {
+   "id": 139,
+   "triangles": 10035
+  },
+  {
+   "id": 140,
+   "triangles": 2637
+  },
+  {
+   "id": 141,
+   "triangles": 646
+  },
+  {
+   "id": 142,
+   "triangles": 5169
+  },
+  {
+   "id": 143,
+   "triangles": 5398
+  },
+  {
+   "id": 144,
+   "triangles": 5891
+  },
+  {
+   "id": 145,
+   "triangles": 2642
+  },
+  {
+   "id": 146,
+   "triangles": 565
+  },
+  {
+   "id": 147,
+   "triangles": 8396
+  },
+  {
+   "id": 148,
+   "triangles": 6935
+  },
+  {
+   "id": 149,
+   "triangles": 5154
+  },
+  {
+   "id": 150,
+   "triangles": 8465
+  },
+  {
+   "id": 151,
+   "triangles": 1940
+  },
+  {
+   "id": 152,
+   "triangles": 1179
+  },
+  {
+   "id": 153,
+   "triangles": 1576
+  },
+  {
+   "id": 154,
+   "triangles": 9320
+  },
+  {
+   "id": 155,
+   "triangles": 6251
+  },
+  {
+   "id": 156,
+   "triangles": 3318
+  },
+  {
+   "id": 157,
+   "triangles": 4565
+  },
+  {
+   "id": 158,
+   "triangles": 5661
+  },
+  {
+   "id": 159,
+   "triangles": 2502
+  },
+  {
+   "id": 160,
+   "triangles": 1822
+  },
+  {
+   "id": 161,
+   "triangles": 3220
+  },
+  {
+   "id": 162,
+   "triangles": 8512
+  },
+  {
+   "id": 163,
+   "triangles": 3488
+  },
+  {
+   "id": 164,
+   "triangles": 3909
+  },
+  {
+   "id": 165,
+   "triangles": 4215
+  },
+  {
+   "id": 166,
+   "triangles": 3113
+  },
+  {
+   "id": 167,
+   "triangles": 2867
+  },
+  {
+   "id": 168,
+   "triangles": 88
+  },
+  {
+   "id": 169,
+   "triangles": 2970
+  },
+  {
+   "id": 170,
+   "triangles": 1565
+  },
+  {
+   "id": 171,
+   "triangles": 2861
+  },
+  {
+   "id": 172,
+   "triangles": 2384
+  },
+  {
+   "id": 173,
+   "triangles": 7020
+  },
+  {
+   "id": 174,
+   "triangles": 5219
+  },
+  {
+   "id": 175,
+   "triangles": 6113
+  },
+  {
+   "id": 176,
+   "triangles": 3733
+  },
+  {
+   "id": 177,
+   "triangles": 5801
+  },
+  {
+   "id": 178,
+   "triangles": 922
+  },
+  {
+   "id": 179,
+   "triangles": 1483
+  },
+  {
+   "id": 180,
+   "triangles": 7138
+  },
+  {
+   "id": 181,
+   "triangles": 4408
+  },
+  {
+   "id": 182,
+   "triangles": 5795
+  },
+  {
+   "id": 183,
+   "triangles": 3564
+  },
+  {
+   "id": 184,
+   "triangles": 5874
+  },
+  {
+   "id": 185,
+   "triangles": 6098
+  },
+  {
+   "id": 186,
+   "triangles": 4605
+  },
+  {
+   "id": 187,
+   "triangles": 5043
+  },
+  {
+   "id": 188,
+   "triangles": 676
+  },
+  {
+   "id": 189,
+   "triangles": 160
+  },
+  {
+   "id": 190,
+   "triangles": 1555
+  },
+  {
+   "id": 191,
+   "triangles": 3968
+  },
+  {
+   "id": 192,
+   "triangles": 4288
+  },
+  {
+   "id": 193,
+   "triangles": 5776
+  },
+  {
+   "id": 194,
+   "triangles": 8862
+  },
+  {
+   "id": 195,
+   "triangles": 7620
+  },
+  {
+   "id": 196,
+   "triangles": 3919
+  },
+  {
+   "id": 197,
+   "triangles": 1167
+  },
+  {
+   "id": 198,
+   "triangles": 1805
+  },
+  {
+   "id": 199,
+   "triangles": 1947
+  },
+  {
+   "id": 200,
+   "triangles": 62
+  },
+  {
+   "id": 201,
+   "triangles": 62
+  },
+  {
+   "id": 202,
+   "triangles": 69
+  },
+  {
+   "id": 203,
+   "triangles": 386
+  },
+  {
+   "id": 204,
+   "triangles": 5200
+  },
+  {
+   "id": 205,
+   "triangles": 1924
+  },
+  {
+   "id": 206,
+   "triangles": 3832
+  },
+  {
+   "id": 207,
+   "triangles": 2814
+  },
+  {
+   "id": 208,
+   "triangles": 1224
+  },
+  {
+   "id": 209,
+   "triangles": 1359
+  },
+  {
+   "id": 210,
+   "triangles": 6977
+  },
+  {
+   "id": 211,
+   "triangles": 5091
+  },
+  {
+   "id": 212,
+   "triangles": 8585
+  },
+  {
+   "id": 213,
+   "triangles": 2502
+  },
+  {
+   "id": 214,
+   "triangles": 5446
+  },
+  {
+   "id": 215,
+   "triangles": 550
+  },
+  {
+   "id": 216,
+   "triangles": 113
+  },
+  {
+   "id": 217,
+   "triangles": 3122
+  },
+  {
+   "id": 218,
+   "triangles": 254
+  },
+  {
+   "id": 219,
+   "triangles": 69
+  },
+  {
+   "id": 220,
+   "triangles": 490
+  },
+  {
+   "id": 221,
+   "triangles": 32
+  },
+  {
+   "id": 222,
+   "triangles": 180
+  },
+  {
+   "id": 223,
+   "triangles": 6006
+  },
+  {
+   "id": 224,
+   "triangles": 7173
+  },
+  {
+   "id": 225,
+   "triangles": 5990
+  },
+  {
+   "id": 226,
+   "triangles": 2098
+  },
+  {
+   "id": 227,
+   "triangles": 849
+  },
+  {
+   "id": 228,
+   "triangles": 2941
+  },
+  {
+   "id": 229,
+   "triangles": 4892
+  },
+  {
+   "id": 230,
+   "triangles": 757
+  },
+  {
+   "id": 231,
+   "triangles": 6746
+  },
+  {
+   "id": 232,
+   "triangles": 6122
+  },
+  {
+   "id": 233,
+   "triangles": 1108
+  },
+  {
+   "id": 234,
+   "triangles": 11
+  },
+  {
+   "id": 235,
+   "triangles": 565
+  },
+  {
+   "id": 236,
+   "triangles": 2135
+  },
+  {
+   "id": 237,
+   "triangles": 5382
+  },
+  {
+   "id": 238,
+   "triangles": 3417
+  },
+  {
+   "id": 239,
+   "triangles": 7419
+  },
+  {
+   "id": 240,
+   "triangles": 2595
+  },
+  {
+   "id": 241,
+   "triangles": 5322
+  },
+  {
+   "id": 242,
+   "triangles": 4529
+  },
+  {
+   "id": 243,
+   "triangles": 8196
+  },
+  {
+   "id": 244,
+   "triangles": 1200
+  },
+  {
+   "id": 245,
+   "triangles": 2693
+  },
+  {
+   "id": 246,
+   "triangles": 1549
+  },
+  {
+   "id": 247,
+   "triangles": 778
+  },
+  {
+   "id": 248,
+   "triangles": 167
+  },
+  {
+   "id": 249,
+   "triangles": 351
+  },
+  {
+   "id": 250,
+   "triangles": 230
+  },
+  {
+   "id": 251,
+   "triangles": 1132
+  },
+  {
+   "id": 252,
+   "triangles": 586
+  },
+  {
+   "id": 253,
+   "triangles": 689
+  },
+  {
+   "id": 254,
+   "triangles": 544
+  },
+  {
+   "id": 255,
+   "triangles": 685
+  },
+  {
+   "id": 256,
+   "triangles": 4646
+  },
+  {
+   "id": 257,
+   "triangles": 3933
+  },
+  {
+   "id": 258,
+   "triangles": 9385
+  },
+  {
+   "id": 259,
+   "triangles": 6904
+  },
+  {
+   "id": 260,
+   "triangles": 2476
+  },
+  {
+   "id": 261,
+   "triangles": 5730
+  },
+  {
+   "id": 262,
+   "triangles": 1474
+  },
+  {
+   "id": 263,
+   "triangles": 411
+  },
+  {
+   "id": 264,
+   "triangles": 4616
+  },
+  {
+   "id": 265,
+   "triangles": 132
+  },
+  {
+   "id": 266,
+   "triangles": 1545
+  },
+  {
+   "id": 267,
+   "triangles": 563
+  },
+  {
+   "id": 268,
+   "triangles": 691
+  },
+  {
+   "id": 269,
+   "triangles": 4243
+  },
+  {
+   "id": 270,
+   "triangles": 6508
+  },
+  {
+   "id": 271,
+   "triangles": 2543
+  },
+  {
+   "id": 272,
+   "triangles": 2430
+  },
+  {
+   "id": 273,
+   "triangles": 1305
+  },
+  {
+   "id": 274,
+   "triangles": 1216
+  },
+  {
+   "id": 275,
+   "triangles": 2597
+  },
+  {
+   "id": 276,
+   "triangles": 3830
+  },
+  {
+   "id": 277,
+   "triangles": 6155
+  },
+  {
+   "id": 278,
+   "triangles": 3760
+  },
+  {
+   "id": 279,
+   "triangles": 5
+  },
+  {
+   "id": 280,
+   "triangles": 2882
+  },
+  {
+   "id": 281,
+   "triangles": 6043
+  },
+  {
+   "id": 282,
+   "triangles": 5108
+  },
+  {
+   "id": 283,
+   "triangles": 789
+  },
+  {
+   "id": 284,
+   "triangles": 2
+  },
+  {
+   "id": 285,
+   "triangles": 2574
+  },
+  {
+   "id": 286,
+   "triangles": 6762
+  },
+  {
+   "id": 287,
+   "triangles": 6204
+  },
+  {
+   "id": 288,
+   "triangles": 2563
+  },
+  {
+   "id": 289,
+   "triangles": 8867
+  },
+  {
+   "id": 290,
+   "triangles": 8055
+  },
+  {
+   "id": 291,
+   "triangles": 4855
+  },
+  {
+   "id": 292,
+   "triangles": 4878
+  },
+  {
+   "id": 293,
+   "triangles": 5220
+  },
+  {
+   "id": 294,
+   "triangles": 1312
+  },
+  {
+   "id": 295,
+   "triangles": 2439
+  },
+  {
+   "id": 296,
+   "triangles": 4658
+  },
+  {
+   "id": 297,
+   "triangles": 1212
+  },
+  {
+   "id": 298,
+   "triangles": 362
+  },
+  {
+   "id": 299,
+   "triangles": 6022
+  },
+  {
+   "id": 300,
+   "triangles": 5383
+  },
+  {
+   "id": 301,
+   "triangles": 4497
+  },
+  {
+   "id": 302,
+   "triangles": 542
+  },
+  {
+   "id": 303,
+   "triangles": 2
+  },
+  {
+   "id": 304,
+   "triangles": 493
+  },
+  {
+   "id": 305,
+   "triangles": 4552
+  },
+  {
+   "id": 306,
+   "triangles": 7102
+  },
+  {
+   "id": 307,
+   "triangles": 6360
+  },
+  {
+   "id": 308,
+   "triangles": 8955
+  },
+  {
+   "id": 309,
+   "triangles": 8146
+  },
+  {
+   "id": 310,
+   "triangles": 5228
+  },
+  {
+   "id": 311,
+   "triangles": 1994
+  },
+  {
+   "id": 312,
+   "triangles": 5814
+  },
+  {
+   "id": 313,
+   "triangles": 1706
+  },
+  {
+   "id": 314,
+   "triangles": 1030
+  },
+  {
+   "id": 315,
+   "triangles": 6654
+  },
+  {
+   "id": 316,
+   "triangles": 1049
+  },
+  {
+   "id": 317,
+   "triangles": 5423
+  },
+  {
+   "id": 318,
+   "triangles": 3792
+  },
+  {
+   "id": 319,
+   "triangles": 3188
+  },
+  {
+   "id": 320,
+   "triangles": 1213
+  },
+  {
+   "id": 321,
+   "triangles": 74
+  },
+  {
+   "id": 322,
+   "triangles": 83
+  },
+  {
+   "id": 323,
+   "triangles": 165
+  },
+  {
+   "id": 324,
+   "triangles": 1200
+  },
+  {
+   "id": 325,
+   "triangles": 8079
+  },
+  {
+   "id": 326,
+   "triangles": 9260
+  },
+  {
+   "id": 327,
+   "triangles": 8940
+  },
+  {
+   "id": 328,
+   "triangles": 2234
+  },
+  {
+   "id": 329,
+   "triangles": 330
+  },
+  {
+   "id": 330,
+   "triangles": 5418
+  },
+  {
+   "id": 331,
+   "triangles": 3676
+  },
+  {
+   "id": 332,
+   "triangles": 1548
+  },
+  {
+   "id": 333,
+   "triangles": 3435
+  },
+  {
+   "id": 334,
+   "triangles": 2362
+  },
+  {
+   "id": 335,
+   "triangles": 4601
+  },
+  {
+   "id": 336,
+   "triangles": 1901
+  },
+  {
+   "id": 337,
+   "triangles": 1071
+  },
+  {
+   "id": 338,
+   "triangles": 246
+  },
+  {
+   "id": 339,
+   "triangles": 513
+  },
+  {
+   "id": 340,
+   "triangles": 1593
+  },
+  {
+   "id": 341,
+   "triangles": 1231
+  },
+  {
+   "id": 342,
+   "triangles": 2848
+  },
+  {
+   "id": 343,
+   "triangles": 4958
+  },
+  {
+   "id": 344,
+   "triangles": 6401
+  },
+  {
+   "id": 345,
+   "triangles": 4610
+  },
+  {
+   "id": 346,
+   "triangles": 4181
+  },
+  {
+   "id": 347,
+   "triangles": 2150
+  },
+  {
+   "id": 348,
+   "triangles": 508
+  },
+  {
+   "id": 349,
+   "triangles": 4060
+  },
+  {
+   "id": 350,
+   "triangles": 1636
+  },
+  {
+   "id": 351,
+   "triangles": 771
+  },
+  {
+   "id": 352,
+   "triangles": 1917
+  },
+  {
+   "id": 353,
+   "triangles": 2319
+  },
+  {
+   "id": 354,
+   "triangles": 692
+  },
+  {
+   "id": 355,
+   "triangles": 2545
+  },
+  {
+   "id": 356,
+   "triangles": 1632
+  },
+  {
+   "id": 357,
+   "triangles": 2154
+  },
+  {
+   "id": 358,
+   "triangles": 737
+  },
+  {
+   "id": 359,
+   "triangles": 2268
+  },
+  {
+   "id": 360,
+   "triangles": 553
+  }
+ ],
+ "landShare": 0.6157843533227273,
+ "seenFromWater": 0.62,
+ "coastPoints": 85658,
+ "shoreBandPoints": 131079,
+ "chunkBudget": 12000,
+ "package": {
+  "ports": 48,
+  "berths": 90,
+  "blocks": 3276,
+  "buildings": 8357,
+  "marks": 516,
+  "lights": 53,
+  "slipways": 6,
+  "fishingGrounds": 1,
+  "pottingGrounds": 215,
+  "landmarks": [
+   "Varisvuori",
+   "Rajakari Fl(1)RWG.4s"
+  ],
+  "bytes": 2563411
+ }
+}

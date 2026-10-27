@@ -9,6 +9,7 @@
  *   bridges     roads and railways bridging the sea (at least `bridgeWater` m of it): deck
  *               line, width, name, structure (cantilever, arch, beam ...)
  *   follies     follies mapped as buildings (McCaig's Tower), with their footprint
+ *   gantries    a shipyard's gantry cranes over its building dock (Perno), from their track's area
  *   landmarks   castles, towers, masts, chimneys, water towers, monuments, lighthouses,
  *               wind turbines, churches: where, and their height where tagged (C2)
  *   shore       beaches by surface (sand, shingle, pebbles...), shingle, bare rock, and
@@ -48,6 +49,8 @@ const T = {
   bridgeMinWidth: 4,
   /** A folly is built as a ring of arches only when it spans at least this (m): McCaig's Tower (58 m); a garden grotto (5 m) isn't one. */
   follyMinSpan: 25,
+  /** A gantry crane this wide between its rails or more (m) is a landmark (a shipyard's goliath). */
+  gantryMinSpan: 40,
   /** An island or archipelago whose outline spans more than this (m) isn't named: bigger than any map. */
   biggestIsland: 60000,
 };
@@ -400,7 +403,39 @@ for (const t of things) {
   follies.push({ name: nameOf(t.tags), outline: simplify(ring, 0.5), height: heightOf(t.tags) });
 }
 
-const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
+// Gantry cranes over a building dock (Perno, Turku): the map draws their track as an area.
+// Its long side is the way the gantry runs; across it, the span between the rails. `count`
+// gantries share the track. Only the big ones (a span of `gantryMinSpan` m or more).
+/** An area's box along its longest edge: its middle, the bearing of that edge (deg, 0-180), its length along it and width across. */
+function edgeBox(ring: XZ[]): { x: number; z: number; yawDeg: number; length: number; width: number } {
+  let best = [0, 0];
+  let bestLen = 0;
+  for (let i = 1; i < ring.length; i++) {
+    const d = [ring[i][0] - ring[i - 1][0], ring[i][1] - ring[i - 1][1]];
+    const l = Math.hypot(d[0], d[1]);
+    if (l > bestLen) [best, bestLen] = [[d[0] / l, d[1] / l], l];
+  }
+  const along = ring.map(([x, z]) => x * best[0] + z * best[1]);
+  const across = ring.map(([x, z]) => -x * best[1] + z * best[0]);
+  const [a0, a1, c0, c1] = [Math.min(...along), Math.max(...along), Math.min(...across), Math.max(...across)];
+  const [ma, mc] = [(a0 + a1) / 2, (c0 + c1) / 2];
+  return { x: ma * best[0] - mc * best[1], z: ma * best[1] + mc * best[0], yawDeg: Math.round(((Math.atan2(best[0], -best[1]) * 180) / Math.PI + 360) % 180), length: Math.round(a1 - a0), width: Math.round(c1 - c0) };
+}
+const gantries: { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[] = [];
+// A shipyard's building docks (for the yard's ships under construction: package.ts `yardShips`).
+const drydocks: { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[] = [];
+for (const t of things) {
+  if (t.kind === 'node') continue;
+  const crane = t.tags.man_made === 'crane' && t.tags['crane:type'] === 'gantry_crane';
+  const dock = t.tags.waterway === 'dock' && t.tags.dock === 'drydock';
+  if (!crane && !dock) continue;
+  const ring = t.lines.filter((l) => l.length > 3).sort((a, b) => area(b) - area(a))[0];
+  if (!ring || !inBox(middle(ring))) continue;
+  const b = edgeBox(ring);
+  if (dock) drydocks.push({ name: nameOf(t.tags), ...b });
+  else if (b.width >= T.gantryMinSpan) gantries.push({ name: nameOf(t.tags), x: b.x, z: b.z, yawDeg: b.yawDeg, length: b.length, span: b.width, count: Math.max(1, Number.parseInt(t.tags.count ?? '1', 10) || 1) });
+}
+const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, drydocks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
 writeFileSync(join(D.out, 'features.json'), JSON.stringify(out));
 
 // Thin data, said plainly in the report (the milestones that use it have little to work with).

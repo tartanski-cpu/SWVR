@@ -33,6 +33,8 @@ describe('codes', () => {
 describe('raked out all round', () => {
   it('every hull type: the walls lean out by the rake over the window band; the floor and below the sill stay put; the aft door hinged; no side door', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      // (Not a one-off whose house is fixed: the solar catamaran.)
+      if ('flare' in (DESIGN_HULLS[hull].fixed ?? {})) continue;
       const b = useDesign(typeOf(hull, { flare: 1, sideDoor: 1, houseWidth: 0.8 }));
       expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
       const wh = VESSEL_DEFS.design.layout.wheelhouse!;

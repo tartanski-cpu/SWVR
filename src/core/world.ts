@@ -121,6 +121,10 @@ export interface WorldState {
     app?: string;
     /** Voyage mode: the host's map (world/maps.ts); a crew-mate on another map reloads into it. */
     map?: string;
+    /** The host's game (mode.ts): a crew-mate on the other one reloads into it (absent: older hosts; `map` says Voyage). */
+    mode?: 'career' | 'voyage';
+    /** The host's address, its folder (/SWVR/, /SWVR/next/, a preview's): a crew-mate on another goes to it. */
+    site?: string;
   };
   /**
    * No new emergency calls (rescues, tows, fires) while set: the menu's Voyage tab,

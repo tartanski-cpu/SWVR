@@ -93,7 +93,7 @@ export const DESIGN_VERSION = 32;
  * How many hull types there are (build.ts DESIGN_HULLS). The code's first 16 characters
  * hold the first four; the rest ride in its extension (MORE_HULLS, version 16).
  */
-export const HULL_TYPES = 8;
+export const HULL_TYPES = 9;
 /** Hull types the first 16 characters hold. */
 const BASE_HULLS = 4;
 /**
@@ -106,7 +106,7 @@ export const CODE_HULLS = 5;
 const MORE_HULLS = CODE_HULLS - BASE_HULLS + 1;
 
 /** How many engines there are (build.ts ENGINES); the first 16 characters hold the first three, the rest ride in the extension (version 18). */
-export const ENGINE_TYPES = 6;
+export const ENGINE_TYPES = 7;
 const BASE_ENGINES = 3;
 /**
  * Engines the code holds at all: the first four. Later ones (the 750 kW diesel, Oct 2026) aren't
@@ -124,8 +124,8 @@ const MORE_ENGINES = CODE_ENGINES - BASE_ENGINES + 1;
 export const SINGLE_ONLY_ENGINES: readonly number[] = [];
 /** Engines that go on a shaft only (no stern drive or pod drives): the tug diesel, the 750 kW and the 1,850 kW diesels, for their big slow propellers. */
 export const SHAFT_ONLY_ENGINES: readonly number[] = [3, 4, 5];
-/** Engines only one hull type takes (build.ts ENGINES `only`): the harbour tug's 1850 kW. Not tried for a brief. */
-export const ONE_TYPE_ENGINES: readonly number[] = [5];
+/** Engines only one hull type takes (build.ts ENGINES `only`): the harbour tug's 1850 kW, the solar catamaran's electric pod motors. Not tried for a brief. */
+export const ONE_TYPE_ENGINES: readonly number[] = [5, 6];
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign extends Record<FurnitureField, number>, Record<ConsoleKey, number> {
@@ -317,6 +317,16 @@ export interface ShipDesign extends Record<FurnitureField, number>, Record<Conso
   bowFender: number;
   /** Her hull's finish (owner, Oct 2026): 0 well used, 1 worked, 2 as new (FINISHES; CONFIG.shipyard.finish). Not in the code. */
   finish: number;
+  /** A service livery's markings on her topsides (owner, 26 Oct 2026): 0 none, then police, fire, rescue, coastguard (MARKING_STEPS; parts/markings.ts). Not in the code. */
+  markings: number;
+  /** Her battery (the solar catamaran's; owner, 26 Oct 2026: her one choice): 20 to 200 kWh in tens (batteryKWh; its weight and price CONFIG.shipyard.solarCat). Not in the code. */
+  battery: number;
+  /**
+   * The front below the windows sloped back from its foot (deg from upright; owner, 27 Oct 2026,
+   * the solar catamaran: "kicked out at quite a steep angle in front of the windows ... the solar
+   * panels are on top of that sloped part"): 0 upright .. 75, KICK_STEPS of 5°. Not in the code.
+   */
+  kick: number;
   /** Her aft windows in three facets as the front's can be (owner, Oct 2026: "rear windows faceted in the same way"): 0 flat, 1 faceted. Not in the code. */
   aftFacets: number;
   /**
@@ -627,6 +637,20 @@ const BOW_FENDER_FIELD: { key: 'bowFender'; steps: number } = { key: 'bowFender'
 /** Her hull's finish (design.finish), as the page names it, in the design's order (well used first: as every boat was before). */
 export const FINISHES = ['Well used', 'Worked', 'As new'] as const;
 const FINISH_FIELD: { key: 'finish'; steps: number } = { key: 'finish', steps: FINISHES.length };
+/** Her service livery's markings (design.markings): none and the services (parts/markings.ts SERVICE_LIVERIES; a test keeps them the same). */
+export const MARKING_STEPS = 5;
+const MARKINGS_FIELD: { key: 'markings'; steps: number } = { key: 'markings', steps: MARKING_STEPS };
+/** Her battery's steps (design.battery): 20 to 200 kWh in tens. */
+export const BATTERY_STEPS = 19;
+/** Her battery (kWh) at step i. */
+export const batteryKWh = (i: number): number => 20 + 10 * i;
+/** The battery a design starts with (100 kWh). */
+export const BATTERY_DEFAULT = 8;
+const BATTERY_FIELD: { key: 'battery'; steps: number } = { key: 'battery', steps: BATTERY_STEPS };
+/** The front below the windows' slope (design.kick): 0 to 75° in fives. */
+export const KICK_STEPS = 16;
+export const kickDeg = (i: number): number => 5 * i;
+const KICK_FIELD: { key: 'kick'; steps: number } = { key: 'kick', steps: KICK_STEPS };
 /** Faceted aft windows (design.aftFacets). Not in the code. */
 const AFT_FACETS_FIELD: { key: 'aftFacets'; steps: number } = { key: 'aftFacets', steps: 2 };
 /**
@@ -688,7 +712,7 @@ export function furnitureAt(v: number): { x: number; fromTransom: number } | nul
  * switch group's first cell along the panel (0 automatic, else 1 + cell), in the console's
  * grids from its port end. Not in the code: a boat placed by hand travels as a link or file.
  */
-export const DASH_SLOTS = { speed: 'dashSpeed', anchorScreen: 'dashAnchor', heading: 'dashHeading', rpm: 'dashRpm', engineMonitor: 'dashMonitor', towline: 'dashTow', dialCompass: 'dashCompass', dialSpeed: 'dashLog', dialDepth: 'dashDepth', dialChain: 'dashChain', dialRpm: 'dashTacho', dialTemp: 'dashTemp', dialFuel: 'dashFuel', clock: 'dashClock', dialClock: 'dashClockDial', touch1: 'dashTouch1', touch2: 'dashTouch2' } as const;
+export const DASH_SLOTS = { speed: 'dashSpeed', anchorScreen: 'dashAnchor', heading: 'dashHeading', rpm: 'dashRpm', engineMonitor: 'dashMonitor', efficiency: 'dashEfficiency', towline: 'dashTow', dialCompass: 'dashCompass', dialSpeed: 'dashLog', dialDepth: 'dashDepth', dialChain: 'dashChain', dialRpm: 'dashTacho', dialTemp: 'dashTemp', dialFuel: 'dashFuel', clock: 'dashClock', dialClock: 'dashClockDial', touch1: 'dashTouch1', touch2: 'dashTouch2' } as const;
 export const PANEL_SLOTS = { LIGHTS: 'panelLights', SEARCH: 'panelSearch', horn: 'panelHorn', ENGINE: 'panelEngine', DECK: 'panelDeck', AUTOPILOT: 'panelAutopilot' } as const;
 export type ConsoleKey = (typeof DASH_SLOTS)[keyof typeof DASH_SLOTS] | (typeof PANEL_SLOTS)[keyof typeof PANEL_SLOTS];
 /** The most columns a dash's grid has, and cells a panel's (a console's longest, 2.2 m, has fewer). */
@@ -722,7 +746,7 @@ export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f.key === 'paint' ? { ...f, steps: PAINT_TYPES } : f.key === 'roofPaint' ? { ...f, steps: ROOF_PAINT_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, DH_AFT_FIELD, AFT_FACETS_FIELD, BOW_FENDER_FIELD, FINISH_FIELD, STACK_MOUNT_FIELD, STACK_POS_FIELD, STACK_CASING_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, DIVE_FRAME_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f.key === 'paint' ? { ...f, steps: PAINT_TYPES } : f.key === 'roofPaint' ? { ...f, steps: ROOF_PAINT_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, DH_AFT_FIELD, AFT_FACETS_FIELD, BOW_FENDER_FIELD, FINISH_FIELD, MARKINGS_FIELD, BATTERY_FIELD, KICK_FIELD, STACK_MOUNT_FIELD, STACK_POS_FIELD, STACK_CASING_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, DIVE_FRAME_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -806,7 +830,8 @@ export const MEASURES: Record<MeasureKey, { min: number; max: number; by: number
   // (Whole steps down: a stair's rise each.)
   saloonFloor: { min: 0, max: 0.6, by: 0.2, code: SCALES.saloonFloor, steps: 4 },
   saloonRoof: { min: 0, max: 0.6, by: 0.05, code: SCALES.saloonRoof, steps: 4 },
-  windowRake: { min: -30, max: 30, by: 1, code: SCALES.windowRake, steps: 9 },
+  // (Swept back to 60° (owner, 27 Oct 2026: the solar catamaran's "more like 60"); past -30°, a link or file.)
+  windowRake: { min: -60, max: 30, by: 1, code: SCALES.windowRake, steps: 9 },
   roofThickness: { min: 0.08, max: 0.3, by: 0.01, code: SCALES.roofThickness, steps: 3 },
   roofEdge: { min: 20, max: 60, by: 1, code: SCALES.roofEdge, steps: 4 },
   dhLength: { min: 0, max: 3.5, by: 0.1, code: SCALES.dhLength, steps: 8 },
@@ -879,6 +904,9 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   aftFacets: 0,
   bowFender: 0,
   finish: 0,
+  markings: 0,
+  battery: BATTERY_DEFAULT,
+  kick: 0,
   stackMount: 0,
   stackPos: 0,
   stackCasing: 0,
@@ -944,6 +972,9 @@ export function encodeDesign(design: ShipDesign): string {
   if (d.dhAft) throw new Error('a deckhouse run on aft of the wheelhouse isn’t in the code: she travels as a link or file');
   if (d.bowFender) throw new Error('a bow fender isn’t in the code: she travels as a link or file');
   if (d.stackMount || d.stackPos || d.stackCasing) throw new Error('exhaust stacks on the deckhouse aren’t in the code: she travels as a link or file');
+  if (d.kick) throw new Error('a sloped front below the windows isn’t in the code: she travels as a link or file');
+  if (d.battery !== BATTERY_DEFAULT) throw new Error('her battery isn’t in the code: she travels as a link or file');
+  if (d.markings) throw new Error('a service livery’s markings aren’t in the code: she travels as a link or file');
   if (d.finish) throw new Error('her finish (worked or as new) isn’t in the code: she travels as a link or file');
   if (d.aftFacets) throw new Error('faceted aft windows aren’t in the code: she travels as a link or file');
   if (d.foreCabin) throw new Error('the cabin below isn’t in the code: she travels as a link or file');
@@ -1166,7 +1197,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, dhAft: 0, aftFacets: 0, bowFender: 0, finish: 0, stackMount: 0, stackPos: 0, stackCasing: 0, foreCabin: 0, fishHold: 0, rescueBoat: 0, netDrum: 0, trawlWinches: 0, diveFrame: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, consoleLen: 0, houseX: 20, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, dhAft: 0, aftFacets: 0, bowFender: 0, finish: 0, markings: 0, battery: BATTERY_DEFAULT, kick: 0, stackMount: 0, stackPos: 0, stackCasing: 0, foreCabin: 0, fishHold: 0, rescueBoat: 0, netDrum: 0, trawlWinches: 0, diveFrame: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, consoleLen: 0, houseX: 20, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

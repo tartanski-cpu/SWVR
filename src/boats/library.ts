@@ -47,6 +47,8 @@ import { PUSH_FENDER } from '../modules/pushFender';
 import { BOW_FENDER } from '../modules/bowFender';
 import { BOW_STAPLE } from '../modules/bowStaple';
 import { FENDERING } from '../modules/fendering';
+import { MARKINGS } from '../modules/markings';
+import { SOLAR_ROOF } from '../modules/solarRoof';
 import { JOYSTICK } from '../modules/joystick';
 import { KEY_SWITCH } from '../modules/keySwitch';
 import { LIFE_RING_STATION } from '../modules/lifeRingStation';
@@ -61,6 +63,7 @@ import { RUDDER } from '../modules/rudder';
 import { SCREEN } from '../modules/screen';
 import { SEARCHLIGHT } from '../modules/searchlight';
 import { START_CARD } from '../modules/startCard';
+import { POSTER } from '../modules/poster';
 import { STERN_ROLLER } from '../modules/sternRoller';
 import { SWIM_LADDER } from '../modules/swimLadder';
 import { TENDER_CRANE } from '../modules/tenderCrane';
@@ -210,12 +213,12 @@ export function ensureBoatTypes(world: { vessels: Record<string, { defId: string
 }
 
 export const MODULES = createModuleLibrary([
-  CONSOLE, WHEEL, THROTTLE_LEVER, TWIN_THROTTLE, AZIMUTH_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
+  CONSOLE, WHEEL, THROTTLE_LEVER, TWIN_THROTTLE, AZIMUTH_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, POSTER, SCREEN,
   OVERHEAD_PANEL, FM_RADIO, BREAKER_PANEL, BATTERY_MASTER, BATTERY_SELECTOR,
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
   DIESEL_INBOARD, OUTBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
   TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, DIVE_FRAME, TRAWL, ANCHOR_WINDLASS,
-  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, TUBES, RIB_CONSOLE, FENDERS, HULL_GUARD, PUSH_FENDER, BOW_FENDER, BOW_STAPLE, FENDERING, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
+  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, TUBES, RIB_CONSOLE, FENDERS, HULL_GUARD, PUSH_FENDER, BOW_FENDER, BOW_STAPLE, FENDERING, MARKINGS, SOLAR_ROOF, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
   ELECTRIC_OUTBOARD, ROD_RACK, HELM_ASSIST, PODS, HELM_JOYSTICK, EXHAUST_STACK, FURNITURE, REST_SPOT, FISH_HOLD, NET_DRUM, TRAWL_WINCHES,
   NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);

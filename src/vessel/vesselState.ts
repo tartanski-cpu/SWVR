@@ -23,6 +23,8 @@ export interface VesselControls {
   aziAngle?: number;
   aziAngle2?: number;
   aziTransit?: number;
+  /** Azimuth drives: the two throttles synchronised (1): either lever's power sets both (vessel/vesselControl.ts). */
+  aziSync?: number;
   /** Helm (wheel) position, -1 (hard to port) .. +1 (hard to starboard). */
   helm: number;
   /** Navigation lights switch, 0 off / 1 on. */
@@ -225,6 +227,8 @@ export interface EngineState {
   tankL?: number;
   /** Current fuel flow (L/h), for displays and the trials report. */
   fuelFlowLph: number;
+  /** Electric motors (physics/electricMotor.ts): the power they draw from her battery (kW; - while they give some back). */
+  powerKw?: number;
   /** Coolant (block) and lube oil temperatures (°C). */
   coolantC: number;
   oilC: number;
@@ -319,14 +323,23 @@ export interface VesselState {
    * hand keeps it until it lets go; other players' intents for it are ignored meanwhile.
    */
   holds: Record<string, EntityId>;
-  /** Outboard boats: battery charge, 0 (flat) .. 1 (full). */
+  /** Outboard boats and electric pod motors (modules/pods `electric`): battery charge, 0 (flat) .. 1 (full). */
   battery?: number;
+  /**
+   * Solar panels (modules/solarRoof, the solar catamaran's): the sunlight now (GHI, W/m2), what
+   * her panels make (kW, after their controller) and what goes into her battery (kW).
+   */
+  solar?: { wm2: number; panelKw: number; chargeKw: number };
+  /** Plugged in at a quay charger (vessel/shorePower.ts): its rating and what goes into her battery now (kW), and the energy taken from it (kWh, to be billed). */
+  shore?: { ratedKw: number; chargeKw: number; kWh: number; /** By the menu's Refuel at a fuel berth (no cable). */ menu?: boolean };
   /** A ship's tender: whose crane she belongs to and where she is (vessel/tenderCrane.ts). */
   tender?: TenderState;
   /** Landing on (or landed on) a slipway, her bow ramp down on it (world/slipway.ts). Absent: not. */
   slip?: SlipState;
   /** 12 V electrics, boats that have them (vessel/electrics.ts). */
   electrics?: ElectricsState;
+  /** The harbour tug's engine room machinery, for her start-up from dead ship (plant/plant.ts). Absent: other boats. */
+  plant?: PlantState;
   /**
    * Modules with state of their own (modular boats; the first: the deck crane), by their
    * path on her ('deckCrane'): plain JSON, so it is sent to crew and saved like the rest.
@@ -351,6 +364,42 @@ export interface VesselState {
   settleUntil?: number;
   /** The roving fender hung over the side by a deckhand (vessel/walkFender.ts); null or unset: none. */
   walkFender?: { side: -1 | 1; z: number; by?: string } | null;
+}
+
+/**
+ * The harbour tug's engine room machinery (plant/plant.ts): what's open, running and switched,
+ * port engine first in the pairs. Her 24 V battery master is `electrics.master`.
+ */
+export interface PlantState {
+  /** The generator's fuel valve open; the generator off, running up, or running (s since its START). */
+  genFuel: number;
+  gen: 'off' | 'starting' | 'running';
+  genT: number;
+  /** The generator's breaker on the main switchboard closed (the switchboard live). */
+  genBreaker: number;
+  /** The fuel supply pump switched on; each engine's day tank valve open; each engine's sea suction open. */
+  fuelPump: number;
+  dayValve: [number, number];
+  sea: [number, number];
+  /** Each engine's pre-lube pump switched on, and its lube oil pressure (bar). */
+  prelube: [number, number];
+  lubeBar: [number, number];
+  /** The air compressor switched on, the starting air (bar), the main air valve to the engines open. */
+  compressor: number;
+  airBar: number;
+  airValve: number;
+  /** Where the engines are worked from: 0 local (the engine-side panels), 1 the control room, 2 the bridge. */
+  place: number;
+  /** Seconds each engine and the generator have run with their fuel shut. */
+  starve: [number, number];
+  genStarve: number;
+  /** Each engine counted as started this crank (its starting air taken). */
+  cranked: [number, number];
+  /** The plant set the cooling fault (sea suction shut), so it clears it when opened. */
+  seaFault?: boolean;
+  /** The last thing that stopped or blocked her, said to whoever's aboard, and a count that goes up with each (so the same one again is said again). */
+  note?: string;
+  noteN?: number;
 }
 
 /** Batteries, master switch and the last tick's readings (vessel/electrics.ts). */
@@ -432,7 +481,8 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     mooring: { phase: 'free', berthId: null, reversed: false, t: 0, bow: 0, stern: 0 },
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
-    ...(gearOf(v, 'outboard') ? { battery: 1 } : {}),
+    // (Her battery's charge: an electric outboard's, or electric pod motors'.)
+    ...(gearOf(v, 'outboard') || gearOf(v, 'diesel')?.electric ? { battery: 1 } : {}),
     ...(gearOf(v, 'bilgePump') ? { bilge: 0, damage: 0 } : {}),
     // Warm by default (tests, trials): master on, both batteries full. The game itself
     // starts cold and dark (createWorld `cold`).

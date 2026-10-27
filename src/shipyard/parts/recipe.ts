@@ -20,11 +20,12 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 import type { HullDefPart } from './hullDef';
 import type { FurniturePart } from './furniture';
 import type { HoldPart } from './hold';
+import { motorSpec } from './solar';
 
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
   const { code, d, id } = a;
-  const { fendering, bowStaple, towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowFender, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
+  const { fendering, markings, bowStaple, towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowFender, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
   const recipe = structuredClone(landingCraftRecipe) as unknown as Recipe;
   recipe.id = `vessel.${id}`;
@@ -120,7 +121,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       module: 'propulsion.pods',
       config: {
         engine: engine.engine,
-        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02 },
+        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02, ...(p.electric ? { inertia: CONFIG.shipyard.solarCat.motor.propInertia } : {}) },
         ...podSet,
         steering: pdc.steering,
         look: pdc.look,
@@ -129,12 +130,20 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         alternatorAmps: engine.alternatorAmps ?? CONFIG.modules.dieselInboard.alternatorAmps,
         oilUse: engine.oilUse ?? CONFIG.vessels.workboat.maintenance.use,
         starterAmps: engine.starterAmps ?? CONFIG.modules.dieselInboard.starterAmps,
-        massKg: eng.kg + pdc.legKg,
+        massKg: eng.kg + (p.electric ? CONFIG.shipyard.solarCat.podKg : pdc.legKg),
         maintenance: engine.maintenance,
         voice: eng.voice,
         installed: engine.installed,
+        // The solar catamaran's electric motors, from her battery (CONFIG.shipyard.solarCat.motor; modules/pods).
+        ...(p.electric ? { electric: motorSpec(d) } : {}),
       },
     });
+    // (Electric motors have no oil to check: no dipstick or oil can.)
+    if (p.electric) {
+      recipe.modules = recipe.modules.filter((m) => m.socket !== 'dipstick' && m.socket !== 'oilCan');
+      const oily = (x: string) => x === 'control:dipstick' || x === 'control:oilCan';
+      recipe.interlocks = (recipe.interlocks ?? []).filter((l) => l.limit || !l.disable?.every(oily)).map((l) => (l.disable ? { ...l, disable: l.disable.filter((x) => !oily(x)) } : l));
+    }
   }
   if (outboards) {
     // Her outboards in place of the inboard and its rudder; her upkeep (the oil checks) at the hatch as before.
@@ -254,6 +263,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.pedestals.x = [-ac.leverX, ac.leverX, ...cc.pedestals.x.filter((x: number) => x < 0 && x !== throttleAt).map(out)];
     const wheel = consoleMount.modules!.find((m) => m.socket === 'wheel');
     if (wheel) wheel.config = { ...CONFIG.modules.wheel, ...wheel.config, radius: ac.wheelRadius };
+    // Her driving guide, on the port wall (places.ts `poster`; owner, Oct 2026).
+    recipe.modules.push({ socket: 'poster', module: 'furniture.poster', config: { poster: 'azimuthGuide', width: CONFIG.modules.poster.width, height: CONFIG.modules.poster.height } });
   }
   if (pods) {
     // Pod drives: the black throttle, moved forward on its pedestal, and the helm joystick
@@ -272,6 +283,19 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (sternRoller && d.controls) {
     cc.slots.towline = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
     consoleMount.modules!.push({ socket: 'towline', module: 'instrument.screen', config: { screen: 'towline' } });
+  }
+  // EFFICIENCY (owner, 27 Oct 2026: "an efficiency instrument ... litres per nautical mile, so
+  // that basically we can find the sweet spot"): with the advanced instruments, after the
+  // engine monitor (on a touchscreen, its ECO page).
+  if (d.controls) {
+    cc.slots.efficiency = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
+    consoleMount.modules!.push({ socket: 'efficiency', module: 'instrument.screen', config: { screen: 'efficiency' } });
+  }
+  // SOLAR & BATTERY (owner, 27 Oct 2026; the solar catamaran's): with the advanced instruments
+  // on an electric boat, after the efficiency screen (on a touchscreen, its SOLAR page).
+  if (d.controls && p.electric) {
+    cc.slots.solar = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
+    consoleMount.modules!.push({ socket: 'solar', module: 'instrument.screen', config: { screen: 'solar' } });
   }
   // ANCHOR (owner, Oct 2026: "is the chain going down? Is the anchor set? Is the chain going
   // up? Is it in?"): a quarter screen beside the speed screen, on any boat with an anchor.
@@ -298,8 +322,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const touch = d.controls ? Math.max(0, Math.min(2, d.touch ?? 0)) : 0;
   const touchIds = touch ? ['touch1', 'touch2'].slice(0, touch) : [];
   if (touch) {
-    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
-    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline'].includes(m.socket));
+    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(p.electric ? (['solar'] as const) : []), ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
+    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline'].includes(m.socket));
     touchIds.forEach((id, k) => {
       cc.slots[id] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
       consoleMount.modules!.push({ socket: id, module: 'instrument.screen', config: { screen: 'touch', pages, channel: k ? 'touchPage2' : 'touchPage1', first: k ? 2 : 0 } });
@@ -370,7 +394,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // CS6, `lampsUpBelow`, it would run under the wheel's rim, so it goes up on the face too.)
   const lampsUp = !lowSills(d) && !panelPinned && !toFace.includes('ENGINE') && fitted('lamps') && 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow;
   const faceItems = [...faceItemsFor(toFace), ...(lampsUp ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])];
-  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
+  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
   // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
   // by its rules in this order, the half-height ones stacked two high in one screen's place
@@ -720,6 +744,41 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (bowFender) recipe.modules.push({ socket: 'bowFender', module: 'hull.bow-fender', config: bowFender });
   // The harbour tug's fendering: its mesh and points worked out from her lines (trim.ts, parts/fendering.ts).
   if (fendering) recipe.modules.push({ socket: 'fendering', module: 'hull.fendering', config: { positions: fendering.positions, probes: fendering.probes } });
+  // The solar catamaran's solar roof (modules/solarRoof; CONFIG.shipyard.solarCat.roof): over the
+  // roof and its overhang, a wing each side out to her beam (stowed flat), a rack on the foredeck.
+  if (p.electric) {
+    const sr = CONFIG.shipyard.solarCat.roof;
+    const z0 = layout.overhead ? layout.overhead.z1 : p.aft;
+    const top = rnd(roofTopAt((roofFront + p.aft) / 2) + 0.05);
+    const rx = Math.min(hw + 0.1, Math.min(...[z0, (z0 + roofFront) / 2, roofFront].map((z) => q.halfBeam(z))) - sr.wingClear);
+    // Each wing folded in over the roof's outer panels, hinged at its edge: lying on them, a panel's depth higher.
+    const wing = Math.min(sr.wingWidth, rx - 0.3);
+    const rackZ1 = front - sr.rack.clear;
+    const rackZ0 = rackZ1 - sr.rack.length;
+    // Her house's front sloped below its windows (design.kick): panels on the slope, in place of the rack.
+    const kickAft = Math.max(0, -p.ahead);
+    const rackX = kickAft > 0.3 ? 0 : Math.min(q.halfBeam(rackZ0), q.halfBeam(rackZ1)) - sr.rack.inset;
+    const deckY = Math.max(q.deckY(rackZ0), q.deckY(rackZ1));
+    // (Her house is the player's: one too small for a field of panels on its roof gets none, and says so.)
+    const roomy = rx - 0.3 > sr.panel[0] / 2 && z0 - roofFront > sr.panel[1];
+    if (!roomy) p.warnings.push('Her roof is too small for her solar panels: she has none, and charges only at the quay. A longer or wider wheelhouse takes them.');
+    if (roomy) recipe.modules.push({
+      socket: 'solarRoof',
+      module: 'deck.solar-roof',
+      config: {
+        roof: { x0: rnd(-rx), x1: rnd(rx), z0: rnd(z0), z1: rnd(roofFront), y: top },
+        wings: [-1, 1].map((s) => ({ x0: rnd(s > 0 ? rx - wing : -rx), x1: rnd(s > 0 ? rx : -rx + wing), z0: rnd(z0), z1: rnd(roofFront), y: rnd(top + 0.06) })),
+        rack: rackX > 0.5 ? { x0: rnd(-rackX), x1: rnd(rackX), z0: rnd(rackZ1), z1: rnd(rackZ0), y: rnd(deckY + sr.rack.height), deckY: rnd(deckY) } : null,
+        ...(kickAft > 0.3 ? { slope: { x0: rnd(-hw + 0.1), x1: rnd(hw - 0.1), z0: rnd(front), y0: rnd(house.lowerFromY), z1: rnd(front + kickAft), y1: rnd(p.floorY + p.sill) } } : {}),
+        panel: sr.panel,
+        gap: sr.gap,
+        // Charging her battery from the sun (CONFIG.shipyard.solarCat.solar; modules/solarRoof).
+        charge: { ...CONFIG.shipyard.solarCat.solar, batteryKWh: motorSpec(d).usableKWh },
+      },
+    });
+  }
+  // A service livery's markings: the skin over her topsides worked out from her lines (trim.ts, parts/markings.ts).
+  if (markings) recipe.modules.push({ socket: 'markings', module: 'hull.markings', config: { ...markings } });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
   // Her furniture (P5), each piece on its place.
   recipe.modules.push(...p.furnitureMounts);

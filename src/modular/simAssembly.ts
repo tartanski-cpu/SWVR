@@ -20,10 +20,12 @@
 import * as THREE from 'three';
 import type { VesselState } from '../vessel/vesselState';
 import type { BreakerName } from '../vessel/vesselState';
+import type { EnvironmentState } from '../environment/environmentState';
+import { sunDirection } from '../environment/timeOfDay';
 import { busOf } from './bus';
 import type { BusKey } from './busKeys';
 import type { HullLibrary } from './hull';
-import { portIO, restoreModuleState, type GearFacts, type GearFootprint, type GearKind, type HullQueries, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext } from './module';
+import { portIO, restoreModuleState, type GearFacts, type GearFootprint, type GearKind, type HullQueries, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext, type EnvironmentReader } from './module';
 import { flattenMounts, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
 import type { Socket } from './socket';
 import { mountPlaces } from './vesselAssembly';
@@ -55,8 +57,8 @@ export interface VesselRuntime {
   physics(port: PhysicsPort, dt: number): void;
   /** Later in it, after the hull's contacts, near land: gear holding her to the ground (the anchor). */
   mooring(port: PhysicsPort, dt: number): void;
-  /** After the energy network: every module's upkeep. */
-  tick(dt: number, time: number): void;
+  /** After the energy network: every module's upkeep (with the world's sun and weather, for solar panels). */
+  tick(dt: number, time: number, environment?: EnvironmentState): void;
   /** Current drawn now by every load the modules declare, on circuits that are switched on (A). */
   loadAmps(): number;
   /** Current the sources (the alternator) give now (A). */
@@ -129,7 +131,7 @@ export function runtimeFor(sim: VesselSimDef, v: VesselState): VesselRuntime {
 
 function makeRuntime(sim: VesselSimDef, v: VesselState): VesselRuntime {
   const bus = busOf(v);
-  const env = { time: 0 };
+  const env: EnvironmentReader = { time: 0, sun: [0, -1, 0], cloud: 0, rain: 0, timeScale: 0 };
   type Bound = { ctx: SimContext<unknown>; def: ModuleDefinition; state: unknown };
   const bound: Bound[] = [];
   const loads: { circuit?: BreakerName; amps: (io: PortIO) => number; io: PortIO }[] = [];
@@ -169,8 +171,14 @@ function makeRuntime(sim: VesselSimDef, v: VesselState): VesselRuntime {
     mooring(port, dt) {
       for (const b of holding) b.def.sim!.mooring!(port, b.ctx, b.state, dt);
     },
-    tick(dt, time) {
+    tick(dt, time, e) {
       env.time = time;
+      if (e) {
+        env.sun = sunDirection(e.timeOfDay);
+        env.cloud = e.weather?.now.cloud ?? 0;
+        env.rain = e.weather?.now.rain ?? 0;
+        env.timeScale = e.timeScale;
+      }
       for (const b of bound) b.def.sim!.tick(b.ctx, b.state, dt);
     },
     loadAmps() {

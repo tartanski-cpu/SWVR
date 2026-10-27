@@ -6,6 +6,7 @@
  * what the parts after it need.
  */
 import { CONFIG } from '../../config';
+import { lightshipOf, type PointMass } from '../../modular/massProperties';
 import type { Mount } from '../../modular/recipe';
 import type { Socket } from '../../modular/socket';
 import type { FurnitureConfig, FurnitureKind } from '../../modules/furniture';
@@ -16,6 +17,7 @@ import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, InteriorPart } from './house';
 import type { HullDefPart } from './hullDef';
 import type { EngineHatchPart } from './engineRoom';
+import type { PlacesPart } from './places';
 
 /** A floor furniture can stand on: its name, its height, its extent along her, its half width at z (inside its walls), its ceiling at z, and whether its aft end is a wall. */
 interface Floor {
@@ -58,14 +60,16 @@ export function furnitureName(kind: FurnitureKind, i: number): string {
  * that floor nearest the pin (port, starboard or aft; the seat stands free, facing forward),
  * along it as near the pin as it fits. It keeps clear of the console and the helm's standing
  * room, the doorways, the side door, the chart table, the companionway, an engine hatch in the
- * floor, the exhaust stacks, and the pieces placed before it (CONFIG.shipyard.furniture). If
+ * floor, the exhaust stacks, the panels on the wall by the helm (the breakers and the helm
+ * assist: owner, 27 Oct 2026, the solar catamaran's head stood over the breakers), and the
+ * pieces placed before it (CONFIG.shipyard.furniture). If
  * it fits nowhere along either wall within reach of its pin, it's left off and she says why.
  * The head and the locker stand to just under the ceiling. Each is a furniture.piece module on
  * a place of its own (P4b): her hull definition gets the places, her recipe the modules.
  */
-export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & EngineHatchPart & InteriorPart & HullDefPart) {
+export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & EngineHatchPart & InteriorPart & HullDefPart & PlacesPart) {
   const { d } = a;
-  const { FA, aft, cf, chartTableAt, ctab, cx, floorY, helmAft, hull, hw, hx, layout, levels, roofAt, saloonL, sb, sideDoor, stack, transom, warnings, wall } = p;
+  const { at, helmAssist, FA, aft, cf, chartTableAt, ctab, cx, floorY, helmAft, hull, hw, hx, layout, levels, roofAt, saloonL, sb, sideDoor, stack, transom, warnings, wall } = p;
   const fc = CONFIG.shipyard.furniture;
   const mf = CONFIG.modules.furniture;
   const r2 = (v: number) => Math.round(v * 1000) / 1000;
@@ -99,6 +103,11 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const eh = layout.engineHatch;
   if (eh && eh.y === undefined) inHouse([eh.x0 - hx - 0.1, eh.x1 - hx + 0.1, eh.z0 - 0.1, eh.z1 + 0.1]);
   for (const pipe of stack?.pipes ?? []) blocked.push({ rect: [pipe.x - 0.3, pipe.x + 0.3, pipe.z - 0.3, pipe.z + 0.3], house: true, tall: true });
+  // The panels on the wall by the helm (in the house's frame), and room to stand at them: the
+  // breakers, and the helm assist aft of them, on the starboard wall.
+  const panel = (z: number, width: number) => blocked.push({ rect: [inside - fc.panelRoom, inside + 0.1, z - width / 2 - 0.05, z + width / 2 + 0.05], house: true, tall: true });
+  panel(at.breakerPanel[2], CONFIG.modules.breakerPanel.width);
+  if (helmAssist) panel(at.helmAssist[2], CONFIG.modules.helmAssist.width);
 
   const furnitureSockets: Socket[] = [];
   const furnitureMounts: Mount[] = [];
@@ -107,6 +116,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   /** Why a piece left off won't go where it was put, in a few words. */
   const furnitureWhy: Partial<Record<FurnitureKey, string>> = {};
   let furnitureKg = 0;
+  const furnitureMasses: PointMass[] = [];
   for (const piece of PIECES) {
     const pin = furnitureAt(d[piece.key] ?? 0);
     if (!pin) continue;
@@ -217,6 +227,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     const config: FurnitureConfig = { kind: piece.kind, length: L, depth: D, height };
     furnitureMounts.push({ socket: id, module: 'furniture.piece', config: config as unknown as Record<string, unknown> });
     furnitureKg += size.kg;
+    furnitureMasses.push({ massKg: size.kg, at: [put[0], r2(mid[1] + height / 2), put[2]] });
     // Moved: along its wall (put back against the wall it's always; a free seat, any way).
     const off = found.wall === 'free' ? Math.hypot(mid[0] - px, mid[2] - pz) : found.wall === 'aft' ? Math.abs(mid[0] - px) : Math.abs(mid[2] - pz);
     furniturePlaced[piece.key] = { x: put[0], z: mid[2], moved: off > fc.movedOver };
@@ -232,6 +243,10 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   }
   // Her places include the furniture's (P4b: gathered into her hull definition).
   hull.sockets.push(...furnitureSockets);
+  // Each piece weighs itself in the game (modules/furniture `physical`): her lightship, weighed
+  // with it (weights.ts), is without it, as with her engines (hullDef.ts lightshipLess); else
+  // she'd carry its weight twice.
+  if (furnitureMasses.length) hull.lightship = lightshipOf(hull.lightship, furnitureMasses);
   return { furnitureKg, furnitureMounts, furniturePlaced, furnitureWhy };
 }
 export type FurniturePart = ReturnType<typeof furniturePart>;

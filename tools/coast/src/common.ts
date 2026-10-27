@@ -32,6 +32,28 @@ export interface RegionRequest {
   economy?: Record<string, { products?: string[]; needs?: string[]; repairs?: { hull: number; engine: number } }>;
   /** A harbour's cargo berth on a face looking this way (deg, the bearing out from the face), by harbour id (package.ts). */
   berthFacing?: Record<string, number>;
+  /**
+   * Where the map marks every private jetty as a pier (Finland: each summer cottage has one):
+   * a group of piers with no name of its own (no marina, harbour or ferry terminal by it, no
+   * name on a pier) and no quay wall is drawn and solid, but not a port, with no boats on
+   * moorings and only the buildings right by it (harbours.ts, package.ts, boats.ts).
+   */
+  privateJetties?: boolean;
+  /** Potting grounds no closer together than this (m): a sea of charted rocks (the Archipelago Sea) would give one at every one (package.ts). */
+  pottingApart?: number;
+  /** Only the map's named ferry routes, the longest piece of each name (the Archipelago Sea maps dozens of unnamed and split ones) (package.ts). */
+  ferriesNamed?: boolean;
+  /**
+   * Ships under construction at a shipyard (package.ts): in a mapped dry dock (`dock`: its
+   * name, or "largest"), or alongside a berth (`berth`: its id, the outfitting quay); how far
+   * on she is (`stage`, 0 to 1: hull blocks, then the superstructure deck by deck, then paint),
+   * her length (m) and which way her bow points along the dock or berth (`bow`: 1 or -1);
+   * `painted` in fresh paint whatever her stage, `seed` her blocks' pattern (two ships with
+   * the same seed, stage and length are the same shape).
+   */
+  yardShips?: { dock?: string; berth?: string; stage: number; length: number; bow?: 1 | -1; painted?: boolean; seed?: number }[];
+  /** The lettering along a yard's gantry cranes' girders (both faces), as the owner asks (package.ts). */
+  gantrySign?: string;
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

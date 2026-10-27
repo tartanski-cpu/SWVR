@@ -67,7 +67,9 @@ export function fuelAndHeatStep(e: EngineState, def: EngineSpec, fuelL: number, 
 }
 
 /** Alarms for displays and audio. */
-export function engineAlarms(s: VesselState, def: EngineSpec): { highTemp: boolean; lowFuel: boolean } {
+export function engineAlarms(s: VesselState, def: EngineSpec & { electric?: unknown }): { highTemp: boolean; lowFuel: boolean } {
+  // (Electric motors: no coolant to boil; low "fuel" is her battery under the same mark.)
+  if (def.electric) return { highTemp: false, lowFuel: (s.battery ?? 0) < def.engine.fuel.lowFraction };
   return {
     highTemp: s.engine.coolantC > def.engine.thermal.alarmC,
     lowFuel: s.engine.fuelL < def.engine.fuel.lowFraction * (s.engine.tankL ?? def.engine.fuel.tankL),

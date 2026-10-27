@@ -6,7 +6,7 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { cargoPaused } from '../src/rescue/rescue';
-import { distanceToHull, stepRecovery, vesselToWorld } from '../src/rescue/recovery';
+import { distanceToHull, hookIn, ringIn, stepRecovery, vesselToWorld } from '../src/rescue/recovery';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { lineOf } from '../src/tow/tow';
@@ -45,11 +45,11 @@ describe('recovery: life ring, line and climbing aboard', () => {
     astern(s, 0, 14);
     const t = inc.targets[0];
     send('ringTake');
-    expect(world.rescue!.ring!.state).toBe('held');
+    expect(ringIn(world, world.homeVesselId!)!.state).toBe('held');
     // Throw it to land right by them.
     send('ringThrow', { args: [t.x + 1, 2, t.z, 0, 0, 0] });
     run(1);
-    expect(world.rescue!.ring!.state).toBe('water');
+    expect(ringIn(world, world.homeVesselId!)!.state).toBe('water');
     expect(t.phase).toBe('onLine');
     // Hand over hand.
     for (let k = 0; k < 20 && t.phase === 'onLine'; k++) {
@@ -63,7 +63,7 @@ describe('recovery: life ring, line and climbing aboard', () => {
     expect(inc.phase).toBe('recovered');
     expect(world.rescue!.cheer).toBe(1);
     expect(world.rescue!.radio!.text).toMatch(/land the survivor at/);
-    expect(world.rescue!.ring!.state).toBe('stowed');
+    expect(ringIn(world, world.homeVesselId!)!.state).toBe('stowed');
     expect(cargoPaused(world)).toBe(true); // until landed (milestone 4)
   });
 
@@ -78,7 +78,7 @@ describe('recovery: life ring, line and climbing aboard', () => {
     expect(inc.targets[0].phase ?? 'floating').toBe('floating');
     for (let k = 0; k < 12; k++) send('ringPull', { value: 1 });
     run(0.2);
-    expect(world.rescue!.ring!.state).toBe('stowed');
+    expect(ringIn(world, world.homeVesselId!)!.state).toBe('stowed');
   });
 
   it('propeller rule: in gear with the survivor near the stern, they shout and swim away; in neutral they come aboard', () => {
@@ -95,7 +95,7 @@ describe('recovery: life ring, line and climbing aboard', () => {
     t.phase = 'onLine';
     const st = vesselToWorld(v, s.gear.stern);
     const d0 = Math.hypot(t.x - st.x, t.z - st.z);
-    for (let i = 0; i < 120; i++) stepRecovery(world, v, [], DT);
+    for (let i = 0; i < 120; i++) stepRecovery(world, [], DT);
     expect(world.rescue!.shout?.text).toMatch(/propeller/);
     expect(t.phase).toBe('onLine');
     expect(Math.hypot(t.x - st.x, t.z - st.z)).toBeGreaterThan(d0);
@@ -112,7 +112,7 @@ describe('recovery: boat hook and lifting crates', () => {
     const { world, send, inc, v } = s;
     const n = inc.targets.length;
     send('hookTake');
-    expect(world.rescue!.hook!.holder).toBe('p');
+    expect(hookIn(world, world.homeVesselId!)!.holder).toBe('p');
     for (const t of [...inc.targets]) {
       send('crateHook', { ref: t.id });
       expect(t.phase).toBe('hooked');
@@ -181,7 +181,7 @@ describe('recovery: desktop hands', () => {
     const ray = new THREE.Ray(eye.clone(), ring.clone().sub(eye).normalize());
     expect(hands.desktopClick(ctx, ray, ray.direction)).toBe(true);
     flush();
-    expect(world.rescue!.ring!.state).toBe('held');
+    expect(ringIn(world, world.homeVesselId!)!.state).toBe('held');
     // Look at a spot on the water 15 m astern and click: it lands within catch range of it.
     const spot = vesselToWorld(v, [2, 0, 21]);
     spot.y = 0;
@@ -189,9 +189,9 @@ describe('recovery: desktop hands', () => {
     hands.updateDesktop(ctx, new THREE.Ray(eye.clone(), look), eye, look, DT);
     expect(hands.desktopClick(ctx, new THREE.Ray(eye.clone(), look), look)).toBe(true);
     flush();
-    expect(world.rescue!.ring!.state).toBe('flying');
+    expect(ringIn(world, world.homeVesselId!)!.state).toBe('flying');
     run(3);
-    const r = world.rescue!.ring!;
+    const r = ringIn(world, world.homeVesselId!)!;
     expect(r.state).toBe('water');
     expect(Math.hypot(r.pos[0] - spot.x, r.pos[2] - spot.z)).toBeLessThan(CONFIG.rescue.catchRadius);
   });
@@ -230,7 +230,7 @@ describe('recovery: boat hook auto-extend (desktop)', () => {
       const toPole = new THREE.Ray(eye.clone(), pole.clone().sub(eye).normalize());
       expect(hands.desktopClick(ctx, toPole, toPole.direction)).toBe(true);
       flush();
-      expect(world.rescue!.hook!.holder).toBe('p');
+      expect(hookIn(world, world.homeVesselId!)!.holder).toBe('p');
       // A crate 6 m off the port side: look at it.
       const crate = s.inc.targets[0];
       const at = vesselToWorld(v, [-8, 0, 3]);
@@ -313,13 +313,13 @@ describe('recovery: boat hook laid down', () => {
     const { world, send } = s;
     send('hookTake');
     send('hookDrop', { args: [0.3, 1, 3.5, 0.4] });
-    expect(world.rescue!.hook!.holder).toBeNull();
-    expect(world.rescue!.hook!.deck?.[2]).toBeCloseTo(3.5);
+    expect(hookIn(world, world.homeVesselId!)!.holder).toBeNull();
+    expect(hookIn(world, world.homeVesselId!)!.deck?.[2]).toBeCloseTo(3.5);
     send('hookTake', { player: 'b' });
-    expect(world.rescue!.hook!.holder).toBe('b');
-    expect(world.rescue!.hook!.deck).toBeUndefined();
+    expect(hookIn(world, world.homeVesselId!)!.holder).toBe('b');
+    expect(hookIn(world, world.homeVesselId!)!.deck).toBeUndefined();
     send('hookDrop', { player: 'b', args: [6, 1, 3.5, 0] });
-    expect(world.rescue!.hook!.deck).toBeUndefined();
+    expect(hookIn(world, world.homeVesselId!)!.deck).toBeUndefined();
   });
 });
 
@@ -360,7 +360,7 @@ describe('recovery: VR hands', () => {
     hr.updateXR(ctx, hands, free, DT);
     flush();
     hands.right.gripPressed = false;
-    expect(world.rescue!.hook!.holder).toBe('p');
+    expect(hookIn(world, world.homeVesselId!)!.holder).toBe('p');
     // A crate right at the hook's tip, alongside to port: hooked.
     hr.updateXR(ctx, hands, free, DT);
     const crate = s.inc.targets[0];

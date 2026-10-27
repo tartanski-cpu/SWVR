@@ -14,6 +14,7 @@ import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { gearOf } from '../boats/sims';
 import type { RescueHands } from './rescueHands';
+import { hookIn, ringIn } from './recovery';
 
 export const ROPE_POINTS = 24;
 const ROPE = 0xf0e6c0;
@@ -118,7 +119,6 @@ export class RescueGearView {
 
   update(world: WorldState, vesselId: string, vesselRoot: THREE.Object3D | undefined, waves: readonly PreparedWave[], local: RescueHands, localId: string, avatars: AvatarHands): void {
     const v = world.vessels[vesselId];
-    const r = world.rescue;
     this.root.visible = !!(v && vesselRoot);
     if (!v || !vesselRoot) return;
     // Her life ring station and boat-hook rack (modules): without one, nothing of it shows.
@@ -127,7 +127,7 @@ export class RescueGearView {
     this.ring.visible = !!station;
     this.hook.visible = !!rack;
     vesselRoot.getWorldQuaternion(this.q);
-    const ring = r?.ring;
+    const ring = ringIn(world, vesselId);
     const state = ring?.state ?? 'stowed';
 
     // ── Ring ──
@@ -168,7 +168,8 @@ export class RescueGearView {
     }
 
     // ── Boat hook ──
-    const holder = r?.hook?.holder ?? null;
+    const hookState = hookIn(world, vesselId);
+    const holder = hookState?.holder ?? null;
     if (local.holdingHook) {
       this.pose(local.hookBase, local.hookTip);
     } else if (holder && holder !== localId && avatars.hand(holder, this.a)) {
@@ -177,10 +178,10 @@ export class RescueGearView {
       const tip = this.tmp.copy(this.a).addScaledVector(f, CONFIG.rescue.hookLength * 0.8);
       tip.y -= CONFIG.rescue.hookLength * 0.6;
       this.pose(this.a, tip);
-    } else if (r?.hook?.deck) {
+    } else if (hookState?.deck) {
       this.telescope(CONFIG.rescue.hookLength);
       // Laid down on deck.
-      const [x, y, z, yaw] = r.hook.deck;
+      const [x, y, z, yaw] = hookState.deck;
       vesselRoot.localToWorld(this.hook.position.set(x, y + 0.02, z));
       this.hook.quaternion.copy(this.q).multiply(this.qYaw.setFromAxisAngle(this.yAxis, yaw));
     } else {

@@ -125,6 +125,12 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `circuit.bilge.live` | on / off | read only | core |  | 12 V on the bilge circuit: master on, battery not flat, breaker on. |
 | `circuit.hydraulics.live` | on / off | read only | core |  | 12 V on the hydraulics circuit: master on, battery not flat, breaker on. |
 
+## plant
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `plant.bridge` | on / off | read only | core |  | The harbour tug's engine room has handed her engines to the bridge (plant/plant.ts: the control place at BRIDGE); always true on a boat without one. |
+
 ## battery
 
 | Key | Values | Use | Written by | Old names | What it is |

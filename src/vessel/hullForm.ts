@@ -1,4 +1,4 @@
-import { loft, type HullDesign } from '../hulls/loft';
+import { centreBowDrop, loft, type HullDesign } from '../hulls/loft';
 
 /**
  * Procedural hard-chine hull form, described the way a lines plan is: a set of transverse
@@ -90,7 +90,10 @@ export interface Station {
    * work cat). Her polygon is the whole section across both demihulls, ten points: port outer
    * deck edge, port outer chine, port keel, port inner chine, the wet deck's port corner (where
    * the port hull's inner side meets it), its starboard corner, starboard inner chine,
-   * starboard keel, starboard outer chine, starboard outer deck edge. So the buoyancy and the
+   * starboard keel, starboard outer chine, starboard outer deck edge (thirteen with a centre
+   * bow: its sides' tops and its keel between the wet deck's corners, the port half's points
+   * staying 0 to 4).
+   * So the buoyancy and the
    * hydrostatics (which clip any polygon at the water) float both hulls, and a wet deck driven
    * under adds its buoyancy as the real one's does. `halfBeamChine` and `halfBeamDeck` are her
    * outer ones (what her deck and her extremes need). Here: one demihull's own half-breadths
@@ -104,7 +107,7 @@ export interface HullForm {
   params: HullParams;
   stations: Station[];
   /** A catamaran (her stations have `demihull`): her demihulls' spacing, centre to centre, and the wet deck's height over her DWL. */
-  catamaran?: { spacing: number; tunnel: number };
+  catamaran?: { spacing: number; tunnel: number; centreBow?: { drop: [number, number][]; halfWidth: number } };
   /** The stations the physics floats her on, when fewer than `stations` (HullParams.physicsStations). */
   physics?: Station[];
 }
@@ -183,7 +186,7 @@ function stationZs(sections: { pts: { z: number }[] }[]): number[] {
  * rising above it at the bow) the notch closes up to her keel's height, the two corners
  * meeting the keels: the bridge deck's underside comes down to it there.
  */
-function catamaranForm(d: HullDesign, cat: { spacing: number; tunnel: number }): HullForm {
+function catamaranForm(d: HullDesign, cat: NonNullable<HullDesign['catamaran']>): HullForm {
   const sections = loft(d).sections;
   const zs = stationZs(sections);
   const o = cat.spacing / 2;
@@ -215,6 +218,15 @@ function catamaranForm(d: HullDesign, cat: { spacing: number; tunnel: number }):
         [-o, keel.y],
         [-inChine[0], inChine[1]],
         [-corner[0], corner[1]],
+        // A centre bow (HullDesign catamaran.centreBow): where its sides meet the wet deck, and
+        // its keel between them (all at the wet deck where it has none).
+        ...(cat.centreBow
+          ? ([
+              [-Math.min(cat.centreBow.halfWidth, corner[0]), corner[1]],
+              [0, corner[1] - centreBowDrop(cat, s.t)],
+              [Math.min(cat.centreBow.halfWidth, corner[0]), corner[1]],
+            ] as [number, number][])
+          : []),
         [corner[0], corner[1]],
         [inChine[0], inChine[1]],
         [o, keel.y],

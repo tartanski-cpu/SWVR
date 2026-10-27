@@ -38,10 +38,10 @@ export const AZIMUTH_LEVER: ModuleDefinition<AzimuthLeverConfig> = {
       const c = CONFIG.modules.azimuth.lever;
       const lever = new AzimuthLever(
         config.id,
-        { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: c.colours.handle, tipColour: c.colours.tip, colour: c.colours[config.side], baseColour: c.colours.base },
+        { length: c.length, maxTiltDeg: c.maxTiltDeg, detent: c.detent, snapDeg: c.snapDeg, handMoves: c.handMoves, vrTwist: c.vrTwist, twistGain: c.twistGain, turntableRadius: c.turntableRadius, drumRadius: c.drumRadius, drumWidth: c.drumWidth, barRadius: c.barRadius, handleColour: c.colours.handle, tipColour: c.colours.tip, colour: c.colours[config.side], baseColour: c.colours.base },
         { angle: keys.angle, power: keys.power },
         { angle: (s) => busOf(s).num(keys.angle), power: (s) => Math.max(0, busOf(s).num(keys.power)) },
-        `${config.side === 'port' ? 'Port' : 'Starboard'} drive: twist its bar to point the drive (the white pointer), push it forward for power`,
+        `${config.side === 'port' ? 'Port' : 'Starboard'} drive: hold its bar; the thumbstick twists it (the white pointer) and sets the power`,
       );
       return { staticParts: [], movingParts: [], controls: [lever], labels: [{ text: config.name, at: [0, 0, c.turntableRadius + 0.05] }], update: () => {} };
     },

@@ -13,6 +13,8 @@ export class Keyboard {
     target.addEventListener('keydown', (e) => {
       // Stop F1 (browser help) and F3 (find) from triggering browser actions.
       if (e.code === 'F1' || e.code === 'F3') e.preventDefault();
+      // (Tab, taken by the game (the azimuth helm's look aft), mustn't move the page's focus.)
+      if (e.code === 'Tab' && this.claimed.has('Tab')) e.preventDefault();
       if (!e.repeat) this.pressed.add(e.code);
       this.down.add(e.code);
     });

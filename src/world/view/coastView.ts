@@ -20,7 +20,7 @@
  *   silhouette  the whole region far off: the same, every `coastSilhouetteCell` m.
  *   buildings   a town's worth: merged per chunk, built the first time the viewer comes
  *          within `coastBuildingDistance`, shown only within it.
- *   structures  its bridges over the sea and follies (world/coastStructures.ts), one mesh.
+ *   structures  its bridges over the sea, follies and gantry cranes (world/coastStructures.ts), one mesh.
  * Everything is built a few pieces a frame (the coarse chunks first), so no frame stalls.
  * Colours are the pipeline's per-face sRGB bytes, used as the game's terrain colours are.
  */
@@ -167,9 +167,9 @@ export class CoastTerrainView {
     const forest = forestOf(region.id);
     this.trees = forest ? new TreesView(forest) : null;
     if (this.trees) this.root.add(this.trees.root);
-    // Its bridges over the sea and follies (the landmarks and bridges pass): one merged mesh,
+    // Its bridges over the sea, follies and gantry cranes (the landmarks pass): one merged mesh,
     // built now (a few thousand triangles at most), drawn wherever the fog allows.
-    const structures = structuresGeometry(region.bridges ?? [], region.follies ?? [], (x, z) => groundHeight(x, z));
+    const structures = structuresGeometry(region.bridges ?? [], region.follies ?? [], (x, z) => groundHeight(x, z), region.gantries ?? [], region.yardShips ?? []);
     if (structures) {
       const m = new THREE.Mesh(structures, this.mat);
       m.name = 'coast-structures';
@@ -234,6 +234,10 @@ export class CoastTerrainView {
     // Those that must be in the far mesh now, and those a merge takes in (coastFarAhead).
     const farList: (typeof this.chunks)[number][] = [];
     const farWant: (typeof this.chunks)[number][] = [];
+    // Those drawn nearer (full or coarse): never in the far mesh as well. Its grid is too coarse
+    // for a narrow sound, and would stand as grey slopes over the water there (owner, at
+    // Naantali: "grey geometry ... I can drive through them").
+    const nearer = new Set<number>();
     for (const { ch, d } of order) {
       // A chunked region's chunk that has been dropped: its full mesh goes with it.
       if (ch.fine && !this.t.piece && !this.t.pieces.has(ch.k)) {
@@ -270,7 +274,8 @@ export class CoastTerrainView {
       // Past where the fog is total (the clearest day's haze, or today's visibility) a far
       // chunk can't be seen: left out (a big map is mostly beyond it).
       if (ch.far && !full && !showMid && d < fog) farList.push(ch);
-      if (ch.far && ((!full && !showMid && d < fog) || (d > c.coastMidDistance - c.coastFarAhead && d < fog + c.coastFarAhead))) farWant.push(ch);
+      if (ch.far && !full && !showMid && d < fog + c.coastFarAhead) farWant.push(ch);
+      if (full || showMid) nearer.add(ch.k);
       tris += full ? ch.count : showMid ? count(ch.mid!) : 0;
       // The buildings, near only.
       const town = d < c.coastBuildingDistance && ch.buildings.length > 0;
@@ -294,14 +299,17 @@ export class CoastTerrainView {
     }
     // The far chunks, merged again only when they must be. A chunk joining them (no longer
     // drawn coarse, or the fog lifting) is merged at once, or there'd be a hole where it is
-    // (while the far copies are still being made, at most every coastFarRebuild s). One
-    // leaving them (now drawn nearer, which sits higher and hides it, or gone into the fog)
-    // stays in the mesh, until they're more than coastFarSlack of it (every coastFarTidy s at most).
+    // (while the far copies are still being made, at most every coastFarRebuild s); a merge
+    // takes in those just beyond the fog too (coastFarAhead). One now drawn nearer leaves them
+    // within coastFarRebuild s. One gone into the fog stays in the mesh, unseen, until they're
+    // more than coastFarSlack of it (every coastFarTidy s at most).
     const now = performance.now();
     const joins = farList.some((ch) => !this.farSet.has(ch.k));
+    const leaves = [...this.farSet].some((k) => nearer.has(k));
     const stale = this.farSet.size - farWant.filter((ch) => this.farSet.has(ch.k)).length;
     const tidy = stale > 0 && stale > this.farSet.size * c.coastFarSlack && now - this.farAt > c.coastFarTidy * 1000;
-    if ((joins && (farBuilt === 0 || now - this.farAt > c.coastFarRebuild * 1000)) || tidy) {
+    const due = now - this.farAt > c.coastFarRebuild * 1000;
+    if ((joins && farBuilt === 0) || ((joins || leaves) && due) || tidy) {
       this.farSet = new Set(farWant.map((ch) => ch.k));
       this.farAt = now;
       if (this.farMesh) {

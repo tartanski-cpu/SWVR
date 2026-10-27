@@ -7,7 +7,7 @@ import { DESIGNS } from '../../hulls/designs';
 import { curveAt, type HullDesign } from '../../hulls/loft';
 import { type HullDefinition } from '../../modular/hull';
 import type { Livery } from '../../vessel/vesselDef';
-import { fromSteps, SCALES, type ShipDesign } from '../design';
+import { BATTERY_DEFAULT, DASH_SLOTS, DEFAULT_DESIGN, FURNITURE_KEYS, fromSteps, furnitureCell, PANEL_SLOTS, SCALES, SEAT_FACES, type ShipDesign } from '../design';
 
 /** A faceted front's middle pane: between the front windows' mullions (hullMesh.ts, at +-0.5 m). */
 export const FACET_CENTRE = 0.5;
@@ -172,6 +172,8 @@ export interface DesignHull {
    * colours, the wheelhouse inside and its instruments, the deck gear she takes.
    */
   fixed?: Partial<ShipDesign>;
+  /** What a one-off's steps say at their top: what's fixed, and what's the player's. */
+  oneOffNote?: string;
   /** Her study's fendering (hulls/fendering.ts: the harbour tug's) is her hull protection: drawn on her, with its contacts. */
   fendering?: boolean;
   /**
@@ -192,6 +194,9 @@ export interface DesignHull {
   towsOverBow?: boolean;
 }
 
+/** Is her gearbox fixed with her type (a one-off's), so never matched by trial? */
+export const gearFixed = (d: ShipDesign): boolean => DESIGN_HULLS[d.hull]?.fixed?.gear !== undefined;
+
 /** A design with her one-off type's fixed choices (DesignHull.fixed) kept to. */
 export function withFixed<D extends Pick<ShipDesign, 'hull'>>(d: D): D {
   const fixed = DESIGN_HULLS[d.hull]?.fixed;
@@ -199,7 +204,7 @@ export function withFixed<D extends Pick<ShipDesign, 'hull'>>(d: D): D {
 }
 
 /** What a hull and its houses are built of (CONFIG.shipyard.materials). */
-export type Material = 'aluminium' | 'steel';
+export type Material = 'aluminium' | 'steel' | 'foam and plywood';
 /**
  * Her length as a factor of her type's base (the length slider's step `i`): every hull's
  * 0.8 to 1.175 (SCALES.scale); a hull that `growsTo` more, the same up to her base size
@@ -358,6 +363,8 @@ const HARBOUR_TUG_FIXED: Partial<ShipDesign> = {
   pods: 0,
   // (Her propellers in nozzles, as an azimuth drive's are: a tug's bollard pull.)
   nozzle: 1,
+  // Her gearbox fixed too: her engines and drives are, so no matching by trial (CONFIG.shipyard.harbourTug.gear).
+  gear: CONFIG.shipyard.harbourTug.gear,
   aFrame: 0,
   netDrum: 0,
   trawlWinches: 0,
@@ -373,6 +380,93 @@ const HARBOUR_TUG_FIXED: Partial<ShipDesign> = {
  * raked stacks; her tow winch, towing over her bow (no stern roller: with one she tows over
  * her stern from a towing hook, as the small tug does).
  */
+/** The solar catamaran's index in DESIGN_HULLS. */
+export const SOLAR_CAT = 8;
+/** Her electric pod motors' index in ENGINES (hers alone). */
+export const SOLAR_MOTOR = 6;
+
+/**
+ * The solar catamaran, a one-off (owner, 26 Oct 2026: "a bit of a one-off build. I would say the
+ * only thing that should be options are the number of batteries"): her hull, her motors and
+ * pods, her solar roof and deck fittings fixed (SOLAR_CAT_FIXED). Her wheelhouse, its inside, her
+ * controls and her furniture are the player's (owner, 27 Oct 2026: "the wheelhouse is not
+ * configurable. I think I want to use the sliders, so I can move that around. Which means you
+ * shouldn't predefine the furniture"): SOLAR_CAT_HOUSE is only where they start, as the harbour
+ * tug's house is. Her battery and her paint are the player's too. Twin electric pod motors
+ * (SOLAR_MOTOR), one pod under each hull's stern.
+ */
+// (Her paint is the player's too, owner 27 Oct 2026: "should get the paint options as well, the
+// ones that are appropriate": her topsides, house, frames, roof, its top and her finish. Not a
+// service livery's markings, which want a single hull.)
+const SOLAR_PAINT = { paint: 5, houseColour: 0, frames: 0, roofPaint: 4, roofTop: 0, finish: 2 };
+/** The choices on the Wheelhouse, Controls and Furniture steps: hers to make (but a cabin below: her hulls are too slim for one). */
+const HOUSE_KEYS: (keyof ShipDesign)[] = [
+  ...(['housePos', 'houseLength', 'houseWidth', 'houseX', 'headroom', 'floor', 'visor', 'lowerFront', 'windowRake', 'kick', 'facets', 'aftFacets', 'flare', 'sills', 'sideDoor', 'roofThickness', 'roofEdge', 'overhead', 'saloon', 'saloonFloor', 'saloonRoof', 'interior', 'chartTable', 'consoleSide', 'consoleLen'] as const),
+  ...(['dhLength', 'dhHeight', 'dhWidth', 'dhRake', 'dhNarrow', 'dhWalk', 'dhAft', 'controls', 'oldSchool', 'touch', 'helmAssist'] as const),
+  ...FURNITURE_KEYS,
+  ...SEAT_FACES,
+  ...Object.values(DASH_SLOTS),
+  ...Object.values(PANEL_SLOTS),
+];
+const { battery: _battery, paint: _p, houseColour: _h, frames: _f, roofPaint: _r, roofTop: _t, finish: _fi, ...EVERYTHING } = DEFAULT_DESIGN;
+const SOLAR_CAT_FIXED: Partial<ShipDesign> = {
+  ...Object.fromEntries(Object.entries(EVERYTHING).filter(([k]) => !HOUSE_KEYS.includes(k as keyof ShipDesign))),
+  ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 0, bow: 0 }),
+  hull: SOLAR_CAT,
+  sheer: 0,
+  foreCabin: 0,
+  engine: SOLAR_MOTOR,
+  // Her pods' reduction fixed (no matching): the step the yard's trial matches for her electric
+  // motors, 27 Oct 2026 (3.14 : 1; about 10 kn flat out, the motors at their full torque just
+  // under their rated revs).
+  gear: 12,
+  twin: 1,
+  pods: 1,
+  outboards: 0,
+  sternDrive: 0,
+  nozzle: 0,
+  guard: 0,
+  rails: 1,
+  bowFender: 0,
+  noAnchor: 0,
+  lifeRing: 1,
+};
+
+/** Where her wheelhouse, inside and furniture start (the player's to change: SOLAR_CAT_FIXED). */
+const SOLAR_CAT_HOUSE: Partial<ShipDesign> = {
+  ...fromSteps({ visor: 1, lowerFront: 0 }),
+  housePos: 0.5,
+  houseLength: 5.4,
+  houseWidth: 1,
+  // Low and swept (owner, 27 Oct 2026: "the window as raked as possible ... more like 60";
+  // "near standing headroom", the helm for sitting at): near standing headroom, the front swept
+  // back 60°. (Her floor stays level with her bridge deck: sunk into it, her aft doorway and the
+  // cockpit under the roof's overhang would be too low.)
+  headroom: 1.95,
+  floor: 0,
+  windowRake: -60,
+  // The front below her windows kicked out (owner, 27 Oct 2026: "kicked out at quite a steep
+  // angle in front of the windows. And then the solar panels are on top of that sloped part"):
+  // sloped back 60° (design.kick 12), its panels on it (parts/recipe.ts, modules/solarRoof).
+  kick: 12,
+  roofThickness: 0.12,
+  roofEdge: 30,
+  saloon: 4.4,
+  saloonFloor: 0,
+  saloonRoof: 0,
+  overhead: 2.5,
+  dhLength: 0,
+  // A basic interior to start from (owner: "it should have a sort of basic interior"; each piece
+  // movable or taken off on the Furniture step): a settee each side of the saloon, a galley aft
+  // to starboard, a berth forward to port behind the helm and the head across from it (pins on
+  // the grid: x from her centreline, metres forward of her transom).
+  setteeAt: furnitureCell(-1.8, 6.5),
+  setteeAt2: furnitureCell(1.8, 6.5),
+  galleyAt: furnitureCell(1.8, 4.7),
+  berthAt: furnitureCell(-1.8, 8.5),
+  headAt: furnitureCell(1.8, 8.3),
+};
+
 const HARBOUR_TUG_HOUSE: Partial<ShipDesign> = {
   ...fromSteps({ visor: 1, lowerFront: 0 }),
   housePos: 0.55,
@@ -569,8 +663,30 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 6.0,
     foredeck: 4.0,
     fixed: HARBOUR_TUG_FIXED,
+    oneOffNote: 'Her hull is a one-off, fixed as she’s drawn, and so are her fendering and her engines. Her wheelhouse and deckhouse, her colours, the inside and her deck gear are yours to choose.',
     // Her colours as drawn: dark blue-grey topsides, a white house, a red roof.
     defaults: { ...HARBOUR_TUG_HOUSE, ...HARBOUR_TUG_FIXED, paint: 2, houseColour: 1, roofPaint: 6, lifeRing: 1 },
+  },
+  {
+    // The solar catamaran (owner, 26 Oct 2026, the hull modifications chat's step 2): the hull
+    // study's `solarCat` as she is (16 x 5.2 m, two very slim hulls under a bridge deck, a
+    // wave-piercing centre bow; foam-cored plywood). Her hull, motors and deck fixed (SOLAR_CAT_FIXED), her house the player's (from SOLAR_CAT_HOUSE).
+    // Not in the design code: a link or file.
+    name: 'Solar catamaran: 16 m foam and plywood, solar and battery power, a one-off',
+    material: 'foam and plywood',
+    catamaran: true,
+    // No fuel of her own: her motors run on her battery (a token tank, as every recipe has one, never drawn on).
+    fuelL: 40,
+    // As drawn: no scaling, no bow choice; her centre bow kept (catamaran.centreBow).
+    form: () => ({ kind: 'lofted', design: { ...scaledStudy(study('solarCat'), 1, 1, 1, null, false, 0), catamaran: study('solarCat').catamaran } }),
+    regime: 'displacement',
+    ramp: false,
+    cockpit: 2.5,
+    foredeck: 2.0,
+    fixed: SOLAR_CAT_FIXED,
+    oneOffNote: 'Her hull is a one-off, fixed as she’s drawn, and so are her electric pods, her solar roof (it follows her house) and her deck fittings. Yours to choose: her wheelhouse, its inside, her controls and her furniture, her battery (Engine step) and her paint.',
+    // Black, as her pictures (owner: "Of course, it needs to be black"): black topsides, her paint's own light house, a black roof edge.
+    defaults: { ...SOLAR_CAT_HOUSE, ...SOLAR_CAT_FIXED, ...SOLAR_PAINT, battery: BATTERY_DEFAULT },
   },
 ];
 
@@ -607,6 +723,9 @@ export const ENGINES = [
   // come): a big high-power diesel of her size, on a shaft for now, turning a propeller as big
   // as her draught aft allows. Heavy and long: only she has the room for it.
   { name: '1850 kW harbour tug diesel (V16, 1600 rpm)', kw: 1850, kg: 8500, voice: 'v8' as const, rackRise: 1.2, ratedRpm: 1600, idleRpm: 600, propMaxM: 2.4, pricePerKw: 200, size: [4.4, 1.7, 2.1] as const, only: [HARBOUR_TUG] as readonly number[], about: 'The harbour tug’s: a big high-power diesel for her bollard pull. A stand-in on a shaft until her azimuth drives come.' },
+  // The solar catamaran's (owner, 26 Oct 2026): an electric motor driving each of her pods,
+  // from her battery (in the game: physics/electricMotor.ts, through her pods; 27 Oct 2026).
+  { name: '25 kW electric pod motor', kw: 25, kg: 60, voice: 'electric' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.7, pricePerKw: 300, size: [0.7, 0.4, 0.4] as const, only: [SOLAR_CAT] as readonly number[], electric: true, about: 'The solar catamaran’s: an electric motor for each of her pods, quiet and clean, running on her battery.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */

@@ -10,6 +10,107 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Turku: the yard's ships 20 decks high, five in the hull (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "still looks too high. The Icon class is 20 decks high approximately, but ... five of those decks are in the hull."
+
+- **Her height by decks** (`CONFIG.structures.yardShip`): `hullDecks` 5 of `deck` 3 m from her keel to her main deck (15 m, from 6.5 % of her length, 19.5 m on the 300 m ship), and `decks` 15 on top (from 16): 20 in all, 60 m from her keel. Afloat at 8.5 m, her main deck is 6.5 m over the water and her top deck about 51 m (from 59), the funnel over it.
+- **Her hull's paint:** the blue band is `band` 0.7 of her freeboard, a strip of white above it (it was 8 m of blue, more than the freeboard has now).
+- Both ships take it. **Tests** (`coastTurku.test.ts`: 20 decks, 5 in the hull), `npm run test:map` and the typecheck pass. Seen in the game headless.
+- **Not checked:** on the Quest.
+
+### Turku: the yard's ships wider, their superstructure running nearly to the bow (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, from a picture of the finished ship: "it's way too narrow, and the superstructure starts way too far back. Take a look at pictures of Icon of the Seas or Legend of the Seas for inspiration."
+
+- **From the Icon class** (365 m, about 48 m at the waterline, much wider over the superstructure; the bridge front about a tenth of her length from the stem), as proportions, not a copy:
+  - **Wider:** her beam 14.5 % of her length (`T.yardBeam`, from 14 %: 48 m on the dock ship, 44 m on the finished one); above her lifeboats her decks overhang the hull, `superWidth` 1.2 times its width from the `overhangFrom` (3rd) deck up, narrowing with the bow under them; the lifeboats sit under the overhang, and the bridge wings reach out past it.
+  - **Further forward:** the superstructure to `fore` 0.9 of her length (from 0.78), from `aft` 0.04 (from 0.06), over a fuller bow (`bowLength` 0.2, `bowFullness` 2.2, from 0.22 and 1.7). Its front stays upright (0.6 m a deck) and faceted.
+- Both ships take it (the dock ship's blocks too). Settings in `CONFIG.structures.yardShip`.
+- **Tests** pass (`coastTurku.test.ts`, `npm run test:map`, the typecheck). Seen in the game headless from her bow quarter and abeam.
+- **Not checked:** on the Quest.
+
+### Turku: the finished ship back, her front less raked and rounded in three facets (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "the original cruise ship you had, the completed one, maybe was a better basis ... The forward slopey part was too sloped ... less sloped. And usually the front of the cruise ships are curved, but you could use kind of three facets to keep it simple ... go back to that model."
+
+- **Back to the original finished ship** at the outfitting pier (`turku.yaml`: 300 m, `stage` 0.88, her own block pattern): navy band at the waterline under a white hull, white decks with their window bands, lifeboats, bridge and wings, funnel and water-park.
+- **Her front less raked:** `CONFIG.structures.yardShip.rake` 1.4 to 0.6 m a deck (about 10 m over her 16 decks, from 22). The dock ship's front takes it too.
+- **Her front rounded in three facets** (`coastStructures.ts` `front3`): each deck's front block ends in a flat middle face across the middle third of her, and an angled face each side swept back `frontFacet` (0.2) of her beam to her side.
+- **Kept from the last change set:** the request's `painted` and `seed` options (`common.ts`, `package.ts`, `YardShipDef.painted`) stay, unused for now.
+- **Tests** (`coastTurku.test.ts`): the dock ship unpainted in the drained dock; the finished one at the pier; her front setting back under 10 m over all her decks; over 60 m to her funnel; both ships under 8,000 triangles. `npm run test:map` and the typecheck pass. Seen in the game headless from her bow quarter: the upright faceted front over the long foredeck.
+- **Not checked:** on the Quest.
+
+### Fix: grey slopes over narrow sounds (the far-hills change) (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, near Naantali in Turku: "There are some grey geometry near Naantali (NW) but I can drive through them."
+
+- **Cause** (mine, from the review fixes of 24 Oct, "Far hills merged less"): to merge the far hills' mesh less often, chunks now drawn nearer (in full or coarse) were left in the far mesh until it was next tidied, and a merge took in a band of chunks just inside the coarse ring. The far mesh is a 270 m grid: across a narrow sound (Naantalinsalmi) it lies as sloping ground over the water, standing above the nearer mesh, and only drawn, so you sail through it. At speed you outran the tidying.
+- **Fix** (`coastView.ts`): a chunk drawn nearer is never in the far mesh as well. It leaves within `coastFarRebuild` (0.5 s), as before the change. The safe parts of the saving stay: the fog's reach in 500 m steps, the coarse ring's 300 m hysteresis, the sort only after 50 m, one merge taking in the chunks just beyond the fog (`coastFarAhead`, now beyond the fog only), and chunks gone into the fog tidied later (`coastFarSlack`, `coastFarTidy`). On the 30 km Clyde run: 77 merges (166 before the change; the 14 it had came from the fault).
+- **Tests** (`coastViewBudget.test.ts`): after the run, no chunk drawn nearer is in the far mesh (the faulty version fails it, with nine), and under 100 merges. `npm run test:map` and the typecheck pass. Seen in the game: brought up Naantalinsalmi at speed on 298 degrees, to the owner's spot; open water ahead, the shores where they are.
+- **Note:** the fault is on `next` and in the live game (it went with the review fixes).
+
+### Turku: the finished ship as the dock ship's shape, white and blue; the yard's name on the gantries (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "the docks [are] usually drained during the build. I don't like the completed cruise ship. You can actually make it look like the same shape as the ones in the dock, but just a nice white paint and a blue coloured hull. And I'd like the text Meyer Turku to be on the gantry cranes."
+
+- **The dock:** drained during the build, as it was drawn; unchanged.
+- **The ship at the outfitting pier** (`coastStructures.ts` `yardShipParts`; owner, after two tries: "Just do the same shape but with fresh paint, lifeboats and windows"): exactly the dock ship's shape (the same length 330 m, beam, stage and block pattern: the request's new `seed`, both 1), so the same blocks and the same ragged top, but `painted`: white decks with their window bands over a blue hull (`colours.hull` 0x1f3f8a), red below the waterline, her orange lifeboats along her sides where her decks are built up to them. (A first try kept the even wedge of decks and took off the windows, lifeboats, funnel, slides and bridge, which the owner hadn't asked for.) A ship at `stage` 0.8 or more still gets every deck, her bridge, funnel and water-park.
+- **The yard's name on the gantries:** "MEYER TURKU" in block capitals along both faces of each girder, white on the blue, a little to one side of the middle. The wording comes from the map's request (`turku.yaml` `gantrySign`; `common.ts`, `package.ts`, `GantryDef.sign`), not the code. Letters are drawn as flat strokes on a 4 by 6 grid (`STROKES`: the letters needed so far, A E K M N O R T U Y; anything else is a space), two triangles a stroke, in the one landmark mesh. `CONFIG.structures.gantry.signHeight` 6.5 m, `colours.sign`. Note for later: it's the yard's real name and trademark, written plainly (no logo); worth remembering if the game is ever published commercially.
+- **Tests** (`coastTurku.test.ts`): the gantries with their signs still under 2,000 triangles; the painted ship the dock ship's length, beam, stage and pattern, her parts the dock ship's plus her lifeboats; the ships under 8,000 triangles together. `npm run test:map` and the typecheck pass. Seen in the game headless: the sign reads along the girder; the finished ship white over blue at the pier.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`GantryDef.sign`).
+
+### Turku: cruise ships building at Perno (26 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner (who worked at the yard): "I'd like to have some partially completed cruise ships in the yard ... use the images and build up something that looks convincing."
+
+- **Two ships, an original design** (not a real ship or class), placed from the map by the request (`turku.yaml` `yardShips`; `common.ts`, `package.ts`):
+  - **In the building dock** (the map's dry dock, 368 by 81 m, read by the features stage as `drydocks`): 330 m, about half built (`stage` 0.45). She stands on her keel blocks on the dock floor (the dock is dry ground in the map): red bottom, the hull a patchwork of primer-grey, light-grey and white blocks (a few already navy), the superstructure lifted on block by block, each to its own height, under the two gantries.
+  - **At the outfitting pier** (the yard's berth along the 209 m pier): 300 m, nearly finished (`stage` 0.88), afloat (keel 8.5 m down). Navy hull, white decks each with a thin glass-and-balcony line, the front raked back, the stern terraced, the bridge with its wings, the funnel, a water-park aft (coloured slides, a tower, a dome), the orange lifeboats along her sides, a few blocks still in primer.
+  - Two of the yard's yellow luffing cranes along each (portal, slewing house, jib raised over her).
+- **Drawing** (`coastStructures.ts` `yardShipParts`): the hull and every deck built as prisms over the hull's plan (a parallel body, a fine bow over its last 22 %, the stern's corners rounded); merged into the region's one landmark mesh, so no extra draw call. Both ships together are about 4,300 triangles.
+- **Settings** `CONFIG.structures.yardShip` (hull depth 6.5 % of her length, decks of 3 m, 16 of them, the superstructure from 6 % to 78 % of her length, rake 1.4 m a deck, terraces every 3 decks, blocks 24 m, lifeboats every 15 m, colours); in the pipeline `T.yardBeam` (14 % of her length), `yardDraught`, `yardBerthOff`.
+- **Tests** (`coastTurku.test.ts`): the half-built ship in the dock, between the gantry's rails, on its floor; the finished one afloat by the yard's berth; she stands over 60 m above the water, the half-built one lower; under 6,000 triangles together. `npm run test:map` and the typecheck pass. Seen in the game headless from the water and from above (the dock ship under the gantries, the finished one at the pier).
+- **Not solid** (like the bridges and the gantries): you can sail through them. Making them solid would need new physics shapes, so it's the owner's call.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`YardShipDef`, `RegionDef.yardShips`).
+
+### Turku and the Archipelago Sea: a new Voyage map, and the Baltic theme (26 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, after the "Next Waters" research page: "Go ahead with Turku as the next map".
+
+- **The map:** `tools/coast/requests/turku.yaml`, box [21.78, 60.16, 22.45, 60.50], 36.9 by 37.8 km, chunked like the Clyde (359 chunks, the biggest 10,392 faces, within the 12,000 budget; 28 MB of mesh). Turku and its port, the Meyer Turku yard at Perno, Ruissalo, the Airisto fairway, Naantali, Pargas, Nagu and the islands between. Voyage starts at the Port of Turku's cargo berth (4.2 m of water), in its live weather (read at 60.3 N, 22.1 E). Landing page: a Turku line under Voyage.
+- **Data:** the same sources as the other maps (OpenStreetMap, Copernicus GLO-30, ESA WorldCover, EMODnet, which covers the Baltic). No new source was needed. OpenStreetMap here is very full: 2.1 million points, about six times the Clyde's.
+- **The Baltic theme** (`tools/coast/src/themes.ts` `BALTIC`): grey-pink granite shores rounded by the ice, reed beds, hay fields; Scots pine on the rock, spruce in the hollows, birch at the edges, juniper scrub, not planted in rows; wooden houses in red ochre and yellow (some white or pale grey) with dark metal or red roofs, red-ochre sheds and boathouses, Turku's blocks rendered cream and grey, three storeys; motor cruisers and yachts at the guest-harbour pontoons, few swinging moorings. Invented Finnish and Swedish ferry names (`FERRY_NAMES.baltic`). Its weather in `world/maps.ts` (`BALTIC_WEATHER`): grey and changeable, overcast spells longest, rain and fog often.
+- **Keeping a crowded archipelago the size of the others**, three new request options (`common.ts`), off for the other maps, which re-package unchanged:
+  - `privateJetties`: the map marks every summer cottage's jetty as a pier, which gave 471 harbours and 259 ports (the Clyde has 56). A group of piers with no name of its own and no quay wall is now drawn and solid but isn't a port, has no moorings round it, and brings in only the buildings within 80 m (`harbours.ts` `privateReach`). Turku: 48 ports, 8,357 buildings (from 18,152), 338 moorings (from 1,684).
+  - `pottingApart` 1200: creel grounds no closer than 1.2 km (1,706 to 215; every charted rock had one).
+  - `ferriesNamed`: only named ferry routes, the longest piece of each name (45 to 12): the road ferries (Prostvik to Lillmälö, Haverö, Käldö), the archipelago boats to Seili, Röölä, Vepsä and Naantali, the ring routes round Nagu, and the Finnlines ship from Travemünde up the fairway.
+  - For every map: a ferry route more than a fifth over the game's land is left out (Turku's Aura river water bus: rivers are land in the game for now). No other map had one.
+- **Names, by hand** (`turku.edits.yaml`): the harbour the map calls "Silja Line: Turku pier" is the Port of Turku (`port-of-turku`, the Voyage start); "Outfitting place 4-5" is Perno shipyard; "D" is Tammisto jetty; "Boatservices, storage" is Västörä boatyard; "Tiilitehtaanranta A" is Tiilitehtaanranta quay.
+- **Pipeline speed:** the harbours stage looked up the list of every tagged map point once per point (quadratic). On Turku it took 37 minutes; now 64 seconds, with the same result (Oban checked).
+- **Tests:** `tests/coastTurku.test.ts`: the box, the chunks within budget, the Baltic theme; the Port of Turku reads 60.44 N, 22.22 E; the start berth in water; Perno, Pargas, Nagu and Naantali are ports; the private jetties aren't ports but every piece is drawn; 30 to 70 ports, none with a stub name; named ferries only, each once, over water; creel grounds 1.2 km apart. `npm run test:map` (138), the typecheck and all of `npm test` (1,639) pass.
+- **Checked in the game** (headless): Turku loads in about 10 s with no errors, moored at the Port of Turku, the GPS reading 60.436 N, 22.218 E; 161 draw calls at the port. Screenshots at the port, off the Perno yard and off Nagu: the wooden houses in their colours, pine and spruce woods to the water, yachts at anchor, a ferry at the terminal.
+- **Not checked:** on the Quest (frame rate, memory on a long voyage; Turku's mesh is 28 MB against the Clyde's 25 MB, and it has more buildings); ferry schedules by eye; the chart and the radio's place names in Finnish and Swedish (the map has both; the game shows whichever the map gives).
+- **The Perno yard's gantry cranes** (owner, with photos of the yard): the features stage now reads a shipyard's gantry crane track from the map (`man_made=crane`, `crane:type=gantry_crane`, drawn as an area: its long side is the way it runs, across it the span; `count` gantries; `gantryMinSpan` 40 m). Perno's: 743 m along the building dock, 156 m between the rails, two gantries. Each is drawn (`coastStructures.ts` `gantryParts`) as an A-frame of two legs on their bogies on each rail, a box girder across, a cab trolley on top, a hoist trolley under it with ropes and a hook block, and a T-crane on top of one leg, dark blue with yellow-orange trolleys; the rails along the whole track. An original low-poly form to the map's track: no names or logos. Merged into the region's one landmark mesh (no extra draw call), under 2,000 triangles a gantry. Settings `CONFIG.structures.gantry` (height 100 m to the girder's top, girder 11 by 9 m, legs 4 m, feet 34 m apart, where each stands along the track, mast 20 m, jib 42 m, hoist 45 m, colours). Not solid, like the bridges.
+- **Next, if wanted:** a cruise ship fitting out under the gantries; winter ice; a ferry livery of its own for the Finnish road ferries (they use the plain one for now).
+- **Shared changes:** `index.html` (a Turku line on the landing page); `src/world/defs.ts` (`GantryDef`, `RegionDef.gantries`). `src/world/maps.ts` is this area's.
+
 ### Career: Brannock Pier the deep-water berth; deep boats start there (25 Oct 2026)
 
 **Owner approved; merged into `next`.**
@@ -30,7 +131,7 @@ Owner: "We need a new deep water harbour on the career map. The new tugboat's go
 Owner, after the main game chat's review (`docs/REVIEW_2026-10-24.md`): "Do the two map items and the lat/long".
 
 - **Real latitude and longitude on the Voyage maps.** The GPS (NAV display), the paper chart's scale and the radio's positions used the career archipelago's made-up origin on every map, so Syros read as Scotland. Each package now carries its box in degrees (`bbox`, from the request; the four maps re-packaged, nothing else in them changed), and `src/world/coastGeo.ts` inverts the pipeline's projection about the box's middle, both ways (the same sums as the Timber handoff's `metaverse.ts`, which the test checks against). `toLatLon` uses it whenever a coast map is loaded; a new `fromLatLon` does the reverse, and the paper chart draws its scale with it. The career islands keep their made-up origin (`CONFIG.nav`). In the game: Syros's quay reads 37.437° N 24.940° E (Ermoupoli), Rothesay 55.839° N 5.055° W, Oban bay 56.414° N 5.475° W.
-- **Far hills merged less** (`coastView.ts`). A big map merged its far chunks into one mesh again, and sent it to the graphics chip, each time a chunk crossed a line or the visibility drifted, up to twice a second. Now: the fog's reach is rounded up to 500 m steps (`coastFogStep`); a chunk keeps its coarse copy 300 m past its line (`coastHysteresis`); the chunks are re-sorted by distance only after 50 m of movement (`coastResort`); a merge only happens when a chunk must join (a hole otherwise), and then it takes in the chunks within 2 km of needing it too (`coastFarAhead`: the next row about to leave the coarse ring, the hills just beyond the fog), so one merge serves a whole row; chunks no longer needed stay in the mesh, under the nearer ground or in the fog, until they're over a quarter of it (`coastFarSlack`, at most every `coastFarTidy` 5 s). On a 30 km run down the Clyde in wandering visibility: 14 merges, down from 166 for the same run merging chunk by chunk.
+- **Far hills merged less** (`coastView.ts`). A big map merged its far chunks into one mesh again, and sent it to the graphics chip, each time a chunk crossed a line or the visibility drifted, up to twice a second. Now: the fog's reach is rounded up to 500 m steps (`coastFogStep`); a chunk keeps its coarse copy 300 m past its line (`coastHysteresis`); the chunks are re-sorted by distance only after 50 m of movement (`coastResort`); a merge only happens when a chunk must join (a hole otherwise), and then it takes in the chunks within 2 km of needing it too (`coastFarAhead`: the next row about to leave the coarse ring, the hills just beyond the fog), so one merge serves a whole row; chunks no longer needed stay in the mesh, under the nearer ground or in the fog, until they're over a quarter of it (`coastFarSlack`, at most every `coastFarTidy` 5 s). On a 30 km run down the Clyde in wandering visibility: 14 merges, down from 166 for the same run merging chunk by chunk. (Corrected 27 Oct: leaving chunks under the nearer ground stood grey slopes over narrow sounds; see the fix above.)
 - **Passed chunks freed.** A chunk's coarse copy and its town's buildings stayed in memory once made, so a long Clyde voyage kept every one it had passed. Now they're freed beyond 1.5 times the distance they're drawn within (`coastDropFactor`; 9 km and 3 km) and made again on coming back. On the same run, at most 56 coarse copies at once.
 - **Config keys** (`src/config/map.ts`, `regions`): `coastFogStep` 500, `coastHysteresis` 300, `coastResort` 50, `coastFarAhead` 2000, `coastFarSlack` 0.25, `coastFarTidy` 5, `coastDropFactor` 1.5.
 - **Tests:** `tests/coastGeo.test.ts` (every map's weather point both ways; Syros in the Aegean; Oban as the handoff places it; north up, east right), `tests/coastViewBudget.test.ts` (the 30 km Clyde run: merges and meshes kept). `npm run test:map`, the typecheck and all of `npm test` (1484) pass. Headless: Syros, Clyde and Oban start without errors, their positions as above, the Clyde's far hills drawn.

@@ -212,7 +212,8 @@ for (const [x, z] of mapMoorings) spots.push({ x: r1(x), z: r1(z), depth: r1(dep
 
 const fields: { harbour: string; moorings: number }[] = [];
 for (const h of hb.harbours) {
-  if (h.kind === 'anchorage') continue;
+  // (Not round a private jetty, the request's `privateJetties`: its boat is the cottage's own.)
+  if (h.kind === 'anchorage' || (h as { private?: boolean }).private) continue;
   const pier = h.kind === 'pier';
   const reach = pier ? T.pierReach : T.reach;
   const want = Math.round(Math.min(pier ? T.pierMax : T.max, T.base + T.perBerth * h.berths) * theme.boats.moorings);

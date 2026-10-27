@@ -33,6 +33,10 @@ const T = {
   namedApart: 30,
   /** A bridge's deck stands at least this high over the sea (m), whatever the ground at its ends. */
   bridgeMinDeck: 6,
+  /** A yard's ship under construction: her beam as a share of her length (the Icon class: 48 m on 365); afloat at the quay she draws this (m), her side this much nearer the face than a small boat's berth (which lies 2.2 m off it) (m). */
+  yardBeam: 0.145,
+  yardDraught: 8.5,
+  yardBerthOff: 1.2,
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
    * (the game puts you 2 m in): a pontoon (2.5 m) has; a narrower walkway's berths aren't chosen. */
   namedDeck: 2.4,
@@ -161,9 +165,10 @@ for (const b of hb.blocks) blockOf.set(b.source, blockOf.get(b.source) ?? b);
 const buildings = hb.buildings.map(({ source: _s, base: _b, tagged: _t, ...b }: Record<string, unknown>) => b);
 
 // ── Ports ──
-type HB = { id: string; name: string; kind: string; x: number; z: number; berths: number; fetch: number; role?: string };
+type HB = { id: string; name: string; kind: string; x: number; z: number; berths: number; fetch: number; role?: string; private?: boolean };
 type Berth = { id: string; source: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number; shoreDist: number; deckY: number; deckW?: number };
-const harbours = (hb.harbours as HB[]).filter((h) => h.berths > 0 || h.kind === 'anchorage');
+// (A private jetty, the request's `privateJetties`, is drawn but isn't a port.)
+const harbours = (hb.harbours as HB[]).filter((h) => (h.berths > 0 || h.kind === 'anchorage') && !h.private);
 const near = (h: HB, b: Berth) => Math.hypot(b.x - h.x, b.z - h.z);
 const ports: object[] = [];
 const berths: object[] = [];
@@ -404,6 +409,38 @@ const follies = ((F?.follies ?? []) as { name: string; outline: [number, number]
   base: r1(Math.min(...f.outline.map(([x, z]) => hAt(x, z)))),
   ...(f.height ? { height: f.height } : {}),
 }));
+// Gantry cranes (Perno): each stands on its two rails, at the lower of the ground along them.
+const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[]).map((g) => {
+  const a = (g.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  let base = Infinity;
+  for (const side of [-1, 1]) for (let k = -2; k <= 2; k++) base = Math.min(base, hAt(g.x + vx * side * (g.span / 2) + (ux * k * g.length) / 5, g.z + vz * side * (g.span / 2) + (uz * k * g.length) / 5));
+  return { ...g, x: r1(g.x), z: r1(g.z), base: r1(Math.max(0.5, base)), ...(req.gantrySign ? { sign: req.gantrySign } : {}) };
+});
+// Ships under construction at a yard (the request's `yardShips`; Perno): in a mapped dry dock,
+// standing on her keel blocks on its floor, or afloat alongside a berth (the outfitting quay),
+// her side a little off its face. Her beam from her length (world/coastStructures.ts draws her).
+const yardShips: object[] = [];
+for (const [i, y] of (req.yardShips ?? []).entries()) {
+  const beam = Math.round(y.length * T.yardBeam);
+  if (y.dock) {
+    const docks = ((F?.drydocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).sort((a, b) => b.length * b.width - a.length * a.width);
+    const d = y.dock === 'largest' ? docks[0] : docks.find((k) => k.name === y.dock);
+    if (!d) {
+      warnings.push(`yard ship ${i + 1}: no dry dock "${y.dock}"`);
+      continue;
+    }
+    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(hAt(d.x, d.z) + 1), stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
+  } else if (y.berth) {
+    const b = (berths as { id: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number }[]).find((k) => k.id === y.berth);
+    if (!b) {
+      warnings.push(`yard ship ${i + 1}: no berth "${y.berth}"`);
+      continue;
+    }
+    const off = beam / 2 - T.yardBerthOff;
+    yardShips.push({ x: r1(b.x - b.shoreX * off), z: r1(b.z - b.shoreZ * off), yawDeg: (b.headingDeg + (y.bow === -1 ? 180 : 0)) % 360, length: y.length, beam, keel: -T.yardDraught, stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
+  }
+}
 // Ferries (the coast extras plan, C7): each mapped ferry route, cut to the map (its longest
 // stretch `ferryMargin` m inside the box's edge), each end a terminal where she berths (an
 // end of the route inside the map, named from the nearest ferry terminal or port) or the
@@ -416,6 +453,8 @@ const ferryMargin = 150;
 const smallRoute = 8000;
 const FERRY_NAMES: Record<string, string[]> = {
   'north-hebridean': ['Morvern Star', 'Sruth na Mara', 'Ardlamont', 'Glen Eacharn', 'Kilbrannan', 'Ceann Loch', 'Dun Leathan', 'Sgarbh Mor', 'Tobar Ban', 'Ardnadrochit'],
+  // Invented Finnish and Swedish names (both are spoken in the archipelago), no real ship's.
+  baltic: ['Luotoranta', 'Holmvik', 'Kallioniemi', 'Havsbris', 'Skärvind', 'Ulapanlaine', 'Kuutamo', 'Lokinsiipi', 'Saarenkulma', 'Fjärdstjärna', 'Kivikko', 'Sundholm'],
   aegean: ['Galini', 'Meltemi', 'Thalassopouli', 'Kyma', 'Ostria', 'Aigaio Star', 'Levantes', 'Pelagia', 'Kalimera', 'Glaros', 'Zefyros', 'Anemoni'],
 };
 type Ferry = { name: string; operator: string; foot: boolean; path: [number, number][] };
@@ -427,7 +466,13 @@ const ferryRoutes: object[] = [];
   const portNames = (ports as { name: string; x: number; z: number }[]).map((p) => ({ name: p.name.replace(/ (pier|harbour|marina)$/i, ''), x: p.x, z: p.z }));
   const names = FERRY_NAMES[req.theme] ?? FERRY_NAMES['north-hebridean'];
   const places = (F?.names ?? []) as { name: string; x: number; z: number }[];
-  for (const [n, r] of ((F?.ferries?.routes ?? []) as Ferry[]).entries()) {
+  let routes = (F?.ferries?.routes ?? []) as Ferry[];
+  if (req.ferriesNamed) {
+    const longest = new Map<string, Ferry>();
+    for (const r of routes) if (r.name && len(r.path) > len(longest.get(r.name)?.path ?? [])) longest.set(r.name, r);
+    routes = routes.filter((r) => r.name && longest.get(r.name) === r);
+  }
+  for (const [n, r] of routes.entries()) {
     // The longest run of the route inside the map.
     let best: [number, number][] = [];
     let run: [number, number][] = [];
@@ -439,6 +484,21 @@ const ferryRoutes: object[] = [];
       }
     }
     if (best.length < 2 || len(best) < 300) continue;
+    // Over water: a route more than a fifth on the game's land isn't one it can sail (a river
+    // water bus: the game draws rivers and lakes as land for now). Sampled every 50 m.
+    {
+      let n = 0;
+      let dry = 0;
+      for (let i = 1; i < best.length; i++) {
+        const [a, b] = [best[i - 1], best[i]];
+        const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 50));
+        for (let k = 0; k < steps; k++, n++) if (hAt(a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps) > 0) dry++;
+      }
+      if (dry > n * 0.2) {
+        warnings.push(`ferry ${r.name || '(unnamed)'}: ${Math.round((100 * dry) / n)} % over land: left out`);
+        continue;
+      }
+    }
     // Naming the ends: the route's own name's first and last parts ("Craighouse - Tayvallich")
     // go one to each end, whichever way round puts each nearer a port, terminal or place of
     // its name (letters only, any case: "Hunters Quay" is "Hunter's Quay"); an end at the map's
@@ -502,7 +562,7 @@ for (const sp of req.fish ?? []) {
   fishingGrounds.push({ name: `${sp[0].toUpperCase()}${sp.slice(1)} ground`, x: best.x, z: best.z, radius: T.groundRadius, richness: 1.1, species: sp });
 }
 // Potting grounds: round the skerries, in rocky water of the right depth.
-const pottingGrounds = (nav.hazards as { name: string; kind: string; x: number; z: number }[])
+const potAll = (nav.hazards as { name: string; kind: string; x: number; z: number }[])
   .filter((hz) => interior(hz.x, hz.z, 500))
   .map((hz, i) => {
     let at = { x: hz.x, z: hz.z };
@@ -517,6 +577,9 @@ const pottingGrounds = (nav.hazards as { name: string; kind: string; x: number; 
     }
     return { id: `${req.id}-pots-${i + 1}`, name: hz.name ? `${hz.name}` : `Skerry ${i + 1}`, x: at.x, z: at.z, radius: 60, quality: 0.8 };
   });
+// Thinned to `pottingApart` m where the request asks (in the order the chart lists them).
+const pottingGrounds: typeof potAll = [];
+for (const g of potAll) if (!req.pottingApart || pottingGrounds.every((o) => Math.hypot(o.x - g.x, o.z - g.z) >= req.pottingApart!)) pottingGrounds.push(g);
 
 // Landmarks: the highest named summit; the tallest lighthouse.
 const peaks = Object.entries(osm.nodeTags as Record<string, Record<string, string>>)
@@ -567,6 +630,8 @@ const pkg = {
   skylineStyle,
   bridges,
   follies,
+  gantries,
+  yardShips,
   places,
   ferries: ferryRoutes,
   shelters,

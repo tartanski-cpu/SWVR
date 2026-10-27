@@ -46,8 +46,9 @@ import { recipePart } from './parts/recipe';
 import { weightsPart } from './parts/weights';
 import { atDWL, type BuildArgs } from './parts/common';
 import type { Material } from './parts/catalog';
-import { ENGINES, withFixed } from './parts/catalog';
-export { withFixed, DESIGN_HULLS, ENGINES, FRAME_COLOURS, HOUSE_PAINTS, LIVERIES, ROOF_PAINTS, ROOF_TOPS, bowKeel, facetCentre, frontMullions, materialOf, sizeScale, withSheer, type DesignHull, type Material } from './parts/catalog';
+import { DESIGN_HULLS, ENGINES, withFixed } from './parts/catalog';
+import type { SolarFigures } from './parts/solar';
+export { withFixed, gearFixed, DESIGN_HULLS, ENGINES, FRAME_COLOURS, HOUSE_PAINTS, LIVERIES, ROOF_PAINTS, ROOF_TOPS, bowKeel, facetCentre, frontMullions, materialOf, sizeScale, withSheer, type DesignHull, type Material } from './parts/catalog';
 
 /** The designed boat: her hull and recipe, her main figures, and anything to warn about. */
 export interface DesignedBoat {
@@ -55,7 +56,7 @@ export interface DesignedBoat {
   recipe: Recipe;
   /** floorM: the cabin floor about the deck under the house (as built: a fine hull can bring a low one up). */
   /** engineShortM: how far her engine stands above the cabin floor (0: it fits; machinery.ts). */
-  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; engineShortM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number; material: Material; freeboardM: number };
+  figures: { solar?: SolarFigures; lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; engineShortM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number; material: Material; freeboardM: number };
   warnings: string[];
   /** Her shaft line and the engine on it (machinery.ts): for the Shipyard's drawing of her machinery. */
   shaft: ShaftLine;
@@ -91,11 +92,12 @@ export function buildDesign(design: ShipDesign, code = 'design', id = 'design'):
   // engine only one type takes (ENGINES `only`: the harbour tug's 1850 kW) is the 750 kW on another.
   const fixedD = withFixed(design);
   const only = (ENGINES[fixedD.engine] as { only?: readonly number[] } | undefined)?.only;
-  const d = only && !only.includes(fixedD.hull) ? { ...fixedD, engine: 4 } : fixedD;
+  // (The tug's diesel on another hull is the 750 kW; the solar cat's motors, the 150 kW.)
+  const d = only && !only.includes(fixedD.hull) ? { ...fixedD, engine: ENGINES[fixedD.engine].kw > 750 ? 4 : 0 } : fixedD;
   const first = buildAt(d, code, 0, null, id);
   const { rise, sinks } = riseFor(hullFormOf(first.hull.form), first.weights.massKg);
   const boat = buildAt(d, code, rise, { massKg: first.weights.massKg, cgY: first.weights.cgY }, id);
-  if (d.engine !== fixedD.engine) boat.warnings.unshift(`The ${ENGINES[fixedD.engine].name.split(' (')[0]} is the harbour tug's own: she has the ${ENGINES[4].name.split(' (')[0]}.`);
+  if (d.engine !== fixedD.engine) boat.warnings.unshift(`The ${ENGINES[fixedD.engine].name.split(' (')[0]} is the ${DESIGN_HULLS[only![0]].name.split(':')[0].toLowerCase()}'s own: she has the ${ENGINES[d.engine].name.split(' (')[0]}.`);
   if (sinks) boat.warnings.unshift(`She's too heavy for her hull (${(first.weights.massKg / 1000).toFixed(1)} t): she'd float with her deck awash. Make her lighter (aluminium, a smaller engine, less gear) or bigger.`);
   else if (boat.figures.freeboardM < 0.3) boat.warnings.unshift(`She floats deep for her weight: ${Math.round(boat.figures.freeboardM * 100)} cm of freeboard amidships. Give her more depth (Hull) or make her lighter.`);
   return boat;

@@ -35,9 +35,11 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   // her bottom, each with its own engine (so always twin). For a planing hull (a fast boat's
   // small, quick propellers); not the slow tug diesel; outboards, if chosen, instead.
   const pdc = CONFIG.modules.pods;
-  if (d.pods && !outboardCount(d) && base.regime !== 'planing') warnings.push('Pod drives are for a planing hull (the landing craft, the gillnetter or the pilot boat): she has a shaft.');
+  // (And the solar catamaran's electric motors: hers are pods, one under each hull.)
+  const electric = 'electric' in eng && !!eng.electric;
+  if (d.pods && !outboardCount(d) && base.regime !== 'planing' && !electric) warnings.push('Pod drives are for a planing hull (the landing craft, the gillnetter or the pilot boat): she has a shaft.');
   else if (d.pods && !outboardCount(d) && shaftOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no pod drives.`);
-  const pods = !!d.pods && !outboardCount(d) && base.regime === 'planing' && !shaftOnly;
+  const pods = !!d.pods && !outboardCount(d) && (base.regime === 'planing' || electric) && !shaftOnly;
   // A catamaran always has twin engines, one in each hull (her hulls are too slim for one on
   // her centreline, and her tunnel is there).
   // Too much power for a displacement hull (CONFIG.shipyard.maxKwPerTonne, on her lines'
@@ -67,7 +69,8 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
   // (A catamaran's: each under its own hull's keel, half her hull spacing out.)
   const twinX = shape.catamaran ? Math.round((shape.catamaran.spacing / 2) * 100) / 100 : Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
-  const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
+  // (An electric motor's full torque from rest turns its own big slow propeller, ENGINES propMaxM, whatever its power.)
+  const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, electric ? eng.propMaxM : 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
   // Her shaft and the engine on it (machinery.ts): the shaft rises forward from the
   // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
   // must be under the cabin floor (under the house) or the deck (elsewhere): a tall engine in
@@ -143,7 +146,8 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     : null;
   // The pods: one under each engine's gearbox end, its strut down from her bottom there long
   // enough that its propellers' tips clear her bottom (and never shorter than the look's).
-  const podPropD = Math.min(propD, pdc.propMaxM);
+  // (An electric motor's pods turn its own big slow propeller: no pod gears to keep it small.)
+  const podPropD = electric ? propD : Math.min(propD, pdc.propMaxM);
   const podSet = pods
     ? (() => {
         const units = [-shaft.x, shaft.x].map(rnd);
@@ -233,7 +237,7 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const tankL = base.fuelL ?? Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
-  return { zDriveSet, batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };
+  return { electric, zDriveSet, batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };
 }
 export type MachineryPart = ReturnType<typeof machineryPart>;
 
