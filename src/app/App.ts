@@ -2429,7 +2429,10 @@ export class App {
       return;
     }
     if (!this.updateBody(dt, inXR, area, frame)) {
-      this.runLocomotion(dt, inXR, frame, inXR ? area : this.withDoor(area, p.aboardVesselId), 1, inXR);
+      // (VR moves through walls aboard, fenced at her edge; but in an engine room its walls and
+      // machinery are solid, as on the desktop: owner, 27 Oct 2026, "it's still possible to slide
+      // through the walls of the engine room".)
+      this.runLocomotion(dt, inXR, frame, inXR ? area : this.withDoor(area, p.aboardVesselId), 1, inXR && !this.belowDecks.boatId);
       this.crossRamp();
     }
     this.placeDebugPanel(inXR);

@@ -182,6 +182,17 @@ export abstract class Control {
     for (const m of this.highlightMaterials) m.emissive.setHex(!on ? 0x000000 : locked ? 0x662222 : 0x335533);
   }
 
+  /**
+   * A cue: the control glows softly (amber, `level` 0..1, the caller pulsing it) to say it's
+   * the next thing to work (the tug's start-up: app/engineRoom/tug/room.ts). Not while hovered
+   * (the hover's glow wins); 0 puts it out.
+   */
+  cue(level: number, colour = 0xffa020): void {
+    if (this.hovered) return;
+    const c = new THREE.Color(colour).multiplyScalar(Math.max(0, Math.min(1, level)));
+    for (const m of this.highlightMaterials) m.emissive.copy(c);
+  }
+
   /** Make a flat-shaded material that lights up when the control is hovered. */
   protected material(color: number): THREE.MeshLambertMaterial {
     const m = new THREE.MeshLambertMaterial({ color, flatShading: true });

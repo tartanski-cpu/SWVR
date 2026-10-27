@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Engine rooms: the next step glows; solid walls in VR; crew-mates seen below (27 Oct 2026)
+
+Owner: "highlight the next thing that needs to be touched ... Don't make it too easy, but if it was somehow glowing"; "it's still possible to slide through the walls of the engine room"; "in multiplayer ... I could see one of the players, but that player couldn't see me. And then when I ... came back, it was the other way around."
+- **The cue** (`plant/plant.ts` `nextControls`, `tug/room.ts`, `Control.cue`; `CONFIG.plant.cue` `on`, `level` 0.55, `periodS` 2.2): the next step's controls still to work glow amber, a slow pulse, and stop once worked. Nothing glows while she waits (the generator running up, the oil pressure building) or once she's handed over. Only the controls themselves: you still find them.
+- **Solid walls in VR** (`App`, `engineRoom/walk.ts`): aboard, VR movement goes through walls by design (the wheelhouse), fenced only at her edge; below, it now collides with the room's sides, the control room's walls and the machinery as the desktop does, and doesn't lift you off the floor. A head leaned through a side, a bulkhead or the deckhead (room-scale) fades the view, as the engines did.
+- **Crew-mates below** (`engineRoom/index.ts` `hideOutside`): going below hides everything outside the room, again each frame, but it never showed anything again: a crew-mate still on deck when you went down stayed hidden when they came down after you (so whoever went first couldn't see the second). What's to be kept is now shown again.
+- **Tests:** tests/plant.test.ts (the cued controls at each step, none while waiting or once handed over).
+- **Checked headless:** a crew-mate (a second player put in the world) on deck, then below by you: hidden, then shown, then hidden again when back up; the cue on the battery master, then the generator's fuel valve glowing amber in the dark room. **Not checked:** VR (the walls, the cue's look in the headset), real multiplayer with two headsets.
+- **Shared changes:** `src/controls/Control.ts` (`cue`).
+
 ### Engine rooms: the ladder is the only way out (27 Oct 2026)
 
 Owner: "if you jump, you actually jump out of the engine room back to the ship ... The only way in and out should be the ladder."

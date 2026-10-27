@@ -159,6 +159,12 @@ export class BelowDecks {
     const keep = new Set<THREE.Object3D>([room, ...this.ctx.keep()]);
     const holders = new Set<THREE.Object3D>();
     for (const k of keep) for (let o = k.parent; o; o = o.parent) holders.add(o);
+    // What's kept now but was hidden before (a crew-mate who has come down since we did), and
+    // whatever holds it: shown again. (Hiding only ever hid: whoever went below first never saw
+    // the one who came after; owner, 27 Oct 2026.)
+    for (const k of keep)
+      for (let o: THREE.Object3D | null = k; o; o = o.parent)
+        if (this.hidden.delete(o)) o.visible = true;
     const visit = (parent: THREE.Object3D) => {
       for (const o of parent.children) {
         if (keep.has(o)) continue;
