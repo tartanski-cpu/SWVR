@@ -349,6 +349,20 @@ export const SHIPYARD_CONFIG = {
      *                 pod drive, down from her wet deck to her aft foil;
      *   pack          how her battery's drawn on the Engine step (as the solar cat's).
      */
+    /**
+     * Electric pods' steering (owner, 28 Oct 2026: "both the solar catamaran and the hydrofoil
+     * catamaran hardly steer"; parts/recipe.ts): an electric pod swings further than a diesel
+     * pod drive, to `lockDeg` either way (an azimuthing pod: its push turned well across her),
+     * and its whole side counts as its rudder: its strut (its length x chord) and its nacelle
+     * (length x diameter). (The foiling ferry's long strut is her foils' steered strut,
+     * physics/foils.ts: her pod counts its nacelle only.) Past `fullLockToKn` the wheel's lock
+     * shrinks as (that speed / hers)², the steering's force about what full lock gives at that
+     * speed: the foiling ferry hard over at 25 kn has about 6° (a 13°/s turn, about 105 m
+     * across, still flying; full lock threw her off her foils, and a lock opening sooner let her
+     * slow in the turn until it did). The diesel pods keep
+     * CONFIG.modules.pods.steering.
+     */
+    electricPods: { lockDeg: 45, fullLockToKn: 9 },
     foilFerry: { batteryKgPerKWh: 6, batteryPricePerKWh: 500, usableShare: 0.9, podKg: 180, foilsKg: 450, foilsPrice: 90000, cruiseKn: 25, cruiseKw: 79, cruiseRefT: 7.05, cruiseKwPerT: 4.3, motor: { efficiency: 0.95, inertia: 0.08, propInertia: 0.5, responseS: 0.5 }, look: { strutLength: 0.45, strutChord: 0.34, strutWidth: 0.07, podLength: 1.3, podRadius: 0.16, propFwd: 0.62 }, pack: { litresPerKWh: 4, height: 0.3, width: 0.35 } },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**

@@ -384,7 +384,8 @@ export function stepVessel(
   // Hydrofoils, where she has them (foils.ts): her lift at speed, their drag, her flight computer.
   if (def.foils) {
     portWaves = waves;
-    const fl = stepFoils(def.foils, port, mass, cgL.z, state.controls);
+    // (Her steering's angle, for a strut that turns with it: a pod's, VesselState.rudder.)
+    const fl = stepFoils(def.foils, port, mass, cgL.z, state.controls, state.rudder);
     // (For her helm's display and sound, in her state: a crew's game sees it too.)
     state.foil = { engaged: Math.round(fl.engaged * 1000) / 1000, flaps: fl.flaps.map((x) => Math.round(x * 10) / 10), clear: Math.round((1 - immersion) * 1000) / 1000 };
   }

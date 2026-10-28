@@ -63,6 +63,12 @@ export interface FoilStrut {
   chord: number;
   /** A pod on its foot (an electric motor's): its drag area (m^2, CD x frontal area). */
   podDragArea?: number;
+  /**
+   * It turns with her steering (the foiling ferry's pod strut, owner 28 Oct 2026: "hardly
+   * steers"): its side force from the water's angle to it as it's swung, so it steers her as a
+   * rudder does, rather than holding her straight as a fixed strut does.
+   */
+  steered?: boolean;
 }
 
 export interface FoilSystem {
@@ -85,7 +91,7 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
  * Her foils' and struts' forces this tick, through the physics port. `mass` and `cgZ`: hers
  * now (payload in), for the share of her weight each foil should carry.
  */
-export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: number, controls: { foilMode?: number; foilRide?: number } = {}): { engaged: number; flaps: number[] } {
+export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: number, controls: { foilMode?: number; foilRide?: number } = {}, steer = 0): { engaged: number; flaps: number[] } {
   const c = CONFIG.foils;
   // Her helm: FOIL or HULL, and her ride height (a step deeper or shallower than her design's).
   const foiling = (controls.foilMode ?? 1) > 0.5;
@@ -211,10 +217,15 @@ export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: 
     const q = 0.5 * rho * sp * sp;
     const A = wet * s.chord;
     const AR = (2 * wet) / s.chord;
-    const beta = Math.atan2(f.x, Math.max(Math.abs(f.z), 0.5));
+    // (A steered strut swung by `steer`, as a pod is: + its push turned to port. Its chord
+    // points along (-sin, -cos) in her x and z, its side across that; the water's angle to it.)
+    const d = s.steered ? steer : 0;
+    const along = -f.x * Math.sin(d) - f.z * Math.cos(d);
+    const across = f.x * Math.cos(d) - f.z * Math.sin(d);
+    const beta = Math.atan2(across, Math.max(Math.abs(along), 0.5));
     const side = q * A * ((2 * Math.PI * AR) / (AR + 2)) * clamp(beta, -0.25, 0.25);
     const D = q * (A * c.strutCd + (s.podDragArea ?? 0));
-    port.addForce(mid, -side - (D * f.x) / sp, 0, -(D * f.z) / sp);
+    port.addForce(mid, -side * Math.cos(d) - (D * f.x) / sp, 0, side * Math.sin(d) - (D * f.z) / sp);
     foilTelemetry.drag += D;
   }
   return { engaged: foiling ? engaged : 0, flaps: [...foilTelemetry.flaps] };

@@ -67,7 +67,8 @@ export interface PodsConfig {
   mount: { y: number; z: number };
   /** The strut, her bottom to the nacelle's centre (m): the propellers' tips clear of her bottom. */
   strut: number;
-  steering: typeof pc.steering;
+  /** Their steering; `fullLockToKn` (electric pods: CONFIG.shipyard.electricPods), above it the wheel's lock shrinks as (that speed / hers)², so it never asks more of her at speed than full lock does there. */
+  steering: typeof pc.steering & { fullLockToKn?: number };
   look: typeof pc.look;
   joystick: typeof pc.joystick;
   /** Her centre of gravity along her (m, boat z): what the joystick turns her about. */
@@ -221,8 +222,12 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       push.length = n;
       let throttle = lever;
       if (!joy) {
-        // From the wheel: the pods swing together (hydraulic steering, at a set rate).
-        s.swing = steeringStep(s.swing, io.num('helm'), strutSpec(c).rudder, dt);
+        // From the wheel: the pods swing together (hydraulic steering, at a set rate). (Past
+        // `fullLockToKn`, less of the lock as she goes faster: the foiling ferry's, so hard over
+        // at speed turns her hard but keeps her on her foils.)
+        const fast = c.steering.fullLockToKn ? Math.max(0, -port.flowAt([0, 0, c.centreZ]).z) / (c.steering.fullLockToKn * 0.5144) : 0;
+        const helm = io.num('helm') * (fast > 1 ? 1 / (fast * fast) : 1);
+        s.swing = steeringStep(s.swing, helm, strutSpec(c).rudder, dt);
         for (let i = 0; i < n; i++) {
           s.angles[i] = s.swing;
           push[i] = 1;

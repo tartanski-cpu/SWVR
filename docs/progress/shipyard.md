@@ -14,6 +14,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The solar catamaran and the foiling ferry steer (28 Oct 2026; on next for the owner to try)
+
+Owner, 28 Oct 2026, testing on next: "both the solar catamaran and the hydrofoil catamaran hardly steer."
+
+- **Measured** (hard over for 20 s, calm water): the solar cat turned at 1.2°/s, a 430 m circle (27 of her lengths); the ferry on her hulls 1.1°/s, 430 m; flying, 8°/s, 150 m. The fast catamaran turns in 87 m, the landing craft on her diesel pods in 47 m.
+- **Why:** the electric pods steered only by turning their (small) push, plus 0.14 m² of strut each, against two long, slim hulls; and the ferry's long pod strut was a fixed strut in her foil physics, holding her straight like a skeg instead of turning with her pod.
+- **Electric pods steer wider, their whole side a rudder** (`CONFIG.shipyard.electricPods`, parts/recipe.ts `electricSteering`): they swing to 45° (was 26°), their rudder area their strut and nacelle (the solar cat's 0.63 m² each). The diesel pods are unchanged.
+- **The ferry's pod strut turns with her pod** (shared, `vessel/physics/foils.ts`: a strut can be `steered`, its side force from the water's angle to it as it's swung, by her steering's angle, `VesselState.rudder`; set on her pod strut in her Shipyard form). Its 1 m² in the water is now her rudder; her pod counts its nacelle only.
+- **At speed, less lock** (shared, `modules/pods`: `steering.fullLockToKn`): past 9 kn the wheel's lock shrinks as (9 kn / her speed)², so hard over at 25 kn is about 6° of pod: full lock there threw her off her foils.
+- **Now:** the solar cat 2.7°/s, a 105 m circle (6.5 lengths, as the fast cat); the ferry on her hulls 6°/s, 42 m; flying hard over at 25 kn, 13°/s, about 105 m, still flying at 24 kn (flat out, 11°/s). Hard over at 19 kn, just above her take-off speed, she settles partly onto her hulls.
+- **Shared changes:** `vessel/physics/foils.ts` (`FoilStrut.steered`, `stepFoils`'s steering angle), `vessel/physics/vesselPhysics.ts` (passes it), `modules/pods` (`steering.fullLockToKn`).
+- Tests: `tests/shipyard/electricPodSteering.test.ts` (new); the ferry's, the solar cat's and the hull chat's foil tests pass. Not checked: VR.
+
 ### The foiling ferry on a choppy sea: she flies level over the waves; geared to take off in a Moderate sea (28 Oct 2026; on next for the owner to try)
 
 Owner, 28 Oct 2026: "maybe a nice test to do for the hydrofoils is take them out on a choppy sea, and obviously they should be pretty much completely smooth because they ride over the waves." Then, on what it found: "You do it here" (the flight computer's change) and "Yes, 1.6:1" (her gearing).

@@ -22,6 +22,16 @@ import type { FurniturePart } from './furniture';
 import type { HoldPart } from './hold';
 import { electricOf, motorSpec } from './solar';
 
+/**
+ * An electric pod's steering (CONFIG.shipyard.electricPods): its lock, and its side as its
+ * rudder's area: the strut (unless her foils' steered strut is it) and the nacelle.
+ */
+function electricSteering(look: { strutChord: number; podLength: number; podRadius: number }, strut: number, strutIsFoils: boolean): typeof CONFIG.modules.pods.steering & { fullLockToKn: number } {
+  const area = (strutIsFoils ? 0 : strut * look.strutChord) + look.podLength * 2 * look.podRadius;
+  const ep = CONFIG.shipyard.electricPods;
+  return { ...CONFIG.modules.pods.steering, maxAngleDeg: ep.lockDeg, fullLockToKn: ep.fullLockToKn, legArea: Math.round(area * 100) / 100 };
+}
+
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
   const { code, d, id } = a;
@@ -123,7 +133,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         engine: engine.engine,
         propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02, ...(p.electric ? { inertia: electricOf(d).motor.propInertia } : {}) },
         ...podSet,
-        steering: pdc.steering,
+        // (Electric pods steer wider, their whole side a rudder: CONFIG.shipyard.electricPods.)
+        steering: p.electric ? electricSteering(p.base.centrePod ? CONFIG.shipyard.foilFerry.look : pdc.look, podSet.strut, !!p.base.centrePod) : pdc.steering,
         // (The foiling ferry's: a slimmer, longer strut, down from her wet deck to her aft foil.)
         look: p.base.centrePod ? CONFIG.shipyard.foilFerry.look : pdc.look,
         joystick: pdc.joystick,

@@ -770,7 +770,11 @@ export const DESIGN_HULLS: DesignHull[] = [
     catamaran: true,
     // No fuel of her own (a token tank, never drawn on), as the solar catamaran.
     fuelL: 40,
-    form: () => ({ kind: 'lofted', design: { ...scaledStudy(study('foilFerry'), 1, 1, 1, null, false, 0), catamaran: study('foilFerry').catamaran } }),
+    // (Her pod's strut turns with her pod: it steers her, physics/foils.ts `steered`.)
+    form: () => {
+      const d = study('foilFerry');
+      return { kind: 'lofted', design: { ...scaledStudy(d, 1, 1, 1, null, false, 0), catamaran: d.catamaran, ...(d.foils ? { foils: { ...d.foils, struts: d.foils.struts.map((s) => (s.podDragArea ? { ...s, steered: true } : s)) } } : {}) } };
+    },
     // (Her hulls run on their bottoms until her foils lift her: a fast boat's propellers.)
     regime: 'planing',
     ramp: false,
