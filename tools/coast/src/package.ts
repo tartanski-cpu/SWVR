@@ -246,10 +246,15 @@ const blocked = (b: Berth) => {
     }
   return n;
 };
-/** The spot a step ashore from a berth (the game's startSpot.ts, `quayBack` m in from where she lies) is on a deck. */
+/**
+ * The spot a step ashore from a berth (the game's startSpot.ts, `quayBack` m in from where she
+ * lies) is on a deck, and the highest deck there is the berth's own (the game stands you on the
+ * highest: a higher quay overlapping a low pier would put you on it).
+ */
 const ashoreOnDeck = (b: Berth) => {
   const d = b.shoreDist + T.quayBack;
-  return (blocks as KitBlock[]).some((k) => insideBlock(k, b.x + b.shoreX * d, b.z + b.shoreZ * d));
+  const tops = (blocks as (KitBlock & { top: number })[]).filter((k) => insideBlock(k, b.x + b.shoreX * d, b.z + b.shoreZ * d)).map((k) => k.top);
+  return tops.length > 0 && Math.abs(Math.max(...tops) - b.deckY) < 0.01;
 };
 const roomRank = (b: Berth) => {
   const n = blocked(b);
