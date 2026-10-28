@@ -14,7 +14,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### Live trials: the roll and the inclining show GZ and GM, not the buoyancy debug (preview/shipyard)
+### Live trials: the roll and the inclining show GZ and GM, not the buoyancy debug (approved by the owner 28 Oct 2026; on next)
 
 Owner, 27 Oct 2026: "On the sea trials page the 45 degree tilt and inclining experiment should not show the buoyancy debug, they should show the Gz and Gm."
 
