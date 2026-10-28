@@ -84,6 +84,12 @@ export class CoastStreamer {
     return started;
   }
 
+  /** One of a region's own files (a streamed chunk's buildings, `buildings/<n>.json`), parsed. */
+  async fetchJson<T>(regionId: string, file: string): Promise<T> {
+    const buf = await this.get(`${this.base}${this.dirOf(regionId)}${file}`);
+    return JSON.parse(new TextDecoder().decode(buf)) as T;
+  }
+
   /** Fetch everything near `points` and wait for it (before the game starts: the start berth). */
   async preload(points: readonly { x: number; z: number }[]): Promise<void> {
     for (;;) {

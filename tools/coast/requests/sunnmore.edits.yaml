@@ -1,0 +1,16 @@
+# Hand edits for Ålesund and Sunnmøre (coast pipeline stage 7, src/harbours.ts), applied after
+# the harbours are generated, so re-running keeps them. See oban.edits.yaml for the syntax.
+# The map names most harbours after a pier; the game calls the towns' after their towns.
+
+change:
+  # Ålesund's town harbour, the Brosundet between Aspøya and Nørvøya (the map: "Stornespiren").
+  - match: stornespiren
+    set: { name: Ålesund, id: alesund }
+  - match: hareid-pier
+    set: { name: Hareid, id: hareid }
+  - match: ulsteinvik-pier
+    set: { name: Ulsteinvik, id: ulsteinvik }
+  - match: fosnavag-pier
+    set: { name: Fosnavåg, id: fosnavag }
+  - match: orsta-pier
+    set: { name: Ørsta, id: orsta }

@@ -75,9 +75,10 @@ export const MAP_CONFIG = {
     /**
      * On a standalone headset (the trees' device level, treesView.ts treeLevel: the Quest), the
      * coast maps' reach drawn shorter (owner, Oct 2026: Hamburg ran at 30-40 fps): the town's
-     * buildings, the harbour kit's squares and a container terminal's stacks within these (m).
+     * buildings, the harbour kit's squares (and the map's own near structures), a container terminal's
+     * stacks and its quay cranes within these (m).
      */
-    coastQuest: { coastBuildingDistance: 1300, coastStructureDistance: 1600, stackDistance: 1800 },
+    coastQuest: { coastBuildingDistance: 1300, coastStructureDistance: 1600, stackDistance: 1800, craneDistance: 3500 },
     /** A mussel farm's long-line (a coast map's, the coast extras plan C2; worldView.buildFarm): one float every this many metres along it. */
     lineFloat: 6,
     coastLoadDistance: 1500,
@@ -352,6 +353,13 @@ export const MAP_CONFIG = {
      * its fenders; a quay's fender boards every `fenderSpacing` m.
      */
     kit: { pileSpacing: 9, pileRadius: 0.3, pileSides: 5, fenderSpacing: 8 },
+    /**
+     * A coast map's own structures (coastView.ts): the small ones (bridges under `farBridge`'s
+     * deck height and length, a container yard's stacking cranes, museum ships, floating docks)
+     * in squares `nearCell` m, drawn within the harbour kit's reach; the skyline's always.
+     */
+    nearCell: 1000,
+    farBridge: { deck: 20, length: 400 },
     cableStayed: { leg: 3.5, legOut: 4, headHalf: 2.5, stays: 9, anchorStep: 2.2, stay: 0.4, approachSpan: 45, colour: 0xe6e6e0, stayColour: 0xc8ccd0 },
     /**
      * A landmark modelled from the map's 3D building parts (Hamburg): the colours where the map

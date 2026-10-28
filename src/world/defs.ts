@@ -820,6 +820,8 @@ export interface RegionDef {
   follies?: FollyDef[];
   /** Landmarks modelled from the map's 3D building parts (a coast map's; world/coastStructures.ts). */
   landmarkModels?: LandmarkModelDef[];
+  /** The water's own colour (a coast map's: Hamburg's muddy Elbe): the ocean's deep and scattered-light colours there; else the sea's (CONFIG.ocean.colors). */
+  water?: { deep: number; scatter: number };
   /** Museum ships, floating docks and graving docks (a coast map's; world/coastStructures.ts). */
   museumShips?: MuseumShipDef[];
   floatingDocks?: FloatingDockDef[];

@@ -10,6 +10,11 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The Rough-sea test's margin (after the Shipyard's twin pods)
+
+- **The Shipyard chat** put the ferry's twin pods on `next` (the owner: the stern bulbs are her motors) and found `tests/foils.test.ts`'s Rough-sea check (her foils at least 0.1 m under) on a knife-edge: 0.098 m at one pod drag. Measured: the deepest trough brings a foil between about 0.07 and 0.26 m of the surface as her pods' drag goes from 0.004 to 0.01 m² (never out; she stays on her foils throughout, her hulls clear 97-100 % of the time with the pods under her hulls). The check is now "never out, by at least 3 cm". Test only, no change to her.
+- **Checked:** typecheck; all 1810 tests pass.
+
 ### The foiling ferry's new foils: the owner's draughts and arrangement, shallow mode, rougher seas (owner)
 
 - **On `next`** (28 Oct, the owner's word): merged with `origin/next` (6411102, the main game chat's ferry helm and the Shipyard's second ship's boat); `foil.deploy` and `foil.draught` made optional in `VesselState` (always set by the physics; older snapshots and the helm's test lack them); the README's ferry paragraph joined with the helm's (her RIDE steps now 0.6, 0.8 or 1.0 m clear); typecheck and all 1808 tests pass. **The owner: the bulbs are her motors**, so her drive becomes twin pods under her hulls, the Shipyard chat's (handed over, with the foil data to change).

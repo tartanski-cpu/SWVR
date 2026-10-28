@@ -72,6 +72,10 @@ export interface RegionRequest {
   /** Museum ships moored for good, by Wikidata id, with the game's design for each (`cargo`, `barque` with `masts`) (features.ts). */
   /** The passenger launches drawn as harbour ferries, cabin forward and wheelhouse aft (Hamburg's; package.ts). */
   harbourFerries?: boolean;
+  /** A big map's buildings streamed in: one file per terrain chunk, fetched by the game as it comes near (package.ts). */
+  streamBuildings?: boolean;
+  /** The water's own colour, its deep and scattered-light colours (`#rrggbb`): a muddy river's (package.ts). */
+  water?: { deep: string; scatter: string };
   /** Container terminals by their names in the map: quay cranes and container stacks laid out in each (features.ts, package.ts). */
   containerTerminals?: string[];
   /** A ship raised in each big floating dock (package.ts). */
@@ -157,7 +161,10 @@ export function nameOf(tags: Record<string, string> | undefined, key = 'name'): 
   return tags[`${key}:en`] ?? tags.int_name ?? latin(tags[key] ?? '');
 }
 
+/** Letters that don't come apart into a plain one and an accent (Norway's ø and æ: Lepsøya is lepsoya, not leps-ya). */
+const PLAIN: Record<string, string> = { ø: 'o', æ: 'ae', œ: 'oe', ł: 'l', đ: 'd', þ: 'th', ð: 'd' };
+
 /** An id from a name: lower case, dashes. */
 export function slug(name: string): string {
-  return latin(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return latin(name).toLowerCase().replace(/[øæœłđþð]/g, (c) => PLAIN[c]).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }

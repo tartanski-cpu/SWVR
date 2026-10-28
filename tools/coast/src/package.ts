@@ -21,13 +21,15 @@
  *
  * Run: node src/package.ts [requestId] (last, after mesh, trees, boats, features and shore).
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, dirs, latin, loadRequest, nameOf, projection, slug } from './common.ts';
 import { addCoastChunk, coastHeight, coastTerrain, registerChunkedCoast, registerCoastTerrain } from '../../../src/world/coastTerrain.ts';
 
 const T = {
   berthsPerPort: 10,
+  /** A port's lamp and flood light stand this far along the quay from its cargo stack (m). */
+  lampAlong: 8,
   /** A berth faces the way a request asks (`berthFacing`) within this (deg); the cargo and fuel berths at least `namedApart` m apart. */
   facingTolerance: 30,
   namedApart: 30,
@@ -48,6 +50,8 @@ const T = {
   shipThin: 25,
   shipOff: 26,
   shipLength: 300,
+  /** Streamed buildings (`streamBuildings`): those within this of a berth (m) stay in the package. */
+  keepNearBerth: 60,
   /** A floating dock this long or more (m) has a ship in it (`dockedShips`), raised this far from afloat (m: the pontoon's deck 1.5 m up, her keel a metre over it, her 7 m draught). */
   dockedShip: 150,
   dockedLift: 9.5,
@@ -185,6 +189,9 @@ for (let i = 0; i < blocks.length; i++) {
 warnings.push(...overlaps);
 const blockOf = new Map<string, { kind: string; halfWidth: number }>();
 for (const b of hb.blocks) blockOf.set(b.source, blockOf.get(b.source) ?? b);
+/** Every kit block of each map piece (a long quay is several). */
+const blocksOf = new Map<string, KitBlock[]>();
+for (const b of hb.blocks) blocksOf.set(b.source, [...(blocksOf.get(b.source) ?? []), b]);
 // The buildings for the game's house kit (world/view/houseKit.ts): what harbours.ts worked
 // out, less its own bookkeeping (where it came from, its ground).
 const buildings = hb.buildings.map(({ source: _s, base: _b, tagged: _t, ...b }: Record<string, unknown>) => b);
@@ -205,6 +212,13 @@ const onDeck = (b: Berth, back: number) => {
   const w = blockOf.get(b.source)?.halfWidth ?? 3;
   const d = b.shoreDist + Math.min(back, w);
   return { x: r1(b.x + b.shoreX * d), z: r1(b.z + b.shoreZ * d) };
+};
+/** A spot `back` m ashore from a berth (as onDeck) and `along` m along its face, if that's still on its deck. */
+const alongDeck = (b: Berth, back: number, along: number) => {
+  const p = onDeck(b, back);
+  const x = r1(p.x - b.shoreZ * along);
+  const z = r1(p.z + b.shoreX * along);
+  return (blocksOf.get(b.source) ?? []).some((k) => insideBlock(k, x, z)) ? { x, z } : null;
 };
 // Each harbour's own berths: those whose piece is one of its pieces.
 const pieceOf = new Map<string, string>();
@@ -244,10 +258,15 @@ const blocked = (b: Berth) => {
     }
   return n;
 };
-/** The spot a step ashore from a berth (the game's startSpot.ts, `quayBack` m in from where she lies) is on a deck. */
+/**
+ * The spot a step ashore from a berth (the game's startSpot.ts, `quayBack` m in from where she
+ * lies) is on a deck, and the highest deck there is the berth's own (the game stands you on the
+ * highest: a higher quay overlapping a low pier would put you on it).
+ */
 const ashoreOnDeck = (b: Berth) => {
   const d = b.shoreDist + T.quayBack;
-  return (blocks as KitBlock[]).some((k) => insideBlock(k, b.x + b.shoreX * d, b.z + b.shoreZ * d));
+  const tops = (blocks as (KitBlock & { top: number })[]).filter((k) => insideBlock(k, b.x + b.shoreX * d, b.z + b.shoreZ * d)).map((k) => k.top);
+  return tops.length > 0 && Math.abs(Math.max(...tops) - b.deckY) < 0.01;
 };
 const roomRank = (b: Berth) => {
   const n = blocked(b);
@@ -331,8 +350,12 @@ harbours.forEach((h, n) => {
   for (const [b, role] of [[cargo, 'cargo'], [fuel, 'fuel']] as [Berth | null, string][]) {
     if (b) berths.push({ id: `${h.id}-${role}`, portId: h.id, name: `${h.name} (${role})`, x: b.x, z: b.z, headingDeg: b.headingDeg, shoreX: b.shoreX, shoreZ: b.shoreZ, shoreDist: b.shoreDist, deckY: b.deckY });
   }
-  lamps.push({ x: stack.x, z: stack.z, y: cargo.deckY + 5.5 });
-  portFloods.push({ portId: h.id, x: stack.x, y: cargo.deckY + 8, z: stack.z });
+  // The lamp and the berth's flood light on their mast, along the quay from the cargo stack
+  // (`lampAlong` m, whichever way stays on the same deck): at the stack it stood among the
+  // crates and on the spot a step ashore where the game puts you (owner's Poros start).
+  const lamp = alongDeck(cargo, 3, T.lampAlong) ?? alongDeck(cargo, 3, -T.lampAlong) ?? stack;
+  lamps.push({ x: lamp.x, z: lamp.z, y: cargo.deckY + 5.5 });
+  portFloods.push({ portId: h.id, x: lamp.x, y: cargo.deckY + 8, z: lamp.z });
   // Shelter: the more open water a harbour looks across, the less it is sheltered.
   shelters.push({ x: ax, z: az, rIn: 80, rOut: 220, factor: Math.min(0.7, Math.max(0.15, h.fetch / 2500)) });
 });
@@ -349,8 +372,12 @@ const slipways = (hb.slipways as { x: number; z: number; headingDeg: number; wid
 });
 
 // ── Sea ──
-const marks = (nav.marks as { name: string; gameKind: string | null; category: string; x: number; z: number }[])
-  .filter((m) => m.gameKind)
+// The game draws its marks as buoys, afloat. An isolated-danger beacon is a pole fixed on the
+// rock it marks (Norway's skerry beacons: 435 of them round Sunnmøre, where a buoy is 370
+// triangles, drawn everywhere: a third of the frame): left out. Its rock is still in the ground,
+// and in the chart's shallows.
+const marks = (nav.marks as { name: string; type: string; gameKind: string | null; category: string; x: number; z: number }[])
+  .filter((m) => m.gameKind && m.type !== 'beacon_isolated_danger')
   .map((m, i) => ({ name: m.name || `${m.category} No ${i + 1}`, kind: m.gameKind, x: m.x, z: m.z }));
 const COLOUR: Record<string, 'red' | 'green' | 'white'> = { red: 'red', green: 'green' };
 const lights = (nav.lights as { name: string; x: number; z: number; height?: number; period?: number; sectors: { colour: string; from?: number }[]; label: string; on: string }[])
@@ -620,6 +647,8 @@ const FERRY_NAMES: Record<string, string[]> = {
   baltic: ['Luotoranta', 'Holmvik', 'Kallioniemi', 'Havsbris', 'Skärvind', 'Ulapanlaine', 'Kuutamo', 'Lokinsiipi', 'Saarenkulma', 'Fjärdstjärna', 'Kivikko', 'Sundholm'],
   // Invented German names for the harbour ferries (no real ship's).
   hanseatic: ['Strompaddler', 'Kaimöwe', 'Lotsenkind', 'Nebelhorn', 'Hafenlicht', 'Elbwind', 'Kranblick', 'Speichergruß', 'Tidenhub', 'Schlickläufer', 'Fleetmöwe', 'Kehrwiederstern'],
+  // Invented Norwegian names (no real ship's).
+  'west-norwegian': ['Fjordglimt', 'Havørn', 'Brattsund', 'Nordvind', 'Skjærgard', 'Måkeskjer', 'Storbølge', 'Kvitnes', 'Sunnmørsbris', 'Lysøy', 'Bølgeblikk', 'Fjellheim'],
   aegean: ['Galini', 'Meltemi', 'Thalassopouli', 'Kyma', 'Ostria', 'Aigaio Star', 'Levantes', 'Pelagia', 'Kalimera', 'Glaros', 'Zefyros', 'Anemoni'],
 };
 type Ferry = { name: string; operator: string; foot: boolean; path: [number, number][] };
@@ -929,6 +958,35 @@ if (peaks[0]) landmarks.push({ name: peaks[0].name, kind: 'hill', x: peaks[0].x,
 const lighthouse = (lights as { name: string; x: number; z: number; y: number; tower: string }[]).filter((l) => l.tower === 'lighthouse').sort((a, b) => b.y - a.y)[0];
 if (lighthouse) landmarks.push({ name: lighthouse.name, kind: 'lighthouse', x: lighthouse.x, z: lighthouse.z, height: lighthouse.y });
 
+// ── Streamed buildings (the request's `streamBuildings`; owner, Oct 2026: "build the streaming
+// for the Saronic map") ──
+// A big map's buildings are most of its package. Streamed, only those within `keepNearBerth` m
+// of a berth stay in the package (the game's start and planning table look for them before any
+// chunk is fetched); the rest go one file per terrain chunk, `buildings/<n>.json`, fetched by
+// the game as it draws that chunk's town (world/view/coastView.ts).
+let packedBuildings = keptBuildings as { x: number; z: number }[];
+let buildingChunks: { dir: string; chunks: number[] } | undefined;
+if (req.streamBuildings && req.chunked) {
+  const near = (b: { x: number; z: number }) => (berths as { x: number; z: number }[]).some((q) => Math.abs(q.x - b.x) < T.keepNearBerth && Math.abs(q.z - b.z) < T.keepNearBerth && Math.hypot(q.x - b.x, q.z - b.z) < T.keepNearBerth);
+  const chunks = (region.terrain.chunks as { id: number; x0: number; z0: number; size: number }[]);
+  const dir = join(D.out, 'buildings');
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  packedBuildings = [];
+  const per = new Map<number, object[]>();
+  for (const b of keptBuildings as { x: number; z: number }[]) {
+    if (near(b)) {
+      packedBuildings.push(b);
+      continue;
+    }
+    const k = chunks.findIndex((c) => b.x >= c.x0 && b.x < c.x0 + c.size && b.z >= c.z0 && b.z < c.z0 + c.size);
+    if (k < 0) continue;
+    per.set(k, [...(per.get(k) ?? []), b]);
+  }
+  for (const [k, list] of per) writeFileSync(join(dir, `${k}.json`), JSON.stringify(list));
+  buildingChunks = { dir: 'buildings/', chunks: [...per.keys()].sort((a, b) => a - b) };
+}
+
 // ── Write ──
 const pkg = {
   format: 'swvr-coast-package/1',
@@ -956,7 +1014,8 @@ const pkg = {
   licence: region.licence,
   landmarks,
   blocks,
-  buildings: keptBuildings,
+  buildings: packedBuildings,
+  ...(buildingChunks ? { buildingChunks } : {}),
   marks,
   lights: [...lights, ...farmLights],
   farms,
@@ -969,6 +1028,7 @@ const pkg = {
   floatingDocks,
   gravingDocks,
   terminals,
+  ...(req.water ? { water: { deep: parseInt(req.water.deep.slice(1), 16), scatter: parseInt(req.water.scatter.slice(1), 16) } } : {}),
   gantries,
   yardShips,
   places,

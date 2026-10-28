@@ -67,3 +67,6 @@ containerTerminals:
   - Eurogate Container Terminal Hamburg
   - Container Terminal Tollerort
   - Containerterminal Altenwerder
+# The Elbe's own water (owner: "make it muddy brown"): turbid, a dark olive-brown body with the
+# light scattered in it khaki, in place of the sea's blue.
+water: { deep: '#2e2c1c', scatter: '#6e6234' }

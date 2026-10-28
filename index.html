@@ -39,7 +39,9 @@
       .maps a { display: block; padding: 8px 12px; border-radius: 8px; background: #1d3340; color: #fff; text-decoration: none; border: 1px solid #35505e; }
       .maps a:hover { border-color: #ffb347; }
       .maps a span { display: block; font-size: 13px; color: #b9c7d2; }
-      .go { display: inline-block; margin-top: 4px; padding: 7px 14px; border-radius: 8px; background: #ffb347; color: #14222b; font-weight: 600; }
+      .go { display: inline-block; margin-top: 4px; padding: 7px 14px; border-radius: 8px; background: #ffb347; color: #14222b; font-weight: 600; text-decoration: none; }
+      a.go:hover { background: #ffc46a; }
+      .card .body .go.chart { margin: 0 0 2px; }
       .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #2b3a48; color: #cfd9e0; margin-left: 6px; vertical-align: middle; }
       footer { margin-top: 36px; color: #8fa3af; font-size: 14px; }
       footer a { color: #cfd9e0; }
@@ -115,12 +117,16 @@
           <div class="body">
             <h2>Voyage</h2>
             <p>Real coastline from map data, sailed for its own sake, in the place's live weather. Pick a map:</p>
+            <!-- The chart of every map (src/world/coastMapPicker.ts): look round it, pick a map or a harbour to start at. -->
+            <a class="go chart" href="#maps" data-map-picker hidden>Choose on the chart</a>
             <ul class="maps">
               <li><a href="voyage.html?map=oban" title="Oban Bay, Kerrera and the timber camp, Dunstaffnage and the Falls of Lora">Oban and Lorn<span>Argyll, 12 km</span></a></li>
               <li><a href="voyage.html?map=clyde" title="Bute, the Kyles, Dunoon, Gourock, Largs and the Cumbraes: every harbour">Firth of Clyde<span>35 by 37 km</span></a></li>
               <li><a href="voyage.html?map=syros" title="The whole island in the Cyclades, Ermoupoli to the islets off the east coast">Syros<span>The Cyclades, 15 by 19 km</span></a></li>
               <li><a href="voyage.html?map=turku" title="Turku and its port, the Perno yard, the Airisto fairway, Pargas, Nagu and the islands between">Turku<span>Archipelago Sea, 37 by 38 km</span></a></li>
               <li><a href="voyage.html?map=hamburg" title="The Elbe from Finkenwerder to the Elbe bridges: the Landungsbrücken, the Speicherstadt, the container terminals">Hamburg<span>The port, 14 by 8 km</span></a></li>
+              <li><a href="voyage.html?map=saronic" title="Aegina, Agistri, Methana, Poros, Hydra and Spetses, and the Argolid coast from Korfos to Porto Heli">Saronic Islands<span>Aegina to Spetses, 44 by 74 km</span></a></li>
+              <li><a href="voyage.html?map=sunnmore" title="Ålesund, Sula, Hareid and Ulsteinvik, Gurskøya and Herøy, the Vartdalsfjorden and the Storfjorden to Ørsta">Ålesund<span>Sunnmøre fjords, 55 by 52 km</span></a></li>
               <li><a href="voyage.html?map=tayvallich" title="The bay, the Fairy Isles, Loch Sween and the Sound of Jura shore">Tayvallich<span>Loch Sween, 11 by 16 km</span></a></li>
             </ul>
           </div>
@@ -170,5 +176,6 @@
         The hull study is at <a href="hulls.html">hulls</a>.
       </footer>
     </main>
+    <script type="module" src="/src/world/coastMapPicker.ts"></script>
   </body>
 </html>

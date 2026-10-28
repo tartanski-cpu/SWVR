@@ -400,4 +400,85 @@ const HANSEATIC: Theme = {
   },
 };
 
-export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN, aegean: AEGEAN, baltic: BALTIC, hanseatic: HANSEATIC };
+// West Norway (Sunnmøre, Ålesund): steep grey gneiss rising out of the fjords to snow on the
+// tops, the outer islands low, wind-scoured and nearly treeless; spruce planted in blocks,
+// pine on the dry knolls, birch on the slopes up to a low treeline; small green fields on the
+// shore terraces. White and red wooden houses (some yellow, grey or pale blue) under dark
+// roofs, red boathouses at the water; Ålesund's stone town rendered in pale colours.
+const WEST_NORWEGIAN: Theme = {
+  cover: {
+    10: 0x2c4a2c, // tree cover: spruce and pine, dark; birch on the slopes
+    20: 0x5e6440, // shrubland: heather and dwarf birch on the outer islands
+    30: 0x6e9444, // grassland: hay meadows on the shore terraces
+    40: 0x8aaa50, // cropland
+    50: 0x8a8884, // built-up
+    60: 0x8a8884, // bare / sparse: grey gneiss
+    70: 0xeef2f4, // snow and ice on the tops
+    80: 0x3a5a6a, // permanent water (lakes drawn as land for now)
+    90: 0x7a7e4e, // herbaceous wetland: bog
+    95: 0x4a6a3a, // mangroves (not here)
+    100: 0x86906c, // moss and lichen above the treeline
+  },
+  // Grey gneiss; above the meadows the open hill turns to heath, then bare rock.
+  rock: 0x7c7a74,
+  sand: 0xd4c8a2,
+  moor: { from: 150, to: 450, colour: 0x7a7458 },
+  shallow: 0x8a8468,
+  deep: 0x2a4652,
+  shingle: 0x8a8680,
+  cliff: 0x5a5854,
+  fields: 0x6e9e44,
+  // Weed and grey rock at the water's edge.
+  foreshore: 0x7e7664,
+  houses: {
+    walls: [0xf0eee6, 0xf0eee6, 0xf0eee6, 0x8e2a20, 0x8e2a20, 0xd8b45a, 0xb8bcbc, 0x9ab0c0],
+    painted: [0xe8d8b0, 0xd8c8a0, 0xc8d0c8, 0xe0c090, 0x9ab0c0, 0xf0eee6, 0xd8a0a0],
+    doors: [0x2a3a4a, 0x5a2a1e, 0x2f4a30, 0xf0eee6, 0x3a3a3a],
+    signs: [0x1e3a5a, 0x6a1e1e, 0x2a2a2a],
+    roofs: [0x2e3236, 0x3a3e42, 0x2a2a2e, 0x7a3428],
+    shedWalls: [0x8a2e24, 0x8a2e24, 0x8a2e24, 0x8c9294, 0xf0eee6],
+    shedRoofs: [0x2e3236, 0x5a5e62, 0x7a3428],
+    stone: [0x8a8680, 0x9a948c, 0x7a7670],
+    levels: { cottage: 1.5, house: 2, terrace: 3, shed: 1, church: 2.5, warehouse: 3, boathouse: 1, castle: 4, ruin: 2 },
+    roofShapes: { cottage: 'gabled', house: [['gabled', 5], ['hipped', 1]], terrace: [['gabled', 1], ['hipped', 1], ['flat', 1]], shed: 'gabled', church: 'gabled', warehouse: 'gabled', boathouse: 'gabled', castle: 'flat', ruin: 'flat' },
+    paintedShare: 0.35,
+  },
+  // Sunnmøre woods: spruce planted in blocks after the war, Scots pine on the knolls, birch
+  // everywhere it's open, giving out about 450 m up; juniper and dwarf birch on the outer
+  // islands. Bare rock where it's steep.
+  forest: {
+    treeline: 450,
+    steep: 1.0,
+    thin: 0.7,
+    forestIs: 'plantation',
+    woodIs: 'mixed',
+    kinds: {
+      plantation: { spacing: 5.5, rows: true, species: [['conifer', 1]] },
+      broadleaf: { spacing: 7, species: [['birch', 5], ['broadleaf', 2]] },
+      mixed: { spacing: 6.5, species: [['conifer', 3], ['pine', 2], ['birch', 4]] },
+      natural: { spacing: 8, species: [['birch', 5], ['pine', 2], ['conifer', 2]] },
+      scrub: { spacing: 7, species: [['scrub', 4], ['birch', 2]] },
+      orchard: { spacing: 7, rows: true, species: [['broadleaf', 1]] },
+    },
+    colours: {
+      conifer: [0x1e3a26, 0x22402a, 0x26442c],
+      broadleaf: [0x4e7034, 0x587a3a],
+      birch: [0x7a9a48, 0x88a650, 0x6e9042],
+      scrub: [0x46583a, 0x52623e, 0x5e6a40],
+      pine: [0x38542f, 0x425e36],
+      olive: [0x7a8a6a],
+    },
+  },
+  // Norwegian harbours: open wooden and fibreglass boats (the snekke) and small fishing boats
+  // at the quays, motor cruisers and a few yachts at the guest pontoons, hardly any swinging
+  // moorings.
+  boats: {
+    alongside: [['creel', 3], ['cruiser', 3], ['rib', 2], ['yacht', 2]],
+    moored: [['creel', 2], ['cruiser', 2], ['yacht', 1]],
+    anchored: [['yacht', 1], ['cruiser', 1]],
+    moorings: 0.3,
+    hulls: [0xf2f0ea, 0xf2f0ea, 0xf2f0ea, 0x8a2a24, 0x1e2f4a, 0x2a4a3a, 0xd8d2c0],
+  },
+};
+
+export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN, aegean: AEGEAN, baltic: BALTIC, hanseatic: HANSEATIC, 'west-norwegian': WEST_NORWEGIAN };

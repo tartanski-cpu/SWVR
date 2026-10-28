@@ -10,6 +10,68 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Ålesund and Sunnmøre: West Norway's fjords (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, with a map picture of Sunnmøre (Ålesund, Sula, Hareidlandet, Gurskøya, the Vartdalsfjorden to Ørsta): "Next area to make into a map".
+
+- **The map** (`tools/coast/requests/sunnmore.yaml`): Ålesund on its islands, Ellingsøya, Valderøya, Vigra and Godøya, Uksenøya and the Brusdalsvatnet, Sula and the Åsefjorden, the Breisundet, Hareidlandet with Hareid, Brandal and Ulsteinvik, Gurskøya and Herøy (Fosnavåg), the Vartdalsfjorden and the mouth of the Storfjorden, south to Ørsta. 55.4 by 52.3 km at full scale, 52 % land, the mountains over 1,000 m straight out of the fjords. 716 chunks (none over 10,795 drawn faces), 57.7 MB of mesh, streamed as ever; buildings streamed as Saronic's (133 files, 14,751 buildings). 106 ports, 167 berths, 955 pier and quay pieces, 22 named ferry lines (Hareid - Sulesund, Ålesund - Langevåg, Sykkylven - Magerholm, Festøya - Solavågen, the Hurtigruten...).
+- **The West Norwegian theme** (`tools/coast/src/themes.ts` `west-norwegian`): grey gneiss and heath above the fields to bare rock and snow; spruce in planted blocks, pine on the knolls, birch to a 450 m treeline; white and red wooden houses, some yellow, grey and pale blue, under dark roofs, red boathouses; open boats and small fishing boats at the quays, motor cruisers, few moorings. Invented Norwegian names for its ferries.
+- **In Voyage** (`src/world/maps.ts`): you start at Ålesund (`alesund-cargo`, in the Brosundet), the weather live from off Hareid, its run of weather the Atlantic's (`NORWEGIAN_WEATHER`: overcast and rain the most, squalls in the westerlies, fog in the calms, now and then a still clear day). On the front page's list and chart.
+- **Names** (`sunnmore.edits.yaml`): Ålesund (the map's "Stornespiren"), Hareid, Ulsteinvik, Fosnavåg, Ørsta. And every map's ids now spell Norway's letters out (`common.ts` `slug`: Lepsøya is `lepsoya`, not `leps-ya`; ø, æ, œ and the like).
+- **Mountains within the Quest's budget** (`mesh.ts` `chunkFill` 0.9): the refinement stops adding points to a chunk once it has 90 % of its `chunkBudget` (12,000 faces); first time round, steep mountains out of an intricate coast put 16 chunks over it (the worst 18,556). The rest of the refinement goes elsewhere. Every map's next run (the others were all under it).
+- **Fixed beacons aren't buoys** (`package.ts`): the game draws its marks afloat, as buoys. Norway charts its skerries with beacons, poles on the rock: 435 isolated-danger beacons here, each drawn as a 370-triangle buoy, everywhere: 162,000 triangles, a third of the frame. Left out; their rocks are in the ground and the chart's shallows. (The lateral beacons, 98, stay, as buoys.)
+- **The lamp mast off the start spot** (`package.ts` `lampAlong` 8): a port's lamp and flood light stood at its cargo stack, among the crates and on the spot a step ashore where the game puts you (a dark post in your face at the start, at Poros and Ålesund). Now 8 m along the quay, on the same deck (whichever way stays on it). Saronic's package run again for it (only its lamps moved); the other maps get it on their next run.
+- **Measured** (headless, as the Quest draws it): loaded in 8.5 s; the start at Ålesund 170 draw calls, about 226,000 triangles before the town is built and 275,000 with it (424,000 before the beacons went).
+- **Tests:** `tests/coastSunnmore.test.ts` (the box and chunks within the budget, Ålesund's latitude and longitude, the mountains over 1,000 m, the buildings streamed, the start berth in deep water on the detailed ground, the towns as ports, the ferry lines over water). `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: Ålesund's quay and town, the Storfjorden and the Vartdalsfjorden from the water.
+- **Not checked:** on the Quest (load time, frame rate).
+- **Worth knowing (for the owner):** each address of the site (the game, /next/ and each area's preview) carries its own copy of every map. Today's published site is 238 MB compressed; with Saronic and Sunnmøre in all six copies it would be over 1.5 GB, past GitHub Pages' 1 GB guideline. A fix, for the owner or the main game chat (the workflow is shared): the copies could share one set of map files. Not urgent while the big maps are only on the map preview.
+- **Shared changes:** `index.html` (the link).
+
+### The front page's chart of the maps (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: the Saronic map "doesn't show up in preview as the front page does not account for the new map, maybe put an interactive map there so you can look around the map and choose an area". (The link was there; the preview hadn't published the new build yet when they looked.)
+
+- **The chart** (`src/world/coastMapPicker.ts`; the Voyage tile's **Choose on the chart**, or the address `index.html#maps`): Europe with every Voyage map marked, full screen. Drag to look round, scroll or pinch to zoom (+, − and "every map" buttons too; Esc or × closes, and so does Back). A map's box opens out into its own coast and harbours as you zoom in (its coast from 70 px wide, its harbours from 260 px); the start harbour is blue. Pick a map (on the chart or from the row of names) and the panel gives its blurb and **Sail the map** (where you were last time, or its start); pick a harbour and it gives **Start at <harbour>**. Mercator, plain 2D canvas, nothing of the game loaded.
+- **Starting at a chosen harbour** (`src/world/maps.ts`): the address `voyage.html?map=<id>&start&berth=<berth id>` starts at that berth instead of the map's start berth (only for the map the page shows; `start` forgets where you were). Checked: Saronic from Poros pier starts moored there.
+- **Its data** (`tools/coast/src/overview.ts`, `node src/overview.ts`): one file, `public/regions/overview.json`, 322 KB (about 100 KB as the site sends it, compressed): Europe's land and borders from Natural Earth's 1:50 million set (public domain), thinned to 0.03°; each map's coastline traced round its reconciled land grid (coarsened to at most 700 cells across, thinned to 0.8 of a cell, islets under 3 cells left out); its name, blurb and start berth read from `maps.ts`; its ports from its package, each with the berth a start there uses (its cargo berth, else its first). Run it again after adding a map or changing one's harbours.
+- **Tests:** `tests/coastOverview.test.ts` (every Voyage map listed as `maps.ts` names it, in its order; each offered berth one its map has, each port in its box, the start berth among them; the file under 400 KB). `npm run test:map`, the typecheck and all of `npm test` pass. Seen headless: the chart of Europe, Saronic and Hamburg opened out, Poros picked, on a phone-sized screen.
+- **Not checked:** on the Quest's browser (the front page there: it should work with the controller as a pointer, but I couldn't try it), or with a real touch screen (pinch was tried only as code).
+- **Shared changes:** `index.html` (the button, and the script tag for the chart).
+
+### The Saronic Islands, and big maps' buildings streamed (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, from a map picture: "I'd like the Saronic Islands next"; "include Hydra and Spetses too"; "include Ermioni and Porto Heli harbours as ports too"; on loading: "is there any way to stream in the data?" ... "Yes, build the streaming for the Saronic map".
+
+- **The map** (`tools/coast/requests/saronic.yaml`): Aegina and Agia Marina, Agistri, Methana, Poros and Galatas, Hydra, Dokos, Spetses, and the Argolid coast from Pefkali and Korfos past Epidavros to Ermioni, Kosta and Porto Heli; the islets of the gulf. 44.1 by 74.5 km at full scale, the biggest map (the Clyde is 36 by 37), 35 % land, heights to 1,119 m. The Aegean theme, as Syros. 483 chunks (none over 11,633 drawn faces), 38.5 MB of mesh, streamed as ever. 65 ports, 88 berths, 460 pier and quay pieces, 2,666 buildings (those within 400 m of a harbour, as on every map), 50 named ferry lines (`ferriesNamed`), from Piraeus and between the islands, and the Poros strait's.
+- **Names** (`saronic.edits.yaml`): Aegina (the map's "Limenas Skafon Anapsychis"), Spetses ("Spétses pier"), Spetses (Tsaldari pier), Galatas (its taxi-boat landing on the strait), Agistri (Myloi) and (Skala), Ermioni ("Ermioni ferry port"), Porto Heli (the owner's spelling of the map's "Porto Cheli": its town quay).
+- **In Voyage** (`src/world/maps.ts`): you start at Aegina (`aegina-cargo`), the weather live from the middle of the gulf; on the landing page beside Hamburg.
+- **Streamed buildings** (`streamBuildings: true` in the request; `package.ts`; `coastView.ts` `fetchBuildings`; `coastStream.ts` `fetchJson`): a big map's buildings were most of its package (Hamburg 2.13 of 2.45 MB). Streamed, the package keeps only those within `keepNearBerth` 60 m of a berth (the start and the planning table look for them first), and the rest go one file per chunk (`buildings/<n>.json`), fetched as the viewer comes within the town's reach of it, its town made again when they're in; a failed fetch is tried again. Saronic's package is 0.31 MB, its buildings in 91 files. Tried on Hamburg first (and put back): the package 2.45 → 0.33 MB, the town's triangles at the start and at HafenCity exactly as before. Only Saronic streams for now; the other maps can take it by adding the line and running their package again.
+- **A berth's spot ashore on its own deck** (`package.ts` `ashoreOnDeck`): a cargo or fuel berth is chosen only where the highest deck at the spot a step ashore is the berth's own (at Agistri's Myloi a 3.5 m quay overlaps the 2.4 m pier the fuel berth was on, and the game would have stood you on the quay). Every map's next run.
+- **Measured** (headless, as the Quest draws it): loaded in 4.5 s, the start at Aegina 169 draw calls, 266,000 triangles.
+- **Tests:** `tests/coastSaronic.test.ts` (the box and chunks, Aegina's latitude and longitude, the streamed buildings each in its own chunk's file, the start berth and the ports the owner named, the ferry lines once each over water); `tests/coastStreamBuildings.test.ts` (the streamer's fetch). `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: Aegina's quay, Hydra's harbour, Poros, Spetses.
+- **Not checked:** on the Quest (how long it really loads, the frame rate, and whether a town arriving shows as a hitch).
+- **Shared changes:** `index.html` (the link). In my area otherwise.
+
+### Hamburg: muddy Elbe water; the small structures and the quay cranes drawn near only; why the waves stay small (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "Hamburg is still a bit heavy, I noticed the weather debug doesn't affect the waves much too, oh and Hamburg has muddy brown water" (asked: "make it muddy brown", like the real Elbe).
+
+- **Muddy brown water** (`water` in the request: deep `#2e2c1c`, scatter `#6e6234`; `RegionDef.water`; `OceanView.setWater`, applied by `App.ts` with the shelters, once a second, by the map you're on): the Elbe's turbid olive-brown in place of the sea's blue. Every other map keeps the sea's colours (CONFIG.ocean.colors).
+- **Lighter** (`coastView.ts`): the map's own structures were one mesh drawn everywhere, 29,500 triangles. Now only the skyline is (the landmarks, the big bridges: `structures.farBridge` deck 20 m or 400 m long, or cable-stayed; a shipyard's goliaths, the ships building, the graving docks), 10,200; the rest (the small bridges, Altenwerder's stacking cranes, the museum ships, the floating docks) in 1 km squares (`structures.nearCell`), drawn within the harbour kit's reach. On the Quest the quay cranes go a terminal at a time, within `coastQuest.craneDistance` 3.5 km. Measured as the Quest draws it: the start 363,000 → 347,000 triangles, Burchardkai 328,000 → 302,000, HafenCity 358,000 → 338,000; draw calls about the same (153).
+- **What's left is mostly the main game's:** the ocean surface 104,000 triangles (a third of what's drawn, the same on every map), the boats' wakes 17,600. The Quest's counter shows about twice what's drawn (both eyes), so the ocean is about 200,000 of what it shows: the place for the next big saving, the main game chat's (`CONFIG.ocean.mesh`).
+- **The waves, found, not changed:** the game's wind sea by fetch (`ocean/windSea.ts`, `world/fetch.ts`, the main game's) scales the open sea's waves, the ones the debug's sea height sets, by each spot's exposure to open water. On the Elbe that is 0.4-3 % (the river is a few hundred metres wide, its fetch short), so the debug's sea height barely shows; and the short wind sea in a 14 m/s wind comes out at about 1 cm, where a fetch-limited sea of a few hundred metres would make 10-30 cm. Realistic in that a river port has no swell; too calm for its chop. For the main game chat: the river's effective fetch on the 150 m fetch grid.
+- **Tests:** `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: the Elbe brown from the Landungsbrücken and at the Überseebrücke, the museum ship and the small bridge there drawn close.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/ocean/oceanView.ts` (`setWater`), `src/app/App.ts` (the map's water colour, a few lines), `src/world/defs.ts` (`RegionDef.water`). Settings in `src/config/map.ts` (`structures.nearCell`, `farBridge`, `regions.coastQuest.craneDistance`).
+
 ### Hamburg runs lighter: fewer pier legs, the piles the fenders, shorter reach on the Quest (28 Oct 2026)
 
 **Owner approved; merged into `next`.**
