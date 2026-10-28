@@ -44,6 +44,7 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **The masthead wind vane** (this log). On any boat (the harbour tug, the fleet, your own design): look up at the masthead light from the deck. The arrow should point into the wind; turn her and it swings round; steam ahead in a calm and it points dead ahead. Is it big enough to read, and does it look right?
 - [ ] **The tug's SYNC button** (this log). At the tug's helm, the blue SYNC on the port pedestal ahead of the red lever: press it (desktop: click), then move one lever's power: both go together; press again and they're separate. It's lit while synchronised.
 - [ ] **The tug's levers: the thumbstick only** (this log). VR: grab a lever's bar and move and twist your hand: nothing moves. Now the thumbstick of that hand: sideways twists it, forward gives power.
 - [ ] **The driving guide poster in the harbour tug's wheelhouse** (this log). Start the harbour tug, stand at the wheel and turn to port: the poster is on the port wall below the windows. Can you read it in the headset (lean in)? Is it at a good height and place? At night it goes red with the instruments.
@@ -74,6 +75,17 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### A masthead wind vane on every boat (done; on next, in your test round)
+
+Owner, 28 Oct 2026: "Something every ship should have, just like every ship has navigation lights and an anchor, is a Windex ... on the wheelhouse roof, maybe somehow on the top light mast ... I want it to look like a Windex." A masthead wind vane of the yacht kind (our own design of that type, no maker's marks) now stands on top of the masthead light: a thin spindle; two fixed reference arms splayed aft below, an orange reflector tab at each end; and on top the vane, a long arm with an arrowhead forward and a swept black fin aft (an orange stripe on it), turning freely.
+- **What it shows:** the apparent wind at the masthead, the true wind (with its gusts) less the boat's own way. The arrow points where the wind comes from. Steaming into a calm it points dead ahead.
+- **How it moves:** as a real vane does: the fin's moment grows with the dynamic pressure, so it swings round, a little past the wind and back, and settles; faster in a stronger wind (a torsion pendulum whose natural frequency scales with the airspeed; damping ratio `damping`). In a near calm (`minWind`) it stays where it is.
+- **Which boats:** every boat whose nav lights stand on a masthead: the Shipyard's designs (the fleet included, all from the landing craft's recipe), the landing craft, the Alaskan 38 and the starter workboat, whose wind sock it replaces (`mount.mast` `windSock` off). The RIB and the skiff have no masthead light, so none.
+- A new module, `mount.wind-vane` (`src/modules/windVane/`), on a new `vane` socket on top of `light.navigation`'s masthead light. Settings `CONFIG.modules.windVane` (`scale` 1.3, `armLength`, `stiffness`, `damping` 0.35, `minWind`, `referenceDeg`, `colours`). Its spindle and arms join the boat's fixed parts; the vane is one draw call.
+- **Module views now see the weather and their boat:** `ViewFrame` carries `vessel` and `env`, filled in by the modular builder each frame (`modular/assemble.ts`), so a module can read the wind itself, on any boat, not only through the app.
+- Tests: `tests/windVane.test.ts` (it settles into the wind with a little overshoot; faster in a stronger wind; the short way round; still in a calm; which boats carry it). All of `npm test` passes. Checked headless: on the harbour tug's light mast (close and from the deck) and on the starter workboat's mast, in an 8 m/s wind.
+- **Shared changes:** `src/boats/landingCraft.json`, `alaskan38.json`, `starterWorkboat.json` (the vane on their nav lights; the workboat's sock off), `src/boats/library.ts` (registered). The README says so.
 
 ### The tug's SYNC button: synchronise the throttles from the console (done; on next, in your test round)
 

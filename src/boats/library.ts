@@ -55,6 +55,7 @@ import { KEY_SWITCH } from '../modules/keySwitch';
 import { LIFE_RING_STATION } from '../modules/lifeRingStation';
 import { MAST } from '../modules/mast';
 import { NAV_LIGHTS } from '../modules/navLights';
+import { WIND_VANE } from '../modules/windVane';
 import { OIL_CAN } from '../modules/oilCan';
 import { OVERHEAD_PANEL } from '../modules/overheadPanel';
 import { PTO_PUMP } from '../modules/ptoPump';
@@ -223,7 +224,7 @@ export const MODULES = createModuleLibrary([
   TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, DIVE_FRAME, TRAWL, ANCHOR_WINDLASS,
   SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, TUBES, RIB_CONSOLE, FENDERS, HULL_GUARD, PUSH_FENDER, BOW_FENDER, BOW_STAPLE, FENDERING, MARKINGS, FOILS, SOLAR_ROOF, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
   ELECTRIC_OUTBOARD, ROD_RACK, HELM_ASSIST, PODS, HELM_JOYSTICK, EXHAUST_STACK, FURNITURE, REST_SPOT, FISH_HOLD, NET_DRUM, TRAWL_WINCHES,
-  NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
+  NAV_LIGHTS, WIND_VANE, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };

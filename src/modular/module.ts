@@ -22,6 +22,7 @@ import type * as THREE from 'three';
 import type { Control } from '../controls/Control';
 import type { Screen } from '../controls/instruments';
 import type { BreakerName, VesselState } from '../vessel/vesselState';
+import type { EnvironmentState } from '../environment/environmentState';
 import type { CONFIG } from '../config';
 import type { TenderCrane } from '../vessel/tenderCrane';
 import type { BusReader, BusValue } from './bus';
@@ -431,6 +432,12 @@ export interface ViewFrame {
   darkness: number;
   /** The viewer's head, world axes (the nav lights' arcs of visibility). */
   viewer: THREE.Vector3;
+  /**
+   * The boat as she is and the weather round her (the masthead wind vane's apparent wind):
+   * filled in by the boat's view each frame; absent in tests and on a page with no world.
+   */
+  vessel?: VesselState;
+  env?: EnvironmentState | null;
 }
 
 /** How far aft of what it names an engraved label lies (m). */

@@ -38,6 +38,11 @@ export const NAV_LIGHTS: ModuleDefinition<NavLightsConfig> = {
     on: { dir: 'read', key: 'lights.nav' },
     live: { dir: 'read', key: 'circuit.navLights.live' },
   },
+  // On top of the masthead light (its housing is 9 cm tall): the masthead wind vane's place.
+  sockets: (c) => {
+    const [x, y, z] = c.lights.masthead;
+    return [{ id: 'vane', type: 'roof.mount', transform: { position: [x, y + 0.045, z] }, label: 'On top of the masthead light: the wind vane' }];
+  },
   footprints: (c) => {
     if (!c.mast) return [];
     const [x, y, z] = c.lights.masthead;
