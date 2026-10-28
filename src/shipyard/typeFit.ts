@@ -141,6 +141,17 @@ export const TYPE_FACTS: TypeFacts[] = [
     maxPots: 0,
     fits: [fit(6, 1, 10, 52, 0.7, 446_000)],
   },
+  {
+    // The foiling ferry (a one-off: all fixed but her battery and house, so one fit; measured
+    // 28 Oct 2026 on her pod, 200 kWh; her range is her battery's at 25 kn on her foils).
+    what: 'A one-off foiling electric ferry: 12 m of composite, a long passenger cabin, one electric pod with two propellers; she lifts onto her hydrofoils and flies quietly over the chop at 25 kn.',
+    goodFor: [],
+    crates: 0,
+    pots: 0,
+    maxCrates: 0,
+    maxPots: 0,
+    fits: [fit(7, 0, 30, 40, 1, 700_000)],
+  },
 ];
 
 export interface TypeLine {

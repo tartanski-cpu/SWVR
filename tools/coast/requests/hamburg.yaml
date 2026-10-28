@@ -1,0 +1,69 @@
+# Region request: the Port of Hamburg (owner, Oct 2026: "I'd like a Hamburg harbour map"): the
+# Elbe from Finkenwerder and Övelgönne up to the Elbe bridges, the Landungsbrücken, the
+# Speicherstadt and HafenCity, the container terminals (Burchardkai, Eurogate, Altenwerder),
+# the Köhlbrand and Wilhelmsburg. Full scale, about 14 x 8 km, in chunks. A river port: there
+# is no coastline here in the map data, so its water comes from the map's river, canal and
+# dock outlines (reconcile.ts `inlandWater`), and its depth is held to a dredged fairway's.
+id: hamburg
+name: The Port of Hamburg
+bbox: [9.82, 53.49, 10.03, 53.56]   # lon/lat min, max
+theme: hanseatic
+chunked: true
+inlandWater: true
+inlandDepth: 15
+spine:
+  harbour.sheltered: auto
+  pier.exposed: auto
+  anchorage: auto
+weatherProfile: north-sea
+fish: []
+goods: [building-materials, groceries, feed]
+# The harbour ferry lines are mapped in many pieces, some twice: each named line once.
+ferriesNamed: true
+# The Köhlbrandbrücke clears about 53 m over the water, on viaducts end to end; the map gives
+# no height (package.ts).
+bridgeDecks: { Köhlbrandbrücke: 55 }
+# Landmarks modelled from the map's own 3D building parts (features.ts), by Wikidata id:
+# the Elbphilharmonie (its glass top crested like a wave, as the map can't say), the five main
+# churches, the Rathaus, the Landungsbrücken hall and the old Elbe tunnel's domed hall.
+landmarkModels:
+  - { wikidata: Q673223, name: Elbphilharmonie, crown: wave }
+  - { wikidata: Q674472, name: St. Michaelis }
+  - { wikidata: Q535443, name: St. Petri }
+  - { wikidata: Q564532, name: St. Jacobi }
+  - { wikidata: Q616790, name: St. Katharinen }
+  - { wikidata: Q425622, name: St. Nikolai, radius: 70 }
+  - { wikidata: Q3987, name: Rathaus }
+  - { osm: way/809288741, name: St. Pauli Landungsbrücken }   # the hall; its id is on its pier
+  - { wikidata: Q460264, name: Old Elbe Tunnel }
+  # The Dockland office on the tip of the Fischereihafen pier: a parallelogram in elevation,
+  # its west end leaning 40 m out over the Elbe (owner: "the slanty Dockland building").
+  - { osm: way/19742852, name: Dockland, lean: 40, leanBearing: 270, wall: '#4a5862' }   # glass and steel
+# The Köhlbrandbrücke's pylons, 135 m: its span over the Köhlbrand drawn cable-stayed.
+bridgePylons: { Köhlbrandbrücke: 135 }
+# The museum ships at their berths (owner), drawn to the map's hull outlines: the cargo liner
+# Cap San Diego, the three-masted Rickmer Rickmers, and the four-masted Peking in the Hansahafen.
+museumShips:
+  - { wikidata: Q858079, name: Cap San Diego, design: cargo }
+  - { wikidata: Q479965, name: Rickmer Rickmers, design: barque, masts: 3, hull: '#2f6a4a' }   # green
+  - { wikidata: Q249918, name: Peking, design: barque, masts: 4, hull: '#1e1e22' }   # black
+# Hamburg's harbour ferries drawn as the port's own kind: cabin forward, wheelhouse aft (owner).
+harbourFerries: true
+# Big ships in and out (owner): container ships up the Elbe from the west to the terminals at
+# Burchardkai, Waltershof (Predöhlkai) and Altenwerder (Ballinkai, through the Köhlbrand).
+shipping:
+  - { to: burchardkai-2 }
+  - { to: predohlkai-3 }
+  - { to: ballinkai }
+# Ships in the yard's docks (owner): a cargo ship raised in each big floating dock, and a cruise
+# ship in for a refit afloat in Dock Elbe 17.
+dockedShips: true
+yardShips:
+  - { dock: Dock Elbe 17, stage: 0.97, length: 290, painted: true }
+# The container terminals (owner: "add containers and quay cranes to the terminals"), by their
+# names in the map: ship-to-shore cranes along their quays, stacks of containers behind.
+containerTerminals:
+  - Container Terminal Burchardkai
+  - Eurogate Container Terminal Hamburg
+  - Container Terminal Tollerort
+  - Containerterminal Altenwerder

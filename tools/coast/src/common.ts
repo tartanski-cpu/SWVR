@@ -54,6 +54,32 @@ export interface RegionRequest {
   yardShips?: { dock?: string; berth?: string; stage: number; length: number; bow?: 1 | -1; painted?: boolean; seed?: number }[];
   /** The lettering along a yard's gantry cranes' girders (both faces), as the owner asks (package.ts). */
   gantrySign?: string;
+  /**
+   * A river port with no coastline in the map data (Hamburg): its water from the map's river,
+   * canal and dock outlines (each outline a boundary, each patch between them water where most
+   * of it is water in the land cover), and its depth no more than `inlandDepth` m (a dredged
+   * fairway's; reconcile.ts).
+   */
+  inlandWater?: boolean;
+  inlandDepth?: number;
+  /** Deck heights (m) of high bridges the map doesn't give, by name: every piece of it (package.ts). */
+  bridgeDecks?: Record<string, number>;
+  /** Pylon heights (m) of cable-stayed bridges, by name: their main span over the water drawn with pylons and stays (package.ts). */
+  bridgePylons?: Record<string, number>;
+  /** Landmarks modelled from the map's own 3D building parts, by Wikidata id (features.ts): `crown: wave` gives the tallest part a wave-crested roof (the Elbphilharmonie). */
+  landmarkModels?: { wikidata?: string; osm?: string; name?: string; radius?: number; crown?: string; lean?: number; leanBearing?: number; wall?: string }[];
+  /* (`lean`: the building leans this far (m) at its top toward `leanBearing` (deg): the Dockland, a parallelogram in elevation.) */
+  /** Museum ships moored for good, by Wikidata id, with the game's design for each (`cargo`, `barque` with `masts`) (features.ts). */
+  /** The passenger launches drawn as harbour ferries, cabin forward and wheelhouse aft (Hamburg's; package.ts). */
+  harbourFerries?: boolean;
+  /** Container terminals by their names in the map: quay cranes and container stacks laid out in each (features.ts, package.ts). */
+  containerTerminals?: string[];
+  /** A ship raised in each big floating dock (package.ts). */
+  dockedShips?: boolean;
+  /** Big ships in and out of the port: to each port's cargo berth (`to`, a port id) from the map's edge on `from` (west, east, north, south) (package.ts). */
+  shipping?: { to: string; from?: string }[];
+  museumShips?: { wikidata: string; name?: string; design: string; masts?: number; hull?: string }[];
+  /* (`osm`: a way's id, `way/<n>`, where its building has no Wikidata id of its own.) */
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

@@ -10,6 +10,128 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hamburg runs lighter: fewer pier legs, the piles the fenders, shorter reach on the Quest (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "it's 750,000 triangles. On Quest, I'm getting 30 to 40 frames per second ... the piers have many legs ... and separate fenders or bumpers. You could ... reduce slightly the leg count and merge the leg with a bumper ... take a look at the poly count."
+
+- **Measured first** (headless, every visible mesh's triangles by name, instanced ones counted per copy; 3 spots: the start, Burchardkai, HafenCity). The biggest share by far was the harbour kit's piers and quays (`structures`): 164,000 at the start, 180,000 at HafenCity. Hamburg has 645 pier and quay pieces, mostly long timber piers: a pile every 6 m each side (7-sided cylinders, capped), a fender board every 4 m on every seaward face, bollards of two 8-sided cylinders each. Then the ocean (104,000, the main game's, not changed here), the town's buildings (50-62,000), the container stacks (28-61,000).
+- **The piers** (`worldView.ts` buildBlock, shared; `CONFIG.structures.kit`): piles every `pileSpacing` 9 m (from 6), 5-sided (from 7), open-ended (no caps: their tops are under the deck, their feet in the seabed); a pier's outer piles are its fenders, so it has no fender boards (owner's idea); a quay keeps its fender boards, every `fenderSpacing` 8 m (from 4). Bollards one 6-sided post with a flat cap (from two 8-sided cylinders). Every map's piers (and the career harbours') take it.
+- **The container stacks:** no bottom faces (never seen), and drawn within 2.5 km (from 3.5).
+- **On the Quest only** (`CONFIG.regions.coastQuest`, by the trees' device level: a standalone headset, or "Quest" chosen in the menu): the town's buildings within 1.3 km (from 2), the harbour kit's squares within 1.6 km (from 2.5), a terminal's stacks within 1.8 km. Fog hides most of that distance on the water anyway. The desktop keeps the longer reach.
+- **Result, measured as the Quest draws it** (before → after): the start 529,000 → 363,000 triangles; Burchardkai 450,000 → 328,000; HafenCity 538,000 → 358,000: a third fewer. The piers alone: 164,000 → 43,000 at the start, 180,000 → 45,000 at HafenCity. Draw calls unchanged (about 90 on the water, 150 at the start). On a desktop the same scenes are 453,000 / 401,000 / 460,000.
+- **What's left:** the ocean (104,000, the biggest single mesh now, the main game's: worth telling the main game chat), the harbour boats near (up to 40,000), the town. 750,000 on the Quest's counter will include both eyes' and the shadows' passes; the scene's own share is what's measured here.
+- **Tests:** `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: the piers along Altona still read as piers on piles.
+- **Not checked:** on the Quest (the frame rate there is the owner's check).
+- **Shared changes:** `src/world/view/worldView.ts` (pier piles, fenders, bollards: every map and the career harbours). Settings in `src/config/map.ts` (`structures.kit`, `regions.coastQuest`).
+
+### Hamburg: containers and quay cranes on the terminals (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "Add containers and quay cranes to the terminals".
+
+- **The terminals** (`containerTerminals` in the request, by their names in the map; `features.ts` takes each area): Container Terminal Burchardkai, Eurogate Container Terminal Hamburg, Container Terminal Tollerort, Containerterminal Altenwerder. The map draws neither the cranes nor the boxes, so the package stage lays them out (`package.ts`, the terminals pass):
+  - **Quay cranes:** along every quay wall in or beside a terminal (within `termReach` 80 m), on its face to the water, one every `craneSpacing` 100 m, `craneEnd` 35 m clear of the ends, standing `craneBack` 18 m in from the face, the boom out over the water; three in ten with the boom raised, as when no ship lies there. 66 cranes: Burchardkai 28, Eurogate 16, Altenwerder 15, Tollerort 7, about the real numbers.
+  - **Container stacks:** blocks 60 x 22 m (`stackBlock`) with lanes between (`stackLane`) on a grid squared to the terminal's main quay, wherever a block's middle is in the area, on land, no water within `stackBack` 60 m, clear of the buildings. 1,279 blocks, each four stacks of 1 to 5 containers high in mixed colours.
+- **The crane** (`coastStructures.ts` `quayCraneGeometry`, `CONFIG.structures.terminal.crane`): an A-frame portal on four legs straddling the quay (30 m between its rails), the boom 62 m out over the water and 22 m back, the machinery house on the back end, the cab, the A-frame head stayed to the boom's ends. Blue frame, white boom. A design of the game's own.
+- **Cheap on the Quest** (`coastView.ts`): instanced. All the cranes are two instanced meshes (boom down, boom up), 252 triangles each, 17,000 in all, always drawn (they're the port's skyline); each terminal's stacks are one instanced mesh (8,700 to 19,000 triangles) drawn only within `terminal.distance` 3.5 km. At the start (the Landungsbrücken) the scene is unchanged: 151 draw calls, 320,000 triangles in the headless browser; near Burchardkai and Eurogate about 55,000 triangles more in five draw calls.
+- **Drawing only, not solid**, like the other structures.
+- **Tests** (`coastHamburg.test.ts`): the four terminals with cranes and stacks; every crane on its quay with its boom over the water; the stacks on land; the budgets. `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless at Burchardkai and Eurogate.
+- **Not yet:** straddle carriers and lorries between the stacks; cranes working (the boom and trolley still); the ships' own cranes alongside.
+- **Not checked:** on the Quest (the frame rate near the terminals is the owner's check).
+- **Shared changes:** `src/world/defs.ts` (`TerminalDef`), `src/world/coastStructures.ts`. Settings in `src/config/map.ts` (`structures.terminal`).
+
+### Hamburg: ships in the docks, water in Elbe 17, no buildings on the pontoons (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "the Blohm + Voss dry dock seems to still have land inside it ... a grey mass"; "there should be some ship inside the docks as well"; "the buildings on the dock side next to the Cap San Diego seem to be a bit high. I don't think there should be any buildings on those pontoons."
+
+- **Dock basins are water** (`reconcile.ts`): the land cover sees a dock with a ship in it as built-up, so Elbe 17's basin came out as land at ground level. Every cell inside a mapped dock outline (`waterway=dock`) is now water, and a patch mostly of dock counts as water. Every stage from the reconcile on was run again for Hamburg.
+- **A cruise ship in Elbe 17 for a refit** (`yardShips: [{ dock: Dock Elbe 17, stage: 0.97, length: 290, painted: true }]`): the Turku yard ship's design, finished and painted, afloat (a ship in a flooded dock floats at `yardDraught`; one in a drained dock, Perno's, stands on its floor as before).
+- **A ship in each big floating dock** (`dockedShips: true`; `package.ts`, `T.dockedShip` 150 m, `T.dockedLift` 9.5 m; `MuseumShipDef.lift`): the museum ships' cargo design, raised on the dock's blocks (her keel a metre over the pontoon deck), 0.8 of the dock's length, her beam within its wing walls; her hull's colour and which way she lies by the dock's name. Five docks: 11, 5, 12, 16 and I.
+- **No buildings over the water** (`package.ts`): a building whose middle stands over water is left out: the map's pavilions on the pontoons by the Überseebrücke, which the house rules had made 15 m warehouses.
+- **Tests** (`coastHamburg.test.ts`): Elbe 17 water with the cruise ship afloat in it; a ship raised in each big floating dock inside its walls; no building on the pontoons by the Cap San Diego. The start berth's depth test now asks 2 m, not 3, in the overview grid (the same berth; the re-triangulated mesh blends the pontoon's face a little more into the 50 m cell). `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`MuseumShipDef.lift`).
+
+### Hamburg: big ships in and out, and harbour ferries of the port's own kind (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "Hamburg, being a busy harbour, needs some AI ships, some big ships going in and out. And the ferries should look a little bit more like the Hamburg ferries ... they've got a wheelhouse at the back, and then the cabin at the front."
+
+- **Container ships** (`shipping` in the request; `package.ts`): three routes, each in from the map's west edge up the Elbe to a terminal's cargo berth: Burchardkai, Predöhlkai (Waltershof) and Ballinkai (Altenwerder, through the Köhlbrand under the bridge). Each way is the cheapest path through water at least 8 m deep (`T.shipDepth`) on a 50 m grid (`shipCell`), kept 450 m inside the box's faded edges (`shipEdge`), each cell dearer the nearer the bank (`shipBank`), so they keep to the middle of the channel, then thinned (`shipThin`). At the quay she lies `shipOff` 26 m out from the face, her whole length over deep water (slid along the face from the berth until she fits), coming in along the quay from the longer open side.
+- **They sail as the ferries do** (`traffic/ferries.ts`, unchanged but for one rule): in from the edge, slowing into her berth, alongside 8 minutes, off to sea with a call on the VHF ("Nordic Meridian, leaving Burchardkai for the sea"), out of sight half an hour, back in; on the AIS, lit at night, solid, keeping her course and stopping rather than run you down. The three routes share the sea end, so they're one fleet of three ships. Names invented (`SHIP_NAMES`), three hull liveries of the game's own (dark blue, dark red, grey).
+- **A fleet is one class** (`ferries.ts` `fleets`): routes are grouped by a shared end only within one class, so a harbour ferry never sails a container route (both use Bubendey-Ufer, say).
+- **The container ship design** (`ferryKit.ts` `container`, `CONFIG.ferries.classes.container`: 300 x 45 m, 12 m draught, 4.2 m/s): her hull, the accommodation block and bridge aft with its wings across her beam, the funnel behind, bay after bay of containers in mixed colours, three stacks across, each 3 to 6 high, lashing bridges between.
+- **The harbour ferry** (`ferryKit.ts` `harbour`; `harbourFerries: true` in the request makes Hamburg's 11 launch lines this class; `CONFIG.ferries.classes.harbour`: 30 x 8.2 m, after the port's "Bügeleisen"): a beamy shallow hull, the enclosed cabin forward with its windows, its roof an open upper deck behind a rail; aft, the wheelhouse raised on an arch over the open after deck and the boarding ramp. One colour all over, hull and upperworks, yellow or red by turns down the lines (liveries `harbour-yellow`, `harbour-red`; owner: "typically like all yellow or all red"), a dark boot-topping and dark windows.
+- **Tests** (`coastHamburg.test.ts`): the three ship routes to their terminals, all in water to the end alongside; a fleet is one class; the harbour ferry lines; each design within budget. `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: a ship alongside at Burchardkai, another under way up the Elbe, a harbour ferry at her pier.
+- **Not yet:** cruise ships, bulk carriers and tugs; the ships don't meet the ferries' timetables (they keep clear of you, not of each other beyond the ferries' rules).
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/config.ts` (`ferries.classes.harbour`, `.container`), `src/traffic/ferryKit.ts` (the two designs, liveries, their lights), `src/traffic/ferries.ts` (`fleets` by class), `src/world/defs.ts` (`FerryRouteDef` classes and liveries).
+
+### Hamburg: the Dockland, the museum ships, Blohm + Voss's docks (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "Make sure you do the slanty Dockland building and the Cap San Diego and the Rickmer ships in the harbour. Oh, and the dry docks from Blohm + Voss shipyard, of course."
+
+- **The Dockland** (`landmarkModels`, `osm: way/19742852`): the office on the tip of the Fischereihafen pier, 25 m, its outline from the map; a parallelogram in elevation, leaning `lean` 40 m out at its top toward `leanBearing` 270 (west, over the Elbe) (`coastStructures.ts` `leaningBlock`). Glass and steel grey (`wall` in the request: a landmark's colour where the map has none). The ground under it flattened as for the other landmarks.
+- **The museum ships** (`museumShips` in the request, by Wikidata id; `features.ts` takes each hull outline from the map: where she lies, her heading toward her bow (the narrower end of the outline), length and beam; `coastStructures.ts` `museumShipParts`, `CONFIG.structures.museumShip`). Designs of the game's own:
+  - **Cap San Diego** (159 m, `cargo`): a 1960s cargo liner, white hull over a red bottom, forecastle and poop, her superstructure in four tiers amidships with bridge wings, her funnel white with a red top, kingposts and derricks over the hatches fore and aft;
+  - **Rickmer Rickmers** (87 m, `barque`, 3 masts, green hull) and **Peking** (101 m, 4 masts, black hull; in the Hansahafen, not asked for but there): a square-rigger, a white band under her rail, poop and forecastle, masts crossed with six yards each, the aftmost with gaff and boom, bowsprit and forestay.
+  - The boxes the harbours stage had made of their hull outlines (mapped as buildings) are left out.
+- **Floating docks** (every one the map has as `waterway=dock`, `dock=floating`; `floatingDockParts`, `CONFIG.structures.floatingDock`): Blohm + Voss's Docks 11 (319 m), 5, 6, 12 and 16, and Docks I and II across the river: the pontoon just awash, a wing wall each side (0.42 of its breadth high, 12-20 m), the copings, a yellow jib crane on each wall.
+- **Dock Elbe 17** (the graving dock, from the map's `dock=drydock`; `gravingDocks` in the package, `gravingDockParts`): its gate across the end that opens onto the river, and two big portal cranes along its side.
+- **Tests** (`coastHamburg.test.ts`): the Dockland's lean, each ship at her berth afloat with no shed over her, her masts or funnel, the docks' sizes and the gate on the river end; each within its triangle budget. `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless.
+- **Drawing only, not solid**, like the yard ships and gantries: a boat sails through them. Making them solid is a new physics shape: the owner's call.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`MuseumShipDef`, `FloatingDockDef`, `GravingDockDef`, `LandmarkModelDef.lean`), `src/world/coastStructures.ts` (`structuresGeometry` takes the rest as one object). Settings in `src/config/map.ts`.
+
+### Hamburg: its landmarks, from the map's own 3D (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "Add landmarks first" (before the container terminals).
+
+- **Modelled from the map data, not by hand** (`features.ts`, `landmarkModels` in `requests/hamburg.yaml`): OpenStreetMap has Hamburg's landmarks drawn in 3D, as building parts with heights, roof shapes and colours (its "Simple 3D Buildings"). A request names a landmark by its Wikidata id (or an OSM way, `osm: way/<n>`, where its building has none: the Landungsbrücken hall), and the features stage takes the building parts inside its outline. Nine for Hamburg:
+  - the Elbphilharmonie (110 m);
+  - the five main churches: St. Michaelis (the Michel, 132 m, its green copper top in stages), St. Petri (132 m), St. Nikolai (147 m, the ruin's spire), St. Jacobi (125 m), St. Katharinen (117 m, its green bulb);
+  - the Rathaus (its tower 112 m);
+  - the St. Pauli Landungsbrücken hall with its towers, and the old Elbe tunnel's domed hall.
+- **How they're drawn** (`coastStructures.ts` `landmarkModelParts`, one merged mesh with the bridges, 4,000 triangles for all nine): each part's footprint walled up to its eaves and roofed in its shape: flat, pyramidal (spires), dome, onion, gabled (four-sided footprints), skillion, and a hip for the rest. In the map's colours, else by material (`CONFIG.structures.landmark`).
+- **The Elbphilharmonie's crown** (`crown: wave`): the map can't describe its roof, so its glass top is crested in 2.5 waves along its length, 22 m from crest to trough (`landmark.wave`), across the whole footprint; the overlapping glass shell the map also has is left out inside it.
+- **The ground under them** (`mesh.ts`): the height data is a surface model, so the Elbphilharmonie was in it as a 25-30 m mound that buried the model. Under each landmark's footprint (and `landmarkPad` 6 m round it) the ground now comes down to the land about it (the lower quarter of the heights 15-45 m outside, `landmarkRing`): 282 cells. Water isn't raised.
+- **Not drawn twice:** the plain buildings in their footprints are left out (5), and the skyline's generic church and tower symbols there are marked `modelled` (not drawn, still on the chart).
+- **The Köhlbrandbrücke cable-stayed** (`bridgePylons: { Köhlbrandbrücke: 135 }`; `bridgeParts`, `CONFIG.structures.cableStayed`): the piece over the Köhlbrand gets an A-frame pylon at each edge of the water, 135 m high, with fans of 9 stays a side to both deck edges; the main span free of piers, the approaches on piers every 45 m. A design of the game's own to the map's line.
+- **Tests** (`coastHamburg.test.ts`): all nine at their mapped heights, the crown's dip, the flattened ground, every wall facing out, the budget, the bridge's pylons. `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: the Elbphilharmonie from the river and from above, the old town's spires from the Zollkanal, the Landungsbrücken, the Köhlbrandbrücke from the Köhlbrand.
+- **Not yet:** the TV tower (Heinrich-Hertz-Turm, 280 m) stands 300 m north of the map's edge, so it isn't in; widening the box means fetching and building the map again. The museum ships (Rickmer Rickmers, Cap San Diego) and the container terminals are still to come. The landmarks stand among few other buildings away from the harbours (the map brings in buildings within 400 m of a harbour only).
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`LandmarkModelDef`, `BridgeDef.pylons`, `SkylineDef.modelled`), `src/world/view/skylineView.ts` (skips a modelled one), `src/world/coastStructures.ts`. Settings in `src/config/map.ts` (`structures.landmark`, `structures.cableStayed`).
+
+### The Port of Hamburg: a river port, the first map without a coastline (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "I'd like a Hamburg harbour map".
+
+- **The map** (`tools/coast/requests/hamburg.yaml`): the Elbe from Finkenwerder and Övelgönne up to the Elbe bridges, at full scale, 13.9 by 7.8 km, in 28 chunks (none over 8,100 drawn faces): the Landungsbrücken (where you start, `landungsbrucken-cargo`), the Speicherstadt and HafenCity, Blohm + Voss, Burchardkai, Altenwerder and Eurogate, the Köhlbrand, Wilhelmsburg and the free port's docks. For Voyage only (`src/world/maps.ts`, live weather off the Elbe, `ELBE_WEATHER`), on the landing page beside Turku. 77 ports, 137 berths, 9,400 buildings, 645 pier and quay blocks; 2.4 MB.
+- **Water with no coastline** (`reconcile.ts`, `inlandWater`): the map data has no coastline this far up a river, so the sea came out as one solid field. Now the map's own water outlines (river banks, docks, canals, lakes) bound the land and water patches too, and a patch with no sea seed in it is water when at least half of it is water in the land cover (ESA WorldCover). Its depth: 2 m at the bank, 0.25 m deeper a metre out, held to `inlandDepth` (15 m: a dredged fairway's, the real channel being about 16 m). Every other map leaves `inlandWater` off and is unchanged.
+- **The Hanseatic theme** (`themes.ts` `hanseatic`): red-brick warehouses and terraces, slate-grey, green copper and red roofs, stone revetments and the river's mud at the water's edge; lime, oak, plane and birch in the parks.
+- **The harbour ferry lines:** each line once (`ferriesNamed`, as Turku), 12 lines; a line the map knows only by its number reads "Line 62" (`package.ts`, every map from its next run).
+- **The Köhlbrandbrücke 55 m up:** the map gives no height, so its deck was drawn at its abutments' ground, 9 m, under which nothing could pass. A request now gives a bridge's deck by name (`bridgeDecks`, `common.ts`; here `Köhlbrandbrücke: 55`, every piece of it: about 53 m clear in life). Drawn as a beam bridge on tall piers, not yet with its cable-stayed towers.
+- **Gantries to their own size** (`coastStructures.ts` `gantryParts`; `CONFIG.structures.gantry.fullSpan` 150 m, `bareBelow` 0.5): Altenwerder's 25 stacking cranes are mapped as gantry tracks 40 m between the rails, and came out as 100 m goliaths. Now a gantry under `fullSpan` is scaled by its span (a 40 m one 27 m tall), and under half size has no T-crane and no sign. Perno's is unchanged (156 m).
+- **No creel grounds where a map lists no fish** (`package.ts`): Hamburg had two "Skerry" grounds in the docks.
+- **Yachts only on mooring buoys** (`boats.ts`): Hamburg maps 1,100 "moorings" that are piles, dolphins and bollards along the quays (ships lie against them); the stage put a yacht on a mooring at each, 400 of them against the piers. Now only buoys are taken (172 moorings, all the stage's own).
+- **Berths a step from a deck** (`package.ts` `ashoreOnDeck`, `T.quayBack` 2 m as the game's `CONFIG.start.quayBack`): a cargo or fuel berth is chosen only where the spot the game puts you ashore is on a deck. And a pier or quay's heading is kept to a tenth of a degree (it was whole degrees, which on Ballinkai's 1.5 km quay moved its far end 13 m sideways, off its own berth). Both from each map's next run.
+- **Tests:** `tests/coastHamburg.test.ts` (the box and chunks, the Landungsbrücken's latitude and longitude, the Elbe water and dredged, St. Pauli and Wilhelmsburg land, the start berth's depth and the ports, the ferry lines once each over water, the Köhlbrandbrücke at 55 m over the Köhlbrand). `npm run test:map`, the typecheck and all of `npm test` pass. Headless: the start at the Landungsbrücken (12 s to load, 154 draw calls), HafenCity's marinas, the Elbe, Altenwerder's cranes, the Köhlbrandbrücke.
+- **Not yet:** no containers on the terminals, nor the quay's ship-to-shore cranes (the map has their tracks, not the stacks): the terminals are bare ground; the Köhlbrandbrücke's towers and cables; the Elbphilharmonie as an ordinary building. Several piers share a name (five "Waltershof pier"), named for the nearest place by the harbours stage. 13 overlapping-pier and no-room warnings in the package report, as on the other maps.
+- **Not checked:** on the Quest.
+- **Shared changes:** `index.html` (the Hamburg link), `src/world/coastStructures.ts` gantry sizes (no change to Perno's).
+
 ### Turku loads faster: the piers' kit made as you come near, the berths and steps by a grid (27 Oct 2026)
 
 **Owner approved; merged into `next`.**

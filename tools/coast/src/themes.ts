@@ -323,4 +323,81 @@ const BALTIC: Theme = {
   },
 };
 
-export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN, aegean: AEGEAN, baltic: BALTIC };
+// The Hanseatic port (Hamburg): a river port on the Elbe, flat marsh and dikes, the city on its
+// low hills; red-brick warehouses with their gables (the Speicherstadt), rendered city blocks,
+// green copper and slate roofs; the docks' grey and blue sheds and the open concrete of the
+// terminals; broadleaf parks and avenues; the Elbe's muddy water, stone revetments and the
+// sand of the Elbstrand. Harbour launches and motor cruisers in the marinas.
+const HANSEATIC: Theme = {
+  cover: {
+    10: 0x3a5a32, // tree cover: parks, the Elbe slope's woods
+    20: 0x66704a, // shrubland
+    30: 0x7a9a50, // grassland: dikes and marsh pasture
+    40: 0x94a858, // cropland: the Vier- und Marschlande
+    50: 0x86827c, // built-up: the terminals' concrete, the city
+    60: 0x98948c, // bare / sparse
+    70: 0xeef2f4, // snow
+    80: 0x3a5058, // permanent water
+    90: 0x788456, // herbaceous wetland: reed and marsh
+    95: 0x4a6a3a, // mangroves (not here)
+    100: 0x86906c, // moss and lichen
+  },
+  // Stone revetments along the banks; the Elbstrand's pale sand.
+  rock: 0x86827a,
+  sand: 0xd8caa0,
+  shallow: 0x6c6854,
+  deep: 0x2c3c40,
+  shingle: 0x8a857a,
+  cliff: 0x6a6560,
+  fields: 0x8aa452,
+  // The tidal river's mud at the water's edge.
+  foreshore: 0x7c7460,
+  houses: {
+    walls: [0x8e3a2a, 0x8e3a2a, 0x7a3226, 0x9a4a32, 0xe6dcc6, 0xf0ece4, 0xb8b4ac],
+    painted: [0xe6dcc6, 0xd8c08a, 0xc8d0d4, 0x8e3a2a, 0x9aa8b0, 0xf0ece4],
+    doors: [0x2f4a3a, 0x2a2a2a, 0x5a2a1e, 0x1e2f4a],
+    signs: [0x1e3a5a, 0x6a1e1e, 0x2a2a2a],
+    roofs: [0x3a3e42, 0x4a4e52, 0x5a8a78, 0x8a3a2e],
+    shedWalls: [0x8c9294, 0x3a5a8a, 0xb0b4b4, 0x8e3a2a],
+    shedRoofs: [0x6a7072, 0x5a6064],
+    stone: [0x8e3a2a, 0x7a3428, 0x9a8e86],
+    levels: { cottage: 1.5, house: 3, terrace: 5, shed: 1, church: 3, warehouse: 5, boathouse: 1, castle: 4, ruin: 2 },
+    roofShapes: { cottage: 'gabled', house: [['gabled', 2], ['hipped', 1], ['flat', 1]], terrace: [['flat', 2], ['gabled', 1]], shed: 'gabled', church: 'gabled', warehouse: 'gabled', boathouse: 'gabled', castle: 'flat', ruin: 'flat' },
+    paintedShare: 0.3,
+  },
+  // City parks and avenues: lime, oak, plane and birch; a few conifers.
+  forest: {
+    treeline: 200,
+    steep: 1.2,
+    thin: 0.8,
+    forestIs: 'mixed',
+    woodIs: 'broadleaf',
+    kinds: {
+      plantation: { spacing: 6, species: [['conifer', 2], ['broadleaf', 2]] },
+      broadleaf: { spacing: 8, species: [['broadleaf', 4], ['birch', 1]] },
+      mixed: { spacing: 7, species: [['broadleaf', 3], ['conifer', 2], ['birch', 1]] },
+      natural: { spacing: 10, species: [['broadleaf', 3], ['birch', 1]] },
+      scrub: { spacing: 7, species: [['scrub', 3], ['birch', 1]] },
+      orchard: { spacing: 7, rows: true, species: [['broadleaf', 1]] },
+    },
+    colours: {
+      conifer: [0x2a4a2e, 0x2f5233],
+      broadleaf: [0x4a6e32, 0x557a38, 0x3f6430, 0x5e7e3a],
+      birch: [0x7a9a44, 0x86a24a],
+      scrub: [0x4e6a34, 0x5a7238],
+      pine: [0x3a5a34],
+      olive: [0x7a8a6a],
+    },
+  },
+  // Harbour launches (the Barkassen) and motor cruisers in the marinas and city harbours, a
+  // few yachts; hardly any swinging moorings on a busy tidal river.
+  boats: {
+    alongside: [['cruiser', 3], ['rib', 2], ['yacht', 2], ['creel', 1]],
+    moored: [['yacht', 2], ['cruiser', 1]],
+    anchored: [['yacht', 1]],
+    moorings: 0.2,
+    hulls: [0xf2f0ea, 0xf2f0ea, 0x1e2f4a, 0x8a2a24, 0x2a2a2e, 0x2a4a3a],
+  },
+};
+
+export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN, aegean: AEGEAN, baltic: BALTIC, hanseatic: HANSEATIC };

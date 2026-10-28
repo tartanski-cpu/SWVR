@@ -3262,7 +3262,11 @@ export const CONFIG = {
       large: { length: 72, beam: 15.5, draught: 3.2, freeboard: 3.6, speed: 7.2 },
       small: { length: 38, beam: 11, draught: 1.6, freeboard: 1.7, speed: 4.6 },
       launch: { length: 20, beam: 6, draught: 1.2, freeboard: 1.5, speed: 6.2 },
-    } as Record<'large' | 'small' | 'launch', { length: number; beam: number; draught: number; freeboard: number; speed: number }>,
+      // A harbour ferry of Hamburg's kind (map chat, owner Oct 2026): beamy and shallow, her cabin forward, her wheelhouse aft on an arch.
+      harbour: { length: 30, beam: 8.2, draught: 1.6, freeboard: 1.3, speed: 5.4 },
+      // A container ship into a port (Hamburg's): big and slow in the river.
+      container: { length: 300, beam: 45, draught: 12, freeboard: 9, speed: 4.2 },
+    } as Record<'large' | 'small' | 'launch' | 'harbour' | 'container', { length: number; beam: number; draught: number; freeboard: number; speed: number }>,
     dwell: 480,
     away: 1800,
     brake: 4,

@@ -72,6 +72,12 @@ export const MAP_CONFIG = {
     coastStructureDistance: 2500,
     /** ...each square made only as the viewer comes within that distance of it (and a square more), piece by piece, up to this many ms a frame; those round the start before the first frame (worldView CoastKit). */
     coastKitMs: 4,
+    /**
+     * On a standalone headset (the trees' device level, treesView.ts treeLevel: the Quest), the
+     * coast maps' reach drawn shorter (owner, Oct 2026: Hamburg ran at 30-40 fps): the town's
+     * buildings, the harbour kit's squares and a container terminal's stacks within these (m).
+     */
+    coastQuest: { coastBuildingDistance: 1300, coastStructureDistance: 1600, stackDistance: 1800 },
     /** A mussel farm's long-line (a coast map's, the coast extras plan C2; worldView.buildFarm): one float every this many metres along it. */
     lineFloat: 6,
     coastLoadDistance: 1500,
@@ -333,6 +339,134 @@ export const MAP_CONFIG = {
     beamSpan: 30,
     colours: { steel: 0x4c5a55, deck: 0x55585a, stone: 0x8a8478 },
     /**
+     * A cable-stayed bridge's main span (the map request's `bridgePylons`: the Köhlbrandbrücke):
+     * each pylon an A-frame, its legs `leg` m square from `legOut` m outside the deck's edges
+     * up to a head `headHalf` m either side of its middle; `stays` stays a side of each fan,
+     * their anchorages `anchorStep` m apart down the head, `stay` m thick; the approaches on
+     * piers every `approachSpan` m. White concrete pylons, pale grey stays.
+     */
+    /**
+     * The harbour kit's piers and quays (world/view/worldView.ts buildBlock; owner, Oct 2026:
+     * Hamburg's piers were the biggest share of the triangles): a pier's piles every
+     * `pileSpacing` m each side, `pileRadius` m, `pileSides` sides, open-ended, its outer piles
+     * its fenders; a quay's fender boards every `fenderSpacing` m.
+     */
+    kit: { pileSpacing: 9, pileRadius: 0.3, pileSides: 5, fenderSpacing: 8 },
+    cableStayed: { leg: 3.5, legOut: 4, headHalf: 2.5, stays: 9, anchorStep: 2.2, stay: 0.4, approachSpan: 45, colour: 0xe6e6e0, stayColour: 0xc8ccd0 },
+    /**
+     * A landmark modelled from the map's 3D building parts (Hamburg): the colours where the map
+     * gives none (a wall by its material, else `wall`; a roof `roof`, copper verdigris); the
+     * roofs' profiles in rings, [share of the footprint's size, share of the roof's height] from
+     * the eaves up; the wave crown (the Elbphilharmonie's): `waves` crests along its length,
+     * `depth` m from crest to trough, the walls' corners every `step` m, its roof `crownRoof`.
+     */
+    landmark: {
+      wall: 0xc8b8a0,
+      roof: 0x5a5e62,
+      crownRoof: 0xf2f2ee,
+      material: { brick: 0x9a4a32, sandstone: 0xd8c8a0, glass: 0xa6c0cc, copper: 0x4b7869, metal: 0x9aa0a4, concrete: 0xb8b4ac, stone: 0xa8a090, plaster: 0xe6dcc6 },
+      profiles: {
+        pyramidal: [[1, 0], [0, 1]],
+        dome: [[1, 0], [0.92, 0.38], [0.7, 0.71], [0.38, 0.92], [0, 1]],
+        onion: [[1, 0], [1.22, 0.22], [1.08, 0.45], [0.62, 0.68], [0.22, 0.88], [0, 1]],
+        hip: [[1, 0], [0.3, 1]],
+      } as Record<string, readonly (readonly [number, number])[]>,
+      wave: { waves: 2.5, depth: 22, step: 6 },
+    },
+    /**
+     * Museum ships (Hamburg's; coastStructures.ts museumShipParts), as shares of her length and m:
+     * her bow fines from `bowFrom` of her length forward; red to `boot` m over the waterline.
+     *   cargo   draught and freeboard to her main deck; forecastle from [share, height up],
+     *           poop to [share, height]; her superstructure from `house` [aft, fore] shares in
+     *           `tier` m tiers, each [set in from her side, stepped back from its front] m; her
+     *           funnel [at, length, breadth, height]; hatches and kingposts (pairs `postApart` m
+     *           apart, `post` m tall, derricks `derrick` m) at shares of her length
+     *   barque  draught, freeboard, forecastle and poop the same; a white `band` [from, to] m
+     *           under her rail; her masts at shares of her length by how many (`mastAt`), the
+     *           mainmast `mainHeight` of her length over the deck, the fore `foreShare` of it
+     *           and the aftmost `aftShare`; the yards [height share, span in beams]; her
+     *           bowsprit reaching `bowsprit` of her length past the stem
+     */
+    museumShip: {
+      bowFrom: 0.16,
+      boot: 0.4,
+      cargo: {
+        draught: 7,
+        freeboard: 5.5,
+        forecastle: [0.37, 2.6] as [number, number],
+        poop: [-0.4, 2.4] as [number, number],
+        house: [-0.17, 0.03] as [number, number],
+        tier: 2.8,
+        tiers: [[0.6, 0], [1.4, 2.5], [2.6, 5], [4.5, 8]] as [number, number][],
+        funnel: [-0.11, 9, 5, 8] as [number, number, number, number],
+        hatches: [0.24, 0.1, -0.29],
+        kingposts: [0.31, 0.17, -0.24, -0.35],
+        postApart: 6,
+        post: 13,
+        derrick: 12,
+        colours: { hull: 0xf2f2ee, boot: 0x9a2a22, deck: 0x8a7a68, house: 0xf2f2ee, funnelTop: 0xb02a22, hatch: 0x3a5040, post: 0xd8c8a0 },
+      },
+      barque: {
+        draught: 5.5,
+        freeboard: 4,
+        forecastle: [0.39, 1.8] as [number, number],
+        poop: [-0.37, 2] as [number, number],
+        band: [0.8, 1.8] as [number, number],
+        mastAt: { 2: [0.2, -0.15], 3: [0.27, 0.02, -0.24], 4: [0.3, 0.1, -0.1, -0.3], 5: [0.32, 0.16, 0, -0.16, -0.32] } as Record<number, number[]>,
+        mainHeight: 0.5,
+        foreShare: 0.96,
+        aftShare: 0.82,
+        yards: [[0.3, 1.9], [0.43, 1.75], [0.56, 1.55], [0.68, 1.35], [0.8, 1.12], [0.91, 0.88]] as [number, number][],
+        bowsprit: 0.16,
+        colours: { hull: 0x1e1e22, boot: 0x9a2a22, deck: 0xb09878, band: 0xf2f0ea, house: 0xf2f0ea, mast: 0xc8b090, yard: 0x2a2a2a },
+      },
+    },
+    /**
+     * A floating dock (Blohm + Voss's): the pontoon from [bottom, top] m about the water; its wing
+     * walls `wallShare` of the dock's breadth high, between `wallHeight` limits (m), at least
+     * `wallThick` m thick; a crane on each wall, `tower` m tall with a `jib` m jib.
+     */
+    floatingDock: {
+      pontoon: [-7, 1.5] as [number, number],
+      wallShare: 0.42,
+      wallHeight: [12, 20] as [number, number],
+      wallThick: 4,
+      crane: { tower: 12, jib: 28 },
+      colours: { pontoon: 0x2e3236, wall: 0x50606a, coping: 0xc8ccd0, crane: 0xe0b030 },
+    },
+    /**
+     * A graving dock (Dock Elbe 17): its gate `gateThick` m thick from `gateFoot` m to the quay;
+     * two portal cranes along its side: the portal `portal` m square and `portalHeight` m high,
+     * the tower to `tower` m, a `jib` m jib.
+     */
+    /**
+     * A container terminal (Hamburg's; laid out by the pipeline, drawn instanced by coastView.ts):
+     *   crane   a ship-to-shore crane: `gauge` m between its rails, its legs `legSpan` m apart
+     *           along them, `leg` m thick, its portal `portal` m high; the boom `outreach` m out
+     *           over the water and `backreach` m back; the A-frame's head `apex` m over the boom
+     *   stacks  a block `block` [long, wide] m in `split` [along, across] stacks, `gap` m apart,
+     *           each `tiers` [least, most] containers of `tier` m high, in the `colours`
+     *   distance a terminal's stacks are drawn within this of the viewer (m); its cranes always
+     */
+    terminal: {
+      crane: { gauge: 30, legSpan: 18, leg: 1.8, portal: 42, outreach: 62, backreach: 22, apex: 28, colours: { frame: 0x2f5f9f, boom: 0xe8e8e4, house: 0xf2f2ee, stay: 0x3a3e44 } },
+      stacks: {
+        block: [60, 22] as [number, number],
+        split: [2, 2] as [number, number],
+        gap: 1.6,
+        tiers: [1, 5] as [number, number],
+        tier: 2.6,
+        colours: [0xa8201c, 0x1d4f9a, 0xe8a020, 0x2a7a4a, 0xd8d8d0, 0x7a3a2a, 0x5a6266, 0x2a8aa8, 0x8a1a4a, 0xc8601a],
+      },
+      distance: 2500,
+    },
+    gravingDock: {
+      gateThick: 10,
+      gateFoot: -10,
+      crane: { portal: 10, portalHeight: 12, tower: 40, jib: 50 },
+      colours: { gate: 0x50606a, crane: 0xe0b030 },
+    },
+    /**
      * A shipyard's gantry crane (Perno): the top of its girder above the rails (m), the girder's
      * depth and width, its legs' section and how far apart each A-frame's feet stand along the
      * rails, where its gantries stand along the track (shares of its length, for one, two or
@@ -341,6 +475,11 @@ export const MAP_CONFIG = {
      * yard's name along the girder where the map asks for it (`signHeight`).
      */
     gantry: {
+      /** A goliath this wide between its rails or more (m) is drawn full size (Perno's is 156 m);
+       *  a narrower gantry (a container yard's stacking crane, 40 m) is scaled down by its span. */
+      fullSpan: 150,
+      /** Under this share of full size, no T-crane on top and no sign: a stacking crane, not a goliath. */
+      bareBelow: 0.5,
       height: 100,
       girderDepth: 11,
       girderWidth: 9,

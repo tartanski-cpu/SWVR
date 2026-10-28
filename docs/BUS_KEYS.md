@@ -33,6 +33,13 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `azimuth.angle` | deg | read only | module |  | Azimuth drives: where the port drive points, the way it pushes (0 ahead, + to starboard), following its lever at its steering rate. |
 | `azimuth.angle2` | deg | read only | module |  | Azimuth drives: where the starboard drive points (as azimuth.angle). |
 
+## foils
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `foils.mode` | on / off | player sets | module |  | Hydrofoils: FOIL (true, the default) her flight computer flies her on her foils at speed; HULL (false) it keeps her down on her hulls, bringing her down gently if she was flying. |
+| `foils.ride` | step, 0 to 2, whole | player sets | module |  | Hydrofoils: her ride height, 0 low, 1 normal, 2 high (her forward foil CONFIG.foils.rideSteps deeper or shallower than her design ride depth). |
+
 ## helm
 
 | Key | Values | Use | Written by | Old names | What it is |

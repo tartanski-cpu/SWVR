@@ -64,13 +64,16 @@ interface Sample {
   depth: number[];
   flaps: number[];
   thrust: number;
+  /** Her state's flight summary (VesselState.foil). */
+  foil?: { engaged: number; flaps: number[]; clear: number };
 }
 
 /**
  * Run her `seconds`: `thrust(t, kn)` (N at her pod, forward; a negative: hold 25 kn) and a side
- * push at her stern `side(t)` (N, + to starboard: a steering stand-in), in `sea`.
+ * push at her stern `side(t)` (N, + to starboard: a steering stand-in), in `sea`; her helm's
+ * FOIL / HULL and ride height from `helm(t)`.
  */
-function run(seconds: number, thrust: (t: number, kn: number) => number, side: (t: number) => number = () => 0, sea: WaveComponent[] = []): Sample[] {
+function run(seconds: number, thrust: (t: number, kn: number) => number, side: (t: number) => number = () => 0, sea: WaveComponent[] = [], helm: (t: number) => { foilMode?: number; foilRide?: number } = () => ({})): Sample[] {
   const def = ferryDef();
   const s = createVesselState('v', 'landingCraft');
   const dt = 1 / 60;
@@ -80,6 +83,7 @@ function run(seconds: number, thrust: (t: number, kn: number) => number, side: (
   const out: Sample[] = [];
   for (let i = 0; i < seconds / dt; i++) {
     const t = i * dt;
+    Object.assign(s.controls, helm(t));
     q.fromArray(s.orientation);
     const vF = new THREE.Vector3(...s.linearVelocity).applyQuaternion(q.clone().invert());
     const kn = -vF.z / KN;
@@ -94,7 +98,7 @@ function run(seconds: number, thrust: (t: number, kn: number) => number, side: (
     ] as unknown as Parameters<typeof stepVessel>[7];
     stepVessel(s, def, sea.length ? prepareWaves(sea, t) : [], dt, undefined, false, [], ext);
     const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(...s.orientation), 'YXZ');
-    out.push({ t, kn, pitch: (e.x * 180) / Math.PI, heel: (e.z * 180) / Math.PI, yawRate: (s.angularVelocity[1] * 180) / Math.PI, keelClear: s.position[1] + keelY, depth: [...foilTelemetry.depth], flaps: [...foilTelemetry.flaps], thrust: T });
+    out.push({ t, kn, pitch: (e.x * 180) / Math.PI, heel: (e.z * 180) / Math.PI, yawRate: (s.angularVelocity[1] * 180) / Math.PI, keelClear: s.position[1] + keelY, depth: [...foilTelemetry.depth], flaps: [...foilTelemetry.flaps], thrust: T, foil: s.foil ? { ...s.foil, flaps: [...s.foil.flaps] } : undefined });
   }
   return out;
 }
@@ -166,6 +170,40 @@ describe('hydrofoils: the foiling ferry', () => {
     const last = landing[landing.length - 1];
     expect(last.kn).toBeLessThan(10);
     expect(last.depth[0]).toBeGreaterThan(1.8);
+  });
+});
+
+describe('the foiling ferry\'s helm: FOIL / HULL and her ride height', () => {
+  it('HULL keeps her down on her hulls even at full power', { timeout: 60000 }, () => {
+    const r = after(run(40, () => 16000, undefined, [], () => ({ foilMode: 0 })), 20);
+    for (const x of r) {
+      expect(x.depth[0]).toBeGreaterThan(1.6);
+      expect(x.foil!.engaged).toBe(0);
+      expect(x.foil!.clear).toBeLessThan(0.4);
+    }
+  });
+
+  it('her three ride heights fly her forward foil at three depths, low the deepest', { timeout: 120000 }, () => {
+    const depthAt = (ride: number) => {
+      const r = after(run(50, (t) => (t < 12 ? 16000 : -1), undefined, [], () => ({ foilRide: ride })), 35);
+      return r.reduce((a, x) => a + x.depth[0], 0) / r.length;
+    };
+    const [low, normal, high] = [0, 1, 2].map(depthAt);
+    const steps = CONFIG.foils.rideSteps;
+    const ride = design.foils!.rideDepth;
+    expect(Math.abs(low - (ride + steps[0]))).toBeLessThan(0.06);
+    expect(Math.abs(normal - (ride + steps[1]))).toBeLessThan(0.06);
+    expect(Math.abs(high - (ride + steps[2]))).toBeLessThan(0.06);
+  });
+
+  it('switched to HULL while flying, she comes down onto her hulls gently and level', { timeout: 60000 }, () => {
+    const r = run(60, (t) => (t < 12 ? 16000 : -1), undefined, [], (t) => ({ foilMode: t < 30 ? 1 : 0 }));
+    const flying = after(r, 25, 30);
+    expect(flying.every((x) => x.foil!.clear > 0.9 && x.foil!.engaged > 0.99)).toBe(true);
+    const down = after(r, 30);
+    for (const x of down) expect(Math.abs(x.pitch)).toBeLessThan(4);
+    for (let i = 1; i < down.length; i++) expect(down[i - 1].keelClear - down[i].keelClear).toBeLessThan(1.5 / 60); // never coming down faster than 1.5 m/s
+    expect(down[down.length - 1].depth[0]).toBeGreaterThan(1.6);
   });
 });
 

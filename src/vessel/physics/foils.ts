@@ -32,7 +32,10 @@
  * It takes over from `engageFrom` of her take-off speed, fully at it; below, her flaps are
  * level and she runs on her hulls (her foils lifting a little at their incidence). Heeled past
  * `safeHeelDeg` (a sea beyond her: a foil come out of the water), it brings her down onto her
- * hulls, holding her level as she lands, rather than fight to stay up.
+ * hulls, holding her level as she lands, rather than fight to stay up. HULL at her helm
+ * (`VesselControls.foilMode` 0) does the same at any speed: she stays down on her hulls, or
+ * comes down gently onto them if she was flying. Her ride height is her design's
+ * `rideDepth`, a step deeper (low) or shallower (high) by `controls.foilRide`.
  */
 import { CONFIG } from '../../config';
 import type { PhysicsPort } from '../../modular/module';
@@ -60,6 +63,12 @@ export interface FoilStrut {
   chord: number;
   /** A pod on its foot (an electric motor's): its drag area (m^2, CD x frontal area). */
   podDragArea?: number;
+  /**
+   * It turns with her steering (the foiling ferry's pod strut, owner 28 Oct 2026: "hardly
+   * steers"): its side force from the water's angle to it as it's swung, so it steers her as a
+   * rudder does, rather than holding her straight as a fixed strut does.
+   */
+  steered?: boolean;
 }
 
 export interface FoilSystem {
@@ -82,8 +91,11 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
  * Her foils' and struts' forces this tick, through the physics port. `mass` and `cgZ`: hers
  * now (payload in), for the share of her weight each foil should carry.
  */
-export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: number): void {
+export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: number, controls: { foilMode?: number; foilRide?: number } = {}, steer = 0): { engaged: number; flaps: number[] } {
   const c = CONFIG.foils;
+  // Her helm: FOIL or HULL, and her ride height (a step deeper or shallower than her design's).
+  const foiling = (controls.foilMode ?? 1) > 0.5;
+  const rideDepth = fs.rideDepth + c.rideSteps[Math.round(Math.min(2, Math.max(0, controls.foilRide ?? 1)))];
   const rho = CONFIG.ocean.density;
   const g = CONFIG.ocean.gravity;
   const W = mass * g;
@@ -120,8 +132,21 @@ export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: 
   const zA = aft.reduce((a, p) => a + p.at[2], 0) / Math.max(1, aft.length);
   const shareF = aft.length ? clamp((zA - cgZ) / (zA - zF), 0, 1) : 1;
   const shareA = 1 - shareF;
-  // Her forward foil's depth and how fast it's rising (world).
-  const depthF = fwd.reduce((a, p) => a + port.depthAt(p.at), 0) / Math.max(1, fwd.length);
+  // Her forward foil's depth and how fast it's rising (world). The depth her flight computer
+  // flies by (owner, 28 Oct 2026, "they should be pretty much completely smooth because they ride
+  // over the waves"): under the mean sea, still water level, not the wave over the foil, so she
+  // holds her height level over the crests and troughs ("platforming") and her foils run deeper
+  // under a crest and shallower in a trough. `control.follow` of the wave over it is taken in as
+  // well (0 level over them, 1 up and down with every one: "contouring"). In a trough deep enough
+  // to bring a foil within `control.guard` m of the surface, she follows it down, as much as it
+  // takes to keep the foil that far under (a foil near the surface loses its lift, and out of it
+  // she'd drop).
+  const depthF =
+    fwd.reduce((a, p) => {
+      const still = -port.worldPoint(p.at).y;
+      const local = port.depthAt(p.at);
+      return a + Math.min(still + k.follow * (local - still), local + rideDepth - k.guard);
+    }, 0) / Math.max(1, fwd.length);
   const riseF = fwd.reduce((a, p) => a + port.worldVelocity(p.at).y, 0) / Math.max(1, fwd.length);
   const maxBank = (k.maxBankDeg * Math.PI) / 180;
   const bankTarget = clamp(k.bank * Math.atan((U * yawRate) / g), -maxBank, maxBank);
@@ -133,9 +158,10 @@ export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: 
   // Past `safeHeelDeg` of heel (a sea beyond her, a foil out of the water) she comes down onto
   // her hulls: each foil asked for only `landShare` of its share, her roll still held level.
   const safe = (k.safeHeelDeg * Math.PI) / 180;
-  const over = clamp((Math.abs(heelDown) - safe) / (0.5 * safe), 0, 1);
+  // (HULL at her helm: the same, her foils asked for only `landShare` whatever her heel.)
+  const over = foiling ? clamp((Math.abs(heelDown) - safe) / (0.5 * safe), 0, 1) : 1;
   const land = 1 - (1 - k.landShare) * over;
-  const front = land * W * shareF * (1 + k.kh * clamp(depthF - fs.rideDepth, -k.climb, k.climb) - k.kv * riseF - k.kpf * Math.max(0, pitch - trim));
+  const front = land * W * shareF * (1 + k.kh * clamp(depthF - rideDepth, -k.climb, k.climb) - k.kv * riseF - k.kpf * Math.max(0, pitch - trim));
   const roll = k.kr * eRoll + k.krd * rollRateDown;
   const after = land * W * shareA * (1 + k.kp * (pitch - trim) + k.kq * pitchRate);
   const want = (p: FoilPanel) => (p.role === 'aft' ? after / aft.length : (front / fwd.length) * (1 + (p.role === 'starboard' ? roll : -roll)));
@@ -191,10 +217,16 @@ export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: 
     const q = 0.5 * rho * sp * sp;
     const A = wet * s.chord;
     const AR = (2 * wet) / s.chord;
-    const beta = Math.atan2(f.x, Math.max(Math.abs(f.z), 0.5));
+    // (A steered strut swung by `steer`, as a pod is: + its push turned to port. Its chord
+    // points along (-sin, -cos) in her x and z, its side across that; the water's angle to it.)
+    const d = s.steered ? steer : 0;
+    const along = -f.x * Math.sin(d) - f.z * Math.cos(d);
+    const across = f.x * Math.cos(d) - f.z * Math.sin(d);
+    const beta = Math.atan2(across, Math.max(Math.abs(along), 0.5));
     const side = q * A * ((2 * Math.PI * AR) / (AR + 2)) * clamp(beta, -0.25, 0.25);
     const D = q * (A * c.strutCd + (s.podDragArea ?? 0));
-    port.addForce(mid, -side - (D * f.x) / sp, 0, -(D * f.z) / sp);
+    port.addForce(mid, -side * Math.cos(d) - (D * f.x) / sp, 0, side * Math.sin(d) - (D * f.z) / sp);
     foilTelemetry.drag += D;
   }
+  return { engaged: foiling ? engaged : 0, flaps: [...foilTelemetry.flaps] };
 }

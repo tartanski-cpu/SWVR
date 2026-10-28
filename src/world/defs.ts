@@ -541,14 +541,16 @@ export interface WindFarmDef {
  * A ferry route from the map (the coast extras plan, C7; a coast map's): the route cut to the
  * map, each end a terminal (`dock`: she berths there) or the map's edge (she sails in from
  * beyond, or out of sight), each named. Her class, livery and (invented) name; the path's
- * length (m). Sailed by traffic/ferries.ts, drawn by traffic/ferryView.ts.
+ * length (m). Sailed by traffic/ferries.ts, drawn by traffic/ferryView.ts. A big ship's
+ * route into a port (`container`: Hamburg's) is one too: in from the map's edge to her
+ * terminal, alongside a while, and out again.
  */
 export interface FerryRouteDef {
   id: string;
   name: string;
   ship: string;
-  cls: 'large' | 'small' | 'launch';
-  livery: 'calmac' | 'other' | 'aegean';
+  cls: 'large' | 'small' | 'launch' | 'harbour' | 'container';
+  livery: 'calmac' | 'other' | 'aegean' | 'harbour-yellow' | 'harbour-red' | 'cargo-blue' | 'cargo-red' | 'cargo-grey';
   path: [number, number][];
   ends: { dock: boolean; name: string }[];
   length: number;
@@ -567,6 +569,76 @@ export interface BridgeDef {
   width: number;
   path: [number, number][];
   deck: number;
+  /** A cable-stayed main span's pylons (m, the map request's): stood at the water's edges, with their stays. */
+  pylons?: number;
+}
+
+/**
+ * A landmark modelled from the map's own 3D building parts (a coast map's; Hamburg's
+ * Elbphilharmonie, its main churches): each part a footprint extruded from `min` to `height`
+ * (m above `base`, the ground it stands on) under its roof shape, in its mapped colours.
+ * `crown: 'wave'` crests its tallest part's roof in waves. Drawn by world/coastStructures.ts.
+ */
+export interface LandmarkModelDef {
+  name: string;
+  x: number;
+  z: number;
+  base: number;
+  crown?: string;
+  /** It leans `lean` m at its top toward `leanBearing` (deg): a parallelogram in elevation (the Dockland). */
+  lean?: number;
+  leanBearing?: number;
+  parts: { outline: [number, number][]; min: number; height: number; roof: string; roofHeight: number | null; wall: number | null; roofColour: number | null; material: string }[];
+}
+
+/**
+ * A museum ship moored for good (a coast map's: Hamburg's Cap San Diego, Rickmer Rickmers,
+ * Peking): where she lies, her heading (deg, toward her bow), length and beam (m), from the
+ * map's hull outline; the game's design for her (`cargo`, a 1960s cargo liner; `barque`, a
+ * square-rigger with `masts` masts) and her hull's colour. Drawn by world/coastStructures.ts.
+ */
+export interface MuseumShipDef {
+  name: string;
+  design: string;
+  masts: number;
+  hull?: number;
+  /** Raised this far from afloat (m): a ship on a floating dock's blocks. */
+  lift?: number;
+  x: number;
+  z: number;
+  yawDeg: number;
+  length: number;
+  beam: number;
+}
+
+/** A floating dock (a coast map's: Blohm + Voss's): its middle, heading (deg), length and breadth (m), from the map's area. */
+export interface FloatingDockDef {
+  name: string;
+  x: number;
+  z: number;
+  yawDeg: number;
+  length: number;
+  width: number;
+}
+
+/**
+ * A container terminal (a coast map's: Hamburg's), laid out by the pipeline from the map's
+ * area and quays: its ship-to-shore cranes along the quay faces (each where it stands, the
+ * bearing its boom reaches out over the water, the quay's height, and whether its boom is
+ * raised), and its blocks of container stacks (each block's middle, the bearing of its long
+ * side, the ground, and a seed for its stacks' heights and colours). Drawn by
+ * world/view/coastView.ts, instanced; sizes CONFIG.structures.terminal.
+ */
+export interface TerminalDef {
+  name: string;
+  cranes: { x: number; z: number; yawDeg: number; base: number; up: boolean }[];
+  stacks: { x: number; z: number; yawDeg: number; base: number; seed: number }[];
+}
+
+/** A graving dock (Dock Elbe 17): its basin's middle, heading, length and breadth, which end its gate closes (+1 along its heading, -1 back) and its walls' top (m). */
+export interface GravingDockDef extends FloatingDockDef {
+  gate: number;
+  top: number;
 }
 
 /** A folly from the map (McCaig's Tower): its footprint, the ground it stands on (m) and its height if mapped. */
@@ -640,6 +712,8 @@ export interface SkylineDef {
   z: number;
   height?: number;
   size?: number;
+  /** Modelled in full instead (a LandmarkModelDef stands there): not drawn by the skyline, still on the chart. */
+  modelled?: boolean;
 }
 
 /**
@@ -744,6 +818,14 @@ export interface RegionDef {
   /** Its bridges over the sea and follies (a coast map's; world/coastStructures.ts). */
   bridges?: BridgeDef[];
   follies?: FollyDef[];
+  /** Landmarks modelled from the map's 3D building parts (a coast map's; world/coastStructures.ts). */
+  landmarkModels?: LandmarkModelDef[];
+  /** Museum ships, floating docks and graving docks (a coast map's; world/coastStructures.ts). */
+  museumShips?: MuseumShipDef[];
+  floatingDocks?: FloatingDockDef[];
+  gravingDocks?: GravingDockDef[];
+  /** Container terminals' quay cranes and stacks (a coast map's; world/view/coastView.ts). */
+  terminals?: TerminalDef[];
   /** A shipyard's gantry cranes (a coast map's; world/coastStructures.ts). */
   gantries?: GantryDef[];
   /** Ships under construction at a yard (a coast map's; world/coastStructures.ts). */

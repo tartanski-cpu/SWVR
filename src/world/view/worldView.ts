@@ -546,10 +546,16 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[], sink = 0): void 
     add(new THREE.BoxGeometry(2 * SW, 0.3, 2 * SL).translate(0, ST - 0.15, 0), 0xa8a49a, 'concrete');
     add(new THREE.BoxGeometry(2 * SW - 0.3, 0.6, 2 * SL - 0.3).translate(0, ST - 0.6, 0), 0x2c3236);
   } else {
-    // Deck planks laid across the pier.
+    // Deck planks laid across the pier; a pile each side every `pileSpacing` m. The outer piles
+    // are its fendering too (owner, Oct 2026: fewer legs, the leg and the bumper one): a pier
+    // has no fender boards of its own. Open-ended (their tops under the deck, their feet in the
+    // seabed), `pileSides` sides.
+    const k = CONFIG.structures.kit;
     add(new THREE.BoxGeometry(2 * SW, 0.45, 2 * SL).translate(0, ST - 0.225, 0), TIMBER, 'wood');
-    for (let s = -L + 2; s <= L - 2; s += 6) {
-      for (const side of [-1, 1]) add(new THREE.CylinderGeometry(0.28, 0.28, b.top + 9, 7).translate(side * (W - 0.4), (b.top - 9) / 2 - 0.4, s), PILE);
+    const n = Math.max(1, Math.round((2 * L - 4) / k.pileSpacing));
+    for (let i = 0; i <= n; i++) {
+      const s = -L + 2 + ((2 * L - 4) * i) / n;
+      for (const side of [-1, 1]) add(new THREE.CylinderGeometry(k.pileRadius, k.pileRadius, b.top + 9, k.pileSides, 1, true).translate(side * (W - k.pileRadius), (b.top - 9) / 2 - 0.4, s), PILE);
     }
   }
 
@@ -574,17 +580,20 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[], sink = 0): void 
   for (const f of faces) {
     const probe = toWorld(f.nx * (f.offset + 2), f.nz * (f.offset + 2));
     if (groundHeight(probe.x, probe.z) > -1) continue; // land or shallows: no berth
-    for (let s = -f.half + 1.5; s <= f.half - 1.5; s += 4) {
-      const x = f.alongX ? s : f.nx * (f.offset + 0.12);
-      const z = f.alongX ? f.nz * (f.offset + 0.12) : s;
-      if (b.fendered) add(new THREE.BoxGeometry(f.alongX ? 0.5 : 0.25, 1.6, f.alongX ? 0.25 : 0.5).translate(x, b.top - 0.9, z), FENDER);
-    }
-    // Bollards where the berths' lines tie (world/berths.ts faceBollards).
+    // Fender boards on a quay's face, every `fenderSpacing` m (a pier's piles are its fenders).
+    if (b.fendered && b.kind === 'quay')
+      for (let s = -f.half + 1.5; s <= f.half - 1.5; s += CONFIG.structures.kit.fenderSpacing) {
+        const x = f.alongX ? s : f.nx * (f.offset + 0.12);
+        const z = f.alongX ? f.nz * (f.offset + 0.12) : s;
+        add(new THREE.BoxGeometry(f.alongX ? 0.5 : 0.25, 1.6, f.alongX ? 0.25 : 0.5).translate(x, b.top - 0.9, z), FENDER);
+      }
+    // Bollards where the berths' lines tie (world/berths.ts faceBollards): one six-sided post
+    // with its cap flared, open at its foot (in the deck).
     for (const s of faceBollards(b, f)) {
       const x = f.alongX ? s : f.nx * (f.offset - 0.5);
       const z = f.alongX ? f.nz * (f.offset - 0.5) : s;
-      add(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 8).translate(x, b.top + 0.25, z), BOLLARD, 'worn');
-      add(new THREE.CylinderGeometry(0.24, 0.24, 0.08, 8).translate(x, b.top + 0.52, z), BOLLARD);
+      add(new THREE.CylinderGeometry(0.24, 0.18, 0.56, 6, 1, true).translate(x, b.top + 0.28, z), BOLLARD, 'worn');
+      add(new THREE.CircleGeometry(0.24, 6).rotateX(-Math.PI / 2).translate(x, b.top + 0.56, z), BOLLARD);
     }
   }
   for (const g of local) parts.push(g.applyMatrix4(m));

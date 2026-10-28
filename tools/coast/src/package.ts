@@ -40,6 +40,30 @@ const T = {
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
    * (the game puts you 2 m in): a pontoon (2.5 m) has; a narrower walkway's berths aren't chosen. */
   namedDeck: 2.4,
+  /** Big ships (`shipping`): their way found on a grid this fine (m), in water this deep (m), this far inside the box's faded edges (m); each cell dearer by this over its cells from the bank; the path thinned where it strays this much (m); alongside this far out from the berth's face (m); the container ship's length (m: CONFIG.ferries.classes.container). */
+  shipCell: 50,
+  shipDepth: 8,
+  shipEdge: 450,
+  shipBank: 6,
+  shipThin: 25,
+  shipOff: 26,
+  shipLength: 300,
+  /** A floating dock this long or more (m) has a ship in it (`dockedShips`), raised this far from afloat (m: the pontoon's deck 1.5 m up, her keel a metre over it, her 7 m draught). */
+  dockedShip: 150,
+  dockedLift: 9.5,
+  /** Container terminals (see the terminals pass): quay walls within this of the area (m); the water looked for this far off a face (m); cranes every this far (m), this far clear of a quay's ends (m), standing this far in from the face (m); stack blocks [long, wide] (m), lanes [along, across] (m), no water within this (m), this clear of a building (m), at most this many a terminal. */
+  termReach: 80,
+  termFaceProbe: 20,
+  craneSpacing: 100,
+  craneEnd: 35,
+  craneBack: 18,
+  stackBlock: [60, 22] as [number, number],
+  stackLane: [14, 16] as [number, number],
+  stackBack: 60,
+  stackClear: 12,
+  stackMax: 600,
+  /** The game puts you ashore this far in from where a boat lies (m; CONFIG.start.quayBack): on a deck. */
+  quayBack: 2,
   /**
    * A named berth must have room for a whole boat: clear water this far either way along the
    * face from the berth (m: the biggest boats are about 14 m long, and a margin) and out to
@@ -115,7 +139,8 @@ const blocks = hb.blocks.map((b: { kind: string; x: number; z: number; halfLengt
   z: r1(b.z),
   halfLength: r1(b.halfLength),
   halfWidth: r1(b.halfWidth),
-  yawDeg: Math.round(b.yawDeg),
+  // To a tenth of a degree: a whole degree moves the far end of Hamburg's 1.5 km quays 13 m.
+  yawDeg: r1(b.yawDeg),
   top: b.top,
   fendered: b.kind === 'pontoon' ? false : b.fendered, // a pontoon has a rubbing strip, not fenders
 }));
@@ -219,13 +244,19 @@ const blocked = (b: Berth) => {
     }
   return n;
 };
+/** The spot a step ashore from a berth (the game's startSpot.ts, `quayBack` m in from where she lies) is on a deck. */
+const ashoreOnDeck = (b: Berth) => {
+  const d = b.shoreDist + T.quayBack;
+  return (blocks as KitBlock[]).some((k) => insideBlock(k, b.x + b.shoreX * d, b.z + b.shoreZ * d));
+};
 const roomRank = (b: Berth) => {
   const n = blocked(b);
   return n === 0 ? 0 : n <= 2 ? 1 : 2;
 };
 harbours.forEach((h, n) => {
   // (Not on a deck too narrow to step ashore and stack goods on: a walkway's berths are moorings, not a port's.)
-  const own = (hb.berths as Berth[]).filter((b) => pieceOf.get(b.source) === h.id && (b.deckW ?? Infinity) >= T.namedDeck);
+  // (Nor where the spot a step ashore isn't on a deck: a berth at the very end of a quay.)
+  const own = (hb.berths as Berth[]).filter((b) => pieceOf.get(b.source) === h.id && (b.deckW ?? Infinity) >= T.namedDeck && ashoreOnDeck(b));
   // Room for a whole boat first (no bow on the rocks), then fixed faces (cargo wants a quay
   // or a pier) before pontoons, then nearest the harbour's middle.
   const rank = new Map(own.map((b) => [b, roomRank(b)]));
@@ -399,9 +430,12 @@ const skylineStyle = req.theme;
 // deck stands level with the higher of the ground at its two ends (its abutments), at least
 // `bridgeMinDeck` m over the sea. A folly stands on the lowest ground round its footprint
 // (its walls reach down to it).
+// A high bridge whose height the map doesn't carry (the Köhlbrandbrücke, on its viaducts
+// from end to end): the request gives its deck height by name (`bridgeDecks`), for every
+// piece of it.
 const bridges = ((F?.bridges ?? []) as { name: string; structure: string; carries: string; width: number; path: [number, number][] }[]).map((b) => {
   const [a, e] = [b.path[0], b.path[b.path.length - 1]];
-  return { ...b, deck: r1(Math.max(T.bridgeMinDeck, hAt(a[0], a[1]), hAt(e[0], e[1]))) };
+  return { ...b, deck: r1(Math.max(T.bridgeMinDeck, req.bridgeDecks?.[b.name] ?? 0, hAt(a[0], a[1]), hAt(e[0], e[1]))) };
 });
 const follies = ((F?.follies ?? []) as { name: string; outline: [number, number][]; height: number | null }[]).map((f) => ({
   name: f.name,
@@ -409,6 +443,133 @@ const follies = ((F?.follies ?? []) as { name: string; outline: [number, number]
   base: r1(Math.min(...f.outline.map(([x, z]) => hAt(x, z)))),
   ...(f.height ? { height: f.height } : {}),
 }));
+// Landmarks modelled from the map's 3D building parts (features.ts `landmarkModels`): each
+// stands on the lowest ground under its parts; a part two landmarks share (the old Elbe
+// tunnel's hall in the Landungsbrücken) is drawn once. The plain buildings standing in their
+// outlines aren't drawn, nor the skyline's own church or tower there (still on the chart).
+type ModelPart = { outline: [number, number][]; min: number; height: number; roof: string; roofHeight: number | null; wall: number | null; roofColour: number | null; material: string };
+const seenParts = new Set<string>();
+const landmarkModels = ((F?.landmarkModels ?? []) as { name: string; wikidata: string; x: number; z: number; crown?: string; parts: ModelPart[] }[]).map((m) => {
+  const parts = m.parts.filter((p) => {
+    const key = `${p.outline[0]}|${p.min}|${p.height}`;
+    return !seenParts.has(key) && seenParts.add(key);
+  });
+  const base = r1(Math.min(...parts.flatMap((p) => p.outline.map(([x, z]) => hAt(x, z)))));
+  return { ...m, base: Math.max(0.5, base), parts };
+}).filter((m) => m.parts.length);
+const inOutline = (ring: [number, number][], x: number, z: number) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, zi] = ring[i];
+    const [xj, zj] = ring[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+};
+const underModel = (x: number, z: number, pad = 0) => landmarkModels.some((m) => Math.hypot(m.x - x, m.z - z) < 250 && m.parts.some((p) => inOutline(p.outline, x, z) || (pad > 0 && p.outline.some(([px, pz]) => Math.hypot(px - x, pz - z) < pad))));
+// (Nor the box the harbours stage made of a museum ship's hull outline, mapped as a building.)
+const onShip = (x: number, z: number) =>
+  ((F?.museumShips ?? []) as { x: number; z: number; yawDeg: number; length: number; beam: number }[]).some((sh) => {
+    const a = (sh.yawDeg * Math.PI) / 180;
+    const [dx, dz] = [x - sh.x, z - sh.z];
+    return Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) < sh.length / 2 + 5 && Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) < sh.beam / 2 + 5;
+  });
+// (Nor a building whose middle stands over the water: the map's pavilions on the pontoons by
+// the Überseebrücke, made 15 m warehouses by the house rules (owner: "there shouldn't be any
+// buildings on those pontoons").)
+const keptBuildings = buildings.filter((b: { x: number; z: number }) => !underModel(b.x, b.z) && !onShip(b.x, b.z) && hAt(b.x, b.z) >= 0);
+for (const s of skyline as { x: number; z: number; modelled?: boolean }[]) if (underModel(s.x, s.z, 25)) s.modelled = true;
+// A cable-stayed bridge's main span (`bridgePylons`): the piece of it that crosses the water
+// carries its pylons' height; the game stands them at the water's edges.
+for (const b of bridges as { name: string; path: [number, number][]; pylons?: number }[]) {
+  const h = req.bridgePylons?.[b.name];
+  if (h && b.path.some(([x, z]) => hAt(x, z) < -2)) b.pylons = h;
+}
+// Museum ships and floating docks (features.ts) as the map gives them; a graving dock (Dock
+// Elbe 17) with its gate at the end that opens onto the water (the deeper of the two outside
+// its ends), its walls' top at the quay's height beside it.
+const museumShips = (F?.museumShips ?? []) as object[];
+// A ship in each floating dock of `dockedShip` m or more (owner: "there should be some ship
+// inside the docks"): a cargo ship of the museum ships' design, raised on the dock's blocks
+// (`lift`: her keel a metre over the pontoon deck), most of its length, her beam within its
+// wing walls; her hull's colour and which way she lies by the dock's name, the same each time.
+const DOCKED_HULLS = ['#1d2f4f', '#6a1e1c', '#2f4a3a', '#5a6266', '#18191b'];
+if (req.dockedShips)
+  ((F?.floatingDocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).forEach((d, i) => {
+    if (d.length < T.dockedShip) return;
+    const length = Math.round(d.length * 0.8);
+    const inner = d.width - 2 * Math.max(4, d.width * 0.12);
+    const hash = [...d.name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 997, 7);
+    museumShips.push({ name: `in ${d.name}`, design: 'cargo', masts: 0, hull: parseInt(DOCKED_HULLS[(hash + i) % DOCKED_HULLS.length].slice(1), 16), x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (hash % 2) * 180) % 360, length, beam: Math.round(Math.min(inner * 0.85, length * 0.15)), lift: T.dockedLift });
+  });
+const floatingDocks = ((F?.floatingDocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).map((d) => ({ ...d, x: r1(d.x), z: r1(d.z) }));
+const gravingDocks = ((F?.drydocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).map((d) => {
+  const a = (d.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const outside = (sign: number) => hAt(d.x + ux * sign * (d.length / 2 + 25), d.z + uz * sign * (d.length / 2 + 25));
+  const side = (sign: number) => hAt(d.x + vx * sign * (d.width / 2 + 12), d.z + vz * sign * (d.width / 2 + 12));
+  return { ...d, x: r1(d.x), z: r1(d.z), gate: outside(1) <= outside(-1) ? 1 : -1, top: r1(Math.max(2, (side(1) + side(-1)) / 2)) };
+});
+// Container terminals (features.ts `containerTerminals`): laid out from the map's area and quays,
+// as the map draws neither the cranes nor the boxes.
+//   quay cranes  along every quay wall (a `quay` block) in or beside the terminal (its middle
+//                within `termReach` m of the area), on its face to the water (the side where
+//                the river is, `termFaceProbe` m out), one every `craneSpacing` m, `craneEnd` m
+//                clear of each end; each stands `craneBack` m in from the face, its boom out
+//                over the water; some with the boom raised (by a steady hash), as when no ship lies there
+//   stacks       blocks of stacks `stackBlock` [long, wide] m on a grid squared to the
+//                terminal's longest quay, `stackLane` [along, across] m lanes between, wherever
+//                the block's middle is in the area, on land, no water within `stackBack` m, and
+//                clear of the buildings (`stackClear` m); at most `stackMax` blocks a terminal
+type QuayBlock = { kind: string; x: number; z: number; halfLength: number; halfWidth: number; yawDeg: number; top: number };
+const terminals = ((F?.containerTerminals ?? []) as { name: string; rings: [number, number][][] }[]).map((t) => {
+  const inside = (x: number, z: number) => t.rings.some((r) => inOutline(r, x, z));
+  const nearArea = (x: number, z: number, d: number) => inside(x, z) || t.rings.some((r) => r.some(([px, pz]) => Math.hypot(px - x, pz - z) < d));
+  const cranes: { x: number; z: number; yawDeg: number; base: number; up: boolean }[] = [];
+  let main: QuayBlock | null = null;
+  for (const b of blocks as QuayBlock[]) {
+    if (b.kind !== 'quay' || b.halfLength < 40 || !nearArea(b.x, b.z, T.termReach)) continue;
+    const a = (b.yawDeg * Math.PI) / 180;
+    const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+    // Which long side looks onto the water.
+    const wet = (sg: number) => hAt(b.x + vx * sg * (b.halfWidth + T.termFaceProbe), b.z + vz * sg * (b.halfWidth + T.termFaceProbe)) < -3;
+    const sg = wet(1) ? 1 : wet(-1) ? -1 : 0;
+    if (!sg) continue;
+    if (!main || b.halfLength > main.halfLength) main = b;
+    const n = Math.floor((2 * b.halfLength - 2 * T.craneEnd) / T.craneSpacing);
+    for (let k = 0; k <= n; k++) {
+      const s0 = -b.halfLength + T.craneEnd + ((2 * b.halfLength - 2 * T.craneEnd) * k) / Math.max(1, n);
+      const [fx, fz] = [b.x + ux * s0 + vx * sg * b.halfWidth, b.z + uz * s0 + vz * sg * b.halfWidth];
+      const [cx, cz] = [fx - vx * sg * T.craneBack, fz - vz * sg * T.craneBack];
+      // Facing the water: the boom reaches toward +sg across the quay.
+      const yawDeg = Math.round(((Math.atan2(vx * sg, -vz * sg) * 180) / Math.PI + 360) % 360);
+      const hash = Math.abs(Math.round(cx * 7.3 + cz * 3.1)) % 10;
+      cranes.push({ x: r1(cx), z: r1(cz), yawDeg, base: r1(Math.max(b.top, 2)), up: hash < 3 });
+    }
+  }
+  // The stacks, on a grid along the main quay (or the area's own lie where it has none).
+  const stacks: { x: number; z: number; yawDeg: number; base: number; seed: number }[] = [];
+  const yaw = main ? main.yawDeg : 0;
+  const a = (yaw * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const pts = t.rings.flat();
+  const along = pts.map(([x, z]) => x * ux + z * uz);
+  const across = pts.map(([x, z]) => x * vx + z * vz);
+  const [pa, pc] = [T.stackBlock[0] + T.stackLane[0], T.stackBlock[1] + T.stackLane[1]];
+  const clearOfWater = (x: number, z: number) => {
+    for (let k = 0; k < 8; k++) if (hAt(x + Math.cos((k * Math.PI) / 4) * T.stackBack, z + Math.sin((k * Math.PI) / 4) * T.stackBack) < 0) return false;
+    return true;
+  };
+  const kept = keptBuildings as { x: number; z: number; width: number; depth: number }[];
+  for (let A = Math.min(...along) + pa / 2; A < Math.max(...along) && stacks.length < T.stackMax; A += pa)
+    for (let C = Math.min(...across) + pc / 2; C < Math.max(...across) && stacks.length < T.stackMax; C += pc) {
+      const [x, z] = [A * ux + C * vx, A * uz + C * vz];
+      if (!inside(x, z) || hAt(x, z) < 0.5 || !clearOfWater(x, z)) continue;
+      if (kept.some((b) => Math.hypot(b.x - x, b.z - z) < Math.max(b.width, b.depth) / 2 + T.stackClear)) continue;
+      stacks.push({ x: r1(x), z: r1(z), yawDeg: yaw, base: r1(hAt(x, z)), seed: stacks.length + 1 });
+    }
+  return { name: t.name, cranes, stacks };
+});
 // Gantry cranes (Perno): each stands on its two rails, at the lower of the ground along them.
 const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[]).map((g) => {
   const a = (g.yawDeg * Math.PI) / 180;
@@ -430,7 +591,9 @@ for (const [i, y] of (req.yardShips ?? []).entries()) {
       warnings.push(`yard ship ${i + 1}: no dry dock "${y.dock}"`);
       continue;
     }
-    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(hAt(d.x, d.z) + 1), stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
+    // On the dock's floor (Perno's, drained), or afloat where the dock is flooded (Elbe 17).
+    const floor = hAt(d.x, d.z);
+    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(floor < -2 ? -T.yardDraught : floor + 1), stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
   } else if (y.berth) {
     const b = (berths as { id: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number }[]).find((k) => k.id === y.berth);
     if (!b) {
@@ -455,6 +618,8 @@ const FERRY_NAMES: Record<string, string[]> = {
   'north-hebridean': ['Morvern Star', 'Sruth na Mara', 'Ardlamont', 'Glen Eacharn', 'Kilbrannan', 'Ceann Loch', 'Dun Leathan', 'Sgarbh Mor', 'Tobar Ban', 'Ardnadrochit'],
   // Invented Finnish and Swedish names (both are spoken in the archipelago), no real ship's.
   baltic: ['Luotoranta', 'Holmvik', 'Kallioniemi', 'Havsbris', 'Skärvind', 'Ulapanlaine', 'Kuutamo', 'Lokinsiipi', 'Saarenkulma', 'Fjärdstjärna', 'Kivikko', 'Sundholm'],
+  // Invented German names for the harbour ferries (no real ship's).
+  hanseatic: ['Strompaddler', 'Kaimöwe', 'Lotsenkind', 'Nebelhorn', 'Hafenlicht', 'Elbwind', 'Kranblick', 'Speichergruß', 'Tidenhub', 'Schlickläufer', 'Fleetmöwe', 'Kehrwiederstern'],
   aegean: ['Galini', 'Meltemi', 'Thalassopouli', 'Kyma', 'Ostria', 'Aigaio Star', 'Levantes', 'Pelagia', 'Kalimera', 'Glaros', 'Zefyros', 'Anemoni'],
 };
 type Ferry = { name: string; operator: string; foot: boolean; path: [number, number][] };
@@ -472,6 +637,8 @@ const ferryRoutes: object[] = [];
     for (const r of routes) if (r.name && len(r.path) > len(longest.get(r.name)?.path ?? [])) longest.set(r.name, r);
     routes = routes.filter((r) => r.name && longest.get(r.name) === r);
   }
+  // A harbour ferry line mapped by its number alone ("62"): "Line 62" on the chart.
+  routes = routes.map((r) => (/^\d+$/.test(r.name ?? '') ? { ...r, name: `Line ${r.name}` } : r));
   for (const [n, r] of routes.entries()) {
     // The longest run of the route inside the map.
     let best: [number, number][] = [];
@@ -528,6 +695,172 @@ const ferryRoutes: object[] = [];
     ferryRoutes.push({ id: `${req.id}-ferry-${n + 1}`, name: r.name, ship: names[n % names.length], cls, livery, path: best.map(([x, z]) => [r1(x), r1(z)]), ends, length: Math.round(len(best)) });
   }
 }
+// Hamburg's harbour ferries (`harbourFerries`): the passenger launches drawn as the harbour
+// ferry the port is known by, cabin forward and wheelhouse aft (owner).
+// One colour all over, yellow or red (owner), by turns down the lines.
+let harbourN = 0;
+if (req.harbourFerries) for (const f of ferryRoutes as { cls: string; livery: string }[]) if (f.cls === 'launch') [f.cls, f.livery] = ['harbour', harbourN++ % 2 ? 'harbour-red' : 'harbour-yellow'];
+// Big ships in and out of the port (`shipping`, owner: "some big ships going in and out"): each
+// a route like a ferry's, from the map's edge where the river comes in (`from`: west, east...)
+// up the channel to her terminal's cargo berth, alongside the quay, and back out to sea. Her
+// way through the water: the cheapest path on a `shipCell` m grid of water at least `shipDepth`
+// m deep, kept `shipEdge` m inside the box (its edges are faded to open sea), each cell dearer
+// the nearer the bank, so she keeps to the middle of the channel; then thinned and her last
+// stretch laid along the quay so she lies alongside it.
+const SHIP_NAMES = ['Nordic Meridian', 'Atlantic Corvus', 'Elbe Venture', 'Cape Halden', 'Baltic Sentinel', 'Hanse Pioneer', 'Ocean Larkspur', 'Northern Tide'];
+const LIVERIES = ['cargo-blue', 'cargo-red', 'cargo-grey'];
+for (const [n, want] of (req.shipping ?? []).entries()) {
+  const port = (ports as { id: string; name: string }[]).find((q) => q.id === want.to);
+  const b = (berths as { id: string; x: number; z: number; shoreX: number; shoreZ: number }[]).find((q) => q.id === `${want.to}-cargo`);
+  if (!port || !b) {
+    warnings.push(`shipping to ${want.to}: no such port with a cargo berth`);
+    continue;
+  }
+  const cell = T.shipCell;
+  const [gx0, gz0] = [box.x0 + T.shipEdge, box.z0 + T.shipEdge];
+  const [GW, GH] = [Math.floor((box.x1 - box.x0 - 2 * T.shipEdge) / cell), Math.floor((box.z1 - box.z0 - 2 * T.shipEdge) / cell)];
+  const wet = new Uint8Array(GW * GH);
+  for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) wet[j * GW + i] = hAt(gx0 + (i + 0.5) * cell, gz0 + (j + 0.5) * cell) < -T.shipDepth ? 1 : 0;
+  // How far each wet cell is from the bank (cells, a chamfer distance).
+  const far = new Float32Array(GW * GH).fill(1e9);
+  for (let k = 0; k < GW * GH; k++) if (!wet[k]) far[k] = 0;
+  for (let pass = 0; pass < 2; pass++)
+    for (let j0 = 0; j0 < GH; j0++)
+      for (let i0 = 0; i0 < GW; i0++) {
+        const [i, j] = pass ? [GW - 1 - i0, GH - 1 - j0] : [i0, j0];
+        const k = j * GW + i;
+        const d = pass ? 1 : -1;
+        if (i - d >= 0 && i - d < GW) far[k] = Math.min(far[k], far[k - d] + 1);
+        if (j - d >= 0 && j - d < GH) far[k] = Math.min(far[k], far[k - d * GW] + 1);
+      }
+  const cellOf = (x: number, z: number) => [Math.max(0, Math.min(GW - 1, Math.floor((x - gx0) / cell))), Math.max(0, Math.min(GH - 1, Math.floor((z - gz0) / cell)))];
+  // Where she enters: the widest water on the given side's edge of the grid.
+  const side = want.from ?? 'west';
+  const edgeCells: [number, number][] = [];
+  if (side === 'west' || side === 'east') for (let j = 0; j < GH; j++) edgeCells.push([side === 'west' ? 0 : GW - 1, j]);
+  else for (let i = 0; i < GW; i++) edgeCells.push([i, side === 'north' ? 0 : GH - 1]);
+  const start = edgeCells.filter(([i, j]) => wet[j * GW + i]).sort((p, q) => far[q[1] * GW + q[0]] - far[p[1] * GW + p[0]])[0];
+  // Her place alongside: `shipOff` m out from the berth's face, her whole length (and 20 m
+  // more each end) over water `shipDepth` deep: slid along the face from the berth, the least
+  // way that fits. She comes in along the quay from the side with the longer run of water.
+  const half = T.shipLength / 2 + 6;
+  const [ox, oz] = [-b.shoreX, -b.shoreZ];
+  const [ax, az] = [b.shoreZ, -b.shoreX];
+  const at = (u: number): [number, number] => [b.x + ox * T.shipOff + ax * u, b.z + oz * T.shipOff + az * u];
+  const fits = (u: number) => {
+    for (let t = -half - 20; t <= half + 20; t += 20) if (hAt(...at(u + t)) > -T.shipDepth) return false;
+    return true;
+  };
+  let mid = NaN;
+  for (let shift = 0; shift <= 800 && Number.isNaN(mid); shift += 20) for (const u of [shift, -shift]) if (Number.isNaN(mid) && fits(u)) mid = u;
+  if (Number.isNaN(mid)) {
+    warnings.push(`shipping to ${want.to}: no stretch of the quay with water for her length`);
+    continue;
+  }
+  const run = (sg: number) => {
+    let n = 0;
+    for (let t = half; t <= half + 600 && hAt(...at(mid + sg * t)) < -T.shipDepth; t += 20) n++;
+    return n;
+  };
+  // She arrives heading `sg` along the quay, from behind (the longer open run), bow ahead.
+  const sg = run(-1) >= run(1) ? 1 : -1;
+  const end = at(mid + sg * half);
+  const pre = at(mid - sg * 400);
+  if (!start) {
+    warnings.push(`shipping to ${want.to}: no water on the map's ${side} edge`);
+    continue;
+  }
+  // Dijkstra on the grid (eight ways), dearer near the bank.
+  const goal = cellOf(pre[0], pre[1]);
+  const cost = new Float64Array(GW * GH).fill(Infinity);
+  const from = new Int32Array(GW * GH).fill(-1);
+  const heap: [number, number][] = [];
+  const push = (k: number, c: number) => {
+    heap.push([c, k]);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const up = (i - 1) >> 1;
+      if (heap[up][0] <= heap[i][0]) break;
+      [heap[up], heap[i]] = [heap[i], heap[up]];
+      i = up;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap.pop()!;
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const [l, r] = [2 * i + 1, 2 * i + 2];
+        let m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]];
+        i = m;
+      }
+    }
+    return top;
+  };
+  const k0 = start[1] * GW + start[0];
+  cost[k0] = 0;
+  push(k0, 0);
+  const kGoal = goal[1] * GW + goal[0];
+  while (heap.length) {
+    const [c, k] = pop();
+    if (c > cost[k]) continue;
+    if (k === kGoal) break;
+    const [i, j] = [k % GW, Math.floor(k / GW)];
+    for (let dj = -1; dj <= 1; dj++)
+      for (let di = -1; di <= 1; di++) {
+        if (!di && !dj) continue;
+        const [ni, nj] = [i + di, j + dj];
+        if (ni < 0 || nj < 0 || ni >= GW || nj >= GH) continue;
+        const nk = nj * GW + ni;
+        if (!wet[nk] && nk !== kGoal) continue;
+        const step = Math.hypot(di, dj) * (1 + T.shipBank / Math.max(1, far[nk]));
+        if (c + step < cost[nk]) {
+          cost[nk] = c + step;
+          from[nk] = k;
+          push(nk, c + step);
+        }
+      }
+  }
+  if (!Number.isFinite(cost[kGoal])) {
+    warnings.push(`shipping to ${want.to}: no way through water ${T.shipDepth} m deep`);
+    continue;
+  }
+  const cellsPath: [number, number][] = [];
+  for (let k = kGoal; k >= 0; k = from[k]) cellsPath.push([gx0 + ((k % GW) + 0.5) * cell, gz0 + (Math.floor(k / GW) + 0.5) * cell]);
+  cellsPath.reverse();
+  // Thinned (a point kept where the line strays `shipThin` m), from the box's very edge.
+  const raw: [number, number][] = [[side === 'west' ? box.x0 + 2 : side === 'east' ? box.x1 - 2 : cellsPath[0][0], side === 'north' ? box.z0 + 2 : side === 'south' ? box.z1 - 2 : cellsPath[0][1]], ...cellsPath, pre, end];
+  const keep = new Uint8Array(raw.length);
+  keep[0] = keep[raw.length - 1] = keep[raw.length - 2] = 1;
+  const stack: [number, number][] = [[0, raw.length - 2]];
+  while (stack.length) {
+    const [a0, a1] = stack.pop()!;
+    let worst = 0;
+    let at = -1;
+    for (let i = a0 + 1; i < a1; i++) {
+      const [px, pz] = raw[i];
+      const [x0, z0] = raw[a0];
+      const [x1, z1] = raw[a1];
+      const L = Math.hypot(x1 - x0, z1 - z0) || 1;
+      const dd = Math.abs((x1 - x0) * (z0 - pz) - (x0 - px) * (z1 - z0)) / L;
+      if (dd > worst) [worst, at] = [dd, i];
+    }
+    if (worst > T.shipThin) {
+      keep[at] = 1;
+      stack.push([a0, at], [at, a1]);
+    }
+  }
+  const path = raw.filter((_, i) => keep[i]).map(([x, z]) => [r1(x), r1(z)] as [number, number]);
+  const length = Math.round(path.reduce((t, q, i) => (i ? t + Math.hypot(q[0] - path[i - 1][0], q[1] - path[i - 1][1]) : 0), 0));
+  (ferryRoutes as object[]).push({ id: `${req.id}-ship-${n + 1}`, name: `${port.name} service`, ship: SHIP_NAMES[n % SHIP_NAMES.length], cls: 'container', livery: LIVERIES[n % LIVERIES.length], path, ends: [{ dock: false, name: 'the sea' }, { dock: true, name: port.name }], length });
+}
+
 // Place names for the charts and the radio (the coast extras plan, C4): the map's towns,
 // villages, hamlets, islands, islets and the sea's own names (bays, headlands, straits),
 // ranked as features.ts ranks them (1 shown farthest out). Farms, single houses and town
@@ -577,9 +910,10 @@ const potAll = (nav.hazards as { name: string; kind: string; x: number; z: numbe
     }
     return { id: `${req.id}-pots-${i + 1}`, name: hz.name ? `${hz.name}` : `Skerry ${i + 1}`, x: at.x, z: at.z, radius: 60, quality: 0.8 };
   });
-// Thinned to `pottingApart` m where the request asks (in the order the chart lists them).
+// Thinned to `pottingApart` m where the request asks (in the order the chart lists them); none
+// where it lists no fish at all (a river port: Hamburg).
 const pottingGrounds: typeof potAll = [];
-for (const g of potAll) if (!req.pottingApart || pottingGrounds.every((o) => Math.hypot(o.x - g.x, o.z - g.z) >= req.pottingApart!)) pottingGrounds.push(g);
+if ((req.fish ?? []).length) for (const g of potAll) if (!req.pottingApart || pottingGrounds.every((o) => Math.hypot(o.x - g.x, o.z - g.z) >= req.pottingApart!)) pottingGrounds.push(g);
 
 // Landmarks: the highest named summit; the tallest lighthouse.
 const peaks = Object.entries(osm.nodeTags as Record<string, Record<string, string>>)
@@ -622,7 +956,7 @@ const pkg = {
   licence: region.licence,
   landmarks,
   blocks,
-  buildings,
+  buildings: keptBuildings,
   marks,
   lights: [...lights, ...farmLights],
   farms,
@@ -630,6 +964,11 @@ const pkg = {
   skylineStyle,
   bridges,
   follies,
+  landmarkModels,
+  museumShips,
+  floatingDocks,
+  gravingDocks,
+  terminals,
   gantries,
   yardShips,
   places,

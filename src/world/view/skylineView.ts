@@ -135,7 +135,8 @@ export class SkylineView {
       this.root.remove(this.stills);
       this.stills.geometry.dispose();
     }
-    const parts = this.items.flatMap((s, i) => landmarkParts(s, this.feet[i], this.aegean));
+    // (A landmark modelled in full from the map's 3D, world/coastStructures.ts, isn't drawn here too.)
+    const parts = this.items.flatMap((s, i) => (s.modelled ? [] : landmarkParts(s, this.feet[i], this.aegean)));
     this.stills = parts.length ? new THREE.Mesh(mergeParts(parts), this.material) : null;
     if (this.stills) {
       this.stills.name = 'skyline-stills';

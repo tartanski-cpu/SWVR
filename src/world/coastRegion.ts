@@ -9,7 +9,7 @@
  */
 import type { CoastFeaturesRef } from './coastFeatures';
 import { registerShore, type ShoreLayout } from './coastShore';
-import type { BerthDef, BlockDef, BridgeDef, BuildingDef, CurrentZoneDef, FarmDef, FerryRouteDef, FishingGroundDef, FollyDef, GantryDef, HarbourBoatsDef, YardShipDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PlaceDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SkylineDef, SlipwayDef } from './defs';
+import type { BerthDef, BlockDef, BridgeDef, BuildingDef, CurrentZoneDef, FarmDef, FerryRouteDef, FishingGroundDef, FloatingDockDef, FollyDef, GantryDef, GravingDockDef, LandmarkModelDef, MuseumShipDef, TerminalDef, HarbourBoatsDef, YardShipDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PlaceDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SkylineDef, SlipwayDef } from './defs';
 import { registerChunkedCoast, registerCoastTerrain, type ChunkedCoastLayout, type CoastTerrainLayout } from './coastTerrain';
 import { registerForest, type ForestLayout } from './forest';
 
@@ -40,6 +40,11 @@ export interface CoastPackage {
   /** Its bridges over the sea and follies (the landmarks and bridges pass); absent in an older package. */
   bridges?: BridgeDef[];
   follies?: FollyDef[];
+  landmarkModels?: LandmarkModelDef[];
+  museumShips?: MuseumShipDef[];
+  floatingDocks?: FloatingDockDef[];
+  gravingDocks?: GravingDockDef[];
+  terminals?: TerminalDef[];
   gantries?: GantryDef[];
   yardShips?: YardShipDef[];
   /** Its features file (tools/coast features.ts: farms, landmarks, shore, names...); fetched by the milestones that use it. */
@@ -123,6 +128,11 @@ export function fromCoastPackage(pkg: CoastPackage, at: CoastPlacement): RegionD
     ...(pkg.bridges?.length ? { bridges: pkg.bridges.map((b) => ({ ...b, path: b.path.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) } : {}),
     ...(pkg.yardShips?.length ? { yardShips: pkg.yardShips.map((y) => ({ ...y, x: y.x + dx, z: y.z + dz })) } : {}),
     ...(pkg.gantries?.length ? { gantries: pkg.gantries.map((g) => ({ ...g, x: g.x + dx, z: g.z + dz })) } : {}),
+    ...(pkg.landmarkModels?.length ? { landmarkModels: pkg.landmarkModels.map((m) => ({ ...m, x: m.x + dx, z: m.z + dz, parts: m.parts.map((q) => ({ ...q, outline: q.outline.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) })) } : {}),
+    ...(pkg.museumShips?.length ? { museumShips: shift(pkg.museumShips, dx, dz) } : {}),
+    ...(pkg.floatingDocks?.length ? { floatingDocks: shift(pkg.floatingDocks, dx, dz) } : {}),
+    ...(pkg.terminals?.length ? { terminals: pkg.terminals.map((t) => ({ ...t, cranes: shift(t.cranes, dx, dz), stacks: shift(t.stacks, dx, dz) })) } : {}),
+    ...(pkg.gravingDocks?.length ? { gravingDocks: shift(pkg.gravingDocks, dx, dz) } : {}),
     ...(pkg.follies?.length ? { follies: pkg.follies.map((f) => ({ ...f, outline: f.outline.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) } : {}),
     ...(pkg.ferries?.length ? { ferries: pkg.ferries.map((f) => ({ ...f, path: f.path.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) } : {}),
     ...(pkg.skyline?.length ? { skyline: shift(pkg.skyline, dx, dz), skylineStyle: pkg.skylineStyle } : {}),

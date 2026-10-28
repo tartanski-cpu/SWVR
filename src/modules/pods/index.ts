@@ -28,6 +28,9 @@
  * Each pod's heading is kept in VesselState.pods (sent to the crew and saved), so the view
  * swings each one by its own.
  *
+ * One pod (owner, 28 Oct 2026, the Shipyard's foiling ferry): a single unit on her centreline,
+ * as her pair of motors in one pod with its two propellers; the joystick isn't fitted with one.
+ *
  * Electric (`electric`; owner, 27 Oct 2026, the Shipyard's solar catamaran): an electric motor
  * in place of each diesel, from her battery (physics/electricMotor.ts): the key switches the
  * motors on, the throttle sets their speed ahead or astern; no fuel, heat, oil or wear, no
@@ -58,13 +61,14 @@ export interface PodsConfig {
   engine: typeof wb.engine;
   /** Each pod's propellers (its `position` is worked out: see above). */
   propeller: typeof wb.propeller;
-  /** Each pod's steering axis off the centreline (m), port then starboard: two of them. */
+  /** Each pod's steering axis off the centreline (m), port then starboard: two of them (or one on her centreline, the foiling ferry's). */
   units: number[];
   /** Where each strut meets her bottom: its height, and the steering axis along her (m, boat axes). */
   mount: { y: number; z: number };
   /** The strut, her bottom to the nacelle's centre (m): the propellers' tips clear of her bottom. */
   strut: number;
-  steering: typeof pc.steering;
+  /** Their steering; `fullLockToKn` (electric pods: CONFIG.shipyard.electricPods), above it the wheel's lock shrinks as (that speed / hers)², so it never asks more of her at speed than full lock does there. */
+  steering: typeof pc.steering & { fullLockToKn?: number };
   look: typeof pc.look;
   joystick: typeof pc.joystick;
   /** Her centre of gravity along her (m, boat z): what the joystick turns her about. */
@@ -126,7 +130,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
     maintenance: wb.maintenance,
   },
   validateConfig: (c) => [
-    ...(c.units.length === 2 ? [] : ['pods come in pairs: two units']),
+    ...(c.units.length === 2 || c.units.length === 1 ? [] : ['pods come in pairs (two units) or singly on her centreline (one)']),
     ...(c.propeller.diameter > 0 ? [] : ['the propellers need a diameter']),
     ...(c.steering.maxAngleDeg > 0 && c.joystick.maxAngleDeg > 0 ? [] : ['the pods need to swing (maxAngleDeg > 0)']),
     ...(c.joystick.lever > 0 && c.joystick.lever <= 1 ? [] : ['joystick.lever is a share of the throttle (0 to 1)']),
@@ -161,7 +165,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
   gear: (raw) => {
     const c = placed(raw);
     return {
-      diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, units: c.units, twin: true, twinX: Math.max(...c.units.map(Math.abs)), ...(c.electric ? { electric: c.electric } : {}) },
+      diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, units: c.units, ...(c.units.length > 1 ? { twin: true, twinX: Math.max(...c.units.map(Math.abs)) } : {}), ...(c.electric ? { electric: c.electric } : {}) },
       // The ENGINE screen shows the pods' swing.
       rudder: strutSpec(c).rudder,
     };
@@ -218,8 +222,12 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       push.length = n;
       let throttle = lever;
       if (!joy) {
-        // From the wheel: the pods swing together (hydraulic steering, at a set rate).
-        s.swing = steeringStep(s.swing, io.num('helm'), strutSpec(c).rudder, dt);
+        // From the wheel: the pods swing together (hydraulic steering, at a set rate). (Past
+        // `fullLockToKn`, less of the lock as she goes faster: the foiling ferry's, so hard over
+        // at speed turns her hard but keeps her on her foils.)
+        const fast = c.steering.fullLockToKn ? Math.max(0, -port.flowAt([0, 0, c.centreZ]).z) / (c.steering.fullLockToKn * 0.5144) : 0;
+        const helm = io.num('helm') * (fast > 1 ? 1 / (fast * fast) : 1);
+        s.swing = steeringStep(s.swing, helm, strutSpec(c).rudder, dt);
         for (let i = 0; i < n; i++) {
           s.angles[i] = s.swing;
           push[i] = 1;

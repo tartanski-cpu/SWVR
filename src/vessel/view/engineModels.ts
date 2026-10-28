@@ -32,6 +32,8 @@ export const ENGINE_LOOKS = [
   { kind: 'v8', block: 0x3f5f7a },
   // The solar catamaran's electric pod motor (Shipyard ENGINES, owner Oct 2026): a finned can.
   { kind: 'electric', block: 0x8a96a0 },
+  // The foiling ferry's motors (in her pod, not drawn inside her; the Engine step's look).
+  { kind: 'electric', block: 0x8a96a0 },
 ] as const;
 
 const mats = new Map<number, THREE.MeshStandardMaterial>();

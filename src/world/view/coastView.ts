@@ -31,8 +31,8 @@ import { coastSample, coastTerrain, type CoastPiece, type CoastSample, type Coas
 import type { BuildingDef, RegionDef } from '../defs';
 import type { TerrainArrays } from './terrainMesh';
 import { forestOf } from '../forest';
-import { TreesView } from './treesView';
-import { structuresGeometry } from '../coastStructures';
+import { TreesView, treeLevel } from './treesView';
+import { quayCraneGeometry, stackBoxes, stackBoxGeometry, structuresGeometry } from '../coastStructures';
 import { groundHeight } from '../terrain';
 
 const S: CoastSample = { h: 0, r: 0, g: 0, b: 0, fine: false };
@@ -136,6 +136,8 @@ export class CoastTerrainView {
   readonly trees: TreesView | null;
   /** Triangles drawn now (near and far), for the debug overlay. */
   triangles = 0;
+  /** Each container terminal's stacks (instanced, drawn within `terminal.distance`), with its box (m). */
+  private readonly terminalStacks: { mesh: THREE.InstancedMesh; x0: number; z0: number; x1: number; z1: number }[] = [];
   /** The chunks drawn far, as one mesh; which they are (their indices), and when it was last merged (ms). */
   private farMesh: THREE.Mesh | null = null;
   private farSet = new Set<number>();
@@ -172,14 +174,55 @@ export class CoastTerrainView {
     const forest = forestOf(region.id);
     this.trees = forest ? new TreesView(forest) : null;
     if (this.trees) this.root.add(this.trees.root);
-    // Its bridges over the sea, follies and gantry cranes (the landmarks pass): one merged mesh,
+    // Its bridges over the sea, follies, gantry cranes, modelled landmarks, museum ships and docks: one merged mesh,
     // built now (a few thousand triangles at most), drawn wherever the fog allows.
-    const structures = structuresGeometry(region.bridges ?? [], region.follies ?? [], (x, z) => groundHeight(x, z), region.gantries ?? [], region.yardShips ?? []);
+    const structures = structuresGeometry(region.bridges ?? [], region.follies ?? [], (x, z) => groundHeight(x, z), region.gantries ?? [], region.yardShips ?? [], { landmarks: region.landmarkModels, museumShips: region.museumShips, floatingDocks: region.floatingDocks, gravingDocks: region.gravingDocks });
     if (structures) {
       const m = new THREE.Mesh(structures, this.mat);
       m.name = 'coast-structures';
       m.matrixAutoUpdate = false;
       this.root.add(m);
+    }
+    // Its container terminals: every quay crane in two instanced meshes (boom down, boom up),
+    // each terminal's stacks in one, shown near (update).
+    if (region.terminals?.length) {
+      const o = new THREE.Object3D();
+      for (const up of [false, true]) {
+        const list = region.terminals.flatMap((t) => t.cranes.filter((c) => c.up === up));
+        if (!list.length) continue;
+        const m = new THREE.InstancedMesh(quayCraneGeometry(up), this.mat, list.length);
+        list.forEach((c, i) => {
+          o.position.set(c.x, c.base, c.z);
+          o.rotation.set(0, (-c.yawDeg * Math.PI) / 180, 0);
+          o.updateMatrix();
+          m.setMatrixAt(i, o.matrix);
+        });
+        m.computeBoundingSphere();
+        m.name = 'coast-cranes';
+        this.root.add(m);
+      }
+      const box = stackBoxGeometry();
+      const col = new THREE.Color();
+      for (const t of region.terminals) {
+        const boxes = t.stacks.flatMap((b) => stackBoxes(b));
+        if (!boxes.length) continue;
+        const m = new THREE.InstancedMesh(box, this.mat, boxes.length);
+        boxes.forEach((b, i) => {
+          o.position.set(b.x, b.y, b.z);
+          o.rotation.set(0, b.yaw, 0);
+          o.scale.set(b.sx, b.sy, b.sz);
+          o.updateMatrix();
+          m.setMatrixAt(i, o.matrix);
+          m.setColorAt(i, col.set(b.colour));
+        });
+        m.computeBoundingSphere();
+        m.name = 'coast-stacks';
+        this.root.add(m);
+        const xs = t.stacks.map((b) => b.x);
+        const zs = t.stacks.map((b) => b.z);
+        this.terminalStacks.push({ mesh: m, x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) });
+      }
+      o.scale.set(1, 1, 1);
     }
     const list = t.layout ? t.layout.chunks.map((c) => ({ ...c, drawn: c.count })) : t.chunked!.chunks.map((c) => ({ ...c, start: 0, count: c.drawn }));
     list.forEach((ch, k) => {
@@ -210,7 +253,10 @@ export class CoastTerrainView {
    * nearest first.
    */
   update(x: number, z: number, maxBuilds = 2, fogFar = Infinity): void {
-    const c = CONFIG.regions;
+    // On the Quest, the town, the harbour kit and the stacks drawn a shorter way (CONFIG.regions.coastQuest).
+    const quest = treeLevel() === 'quest';
+    const c = quest ? { ...CONFIG.regions, ...CONFIG.regions.coastQuest } : CONFIG.regions;
+    const stackReach = quest ? CONFIG.regions.coastQuest.stackDistance : CONFIG.structures.terminal.distance;
     let built = 0;
     let tris = 0;
     // Sorted again only once the viewer has moved a little (a few metres don't change which
@@ -340,6 +386,11 @@ export class CoastTerrainView {
     if (this.trees) {
       this.trees.update(x, z);
       tris += this.trees.triangles;
+    }
+    // The container terminals' stacks, near.
+    for (const t of this.terminalStacks) {
+      t.mesh.visible = Math.hypot(Math.max(t.x0 - x, 0, x - t.x1), Math.max(t.z0 - z, 0, z - t.z1)) < stackReach;
+      if (t.mesh.visible) tris += t.mesh.count * 10;
     }
     // The harbour kit, square by square.
     const hs = this.structureHalf;

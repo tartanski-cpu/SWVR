@@ -42,6 +42,7 @@ import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
 import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
+import { electricOf } from './parts/solar';
 import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
 import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
@@ -371,14 +372,16 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const sd = !!cfg('sternDrive') || !!cfg('pods');
   // (Azimuth drives have no rudder: the Z-drives are drawn from her propellers' place.)
   if (!bed || (!sd && (!prop || (!rudder && !engine?.azimuth)))) return null;
-  // (Pod drives are always twin.)
-  const twin = (!!design.twin || !!cfg('pods')) && !SINGLE_ONLY_ENGINES.includes(design.engine);
+  // (The foiling ferry's one pod, her motors in its nacelle at the foot of its strut: DesignHull.centrePod.)
+  const pod = DESIGN_HULLS[design.hull].centrePod ? (cfg('pods') as { mount: { y: number; z: number }; strut: number } | undefined) : undefined;
+  // (Pod drives are otherwise always twin.)
+  const twin = !pod && (!!design.twin || !!cfg('pods')) && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;
-  const fit = boat.shaft;
+  const fit = pod ? { ...boat.shaft, x: 0, flangeY: pod.mount.y - pod.strut, flangeZ: pod.mount.z + ENGINES[design.engine].size[0] / 2, angleDeg: 0, fits: true, topY: pod.mount.y } : boat.shaft;
   const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd, nozzle: !!engine?.nozzle, zDrive: !!DESIGN_HULLS[design.hull].zDrives });
   g.name = 'machinery';
   const name = ENGINES[design.engine].name.split(' (')[0];
-  const tag = nameTag(fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
+  const tag = nameTag(pod ? `${name}, in her pod` : fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
   tag.position.set(0, fit.topY + 0.45, fit.flangeZ - ENGINES[design.engine].size[0] / 2);
   const lowest = Math.min(...g.children.filter((c) => c.name === 'propeller').map((c) => c.position.y));
   const ptag = nameTag(`Propeller ⌀ ${propD.toFixed(2)} m${engine?.nozzle ? ' in a Kort nozzle' : ''}${twin ? ' (two)' : ''}`, '#8a5a1c');
@@ -391,7 +394,7 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const solar = boat.figures.solar;
   const cell = boat.weights.items.find((it) => it.name.startsWith('Battery ('));
   if (solar && cell) {
-    const pk = CONFIG.shipyard.solarCat.pack;
+    const pk = electricOf(design).pack;
     const half = (VESSEL_DEFS.design.hull.catamaran?.spacing ?? 0) / 2;
     const xs = half ? [-half, half] : [0];
     const len = (solar.batteryKWh * pk.litresPerKWh) / 1000 / (pk.height * pk.width * xs.length);
@@ -869,7 +872,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'solarBattery' ? DESIGN_HULLS[design.hull]?.material === 'foam and plywood' : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'solarBattery' ? !!(ENGINES[design.engine] as { electric?: boolean } | undefined)?.electric : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -1145,7 +1148,7 @@ section('5. Engine');
 // drawing, its name and one line, the full description behind its ⓘ button.
 {
   const looks = [ENGINE_ICONS.six, ENGINE_ICONS.v8, ENGINE_ICONS.v8big, ENGINE_ICONS.tug, ENGINE_ICONS.medium, ENGINE_ICONS.v8big];
-  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six', 'tug V16', 'electric'];
+  const kinds = ['diesel six', 'turbo V8', 'turbo V8', 'tug diesel', 'big six', 'tug V16', 'electric', 'electric pod'];
   pickTiles(
     controls,
     'engine',
@@ -1155,7 +1158,7 @@ section('5. Engine');
 }
 // The solar catamaran's one choice (owner, 26 Oct 2026): her battery, 20 to 200 kWh (its weight and range in her figures).
 {
-  group('Battery', 'Her lithium battery, low in her hulls amidships: about 7 kg a kWh. More is more range on her motors, and more weight: she sits lower, with less room under her wet deck. Her figures give her range at an easy cruise.').dataset.when = 'solarBattery';
+  group('Battery', 'Her lithium battery, low in her hulls amidships: about 6 to 7 kg a kWh. More is more range on her motors, and more weight: she sits lower, with less room under her wet deck. Her figures give her range at her cruise.').dataset.when = 'solarBattery';
   slider('battery', 'Battery', (v) => `${batteryKWh(v)} kWh`).dataset.when = 'solarBattery';
 }
 toggleTiles(
@@ -1660,7 +1663,8 @@ function rollWords(period: number | null): string {
 /** The solar catamaran's battery at full power on both motors (h; undefined: not her). */
 function batteryHoursFlatOut(): number | undefined {
   const s = boat.figures.solar;
-  return s ? (s.batteryKWh * CONFIG.shipyard.solarCat.usableShare) / (2 * ENGINES[design.engine].kw) : undefined;
+  // (The foiling ferry's one pod; the solar catamaran's two.)
+  return s ? (s.batteryKWh * electricOf(design).usableShare) / ((DESIGN_HULLS[design.hull].centrePod ? 1 : 2) * ENGINES[design.engine].kw) : undefined;
 }
 /** ...and how far that takes her at her top speed (nm). */
 function batteryRangeFlatOut(topKn: number): number | undefined {
@@ -1677,7 +1681,7 @@ function showFigures(): void {
   $('figures').innerHTML = [
     figureGroup('size', 'Size &amp; form', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`, [
       ['Length × beam', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`],
-      ['Built of', f.material === 'steel' ? 'Steel' : f.material === 'aluminium' ? 'Aluminium' : 'Foam and plywood'],
+      ['Built of', f.material === 'steel' ? 'Steel' : f.material === 'aluminium' ? 'Aluminium' : f.material === 'composite' ? 'Carbon and glass composite' : 'Foam and plywood'],
       ['Displacement', `${f.massT.toFixed(2)} t`],
       ['Draught', `${f.draughtM.toFixed(2)} m`],
       ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
@@ -1700,8 +1704,15 @@ function showFigures(): void {
           figureGroup('battery', 'Battery &amp; range', `${f.solar.rangeNm} nm`, [
             ['Battery', `${f.solar.batteryKWh} kWh`],
             ['Cruise', `${f.solar.cruiseKn.toFixed(1)} kn on ${f.solar.cruiseKw} kW`],
-            ['Range on battery', `${f.solar.rangeNm} nm, ${f.solar.hours.toFixed(1)} h (no sun)`],
+            ['Range on battery', `${f.solar.rangeNm} nm, ${f.solar.hours.toFixed(1)} h${DESIGN_HULLS[design.hull].solarRoof ? ' (no sun)' : ''}`],
             ['Under her wet deck', `${f.solar.wetDeckM.toFixed(2)} m`],
+            // (A foiling boat's: where she lifts onto them, and how deep they reach on her hulls.)
+            ...(f.foilsDraughtM !== undefined
+              ? ([
+                  ['On her foils', `from about ${Math.round(((VESSEL_DEFS.design.foils?.takeoff ?? 0) / 0.5144) * 0.9)} kn`],
+                  ['Foils under water', `${f.foilsDraughtM.toFixed(1)} m on her hulls: keep to deep water`],
+                ] as [string, string][])
+              : []),
           ]),
         ]
       : []),

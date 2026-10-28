@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The foiling ferry's helm, physics side: FOIL / HULL, three ride heights, her flight in her state (owner)
+
+- **The owner** (through the main game chat, 28 Oct): a FOIL / HULL switch, three ride heights on one knob (no trim control), a flight display and sound; "hull chat does physics". The switch, knob, display and sound are the main game chat's, once the Shipyard has her.
+- **Read from her state** (`VesselControls`, shared `vessel/vesselState.ts`):
+  - `foilMode`: 1 (or unset) FOIL, her flight computer flies her; 0 HULL, it keeps her down on her hulls at any speed, asking her foils for only `landShare` (0.3) of her weight and holding her level. Switched while flying, she comes down gently (the test: level within 4 deg, never faster than 1.5 m/s);
+  - `foilRide`: 0 low, 1 normal (or unset), 2 high: her forward foil `CONFIG.foils.rideSteps` (+0.2 / 0 / -0.2 m) deeper or shallower than her design's 0.8 m; her keels about 0.4, 0.6 or 0.8 m clear.
+  - Bus keys `foils.mode` (a switch, default FOIL) and `foils.ride` (0..2, integer, default 1), writer 'module', only on a boat with foils (`modular/busKeys.ts`; `docs/BUS_KEYS.md` regenerated).
+- **Her flight in her state** (`VesselState.foil`, set each tick for a boat with foils): `engaged` (0..1, 0 in HULL), `flaps` (each panel's, deg), `clear` (0..1, how far her hulls are out of the water: 1 - her hull's immersion). In her state so a crew's game, which gets snapshots, sees it too (`foilTelemetry` is the host's alone).
+- **Checked:** typecheck, all tests; `tests/foils.test.ts` adds: HULL keeps her on her hulls at full power; the three ride heights fly at their three depths (within 6 cm); HULL while flying brings her down gently and level.
+- **Shared changes:** `vessel/vesselState.ts` (`foilMode`, `foilRide`, `foil`), `vessel/physics/foils.ts` (reads them, returns her summary), `vesselPhysics.ts` (writes `state.foil`), `config/vessels.ts` (`foils.rideSteps`), `modular/busKeys.ts` (`foils.mode`, `foils.ride`), `docs/BUS_KEYS.md`.
+
 ### Hydrofoils in the physics; the foiling electric ferry, her hull and foils (owner)
 
 - **On `next`** (28 Oct, the owner's word): merged with `origin/next`; typecheck and all 1740 tests pass. Handed over: her house, drive and Shipyard one-off to the Shipyard chat; her helm and flight controls to the main game chat.

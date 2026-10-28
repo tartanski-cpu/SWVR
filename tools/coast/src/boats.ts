@@ -137,6 +137,8 @@ const pt = (n: number) => {
 const mapMoorings: [number, number][] = [];
 for (const [id, t] of Object.entries(osm.nodeTags)) {
   if (t['seamark:type'] !== 'mooring') continue;
+  // A mooring buoy, not a pile, dolphin or bollard a ship lies against (Hamburg's 1,100: none buoys).
+  if (['pile', 'dolphin', 'bollard', 'post'].includes(t['seamark:mooring:category'] ?? '')) continue;
   const p = pt(Number(id));
   if (p && depthAt(p[0], p[1]) >= 1) mapMoorings.push(p);
 }

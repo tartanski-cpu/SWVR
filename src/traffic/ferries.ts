@@ -128,7 +128,7 @@ interface Fleet {
 }
 const fleetsOf = new WeakMap<readonly FerryRouteDef[], Fleet[]>();
 
-/** The routes grouped into fleets: those with an end within `shareReach` of another's, linked. */
+/** The routes grouped into fleets: those of one class with an end within `shareReach` of another's, linked. */
 export function fleets(routes: readonly FerryRouteDef[]): Fleet[] {
   const done = fleetsOf.get(routes);
   if (done) return done;
@@ -139,7 +139,8 @@ export function fleets(routes: readonly FerryRouteDef[]): Fleet[] {
   const endsOf = (r: FerryRouteDef) => [r.path[0], r.path[r.path.length - 1]];
   for (let i = 0; i < sorted.length; i++)
     for (let j = i + 1; j < sorted.length; j++)
-      if (endsOf(sorted[i]).some(([ax, az]) => endsOf(sorted[j]).some(([bx, bz]) => Math.hypot(ax - bx, az - bz) < reach))) up[root(j)] = root(i);
+      // (Only routes of one class: a harbour ferry never takes a container ship's route.)
+      if (sorted[i].cls === sorted[j].cls && endsOf(sorted[i]).some(([ax, az]) => endsOf(sorted[j]).some(([bx, bz]) => Math.hypot(ax - bx, az - bz) < reach))) up[root(j)] = root(i);
   const by = new Map<number, Fleet>();
   sorted.forEach((r, i) => {
     const g = by.get(root(i)) ?? { routes: [] };

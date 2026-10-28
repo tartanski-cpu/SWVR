@@ -40,6 +40,8 @@ export const HULL_ROLES: (HullRoles | null)[] = [
   { main: ['Heavy towing'], light: ['Fire'] },
   // The solar catamaran (owner, Oct 2026): a one-off, for long quiet passages on sun and battery.
   { main: ['Exploring'], light: ['Search & rescue'] },
+  // The foiling ferry (owner, Oct 2026): a one-off, fast and quiet, flying over the chop.
+  { main: ['Exploring'], light: ['Search & rescue'] },
 ];
 
 export interface HullCard {

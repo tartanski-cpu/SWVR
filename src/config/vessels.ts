@@ -1879,6 +1879,8 @@ export const VESSELS_CONFIG = {
    *   flapMaxDeg     how far a flap moves each way;
    *   surfaceChords  near the surface a foil loses lift, 1 - exp(-depth / (this x chord));
    *   strutCd        a strut's drag coefficient on its wetted area;
+   *   rideSteps      her helm's three ride heights, low / normal / high: her forward foil this
+   *                  much deeper (+) or shallower (-) than her design's ride depth (m);
    *   control        her flight computer (each a fraction of a foil's share of her weight):
    *     engageFrom   it takes over from this share of her take-off speed, fully at take-off;
    *     kh, kv       her forward foil: per m too deep (at most `climb` m counted: she climbs
@@ -1890,6 +1892,13 @@ export const VESSELS_CONFIG = {
    *                  rad/s rolling;
    *     bank         she banks into a turn this share of a coordinated turn's angle
    *                  (atan(U r / g)), at most maxBankDeg;
+   *     follow       how much of the wave over her forward foil she follows: 0 she flies level
+   *                  over the waves, holding her height over the mean sea (her foils deeper under
+   *                  a crest, shallower in a trough: smooth, as a real foiler's "platforming"); 1
+   *                  she rises and falls with every wave (owner, 28 Oct 2026: the choppy-sea test;
+   *                  it was 1, about 14 times the jolt at her helm into a Slight sea);
+   *     guard        ...but a trough that brings her forward foil within this many m of the
+   *                  surface she follows down, to keep it that deep;
    *     safeHeelDeg  heeled past this (a sea beyond her), she's brought down onto her hulls,
    *                  each foil asked for `landShare` of its share by half as much again.
    */
@@ -1902,6 +1911,7 @@ export const VESSELS_CONFIG = {
     flapMaxDeg: 12,
     surfaceChords: 0.5,
     strutCd: 0.012,
-    control: { engageFrom: 0.8, kh: 2.0, climb: 0.2, kv: 0.6, kpf: 4, kp: 4, kq: 1.5, kr: 12, krd: 3, bank: 0.7, maxBankDeg: 12, safeHeelDeg: 12, landShare: 0.3 },
+    rideSteps: [0.2, 0, -0.2],
+    control: { engageFrom: 0.8, kh: 2.0, climb: 0.2, kv: 0.6, kpf: 4, kp: 4, kq: 1.5, kr: 12, krd: 3, bank: 0.7, maxBankDeg: 12, follow: 0, guard: 0.45, safeHeelDeg: 12, landShare: 0.3 },
   },
 };
