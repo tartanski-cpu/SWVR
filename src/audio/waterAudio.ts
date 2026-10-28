@@ -173,9 +173,11 @@ export class WaterAudio {
   /**
    * @param distance listener distance from the boat (m)
    * @param muffle   0..1: how much the wheelhouse shuts the wash out (inside, door and windows shut)
+   * @param wet      0..1: how much of her hull is in the water to make it (a foiling boat's, lifting
+   *                 clear: audio/foilAudio.ts `washScale`; 1 for any other)
    */
-  update(speed: number, slam: number, lap: number, distance: number, dt: number, muffle = 0): void {
-    this.sound?.update(speed, slam, lap, (1 - muffle) / (1 + distance / 10), dt);
+  update(speed: number, slam: number, lap: number, distance: number, dt: number, muffle = 0, wet = 1): void {
+    this.sound?.update(speed, slam, lap, (wet * (1 - muffle)) / (1 + distance / 10), dt);
   }
 
   /** Something (you, a crate) hitting the water nearby: `strength` 0..1. */
