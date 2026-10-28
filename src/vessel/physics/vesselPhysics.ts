@@ -53,6 +53,7 @@ import { newSurfaceSample, sampleSurface, type PreparedWave, type SurfaceSample 
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
+import { stepFoils } from './foils';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 import { physicsStations, type Station } from '../hullForm';
 import { contactAt, guardContactAt, hullContactPoints, type ContactResult, type GuardMaterial } from './contacts';
@@ -380,6 +381,11 @@ export function stepVessel(
   const vSway = tmp.x; // sideways through the water, + to starboard
   const R = calmWaterResistance(def, U) * immersion;
   addForceAt(tmp.set(0, 0, Math.sign(U) * R).applyQuaternion(q), resW);
+  // Hydrofoils, where she has them (foils.ts): her lift at speed, their drag, her flight computer.
+  if (def.foils) {
+    portWaves = waves;
+    stepFoils(def.foils, port, mass, cgL.z);
+  }
   // Added resistance in waves (CONFIG.ocean.addedResistance): the sea's drag on a hull
   // beyond calm water, ρ g ζ² B²/L × gain (the classic scaling), ζ the waves' amplitude
   // where she is (the shelter and the overfalls counted: ocean/waves.ts localSeaAt). Full

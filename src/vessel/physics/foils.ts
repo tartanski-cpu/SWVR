@@ -1,0 +1,200 @@
+/**
+ * Hydrofoils (owner, Oct 2026: a small foiling electric ferry; the hull modifications chat).
+ * A boat with `VesselDef.foils` flies on fully submerged foils: at speed they lift her hull
+ * clear of the water, and her hull's resistance, damping and added mass fade with its
+ * immersion (vesselPhysics.ts), leaving the foils and their struts to carry her.
+ *
+ * What's modelled, each tick, for each foil panel (a straight wing, its own flap):
+ *   - its angle of attack: its incidence, its flap's, and the angle its motion through the
+ *     water meets it at (her speed, heave, pitch and roll, the waves' orbital motion: the
+ *     physics port's flow at the panel);
+ *   - lift, CL = CLa x alpha, CLa = 2 pi AR / (AR + 2) (a finite wing); past `stallDeg` it
+ *     stalls, falling to `postStall` of its peak;
+ *   - drag, CD = cd0 + CL^2 / (pi e AR) (profile and induced);
+ *   - the free surface: a foil near it loses lift, 1 - exp(-depth / (surfaceChords x chord)),
+ *     none at all once it breaks through (ventilated);
+ *   - lift square to its motion through the water, drag along it, at the panel.
+ * And each strut (upright, piercing the surface): drag on its wetted length, and a side force
+ * against sideslip as a low aspect-ratio foil (the surface its mirror: AR = 2 x wet / chord);
+ * what keeps her straight and turns her once her hulls are out of the water.
+ *
+ * Fully submerged foils aren't stable on their own (a surface-piercing foil is; these aren't),
+ * so she flies on a flight computer, as real ones do. Stateless here: each tick it works
+ * out the lift each panel should give, then the flap angle that gives it (inverting the
+ * panel's own lift sum), clamped to `flapMaxDeg`:
+ *   forward foil   her weight's share on it, more if she's flying too deep (the error capped at
+ *                  `climb`, so she climbs to her ride height steadily) and less if she's rising
+ *                  or her bow's up past her trim: x (1 + kh (depth - rideDepth) - kv x rising -
+ *                  kpf x (pitch - trim, if up)); its port and starboard
+ *                  halves differ to hold her roll, banked into her turns as a coordinated turn
+ *                  (bank x atan(U r / g), at most maxBankDeg), with roll-rate damping;
+ *   aft foil       its share x (1 + kp (pitch - trim) + kq x pitch rate): her trim.
+ * It takes over from `engageFrom` of her take-off speed, fully at it; below, her flaps are
+ * level and she runs on her hulls (her foils lifting a little at their incidence). Heeled past
+ * `safeHeelDeg` (a sea beyond her: a foil come out of the water), it brings her down onto her
+ * hulls, holding her level as she lands, rather than fight to stay up.
+ */
+import { CONFIG } from '../../config';
+import type { PhysicsPort } from '../../modular/module';
+
+type V3 = readonly [number, number, number];
+
+export interface FoilPanel {
+  /** Its middle, vessel axes (m: x to starboard, y up from her DWL, z aft). */
+  at: V3;
+  span: number;
+  chord: number;
+  /** Its section's angle to her keel line, nose up (deg), its flap level. */
+  incidenceDeg: number;
+  /** What the flight computer holds with it: her height and roll (the forward foil's halves), or her trim (the aft foil). */
+  role: 'port' | 'starboard' | 'aft';
+}
+
+export interface FoilStrut {
+  /** Where it stands (vessel axes, m): x and z. */
+  x: number;
+  z: number;
+  /** Its top (at her hull) and its foot (at the foil), heights in vessel axes (m). */
+  top: number;
+  bottom: number;
+  chord: number;
+  /** A pod on its foot (an electric motor's): its drag area (m^2, CD x frontal area). */
+  podDragArea?: number;
+}
+
+export interface FoilSystem {
+  panels: FoilPanel[];
+  struts: FoilStrut[];
+  /** How deep her flight computer flies her forward foil (m under the surface). */
+  rideDepth: number;
+  /** Her trim flying (deg, bow up). */
+  trimDeg: number;
+  /** Her take-off speed (m/s): her flight computer has full authority from here. */
+  takeoff: number;
+}
+
+/** The last tick's foils, for tests and the helm's display: each panel's flap (deg), lift (N), depth (m); flying or not. */
+export const foilTelemetry = { flaps: [] as number[], lift: [] as number[], depth: [] as number[], engaged: 0, drag: 0 };
+
+const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
+
+/**
+ * Her foils' and struts' forces this tick, through the physics port. `mass` and `cgZ`: hers
+ * now (payload in), for the share of her weight each foil should carry.
+ */
+export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: number): void {
+  const c = CONFIG.foils;
+  const rho = CONFIG.ocean.density;
+  const g = CONFIG.ocean.gravity;
+  const W = mass * g;
+
+  // ── Her attitude, from points of hers in the world (the port's) ──
+  const o = port.worldPoint([0, 0, 0]);
+  const sb = port.worldPoint([1, 0, 0]);
+  const bw = port.worldPoint([0, 0, -1]);
+  const heelDown = -Math.asin(clamp(sb.y - o.y, -1, 1)); // + starboard down
+  const pitch = Math.asin(clamp(bw.y - o.y, -1, 1)); // + bow up
+  const vo = port.worldVelocity([0, 0, 0]);
+  const vs = port.worldVelocity([1, 0, 0]);
+  const vb = port.worldVelocity([0, 0, -1]);
+  const rollRateDown = -(vs.y - vo.y);
+  const pitchRate = vb.y - vo.y;
+  // Her yaw rate, + turning to starboard (her bow moving to starboard).
+  const sx = sb.x - o.x;
+  const sz = sb.z - o.z;
+  const sl = Math.hypot(sx, sz) || 1;
+  const yawRate = ((vb.x - vo.x) * sx + (vb.z - vo.z) * sz) / sl;
+  const flow0 = port.flowAt([0, 0, 0], true);
+  const U = -flow0.z;
+
+  // ── The flight computer's authority: none below engageFrom x take-off, full at it ──
+  const k = c.control;
+  const t = clamp((U - k.engageFrom * fs.takeoff) / Math.max(1e-6, (1 - k.engageFrom) * fs.takeoff), 0, 1);
+  const engaged = t * t * (3 - 2 * t);
+
+  // Each foil's share of her weight, by where it is against her CG.
+  const fwd = fs.panels.filter((p) => p.role !== 'aft');
+  const aft = fs.panels.filter((p) => p.role === 'aft');
+  const fwdSpan = fwd.reduce((a, p) => a + p.span, 0);
+  const zF = fwd.reduce((a, p) => a + p.at[2], 0) / Math.max(1, fwd.length);
+  const zA = aft.reduce((a, p) => a + p.at[2], 0) / Math.max(1, aft.length);
+  const shareF = aft.length ? clamp((zA - cgZ) / (zA - zF), 0, 1) : 1;
+  const shareA = 1 - shareF;
+  // Her forward foil's depth and how fast it's rising (world).
+  const depthF = fwd.reduce((a, p) => a + port.depthAt(p.at), 0) / Math.max(1, fwd.length);
+  const riseF = fwd.reduce((a, p) => a + port.worldVelocity(p.at).y, 0) / Math.max(1, fwd.length);
+  const maxBank = (k.maxBankDeg * Math.PI) / 180;
+  const bankTarget = clamp(k.bank * Math.atan((U * yawRate) / g), -maxBank, maxBank);
+  const eRoll = heelDown - bankTarget;
+  // (Her height error capped at `climb`: from her hulls, 1.4 m under her ride depth, she climbs
+  // steadily to it, not on full flap; and her forward foil eases off as her bow rises past her
+  // trim, so she doesn't leap bow-high out of the water.)
+  const trim = (fs.trimDeg * Math.PI) / 180;
+  // Past `safeHeelDeg` of heel (a sea beyond her, a foil out of the water) she comes down onto
+  // her hulls: each foil asked for only `landShare` of its share, her roll still held level.
+  const safe = (k.safeHeelDeg * Math.PI) / 180;
+  const over = clamp((Math.abs(heelDown) - safe) / (0.5 * safe), 0, 1);
+  const land = 1 - (1 - k.landShare) * over;
+  const front = land * W * shareF * (1 + k.kh * clamp(depthF - fs.rideDepth, -k.climb, k.climb) - k.kv * riseF - k.kpf * Math.max(0, pitch - trim));
+  const roll = k.kr * eRoll + k.krd * rollRateDown;
+  const after = land * W * shareA * (1 + k.kp * (pitch - trim) + k.kq * pitchRate);
+  const want = (p: FoilPanel) => (p.role === 'aft' ? after / aft.length : (front / fwd.length) * (1 + (p.role === 'starboard' ? roll : -roll)));
+
+  foilTelemetry.flaps.length = 0;
+  foilTelemetry.lift.length = 0;
+  foilTelemetry.depth.length = 0;
+  foilTelemetry.engaged = engaged;
+  foilTelemetry.drag = 0;
+  const stall = (c.stallDeg * Math.PI) / 180;
+  const flapMax = (c.flapMaxDeg * Math.PI) / 180;
+  for (const p of fs.panels) {
+    const f = port.flowAt(p.at);
+    const u = -f.z;
+    const depth = port.depthAt(p.at);
+    const S = p.span * p.chord;
+    // (The forward foil's two halves are one wing: their aspect ratio is the whole foil's.)
+    const AR = (p.role === 'aft' ? p.span : fwdSpan) / p.chord;
+    const CLa = (2 * Math.PI * AR) / (AR + 2);
+    const surface = depth <= 0 ? 0 : 1 - Math.exp(-depth / (c.surfaceChords * p.chord));
+    const q = 0.5 * rho * (u * u + f.y * f.y);
+    const alphaGeo = (p.incidenceDeg * Math.PI) / 180 + Math.atan2(-f.y, Math.max(Math.abs(u), 0.5));
+    // The flap that gives the lift wanted, from the panel's own lift sum.
+    let flap = 0;
+    if (engaged > 0 && q * S * surface > 1) {
+      const clWant = want(p) / (q * S * surface);
+      flap = engaged * clamp((clWant / CLa - alphaGeo) / c.flapTau, -flapMax, flapMax);
+    }
+    const alpha = alphaGeo + c.flapTau * flap;
+    const a = Math.abs(alpha);
+    const CL = Math.sign(alpha) * CLa * (a <= stall ? a : stall * Math.max(c.postStall, 1 - (a - stall) / stall));
+    const L = q * S * CL * surface;
+    const D = depth > 0 ? q * S * (c.cd0 + (CL * CL) / (Math.PI * c.oswald * AR)) : 0;
+    // Square to her motion through the water (in her y-z plane), and along it.
+    const m = Math.hypot(f.y, f.z) || 1;
+    const dy = f.y / m;
+    const dz = f.z / m;
+    port.addForce(p.at, 0, L * -dz - D * dy, L * dy - D * dz);
+    foilTelemetry.flaps.push((flap * 180) / Math.PI);
+    foilTelemetry.lift.push(L);
+    foilTelemetry.depth.push(depth);
+    foilTelemetry.drag += D;
+  }
+
+  for (const s of fs.struts) {
+    const foot: V3 = [s.x, s.bottom, s.z];
+    const wet = clamp(port.depthAt(foot), 0, s.top - s.bottom);
+    if (wet <= 0) continue;
+    const mid: V3 = [s.x, s.bottom + wet / 2, s.z];
+    const f = port.flowAt(mid, true);
+    const sp = Math.hypot(f.x, f.z);
+    if (sp < 1e-4) continue;
+    const q = 0.5 * rho * sp * sp;
+    const A = wet * s.chord;
+    const AR = (2 * wet) / s.chord;
+    const beta = Math.atan2(f.x, Math.max(Math.abs(f.z), 0.5));
+    const side = q * A * ((2 * Math.PI * AR) / (AR + 2)) * clamp(beta, -0.25, 0.25);
+    const D = q * (A * c.strutCd + (s.podDragArea ?? 0));
+    port.addForce(mid, -side - (D * f.x) / sp, 0, -(D * f.z) / sp);
+    foilTelemetry.drag += D;
+  }
+}

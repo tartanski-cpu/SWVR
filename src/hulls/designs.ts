@@ -992,5 +992,79 @@ export const DESIGNS: HullDesign[] = [
       [1, 0],
     ],
     colours: { topsides: 0x9ea3a6, bulwark: 0x9ea3a6, bottom: 0x2a2d30, boot: 0x2a2d30, house: 0x3a3f44, deck: 0x6e665c, roof: 0x1d2530 },
+  },  {
+    // A small foiling electric ferry (owner, Oct 2026: 12 m, 30 passengers, 25 kn foilborne;
+    // from photographs of a foiling passenger ferry; our own lines of the type): two deep-V
+    // hulls under a high bridge deck, which fly clear of the water on fully submerged foils
+    // (vessel/physics/foils.ts): a main foil forward between two struts, a smaller one aft on
+    // the strut that carries her motor pod. Hull only here; her house and drive to come.
+    id: 'foilFerry',
+    name: 'Foiling electric ferry (12 m type)',
+    blurb: 'Small foiling electric passenger ferry: two deep-V hulls under a high bridge deck, flying clear of the water at 25 kn on fully submerged foils, a main foil forward between two struts and a smaller one aft on the strut that carries her electric pod, held at her ride height by a flight computer. 30 passengers. 12.0 x 4.5 m, draught 0.55 m on her hulls (about 2 m to her foils).',
+    length: 12.0,
+    catamaran: { spacing: 3.3, tunnel: 0.95 },
+    // One hull's deck half-breadth.
+    halfBeam: [
+      [0, 0.55],
+      [0.4, 0.6],
+      [0.75, 0.58],
+      [0.9, 0.45],
+      [0.97, 0.25],
+      [1, 0.05],
+    ],
+    sheer: [
+      [0, 1.25],
+      [0.6, 1.3],
+      [1, 1.55],
+    ],
+    keel: [
+      [0, -0.6],
+      [0.4, -0.76],
+      [0.8, -0.76],
+      [0.95, -0.5],
+      [1, 0.2],
+    ],
+    rake: [
+      [0, 0],
+      [1, 0],
+    ],
+    // Deep V hulls (planing on their bottoms until her foils lift her).
+    section: {
+      chineBeam: [
+        [0, 0.88],
+        [0.6, 0.86],
+        [1, 0.5],
+      ],
+      chineHeight: [
+        [0, 0.3],
+        [0.6, 0.32],
+        [1, 0.45],
+      ],
+    },
+    bulwark: [
+      [0, 0],
+      [1, 0],
+    ],
+    // Her foils (game axes: x to starboard, y up from her DWL, z aft, amidships 0): the main foil
+    // 1.3 m forward of amidships, carrying about 70 % of her weight (her CG 0.73 m aft), in two
+    // halves between her hulls' struts; the aft foil 5.4 m aft on the centreline strut that
+    // carries her motor pod. 2.2 m under her waterline on her hulls; flying her forward foil
+    // 0.8 m deep lifts her keels about 0.65 m clear. Take-off about 15.5 kn.
+    foils: {
+      panels: [
+        { at: [-0.975, -2.2, -1.3], span: 1.95, chord: 0.42, incidenceDeg: 3, role: 'port' },
+        { at: [0.975, -2.2, -1.3], span: 1.95, chord: 0.42, incidenceDeg: 3, role: 'starboard' },
+        { at: [0, -2.2, 5.4], span: 2.4, chord: 0.38, incidenceDeg: 3, role: 'aft' },
+      ],
+      struts: [
+        { x: -1.65, z: -1.3, top: -0.7, bottom: -2.2, chord: 0.3 },
+        { x: 1.65, z: -1.3, top: -0.7, bottom: -2.2, chord: 0.3 },
+        { x: 0, z: 5.4, top: 0.95, bottom: -2.2, chord: 0.32, podDragArea: 0.008 },
+      ],
+      rideDepth: 0.8,
+      trimDeg: 0.5,
+      takeoff: 8.0,
+    },
+    colours: { topsides: 0xeef0ef, bulwark: 0xeef0ef, bottom: 0x1f2326, boot: 0x1f2326, house: 0xeef0ef, deck: 0x6e7470, roof: 0xeef0ef },
   },
 ];

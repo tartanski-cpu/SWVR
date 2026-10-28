@@ -14,6 +14,7 @@
  */
 import * as THREE from 'three';
 import type { TugFendering } from './fendering';
+import type { FoilSystem } from '../vessel/physics/foils';
 
 /** Control points [t, value], t from 0 (transom) to 1 (stem), in any order. */
 export type Curve = [number, number][];
@@ -102,6 +103,8 @@ export interface HullDesign {
   bootTop?: number;
   /** A harbour tug's fendering (hulls/fendering.ts): drawn on her hull as the game builds it. */
   fendering?: TugFendering;
+  /** Hydrofoils she flies on (vessel/physics/foils.ts), in the game's axes for her. */
+  foils?: FoilSystem;
   /**
    * Rake: how far the section leans fore-aft per metre of height above the keel (dz/dy).
    * Negative at the stem leans it forward; positive at the transom leans the transom aft.

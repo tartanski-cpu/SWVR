@@ -44,9 +44,17 @@ export function submergedSection(
   let a2 = 0;
   let cx = 0;
   let cy = 0;
+  let x0b = Infinity;
+  let x1b = -Infinity;
+  let y0b = Infinity;
+  let y1b = -Infinity;
   for (let i = 0; i < clipped.length; i++) {
     const [x0, y0] = clipped[i];
     const [x1, y1] = clipped[(i + 1) % clipped.length];
+    if (x0 < x0b) x0b = x0;
+    if (x0 > x1b) x1b = x0;
+    if (y0 < y0b) y0b = y0;
+    if (y0 > y1b) y1b = y0;
     const cross = x0 * y1 - x1 * y0;
     a2 += cross;
     cx += (x0 + x1) * cross;
@@ -60,7 +68,10 @@ export function submergedSection(
     return out;
   }
   out.area = Math.abs(a2) / 2;
-  out.cx = cx / (3 * a2);
-  out.cy = cy / (3 * a2);
+  // A centroid lies within its piece's bounds. (A near-zero sliver, its area cancelling where
+  // its moments don't, put one hundreds of metres off a heeled catamaran in a steep sea, and
+  // its lateral drag there spun her up in a tick: kept in its bounds, it does nothing.)
+  out.cx = Math.min(x1b, Math.max(x0b, cx / (3 * a2)));
+  out.cy = Math.min(y1b, Math.max(y0b, cy / (3 * a2)));
   return out;
 }

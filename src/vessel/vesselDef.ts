@@ -1,3 +1,4 @@
+import type { FoilSystem } from './physics/foils';
 import type { DeckhouseLayout } from './deckhouse';
 import { CONFIG } from '../config';
 import type { Vec3 } from '../core/math';
@@ -435,6 +436,8 @@ export interface VesselDef {
   resistance: VesselConfig['resistance'];
   /** A planing hull's banking into turns (vessel/physics/vesselPhysics.ts); none: a displacement hull. */
   planing?: PlaningConfig;
+  /** Hydrofoils she flies on (vessel/physics/foils.ts); none: she runs on her hull. */
+  foils?: FoilSystem;
   /** Where players stand after boarding (vessel axes). */
   boardingSpot: Vec3;
   /** Debug spawn / drop test placement. */
