@@ -93,7 +93,7 @@ export const DESIGN_VERSION = 32;
  * How many hull types there are (build.ts DESIGN_HULLS). The code's first 16 characters
  * hold the first four; the rest ride in its extension (MORE_HULLS, version 16).
  */
-export const HULL_TYPES = 9;
+export const HULL_TYPES = 10;
 /** Hull types the first 16 characters hold. */
 const BASE_HULLS = 4;
 /**
@@ -106,7 +106,7 @@ export const CODE_HULLS = 5;
 const MORE_HULLS = CODE_HULLS - BASE_HULLS + 1;
 
 /** How many engines there are (build.ts ENGINES); the first 16 characters hold the first three, the rest ride in the extension (version 18). */
-export const ENGINE_TYPES = 7;
+export const ENGINE_TYPES = 8;
 const BASE_ENGINES = 3;
 /**
  * Engines the code holds at all: the first four. Later ones (the 750 kW diesel, Oct 2026) aren't
@@ -124,8 +124,8 @@ const MORE_ENGINES = CODE_ENGINES - BASE_ENGINES + 1;
 export const SINGLE_ONLY_ENGINES: readonly number[] = [];
 /** Engines that go on a shaft only (no stern drive or pod drives): the tug diesel, the 750 kW and the 1,850 kW diesels, for their big slow propellers. */
 export const SHAFT_ONLY_ENGINES: readonly number[] = [3, 4, 5];
-/** Engines only one hull type takes (build.ts ENGINES `only`): the harbour tug's 1850 kW, the solar catamaran's electric pod motors. Not tried for a brief. */
-export const ONE_TYPE_ENGINES: readonly number[] = [5, 6];
+/** Engines only one hull type takes (build.ts ENGINES `only`): the harbour tug's 1850 kW, the solar catamaran's electric pod motors, the foiling ferry's. Not tried for a brief. */
+export const ONE_TYPE_ENGINES: readonly number[] = [5, 6, 7];
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign extends Record<FurnitureField, number>, Record<ConsoleKey, number> {

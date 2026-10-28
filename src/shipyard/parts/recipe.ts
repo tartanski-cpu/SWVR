@@ -20,7 +20,7 @@ import type { DeckGearPart, HouseGearPart } from './deckGear';
 import type { HullDefPart } from './hullDef';
 import type { FurniturePart } from './furniture';
 import type { HoldPart } from './hold';
-import { motorSpec } from './solar';
+import { electricOf, motorSpec } from './solar';
 
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
@@ -121,19 +121,21 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       module: 'propulsion.pods',
       config: {
         engine: engine.engine,
-        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02, ...(p.electric ? { inertia: CONFIG.shipyard.solarCat.motor.propInertia } : {}) },
+        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02, ...(p.electric ? { inertia: electricOf(d).motor.propInertia } : {}) },
         ...podSet,
         steering: pdc.steering,
-        look: pdc.look,
+        // (The foiling ferry's: a slimmer, longer strut, down from her wet deck to her aft foil.)
+        look: p.base.centrePod ? CONFIG.shipyard.foilFerry.look : pdc.look,
         joystick: pdc.joystick,
         centreZ: rnd(h.lcb),
         alternatorAmps: engine.alternatorAmps ?? CONFIG.modules.dieselInboard.alternatorAmps,
         oilUse: engine.oilUse ?? CONFIG.vessels.workboat.maintenance.use,
         starterAmps: engine.starterAmps ?? CONFIG.modules.dieselInboard.starterAmps,
-        massKg: eng.kg + (p.electric ? CONFIG.shipyard.solarCat.podKg : pdc.legKg),
+        massKg: eng.kg + (p.electric ? electricOf(d).podKg : pdc.legKg),
         maintenance: engine.maintenance,
         voice: eng.voice,
-        installed: engine.installed,
+        // (The foiling ferry's motors are in her pod: nothing drawn inside her.)
+        ...(p.base.centrePod ? {} : { installed: engine.installed }),
         // The solar catamaran's electric motors, from her battery (CONFIG.shipyard.solarCat.motor; modules/pods).
         ...(p.electric ? { electric: motorSpec(d) } : {}),
       },
@@ -296,7 +298,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   }
   // SOLAR & BATTERY (owner, 27 Oct 2026; the solar catamaran's): with the advanced instruments
   // on an electric boat, after the efficiency screen (on a touchscreen, its SOLAR page).
-  if (d.controls && p.electric) {
+  if (d.controls && p.electric && p.base.solarRoof) {
     cc.slots.solar = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
     consoleMount.modules!.push({ socket: 'solar', module: 'instrument.screen', config: { screen: 'solar' } });
   }
@@ -325,7 +327,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const touch = d.controls ? Math.max(0, Math.min(2, d.touch ?? 0)) : 0;
   const touchIds = touch ? ['touch1', 'touch2'].slice(0, touch) : [];
   if (touch) {
-    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(p.electric ? (['solar'] as const) : []), ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
+    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(p.electric && p.base.solarRoof ? (['solar'] as const) : []), ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
     consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline'].includes(m.socket));
     touchIds.forEach((id, k) => {
       cc.slots[id] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
@@ -749,7 +751,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (fendering) recipe.modules.push({ socket: 'fendering', module: 'hull.fendering', config: { positions: fendering.positions, probes: fendering.probes } });
   // The solar catamaran's solar roof (modules/solarRoof; CONFIG.shipyard.solarCat.roof): over the
   // roof and its overhang, a wing each side out to her beam (stowed flat), a rack on the foredeck.
-  if (p.electric) {
+  if (p.electric && p.base.solarRoof) {
     const sr = CONFIG.shipyard.solarCat.roof;
     const z0 = layout.overhead ? layout.overhead.z1 : p.aft;
     const top = rnd(roofTopAt((roofFront + p.aft) / 2) + 0.05);
@@ -782,6 +784,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   }
   // A service livery's markings: the skin over her topsides worked out from her lines (trim.ts, parts/markings.ts).
   if (markings) recipe.modules.push({ socket: 'markings', module: 'hull.markings', config: { ...markings } });
+  // A foiling boat's hydrofoils drawn (modules/foils; they fly her through her lines' `foils`), but the strut her pod hangs from: the pod's own.
+  const foils = p.form.kind === 'lofted' ? p.form.design.foils : undefined;
+  if (foils) recipe.modules.push({ socket: 'foils', module: 'hull.foils', config: { panels: foils.panels, struts: foils.struts.filter((s) => !(podSet && s.podDragArea)) } });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
   // Her furniture (P5), each piece on its place.
   recipe.modules.push(...p.furnitureMounts);

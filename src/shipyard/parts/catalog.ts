@@ -7,7 +7,7 @@ import { DESIGNS } from '../../hulls/designs';
 import { curveAt, type HullDesign } from '../../hulls/loft';
 import { type HullDefinition } from '../../modular/hull';
 import type { Livery } from '../../vessel/vesselDef';
-import { BATTERY_DEFAULT, DASH_SLOTS, DEFAULT_DESIGN, FURNITURE_KEYS, fromSteps, furnitureCell, PANEL_SLOTS, SCALES, SEAT_FACES, type ShipDesign } from '../design';
+import { BATTERY_DEFAULT, BATTERY_STEPS, DASH_SLOTS, DEFAULT_DESIGN, FURNITURE_KEYS, FURNITURE_SLOTS, fromSteps, furnitureCell, PANEL_SLOTS, SCALES, SEAT_FACES, type ShipDesign } from '../design';
 
 /** A faceted front's middle pane: between the front windows' mullions (hullMesh.ts, at +-0.5 m). */
 export const FACET_CENTRE = 0.5;
@@ -192,6 +192,14 @@ export interface DesignHull {
    * instead, from a towing hook aft of her house, as the small tug does.
    */
   towsOverBow?: boolean;
+  /** A solar roof over her house charging her battery (the solar catamaran's; modules/solarRoof, parts/recipe.ts). */
+  solarRoof?: boolean;
+  /**
+   * Her drive one pod on her centreline (the foiling ferry's): hung from her wet deck on the
+   * strut of her aft foil (her lines' foils, the strut with a pod), its motors inside it, so no
+   * engine inside her and no second pod.
+   */
+  centrePod?: boolean;
 }
 
 /** Is her gearbox fixed with her type (a one-off's), so never matched by trial? */
@@ -204,7 +212,7 @@ export function withFixed<D extends Pick<ShipDesign, 'hull'>>(d: D): D {
 }
 
 /** What a hull and its houses are built of (CONFIG.shipyard.materials). */
-export type Material = 'aluminium' | 'steel' | 'foam and plywood';
+export type Material = 'aluminium' | 'steel' | 'foam and plywood' | 'composite';
 /**
  * Her length as a factor of her type's base (the length slider's step `i`): every hull's
  * 0.8 to 1.175 (SCALES.scale); a hull that `growsTo` more, the same up to her base size
@@ -467,6 +475,68 @@ const SOLAR_CAT_HOUSE: Partial<ShipDesign> = {
   headAt: furnitureCell(1.8, 8.3),
 };
 
+/** The foiling ferry's index in DESIGN_HULLS. */
+export const FOIL_FERRY = 9;
+/** Her pod's twin motors' index in ENGINES (hers alone). */
+export const FERRY_MOTOR = 7;
+
+/**
+ * The foiling electric ferry, a one-off (owner, 28 Oct 2026: her house, controls and furniture
+ * "hers to shape" as the solar cat's, a contra-rotating pair of propellers on her pod, a
+ * battery slider like the solar cat's): her hull and foils, her pod and motors and her deck
+ * fittings fixed (FOIL_FERRY_FIXED); her wheelhouse, its inside, her controls and furniture,
+ * her battery and paint the player's (the same keys as the solar cat's: HOUSE_KEYS).
+ */
+const FOIL_FERRY_FIXED: Partial<ShipDesign> = {
+  ...Object.fromEntries(Object.entries(EVERYTHING).filter(([k]) => !HOUSE_KEYS.includes(k as keyof ShipDesign))),
+  ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 0, bow: 0 }),
+  hull: FOIL_FERRY,
+  sheer: 0,
+  foreCabin: 0,
+  engine: FERRY_MOTOR,
+  // Her pod's reduction fixed (no matching), 1.6 : 1 (owner, 28 Oct 2026, from the choppy-sea
+  // test): enough torque at her propellers to lift her over the hump into a Moderate sea; about
+  // 28 kn flat out in calm water, her motors at their rated revs. (The trial's match for top
+  // speed, 1.33 : 1, gave 34 kn but left her stuck on her hulls at 10-12 kn into a Moderate sea.)
+  gear: 5,
+  twin: 0,
+  pods: 1,
+  outboards: 0,
+  sternDrive: 0,
+  nozzle: 0,
+  guard: 0,
+  rails: 1,
+  bowFender: 0,
+  noAnchor: 0,
+  lifeRing: 1,
+};
+
+/**
+ * Where her house and cabin start (the player's to change): a long, low passenger cabin with
+ * big windows nearly the length of her, her helm at its front; rows of seats either side of an
+ * aisle facing forward (pins: x from her centreline, metres forward of her transom).
+ */
+const FOIL_FERRY_HOUSE: Partial<ShipDesign> = {
+  ...fromSteps({ visor: 1, lowerFront: 0 }),
+  housePos: 0.45,
+  houseLength: 4.0,
+  houseWidth: 1,
+  headroom: 1.95,
+  floor: 0,
+  windowRake: -45,
+  kick: 0,
+  roofThickness: 0.12,
+  roofEdge: 30,
+  saloon: 3.6,
+  saloonFloor: 0,
+  saloonRoof: 0,
+  overhead: 0,
+  dhLength: 0,
+  ...Object.fromEntries(
+    [-1.35, -0.75, 0.75, 1.35].flatMap((x, i) => [5.9, 5.0, 4.1].map((z, j) => [FURNITURE_SLOTS.seat[i * 3 + j], furnitureCell(x, z)])),
+  ),
+};
+
 const HARBOUR_TUG_HOUSE: Partial<ShipDesign> = {
   ...fromSteps({ visor: 1, lowerFront: 0 }),
   housePos: 0.55,
@@ -683,10 +753,34 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: false,
     cockpit: 2.5,
     foredeck: 2.0,
+    solarRoof: true,
     fixed: SOLAR_CAT_FIXED,
     oneOffNote: 'Her hull is a one-off, fixed as she’s drawn, and so are her electric pods, her solar roof (it follows her house) and her deck fittings. Yours to choose: her wheelhouse, its inside, her controls and her furniture, her battery (Engine step) and her paint.',
     // Black, as her pictures (owner: "Of course, it needs to be black"): black topsides, her paint's own light house, a black roof edge.
     defaults: { ...SOLAR_CAT_HOUSE, ...SOLAR_CAT_FIXED, ...SOLAR_PAINT, battery: BATTERY_DEFAULT },
+  },
+  {
+    // The foiling electric ferry (owner, 28 Oct 2026; the hull modifications chat's `foilFerry`):
+    // her lines and foils as drawn (12 x 4.5 m, two deep-V hulls under a high bridge deck, a main
+    // foil forward and an aft foil on the strut that carries her pod). Her hull, foils, pod and
+    // deck fixed (FOIL_FERRY_FIXED), her house the player's (from FOIL_FERRY_HOUSE).
+    // Not in the design code: a link or file.
+    name: 'Foiling electric ferry: 12 m composite, flies on hydrofoils at 25 kn, a one-off',
+    material: 'composite',
+    catamaran: true,
+    // No fuel of her own (a token tank, never drawn on), as the solar catamaran.
+    fuelL: 40,
+    form: () => ({ kind: 'lofted', design: { ...scaledStudy(study('foilFerry'), 1, 1, 1, null, false, 0), catamaran: study('foilFerry').catamaran } }),
+    // (Her hulls run on their bottoms until her foils lift her: a fast boat's propellers.)
+    regime: 'planing',
+    ramp: false,
+    cockpit: 1.5,
+    foredeck: 1.5,
+    centrePod: true,
+    fixed: FOIL_FERRY_FIXED,
+    oneOffNote: 'Her hull and hydrofoils are a one-off, fixed as she’s drawn, and so are her electric pod (two motors, two propellers turning opposite ways) and her deck fittings. Yours to choose: her wheelhouse and cabin, its inside, her controls and her furniture, her battery (Engine step) and her paint.',
+    // White, a light house, a dark roof, as new; her biggest battery.
+    defaults: { ...FOIL_FERRY_HOUSE, ...FOIL_FERRY_FIXED, paint: 4, houseColour: 0, frames: 0, roofPaint: 4, roofTop: 0, finish: 2, battery: BATTERY_STEPS - 1 },
   },
 ];
 
@@ -726,6 +820,10 @@ export const ENGINES = [
   // The solar catamaran's (owner, 26 Oct 2026): an electric motor driving each of her pods,
   // from her battery (in the game: physics/electricMotor.ts, through her pods; 27 Oct 2026).
   { name: '25 kW electric pod motor', kw: 25, kg: 60, voice: 'electric' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.7, pricePerKw: 300, size: [0.7, 0.4, 0.4] as const, only: [SOLAR_CAT] as readonly number[], electric: true, about: 'The solar catamaran’s: an electric motor for each of her pods, quiet and clean, running on her battery.' },
+  // The foiling ferry's (owner, 28 Oct 2026: "a contra-rotating pair"): two motors in her one
+  // pod, each turning one of its two propellers, opposite ways (the after one takes back the
+  // swirl the forward one leaves); in the game one motor of their power (physics/electricMotor.ts).
+  { name: '2 x 95 kW electric motors in one contra-rotating pod', kw: 190, kg: 110, voice: 'electric' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.65, pricePerKw: 350, size: [1.0, 0.32, 0.32] as const, only: [FOIL_FERRY] as readonly number[], electric: true, about: 'The foiling ferry’s: two electric motors in her pod, each turning one of its two propellers, opposite ways. Enough to lift her over the hump onto her foils.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */
