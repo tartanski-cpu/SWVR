@@ -15,6 +15,29 @@ export const SIDES_BIG = 24;
 
 export type V3 = [number, number, number];
 
+/**
+ * The room's paint by a part's colour (owner, Oct 2026: "another pass on the engine room
+ * textures to make it pop"; render/pixelPaint.ts), so each kind of surface wears its tile
+ * wherever it's built: the machinery's paint (the engines' blue, the generator sets' green,
+ * the air bottles and starter boxes, the dark bases and drip trays), the exhausts' lagging,
+ * the day tanks' plating. (The ventilation duct's galvanised ductwork is painted where it's built.) A part painted on purpose (`painted`)
+ * keeps its own; the pipes, rails, valves and signs stay plain, and shine.
+ */
+const PAINT_BY_COLOUR = new Map<number, PaintName>([
+  [0x3f5f7a, 'machinery'], // the main engines' paint
+  [0x4a7d5a, 'machinery'], // the generator sets'
+  [0x3e6a4c, 'machinery'], // their alternators' ribs
+  [0x7c868c, 'machinery'], // air bottles, compressor
+  [0x6c7378, 'machinery'], // starter boxes, the local stands' heads, the chain block
+  [0x5f676c, 'machinery'], // the local stands' columns
+  [0x6f8790, 'machinery'], // the supply fans
+  [0x2a2e31, 'machinery'], // bases, drip trays, plinths (dark, oily)
+  [0x8c9399, 'machinery'], // the engines' heads and rocker covers, painted grey
+  [0xc8ccc8, 'lagging'], // exhaust lagging
+  [0x8b6f45, 'steel'], // the fuel day tanks' plating
+  [0x9aa3a8, 'steel'], // the thruster room door
+]);
+
 /** Collects parts, then merges them (the caller's mergeParts). */
 export class Kit {
   readonly parts: THREE.BufferGeometry[] = [];
@@ -22,7 +45,7 @@ export class Kit {
   private paint: PaintName | undefined;
 
   add(g: THREE.BufferGeometry, colour: number): this {
-    this.parts.push(part(g, colour, this.paint));
+    this.parts.push(part(g, colour, this.paint ?? PAINT_BY_COLOUR.get(colour)));
     return this;
   }
 

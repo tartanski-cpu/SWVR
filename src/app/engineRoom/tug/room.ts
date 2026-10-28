@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mergeParts } from '../../../render/geometryUtils';
-import { withPixelPaint } from '../../../render/pixelPaint';
+import { grime, roomMaterial } from '../look';
 import type { VesselState } from '../../../vessel/vesselState';
 import type { EngineRoomPlan } from '../plan';
 import { detailedEngine } from './engine';
@@ -99,6 +99,8 @@ export class TugRoom {
   /** Her lights: full on a live switchboard, the emergency lights (dim) on batteries alone. */
   private readonly lights: { light: THREE.Light; full: number; dead: number }[] = [];
   private lit = 1;
+  /** The light fittings' diffusers: lit with the lights (CONFIG.engineRoom.look.lampGlow). */
+  private readonly lampMat: THREE.MeshBasicMaterial;
   private readonly labelTex: THREE.CanvasTexture;
   /** The controls glowing as the next step's (a cue). */
   private readonly cued = new Set<Control>();
@@ -417,16 +419,18 @@ export class TugRoom {
       for (let z = p.z0 + 0.6; z < p.z1; z += 1.5) k.cyl(0.012, [x, head - 0.115, z], [x, head, z], GALV, 6);
     }
     const duct = -0.35;
-    k.box(0.55, 0.32, p.z1 - p.z0 - 0.3, duct, head - 0.18, (p.z0 + p.z1) / 2, GALV);
+    k.painted('galv', () => k.box(0.55, 0.32, p.z1 - p.z0 - 0.3, duct, head - 0.18, (p.z0 + p.z1) / 2, GALV));
     for (let z = p.z0 + 1; z < p.z1 - 0.5; z += 2.2) {
       k.box(0.4, 0.08, 0.4, duct, head - 0.38, z, 0x8f969a);
       for (let i = 0; i < 5; i++) k.box(0.36, 0.01, 0.02, duct, head - 0.42, z - 0.16 + i * 0.08, DARK);
     }
     const lamps: V3[] = [];
+    // (The fittings' diffusers glow, drawn unlit, bright while the switchboard's live: `lampGlow`.)
+    const diffusers: THREE.BufferGeometry[] = [];
     for (let z = p.z0 + 0.8; z < p.z1 - 0.3; z += 1.9)
       for (const x of [-1.6, 1.6, -(hw - 0.9), hw - 0.9]) {
         k.box(0.14, 0.06, 1.25, x, head - 0.06, z, 0xe8e8e2);
-        k.box(0.08, 0.025, 1.18, x, head - 0.1, z, 0xfffbe8);
+        diffusers.push(new THREE.BoxGeometry(0.08, 0.025, 1.18).translate(x, head - 0.1, z));
         if (Math.abs(x) < 2 && lamps.length < 3 && Math.abs(z - (p.z0 + p.z1) / 2) < 3.5) lamps.push([x, head - 0.3, z]);
       }
 
@@ -495,9 +499,14 @@ export class TugRoom {
       k.box(0.4, 0.1, 0.3, ex, sole + 2.0 > head ? head - 0.3 : sole + 1.9, ez + 0.0, 0x1f6b3a);
     }
 
-    const material = withPixelPaint(new THREE.MeshLambertMaterial({ vertexColors: true }));
-    const mesh = new THREE.Mesh(mergeParts(k.parts), material);
+    // (Its paint with a satin sheen, and the dirt baked in low down and under the deckhead: look.ts.)
+    const material = roomMaterial();
+    const merged = mergeParts(k.parts);
+    grime(merged, sole, head);
+    const mesh = new THREE.Mesh(merged, material);
     this.root.add(mesh);
+    this.lampMat = new THREE.MeshBasicMaterial({ color: CONFIG.engineRoom.look.lampGlow.on });
+    this.root.add(new THREE.Mesh(mergeGeometries(diffusers), this.lampMat));
     if (glass) this.root.add(glass);
 
     // ── The shaft lines (turning): coupling, cardan shaft with its joints, through to the Z-drive ──
@@ -544,17 +553,19 @@ export class TugRoom {
     this.root.add(new THREE.Mesh(mergeGeometries(this.plates(p, t, places)), new THREE.MeshLambertMaterial({ map: this.labelTex, ...front })));
 
     // ── Its lights: the room's, and three lamps along the deckhead ──
-    const hemi = new THREE.HemisphereLight(0xfff6e8, 0x5d6064, 1.25);
+    // (A dim even fill and bright lamps: pools of light and shade. CONFIG.engineRoom.look.lights.)
+    const lit = CONFIG.engineRoom.look.lights;
+    const hemi = new THREE.HemisphereLight(0xfff6e8, 0x5d6064, lit.hemi);
     hemi.position.set(0, head, (p.z0 + p.z1) / 2);
-    const amb = new THREE.AmbientLight(0xffffff, 0.3);
+    const amb = new THREE.AmbientLight(0xffffff, lit.ambient);
     this.root.add(hemi, amb);
     // (Dead ship: the emergency lights only, a dim glow; the lamps out.)
-    this.lights.push({ light: hemi, full: 1.25, dead: 0.16 }, { light: amb, full: 0.3, dead: 0.05 });
+    this.lights.push({ light: hemi, full: lit.hemi, dead: 0.16 }, { light: amb, full: lit.ambient, dead: 0.05 });
     for (const l of lamps) {
-      const pl = new THREE.PointLight(0xfff1d6, 2.2, 7, 1.6);
+      const pl = new THREE.PointLight(0xfff1d6, lit.lamp, lit.lampRange, lit.lampDecay);
       pl.position.set(...l);
       this.root.add(pl);
-      this.lights.push({ light: pl, full: 2.2, dead: 0 });
+      this.lights.push({ light: pl, full: lit.lamp, dead: 0 });
     }
 
     // ── The start-up's controls ──
@@ -585,6 +596,8 @@ export class TugRoom {
     if (this.lit !== want) {
       this.lit = want > this.lit ? Math.min(1, this.lit + dt * 1.5) : Math.max(0, this.lit - dt * 3);
       for (const l of this.lights) l.light.intensity = l.dead + (l.full - l.dead) * this.lit;
+      const g = CONFIG.engineRoom.look.lampGlow;
+      this.lampMat.color.set(g.off).lerp(new THREE.Color(g.on), this.lit);
     }
     const rpm = [v.engine.rpm, (v.engine.stbd ?? v.engine).rpm];
     this.shafts.forEach((m, i) => {
