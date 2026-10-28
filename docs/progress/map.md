@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Hamburg runs lighter: fewer pier legs, the piles the fenders, shorter reach on the Quest (28 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "it's 750,000 triangles. On Quest, I'm getting 30 to 40 frames per second ... the piers have many legs ... and separate fenders or bumpers. You could ... reduce slightly the leg count and merge the leg with a bumper ... take a look at the poly count."
 
 - **Measured first** (headless, every visible mesh's triangles by name, instanced ones counted per copy; 3 spots: the start, Burchardkai, HafenCity). The biggest share by far was the harbour kit's piers and quays (`structures`): 164,000 at the start, 180,000 at HafenCity. Hamburg has 645 pier and quay pieces, mostly long timber piers: a pile every 6 m each side (7-sided cylinders, capped), a fender board every 4 m on every seaward face, bollards of two 8-sided cylinders each. Then the ocean (104,000, the main game's, not changed here), the town's buildings (50-62,000), the container stacks (28-61,000).
