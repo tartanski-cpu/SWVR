@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hamburg: ships in the docks, water in Elbe 17, no buildings on the pontoons (28 Oct 2026)
+
+Owner: "the Blohm + Voss dry dock seems to still have land inside it ... a grey mass"; "there should be some ship inside the docks as well"; "the buildings on the dock side next to the Cap San Diego seem to be a bit high. I don't think there should be any buildings on those pontoons."
+
+- **Dock basins are water** (`reconcile.ts`): the land cover sees a dock with a ship in it as built-up, so Elbe 17's basin came out as land at ground level. Every cell inside a mapped dock outline (`waterway=dock`) is now water, and a patch mostly of dock counts as water. Every stage from the reconcile on was run again for Hamburg.
+- **A cruise ship in Elbe 17 for a refit** (`yardShips: [{ dock: Dock Elbe 17, stage: 0.97, length: 290, painted: true }]`): the Turku yard ship's design, finished and painted, afloat (a ship in a flooded dock floats at `yardDraught`; one in a drained dock, Perno's, stands on its floor as before).
+- **A ship in each big floating dock** (`dockedShips: true`; `package.ts`, `T.dockedShip` 150 m, `T.dockedLift` 9.5 m; `MuseumShipDef.lift`): the museum ships' cargo design, raised on the dock's blocks (her keel a metre over the pontoon deck), 0.8 of the dock's length, her beam within its wing walls; her hull's colour and which way she lies by the dock's name. Five docks: 11, 5, 12, 16 and I.
+- **No buildings over the water** (`package.ts`): a building whose middle stands over water is left out: the map's pavilions on the pontoons by the Überseebrücke, which the house rules had made 15 m warehouses.
+- **Tests** (`coastHamburg.test.ts`): Elbe 17 water with the cruise ship afloat in it; a ship raised in each big floating dock inside its walls; no building on the pontoons by the Cap San Diego. The start berth's depth test now asks 2 m, not 3, in the overview grid (the same berth; the re-triangulated mesh blends the pontoon's face a little more into the 50 m cell). `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`MuseumShipDef.lift`).
+
 ### Hamburg: big ships in and out, and harbour ferries of the port's own kind (28 Oct 2026)
 
 Owner: "Hamburg, being a busy harbour, needs some AI ships, some big ships going in and out. And the ferries should look a little bit more like the Hamburg ferries ... they've got a wheelhouse at the back, and then the cabin at the front."

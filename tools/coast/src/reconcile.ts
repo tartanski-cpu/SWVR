@@ -209,6 +209,8 @@ for (let start = 0; start < N; start++) {
 const isLandPatch = patchSize.map((_, p) => (patchLand[p] + patchSea[p] > 0 ? patchLand[p] >= patchSea[p] : req.inlandWater ? patchWet[p] + patchDock[p] < 0.5 * patchSize[p] : patchDem[p] > 2));
 const land = new Uint8Array(N);
 for (let k = 0; k < N; k++) if (label[k] !== BARRIER) land[k] = isLandPatch[patch[k]] ? 1 : 0;
+// Inside a mapped dock, water, cell by cell (its outline may not seal it off from the land round it).
+for (let k = 0; k < N; k++) if (inDock[k] && label[k] !== BARRIER) land[k] = 0;
 // The barrier cells themselves: the side most of their neighbours are on.
 for (let k = 0; k < N; k++) {
   if (label[k] !== BARRIER) continue;

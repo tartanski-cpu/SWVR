@@ -43,7 +43,7 @@
  "harbours": {
   "harbours": 95,
   "blocks": 645,
-  "berths": 2253,
+  "berths": 2252,
   "slipways": 2,
   "buildings": 9400,
   "edits": 0,
@@ -128,39 +128,39 @@
   "clearedCells": 45515,
   "bytes": 60722
  },
- "dredgedCells": 1492,
- "triangles": 84927,
- "deepTriangles": 7045,
- "vertices": 49163,
- "bytes": 2166831,
+ "dredgedCells": 1501,
+ "triangles": 84865,
+ "deepTriangles": 7107,
+ "vertices": 49159,
+ "bytes": 2166771,
  "chunks": [
   {
    "id": 0,
-   "triangles": 3714
+   "triangles": 3734
   },
   {
    "id": 1,
-   "triangles": 2011
+   "triangles": 2021
   },
   {
    "id": 2,
-   "triangles": 875
+   "triangles": 891
   },
   {
    "id": 3,
-   "triangles": 2033
+   "triangles": 2059
   },
   {
    "id": 4,
-   "triangles": 2952
+   "triangles": 2835
   },
   {
    "id": 5,
-   "triangles": 6595
+   "triangles": 6624
   },
   {
    "id": 6,
-   "triangles": 2021
+   "triangles": 2025
   },
   {
    "id": 7,
@@ -168,31 +168,31 @@
   },
   {
    "id": 8,
-   "triangles": 1936
+   "triangles": 1943
   },
   {
    "id": 9,
-   "triangles": 2647
+   "triangles": 2655
   },
   {
    "id": 10,
-   "triangles": 3514
+   "triangles": 3517
   },
   {
    "id": 11,
-   "triangles": 6918
+   "triangles": 6781
   },
   {
    "id": 12,
-   "triangles": 8115
+   "triangles": 8088
   },
   {
    "id": 13,
-   "triangles": 4857
+   "triangles": 4878
   },
   {
    "id": 14,
-   "triangles": 2656
+   "triangles": 2653
   },
   {
    "id": 15,
@@ -200,31 +200,31 @@
   },
   {
    "id": 16,
-   "triangles": 1681
+   "triangles": 1700
   },
   {
    "id": 17,
-   "triangles": 3198
+   "triangles": 3203
   },
   {
    "id": 18,
-   "triangles": 7864
+   "triangles": 7878
   },
   {
    "id": 19,
-   "triangles": 6535
+   "triangles": 6518
   },
   {
    "id": 20,
-   "triangles": 3145
+   "triangles": 3148
   },
   {
    "id": 21,
-   "triangles": 132
+   "triangles": 133
   },
   {
    "id": 22,
-   "triangles": 447
+   "triangles": 450
   },
   {
    "id": 23,
@@ -232,22 +232,22 @@
   },
   {
    "id": 24,
-   "triangles": 1411
+   "triangles": 1419
   },
   {
    "id": 25,
-   "triangles": 3471
+   "triangles": 3494
   },
   {
    "id": 26,
-   "triangles": 2510
+   "triangles": 2529
   },
   {
    "id": 27,
    "triangles": 683
   }
  ],
- "landShare": 0.8270844365826857,
+ "landShare": 0.8263460104192948,
  "seenFromWater": 0.69,
  "coastPoints": 4895,
  "shoreBandPoints": 7552,
@@ -265,7 +265,7 @@
   "landmarks": [
    "Blankenese IsoW.4s"
   ],
-  "bytes": 2386375
+  "bytes": 2369272
  },
  "landmarkCellsLowered": 295
 }
