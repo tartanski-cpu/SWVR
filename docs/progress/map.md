@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Hamburg: muddy Elbe water; the small structures and the quay cranes drawn near only; why the waves stay small (28 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "Hamburg is still a bit heavy, I noticed the weather debug doesn't affect the waves much too, oh and Hamburg has muddy brown water" (asked: "make it muddy brown", like the real Elbe).
 
 - **Muddy brown water** (`water` in the request: deep `#2e2c1c`, scatter `#6e6234`; `RegionDef.water`; `OceanView.setWater`, applied by `App.ts` with the shelters, once a second, by the map you're on): the Elbe's turbid olive-brown in place of the sea's blue. Every other map keeps the sea's colours (CONFIG.ocean.colors).
