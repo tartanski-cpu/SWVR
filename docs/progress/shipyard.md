@@ -14,7 +14,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
-### The foiling ferry on a choppy sea: she flies level over the waves; geared to take off in a Moderate sea (28 Oct 2026)
+### The foiling ferry on a choppy sea: she flies level over the waves; geared to take off in a Moderate sea (28 Oct 2026; on next for the owner to try)
 
 Owner, 28 Oct 2026: "maybe a nice test to do for the hydrofoils is take them out on a choppy sea, and obviously they should be pretty much completely smooth because they ride over the waves." Then, on what it found: "You do it here" (the flight computer's change) and "Yes, 1.6:1" (her gearing).
 
@@ -25,7 +25,7 @@ Owner, 28 Oct 2026: "maybe a nice test to do for the hydrofoils is take them out
 - **Shared changes:** `vessel/physics/foils.ts` (the depth her flight computer flies by), `config/vessels.ts` (`foils.control.follow`, `foils.control.guard`). The hull chat's foil tests all pass with it.
 - Tests: `tests/shipyard/foilFerrySea.test.ts` (new: a Slight sea three ways, flying smoothly, far smoother than on her hulls; a Moderate sea into and across the waves, she gets up and flies on), `foilFerryDrive` (past 26 kn flat out). Not checked: VR (how it feels at her helm), screenshots (nothing new to see).
 
-### The foiling electric ferry, a one-off: her foils fly her, one contra-rotating electric pod, her battery (28 Oct 2026)
+### The foiling electric ferry, a one-off: her foils fly her, one contra-rotating electric pod, her battery (28 Oct 2026; on next for the owner to try)
 
 Owner, 28 Oct 2026, on the hull modifications chat's `foilFerry` (her lines and hydrofoils) and its hand-over: her house, controls and furniture "hers to shape (Recommended)", as the solar cat's; "a contra-rotating pair" on her pod; "a slider like the solar cat" for her battery; "Yes, start now".
 
