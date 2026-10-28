@@ -1292,8 +1292,10 @@ export class App {
       const submerged = this.exhaustSubmersion(testView.root, this.world.vessels[this.testVesselId], nowMs / 1000);
       // In the wheelhouse the engine's quieter (more so with the door shut); full on deck.
       const ws = CONFIG.wheelhouseSound;
-      const house = this.insideHouse ? (this.closed > 0 ? [ws.engineShut, ws.engineShutLp] : [ws.engineInside, ws.engineInsideLp]) : [1, 20000];
-      this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1]);
+      // Below in her engine room: right beside them, louder and with their clatter (CONFIG.engineRoom.sound).
+      const below = this.belowDecks.boatId === this.testVesselId;
+      const house = below ? [CONFIG.engineRoom.sound.level, 20000] : this.insideHouse ? (this.closed > 0 ? [ws.engineShut, ws.engineShutLp] : [ws.engineInside, ws.engineInsideLp]) : [1, 20000];
+      this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1], below ? 1 : 0);
       const v = this.world.vessels[this.testVesselId];
       this.sound.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
       this.updateBoatVoices(dt);

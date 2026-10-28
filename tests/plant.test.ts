@@ -271,3 +271,22 @@ describe('the cue: the next step\'s controls glow', { timeout: 300000 }, () => {
     expect(nextControls(v)).toEqual([]);
   });
 });
+
+describe('Quick start on the harbour tug, whatever she was left like', { timeout: 300000 }, () => {
+  it('starts her with her levers left at some power (to idle first) and with flat batteries (a jump start); the generator then charges them', () => {
+    const t = deadShip();
+    const { v, send, run } = t;
+    send('throttle.demand', 0.4);
+    send('throttle.demand2', 0.4);
+    send('debugElectrics', 0);
+    expect(v.electrics!.soc[0]).toBe(0);
+    send('quickStart', 1);
+    run(20);
+    expect(v.engine.phase).toBe('running');
+    expect(v.engine.stbd?.phase).toBe('running');
+    expect(v.controls.lever).toBe(0);
+    const soc = v.electrics!.soc[0];
+    run(10);
+    expect(v.electrics!.soc[0]).toBeGreaterThan(soc);
+  });
+});

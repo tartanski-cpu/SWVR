@@ -36,6 +36,8 @@ Her room is longer (`CONFIG.engineRoom.big`) and drawn in detail by `src/app/eng
 
 It's 5–10 draw calls and about 105,000 triangles while you're below; see `docs/progress/game.md`. The other rooms (the trawler's, the dive ship's) are still the plain milestone 1 room.
 
+**Its look** (28 Oct 2026, `src/app/engineRoom/look.ts`, `CONFIG.engineRoom.look`): every room wears the game's pixel paint (`render/pixelPaint.ts`). The sides and bulkheads are painted steel plating with weld seams, the deckhead perforated insulation cladding, and the floor chequer plate. In the tug's room each kind of surface also wears its tile by its colour (`tug/kit.ts` `PAINT_BY_COLOUR`): painted machinery with oil stains, quilted exhaust lagging, the day tanks' plating, and galvanised ductwork on the duct. The paint has a satin sheen (Phong), and dirt is baked into the colours low down and under the deckhead. The tug is lit by a dim fill and bright lamps, so there are pools of light and shade. Its light fittings glow while the switchboard is live. That costs one more draw call (the diffusers); everything else is on the meshes it had.
+
 ## The harbour tug's start-up (27 Oct 2026)
 
 The owner: "the only thing I want for the engine room is a realistic startup procedure". Part 1 (`src/plant/plant.ts`, the controls in `tug/controls.ts`): she comes from port dead ship, and is brought to life below, step by step:

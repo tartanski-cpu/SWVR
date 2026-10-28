@@ -10,6 +10,53 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The engine rooms' textures: another pass to make them pop (28 Oct 2026)
+
+Owner (passed on by the hull modifications chat, then confirmed here: "Go ahead with textures"): "Do another pass on the engine room textures to make it 'pop'."
+- **Found** (headless screenshots, the tug's room from six places): nearly every surface was one flat colour under an even light (a bright fill, 1.25 and 0.3, lamps 2.2 over 7 m, no shine). Only the floor wore a texture, so the walls, deckhead, duct and engines read like card.
+- **New pixel paint tiles** (`render/pixelPaint.ts`, sizes in `CONFIG.pixelPaint.tileMetres`):
+  - `machinery` 1.6 m: painted cast or fabricated metal, a fine speckle, oil stains and runs, chips to bright metal.
+  - `lagging` 0.8 m: quilted exhaust cloth in 20 cm puffed pillows with stitch lines.
+  - `galv` 2.4 m: galvanised ductwork, a seam every 1.2 m. A spangle was tried first; close overhead it read as blocks. A pressed cross-break was tried next; on a duct this shallow only fragments showed.
+  - `perforated` 1.2 m: the deckhead's insulation cladding, 60 cm panels with a grid of holes.
+- **Where they go:**
+  - Every room's shell (`app/engineRoom/view.ts`): the sides and bulkheads wear the existing `steel` tile (plates and weld seams), the deckhead `perforated`, and a plain room's floor `chequer`.
+  - In the tug's room, each kind of surface wears its tile by its colour (`tug/kit.ts` `PAINT_BY_COLOUR`): the engines (blocks, heads and rocker covers), the generator sets, air bottles, compressor, starter boxes, stands, fans, bases and drip trays get `machinery`; the lagging gets `lagging`; the day tanks and thruster room door get `steel`; the duct gets `galv`.
+  - Pipes, rails, valves and signs stay plain colours and shine.
+- **Shading** (`app/engineRoom/look.ts`, `CONFIG.engineRoom.look`):
+  - A satin sheen: Phong in place of Lambert, `sheen.specular` 0.3 and `shininess` 30.
+  - Dirt baked into the vertex colours by height (`grime`): 38 % darker at the floor plates, clean from 1.4 m up, and 18 % darker in the last 0.5 m under the deckhead. The floor plates' own faces are left alone.
+  - The tug's lights (`lights`): a dimmer fill (`hemi` 0.7, `ambient` 0.12) and brighter lamps (`lamp` 4, `lampRange` 9 m, `lampDecay` 1.4), so there are pools of light and shade, and the sheen shows.
+  - Its light fittings' diffusers glow (drawn unlit, `lampGlow`), going dark at dead ship.
+- **Cost:** one more draw call below (the diffusers); no new shapes. Phong's shine costs a little more per pixel than Lambert, with the same three lamps.
+- **Tests:** tests/pixelPaint.test.ts covers the new tiles (each averages mid-grey, and is the same every time); the full suite passes. **Checked headless:** the tug's room from six places, before and after (aft and forward along the aisle, beside an engine, the switchboard, the control room console, the day tanks, a generator); at dead ship; and the trawler's plain room. **Not checked:** VR, and the Quest's frame rate with Phong. Worth a look: if it drops, `roomMaterial` can go back to Lambert (the tiles, dirt and lights stay).
+- **Shared changes:** none (`render/` and `config.ts` are this area's).
+
+### The harbour tug's prop wash follows her drives (27 Oct 2026)
+
+Owner: "The prop wash effects do not respect the direction of the kort nozzels."
+- **Found:** the wake (`vessel/view/wakeTrail.ts`) had one ribbon of foam, laid at the transom and always carried straight aft by her mean thrust: right for a propeller on a shaft, wrong for the tug's azimuth drives, whose nozzles throw their jets any way round.
+- **Now:** each azimuth drive lays its own ribbon of wash in the same mesh (no extra draw call), from its propeller (ahead of its leg along its push), carried the opposite way to its push at its own thrust (momentum theory as before, its speed of advance the water along its push). Drives turned athwartships throw the wash out to the side; turned astern, it runs forward under her and out past the bow; one each way, two ribbons. Her transom's ribbon keeps the Kelvin arms only. Each drive's share of her thrust (the state keeps the mean of the two): its revs squared, in gear. New: `CONFIG.effects.wake.drivePoints` (64 points per drive) and `driveHalfWidth` (0.55 x the propeller's diameter either side of the jet's axis at the nozzle).
+- **Tests:** the full suite (no new test: drawing only). **Checked headless** with the tug in open water: drives athwartships (port drive pushing to starboard, starboard to port: a ribbon out either side of her stern), both astern, and split (45° and −135°: one ribbon each way, curling as she turns): screenshots from overhead and the quarter. Two drives laying a point in the same frame each keep their own GPU upload (the first went missing at first). **Not checked:** VR; the Quest's frame rate (a few hundred more vertices in the one wake mesh).
+- **Shared changes:** `src/modular/module.ts` (the diesel's gear facts: `azimuth` now says where the legs stand, `{ legZ, propY }`, instead of `true`; every reader only asks whether it's there) and `src/modules/dieselInboard/index.ts` (fills it in), `src/vessel/view/wakeTrail.ts` and `vesselEffects.ts` (the wash per drive).
+
+### Quick start works on the tug whatever she was left like; her batteries charge from the generator (27 Oct 2026)
+
+Owner: "Quick start wasn't working in the tug I had in my favourites."
+- **Found** (reproduced in the career with the tug): Quick start silently did nothing (a) with a lever left at some power (the small boats' neutral-safety rule: the tug's lever power counts as in gear), and (b) with her batteries flat (dead ship leaves the 24 V master on with nothing charging, so a tug left a while drains).
+- **Fixed** (`plant/plant.ts` `plantReady`, `stepPlant`; `CONFIG.plant.chargeSocPerS` 0.006, `jumpStartSoc` 0.3): on the tug, Quick start brings both levers to idle first (she starts in neutral), and gives flat batteries enough to start on (a jump start); and her switchboard's battery chargers fill the 24 V batteries while the generator is on line (flat to full in about 3 minutes), as on a real tug.
+- **Tests:** tests/plant.test.ts (Quick start with the levers at 0.4 and the batteries flat: both engines running, the levers at idle, the batteries charging). **Checked headless** in the career with the tug: fresh, levers left forward, flat batteries: each time she starts.
+- **Shared changes:** none.
+
+### The harbour tug's V16s: a big rumbling voice, and loud in her engine room (27 Oct 2026)
+
+Owner: "we'll come back to engine sounds, because we need a big rumbling noise for these big diesels"; "Move onto sounds".
+- **A V16 voice** (`CONFIG.engineVoices.v16`; the tug's engine in the Shipyard's catalogue now takes it, it had the landing craft's small V8's): 16 cylinders four-stroke, 80 firings a second at her 600 rpm idle, 213 at 1600 rated; long pulses (big cylinders) so the beats run into a roar; the banks firing in turn with the starboard bank's pulses weaker, so half the firing rate (40 Hz at idle, 107 flat out) growls under the beat; a big, low exhaust (resonances at 62 and 96 Hz), the top rolled off more than the other voices; a low turbo whine rising with boost; a little valve-gear and injector clatter (300 to 1100 Hz).
+- **In her engine room** (`CONFIG.engineRoom.sound`: `level` 1.2, `mech` 5, `compress` −22 dB at 8 : 1; `EngineSound.set`'s `room`, App): louder than on deck, the clatter five times up, no wet-exhaust muffling, through a compressor that's open (0 dB) everywhere else, so two engines flat out are loud and dense without clipping.
+- **Rendered offline** (headless Chromium, the game's own engine sound, both engines as the game plays a twin, 3 m off, idle then opened up to full): flat out, 54 % of the V16's sound is under 150 Hz on deck (37 % at first try; the old V8 voice at her revs 93 %, but a small engine's thin beat), idle 97 %; peaks 0.70 on deck, 1.09 in the engine room before the game's volume (0.72 after it: no clipping). The clips were sent to the owner to judge by ear.
+- **Not checked:** by ear (no speakers here); in VR.
+- **Shared changes:** `src/shipyard/parts/catalog.ts` (the tug's engine's voice, one word: the Shipyard chat's file, for the owner's ask) and `tests/shipyard/tugVoice.test.ts` (its list of the engines' voices: the harbour tug's now `v16`); `src/audio/engineAudio.ts` (the engine room's `room`, clatter level and compressor; other boats unchanged: the compressor is open and `room` 0 for them).
+
 ### The tug's engine room labelled; no flicker; the gauge board clear (27 Oct 2026)
 
 Owner: "many of the things are not labeled, so you don't know what's the oil pump, you don't know what all the switches in the electrical bus board do. There's also some Z fighting in the engine control room and some gauges hidden behind the wall with the pipes on it ... label everything."

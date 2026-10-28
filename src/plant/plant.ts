@@ -133,6 +133,10 @@ export function stepPlant(s: VesselState, dt: number): void {
   }
   const bus = busLive(p);
 
+  // Her battery chargers, on the live switchboard: the 24 V batteries filled while the generator runs.
+  const el = s.electrics;
+  if (bus && el) el.soc = el.soc.map((x) => Math.min(1, x + c.chargeSocPerS * dt)) as [number, number];
+
   // Starting air: the compressor (on the switchboard's power) fills the bottles.
   if (p.compressor && bus) p.airBar = Math.min(c.airMaxBar, p.airBar + c.airFillBarS * dt);
 
@@ -270,11 +274,20 @@ export function applyPlantIntent(s: VesselState, what: string, value: number): v
   }
 }
 
-/** Quick start (the menu's Tests): everything below open, running and handed to the bridge, in one go. */
+/**
+ * Quick start (the menu's Tests): everything below open, running and handed to the bridge, in
+ * one go; her levers to idle (her engines start in neutral: owner, 27 Oct 2026, quick start "wasn't
+ * working" with a lever left at some power); and flat batteries given enough to start on, as a jump
+ * start (her generator's chargers then fill them: stepPlant).
+ */
 export function plantReady(s: VesselState): void {
   if (!hasPlant(s)) return;
   const was = s.plant;
   s.plant = { ...newPlant(true), noteN: was?.noteN };
+  s.controls.lever = 0;
+  if (s.controls.lever2 !== undefined) s.controls.lever2 = 0;
+  const e = s.electrics;
+  if (e) e.soc = e.soc.map((x) => Math.max(x, CONFIG.plant.jumpStartSoc)) as [number, number];
 }
 
 /** One step of her start-up, as the control room's START-UP page and its checklist card show it. */
