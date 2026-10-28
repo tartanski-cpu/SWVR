@@ -10,6 +10,20 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hamburg runs lighter: fewer pier legs, the piles the fenders, shorter reach on the Quest (28 Oct 2026)
+
+Owner: "it's 750,000 triangles. On Quest, I'm getting 30 to 40 frames per second ... the piers have many legs ... and separate fenders or bumpers. You could ... reduce slightly the leg count and merge the leg with a bumper ... take a look at the poly count."
+
+- **Measured first** (headless, every visible mesh's triangles by name, instanced ones counted per copy; 3 spots: the start, Burchardkai, HafenCity). The biggest share by far was the harbour kit's piers and quays (`structures`): 164,000 at the start, 180,000 at HafenCity. Hamburg has 645 pier and quay pieces, mostly long timber piers: a pile every 6 m each side (7-sided cylinders, capped), a fender board every 4 m on every seaward face, bollards of two 8-sided cylinders each. Then the ocean (104,000, the main game's, not changed here), the town's buildings (50-62,000), the container stacks (28-61,000).
+- **The piers** (`worldView.ts` buildBlock, shared; `CONFIG.structures.kit`): piles every `pileSpacing` 9 m (from 6), 5-sided (from 7), open-ended (no caps: their tops are under the deck, their feet in the seabed); a pier's outer piles are its fenders, so it has no fender boards (owner's idea); a quay keeps its fender boards, every `fenderSpacing` 8 m (from 4). Bollards one 6-sided post with a flat cap (from two 8-sided cylinders). Every map's piers (and the career harbours') take it.
+- **The container stacks:** no bottom faces (never seen), and drawn within 2.5 km (from 3.5).
+- **On the Quest only** (`CONFIG.regions.coastQuest`, by the trees' device level: a standalone headset, or "Quest" chosen in the menu): the town's buildings within 1.3 km (from 2), the harbour kit's squares within 1.6 km (from 2.5), a terminal's stacks within 1.8 km. Fog hides most of that distance on the water anyway. The desktop keeps the longer reach.
+- **Result, measured as the Quest draws it** (before → after): the start 529,000 → 363,000 triangles; Burchardkai 450,000 → 328,000; HafenCity 538,000 → 358,000: a third fewer. The piers alone: 164,000 → 43,000 at the start, 180,000 → 45,000 at HafenCity. Draw calls unchanged (about 90 on the water, 150 at the start). On a desktop the same scenes are 453,000 / 401,000 / 460,000.
+- **What's left:** the ocean (104,000, the biggest single mesh now, the main game's: worth telling the main game chat), the harbour boats near (up to 40,000), the town. 750,000 on the Quest's counter will include both eyes' and the shadows' passes; the scene's own share is what's measured here.
+- **Tests:** `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: the piers along Altona still read as piers on piles.
+- **Not checked:** on the Quest (the frame rate there is the owner's check).
+- **Shared changes:** `src/world/view/worldView.ts` (pier piles, fenders, bollards: every map and the career harbours). Settings in `src/config/map.ts` (`structures.kit`, `regions.coastQuest`).
+
 ### Hamburg: containers and quay cranes on the terminals (28 Oct 2026)
 
 **Owner approved; merged into `next`.**

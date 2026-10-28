@@ -31,7 +31,7 @@ import { coastSample, coastTerrain, type CoastPiece, type CoastSample, type Coas
 import type { BuildingDef, RegionDef } from '../defs';
 import type { TerrainArrays } from './terrainMesh';
 import { forestOf } from '../forest';
-import { TreesView } from './treesView';
+import { TreesView, treeLevel } from './treesView';
 import { quayCraneGeometry, stackBoxes, stackBoxGeometry, structuresGeometry } from '../coastStructures';
 import { groundHeight } from '../terrain';
 
@@ -253,7 +253,10 @@ export class CoastTerrainView {
    * nearest first.
    */
   update(x: number, z: number, maxBuilds = 2, fogFar = Infinity): void {
-    const c = CONFIG.regions;
+    // On the Quest, the town, the harbour kit and the stacks drawn a shorter way (CONFIG.regions.coastQuest).
+    const quest = treeLevel() === 'quest';
+    const c = quest ? { ...CONFIG.regions, ...CONFIG.regions.coastQuest } : CONFIG.regions;
+    const stackReach = quest ? CONFIG.regions.coastQuest.stackDistance : CONFIG.structures.terminal.distance;
     let built = 0;
     let tris = 0;
     // Sorted again only once the viewer has moved a little (a few metres don't change which
@@ -386,8 +389,8 @@ export class CoastTerrainView {
     }
     // The container terminals' stacks, near.
     for (const t of this.terminalStacks) {
-      t.mesh.visible = Math.hypot(Math.max(t.x0 - x, 0, x - t.x1), Math.max(t.z0 - z, 0, z - t.z1)) < CONFIG.structures.terminal.distance;
-      if (t.mesh.visible) tris += t.mesh.count * 12;
+      t.mesh.visible = Math.hypot(Math.max(t.x0 - x, 0, x - t.x1), Math.max(t.z0 - z, 0, z - t.z1)) < stackReach;
+      if (t.mesh.visible) tris += t.mesh.count * 10;
     }
     // The harbour kit, square by square.
     const hs = this.structureHalf;
