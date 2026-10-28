@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The front page's chart of the maps (28 Oct 2026)
+
+Owner: the Saronic map "doesn't show up in preview as the front page does not account for the new map, maybe put an interactive map there so you can look around the map and choose an area". (The link was there; the preview hadn't published the new build yet when they looked.)
+
+- **The chart** (`src/world/coastMapPicker.ts`; the Voyage tile's **Choose on the chart**, or the address `index.html#maps`): Europe with every Voyage map marked, full screen. Drag to look round, scroll or pinch to zoom (+, − and "every map" buttons too; Esc or × closes, and so does Back). A map's box opens out into its own coast and harbours as you zoom in (its coast from 70 px wide, its harbours from 260 px); the start harbour is blue. Pick a map (on the chart or from the row of names) and the panel gives its blurb and **Sail the map** (where you were last time, or its start); pick a harbour and it gives **Start at <harbour>**. Mercator, plain 2D canvas, nothing of the game loaded.
+- **Starting at a chosen harbour** (`src/world/maps.ts`): the address `voyage.html?map=<id>&start&berth=<berth id>` starts at that berth instead of the map's start berth (only for the map the page shows; `start` forgets where you were). Checked: Saronic from Poros pier starts moored there.
+- **Its data** (`tools/coast/src/overview.ts`, `node src/overview.ts`): one file, `public/regions/overview.json`, 322 KB (about 100 KB as the site sends it, compressed): Europe's land and borders from Natural Earth's 1:50 million set (public domain), thinned to 0.03°; each map's coastline traced round its reconciled land grid (coarsened to at most 700 cells across, thinned to 0.8 of a cell, islets under 3 cells left out); its name, blurb and start berth read from `maps.ts`; its ports from its package, each with the berth a start there uses (its cargo berth, else its first). Run it again after adding a map or changing one's harbours.
+- **Tests:** `tests/coastOverview.test.ts` (every Voyage map listed as `maps.ts` names it, in its order; each offered berth one its map has, each port in its box, the start berth among them; the file under 400 KB). `npm run test:map`, the typecheck and all of `npm test` pass. Seen headless: the chart of Europe, Saronic and Hamburg opened out, Poros picked, on a phone-sized screen.
+- **Not checked:** on the Quest's browser (the front page there: it should work with the controller as a pointer, but I couldn't try it), or with a real touch screen (pinch was tried only as code).
+- **Shared changes:** `index.html` (the button, and the script tag for the chart).
+
 ### The Saronic Islands, and big maps' buildings streamed (28 Oct 2026)
 
 Owner, from a map picture: "I'd like the Saronic Islands next"; "include Hydra and Spetses too"; "include Ermioni and Porto Heli harbours as ports too"; on loading: "is there any way to stream in the data?" ... "Yes, build the streaming for the Saronic map".

@@ -1,3 +1,4 @@
+import { VOYAGE_MAP_ID } from '../mode';
 import type { RegionDef } from './defs';
 import { fromCoastPackage, remotePackage, type CoastPlacement } from './coastRegion';
 import { SOUNDS } from './regions/sounds';
@@ -87,8 +88,20 @@ export const VOYAGE_MAPS: readonly VoyageMap[] = [
   { id: 'tayvallich', name: 'Tayvallich and Loch Sween', blurb: 'Tayvallich and its bay, Caol Scotnish and the Fairy Isles, Loch Sween to Achnamara, and the Sound of Jura shore: 11 by 16 km at full scale.', region: TAYVALLICH, startBerth: 'tayvallich-cargo', weatherAt: { lat: 55.95, lon: -5.7 } },
 ];
 
+/**
+ * A berth chosen on the front page's map picker (world/coastMapPicker.ts): the address
+ * `voyage.html?map=<id>&start&berth=<berth id>` starts the voyage there instead of at the
+ * map's own start berth (`start` forgets where you were last time). Only for the map the
+ * page is showing.
+ */
+const CHOSEN_BERTH = (() => {
+  const b = new URLSearchParams(globalThis.location?.search ?? '').get('berth');
+  return b && /^[a-z0-9-]{1,80}$/.test(b) ? b : null;
+})();
+
 export function voyageMap(id: string | null): VoyageMap | undefined {
-  return VOYAGE_MAPS.find((m) => m.id === id);
+  const m = VOYAGE_MAPS.find((x) => x.id === id);
+  return m && CHOSEN_BERTH && id === VOYAGE_MAP_ID ? { ...m, startBerth: CHOSEN_BERTH } : m;
 }
 
 /** A map's region: built in, or made from its fetched package (which must be in by now: main.ts). */
