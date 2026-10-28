@@ -14,6 +14,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The solar catamaran's twin levers; the foiling ferry's foils stay fixed, her foil controls with the main game chat (28 Oct 2026; on next for the owner to try)
+
+Owner, 28 Oct 2026: "For the solar catamaran, I'm kind of surprised it doesn't have two throttle levers, because that would fix your turning problem at low speed, I suspect. And for the foiling ferry, I'm wondering if the foils need to be retractable"; then "I also would have expected some control ... so we can control how the [foils] operate". Asked: twin levers, the joystick kept; the foils fixed; the foil controls left to the main game chat.
+
+- **A lever for each pod** (the solar cat; shared `modules/pods` `split`, electric twin pods only): each motor on its own lever (the twin lever control, `throttle.demand` the port pod's, `throttle.demand2` the starboard's; grab the yellow grip between them to work both), the starboard motor its own state (`EngineState.stbd`), so one ahead and one astern turns her. The wheel still swings both pods; the helm joystick still works both together (move either lever out of neutral and it lets go).
+- **What it does:** half ahead on one against full astern on the other (a propeller pushes harder ahead than astern) turns her on the spot at about 1.6°/s, barely moving through the water: slow (a full turn takes about 4 minutes), her two 25 kW motors against 16 m of hull; the wheel adds nothing to it at rest. (Measured with the game's hull damping at rest taken out, she'd still manage only about 3°/s: it's her power, not the physics.)
+- **The ferry's foils stay fixed** (2.1 m under the water on her hulls).
+- **For the main game chat:** the owner is waiting on the ferry's FOIL / HULL switch, ride height control and flight display (game log, 28 Oct 2026); the physics side (`foils.mode`, `foils.ride`) is ready.
+- **Shared changes:** `modules/pods` (`split`, the `throttle2` port).
+- Tests: `electricPodSteering` (her two levers on her console; one ahead and one astern turns her on the spot, each motor its own way; both ahead, straight). `twinEngines` and the ferry's and solar cat's tests pass. Checked in the browser: her helm, the twin levers and the joystick (screenshot). Not checked: VR.
+
 ### The solar catamaran and the foiling ferry steer (28 Oct 2026; on next for the owner to try)
 
 Owner, 28 Oct 2026, testing on next: "both the solar catamaran and the hydrofoil catamaran hardly steer."

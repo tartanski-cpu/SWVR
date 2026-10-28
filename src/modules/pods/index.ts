@@ -28,6 +28,12 @@
  * Each pod's heading is kept in VesselState.pods (sent to the crew and saved), so the view
  * swings each one by its own.
  *
+ * Split (`split`, electric pods only; owner, 28 Oct 2026: the solar catamaran "doesn't have two
+ * throttle levers, because that would fix your turning problem at low speed"): each motor on
+ * its own lever (the twin lever control: 'throttle.demand' the port pod's, 'throttle.demand2'
+ * the starboard's), its own state (EngineState.stbd), so one ahead and one astern turns her on
+ * the spot. The wheel still swings both pods; the joystick still works both together.
+ *
  * One pod (owner, 28 Oct 2026, the Shipyard's foiling ferry): a single unit on her centreline,
  * as her pair of motors in one pod with its two propellers; the joystick isn't fitted with one.
  *
@@ -46,7 +52,7 @@ import { flatVertexColorMaterial, mergeParts } from '../../render/geometryUtils'
 import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
 import { allocatePods } from '../../vessel/physics/podAllocation';
 import { motorStep, type MotorSpec } from '../../vessel/physics/electricMotor';
-import { engineStep, rudderForceAt, steeringStep, type DieselInputs, type RudderSpec } from '../../vessel/physics/propulsion';
+import { engineStep, rudderForceAt, starboardEngine, steeringStep, type DieselInputs, type RudderSpec } from '../../vessel/physics/propulsion';
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
 import type { EngineState, VesselControls } from '../../vessel/vesselState';
@@ -82,6 +88,8 @@ export interface PodsConfig {
   voice?: keyof typeof CONFIG.engineVoices;
   /** Electric motors in place of the diesels (see above): their efficiency, inertia and controller, and her battery's usable kWh. */
   electric?: MotorSpec;
+  /** Electric twin pods each on its own lever (see above). */
+  split?: boolean;
   installed?: { model: number; size: [number, number, number]; xs: number[]; flangeY: number; flangeZ: number; angleDeg: number };
 }
 
@@ -138,6 +146,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
   ],
   ports: {
     throttle: { dir: 'read', key: 'throttle.demand' },
+    throttle2: { dir: 'read', key: 'throttle.demand2', required: false },
     key: { dir: 'read', key: 'ignition.key' },
     heat: { dir: 'read', key: 'ignition.heat' },
     start: { dir: 'read', key: 'ignition.start' },
@@ -165,7 +174,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
   gear: (raw) => {
     const c = placed(raw);
     return {
-      diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, units: c.units, ...(c.units.length > 1 ? { twin: true, twinX: Math.max(...c.units.map(Math.abs)) } : {}), ...(c.electric ? { electric: c.electric } : {}) },
+      diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, units: c.units, ...(c.units.length > 1 ? { twin: true, twinX: Math.max(...c.units.map(Math.abs)) } : {}), ...(c.split ? { split: true } : {}), ...(c.electric ? { electric: c.electric } : {}) },
       // The ENGINE screen shows the pods' swing.
       rudder: strutSpec(c).rudder,
     };
@@ -213,9 +222,12 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       const e = s.engine;
       const n = c.units.length;
       const lever = io.num('throttle');
+      // (Split: the starboard pod's own lever.)
+      const split = !!c.split && !!c.electric && n === 2;
+      const lever2 = split && io.has('throttle2') ? io.num('throttle2') : lever;
       const nb = c.engine.neutralBand;
-      // Vector mode: on its button, and only while the throttle stays in neutral.
-      if (s.controls.joyMode && Math.abs(lever) > nb) s.controls.joyMode = 0;
+      // Vector mode: on its button, and only while the throttle (both, split) stays in neutral.
+      if (s.controls.joyMode && Math.max(Math.abs(lever), Math.abs(lever2)) > nb) s.controls.joyMode = 0;
       const joy = !!s.controls.joyMode;
       // What each pod does: its heading, and its share of the engines' push (signed).
       const push = pushes;
@@ -277,7 +289,23 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       const d0 = s.angles[0];
       const along = -flow.z * Math.cos(d0) - flow.x * Math.sin(d0);
       let thrust: number;
-      if (c.electric) {
+      // (Each pod's own thrust where its motor has its own lever; else all the one.)
+      const each = thrusts;
+      each.length = n;
+      if (c.electric && split) {
+        // Split: each motor from its own lever (the joystick's throttle for both in vector mode),
+        // the starboard's state its own; both from her battery.
+        const on = io.num('key') > 0 && !!io.get('powered');
+        const st = (e.stbd ??= starboardEngine(e));
+        each[0] = motorStep(e, c, c.electric, { lever: joy ? throttle : lever, on, charge: s.battery }, along, wet, dt, used);
+        let kWh = used.kWh;
+        const portKw = e.powerKw ?? 0;
+        each[1] = motorStep(st, c, c.electric, { lever: joy ? throttle : lever2, on, charge: s.battery }, along, wet, dt, used);
+        kWh += used.kWh;
+        s.battery = clamp(s.battery - kWh / c.electric.usableKWh, 0, 1);
+        e.powerKw = portKw + (st.powerKw ?? 0);
+        thrust = (each[0] + each[1]) / 2;
+      } else if (c.electric) {
         // Electric: both motors from her battery, switched on by the key, with 12 V for their controllers.
         thrust = motorStep(e, c, c.electric, { lever: throttle, on: io.num('key') > 0 && !!io.get('powered'), charge: s.battery }, along, wet, dt, used);
         s.battery = clamp(s.battery - (n * used.kWh) / c.electric.usableKWh, 0, 1);
@@ -297,6 +325,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
         io.set('fuel', Math.max(0, fuelL - n * (fuelL - left)));
         e.fuelFlowLph *= n;
       }
+      if (!(c.electric && split)) each.fill(thrust);
       io.set('thrust', thrust);
       io.set('immersion', wet);
       // Each pod: its net push T(1 - t) times its share, along its heading, from its propellers
@@ -305,7 +334,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       const propY = c.mount.y - c.strut;
       for (let i = 0; i < n; i++) {
         const d = s.angles[i];
-        const T = thrust * (1 - p.thrustDeduction) * push[i];
+        const T = each[i] * (1 - p.thrustDeduction) * push[i];
         const x = c.units[i];
         port.addForce([x - Math.sin(d) * c.look.propFwd, propY, c.mount.z - Math.cos(d) * c.look.propFwd], -Math.sin(d) * T, 0, -Math.cos(d) * T);
         rudderForceAt(d, spec, flow.x, flow.z, 0, lift);
@@ -374,3 +403,4 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
 const lift = { x: 0, z: 0 };
 const used = { kWh: 0 };
 const pushes: number[] = [];
+const thrusts: number[] = [];
