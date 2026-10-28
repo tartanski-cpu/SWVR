@@ -72,6 +72,8 @@ export interface RegionRequest {
   /** Museum ships moored for good, by Wikidata id, with the game's design for each (`cargo`, `barque` with `masts`) (features.ts). */
   /** The passenger launches drawn as harbour ferries, cabin forward and wheelhouse aft (Hamburg's; package.ts). */
   harbourFerries?: boolean;
+  /** A big map's buildings streamed in: one file per terrain chunk, fetched by the game as it comes near (package.ts). */
+  streamBuildings?: boolean;
   /** The water's own colour, its deep and scattered-light colours (`#rrggbb`): a muddy river's (package.ts). */
   water?: { deep: string; scatter: string };
   /** Container terminals by their names in the map: quay cranes and container stacks laid out in each (features.ts, package.ts). */

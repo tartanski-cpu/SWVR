@@ -35,6 +35,7 @@ import { TreesView, treeLevel } from './treesView';
 import { bridgeParts, floatingDockParts, follyParts, gantryParts, gravingDockParts, landmarkModelParts, museumShipParts, quayCraneGeometry, stackBoxes, stackBoxGeometry, yardShipParts } from '../coastStructures';
 import { mergeParts } from '../../render/geometryUtils';
 import { groundHeight } from '../terrain';
+import { coastStreamer } from '../coastStream';
 
 const S: CoastSample = { h: 0, r: 0, g: 0, b: 0, fine: false };
 
@@ -130,9 +131,14 @@ export class CoastTerrainView {
     fine: THREE.Mesh | null;
     buildings: BuildingDef[];
     town: THREE.Mesh | null;
+    /** Its buildings streamed (RegionCoast's pkg.buildingChunks): its file still to fetch, being fetched, or in. */
+    stream?: 'want' | 'loading' | 'in';
   }[] = [];
   private readonly mat = flatVertexColorMaterial();
   private readonly t: CoastTerrain;
+  /** Its region's id, where its package is placed in the world, and its streamed buildings' folder (fetchBuildings). */
+  private readonly regionId: string;
+  private readonly placed: { x: number; z: number; dir: string };
   /** Its trees near the viewer (treesView.ts), if it has a forest map. */
   readonly trees: TreesView | null;
   /** Triangles drawn now (near and far), for the debug overlay. */
@@ -173,6 +179,8 @@ export class CoastTerrainView {
     private readonly townMat: THREE.Material,
   ) {
     this.root.name = 'coast-terrain';
+    this.regionId = region.id;
+    this.placed = { x: region.coast?.x ?? 0, z: region.coast?.z ?? 0, dir: region.coast?.pkg.buildingChunks?.dir ?? '' };
     const t = coastTerrain(region.id);
     if (!t) throw new Error(`coast region ${region.id}: its terrain isn't loaded`);
     this.t = t;
@@ -275,8 +283,34 @@ export class CoastTerrainView {
       const x1 = x0 + ch.size;
       const z1 = z0 + ch.size;
       const buildings = region.buildings.filter((b) => b.x >= x0 && b.x < x1 && b.z >= z0 && b.z < z1);
-      this.chunks.push({ k, x0, z0, x1, z1, start: ch.start, count: ch.count, mid: null, far: null, fine: null, buildings, town: null });
+      const streamed = !!region.coast?.pkg.buildingChunks?.chunks.includes(k);
+      this.chunks.push({ k, x0, z0, x1, z1, start: ch.start, count: ch.count, mid: null, far: null, fine: null, buildings, town: null, ...(streamed ? { stream: 'want' as const } : {}) });
     });
+  }
+
+  /**
+   * A streamed chunk's buildings (a big map's: the package keeps only those by its berths): its
+   * file fetched, the buildings placed as the package's are (its offset in the world), added to
+   * the chunk's, and its town made again with them. A failed fetch is tried again later.
+   */
+  private fetchBuildings(ch: CoastTerrainView['chunks'][number]): void {
+    const streamer = coastStreamer();
+    if (!streamer) return;
+    ch.stream = 'loading';
+    streamer
+      .fetchJson<BuildingDef[]>(this.regionId, `${this.placed.dir}${ch.k}.json`)
+      .then((list) => {
+        ch.buildings.push(...list.map((b) => ({ ...b, x: b.x + this.placed.x, z: b.z + this.placed.z })));
+        ch.stream = 'in';
+        if (ch.town) {
+          this.root.remove(ch.town);
+          ch.town.geometry.dispose();
+          ch.town = null;
+        }
+      })
+      .catch(() => {
+        ch.stream = 'want';
+      });
   }
 
   /** Built everything at least roughly (the whole region can be shown). */
@@ -372,7 +406,8 @@ export class CoastTerrainView {
       if (ch.far && !full && !showMid && d < fog + c.coastFarAhead) farWant.push(ch);
       if (full || showMid) nearer.add(ch.k);
       tris += full ? ch.count : showMid ? count(ch.mid!) : 0;
-      // The buildings, near only.
+      // The buildings, near only; a streamed chunk's fetched first (its town made again with them).
+      if (ch.stream === 'want' && d < c.coastBuildingDistance) this.fetchBuildings(ch);
       const town = d < c.coastBuildingDistance && ch.buildings.length > 0;
       if (town && !ch.town && built < maxBuilds) {
         ch.town = new THREE.Mesh(this.buildTown(ch.buildings), this.townMat);

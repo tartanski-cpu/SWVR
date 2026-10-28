@@ -21,7 +21,7 @@
  *
  * Run: node src/package.ts [requestId] (last, after mesh, trees, boats, features and shore).
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, dirs, latin, loadRequest, nameOf, projection, slug } from './common.ts';
 import { addCoastChunk, coastHeight, coastTerrain, registerChunkedCoast, registerCoastTerrain } from '../../../src/world/coastTerrain.ts';
@@ -48,6 +48,8 @@ const T = {
   shipThin: 25,
   shipOff: 26,
   shipLength: 300,
+  /** Streamed buildings (`streamBuildings`): those within this of a berth (m) stay in the package. */
+  keepNearBerth: 60,
   /** A floating dock this long or more (m) has a ship in it (`dockedShips`), raised this far from afloat (m: the pontoon's deck 1.5 m up, her keel a metre over it, her 7 m draught). */
   dockedShip: 150,
   dockedLift: 9.5,
@@ -929,6 +931,35 @@ if (peaks[0]) landmarks.push({ name: peaks[0].name, kind: 'hill', x: peaks[0].x,
 const lighthouse = (lights as { name: string; x: number; z: number; y: number; tower: string }[]).filter((l) => l.tower === 'lighthouse').sort((a, b) => b.y - a.y)[0];
 if (lighthouse) landmarks.push({ name: lighthouse.name, kind: 'lighthouse', x: lighthouse.x, z: lighthouse.z, height: lighthouse.y });
 
+// ── Streamed buildings (the request's `streamBuildings`; owner, Oct 2026: "build the streaming
+// for the Saronic map") ──
+// A big map's buildings are most of its package. Streamed, only those within `keepNearBerth` m
+// of a berth stay in the package (the game's start and planning table look for them before any
+// chunk is fetched); the rest go one file per terrain chunk, `buildings/<n>.json`, fetched by
+// the game as it draws that chunk's town (world/view/coastView.ts).
+let packedBuildings = keptBuildings as { x: number; z: number }[];
+let buildingChunks: { dir: string; chunks: number[] } | undefined;
+if (req.streamBuildings && req.chunked) {
+  const near = (b: { x: number; z: number }) => (berths as { x: number; z: number }[]).some((q) => Math.abs(q.x - b.x) < T.keepNearBerth && Math.abs(q.z - b.z) < T.keepNearBerth && Math.hypot(q.x - b.x, q.z - b.z) < T.keepNearBerth);
+  const chunks = (region.terrain.chunks as { id: number; x0: number; z0: number; size: number }[]);
+  const dir = join(D.out, 'buildings');
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  packedBuildings = [];
+  const per = new Map<number, object[]>();
+  for (const b of keptBuildings as { x: number; z: number }[]) {
+    if (near(b)) {
+      packedBuildings.push(b);
+      continue;
+    }
+    const k = chunks.findIndex((c) => b.x >= c.x0 && b.x < c.x0 + c.size && b.z >= c.z0 && b.z < c.z0 + c.size);
+    if (k < 0) continue;
+    per.set(k, [...(per.get(k) ?? []), b]);
+  }
+  for (const [k, list] of per) writeFileSync(join(dir, `${k}.json`), JSON.stringify(list));
+  buildingChunks = { dir: 'buildings/', chunks: [...per.keys()].sort((a, b) => a - b) };
+}
+
 // ── Write ──
 const pkg = {
   format: 'swvr-coast-package/1',
@@ -956,7 +987,8 @@ const pkg = {
   licence: region.licence,
   landmarks,
   blocks,
-  buildings: keptBuildings,
+  buildings: packedBuildings,
+  ...(buildingChunks ? { buildingChunks } : {}),
   marks,
   lights: [...lights, ...farmLights],
   farms,

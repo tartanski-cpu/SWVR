@@ -19,3 +19,5 @@ fish: [mackerel, lobster]
 goods: [building-materials, groceries]
 # The ferry lines from Piraeus come in from beyond the map: only the named ones, each once.
 ferriesNamed: true
+# Its buildings streamed in (owner): one file per 2 km chunk, fetched as the boat comes near.
+streamBuildings: true

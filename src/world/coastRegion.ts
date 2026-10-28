@@ -46,6 +46,8 @@ export interface CoastPackage {
   gravingDocks?: GravingDockDef[];
   terminals?: TerminalDef[];
   water?: { deep: number; scatter: number };
+  /** Its buildings streamed (a big map's, the request's `streamBuildings`): which terrain chunks have a file of their own, `<dir><n>.json`, beside the few kept here. */
+  buildingChunks?: { dir: string; chunks: number[] };
   gantries?: GantryDef[];
   yardShips?: YardShipDef[];
   /** Its features file (tools/coast features.ts: farms, landmarks, shore, names...); fetched by the milestones that use it. */
