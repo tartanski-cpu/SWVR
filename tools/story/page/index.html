@@ -1,0 +1,744 @@
+<title>Building Workboat World</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a full-screen deck. One slide at a time; each slide a two-column grid (words left, live view or pictures right). Dark-first, the look of a wheelhouse at night: deep navy, amber panel light, chart-paper text. */
+  :root {
+    --bg: #0b151d; --bg2: #0f1c27; --surface: #142634; --surface2: #1b3142; --rule: #26404f;
+    --fg: #e8eef2; --muted: #9fb3c0; --faint: #6b8392;
+    --accent: #f2b84b; --accent-ink: #1a1203; --teal: #46b3c2; --sea: #1e4b63;
+    --good: #6fcf97; --warn: #f2994a;
+    --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    --body: 'IBM Plex Sans', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eef2f4; --bg2: #e4eaee; --surface: #ffffff; --surface2: #f3f6f8; --rule: #cbd6de;
+      --fg: #10202a; --muted: #4b6272; --faint: #7b8f9c;
+      --accent: #b8741a; --accent-ink: #ffffff; --teal: #1f7f8c; --sea: #cfe2ec;
+      --good: #2e8b57; --warn: #c2611a;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eef2f4; --bg2: #e4eaee; --surface: #ffffff; --surface2: #f3f6f8; --rule: #cbd6de;
+    --fg: #10202a; --muted: #4b6272; --faint: #7b8f9c;
+    --accent: #b8741a; --accent-ink: #ffffff; --teal: #1f7f8c; --sea: #cfe2ec;
+    --good: #2e8b57; --warn: #c2611a;
+    color-scheme: light;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--body); overflow: hidden; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  a { color: var(--teal); }
+  b, strong { font-weight: 600; }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--surface2); padding: 0 .3em; border-radius: 3px; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: .005em; }
+  h1 { font-size: clamp(2.6rem, 7vw, 6rem); }
+  h2 { font-size: clamp(1.9rem, 3.6vw, 3rem); }
+  h3 { font-size: 1.25rem; }
+  p { margin: 0; }
+  .eyebrow { font-family: var(--mono); font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .muted { color: var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* The deck */
+  #deck { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr auto; }
+  #top { display: flex; align-items: center; gap: 14px; padding: 10px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); padding-top: calc(10px + env(safe-area-inset-top, 0px)); border-bottom: 1px solid var(--rule); background: var(--bg); }
+  #top .brand { font-family: var(--display); font-weight: 700; font-size: 1.1rem; letter-spacing: .04em; text-transform: uppercase; }
+  #top .chapter { font-family: var(--mono); font-size: .74rem; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-left: auto; }
+  #stage { position: relative; min-height: 0; }
+  .slide { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px; padding: 22px max(16px, env(safe-area-inset-right, 0px)) 18px max(16px, env(safe-area-inset-left, 0px)); overflow: hidden; }
+  .slide[hidden] { display: none; }
+  .slide.one { grid-template-columns: minmax(0, 1fr); }
+  .slide .words { min-width: 0; display: flex; flex-direction: column; gap: 14px; overflow: auto; padding-right: 6px; }
+  .slide .media { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+  .slide .words p, .slide .words li { max-width: 62ch; }
+  .slide ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+  .lead { font-size: 1.12rem; }
+  .quote { border-left: 3px solid var(--accent); padding: 6px 14px; color: var(--muted); font-style: italic; }
+  .quote cite { display: block; font-style: normal; font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; margin-top: 4px; color: var(--faint); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-family: var(--mono); font-size: .76rem; padding: 3px 9px; border: 1px solid var(--rule); border-radius: 999px; color: var(--muted); background: var(--surface); white-space: nowrap; }
+  .chip.on { border-color: var(--accent); color: var(--accent); }
+  .chip.k { color: var(--fg); }
+  .chip.k b { color: var(--accent); font-weight: 600; }
+
+  /* Pictures */
+  .shots { display: grid; gap: 10px; min-height: 0; }
+  .shots.two { grid-template-columns: 1fr 1fr; }
+  .shots.four { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  figure.shot { margin: 0; min-height: 0; display: flex; flex-direction: column; gap: 5px; }
+  figure.shot img { width: 100%; height: 100%; min-height: 0; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule); cursor: zoom-in; background: var(--surface); }
+  figure.shot figcaption { font-size: .8rem; color: var(--muted); }
+  #lightbox { position: fixed; inset: 0; background: rgba(4, 10, 14, .92); display: grid; place-items: center; padding: 24px; z-index: 50; cursor: zoom-out; }
+  #lightbox img { max-width: 100%; max-height: 92vh; border-radius: 6px; }
+  #lightbox figcaption { color: #dfe8ee; font-size: .9rem; margin-top: 8px; text-align: center; }
+
+  /* Live demos */
+  .demo { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 10px; min-height: 0; height: 100%; }
+  .demo-host { position: relative; min-height: 240px; border-radius: 8px; overflow: hidden; border: 1px solid var(--rule); background: var(--sea); }
+  .demo-host canvas { display: block; }
+  .demo-host .live { position: absolute; top: 8px; left: 10px; font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: #ffd98a; background: rgba(10, 20, 28, .65); padding: 2px 8px; border-radius: 999px; pointer-events: none; }
+  .demo-host .live::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #ff5e4d; margin-right: 6px; vertical-align: 1px; }
+  .demo-panel { min-width: 0; overflow: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: .86rem; }
+  .demo-panel .ctl { display: grid; grid-template-columns: 96px 1fr 52px; gap: 6px; align-items: center; }
+  .demo-panel .ctl-label { color: var(--muted); font-size: .78rem; }
+  .demo-panel .ctl-out { font-family: var(--mono); font-size: .76rem; text-align: right; }
+  .demo-panel input[type=range] { width: 100%; accent-color: var(--accent); }
+  .demo-panel select, .demo-panel button { font: inherit; font-size: .82rem; color: var(--fg); background: var(--surface2); border: 1px solid var(--rule); border-radius: 5px; padding: 4px 8px; }
+  .demo-panel select { grid-column: 2 / span 2; }
+  .demo-panel button { cursor: pointer; }
+  .demo-panel button:hover { border-color: var(--accent); }
+  .demo-panel button.on { border-color: var(--accent); color: var(--accent); }
+  .demo-panel .btns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .demo-panel .facts { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  .demo-panel .facts td { padding: 2px 6px 2px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+  .demo-panel .facts td:last-child { text-align: right; white-space: nowrap; font-family: var(--mono); font-size: .78rem; }
+  .demo-panel .note { color: var(--muted); font-size: .78rem; line-height: 1.45; }
+  .demo-panel .code b { font-family: var(--mono); color: var(--accent); }
+  .demo-panel .warn { color: var(--warn); font-size: .78rem; }
+  .demo-panel .fleet-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .demo-panel .mods span { display: inline-block; margin: 1px; padding: 1px 5px; background: var(--surface2); border-radius: 3px; font-family: var(--mono); font-size: .68rem; color: var(--muted); }
+  .demo-panel .chart { margin-top: 4px; }
+  .demo-panel .gzsvg { width: 100%; display: block; }
+  .demo-panel .gzline { fill: none; stroke: var(--accent); stroke-width: 2; }
+  .demo-panel .ax { stroke: var(--faint); stroke-width: 1; }
+  .demo-panel .lbl { fill: var(--muted); font-size: 9px; font-family: var(--mono); }
+  .demo-panel .chart-cap { color: var(--muted); font-size: .72rem; }
+  .demo-error { padding: 20px; color: var(--warn); }
+
+  /* Cover */
+  #cover { grid-template-columns: minmax(0, 1fr); padding: 0; }
+  #cover .demo-host { position: absolute; inset: 0; border: 0; border-radius: 0; }
+  #cover .demo-panel { display: none; }
+  #cover .over { position: relative; z-index: 2; align-self: end; padding: 0 max(28px, env(safe-area-inset-left, 0px)) 40px; display: grid; gap: 14px; max-width: 900px; background: linear-gradient(to top, rgba(8, 16, 22, .82), rgba(8, 16, 22, 0)); }
+  #cover h1, #cover p, #cover .eyebrow { color: #f1f5f8; text-shadow: 0 1px 12px rgba(0, 0, 0, .5); }
+  #cover .eyebrow { color: #ffd98a; }
+  #cover .lead { max-width: 60ch; }
+
+  /* Timeline */
+  #timeline { grid-template-columns: minmax(0, 1fr); }
+  .tl-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+  .tl-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tl-filters .chip { cursor: pointer; user-select: none; }
+  .tl-count { margin-left: auto; font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+  .tl-list { overflow: auto; min-height: 0; display: grid; gap: 10px; padding-right: 6px; align-content: start; }
+  .era { font-family: var(--display); font-size: 1.3rem; color: var(--accent); padding-top: 10px; border-top: 1px solid var(--rule); }
+  .entry { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 14px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
+  .entry .rail { display: grid; gap: 4px; align-content: start; }
+  .entry .part { font-family: var(--mono); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); }
+  .entry .idx { font-family: var(--display); font-size: 1.6rem; color: var(--faint); line-height: 1; }
+  .entry h3 { font-size: 1.2rem; }
+  .entry .what { margin-top: 4px; }
+  .entry .why { margin-top: 4px; color: var(--muted); }
+  .entry .why::before { content: "Why it's hard · "; font-family: var(--mono); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .entry .chips { margin-top: 8px; }
+  .entry .quote { margin-top: 8px; font-size: .92rem; }
+  .entry .demo-link { font-size: .85rem; margin-top: 6px; }
+
+  /* Charts and diagrams */
+  .chart-box { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px; min-height: 0; }
+  .chart-box svg { width: 100%; height: auto; display: block; }
+  .chart-box .cap { color: var(--muted); font-size: .8rem; margin-top: 6px; }
+  .flow { display: grid; gap: 8px; }
+  .flow .step { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; }
+  .flow .step .n { font-family: var(--display); font-size: 1.5rem; color: var(--accent); line-height: 1; }
+  .flow .step b { display: block; }
+  .flow .step span { color: var(--muted); font-size: .9rem; }
+  .net { position: relative; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: start; }
+  .net .box { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; font-size: .9rem; }
+  .net .box.host { border-color: var(--accent); }
+  .net .box h3 { font-size: 1.05rem; margin-bottom: 4px; }
+  .net .arrow { font-family: var(--mono); font-size: .76rem; color: var(--teal); text-align: center; padding: 4px 0; }
+  .grid-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; align-content: start; }
+  .tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; }
+  .tile .big { font-family: var(--display); font-size: 2.6rem; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .tile .what { color: var(--muted); font-size: .85rem; margin-top: 4px; }
+  .areas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+  .areas .box { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 10px; font-size: .84rem; }
+  .areas .box h3 { font-size: 1.05rem; color: var(--accent); }
+  .areas .box code { display: block; margin-top: 4px; font-size: .7rem; color: var(--muted); background: none; padding: 0; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .cols h3 { margin-bottom: 6px; }
+
+  /* Bottom bar */
+  #bar { display: flex; align-items: center; gap: 12px; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--rule); background: var(--bg); }
+  #bar button { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+  #bar button:hover, #bar button:focus-visible { border-color: var(--accent); outline: none; }
+  #dots { display: flex; gap: 5px; flex: 1; justify-content: center; flex-wrap: wrap; }
+  #dots button { width: 22px; height: 8px; padding: 0; border-radius: 4px; background: var(--rule); border: 0; }
+  #dots button.on { background: var(--accent); }
+  #dots button.demo { background: var(--teal); opacity: .55; }
+  #dots button.demo.on { background: var(--accent); opacity: 1; }
+  #hint { font-family: var(--mono); font-size: .72rem; color: var(--faint); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 900px) {
+    .slide { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+    .slide .words { overflow: visible; }
+    .demo { grid-template-columns: minmax(0, 1fr); height: auto; }
+    .demo-host { height: 300px; }
+    .entry { grid-template-columns: minmax(0, 1fr); }
+    .areas { grid-template-columns: 1fr 1fr; }
+    .cols { grid-template-columns: 1fr; }
+    .net { grid-template-columns: 1fr; }
+    #hint { display: none; }
+    .shots.four { grid-template-rows: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="deck">
+  <div id="top">
+    <span class="brand">Workboat World</span>
+    <span class="muted">· how a naval architect built a VR sea game with Claude Code</span>
+    <span class="chapter" id="chapter">Cover</span>
+  </div>
+
+  <div id="stage">
+
+    <!-- 1 Cover -->
+    <section class="slide one" id="cover" data-demo="ocean" data-chapter="Cover">
+      <div class="demo-host"></div>
+      <div class="demo-panel"></div>
+      <div class="over">
+        <span class="eyebrow">Live: the game's own sea, running in this page</span>
+        <h1>A sea game, built by talking</h1>
+        <p class="lead">Workboat World is a browser VR game: chunky workboats you operate from inside, with physical controls, on a sea with real hydrostatics. It was built in plain English by a naval architect who doesn't write code, working with Claude Code, in sixteen days: the first scaffold on 12 October 2026, v1.0 on about the fifth day, this deck on the 28th. This is the story of how it went.</p>
+        <p class="muted">→ to move on · ← back · click a dot below to jump. The blue dots are live demos.</p>
+      </div>
+    </section>
+
+    <!-- 2 What -->
+    <section class="slide" id="what" data-chapter="The game">
+      <div class="words">
+        <span class="eyebrow">What it is</span>
+        <h2>Workboats you drive from the inside</h2>
+        <p class="lead">Played on a Meta Quest 3 at 90 Hz, or on a desktop. Solo, or peer-to-peer with friends in their own boats. No install: a web address.</p>
+        <ul>
+          <li><b>Career:</b> start in a cheap gillnetter, take cargo runs, rescues, tows, fires, potting and fishing; earn, repair, buy a better boat at the yard.</li>
+          <li><b>Voyage:</b> five real coastlines from open map data, at full scale: Oban, Loch Sween, the Firth of Clyde, Syros, Turku and the Archipelago Sea.</li>
+          <li><b>Shipyard:</b> design your own boat, hull to paint; the game's physics sea-trials her as you go; her design is a 17-character code.</li>
+          <li><b>The boats:</b> a 12 m displacement workboat to begin with; now a fleet from a 6 m RIB to a 25 m harbour tug with azimuth drives and a walk-in engine room.</li>
+        </ul>
+        <div class="chips">
+          <span class="chip k"><b>TypeScript</b> · Vite · Three.js</span>
+          <span class="chip k"><b>2</b> runtime dependencies</span>
+          <span class="chip k"><b>113,000</b> lines</span>
+          <span class="chip k" id="chip-tests"><b>1,732</b> tests</span>
+          <span class="chip k"><b>0</b> lines typed by the owner</span>
+        </div>
+      </div>
+      <div class="media">
+        <div class="shots two">
+          <figure class="shot"><img src="img/calder.jpg" alt="Calder Haven, the career's home harbour, from the air: a quay, a crane, houses and a red workboat alongside" data-cap="Calder Haven, the career's home harbour. Every building, tree and quay is drawn by the game from data."><figcaption>Calder Haven, the hand-built home harbour.</figcaption></figure>
+          <figure class="shot"><img src="img/career.jpg" alt="Standing on the quay beside the moored gillnetter, with a Step aboard sign" data-cap="A career starts on the quay beside your boat."><figcaption>A career starts on the quay.</figcaption></figure>
+          <figure class="shot"><img src="img/landing.jpg" alt="The landing page: Career, Voyage, Shipyard, Training tiles" data-cap="The front page: Career, Voyage, Shipyard."><figcaption>The front page.</figcaption></figure>
+          <figure class="shot"><img src="img/oban.jpg" alt="Oban harbour from the air, drawn from map data" data-cap="Oban from the air: the whole town from OpenStreetMap, the hills from Copernicus heights."><figcaption>Oban, a Voyage map from open data.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 How -->
+    <section class="slide" id="how" data-chapter="The way of working">
+      <div class="words">
+        <span class="eyebrow">How it was made</span>
+        <h2>Briefs in plain words, milestones, tests in a headset</h2>
+        <ul>
+          <li><b>The owner writes a brief</b> the way they'd brief a yard: what the boat should do and feel like, in naval-architecture terms where that's natural. Photos and sketches when words won't do.</li>
+          <li><b>Claude Code plans milestones</b> and stops after each one: "done, awaiting owner test". The owner tests in VR on the Quest and on a desktop, then writes feedback. Three rounds on the bridge controls alone.</li>
+          <li><b>Standing rules</b> are written down and enforced: keep it cheap on the Quest (watch the draw calls), no new physics bodies or particle systems without asking, flag unwise requests instead of building them, verify before reporting.</li>
+          <li><b>The sea-trials lab</b> is the acceptance test: every physics change prints speed, turning circle, stopping distance, GM three ways. Later, <b>golden runs</b>: twelve recorded sessions every refactor must reproduce to a millionth.</li>
+          <li><b>Everything is logged.</b> An 8,200-line progress file says what was built, why, what was measured and what wasn't checked. This deck is distilled from it.</li>
+          <li><b>Since 23 Oct, five chats work side by side</b>, one per area of the code, each with its own files, settings, log and preview address.</li>
+        </ul>
+        <div class="quote">"Done, awaiting owner test."<cite>The most common heading in the log</cite></div>
+      </div>
+      <div class="media">
+        <div class="chart-box">
+          <div class="eyebrow">Tests, in the order they were written</div>
+          <svg id="tests-chart" viewBox="0 0 640 300" role="img" aria-label="The number of automated tests growing from 9 to 1,732 across the project's milestones"></svg>
+          <div class="cap">Each point is a milestone's test count from the log: 9 at the scaffold, 306 at Workboat World v1.0, 1,732 today. The dip after v1.0 is the ship's log being removed; the jump is the Shipyard and the modular boats.</div>
+        </div>
+        <div class="chart-box">
+          <div class="eyebrow">Commits a day, the last fortnight</div>
+          <svg id="commits-chart" viewBox="0 0 640 150" role="img" aria-label="Commits per day from 16 to 28 October 2026"></svg>
+          <div class="cap">537 commits on the game's branch between 16 and 28 Oct 2026, up to 82 a day. Git only reaches back to the 16th; the first four days, 12–16 Oct, are in the progress file.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 Timeline -->
+    <section class="slide one" id="timeline" data-chapter="The timeline">
+      <div class="tl-head">
+        <h2>From the first scaffold to today: sixteen days</h2>
+        <div class="tl-filters" id="tl-filters"></div>
+        <span class="tl-count" id="tl-count"></span>
+      </div>
+      <div class="tl-list" id="tl-list"></div>
+    </section>
+
+    <!-- 5 Ocean demo -->
+    <section class="slide" id="ocean" data-demo="ocean" data-chapter="Live: the sea">
+      <div class="words">
+        <span class="eyebrow">Milestone 2 · live</span>
+        <h2>The sea the hull can feel</h2>
+        <p>Eight Gerstner wave components live in the world state, so the host can change the weather and every player sees the same sea. The GPU sums them for the picture: one draw call, 1 m cells near you growing 8 % a cell to a 3 km horizon.</p>
+        <p>The trick is on the CPU: Gerstner waves move the water sideways as well as up, so asking "how high is the water <i>here</i>?" needs the displacement inverted. <code>surfaceHeight(x, z)</code> does it by fixed-point iteration, six passes, under a centimetre in a storm. The yellow probes are that function. They sit on the drawn surface because both do the same sums, and the render runs exactly one tick behind the simulation so they can never drift apart.</p>
+        <div class="chips"><span class="chip k"><b>11</b> wave components now</span><span class="chip k"><b>1</b> draw call</span><span class="chip k"><b>&lt; 1 cm</b> error in a storm</span><span class="chip k"><b>90</b> fps on the Quest</span></div>
+        <div class="quote">"Stormworks-like, feels alive."<cite>Owner, after the first VR test of the ocean</cite></div>
+      </div>
+      <div class="media"><div class="demo"><div class="demo-host"></div><div class="demo-panel"></div></div></div>
+    </section>
+
+    <!-- 6 Hull study demo -->
+    <section class="slide" id="hull" data-demo="hull" data-chapter="Live: the hull study">
+      <div class="words">
+        <span class="eyebrow">Lines plans · live</span>
+        <h2>A hull from a handful of curves</h2>
+        <p>Before modular boats, a study: could the game loft hulls the way a naval architect sketches a type? A <code>HullDesign</code> is a few curves along the length, sheer, half-breadth, keel profile, section shape, each a handful of control points joined by a monotone cubic. <code>loft()</code> turns them into stations; <code>buildHullMesh()</code> panels them; <code>hydrostatics()</code> integrates displacement, LCB, LCF, the form coefficients and KM at the design waterline, catamarans included.</p>
+        <p>Fifteen original types, from a 7 m push tug to a 25 m ASD harbour tug. The shortlist became the game's boats; the harbour tug's lines went straight into the Shipyard as a one-off at 494 t and Cb 0.59.</p>
+        <div class="chips"><span class="chip k"><b>15</b> designs</span><span class="chip k"><b>2,170</b> lines of code</span><span class="chip k"><b>0</b> imported by the game</span></div>
+      </div>
+      <div class="media"><div class="demo"><div class="demo-host"></div><div class="demo-panel"></div></div></div>
+    </section>
+
+    <!-- 7 Physics demo -->
+    <section class="slide" id="float" data-demo="float" data-chapter="Live: afloat">
+      <div class="words">
+        <span class="eyebrow">Milestone 3 · live</span>
+        <h2>Strip theory, every tick</h2>
+        <p>No physics engine: a hand-written rigid body with semi-implicit Euler, body-axis angular velocity with the gyroscopic term, and added mass per axis. Buoyancy is strip theory on the real hull: each station is a polygon, clipped at the local wave surface every tick, pushing up with ρ·g·A at its immersed centroid. The blue outlines are those stations; the yellow arrows the forces.</p>
+        <p>That gives displacement, trim and the large-angle GZ curve for free, with deck-edge immersion, and the same stations loft the hull you see. Drop her from 4 m, heel her 20°, or turn the sea up and watch her roll. The owner's first drop test found a bow-up rebound; it was missing water-entry energy loss, and the fix is a quadratic water-entry drag.</p>
+        <div class="chips"><span class="chip k"><b>60</b> Hz step</span><span class="chip k"><b>~60 µs</b> a tick per boat</span><span class="chip k">GM agrees <b>3 ways</b></span><span class="chip k"><b>12</b> golden runs</span></div>
+        <div class="quote">"The hull plunged 1.6 m and rebounded 2.8 m clear."<cite>The log's drop test, before the water-entry drag: now 0.5 m and 0.24 m</cite></div>
+      </div>
+      <div class="media"><div class="demo"><div class="demo-host"></div><div class="demo-panel"></div></div></div>
+    </section>
+
+    <!-- 8 v1.0 -->
+    <section class="slide" id="v1" data-chapter="Workboat World v1.0">
+      <div class="words">
+        <span class="eyebrow">The first game</span>
+        <h2>Workboat World v1.0</h2>
+        <p class="lead">One 12 m displacement workboat, a hand-built archipelago, and a career. Tagged by the owner as the restore point before the next big step.</p>
+        <ul>
+          <li><b>A whole ship's electrics as plain state:</b> two 100 Ah batteries, a selector, breakers, a starter drawing 180 A that cranks slowly on a weak battery, glow plugs, a laminated start-up card. The game starts cold.</li>
+          <li><b>Weather with a director:</b> five presets that only make allowed transitions, a sea that builds over 90 s and decays over 160 s, rain as 1,400 shader-driven line segments, wipers computed from their clock, lightning, a shipping-forecast read-out on the VHF.</li>
+          <li><b>A paper chart you draw on</b> with a real pencil, marks synced as small ops; AI traffic with fog signals; an anchor with chain tension; docking lines as damped springs.</li>
+          <li><b>Rescues, tows, fires, cargo, salvage, trawling:</b> each flagged against the standing rules first (a towline as one spring-damper, not a rope; a fire jet as one instanced mesh along its arc, not a particle system).</li>
+          <li><b>Sound synthesised, not sampled:</b> an AudioWorklet fires each cylinder of a six at rpm/20 Hz; later matched to a real recording within 3 dB from 40 Hz to 3 kHz.</li>
+          <li><b>Peer-to-peer multiplayer</b> with a host-authoritative world, added without touching the physics, because the world was plain JSON driven by intents from day one.</li>
+        </ul>
+      </div>
+      <div class="media">
+        <div class="shots">
+          <figure class="shot"><img src="img/demo_float.jpg" alt="The pilot boat afloat with her physics stations drawn as blue outlines and yellow force arrows" data-cap="The buoyancy debug view: stations clipped at the waterline, a force arrow each."><figcaption>What the physics sees: stations and their buoyant forces.</figcaption></figure>
+        </div>
+        <div class="chips"><span class="chip k"><b>306</b> tests at v1.0</span><span class="chip k"><b>13.1</b> kn on 400 kW, still a displacement model</span><span class="chip k"><b>24</b> berths, <b>4</b> AI ships</span><span class="chip k"><b>7</b> lights by day → <b>2</b> after profiling</span></div>
+      </div>
+    </section>
+
+    <!-- 9 Modular -->
+    <section class="slide" id="modular" data-demo="explode" data-chapter="Live: modular boats">
+      <div class="words">
+        <span class="eyebrow">After v1.0 · live</span>
+        <h2>A boat is a hull plus a recipe</h2>
+        <p>The next step was to make every boat out of modules, so the Shipyard could build any of them. A module has two halves: a simulation half (plain functions over plain JSON, host only) and a view half (meshes and controls, every player). Modules never import each other; they only read and write named keys on a bus: <code>throttle.demand</code>, <code>engine.rpm</code>. A recipe says which module goes in which socket, with interlocks like <code>hatch.engine.open == false</code>.</p>
+        <p>The refactor took seven milestones and nothing was allowed to look or handle differently. Twelve golden runs had to reproduce to nine significant figures; screenshots had to be pixel-identical; draw calls could only fall. They did: 67 → 56 at the helm, 120 → 95 on the aft deck, because every toggle bat became one instanced mesh.</p>
+        <div class="chips"><span class="chip k"><b>88</b> bus keys at M1</span><span class="chip k"><b>65</b> modules on the pilot boat</span><span class="chip k"><b>40,000</b> deck points checked for walkability</span></div>
+        <div class="quote">"Take a module out and its job goes with it: no cleats, she can't moor; no life ring, none to take."<cite>From the log, milestone 5</cite></div>
+      </div>
+      <div class="media"><div class="demo"><div class="demo-host"></div><div class="demo-panel"></div></div></div>
+    </section>
+
+    <!-- 10 Shipyard -->
+    <section class="slide" id="shipyard" data-demo="design" data-chapter="Live: the Shipyard">
+      <div class="words">
+        <span class="eyebrow">The Shipyard · live</span>
+        <h2>Design a boat; the physics sea-trials her</h2>
+        <p>The Shipyard is a page where you pick a hull type and move sliders. Every move runs the game's builder: it scales the hull's lines, weighs her part by part (plating at 35 kg/m² in aluminium or 85 in steel, houses, machinery, gear), then raises or lowers her lines until she displaces exactly that weight. The engine goes on her shaft line where she balances; the wheelhouse and console are fit-checked; a hatch is cut over the engine.</p>
+        <p>Then the game's own sea trials run on her in a background worker: a halving search over sixteen gearbox ratios so flat out settles at 93 % of rated rpm, then speed, range, turning circle, stopping and bollard pull. Her design is a short code (Crockford base-32 with a check character) you can type in VR, or a shared link; two people can design together over the game's own peer link, with no server.</p>
+        <div class="chips"><span class="chip k"><b>9</b> hull types</span><span class="chip k"><b>~400 ms</b> a build</span><span class="chip k"><b>~3 s</b> a sea trial</span><span class="chip k"><b>17</b>-character code</span></div>
+        <div class="quote">"The code holds the choices, not the boat, and is kept short enough to type in VR."<cite>The rule agreed with the owner</cite></div>
+      </div>
+      <div class="media"><div class="demo"><div class="demo-host"></div><div class="demo-panel"></div></div></div>
+    </section>
+
+    <!-- 11 Fleet -->
+    <section class="slide" id="fleet" data-demo="fleet" data-chapter="Live: the fleet">
+      <div class="words">
+        <span class="eyebrow">Eating our own dog food · live</span>
+        <h2>The game's boats are Shipyard designs</h2>
+        <p>Once the Shipyard worked, the owner designed the game's own fleet in it: a fast landing craft, a gillnetter, a pilot boat on pod drives, a small tug, the beginner boat, a dive support vessel. Each is kept as her design file and built by the same builder when the game loads, so a bug fixed in the yard is fixed in the fleet.</p>
+        <p>Hull types ride as their kind: the landing craft planes and banks into turns, the pilot boat is a deep-V, the tug is a displacement hull that puts her power into pull, not speed. When Shipyard boats first capsized in turns, the cause was read off their own GZ curves (a centre of gravity 1.09 m above the waterline) and fixed with a lift-based roll stiffness about the apparent vertical.</p>
+        <div class="chips"><span class="chip k"><b>6</b> fleet boats</span><span class="chip k"><b>37.8</b> kn pilot boat</span><span class="chip k"><b>£108k</b> beginner boat</span><span class="chip k"><b>81–106</b> draw calls each</span></div>
+        <div class="quote">"I really like the way the fast landing craft are today."<cite>Owner</cite></div>
+      </div>
+      <div class="media"><div class="demo"><div class="demo-host"></div><div class="demo-panel"></div></div></div>
+    </section>
+
+    <!-- 12 Coast -->
+    <section class="slide" id="coast" data-chapter="Real coastlines">
+      <div class="words">
+        <span class="eyebrow">The coast pipeline</span>
+        <h2>Real coastlines from open data</h2>
+        <p>The owner's brief: model every harbour the map data has, never just three. An offline tool chain in <code>tools/coast/</code> reads OpenStreetMap, OpenSeaMap, Copernicus heights, ESA land cover and EMODnet depths, and writes a region as data: the game never calls a data server.</p>
+        <div class="flow">
+          <div class="step"><span class="n">1</span><div><b>Fetch</b><span>OSM in 0.05° tiles, heights and land cover as cloud GeoTIFF windows, depths from EMODnet.</span></div></div>
+          <div class="step"><span class="n">2</span><div><b>Reconcile</b><span>A 10 m grid; the coastline seeds land and sea by flood fill; land takes the DEM, the sea a shelf blending into bathymetry.</span></div></div>
+          <div class="step"><span class="n">3</span><div><b>Mesh</b><span>Greedy Delaunay to a triangle budget, error weighted by a viewshed from the sea: only 43 % of Oban's land is ever seen from the water, so hidden ground counts 0.03.</span></div></div>
+          <div class="step"><span class="n">4</span><div><b>Harbours, houses, trees, boats</b><span>Piers and quays become the game's kit with berths every 16 m; buildings typed by tags or rules; a forest map; mooring fields laid where a harbour authority would.</span></div></div>
+          <div class="step"><span class="n">5</span><div><b>Package and stream</b><span>Big maps in 2 km chunks fetched within 1.5 km of any boat; a 50 m coarse grid is the ground everywhere else. Near chunks in full, far ones merged into one mesh.</span></div></div>
+        </div>
+        <div class="chips"><span class="chip k">Turku: <b>2.1 M</b> OSM points, <b>359</b> chunks</span><span class="chip k">Clyde: <b>78</b> harbours, <b>1,470</b> berths</span><span class="chip k"><b>12,000</b> triangles a chunk, or the build fails</span></div>
+      </div>
+      <div class="media">
+        <div class="shots four">
+          <figure class="shot"><img src="img/oban.jpg" alt="Oban harbour from the air" data-cap="Oban and Lorn: 11.7 × 11.1 km, 12 harbours, 774 buildings, the first real region."><figcaption>Oban: the first box, 12 harbours.</figcaption></figure>
+          <figure class="shot"><img src="img/clyde.jpg" alt="Rothesay pier on the Firth of Clyde with moored boats" data-cap="Rothesay on the Firth of Clyde: 35.6 × 36.7 km in 331 chunks, every harbour modelled."><figcaption>Rothesay, Firth of Clyde: 35 × 37 km.</figcaption></figure>
+          <figure class="shot"><img src="img/turku.jpg" alt="Turku's river mouth with a ferry and warehouses" data-cap="Turku and the Archipelago Sea: six times the Clyde's map data, with the Perno yard's gantry cranes."><figcaption>Turku: 37 × 38 km, 48 ports.</figcaption></figure>
+          <figure class="shot"><img src="img/syros.jpg" alt="Ermoupoli on Syros, white houses and a pier" data-cap="Syros: the first Aegean map, Greek names transliterated, a theme tuned by eye."><figcaption>Syros: the first Aegean map.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 Multiplayer -->
+    <section class="slide" id="multi" data-chapter="Multiplayer">
+      <div class="words">
+        <span class="eyebrow">Playing together</span>
+        <h2>One host, no server, four boats</h2>
+        <p>Peer-to-peer over WebRTC (PeerJS, 30 KB; its public broker only introduces peers). The host runs the simulation exactly as in single player. Players send tiny intents; the host sends snapshots twenty times a second, which crew render 0.12 s behind, interpolated, with a smoothed estimate of the host's clock so the waves match.</p>
+        <p>Because the world was plain JSON from the start, multiplayer never touched the physics. The hard parts were the real world: a 16 KB message limit that only bit once a career's world grew; GitHub Pages caching that put two players on different builds; a host who closes the tab (now every crew page elects the same successor with no messages). Then multi-boat: boats travel by token so any page builds the same type, your boat is the one you're aboard, far boats float on four stations every other tick, and two tugs can push one coaster.</p>
+        <div class="chips"><span class="chip k">Snapshots <b>156 KB → 3 KB</b> with deltas</span><span class="chip k"><b>20</b> Hz</span><span class="chip k"><b>27</b>-step scripted two-browser check</span><span class="chip k"><b>2</b> tugs: 26.6 m a minute vs 17.1</span></div>
+      </div>
+      <div class="media">
+        <div class="net">
+          <div class="box"><h3>Crew A</h3>Renders snapshots 0.12 s behind. Sends intents: <code>{control:'lever', value:0.8}</code>. Owns their own body pose at 20 Hz.</div>
+          <div class="box host"><h3>Host</h3>Runs <code>stepWorld()</code> at 60 Hz on the plain-JSON world. Validates every intent. Sends delta snapshots at 20 Hz. If they leave, the earliest joiner takes over after 12 s.</div>
+          <div class="box"><h3>Crew B</h3>In their own boat, built from the token in the snapshot. Heard in 3D with Doppler by everyone else. Can take a tow line too.</div>
+          <div class="arrow">intents ↑ · snapshots ↓</div>
+          <div class="arrow">PeerJS broker: introductions only</div>
+          <div class="arrow">voice: WebRTC audio, proximity and a VHF</div>
+        </div>
+        <div class="chart-box">
+          <div class="eyebrow">Why it was easy to add</div>
+          <p class="muted" style="font-size:.9rem">The simulation never touches Three.js or the DOM. Views read state and draw it. A control emits an absolute value as an intent and shows the authoritative state except while you hold it. So "multiplayer" was: send the intents somewhere else, and copy the state back.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 14 Areas -->
+    <section class="slide one" id="areas" data-chapter="Five chats at once">
+      <div class="words" style="max-width:none">
+        <span class="eyebrow">Since 23 October</span>
+        <h2>Five chats working side by side</h2>
+        <p class="lead" style="max-width:80ch">The owner asked whether the code could be organised so that agents could work on the game, the Shipyard, the modules and the map independently. In a day, a 5,800-line settings file was split into one per area, each area got its own log and its own preview address, and the rules were written into the repo. Each chat merges the shared branch at the start of a change set; a conflict means a shared file, so look at what the other chat did.</p>
+        <div class="areas">
+          <div class="box"><h3>Main game</h3>Career, Voyage, multiplayer. Engine rooms you go below into, with the tug's nine-step start-up from dead ship; delta snapshots; a wind farm built in six stages.<code>src/app/ src/ui/ … → /next/</code></div>
+          <div class="box"><h3>Shipyard</h3>Drag handles on the 3D view, hull-type cards, electric drives with a solar model (~800 W/m² at noon, 32 m² of panels, ~4 kn on the sun), a live GZ curve from the roll test.<code>src/shipyard/ → /preview/shipyard/</code></div>
+          <div class="box"><h3>Modular builder</h3>New modules: crew transfer to wind farms with a bow fender held within 7 cm at Hs 0.6 m, azimuth drives with real twist-and-throttle levers, a dive A-frame and submersible.<code>src/modules/ → /preview/modules/</code></div>
+          <div class="box"><h3>Map</h3>Turku (2.1 M OSM points, start-up 10.4 s → 2.6 s), Connel Bridge and McCaig's Tower from OSM, cruise ships building at the Perno yard, live weather from Open-Meteo.<code>tools/coast/ → /preview/map/</code></div>
+          <div class="box"><h3>Hull study</h3>The fast catamaran in the game's physics without special cases, the 25 m harbour tug's lines and fendering, the solar catamaran redrawn after a naval architect's review (wetted surface −22 %).<code>src/hulls/ → /preview/hulls/</code></div>
+        </div>
+        <div class="chips"><span class="chip k"><b>1,394 → 1,687</b> tests in four days</span><span class="chip k"><b>115</b> findings fixed from a nine-reviewer code review</span><span class="chip k">Chats talk through <b>the logs</b> and the owner</span></div>
+        <div class="quote">"Is there a better way to organise the code so that the main game, the shipyard, the modules, and the map are independent from each other, and that I can have agents working on each one separately?"<cite>Owner, 23 Oct 2026</cite></div>
+      </div>
+    </section>
+
+    <!-- 15 Numbers -->
+    <section class="slide one" id="numbers" data-chapter="By the numbers">
+      <div class="words" style="max-width:none">
+        <span class="eyebrow">By the numbers</span>
+        <h2>What's in the repository today</h2>
+        <div class="grid-nums">
+          <div class="tile"><div class="big num">16 days</div><div class="what">from the first scaffold on 12 Oct 2026 to this deck on 28 Oct; Workboat World v1.0 was tagged on about day five</div></div>
+          <div class="tile"><div class="big num">113,188</div><div class="what">lines of TypeScript, in the simulation, the views, the Shipyard, the coast tools</div></div>
+          <div class="tile"><div class="big num" id="tile-tests">1,732</div><div class="what">automated tests in 296 files, all passing today (14 minutes on this machine), most of them against the plain-JSON simulation</div></div>
+          <div class="tile"><div class="big num">537</div><div class="what">commits in the last twelve days alone (16–28 Oct); 82 on the busiest day</div></div>
+          <div class="tile"><div class="big num">2</div><div class="what">runtime dependencies: three.js and peerjs. The physics, the sound, the ocean and the hulls are the project's own</div></div>
+          <div class="tile"><div class="big num">5</div><div class="what">real coastlines at full scale, from Oban to Turku, plus the hand-built archipelago and its regions</div></div>
+          <div class="tile"><div class="big num">15 + 9</div><div class="what">hull types: fifteen in the lines-plan study, nine you can build in the Shipyard</div></div>
+          <div class="tile"><div class="big num">90 Hz</div><div class="what">the headset target, held by counting draw calls: a boat is 81–106, a whole harbour under 200</div></div>
+          <div class="tile"><div class="big num">8,237</div><div class="what">lines in the progress log, plus five area logs: what was built, measured, and left unchecked</div></div>
+          <div class="tile"><div class="big num">0</div><div class="what">lines of code written by the owner. The briefs, the tests in the headset, the photos and the judgement are theirs</div></div>
+        </div>
+        <div class="chart-box">
+          <div class="eyebrow">One day in the log</div>
+          <p class="muted" style="font-size:.92rem;max-width:90ch">23 Oct 2026, the busiest day: the areas split and five chats started; a fetch map with JONSWAP growth so lochs get a short chop and open water a long swell (a gale over 3 km gives 0.56 m at 2.5 s, over 100 km 3.2 m at 7.9 s); a cross-game handoff that hands you to a separate timber game through the address bar and back with logs; the fast catamaran in the physics; Connel Bridge and McCaig's Tower read from OSM; live weather per map. 82 commits.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 16 Human -->
+    <section class="slide" id="human" data-chapter="What it took">
+      <div class="words">
+        <span class="eyebrow">An honest account</span>
+        <h2>Where the human was essential</h2>
+        <ul>
+          <li><b>The eye.</b> A roofline "way too narrow", hands that need "pitching forward 90°", a cruise ship whose "twenty decks" include five in the hull. Photos and sketches fixed in a round what words had missed.</li>
+          <li><b>The headset.</b> The motion-comfort filter was measured to the degree and still reverted to 100 %: decoupling the view moved the hands off the controls. Only a VR test finds that. The sandbox has no headset, so every VR claim is "awaiting owner test".</li>
+          <li><b>The domain.</b> "Flat out is fine, lugging on a tow overheats." "5:1 minimum, 7:1 recommended" for anchor scope. A tug's wheelhouse is forward. The owner's trade shaped the physics.</li>
+          <li><b>Saying no.</b> Sketch-to-boat was built and removed at the owner's word; a pot hauler too. Milestones were skipped when they weren't worth it.</li>
+        </ul>
+      </div>
+      <div class="words">
+        <span class="eyebrow">&nbsp;</span>
+        <h2>What the tool brought</h2>
+        <ul>
+          <li><b>Measuring before claiming.</b> Headless screenshots, draw-call tables at four viewpoints, spectra of the engine against a recording, 40,000 deck points checked for walkability, golden runs to a millionth.</li>
+          <li><b>Flagging instead of building.</b> "Bollard pull 4.2 t on 800 kW is low for a tug"; "the pilot boat at this waterline displaces 28.6 t and makes 12.2 kn where a real one carries twin 450 kW". Trade-offs stated, then the owner decides.</li>
+          <li><b>Diagnosis over assumption.</b> "Hosting didn't work" reproduced against the real broker and traced to build caching, not hosting; a career that nobody could join traced to a 16,300-byte message limit.</li>
+          <li><b>Honest limits, every time.</b> "Not checked: VR." "These streams could not be tested from the build machine." "Reported, not invented" where the map data is silent.</li>
+        </ul>
+        <div class="quote">"Maximum effort."<cite>Owner, briefing the Shipyard's designer workflow</cite></div>
+      </div>
+    </section>
+
+    <!-- 17 End -->
+    <section class="slide" id="end" data-chapter="Try it">
+      <div class="words">
+        <span class="eyebrow">Try it</span>
+        <h2>Play it, read it, build on it</h2>
+        <ul>
+          <li><b>Play:</b> <a href="https://tartanski-cpu.github.io/SWVR/" target="_blank" rel="noopener">tartanski-cpu.github.io/SWVR</a>. Desktop: WASD to walk, B to board, F to take the helm, W/S throttle, arrows steer, O for the menu. Quest 3: open the same address in the headset browser and press Enter VR.</li>
+          <li><b>Design a boat:</b> the Shipyard tile on the front page. Move a slider; watch the sea trial.</li>
+          <li><b>Sail a real coast:</b> Voyage, then Oban. Press J to fly if you want the view from this deck.</li>
+          <li><b>Read how it was made:</b> <code>PROGRESS.md</code> and <code>docs/progress/</code> in the repository, <a href="https://github.com/tartanski-cpu/SWVR" target="_blank" rel="noopener">github.com/tartanski-cpu/SWVR</a>.</li>
+        </ul>
+        <p class="muted">Everything in this deck is drawn from the project's own logs and code. The live views are the game's modules bundled into this page: the same lofting, builder, assembler, physics step and ocean shader the game runs.</p>
+      </div>
+      <div class="media">
+        <div class="shots two">
+          <figure class="shot"><img src="img/shipyard2.jpg" alt="The Shipyard page: hull-type cards, price, speed and GM figures" data-cap="The Shipyard: pick her hull type; the figures on top come from the game's own sea trials."><figcaption>The Shipyard.</figcaption></figure>
+          <figure class="shot"><img src="img/hulls.jpg" alt="The hull study viewer showing the Nordic coastal netter and its hydrostatics" data-cap="The hull study viewer: fifteen type designs and their hydrostatics."><figcaption>The hull study.</figcaption></figure>
+          <figure class="shot"><img src="img/demo_design.jpg" alt="A landing craft built live by the Shipyard's builder in this deck" data-cap="A landing craft built live by the Shipyard's builder in this deck, 450 ms a build."><figcaption>Built live in this deck.</figcaption></figure>
+          <figure class="shot"><img src="img/turku.jpg" alt="Turku from the air" data-cap="Turku: the owner once worked at the yard."><figcaption>Turku and the Archipelago Sea.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div id="bar">
+    <button id="prev" type="button" aria-label="Previous slide">←</button>
+    <div id="dots" role="tablist"></div>
+    <span id="hint">← → keys · F fullscreen · click a picture to enlarge</span>
+    <button id="next" type="button" aria-label="Next slide">→</button>
+  </div>
+</div>
+
+<div id="lightbox" hidden><figure><img alt=""><figcaption></figcaption></figure></div>
+
+<script>
+// ── The timeline ──────────────────────────────────────────────────────────────────────
+// Distilled from PROGRESS.md and docs/progress/*.md. "why": why it's hard or interesting.
+// Dates before 16 Oct 2026 aren't in git; the log is in order.
+const PARTS = ['Physics', 'Ocean & weather', 'Wheelhouse', 'VR & desktop', 'World & maps', 'Gameplay', 'Multiplayer', 'Sound', 'Modular boats', 'Shipyard', 'Process'];
+const ERAS = ['The MVP: seven milestones (from 12 Oct 2026)', 'To Workboat World v1.0 (tagged about 16 Oct)', 'Modular boats and the Shipyard (16–21 Oct)', 'Regions, real coastlines, many boats', 'Five areas at once (23–28 Oct)'];
+const T = [
+  // ── MVP ──
+  { era: 0, part: 'Process', title: 'The scaffold: a simulation that knows nothing about drawing', what: 'Vite, TypeScript, Three.js; a 60 Hz fixed-step loop; the world as plain JSON; players as intents; WebXR entry at 90 Hz; an HTTPS LAN server so the Quest can join; GitHub Pages deploy.', why: 'The architecture that carried everything was fixed on day one. Simulation separate from drawing meant multiplayer later was a snapshot problem, not a rewrite. Keys bound by physical position because the owner uses a German QWERTZ keyboard.', nums: ['9 tests', '2 draw calls', 'milestone 1 of 7'] },
+  { era: 0, part: 'Ocean & weather', title: 'Gerstner waves on the GPU, and a CPU height that matches', what: 'Eight wave components in world state; one graded grid of 1 m cells growing 8 % a cell to a 3 km horizon in a single draw call; a sky dome sharing one palette with fog.', why: 'Gerstner waves move water sideways, so the height at a point needs the displacement inverted: fixed-point iteration, sub-millimetre. Render time runs one tick behind the sim so hull and water never drift apart.', nums: ['Hs 1.25 m', '~42k vertices', '16 tests'], quote: ['Stormworks-like, feels alive.', 'Owner, 90 fps on the Quest'], demo: 'ocean' },
+  { era: 0, part: 'Physics', title: 'The floating hull: strip theory on the real shape', what: 'Seventeen hard-chine stations clipped at the local waterline every tick; a hand-written rigid body with added mass per axis and damping against the orbital water velocity.', why: 'Displacement, LCB and a large-angle GZ curve come for free, and the same stations loft the visible hull. No Rapier: 1.5–2 MB of WASM for forces that were custom anyway.', nums: ['18.35 t', 'GM 1.17 m', '~60 µs a tick', '26 tests'], demo: 'float' },
+  { era: 0, part: 'Physics', title: 'Propulsion, rudder, resistance and the first sea trials', what: 'A diesel with spool-up and a detented lever, a fixed-pitch prop with a thrust curve, a spade rudder that stalls at 25°, ITTC-57 friction plus wave-making; sea trials asserted in tests.', why: 'The owner spotted a bow-up rebound in the drop test; it was missing water-entry energy loss. The rudder inflow is capped at 0.45 of thrust: "without the cap the boat pirouetted".', nums: ['9.2 kn', 'tactical diameter 3.3 L', 'crash stop 2.0 L in 10 s'] },
+  { era: 0, part: 'Process', title: 'The sea-trials lab', what: '`npm run trials`: hydrostatics, GZ with free sinkage, speed, turning, stopping, natural periods, roll decay, and a dynamic inclining test that back-calculates GM. Works on any boat.', why: 'A naval architect\'s acceptance test built into the test suite. GM must agree three ways: formula, small-angle GZ, inclining. Every later physics change is checked against it.', nums: ['GM 1.19 / 1.19 / 1.20 m'] },
+  { era: 0, part: 'VR & desktop', title: 'A walk-in wheelhouse and grab-the-world locomotion', what: 'A 2.9 × 3.4 m wheelhouse merged into the hull\'s one draw call; one grip translates, two rotate; snap turn; a BeamNG-style motion-coupling slider through a critically damped spring.', why: 'The comfort filter was measured to the degree (±15° roll → ±4.2° felt at 50 %) and still reverted to 100 % after VR testing: a decoupled view moved the hands off the controls.', nums: ['48 tests'], quote: ['Boarded behind the wheelhouse, can\'t see forward.', 'Owner feedback, fixed'] },
+  { era: 0, part: 'Physics', title: 'A torque-balance diesel', what: 'The engine became a shaft torque balance, not an rpm target: a 200 kW six with a droop governor and smoke limiter, a 3:1 box, a 1.05 m prop at about 0.5 open-water efficiency.', why: 'The rpm sags under load like a real boat. Clutch pick-up gives an angular-momentum dip. Bollard pull 2.28 t at 1,367 rpm.', nums: ['9.5 kn at 1,681 rpm'], quote: ['A diesel inboard, not a revvy outboard, with a bigger prop for torquey manoeuvring and, eventually, towing.', 'Owner'] },
+  { era: 0, part: 'Wheelhouse', title: 'Bridge controls you grab with your hands', what: 'A Control component system: levers, a two-handed wheel 1.5 turns lock to lock, buttons, toggles; an instrument panel on one canvas atlas; haptics on touch, detent and spoke. Three owner feedback rounds.', why: 'Every control emits an absolute value as an intent and shows the authoritative state except while held: exactly what multiplayer needed two milestones later.', nums: ['23 → 17 draw calls per eye after baking', '67 tests'] },
+  // ── to v1.0 ──
+  { era: 1, part: 'World & maps', title: 'Fuel, engine temperatures and a whole archipelago', what: 'Fuel flow from the rack, a lumped thermal model with thermostat, alarms and derate; one analytic groundHeight(x, z) for land and seabed; islands, harbours, IALA lights, sheltered water, hull contacts, an anchor, refuelling, an echo sounder.', why: '"What you see is what you ground on": terrain mesh, contacts, anchor and sounder all read one function. The whole world is 66k triangles in four draw calls.', nums: ['95 tests', '600 L tank', 'shutdown at 115 °C'] },
+  { era: 1, part: 'Ocean & weather', title: 'Sea states, wake and spray', what: 'Sea state as one number: amplitudes × s, periods × s^0.3 so a building sea steepens like a young storm sea. A wake ribbon displaced by the same Gerstner GLSL as the ocean; pooled spray.', why: 'Pure Froude scaling "looked identical from the boat". Storm: 31° beam-on roll and 4 m heave. A bow wave was tried and removed after the owner tested it.', nums: ['Hs to 3.6 m', '+3 draw calls'] },
+  { era: 1, part: 'Gameplay', title: 'Cargo as real deadweight; docking lines', what: 'Cargo items in world state with a deterministic counter; aboard, they are point masses with a recomputed CG and inertia. Bow and stern lines come taut over 4 s then hold as damped springs.', why: '2.8 t aboard sinks her by ΔW/(ρ·A_wp) and trims her by the stern, found by the strip hydrostatics on their own.', nums: ['7 kN warping, 40 kN hold', '111 tests'] },
+  { era: 1, part: 'Sound', title: 'A diesel voice that fires each cylinder', what: 'An AudioWorklet synthesises the firing events of a six-cylinder four-stroke at rpm/20 Hz, with exhaust resonances and starter whine. Later retuned against a real recording the owner supplied.', why: 'Headset speakers can\'t play a 30 Hz idle fundamental, so the idle energy moved to 60–150 Hz. Matched within ~3 dB in third-octave bands from 40 Hz to 3 kHz, measured from offline renders.', nums: ['no sound files'], quote: ['The tinny "lawnmower" part removed.', 'Owner feedback'] },
+  { era: 1, part: 'Multiplayer', title: 'Peer-to-peer play with a host-authoritative world', what: 'WebRTC through PeerJS. The host runs stepWorld as in single player; clients send intents and render 20 Hz snapshots 0.12 s behind. Bodies are client-authoritative. Avatars, a Crew tab with a five-digit code, control ownership.', why: 'Added without touching the physics, because the world was JSON driven by intents from day one. The real link couldn\'t be reached from the build sandbox: "it needs testing on devices".', nums: ['30 KB gzipped', '124 tests'] },
+  { era: 1, part: 'Gameplay', title: 'Off the boat: jumping, swimming, cargo carried by hand', what: 'Body modes walk / air / swim; a jump converts you to the world frame with the deck\'s velocity at your feet; climbing out at the gunwale; crates of 40–110 kg, two hands over 60 kg; loose cargo slides unless lashed.', why: 'Deck dynamics from apparent gravity: a 25° heel slides everything to the low side, 40° puts it over; four 110 kg drums to starboard list her 1.5°.', nums: ['138 tests'] },
+  { era: 1, part: 'Gameplay', title: 'Rescues: VHF, chartplotter, life ring, line and boat hook', what: 'A distress call per cargo run; a handset on a cord with a speech read-out; a chartplotter redrawn at 2.5 Hz; survivors riding the wave surface with strobes and an HRTF-panned whistle; a ballistic ring on a 30 m line; "Stop your propeller!"', why: 'Planned as five milestones, stopping after each for a VR test. The rope was a 1-pixel line, "near invisible in the headset", so it became a 2.5 cm rope; the Quest had no speech voices, so a formant-filter babble replaced them.', nums: ['170 tests'], quote: ['Throw good, hook good; pulling unclear, no voice on Quest.', 'Owner test'] },
+  { era: 1, part: 'Physics', title: '13 knots without planing', what: 'Fn ≈ 0.64 on an 11 m waterline is well past hull speed; the old resistance wall would have needed ~700 kW. The wave resistance now levels off over the hump; the engine went to 400 kW and the prop was re-matched.', why: 'A naval-architecture argument carried out in code, with the trade-off stated: "the last knots cost fuel". 83 L/h flat out.', nums: ['13.1 kn at 1,699 rpm', 'range ~140 nm'] },
+  { era: 1, part: 'Wheelhouse', title: 'The electrical spine, and a cold start by the card', what: 'Two 100 Ah batteries, a selector and master, loads drawing fixed currents, an alternator, I·R sag so a weak battery cranks slowly; six breakers; key, HEAT and START with glow plugs; a duty board that ticks itself off.', why: 'A whole ship\'s electrics as plain state: the bridge goes dark, the horn is silent and the windlass won\'t turn without power, all from one isPowered() check. The game starts cold.', nums: ['starter 180 A', '211 tests'] },
+  { era: 1, part: 'Ocean & weather', title: 'Weather with a director, rain, wipers and a forecast', what: 'Five presets held 4–10 min with allowed transitions only; the sea follows the wind with a lag; leeway as a flat plate so a stopped boat swings beam-on; rain as 1,400 line segments in one draw call; wipers and wet glass computed in the shader; lightning with thunder at 343 m/s.', why: 'Waves are rebuilt once a second with phases carried over so the surface never jumps. A shipping-forecast read-out is heard only with the radio on.', nums: ['226 tests'] },
+  { era: 1, part: 'Wheelhouse', title: 'A paper chart you draw on with a pencil', what: 'A chart drawn once from the terrain in printed style; pencil marks as geometry in chart coordinates, synced as small ops; the tip locks to the paper within 6 mm; an eraser that splits strokes.', why: 'Marks were too big for 20 Hz snapshots, so they got their own message channel. Later drawn at 2048 px with paper grain, kept at ~180 ms by canvas compositing where a per-pixel version took 7 s.', nums: ['4,000 points', '238 tests'] },
+  { era: 1, part: 'Gameplay', title: 'Towing, fires, salvage and trawling, each flagged first', what: 'A towline as one spring-damper with half-critical damping on the two boats\' reduced mass; a roof monitor whose jet is one instanced mesh along its arc, the same function scoring hits; beached logs that break out above μ·m·g; a trawl with drag that fouls under 7 m.', why: 'The standing rules ("no new physics bodies or ropes", "no new particle effects") were flagged and a reuse plan approved each time. Tows ground, drift and bump like real hulls because they are hulls.', nums: ['parts at 40 kN', '30 m/s, 2,400 L/min', '271 beach spots'] },
+  { era: 1, part: 'Gameplay', title: 'The career: money, reputation, damage and wear', what: 'Pay scaled by port reputation, two contracts a port in three tiers, upgrades as flags, hull damage from the contact state the physics already keeps, leaks into the bilge, engine wear from overheating, repairs by the percent, three save slots.', why: 'Bilge water is 3 t of weight low in the hull: "this gives the bilge physics for the first time".', nums: ['£30 a percent', 'tutorial pays £200'] },
+  { era: 1, part: 'Process', title: 'Workboat World v1.0', what: 'Renamed for players; repo, URL, save keys and room ids kept so saves and multiplayer aren\'t split. The game starts moored at Calder Haven; mooring cleats replace the DOCK button; a fully modelled engine under a floor hatch; a tender crane; deck hydraulics with their own voices.', why: 'The owner\'s restore point before modular boats. Known limits listed honestly: sea water showing inside the hull in big rolls, no moon, beam seas roll her "quite a lot".', nums: ['306 tests', 'tag V1.0, ~16 Oct 2026'] },
+  // ── Modular & Shipyard ──
+  { era: 2, part: 'Modular boats', title: 'M1: the contracts and the safety net', what: 'A bus with a registry of typed keys, sockets with fits(), module and hull definitions, recipes with interlocks and a validator that answers in sentences; twelve golden runs recording pose and every bus key.', why: 'A refactor of a whole boat with a mathematical regression harness: every milestone must reproduce the recordings to a millionth; a 0.1 % engine-friction change fails 10 of 12. The module-boundary rule is enforced by a test.', nums: ['88 keys', '12 golden runs', 'baseline 67/46/120/33 draw calls'] },
+  { era: 2, part: 'Modular boats', title: 'M2–M4: the lever, the wheelhouse, the engine as modules', what: 'The throttle lever writes one key "and doesn\'t know an engine exists". Then 22 console modules, the overhead panel, breakers, VHF, chartplotter, chart table; then the diesel pushing through a physics port, rudder, tanks, batteries, every electrical load.', why: 'Nothing visible changed, and that was the point: pixel-identical screenshots, draw calls falling 67 → 56 at the helm because every toggle bat became one instanced mesh with a per-instance glow in the shader.', nums: ['56 modules', 'goldens to 9 significant figures', '396 tests'], demo: 'explode' },
+  { era: 2, part: 'Modular boats', title: 'M5–M7: deck gear, gear facts, and a second boat from modules', what: 'Crane, winch, A-frame, windlass, searchlight, monitor, mast, cleats as modules; world systems ask the boat what she has (gearOf). Then the landing craft: a hull file, one recipe, 35 modules, every one the workboat\'s.', why: 'The footprint test checks 40,000 deck points that you are kept out exactly where v1.0 kept you out. The fit check refused the workboat\'s 2.6 m console in her 2.0 m cabin: the Shipyard\'s check working for real.', nums: ['25 sockets', '10.2 kn', '"a hull, a JSON file and one module"'], quote: ['All the modular work so far works.', 'Owner, after a VR test'] },
+  { era: 2, part: 'Shipyard', title: 'Shipyard stop 1: the design page, the code and the sea trial', what: 'Pick a hull, move sliders for length, beam, depth, wheelhouse, engine, livery; a 3D view drawn by the game\'s own code; the game\'s own sea trials run on her in a worker; "Try her in the game" opens ?design=CODE.', why: 'A 10-character code: 45 bits in Crockford base-32 with a check character, so any single mistyped character is caught. The gearbox is matched by a halving search over sixteen ratios.', nums: ['~3 s a trial', '497 tests'], quote: ['The code holds the choices, not the boat, and is kept short enough to type in VR.', 'The rule agreed with the owner'], demo: 'design' },
+  { era: 2, part: 'Shipyard', title: 'Hulls, wheelhouses and photos: shaping her by eye', what: 'Bow as a stem angle 0–50°, a 14 m deep-V pilot boat, twin engines, a curved stem; floor heights, a one-slab roof, a three-facet front, windows raked out, low sills; driven by the owner\'s photos of a Dutch patrol boat, a Targa, a small tug.', why: 'Many short iterations with screenshots at each step; a candid correction in the log ("I\'d dropped a factor of 16"). Flagged: the pilot boat at the study\'s waterline would displace 28.6 t and make 12.2 kn where a real one carries twin 450 kW.', nums: ['codes 11 → 15 characters', '737 tests'], quote: ['The roof should be one flat slab, not raked.', 'Owner'] },
+  { era: 2, part: 'Gameplay', title: 'Pixel painting: Stormworks-style detail with no extra geometry', what: '64 × 64 greyscale tiles generated in code at start-up (plating, non-slip, wood, chequer, slates, stone…), mapped square-on in metres so pixels are the same size everywhere; crisp up close, mipmapped away.', why: 'Draw calls unchanged, ~0.2 MB of texture, +380 triangles. Later used for building windows that glow at night at zero triangle cost.', nums: ['0 extra draw calls'] },
+  { era: 2, part: 'Shipyard', title: 'Designing together, over the game\'s own peer link', what: 'A six-character session; the first browser to open it keeps the session over PeerJS; changes as field patches in the keeper\'s order; presence, pointers ten times a second, takeover when the keeper leaves; pins and sketches stored in hull fractions; variants, compare, merge.', why: 'No server and no account. Tested in two real headless browsers over the real broker, including the keeper closing. A 16 KB data-channel limit was found and worked round with chunked messages.', nums: ['pins stay on the roof when she stretches 9 → 10.6 m'] },
+  { era: 2, part: 'Shipyard', title: 'A designer\'s workflow: the brief, jobs, hull types ranked by measurement', what: 'Steps across the top; a brief of jobs and targets checked line by line; Suggest tries every engine fit by trial and fits the cheapest that meets speed, range and budget; hull-type cards ranked by what each can do, measured.', why: 'Data-driven product thinking from a naval-architect owner. The measured table found a twin installation pulling less than one big engine, later traced to a sea-trials bug counting one propeller.', nums: ['Pilot: ≥ 22 kn, ≥ 110 nm, ≤ £280k'], quote: ['Maximum effort.', 'Owner'] },
+  { era: 2, part: 'Multiplayer', title: 'Multiplayer that survives the real world', what: 'Pages reload themselves past the cache when behind; hosting retries; a 16,300-byte PeerJS limit that only bit once a career world grew; ?game=CODE so a link is the invite; host handover by an election with no messages.', why: 'Diagnosis over assumption: "hosting didn\'t work" reproduced headlessly against the real broker and found to be build mismatch and caching. The limit explains why a fresh browser worked and a career didn\'t.', nums: ['successor hosts after 12 s'] },
+  { era: 2, part: 'VR & desktop', title: 'Hands, a recording camera, desktop driving and a phone', what: 'Your own mitts drawn at the controllers with gestures; a GoPro a VR player can hold and a desktop player can fly; F to take the helm, an Xbox controller; touchscreen controls as a first step to a phone version.', why: 'Working blind without a headset, the session gave the owner a Debug > Hands tool to nudge the grip frame 15° at a time instead of guessing again.', nums: ['she made 10 kn on an emulated phone'], quote: ['The new hands need pitching forward 90° and then rolling anti-clockwise 90°.', 'Owner'] },
+  { era: 2, part: 'Process', title: 'Three modes from one front page; everything live on 21 Oct', what: 'Career (the archipelago), Voyage (the real coasts), Training later; the fleet from the owner\'s own Shipyard files; the beginner boat "Gillnetter 7.8 m", the pilot boat "Pilot boat 11.2 m" at 36 kn on pods.', why: '"A new map is a data step." The dev branch had sat at 17 Oct while next carried the three modes, real maps, fleet and Shipyard; on 21 Oct it all went live.', nums: ['21 Oct 2026'], quote: ['The near cheapest, most basic, slow boat.', 'Owner, on the starter'] },
+  // ── Regions, coast, many boats ──
+  { era: 3, part: 'World & maps', title: 'Regions: the world becomes a list of data files', what: 'A RegionDef shape; home\'s numbers moved verbatim (a checksum of every mesh identical); a 14 km far plane and streaming in a web worker; tidal races as current zones on a six-hour cycle; the Sounds, the Fjord with katabatic gusts, the Narrows with a 12 kn race over a pinnacle.', why: 'A region is data, never code. The current enters every surface sample, so the hull physics needed no change; the ocean shader tests the same rectangles. Owner\'s Quest reading before go-ahead: 475k triangles at 85–87 fps.', nums: ['9 kn race', 'cheapest fuel £0.95 a litre', '955 tests'] },
+  { era: 3, part: 'World & maps', title: 'The coast pipeline: Oban from open data', what: 'OSM in eight tiles (85,799 nodes), Copernicus heights and ESA land cover as GeoTIFF windows, EMODnet depths; a 10 m grid, flood-filled land and sea, greedy Delaunay to a 110,000-triangle budget; buoys and lights with real characters; harbours and 774 buildings from OSM; a viewshed-weighted mesh.', why: 'The product is data, not code; the game never calls a data server. Thin data reported honestly: no charted rocks in OSM here. A test boat on autopilot ran 13.2 km through the real marks with no grounding.', nums: ['11.7 × 11.1 km', '12 harbours, 258 berths', '2.5 MB mesh'] },
+  { era: 3, part: 'World & maps', title: 'The Firth of Clyde: a big map in chunks, every harbour', what: '35.6 × 36.7 km, ten times Oban: 787,175 triangles in 331 chunk files plus a 50 m coarse grid; 78 harbours, 1,470 berths, 5,415 buildings; chunks stream within 1.5 km and drop past 2.6 km.', why: 'The owner saw ~50 fps on the Quest; the cause wasn\'t triangles but 256 small distant meshes and physics scanning 1,470 berths every tick. Far chunks merged into one mesh and a 250 m grid index: 76 draw calls, 1.4 ms a step.', nums: ['19.5 MB', 'builds in ~2 min'], quote: ['Model all harbours that are in the open sea map or equivalent data.', 'Owner\'s brief'] },
+  { era: 3, part: 'World & maps', title: 'Coast extras: houses, trees, harbour boats, ferries, surf, names', what: 'Nine building types from tags or rules (a gabled house is 14 triangles); a forest map with five tree models in three distance bands; mooring fields laid like a harbour authority would; original ferries in fleets on the real routes with VHF calls; surf made from noise by shore type; place names in radio calls.', why: 'Rule throughout: nothing guessed where the data is silent. Oban\'s six island routes from one pier forced fleets of ships sharing routes; six simulated hours with no two closer than 39 m.', nums: ['Clyde 1,280 harbour boats in 7 draw calls', 'surf ~0.05 ms a frame'], quote: ['The surf sounds really good. I\'m very happy with that.', 'Owner, 22 Oct 2026'] },
+  { era: 3, part: 'Multiplayer', title: 'Multi-boat multiplayer: each crew-mate in their own boat', what: 'Boats by token so any page builds the same type; your boat is the one you\'re aboard; berth slots worked out from each quay face; level of detail by distance (near every station every tick, far four stations every other tick); two tugs pushing one coaster; a planning table on the quay.', why: 'Measured first: one boat ~0.75 ms a tick, four alongside 4.5 ms, 1.7 ms once spread out; a far tug floats within 5 cm of a near one. A 27-step scripted two-browser check runs it all through the real broker.', nums: ['26.6 m a minute vs 17.1 with two tugs'], quote: ['Hear your friends whizzing past you in a motorboat… and the horn has to work so you can beep at your friends.', 'Owner'] },
+  { era: 3, part: 'Shipyard', title: 'Boats float at what they weigh; the fleet; hull types ride as their kind', what: 'Weights built up part by part in steel or aluminium, the lines raised or lowered until she displaces exactly that; the engine laid where she balances; the game\'s own boats designed in the yard; planing, semi and displacement regimes with deadrise read from her lines.', why: 'The workboat went from 21.1 t to 9.4 t in aluminium (13.2 → 25.5 kn). Shipyard boats had capsized in turns: diagnosed from their GZ curves and fixed; the pilot boat hard over now settles 4° in.', nums: ['aluminium £204k vs steel £160k', '1,042 tests'], quote: ['You took away their really nice lean into corners.', 'Owner, before the fix'], demo: 'fleet' },
+  { era: 3, part: 'Shipyard', title: 'Pods, a helm joystick, a trawler from one photo, console sockets', what: 'Tractor pods with a three-axis stick sharing side push, surge and moment by least squares; one trawler photo produced a raised foredeck, sheer, side ladders, house colours and a fo\'c\'sle cabin; the dash as a grid with instruments placed by hand, in three tiers from analogue gauges to touchscreens.', why: 'The pilot boat crabs at ~1 kn and twists 5°/s on the spot. Research into how real knuckle cranes and ship\'s ladders are arranged, at the owner\'s prompting, before drawing them.', nums: ['£24,000 a pod', '1,149 tests'], quote: ['Undock the ship by simply pressing left on the joystick.', 'Owner'] },
+  // ── Five areas ──
+  { era: 4, part: 'Process', title: 'The code organised by area, so five chats can work at once', what: 'The 5,800-line settings file split into one per area; a log, a test script and a preview address per area; shared files named and changed sparingly with a "Shared changes" line in the log.', why: 'A structural decision made in a day, motivated by agent parallelism. Chats talk through the logs and the owner; one chat\'s push no longer cancels another\'s deploy.', nums: ['5 areas', '23 Oct 2026', '1,394 → 1,687 tests in four days'], quote: ['Is there a better way to organise the code so that… I can have agents working on each one separately?', 'Owner'] },
+  { era: 4, part: 'Ocean & weather', title: 'Short, steep seas in enclosed water', what: 'A fetch map (150 m cells, 16 bearings) and JONSWAP fetch-limited growth, so lochs get a short chop and open water a long swell; wave components 8 → 11.', why: 'Real sea-state physics, verified against the crest-loop cap: a gale over 3 km gives 0.56 m at 2.5 s; over 100 km, 3.2 m at 7.9 s.', nums: ['33 ms to build for Oban'] },
+  { era: 4, part: 'Process', title: 'A full-game review: 115 findings, then the fixes', what: 'Nine area reviewers plus adversarial verifiers found 115 confirmed findings (11 high, all reproduced). Then: the Clyde\'s 25 s start freeze cut to 1.3 s; a wave sample 13 µs → 5 µs; harbour boats 11.9 → 1.7 ms a frame.', why: 'Review as a process, not a one-off: every high finding reproduced before it counted.', nums: ['96 ms → under 1 ms for a board that priced boats every frame'], quote: ['Is it not a case of reading them when you walk up to the board?', 'Owner, on that bug'] },
+  { era: 4, part: 'Multiplayer', title: 'Delta snapshots, heartbeats, a host that keeps stepping when hidden', what: 'Heartbeats both ways (4 s warns, 10 s lost); crew boats wait 120 s for a dropped player; delta snapshots; a Web Worker clock so a background tab still steps 20 times a second.', why: 'Browsers throttle hidden tabs to about 1 Hz, which had made a hidden host\'s world crawl. The Clyde\'s snapshots went from 156 KB to about 3 KB: 48 times smaller.', nums: ['~60 KB/s upload per crew-mate, was ~3 MB/s', 'crewcheck 27 of 27'] },
+  { era: 4, part: 'Wheelhouse', title: 'Engine rooms: go below, and start a tug from dead ship', what: 'Only the room is drawn while below; a nine-step start-up with 18 working controls (battery master, generator, breaker, day tanks, sea suctions, pre-lube to 1 bar, starting air to 12 bar, local START, control to BRIDGE); a glowing next-step cue; synthesised machinery sounds; a V16 voice.', why: 'The tug\'s detailed room is 5–10 draw calls and ~105,000 triangles against 127–153 calls on deck. The V16: 80 firings a second at 600 rpm idle, 54 % of its energy under 150 Hz flat out.', nums: ['9 steps, 18 controls'], quote: ['The only thing I want for the engine room is a realistic startup procedure.', 'Owner'] },
+  { era: 4, part: 'Modular boats', title: 'Azimuth drives, crew transfer, a dive A-frame', what: 'Z-drives slewing at 12°/s with twist-and-throttle levers redrawn from the owner\'s photos of real consoles; a bow fender that grips a wind turbine\'s landing like push knees, technicians stepping across; a dive A-frame and submersible with real launch interlocks, placeable only where the checks pass.', why: 'Held within 7 cm at Hs 0.6 m, crept 0.5 m at 1.2 m. The whole three-turbine farm is four draw calls.', nums: ['48 t bollard pull', '12.05 kn'], quote: ['No like this. … Like this.', 'Owner, with photos of real lever heads'] },
+  { era: 4, part: 'World & maps', title: 'Turku and the Archipelago Sea', what: 'A 36.9 × 37.8 km Finnish map: 2.1 million OSM points (six times the Clyde), 359 chunks within a 12,000-face budget; a Baltic theme; two original cruise ships building at the Perno yard under 100 m gantries read from OSM; jetties built square by square so start-up fell from 10.4 s to 2.6 s.', why: 'A harbours stage sped from 37 minutes to 64 s. Five iterations on the cruise ships against the owner\'s eye: "the Icon class is 20 decks high approximately, but five of those decks are in the hull."', nums: ['471 harbours → 48 ports', '28 MB mesh'], quote: ['Go ahead with Turku as the next map.', 'Owner, who once worked at the yard'] },
+  { era: 4, part: 'Shipyard', title: 'Electric drives, a solar model, and a live GZ curve', what: 'A permanent-magnet motor with regeneration; clear-sky irradiance (Haurwitz, Kasten-Czeplak cloud, Erbs split): ~800 W/m² at noon, 32 m² of panels giving ~4.5 kW; 22 kW posts and 150 kW chargers at the quays, billed at 35p/kWh; the roll test plots GZ and the inclining experiment finds GM.', why: 'Honest range: 52 nm on 100 kWh at 5.8 kn (not the 62 first shown). The inclining experiment reads GM 0.77 m against her computed 0.76 m.', nums: ['~4 kn on the sun alone', '1,687 tests'], quote: ['An efficiency instrument… litres per nautical mile, so that we can find the sweet spot.', 'Owner'] },
+  { era: 4, part: 'Physics', title: 'Two hulls in the game\'s physics: the fast catamaran', what: 'Ten-point stations spanning both demihulls and the tunnel; buoyancy, hydrostatics, contacts and drawing all work "without special cases"; a displacement hull\'s resistance keeps climbing past hull speed.', why: 'Twelve golden runs unchanged to a millionth. The tug on twin 750 kW dropped from 18.0 to 10.4 kn once the resistance curve was honest. Roll period 1.4 s against 2.5 s for a monohull.', nums: ['KM 12.2 m, three times a monohull\'s', 'twin 400 kW: 30.6 kn'], quote: ['Keep it cheap, the forefoot is under water.', 'Owner, watching the triangle count'] },
+];
+
+// ── Build the timeline ────────────────────────────────────────────────────────────────
+const tlList = document.getElementById('tl-list');
+const tlFilters = document.getElementById('tl-filters');
+const tlCount = document.getElementById('tl-count');
+let filter = null;
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+function md(s) { return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>'); }
+function renderTimeline() {
+  const shown = T.filter((e) => !filter || e.part === filter);
+  tlCount.textContent = `${shown.length} of ${T.length} steps`;
+  let html = '';
+  let era = -1;
+  shown.forEach((e) => {
+    const i = T.indexOf(e) + 1;
+    if (e.era !== era) { era = e.era; html += `<div class="era">${ERAS[era]}</div>`; }
+    html += `<article class="entry"><div class="rail"><span class="idx">${String(i).padStart(2, '0')}</span><span class="part">${e.part}</span>${e.nums ? `<div class="chips">${e.nums.map((n) => `<span class="chip">${md(n)}</span>`).join('')}</div>` : ''}</div>
+      <div><h3>${md(e.title)}</h3><p class="what">${md(e.what)}</p><p class="why">${md(e.why)}</p>
+      ${e.quote ? `<div class="quote">“${esc(e.quote[0])}”<cite>${esc(e.quote[1])}</cite></div>` : ''}
+      ${e.demo ? `<p class="demo-link"><a href="#${e.demo === 'explode' ? 'modular' : e.demo === 'design' ? 'shipyard' : e.demo}">See it live →</a></p>` : ''}</div></article>`;
+  });
+  tlList.innerHTML = html;
+  for (const c of tlFilters.children) c.classList.toggle('on', c.dataset.part === (filter ?? ''));
+}
+const all = document.createElement('span'); all.className = 'chip'; all.textContent = 'All'; all.dataset.part = ''; all.tabIndex = 0; tlFilters.appendChild(all);
+for (const p of PARTS) { const c = document.createElement('span'); c.className = 'chip'; c.textContent = p; c.dataset.part = p; c.tabIndex = 0; tlFilters.appendChild(c); }
+tlFilters.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (!c) return; filter = c.dataset.part || null; renderTimeline(); });
+tlFilters.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const c = e.target.closest('.chip'); if (c) { e.preventDefault(); filter = c.dataset.part || null; renderTimeline(); } } });
+renderTimeline();
+
+// ── Charts ────────────────────────────────────────────────────────────────────────────
+(function testsChart() {
+  const pts = [9, 16, 26, 48, 60, 67, 77, 95, 100, 111, 121, 138, 150, 170, 182, 191, 201, 211, 218, 226, 232, 238, 243, 247, 306, 299, 369, 387, 396, 408, 427, 458, 466, 497, 715, 798, 881, 900, 940, 1042, 1088, 1149, 1394, 1485, 1557, 1622, 1687, 1732];
+  const W = 640, H = 300, L = 48, R = 12, Tp = 14, B = 34;
+  const max = 1800;
+  const x = (i) => L + (i / (pts.length - 1)) * (W - L - R);
+  const y = (v) => Tp + (1 - v / max) * (H - Tp - B);
+  let s = '';
+  for (const g of [0, 500, 1000, 1500]) s += `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="var(--rule)" stroke-width="1"/><text x="${L - 6}" y="${y(g) + 4}" text-anchor="end" font-size="11" font-family="var(--mono)" fill="var(--muted)">${g.toLocaleString('en-GB')}</text>`;
+  const path = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  s += `<path d="${path} L${x(pts.length - 1)},${y(0)} L${x(0)},${y(0)} Z" fill="var(--accent)" opacity=".12"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>`;
+  const marks = [[0, 'scaffold'], [24, 'v1.0 · 306'], [33, 'Shipyard'], [42, 'areas split']];
+  for (const [i, label] of marks) s += `<circle cx="${x(i)}" cy="${y(pts[i])}" r="4" fill="var(--accent)"/><text x="${x(i)}" y="${H - 14}" text-anchor="${i === 0 ? 'start' : 'middle'}" font-size="11" font-family="var(--mono)" fill="var(--muted)">${label}</text>`;
+  const last = pts.length - 1;
+  s += `<circle cx="${x(last)}" cy="${y(pts[last])}" r="4" fill="var(--accent)"/><text x="${x(last) - 8}" y="${y(pts[last]) - 2}" text-anchor="end" font-size="12" font-weight="600" font-family="var(--mono)" fill="var(--fg)">1,732 today</text>`;
+  s += `<text x="${L}" y="${Tp}" text-anchor="start" font-size="11" font-family="var(--mono)" fill="var(--faint)">milestones, in order →</text>`;
+  document.getElementById('tests-chart').innerHTML = s;
+})();
+(function commitsChart() {
+  const days = [['16', 34], ['17', 3], ['18', 0], ['19', 0], ['20', 70], ['21', 36], ['22', 61], ['23', 82], ['24', 67], ['25', 48], ['26', 61], ['27', 72], ['28', 3]];
+  const W = 640, H = 150, L = 36, R = 10, Tp = 10, B = 26;
+  const max = 90;
+  const bw = (W - L - R) / days.length;
+  let s = '';
+  for (const g of [0, 40, 80]) s += `<line x1="${L}" x2="${W - R}" y1="${Tp + (1 - g / max) * (H - Tp - B)}" y2="${Tp + (1 - g / max) * (H - Tp - B)}" stroke="var(--rule)"/><text x="${L - 6}" y="${Tp + (1 - g / max) * (H - Tp - B) + 4}" text-anchor="end" font-size="11" font-family="var(--mono)" fill="var(--muted)">${g}</text>`;
+  days.forEach(([d, n], i) => {
+    const h = (n / max) * (H - Tp - B);
+    const x0 = L + i * bw + 4;
+    s += `<rect x="${x0}" y="${H - B - h}" width="${bw - 8}" height="${h}" rx="2" fill="var(--teal)" opacity="${i === days.length - 1 ? .45 : .9}"/>`;
+    if (n) s += `<text x="${x0 + (bw - 8) / 2}" y="${H - B - h - 4}" text-anchor="middle" font-size="10" font-family="var(--mono)" fill="var(--muted)">${n}</text>`;
+    s += `<text x="${x0 + (bw - 8) / 2}" y="${H - 8}" text-anchor="middle" font-size="11" font-family="var(--mono)" fill="var(--muted)">${d}</text>`;
+  });
+  s += `<text x="${W - R}" y="${Tp + 4}" text-anchor="end" font-size="10" font-family="var(--mono)" fill="var(--faint)">October 2026 · the 28th up to midday</text>`;
+  document.getElementById('commits-chart').innerHTML = s;
+})();
+
+// ── The deck ──────────────────────────────────────────────────────────────────────────
+const slides = [...document.querySelectorAll('.slide')];
+const dots = document.getElementById('dots');
+const chapter = document.getElementById('chapter');
+let current = -1;
+let live = null; // the mounted demo on the current slide
+let pendingDemo = null;
+slides.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.role = 'tab';
+  b.title = s.dataset.chapter || s.id;
+  b.setAttribute('aria-label', `Slide ${i + 1}: ${s.dataset.chapter || s.id}`);
+  if (s.dataset.demo) b.classList.add('demo');
+  b.addEventListener('click', () => show(i));
+  dots.appendChild(b);
+});
+function mountDemo(slide) {
+  const kind = slide.dataset.demo;
+  if (!kind) return;
+  const host = slide.querySelector('.demo-host');
+  const panel = slide.querySelector('.demo-panel');
+  const go = () => {
+    if (current !== slides.indexOf(slide)) return; // moved on before the bundle loaded
+    try { live = window.Story.mount(kind, host, panel); } catch (e) { host.innerHTML = `<div class="demo-error">The live view couldn't start: ${e.message}</div>`; }
+    if (slide.id !== 'cover') { const tag = document.createElement('span'); tag.className = 'live'; tag.textContent = 'live · the game\'s code'; host.appendChild(tag); }
+  };
+  if (window.Story) go();
+  else {
+    host.innerHTML = '<div class="demo-error muted" style="color:var(--muted)">Loading the game\'s code (2.4 MB)…</div>';
+    pendingDemo = go;
+  }
+}
+document.addEventListener('story-ready', () => { if (pendingDemo) { const g = pendingDemo; pendingDemo = null; g(); } });
+function show(i) {
+  i = Math.max(0, Math.min(slides.length - 1, i));
+  if (i === current) return;
+  if (live) { try { live.dispose(); } catch {} live = null; }
+  pendingDemo = null;
+  slides.forEach((s, k) => (s.hidden = k !== i));
+  [...dots.children].forEach((d, k) => { d.classList.toggle('on', k === i); d.setAttribute('aria-selected', String(k === i)); });
+  current = i;
+  const s = slides[i];
+  chapter.textContent = `${i + 1} / ${slides.length} · ${s.dataset.chapter || s.id}`;
+  if (location.hash !== `#${s.id}`) history.replaceState(null, '', `#${s.id}`);
+  mountDemo(s);
+}
+document.getElementById('prev').addEventListener('click', () => show(current - 1));
+document.getElementById('next').addEventListener('click', () => show(current + 1));
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, select, textarea')) return;
+  if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) { e.preventDefault(); show(current + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) { e.preventDefault(); show(current - 1); }
+  else if (e.key === 'Home') show(0);
+  else if (e.key === 'End') show(slides.length - 1);
+  else if (e.key === 'f' || e.key === 'F') { const el = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen?.())?.catch?.(() => {}); }
+  else if (e.key === 'Escape') closeLightbox();
+});
+const fromHash = () => { const id = location.hash.slice(1); const i = slides.findIndex((s) => s.id === id); show(i >= 0 ? i : 0); };
+window.addEventListener('hashchange', fromHash);
+fromHash();
+
+// ── Pictures open large ───────────────────────────────────────────────────────────────
+const lb = document.getElementById('lightbox');
+const lbImg = lb.querySelector('img');
+const lbCap = lb.querySelector('figcaption');
+document.addEventListener('click', (e) => {
+  const img = e.target.closest('figure.shot img');
+  if (!img) return;
+  lbImg.src = img.src; lbImg.alt = img.alt; lbCap.textContent = img.dataset.cap || img.alt; lb.hidden = false;
+});
+function closeLightbox() { lb.hidden = true; }
+lb.addEventListener('click', closeLightbox);
+
+// ── Facts filled from the bundle, when it's there ─────────────────────────────────────
+document.addEventListener('story-ready', () => {
+  const n = window.Story?.facts?.tests;
+  if (n) { document.getElementById('chip-tests').innerHTML = `<b>${n.toLocaleString('en-GB')}</b> tests`; document.getElementById('tile-tests').textContent = n.toLocaleString('en-GB'); }
+});
+</script>
+<script type="module" src="story.js"></script>
