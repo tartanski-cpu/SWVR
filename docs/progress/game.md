@@ -10,6 +10,30 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The foiling ferry's retractable foils at her helm: FOIL · HULL · SHALLOW (28 Oct 2026)
+
+Owner: "and they are retractable" (her foils: 2.7 m draught down at rest, 1.2 m foiling, 1.0 m retracted in shallow mode). The hull chat built the retracting (on next, e5d329a): `controls.foilMode` 2 SHALLOW, `foils.mode` 0..2, `foil.deploy` (1 down .. 0 up) and `foil.draught` (m).
+- **The switch is three-way** (`control.toggle`, `positions: 3`):
+  - forward FOIL, middle HULL (foils down), aft SHALLOW (foils up);
+  - engraved FOIL·HULL·SHALLOW;
+  - it **sweeps** (new `Toggle` option `sweep`, the module's `sweep: true`): each press moves the bat one step along its travel and turns back at the ends, FOIL → HULL → SHALLOW → HULL → FOIL. A plain three-way toggle cycles 0 → 1 → 2 → 0, which here would have gone from FOIL straight to SHALLOW in flight.
+- **The FOILS screen:**
+  - new phases RAISING FOILS, FOILS UP, LOWERING FOILS; LANDING in SHALLOW too, since she comes down off her foils before they fold;
+  - FOIL, HULL or SHALLOW at the top;
+  - her draught now (amber deeper than `CONFIG.foilHelm.deepDraughtM` 1.5 m);
+  - the side view drawn to her real draught, so the foils come up under her.
+- **The hydraulics** (`audio/hydraulicsAudio.ts`, a new `foils` voice, a quieter, higher pump than the crane's): heard while the foils are travelling (`foil.deploy` changing).
+- **Her flaps in two rows** on the screen, FWD and AFT, each port then starboard (`foilRows`, from her own foils' layout, VesselDef.foils). Her new arrangement has four panels (the forward foil's two halves, a T-foil under each hull aft); the screen had labelled three. The side view tilts each foil by its row's mean flap.
+- **The RIDE knob's** side marks pulled in off its plate's edges.
+- **Tests:** tests/foilHelm.test.ts:
+  - the switch is three-way and sweeps;
+  - the switch reaches SHALLOW through the bus;
+  - the screen's new phases;
+  - the sweep's order, FOIL, HULL, SHALLOW, HULL, FOIL.
+- **Checked headless:** the switch and knob close up; the screen in four states (flying, landing in HULL, raising, up); in the game, the real switch pressed twice at rest (FOIL, HULL, SHALLOW): the foils came up over about 20 s, her draught 2.7 to 1.0 m, the screen reading RAISING FOILS then FOILS UP; one press back to HULL lowered them (LOWERING FOILS, then ON HER HULLS, 2.7 m).
+- **Not checked:** VR, and the hydraulics by ear.
+- **Shared changes:** `src/modules/toggle/index.ts` (the `sweep` option); `src/shipyard/parts/recipe.ts` (her switch three-way).
+
 ### The foiling ferry's helm: FOIL / HULL, the ride height knob, the FOILS screen, her sound and feel (28 Oct 2026)
 
 Owner: "Do 1, 3 and 4, three ride heights; hull chat does physics", then "build the foiling controls and display and noises". The hull chat put the physics side on next (foilMode, foilRide, bus keys `foils.mode` and `foils.ride`, her flight in `VesselState.foil`); the Shipyard made her a one-off (3badedb).

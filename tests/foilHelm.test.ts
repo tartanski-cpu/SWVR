@@ -8,6 +8,7 @@ import { FoilFeel, foilSoundLevels } from '../src/audio/foilAudio';
 import { useDesign } from '../src/boats/sims';
 import { CONFIG } from '../src/config';
 import { foilPhase } from '../src/controls/instruments';
+import { Toggle } from '../src/controls/Toggle';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
@@ -35,6 +36,7 @@ describe("the foiling ferry's helm", () => {
       const by = (socket: string) => mods.find((m) => m.socket === socket);
       expect(by('foilMode')?.module, JSON.stringify(v)).toBe('control.toggle');
       expect(by('foilMode')?.bind).toEqual({ value: 'foils.mode' });
+      expect(by('foilMode')?.config).toMatchObject({ positions: 3, sweep: true });
       expect(by('foilRide')?.module, JSON.stringify(v)).toBe('control.selector3');
       expect(by('foilRide')?.bind).toEqual({ value: 'foils.ride' });
       const screens = mods.filter((m) => m.module === 'instrument.screen').map((m) => m.config as { screen: string; pages?: string[] });
@@ -60,6 +62,9 @@ describe("the foiling ferry's helm", () => {
     expect(v.controls.foilMode).toBe(0);
     send('foils.mode', 1);
     expect(v.controls.foilMode).toBe(1);
+    send('foils.mode', 2);
+    expect(v.controls.foilMode).toBe(2);
+    send('foils.mode', 1);
     for (const r of [0, 2, 1]) {
       send('foils.ride', r);
       expect(v.controls.foilRide).toBe(r);
@@ -80,6 +85,34 @@ describe("the foiling ferry's helm", () => {
     expect(foilPhase(s)).toBe('LANDING');
     s.foil.clear = 0.1;
     expect(foilPhase(s)).toBe('ON HER HULLS');
+  });
+
+  it('her foils on the screen: raising and lowering, up in SHALLOW, landing first if she was flying', () => {
+    const s = createVesselState('v', 'workboat');
+    s.controls.foilMode = 2;
+    s.foil = { engaged: 0, flaps: [0, 0, 0], clear: 1, deploy: 1, draught: 1.2 };
+    expect(foilPhase(s)).toBe('LANDING');
+    s.foil = { engaged: 0, flaps: [0, 0, 0], clear: 0.1, deploy: 0.5, draught: 1.8 };
+    expect(foilPhase(s)).toBe('RAISING FOILS');
+    s.foil.deploy = 0;
+    expect(foilPhase(s)).toBe('FOILS UP');
+    s.controls.foilMode = 1;
+    s.foil.deploy = 0.3;
+    expect(foilPhase(s)).toBe('LOWERING FOILS');
+    s.foil.deploy = 1;
+    expect(foilPhase(s)).toBe('ON HER HULLS');
+  });
+
+  it('the three-way switch sweeps along its travel: FOIL, HULL, SHALLOW, HULL, FOIL (never FOIL straight to SHALLOW)', () => {
+    const t = new Toggle('t', 'foils.mode', 'FOIL / HULL / SHALLOW', () => 1, 3, true);
+    const pos = () => (t as unknown as { pos: number }).pos;
+    t.sync({ ...createVesselState('v', 'workboat') });
+    const seen = [pos()];
+    for (let i = 0; i < 5; i++) {
+      t.pressStart();
+      seen.push(pos());
+    }
+    expect(seen).toEqual([1, 0, 2, 0, 1, 0]);
   });
 
   it("her sound: the hull's rush fades and the foils' hiss comes in as she lifts clear, louder and higher with speed", () => {

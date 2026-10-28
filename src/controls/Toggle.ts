@@ -8,7 +8,10 @@ import { Control } from './Control';
  * Toggle switch (e.g. navigation lights). Two positions: a press flips it; the bat lever
  * tilts forward (on) or aft (off). Three positions (the cabin light: off / white / red):
  * each press steps 0 -> 1 -> 2 -> 0; the bat sits in the middle (0), forward (1) or aft
- * (2). It sends the position number. The authoritative position comes from the vessel state.
+ * (2). Or, `sweep` (the foiling ferry's FOIL / HULL / SHALLOW, owner, 28 Oct 2026), each press
+ * moves the bat to the next position along its travel, as a hand does a real one, turning back
+ * at either end: forward, middle, aft, middle, forward (never from forward straight to aft).
+ * It sends the position number. The authoritative position comes from the vessel state.
  */
 export class Toggle extends Control {
   readonly kind = 'press' as const;
@@ -16,6 +19,8 @@ export class Toggle extends Control {
   /** The bat lever (modules draw it as a shared part: modular/sharedParts.ts). */
   readonly batMesh: THREE.Mesh;
   private pos = 0;
+  /** Sweeping: which way along its travel (forward to aft, +1, or back) the next press moves it. */
+  private dir = 1;
 
   constructor(
     id: string,
@@ -23,6 +28,7 @@ export class Toggle extends Control {
     readonly label: string,
     private readonly read: (s: VesselState) => number,
     private readonly positions: 2 | 3 = 2,
+    private readonly sweep = false,
   ) {
     super(id, channel);
     const k = CONFIG.interaction.switchScale;
@@ -50,10 +56,23 @@ export class Toggle extends Control {
   }
 
   pressStart(): void {
-    this.show((this.pos + 1) % this.positions);
+    this.show(this.next());
     this.markPending();
     this.ctx?.haptic(0.5, 30);
     this.ctx?.emit(this.channel, this.pos);
+  }
+
+  /** Where a press moves it. */
+  private next(): number {
+    if (this.positions !== 3 || !this.sweep) return (this.pos + 1) % this.positions;
+    // Along its travel: forward (1), middle (0), aft (2); at an end it turns back.
+    const TRAVEL = [1, 0, 2];
+    let i = TRAVEL.indexOf(this.pos) + this.dir;
+    if (i < 0 || i > 2) {
+      this.dir = -this.dir;
+      i = TRAVEL.indexOf(this.pos) + this.dir;
+    }
+    return TRAVEL[i];
   }
 
   private show(pos: number): void {

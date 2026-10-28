@@ -1328,26 +1328,48 @@ export function azimuthDial(g: CanvasRenderingContext2D, cx: number, cy: number,
  * by its flap), and each flap's angle. From her state's `foil` (the host's flight, so a
  * crew-mate's screen shows the same), her `foilMode` and `foilRide`.
  */
-type FoilPhase = 'FLYING' | 'TAKING OFF' | 'LANDING' | 'ON HER HULLS';
-/** What she's doing (CONFIG.foilHelm): flying once her hulls are clear and her flight computer has her; else rising onto her foils, or coming down off them in HULL. */
+type FoilPhase = 'FLYING' | 'TAKING OFF' | 'LANDING' | 'ON HER HULLS' | 'RAISING FOILS' | 'LOWERING FOILS' | 'FOILS UP';
+/** Her foils raised or lowering (her state's `foil.deploy`, 1 down .. 0 up), within this of an end counts as there. */
+const DEPLOY_END = 0.01;
+/**
+ * What she's doing (CONFIG.foilHelm): flying once her hulls are clear and her flight computer
+ * has her; else rising onto her foils, or coming down off them in HULL or SHALLOW; her foils
+ * going up or down (SHALLOW raises them once she's down off them; FOIL or HULL lowers them),
+ * or up.
+ */
 export function foilPhase(s: VesselState): FoilPhase {
   const f = s.foil;
   const c = CONFIG.foilHelm;
   if (!f) return 'ON HER HULLS';
-  const hull = (s.controls.foilMode ?? 1) < 0.5;
-  if (f.clear >= c.flyingClear && !hull) return 'FLYING';
-  if (hull) return f.clear > c.landedClear ? 'LANDING' : 'ON HER HULLS';
-  return f.engaged > 0.05 && f.clear > c.landedClear ? 'TAKING OFF' : 'ON HER HULLS';
+  const mode = Math.round(s.controls.foilMode ?? 1);
+  const deploy = f.deploy ?? 1;
+  if (f.clear >= c.flyingClear && mode === 1) return 'FLYING';
+  if (mode !== 1 && f.clear > c.landedClear) return 'LANDING';
+  if (deploy > DEPLOY_END && deploy < 1 - DEPLOY_END) return mode === 2 ? 'RAISING FOILS' : 'LOWERING FOILS';
+  if (deploy <= DEPLOY_END) return 'FOILS UP';
+  return mode === 1 && f.engaged > 0.05 && f.clear > c.landedClear ? 'TAKING OFF' : 'ON HER HULLS';
 }
 /** Her keels' height over the mean sea (m): + clear of it, - in it. */
 function keelClearance(s: VesselState, def: VesselDef): number {
   return s.position[1] + def.hull.params.keelY;
 }
 const RIDE_NAMES = ['LOW', 'NORM', 'HIGH'] as const;
+/**
+ * Which of her flaps (her state's `foil.flaps`, her foils' panels in order) are forward and which
+ * aft, each port then starboard: from her foils' own layout (VesselDef.foils: a panel aft of her
+ * middle is aft); without it, the first two forward and the rest aft.
+ */
+function foilRows(def: VesselDef, n: number): { fwd: number[]; aft: number[] } {
+  const panels = def.foils?.panels;
+  const idx = Array.from({ length: n }, (_, i) => i);
+  if (!panels || panels.length !== n) return { fwd: idx.slice(0, 2), aft: idx.slice(2) };
+  const byX = (a: number, b: number) => panels[a].at[0] - panels[b].at[0];
+  return { fwd: idx.filter((i) => panels[i].at[2] < 0).sort(byX), aft: idx.filter((i) => panels[i].at[2] >= 0).sort(byX) };
+}
 function foilKey(s: VesselState, def: VesselDef): string {
   const f = s.foil;
   if (!f) return '';
-  return [foilPhase(s), s.controls.foilMode ?? 1, s.controls.foilRide ?? 1, Math.round(f.engaged * 20), ...f.flaps.map((x) => Math.round(x * 2)), Math.round(keelClearance(s, def) * 50), logKnots(s).toFixed(1), Math.round(Math.max(0, s.engine.powerKw ?? 0))].join('|');
+  return [foilPhase(s), s.controls.foilMode ?? 1, s.controls.foilRide ?? 1, Math.round(f.engaged * 20), Math.round((f.draught ?? 0) * 20), ...f.flaps.map((x) => Math.round(x * 2)), Math.round(keelClearance(s, def) * 50), logKnots(s).toFixed(1), Math.round(Math.max(0, s.engine.powerKw ?? 0))].join('|');
 }
 const paintFoil: Painter = (g, s, def) => {
   title(g, 'FOILS');
@@ -1356,14 +1378,15 @@ const paintFoil: Painter = (g, s, def) => {
     text(g, 'NO FOILS', 20, 110, DIM);
     return;
   }
-  const hull = (s.controls.foilMode ?? 1) < 0.5;
+  const mode = Math.round(s.controls.foilMode ?? 1);
+  const hull = mode !== 1;
   const ride = Math.max(0, Math.min(2, Math.round(s.controls.foilRide ?? 1)));
   const phase = foilPhase(s);
-  // Top right: FOIL or HULL, as the switch is.
-  text(g, hull ? 'HULL MODE' : 'FOIL MODE', 248, 16, hull ? AMBER : GREEN, TEXT_PX, 'right');
+  // Top right: FOIL, HULL or SHALLOW, as the switch is.
+  text(g, ['HULL MODE', 'FOIL MODE', 'SHALLOW'][mode] ?? 'FOIL MODE', 248, 16, hull ? AMBER : GREEN, TEXT_PX, 'right');
   // Left: what she's doing, her speed and power.
   g.textAlign = 'left';
-  big(g, phase, 20, 66, phase.length > 10 ? 30 : 38, phase === 'FLYING' ? GREEN : phase === 'ON HER HULLS' ? AMBER : '#ffe6b0');
+  big(g, phase, 20, 66, phase.length > 13 ? 26 : phase.length > 10 ? 30 : 38, phase === 'FLYING' ? GREEN : phase === 'ON HER HULLS' || phase === 'FOILS UP' ? AMBER : '#ffe6b0');
   text(g, `${logKnots(s).toFixed(1)} kn   ${Math.round(Math.max(0, s.engine.powerKw ?? 0))} kW`, 20, 92, AMBER);
   // Her ride height: the three settings, hers lit.
   text(g, 'RIDE', 20, 128, DIM, SMALL_PX);
@@ -1382,12 +1405,19 @@ const paintFoil: Painter = (g, s, def) => {
   g.fillRect(140, 166, 104, 12);
   g.fillStyle = hull ? DIM : GREEN;
   g.fillRect(140, 166, 104 * Math.max(0, Math.min(1, f.engaged)), 12);
-  // Each flap's angle (deg, + down: more lift).
-  ['P', 'S', 'AFT'].forEach((n, i) => {
-    const deg = f.flaps[i] ?? 0;
-    text(g, `${n} ${deg >= 0 ? '+' : ''}${deg.toFixed(1)}°`, 20 + i * 78, 198, Math.abs(deg) > CONFIG.foilHelm.flapWarnDeg ? RED : AMBER, SMALL_PX);
-  });
-  text(g, 'FLAPS', 20, 222, DIM, SMALL_PX);
+  // Each flap's angle (deg, + down: more lift), a row for her forward foils and one for her aft,
+  // port then starboard (her foils' panels, in her state's order: VesselDef.foils).
+  const { fwd, aft } = foilRows(def, f.flaps.length);
+  const row = (name: string, idx: number[], y: number) => {
+    text(g, name, 20, y, DIM, SMALL_PX);
+    idx.forEach((i, k) => {
+      const deg = f.flaps[i] ?? 0;
+      const side = idx.length === 2 ? (k ? 'S ' : 'P ') : '';
+      text(g, `${side}${deg >= 0 ? '+' : ''}${deg.toFixed(1)}°`, 70 + k * 96, y, Math.abs(deg) > CONFIG.foilHelm.flapWarnDeg ? RED : AMBER, SMALL_PX);
+    });
+  };
+  row('FWD', fwd, 196);
+  row('AFT', aft, 220);
   // Right: a side view of her over the water, at her height.
   const k = CONFIG.foilHelm.viewPxPerM;
   const sea = 128;
@@ -1415,8 +1445,9 @@ const paintFoil: Painter = (g, s, def) => {
   g.closePath();
   g.fill();
   g.fillRect(x0 + 60, keel - 44, 90, 18);
-  // Her struts down to her foils, each foil tilted by its flap (drawn larger, to see it).
-  const foilY = keel + CONFIG.foilHelm.foilDepthM * k;
+  // Her struts down to her foils, each foil tilted by its flap (drawn larger, to see it): as
+  // deep as her draught (her state's, to her foils' lowest point), up under her when raised.
+  const foilY = f.draught !== undefined ? Math.max(keel + 4, sea + f.draught * k) : keel + CONFIG.foilHelm.foilDepthM * k;
   const foil = (x: number, deg: number) => {
     g.strokeStyle = '#8c9399';
     g.lineWidth = 4;
@@ -1432,9 +1463,12 @@ const paintFoil: Painter = (g, s, def) => {
     g.lineTo(x + Math.cos(a) * 22, foilY + Math.sin(a) * 22);
     g.stroke();
   };
-  foil(x1 - 60, ((f.flaps[0] ?? 0) + (f.flaps[1] ?? 0)) / 2);
-  foil(x0 + 30, f.flaps[2] ?? 0);
+  const mean = (idx: number[]) => idx.reduce((a, i) => a + (f.flaps[i] ?? 0), 0) / Math.max(1, idx.length);
+  foil(x1 - 60, mean(fwd));
+  foil(x0 + 30, mean(aft));
   text(g, clear > 0 ? `KEELS +${clear.toFixed(2)} m` : 'HULLS IN THE WATER', 490, 16, clear > 0 ? GREEN : DIM, SMALL_PX, 'right');
+  // Her draught: how deep she reaches now (her foils, or her hulls with them raised).
+  if (f.draught !== undefined) text(g, `DRAUGHT ${f.draught.toFixed(1)} m`, 490, 226, f.draught > CONFIG.foilHelm.deepDraughtM ? AMBER : GREEN, SMALL_PX, 'right');
 };
 
 /** The screens there are, for the screen module (modules/screen) to pick from. */

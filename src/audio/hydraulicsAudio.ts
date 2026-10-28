@@ -35,6 +35,8 @@ const VOICES = {
   crane: { whine: 520, rumble: 58, level: 0.9 },
   winch: { whine: 380, rumble: 44, level: 1.0 },
   trawl: { whine: 330, rumble: 38, level: 1.0 },
+  /** A foiling boat's foils raised or lowered (the foiling ferry's, owner 28 Oct 2026: retractable): a quieter, higher pump. */
+  foils: { whine: 610, rumble: 52, level: 0.6 },
 } as const;
 type MachineName = keyof typeof VOICES;
 
@@ -167,6 +169,7 @@ export class HydraulicsAudio {
       crane: new Voice(ctx, this.noise, this.muffle, VOICES.crane),
       winch: new Voice(ctx, this.noise, this.muffle, VOICES.winch),
       trawl: new Voice(ctx, this.noise, this.muffle, VOICES.trawl),
+      foils: new Voice(ctx, this.noise, this.muffle, VOICES.foils),
     };
   }
 

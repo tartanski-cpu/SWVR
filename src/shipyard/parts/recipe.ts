@@ -342,7 +342,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (foiler) {
     cc.slots.foil = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
     consoleMount.modules!.push(
-      { socket: 'foilMode', module: 'control.toggle', config: { label: 'FOIL / HULL: on her foils at speed (up), or kept down on her hulls (down: in harbour)', engrave: 'FOIL' }, bind: { value: 'foils.mode' } },
+      { socket: 'foilMode', module: 'control.toggle', config: { label: 'FOIL / HULL / SHALLOW: forward, FOIL (she flies at speed); middle, HULL (kept on her hulls, foils down); aft, SHALLOW (foils raised, 1.0 m draught)', engrave: 'FOIL·HULL·SHALLOW', positions: 3, sweep: true }, bind: { value: 'foils.mode' } },
       { socket: 'foilRide', module: 'control.selector3', config: { label: 'Ride height: LOW, NORM or HIGH over the water (press to step)', engrave: 'RIDE', marks: ['LO', 'N', 'HI'] }, bind: { value: 'foils.ride' } },
       { socket: 'foil', module: 'instrument.screen', config: { screen: 'foil' } },
     );
