@@ -175,6 +175,7 @@ function fakeHost() {
     canSaveBoat: () => true,
     saveBoatFavourite: () => calls.push('save boat'),
     goPlanTable: () => calls.push('plan table'),
+    openPlanChart: () => calls.push('plan chart'),
     crewMember: (i: number) => (i === 0 ? { name: 'Skipper', you: true, host: false, muted: false } : null),
     toggleCrewMute: (i: number) => calls.push(`mute ${i}`),
     voiceStatus: () => '',

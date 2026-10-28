@@ -84,7 +84,8 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
 | V (hold) | Talk on your handheld VHF: crew-mates within a few kilometres hear you on their radios (multiplayer) |
 | F4 | Buoyancy debug view on/off |
-| N / M | Time of day −/+ 30 min |
+| M | **Planning chart**, full screen (Voyage and career): wheel to zoom, drag to move it, click to plan; M or Esc closes it |
+| F6 / F7 | Time of day −/+ 30 min (test) |
 | F3 or I | Debug overlay on/off (FPS, cpu/gpu frame time, draw calls, boat readouts); off at start |
 | P | Wave surface probes on/off |
 | F1 or H | Help panel on/off (hidden at the start; it lists the playing keys, the rest is on the menu) |
@@ -224,6 +225,15 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 - It's printed like a real chart: depth tints and contours, soundings in metres, a latitude and longitude scale in tenths of a minute around the edge, and a compass rose.
 - **Real positions on the Voyage maps:** there, the latitude and longitude are the real ones (the NAV display, the paper chart's scale, the radio's rescue positions), so you can check them against a real chart of the place. The career archipelago is made up, and so are its positions.
 - **At night** you need the chart table lamp (or the cabin light) to read the chart. The chart, the whiteboard and the task board go dim and red after dark, like the panels, so they don't dazzle you. The chart lamp, a black gooseneck reading lamp standing on the table (a round base with a rocker switch, a long arching neck, a spot head aimed down at the chart), is turned down to a dim red at night. With the white cabin light on they stay whitish, but dimmed.
+
+### Planning chart (Voyage and career)
+
+Plan a route on a chart you zoom and move for yourself, anywhere: at the helm, on deck, ashore. Everyone in the game plans on the same route (it's the planning table's), but each of you has your own view of it.
+
+- **Desktop:** press **M** (or the Voyage tab's **Open the chart**). The mouse wheel zooms in and out about the pointer; drag to move the chart; click with a tool to put a point there. Along the top: **Waypoint**, **Stop** (it takes the nearest harbour's name), **Look at** (the nearest castle, monument, hill, wreck or light), **Remove** (the point nearest your click), **Undo**, **Clear** (press twice), **My boat** (centre on her), **Whole map**, − and +. The next point and how far are along the foot. **M** or **Esc** closes it. While it's open the game's keys don't move you.
+- **VR:** the Voyage tab's **Open the chart** puts a chart board in your left hand, turned to face you. Point your right hand at it: the trigger pressed and let go puts a point there with the tool (or presses a key along the board's foot: WAY, STOP, LOOK, DEL, UNDO, CLEAR, BOAT, ALL, −, +, ✕); hold the trigger and drag to move the chart; the right thumbstick forward and back zooms in and out about where you point. **✕** (or Open the chart again) puts it away. Your left hand is busy holding it.
+- **On it:** the coast as sharp as the chartplotter's at any zoom, the harbours and their names, the place names (more as you zoom in), wrecks and marks, every crew's boat (yours yellow, YOU), the route joined up and numbered (stops square, things to look at diamonds, the next point ringed), a scale bar and north.
+- **The plan** is the one the chartplotters steer for and the table on a Voyage quay shows; in the career it's saved in your browser too (alone or hosting).
 
 ### Voyage planning table (Voyage mode)
 

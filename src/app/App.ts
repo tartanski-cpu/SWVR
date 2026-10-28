@@ -83,6 +83,9 @@ import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
 import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthId } from '../voyage/plan';
 import { PlanTable, planTableSpot } from '../voyage/planTable';
+import { PlanChartPanel } from '../ui/planChartPanel';
+import { KEYS } from '../core/keybindings';
+import { ChartBoard } from '../player/chartBoard';
 import type { HeardBoat } from '../audio/boatVoices';
 import { boatOwnerName, launchType, ownedBoat, playerBoats } from '../core/launch';
 import { berthWithId } from '../world/berths';
@@ -224,6 +227,8 @@ const BATTERY_KEY = 'swvr.battery';
 const LAST_BOAT_KEY = 'swvr.voyage.lastBoat';
 /** Voyage mode: the crew's plan for a map, saved by the host (voyage/plan.ts). */
 const planKey = (map: string) => `swvr.voyage.plan.${map}`;
+/** Where this page's plan is kept: a Voyage map's own, or the career's (owner, 28 Oct 2026: "career too"). */
+const planSaveKey = () => (MODE === 'voyage' && VOYAGE_MAP_ID ? planKey(VOYAGE_MAP_ID) : 'swvr.career.plan');
 
 /**
  * The boat the game starts in: the page's `?boat=` (Debug > Boat > Start in, modular boats
@@ -412,6 +417,8 @@ const HOLD_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0
  */
 const OWN_PAGE_KEY = 'swvr.ownPage';
 /** The keys that type a game code on the Crew tab (App typeCodeKeys): their usual jobs wait. */
+/** While the planning chart's open on the desktop, every game key but M (which closes it) is its: you don't walk off while planning. */
+const CHART_PANEL_CODES = Object.values(KEYS).flatMap((k) => k.codes).filter((c) => c !== 'KeyM');
 const CODE_KEYS = [...Array.from({ length: 10 }, (_, d) => [`Digit${d}`, `Numpad${d}`]).flat(), 'Backspace', 'Enter', 'NumpadEnter'];
 /** This page's address, its folder (/SWVR/ the game, /SWVR/next/ the test build, a preview's). */
 const SITE = location.pathname.replace(/[^/]*$/, '');
@@ -516,6 +523,9 @@ export class App {
   private boardOnStart = false;
   /** Voyage mode: the planning table on the start quay (voyage/planTable.ts), the plan's changes saved, its last note shown. */
   private planTable: PlanTable | null = null;
+  /** The planning chart, each player's own view (voyage/planChart.ts): full-screen on the desktop (M), on a board in the left hand in VR. */
+  private readonly planPanel = new PlanChartPanel({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) });
+  private readonly chartBoard = new ChartBoard({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) });
   /** Voyage mode: the sign into the Shipyard beside the planning table (ui/shipyardDoor.ts). */
   private shipyardDoor: ShipyardDoor | null = null;
   /** Voyage mode: the Your boats board on the planning table's other side. */
@@ -1152,7 +1162,7 @@ export class App {
     );
     this.keyboard.endFrame();
     // The keys a keyboard-steered control's buttons use do only that while it's steered.
-    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : [...(this.interaction?.steeringCodes ?? []), ...(this.craneRemote ? REMOTE_CODES : []), ...(this.typingCode() ? CODE_KEYS : []), ...(this.aziHelmBoat() ? AZI_HELM_CODES : [])]);
+    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : [...(this.interaction?.steeringCodes ?? []), ...(this.craneRemote ? REMOTE_CODES : []), ...(this.typingCode() ? CODE_KEYS : []), ...(this.aziHelmBoat() ? AZI_HELM_CODES : []), ...(this.planPanel.isOpen ? CHART_PANEL_CODES : [])]);
   }
 
   /** Desktop, the Crew tab open on your own: the number keys type the game code (study #34). */
@@ -1722,6 +1732,8 @@ export class App {
     this.updateCraneRemote(cam);
     if (k.actionPressed('toggleOverlay') || this.xrInput.wasPressed('right', XR_BUTTON.secondary)) this.overlay.toggle();
     if (k.actionPressed('menu') || this.xrInput.wasPressed('left', XR_BUTTON.secondary)) this.toggleMenu();
+    // M: the planning chart, full screen (desktop).
+    if (k.actionPressed('planChart') && !this.renderer.xr.isPresenting) this.planPanel.toggle();
     if (k.actionPressed('toggleHelp')) this.help.toggle();
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
@@ -3789,12 +3801,17 @@ export class App {
       planLine: () => {
         const n = nextPoint(this.world);
         const v = this.world.vessels[this.testVesselId];
-        if (!this.world.plan?.points.length) return 'No plan yet: plan one on the chart table on the start quay';
+        if (!this.world.plan?.points.length) return MODE === 'voyage' ? 'No plan yet: open the chart (M), or the table on the start quay' : 'No plan yet: open the chart (M) to plan one';
         if (!n) return 'Plan done: every point reached';
         const d = v ? Math.hypot(n.p.x - v.position[0], n.p.z - v.position[2]) / 1852 : 0;
         return `Next: ${pointLabel(n.p, n.i)}, ${d.toFixed(1)} nm`;
       },
       goPlanTable: () => this.pushEnvIntent('plan', 1, 'goto'),
+      openPlanChart: () => {
+        this.menu.close();
+        if (this.renderer.xr.isPresenting) this.chartBoard.toggle();
+        else this.planPanel.show();
+      },
       timberLine: () => this.timberLine(),
       liveWeatherLine: () => (this.world.environment.weather?.manual ? 'Weather set by hand (Debug > World)' : (this.world.environment.weather?.live?.text ?? '')),
       liveWeatherCredit: () => this.world.environment.weather?.live?.credit ?? '',
@@ -4543,6 +4560,8 @@ export class App {
     this.windSock = home.api<MastApi>('mount.mast')?.windSock ?? null;
     this.searchlight = home.api<SearchlightApi>('deck.searchlight');
     home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
+    this.planPanel.setLandSource((id) => this.worldView.terrainPositions(id));
+    this.chartBoard.setLandSource((id) => this.worldView.terrainPositions(id));
     this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
     this.dutyBoard = home.dutyBoard;
     // Voyage: no career, no duty board (world.voyage).
@@ -5458,6 +5477,15 @@ export class App {
         this.hands.right.triggerPressed = false;
         this.hands.right.trigger = 0;
       }
+      // The chart board (voyage/planChart.ts): the left hand holds it, the right hand's pointer works it.
+      const onBoard = this.chartBoard.updateXR(this.hands, this.camera.getWorldPosition(this.tmpV), this.frameDt, (h, i, ms) => this.xrInput.pulse(h, i, ms));
+      for (const h of ['left', 'right'] as const) {
+        if (!onBoard[h]) continue;
+        const f = this.hands[h];
+        f.gripDown = f.gripPressed = f.triggerDown = f.triggerPressed = false;
+        f.trigger = 0;
+        f.stick = [0, 0];
+      }
       // Binoculars: a hand holding them gives its grip and trigger to them.
       const onBino = this.binoculars.updateXR(this.hands, this.busyHands, this.camera.getWorldPosition(this.tmpV), (h, i, ms) => this.xrInput.pulse(h, i, ms));
       for (const h of ['left', 'right'] as const) {
@@ -5496,7 +5524,7 @@ export class App {
         f.trigger = 0;
       }
       this.busyHands = this.interaction.updateXR(this.hands);
-      for (const h of ['left', 'right'] as const) if (onTools[h] || onBino[h]) this.busyHands[h] = true;
+      for (const h of ['left', 'right'] as const) if (onTools[h] || onBino[h] || onBoard[h]) this.busyHands[h] = true;
       this.cargoHands.updateXR(this.cargoCtx(), this.hands, this.busyHands);
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
@@ -6003,16 +6031,18 @@ export class App {
    * note isn't news: it's not shown again.
    */
   private setupPlanTable(): void {
-    if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
+    // The plan saved here last time (alone or hosting: the crew get the host's): a Voyage map's, or the career's.
     if (!this.client) {
       try {
-        const saved = parsePlan(localStorage.getItem(planKey(VOYAGE_MAP_ID)));
+        const saved = parsePlan(localStorage.getItem(planSaveKey()));
         if (saved) this.world.plan = saved;
       } catch {
         // Storage blocked: no saved plan.
       }
     }
     this.planSaved = this.world.plan?.seq ?? -1;
+    this.scene.add(this.chartBoard.root);
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
     this.planTableBerth = tableBerthId(this.world);
     const at = planTableSpot(this.planTableBerth);
     if (!at) return;
@@ -6027,12 +6057,19 @@ export class App {
     this.scene.add(this.shipyardDoor.menu.rayLine, this.boatsBoard.menu.rayLine);
   }
 
+  /** A plan action to the host (the `plan` env intent): the planning chart's and board's. */
+  private sendPlan(ref: string, args?: number[]): void {
+    this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'plan', value: 1, ref, ...(args ? { args } : {}) });
+  }
+
   /**
    * Voyage mode, each frame: the planning table (only while you're near enough to see it),
    * a point reached told once, and the plan saved when it changes (alone or hosting).
    */
   private updatePlan(): void {
     const plan = this.world.plan;
+    this.planPanel.update();
+    if (this.renderer.xr.isPresenting === false && this.chartBoard.isOut) this.chartBoard.putAway();
     // The host went to another harbour with the Go button: the table goes there too.
     const berth = tableBerthId(this.world);
     if (berth !== this.planTableBerth && this.planTable) {
@@ -6047,10 +6084,10 @@ export class App {
       if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);
       this.planNoteT = plan.note.t;
     }
-    if (plan && this.savesHere() && VOYAGE_MAP_ID && plan.seq !== this.planSaved) {
+    if (plan && this.savesHere() && plan.seq !== this.planSaved) {
       this.planSaved = plan.seq;
       try {
-        localStorage.setItem(planKey(VOYAGE_MAP_ID), savePlanText(plan));
+        localStorage.setItem(planSaveKey(), savePlanText(plan));
       } catch {
         // Not saved.
       }

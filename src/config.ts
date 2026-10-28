@@ -2784,6 +2784,29 @@ export const CONFIG = {
       minSpan: 1500,
       drawPx: 2048,
       table: { width: 2.4, depth: 1.6, height: 0.9, back: 3.2, keyDepth: 0.12 },
+      /**
+       * The planning chart each player zooms and pans for themselves (owner, 28 Oct 2026: "own
+       * view each, career too"; voyage/planChart.ts): full-screen on the desktop
+       * (ui/planChartPanel.ts, M or the Voyage tab's Open the chart), on a board in the hand in VR
+       * (player/chartBoard.ts).
+       *   minSpan         as close in as it goes (m across)
+       *   portNamesSpan   ports named this close in and closer (m across); dots further out
+       *   wheelStep       a mouse wheel notch zooms by this
+       *   stickZoomPerS   VR: the right thumbstick held over the board zooms by this a second
+       *   dragPx          a press that moves less than this (px) is a press on the chart, not a drag
+       *   board           VR: the board's width (m) and its picture's (px, its height 3/4 of that,
+       *                   the bottom `toolbarShare` the tool keys); where it sits from the left
+       *                   hand (m, in the hand's own axes: right, up, back), turned to face you;
+       *                   a redraw at most every `redrawS` s
+       */
+      chart: {
+        minSpan: 300,
+        portNamesSpan: 20000,
+        wheelStep: 1.2,
+        stickZoomPerS: 3,
+        dragPx: 5,
+        board: { width: 0.6, px: 1024, toolbarShare: 0.14, offset: [0.03, 0.05, -0.16] as [number, number, number], redrawS: 0.08 },
+      },
     },
     /**
      * The sign into the Shipyard beside the planning table (ui/shipyardDoor.ts; owner, Oct 2026:

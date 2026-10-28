@@ -10,6 +10,36 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The planning chart: zoom and pan your own view, anywhere, Voyage and career (28 Oct 2026)
+
+Owner: "I really like the voyage planning map, but it doesn't spawn in on all harbor sites. And I would kind of like to have it on the boat as well ... plan a route where they've got control over the map so they can zoom in and out". Then, of the ideas (a chart board you carry, the boat's chart table, a reliable quay table): "go ahead with step 1, own view each, career too".
+- **Found** (why the quay table doesn't show everywhere):
+  - it only stands at the map's start harbour or where the host last used Go;
+  - it needs a level patch 2.4 × 1.6 m clear of buildings within 80 m of the berth, else there's no table, and at the start harbour then no Shipyard sign or boats board either (they're set up with it; not fixed yet: step 2);
+  - Voyage only.
+- **The planning chart** (`voyage/planChart.ts`):
+  - **Each player's own view** (`ChartView`): zoomed about a point so what's under it stays put, panned by dragging, kept on the map (from `chart.minSpan` 300 m across out to the whole map); nothing about it is sent.
+  - **Drawn with the chartplotter's own land**, moved out into `nav/landLayer.ts` (the plotter draws as before), so the coast is sharp at any zoom. Redrawn until every square of coast in view is outlined, since the outlines are built a few a frame.
+  - **On it:** harbours and names (named from `chart.portNamesSpan` 20 km across), place names by rank as on the plotter, wrecks and marks, every crew's boat (yours yellow), the route as on the table, a scale bar and north.
+  - **A press with a tool** sends the same `plan` intent as the quay's table (`toolIntent`), so the plan stays the host's and everyone's.
+- **Desktop** (`ui/planChartPanel.ts`): full screen, on **M** (the debug time keys move from N / M to F6 / F7) or the Voyage tab's new **Open the chart**.
+  - Wheel zoom about the pointer (`chart.wheelStep` 1.2 a notch); drag to pan (a move under `chart.dragPx` 5 px is a click); click to place.
+  - The tools and buttons along the top; the next point along the foot.
+  - Every game key but M is the chart's while it's open (`CHART_PANEL_CODES`), so you don't walk off; the mouse is freed. Redrawn only when something on it changes.
+- **VR** (`player/chartBoard.ts`): **Open the chart** puts a board 0.6 m wide in your left hand (`chart.board`), turned to face you.
+  - Your right hand's pointer works it: trigger press and release places a point or presses a key along its foot; trigger held and dragged pans; the thumbstick zooms about the pointer (`chart.stickZoomPerS` 3).
+  - Its left hand, and the right while pointing at it, are its (busy).
+  - One mesh, one 1024 × 768 canvas, redrawn at most every 0.08 s and only when something on it changes; only while it's out.
+- **Career too:** the Voyage tab's Voyage plan row (the next point, Open the chart) is in both modes. The career's plan is saved in the browser under its own key (`swvr.career.plan`; a Voyage map's as before). The chartplotters already steered for the plan in the career.
+- **Tests:**
+  - tests/planChart.test.ts: zoom about a point keeps it under the pointer; the pan; kept on the map; a press makes the table's intents; planning in the career.
+  - The menu test's host gains `openPlanChart`.
+- **Checked headless:**
+  - the desktop chart in the career and on Oban: opened with M, three points placed by clicking, zoomed with the wheel, panned, W blocked while open, M closing it;
+  - the VR board with fake hands: two waypoints and a stop placed with the trigger and the STOP key, the stick zoom (6 km across to 2 km), a drag that panned without placing a point.
+- **Not checked:** on the Quest (its frame rate with the board out, how it feels in the hand), and two players planning together at once.
+- **Shared changes:** `src/core/keybindings.ts` (M is the planning chart; the debug time of day keys move from N / M to F6 / F7).
+
 ### The foiling ferry's retractable foils at her helm: FOIL · HULL · SHALLOW (28 Oct 2026)
 
 Owner: "and they are retractable" (her foils: 2.7 m draught down at rest, 1.2 m foiling, 1.0 m retracted in shallow mode). The hull chat built the retracting (on next, e5d329a): `controls.foilMode` 2 SHALLOW, `foils.mode` 0..2, `foil.deploy` (1 down .. 0 up) and `foil.draught` (m).

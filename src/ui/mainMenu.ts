@@ -231,6 +231,8 @@ export interface MenuHost {
   /** Voyage mode: the plan's next point ("Next: Stop 2: Rothesay, 3.1 nm"), and put me ashore by the planning table. */
   planLine(): string;
   goPlanTable(): void;
+  /** The planning chart: full screen (desktop), or the chart board in your left hand (VR). */
+  openPlanChart(): void;
   /** Voyage mode: the timber run (voyage/timber.ts): its line, and its buttons (0: sell at the merchant; '' hides one). */
   timberLine(): string;
   /** Voyage mode: the map's live weather (world/coastWeather.ts), and its source's credit; '' when it's the game's own. */
@@ -394,7 +396,9 @@ export function mainMenu(h: MenuHost): MainMenu {
 
   const voyage: MenuRow[] = [
     // The crew's plan from the planning table on the start quay (voyage/planTable.ts).
-    ...(MODE === 'voyage' ? ([{ heading: 'Voyage plan' }, { label: '', buttons: [{ text: () => h.planLine(), weight: 2.6 }, { text: 'Go to the table', press: () => h.goPlanTable() }] }] as MenuRow[]) : []),
+    // (And the planning chart, each player's own view, in Voyage and the career: voyage/planChart.ts.)
+    { heading: 'Voyage plan' },
+    { label: '', buttons: [{ text: () => h.planLine(), weight: 2.6 }, { text: 'Open the chart', press: () => h.openPlanChart() }, ...(MODE === 'voyage' ? [{ text: 'Go to the table', press: () => h.goPlanTable() }] : [])] },
     // The timber run: where it stands; at the merchant's quay, sell the logs.
     ...(MODE === 'voyage'
       ? ([{ label: 'Timber', buttons: [{ text: () => h.timberLine(), weight: 2.4 }, { text: () => h.timberButton(0), press: () => h.timberPress(0) }, { text: () => h.timberButton(1), press: () => h.timberPress(1) }] }] as MenuRow[])
