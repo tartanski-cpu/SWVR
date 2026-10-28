@@ -47,6 +47,40 @@ describe('the electric pods steer', () => {
     expect(r.degS).toBeGreaterThan(2.2);
   });
 
+  it('the solar catamaran has a lever for each pod (owner: "two throttle levers"): one ahead, one astern, she turns on the spot', { timeout: 120000 }, () => {
+    const b = useDesign(typeOf(SOLAR_CAT));
+    const mods = b.recipe.modules.flatMap((m) => [m, ...(m.modules ?? [])]);
+    expect(mods.some((m) => m.module === 'control.twin-throttle')).toBe(true);
+    expect((b.recipe.modules.find((m) => m.module === 'propulsion.pods')!.config as { split?: boolean }).split).toBe(true);
+    const { world, vesselId } = createWorld(new IdFactory(), 'design');
+    const v = world.vessels[vesselId];
+    placeVessel(v, 0, 0, 0, 0);
+    world.environment.waves = [];
+    world.geography = 'openSea';
+    const send = (control: string, value: number) => stepWorld(world, [{ playerId: 't', targetId: v.id, control, value } as Intent], DT);
+    send('quickStart', 1);
+    const battery = v.battery!;
+    // (Half ahead against full astern: a propeller pushes harder ahead than astern.)
+    send('throttle.demand', 0.5);
+    send('throttle.demand2', -1);
+    for (let i = 0; i < 25 / DT; i++) stepWorld(world, [], DT);
+    // Turning on the spot, to starboard (port pod ahead), hardly moving through the water:
+    // slowly, about 1.6°/s (her two 25 kW motors against 16 m of hull).
+    expect((Math.abs(v.angularVelocity[1]) * 180) / Math.PI).toBeGreaterThan(1.2);
+    expect(v.angularVelocity[1]).toBeLessThan(0);
+    expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / 0.5144).toBeLessThan(1);
+    // Each motor its own way; both from her battery.
+    expect(v.engine.gear).toBe(1);
+    expect(v.engine.stbd!.gear).toBe(-1);
+    expect(v.battery!).toBeLessThan(battery);
+    // Both levers together: straight ahead, as before.
+    send('throttle.demand', 0.6);
+    send('throttle.demand2', 0.6);
+    for (let i = 0; i < 30 / DT; i++) stepWorld(world, [], DT);
+    expect(v.engine.stbd!.gear).toBe(1);
+    expect(Math.abs(v.angularVelocity[1])).toBeLessThan(0.01);
+  });
+
   it('the foiling ferry turns tightly on her hulls, and hard over at 25 kn turns hard and keeps flying', { timeout: 120000 }, () => {
     const hulls = hardOver(typeOf(FOIL_FERRY), 0.5);
     expect(hulls.circle).toBeLessThan(60);

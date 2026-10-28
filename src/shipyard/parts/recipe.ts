@@ -149,6 +149,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         ...(p.base.centrePod ? {} : { installed: engine.installed }),
         // The solar catamaran's electric motors, from her battery (CONFIG.shipyard.solarCat.motor; modules/pods).
         ...(p.electric ? { electric: motorSpec(d) } : {}),
+        // (Electric twin pods each on its own lever: the solar catamaran's; owner, 28 Oct 2026.)
+        ...(p.electric && podSet.units.length === 2 ? { split: true } : {}),
       },
     });
     // (Electric motors have no oil to check: no dipstick or oil can.)
@@ -290,6 +292,12 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.slots.podJoystick = { position: [throttleAt, 0.01, pj.stickZ] };
     const lever = consoleMount.modules!.find((m) => m.socket === 'throttle')!;
     lever.config = { ...lever.config, style: 'black' };
+    // (Electric twin pods each on its own lever: the twin lever control in its place, a lever
+    // for each motor, so one ahead and one astern turns her on the spot; owner, 28 Oct 2026.)
+    if (p.electric && podSet && podSet.units.length === 2) {
+      lever.module = 'control.twin-throttle';
+      lever.config = {};
+    }
     consoleMount.modules!.push({ socket: 'podJoystick', module: 'control.helm-joystick', config: { button: pj.button } });
   }
   // Its screens in one row centred over the wheel, in their order, whichever she has (the basic
