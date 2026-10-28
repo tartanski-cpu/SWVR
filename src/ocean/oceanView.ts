@@ -281,6 +281,12 @@ export class OceanView {
     });
   }
 
+  /** The water's own colour where a map has one (RegionDef.water: Hamburg's muddy Elbe), else the sea's (CONFIG.ocean.colors). */
+  setWater(w: { deep: number; scatter: number } | undefined): void {
+    this.uniforms.uDeep.value.set(w?.deep ?? CONFIG.ocean.colors.deep);
+    this.uniforms.uScatter.value.set(w?.scatter ?? CONFIG.ocean.colors.scatter);
+  }
+
   /**
    * A katabatic gust's patch on the water (environment/gusts.ts): darker, ruffled water
    * streaked with spray down the way it blows, a few seconds ahead of the wind itself.

@@ -500,6 +500,8 @@ export class App {
   private readonly environment: EnvironmentView;
   private readonly sky = new SkyView();
   private readonly ocean = new OceanView();
+  /** The water colour in force (setWater): the map's own, or undefined for the sea's. */
+  private waterNow: { deep: number; scatter: number } | undefined;
   private readonly probes = new SurfaceProbes();
   private readonly vesselViews = new Map<EntityId, VesselView>();
   private readonly hydroViews = new Map<EntityId, HydroDebugView>();
@@ -1467,6 +1469,12 @@ export class App {
       if (residency || key !== this.shelterKey) {
         this.shelterKey = key;
         this.ocean.setShelters(near.map((n) => n.s));
+      }
+      // The water's colour of the map you're on (a coast map's own, RegionDef.water), checked with the shelters.
+      const water = regionAt(x, z)?.water;
+      if (water !== this.waterNow) {
+        this.waterNow = water;
+        this.ocean.setWater(water);
       }
     }
     this.worldView.lights.update(renderTime, darkness, this.focus, this.environment.visibility);

@@ -969,6 +969,7 @@ const pkg = {
   floatingDocks,
   gravingDocks,
   terminals,
+  ...(req.water ? { water: { deep: parseInt(req.water.deep.slice(1), 16), scatter: parseInt(req.water.scatter.slice(1), 16) } } : {}),
   gantries,
   yardShips,
   places,

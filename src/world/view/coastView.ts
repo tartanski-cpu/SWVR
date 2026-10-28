@@ -32,7 +32,8 @@ import type { BuildingDef, RegionDef } from '../defs';
 import type { TerrainArrays } from './terrainMesh';
 import { forestOf } from '../forest';
 import { TreesView, treeLevel } from './treesView';
-import { quayCraneGeometry, stackBoxes, stackBoxGeometry, structuresGeometry } from '../coastStructures';
+import { bridgeParts, floatingDockParts, follyParts, gantryParts, gravingDockParts, landmarkModelParts, museumShipParts, quayCraneGeometry, stackBoxes, stackBoxGeometry, yardShipParts } from '../coastStructures';
+import { mergeParts } from '../../render/geometryUtils';
 import { groundHeight } from '../terrain';
 
 const S: CoastSample = { h: 0, r: 0, g: 0, b: 0, fine: false };
@@ -148,6 +149,10 @@ export class CoastTerrainView {
   /** The region's harbour kit in squares (worldView), each shown near the viewer only. */
   private structures: { x: number; z: number; mesh: THREE.Mesh }[] = [];
   private structureHalf = 0;
+  /** Its own structures drawn near only (the small bridges, museum ships, floating docks...), in `structures.nearCell` squares. */
+  private readonly nearStructures: { x: number; z: number; mesh: THREE.Mesh }[] = [];
+  /** Its quay cranes, a terminal's at a time (boom down, boom up), with the terminal's box: shown within `coastQuest.craneDistance` on the Quest. */
+  private readonly terminalCranes: { mesh: THREE.InstancedMesh; x0: number; z0: number; x1: number; z1: number }[] = [];
 
   setStructures(list: { x: number; z: number; mesh: THREE.Mesh }[], cell: number): void {
     this.structures = list;
@@ -174,33 +179,72 @@ export class CoastTerrainView {
     const forest = forestOf(region.id);
     this.trees = forest ? new TreesView(forest) : null;
     if (this.trees) this.root.add(this.trees.root);
-    // Its bridges over the sea, follies, gantry cranes, modelled landmarks, museum ships and docks: one merged mesh,
-    // built now (a few thousand triangles at most), drawn wherever the fog allows.
-    const structures = structuresGeometry(region.bridges ?? [], region.follies ?? [], (x, z) => groundHeight(x, z), region.gantries ?? [], region.yardShips ?? [], { landmarks: region.landmarkModels, museumShips: region.museumShips, floatingDocks: region.floatingDocks, gravingDocks: region.gravingDocks });
-    if (structures) {
-      const m = new THREE.Mesh(structures, this.mat);
+    // Its bridges over the sea, follies, gantry cranes, modelled landmarks, museum ships and
+    // docks. What makes the skyline (the landmarks, the big bridges, a shipyard's goliaths, the
+    // ships building, the graving docks) is one merged mesh drawn wherever the fog allows; the
+    // rest (the small bridges, a container yard's stacking cranes, the museum ships, the
+    // floating docks) in 1 km squares like the harbour kit's, drawn near only (owner, Oct 2026:
+    // Hamburg too heavy on the Quest).
+    const ground = (x: number, z: number) => groundHeight(x, z);
+    const c0 = CONFIG.structures;
+    const far: THREE.BufferGeometry[] = [];
+    const near = new Map<string, { x: number; z: number; parts: THREE.BufferGeometry[] }>();
+    const cell = c0.nearCell;
+    const nearAt = (x: number, z: number, parts: THREE.BufferGeometry[]) => {
+      const [i, j] = [Math.floor(x / cell), Math.floor(z / cell)];
+      const key = `${i},${j}`;
+      const sq = near.get(key) ?? { x: (i + 0.5) * cell, z: (j + 0.5) * cell, parts: [] };
+      sq.parts.push(...parts);
+      near.set(key, sq);
+    };
+    const pathLen = (p: [number, number][]) => p.reduce((t, q, i) => (i ? t + Math.hypot(q[0] - p[i - 1][0], q[1] - p[i - 1][1]) : 0), 0);
+    for (const b of region.bridges ?? []) {
+      const parts = bridgeParts(b, ground);
+      if (b.pylons || b.deck >= c0.farBridge.deck || pathLen(b.path) >= c0.farBridge.length) far.push(...parts);
+      else nearAt(b.path[Math.floor(b.path.length / 2)][0], b.path[Math.floor(b.path.length / 2)][1], parts);
+    }
+    for (const f of region.follies ?? []) far.push(...follyParts(f));
+    for (const g of region.gantries ?? []) (g.span >= c0.gantry.fullSpan * c0.gantry.bareBelow ? far.push(...gantryParts(g)) : nearAt(g.x, g.z, gantryParts(g)));
+    for (const y of region.yardShips ?? []) far.push(...yardShipParts(y));
+    for (const m of region.landmarkModels ?? []) far.push(...landmarkModelParts(m));
+    for (const g of region.gravingDocks ?? []) far.push(...gravingDockParts(g));
+    for (const m of region.museumShips ?? []) nearAt(m.x, m.z, museumShipParts(m));
+    for (const d of region.floatingDocks ?? []) nearAt(d.x, d.z, floatingDockParts(d));
+    if (far.length) {
+      const m = new THREE.Mesh(mergeParts(far), this.mat);
       m.name = 'coast-structures';
       m.matrixAutoUpdate = false;
       this.root.add(m);
+    }
+    for (const sq of near.values()) {
+      const m = new THREE.Mesh(mergeParts(sq.parts), this.mat);
+      m.name = 'coast-structures-near';
+      m.matrixAutoUpdate = false;
+      this.root.add(m);
+      this.nearStructures.push({ x: sq.x, z: sq.z, mesh: m });
     }
     // Its container terminals: every quay crane in two instanced meshes (boom down, boom up),
     // each terminal's stacks in one, shown near (update).
     if (region.terminals?.length) {
       const o = new THREE.Object3D();
-      for (const up of [false, true]) {
-        const list = region.terminals.flatMap((t) => t.cranes.filter((c) => c.up === up));
-        if (!list.length) continue;
-        const m = new THREE.InstancedMesh(quayCraneGeometry(up), this.mat, list.length);
-        list.forEach((c, i) => {
-          o.position.set(c.x, c.base, c.z);
-          o.rotation.set(0, (-c.yawDeg * Math.PI) / 180, 0);
-          o.updateMatrix();
-          m.setMatrixAt(i, o.matrix);
-        });
-        m.computeBoundingSphere();
-        m.name = 'coast-cranes';
-        this.root.add(m);
-      }
+      for (const t of region.terminals)
+        for (const up of [false, true]) {
+          const list = t.cranes.filter((c) => c.up === up);
+          if (!list.length) continue;
+          const m = new THREE.InstancedMesh(quayCraneGeometry(up), this.mat, list.length);
+          list.forEach((c, i) => {
+            o.position.set(c.x, c.base, c.z);
+            o.rotation.set(0, (-c.yawDeg * Math.PI) / 180, 0);
+            o.updateMatrix();
+            m.setMatrixAt(i, o.matrix);
+          });
+          m.computeBoundingSphere();
+          m.name = 'coast-cranes';
+          this.root.add(m);
+          const xs = t.cranes.map((c) => c.x);
+          const zs = t.cranes.map((c) => c.z);
+          this.terminalCranes.push({ mesh: m, x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) });
+        }
       const box = stackBoxGeometry();
       const col = new THREE.Color();
       for (const t of region.terminals) {
@@ -386,6 +430,16 @@ export class CoastTerrainView {
     if (this.trees) {
       this.trees.update(x, z);
       tris += this.trees.triangles;
+    }
+    // A coast map's own near structures, and on the Quest its quay cranes, near only.
+    for (const sq of this.nearStructures) {
+      const d = Math.hypot(Math.max(Math.abs(sq.x - x) - CONFIG.structures.nearCell / 2, 0), Math.max(Math.abs(sq.z - z) - CONFIG.structures.nearCell / 2, 0));
+      sq.mesh.visible = d < c.coastStructureDistance;
+      if (sq.mesh.visible) tris += count(sq.mesh);
+    }
+    for (const t of this.terminalCranes) {
+      t.mesh.visible = !quest || Math.hypot(Math.max(t.x0 - x, 0, x - t.x1), Math.max(t.z0 - z, 0, z - t.z1)) < CONFIG.regions.coastQuest.craneDistance;
+      if (t.mesh.visible) tris += t.mesh.count * 252;
     }
     // The container terminals' stacks, near.
     for (const t of this.terminalStacks) {

@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hamburg: muddy Elbe water; the small structures and the quay cranes drawn near only; why the waves stay small (28 Oct 2026)
+
+Owner: "Hamburg is still a bit heavy, I noticed the weather debug doesn't affect the waves much too, oh and Hamburg has muddy brown water" (asked: "make it muddy brown", like the real Elbe).
+
+- **Muddy brown water** (`water` in the request: deep `#2e2c1c`, scatter `#6e6234`; `RegionDef.water`; `OceanView.setWater`, applied by `App.ts` with the shelters, once a second, by the map you're on): the Elbe's turbid olive-brown in place of the sea's blue. Every other map keeps the sea's colours (CONFIG.ocean.colors).
+- **Lighter** (`coastView.ts`): the map's own structures were one mesh drawn everywhere, 29,500 triangles. Now only the skyline is (the landmarks, the big bridges: `structures.farBridge` deck 20 m or 400 m long, or cable-stayed; a shipyard's goliaths, the ships building, the graving docks), 10,200; the rest (the small bridges, Altenwerder's stacking cranes, the museum ships, the floating docks) in 1 km squares (`structures.nearCell`), drawn within the harbour kit's reach. On the Quest the quay cranes go a terminal at a time, within `coastQuest.craneDistance` 3.5 km. Measured as the Quest draws it: the start 363,000 → 347,000 triangles, Burchardkai 328,000 → 302,000, HafenCity 358,000 → 338,000; draw calls about the same (153).
+- **What's left is mostly the main game's:** the ocean surface 104,000 triangles (a third of what's drawn, the same on every map), the boats' wakes 17,600. The Quest's counter shows about twice what's drawn (both eyes), so the ocean is about 200,000 of what it shows: the place for the next big saving, the main game chat's (`CONFIG.ocean.mesh`).
+- **The waves, found, not changed:** the game's wind sea by fetch (`ocean/windSea.ts`, `world/fetch.ts`, the main game's) scales the open sea's waves, the ones the debug's sea height sets, by each spot's exposure to open water. On the Elbe that is 0.4-3 % (the river is a few hundred metres wide, its fetch short), so the debug's sea height barely shows; and the short wind sea in a 14 m/s wind comes out at about 1 cm, where a fetch-limited sea of a few hundred metres would make 10-30 cm. Realistic in that a river port has no swell; too calm for its chop. For the main game chat: the river's effective fetch on the 150 m fetch grid.
+- **Tests:** `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: the Elbe brown from the Landungsbrücken and at the Überseebrücke, the museum ship and the small bridge there drawn close.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/ocean/oceanView.ts` (`setWater`), `src/app/App.ts` (the map's water colour, a few lines), `src/world/defs.ts` (`RegionDef.water`). Settings in `src/config/map.ts` (`structures.nearCell`, `farBridge`, `regions.coastQuest.craneDistance`).
+
 ### Hamburg runs lighter: fewer pier legs, the piles the fenders, shorter reach on the Quest (28 Oct 2026)
 
 **Owner approved; merged into `next`.**

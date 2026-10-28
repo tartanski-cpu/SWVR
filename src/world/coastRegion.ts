@@ -45,6 +45,7 @@ export interface CoastPackage {
   floatingDocks?: FloatingDockDef[];
   gravingDocks?: GravingDockDef[];
   terminals?: TerminalDef[];
+  water?: { deep: number; scatter: number };
   gantries?: GantryDef[];
   yardShips?: YardShipDef[];
   /** Its features file (tools/coast features.ts: farms, landmarks, shore, names...); fetched by the milestones that use it. */
@@ -131,6 +132,7 @@ export function fromCoastPackage(pkg: CoastPackage, at: CoastPlacement): RegionD
     ...(pkg.landmarkModels?.length ? { landmarkModels: pkg.landmarkModels.map((m) => ({ ...m, x: m.x + dx, z: m.z + dz, parts: m.parts.map((q) => ({ ...q, outline: q.outline.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) })) } : {}),
     ...(pkg.museumShips?.length ? { museumShips: shift(pkg.museumShips, dx, dz) } : {}),
     ...(pkg.floatingDocks?.length ? { floatingDocks: shift(pkg.floatingDocks, dx, dz) } : {}),
+    ...(pkg.water ? { water: pkg.water } : {}),
     ...(pkg.terminals?.length ? { terminals: pkg.terminals.map((t) => ({ ...t, cranes: shift(t.cranes, dx, dz), stacks: shift(t.stacks, dx, dz) })) } : {}),
     ...(pkg.gravingDocks?.length ? { gravingDocks: shift(pkg.gravingDocks, dx, dz) } : {}),
     ...(pkg.follies?.length ? { follies: pkg.follies.map((f) => ({ ...f, outline: f.outline.map(([x, z]) => [x + dx, z + dz] as [number, number]) })) } : {}),
