@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Hamburg: containers and quay cranes on the terminals (28 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "Add containers and quay cranes to the terminals".
 
 - **The terminals** (`containerTerminals` in the request, by their names in the map; `features.ts` takes each area): Container Terminal Burchardkai, Eurogate Container Terminal Hamburg, Container Terminal Tollerort, Containerterminal Altenwerder. The map draws neither the cranes nor the boxes, so the package stage lays them out (`package.ts`, the terminals pass):
@@ -27,6 +29,8 @@ Owner: "Add containers and quay cranes to the terminals".
 
 ### Hamburg: ships in the docks, water in Elbe 17, no buildings on the pontoons (28 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "the Blohm + Voss dry dock seems to still have land inside it ... a grey mass"; "there should be some ship inside the docks as well"; "the buildings on the dock side next to the Cap San Diego seem to be a bit high. I don't think there should be any buildings on those pontoons."
 
 - **Dock basins are water** (`reconcile.ts`): the land cover sees a dock with a ship in it as built-up, so Elbe 17's basin came out as land at ground level. Every cell inside a mapped dock outline (`waterway=dock`) is now water, and a patch mostly of dock counts as water. Every stage from the reconcile on was run again for Hamburg.
@@ -38,6 +42,8 @@ Owner: "the Blohm + Voss dry dock seems to still have land inside it ... a grey 
 - **Shared changes:** `src/world/defs.ts` (`MuseumShipDef.lift`).
 
 ### Hamburg: big ships in and out, and harbour ferries of the port's own kind (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
 
 Owner: "Hamburg, being a busy harbour, needs some AI ships, some big ships going in and out. And the ferries should look a little bit more like the Hamburg ferries ... they've got a wheelhouse at the back, and then the cabin at the front."
 
@@ -52,6 +58,8 @@ Owner: "Hamburg, being a busy harbour, needs some AI ships, some big ships going
 - **Shared changes:** `src/config.ts` (`ferries.classes.harbour`, `.container`), `src/traffic/ferryKit.ts` (the two designs, liveries, their lights), `src/traffic/ferries.ts` (`fleets` by class), `src/world/defs.ts` (`FerryRouteDef` classes and liveries).
 
 ### Hamburg: the Dockland, the museum ships, Blohm + Voss's docks (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
 
 Owner: "Make sure you do the slanty Dockland building and the Cap San Diego and the Rickmer ships in the harbour. Oh, and the dry docks from Blohm + Voss shipyard, of course."
 
@@ -68,6 +76,8 @@ Owner: "Make sure you do the slanty Dockland building and the Cap San Diego and 
 - **Shared changes:** `src/world/defs.ts` (`MuseumShipDef`, `FloatingDockDef`, `GravingDockDef`, `LandmarkModelDef.lean`), `src/world/coastStructures.ts` (`structuresGeometry` takes the rest as one object). Settings in `src/config/map.ts`.
 
 ### Hamburg: its landmarks, from the map's own 3D (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
 
 Owner: "Add landmarks first" (before the container terminals).
 
@@ -87,6 +97,8 @@ Owner: "Add landmarks first" (before the container terminals).
 - **Shared changes:** `src/world/defs.ts` (`LandmarkModelDef`, `BridgeDef.pylons`, `SkylineDef.modelled`), `src/world/view/skylineView.ts` (skips a modelled one), `src/world/coastStructures.ts`. Settings in `src/config/map.ts` (`structures.landmark`, `structures.cableStayed`).
 
 ### The Port of Hamburg: a river port, the first map without a coastline (27 Oct 2026)
+
+**Owner approved; merged into `next`.**
 
 Owner: "I'd like a Hamburg harbour map".
 
