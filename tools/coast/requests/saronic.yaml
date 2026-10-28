@@ -1,11 +1,13 @@
 # Region request: the Saronic Islands (owner, Oct 2026, from a map picture): Aegina and Agia
 # Marina, Agistri and Moni, Methana, Poros and Galatas, the Argolid coast from Pefkali and
 # Korfos down past Nea and Archaia Epidavros to Troizina, and the islets of the gulf between
-# (Stachtorroi, Ypsili, the Diaporia). Full scale, about 44 x 47 km, for Voyage mode only, in
+# (Stachtorroi, Ypsili, the Diaporia); and south (owner: "include Hydra and Spetses too") past
+# Ermioni and Dokos to Hydra, Porto Cheli and Spetses. Full scale, about 44 x 74 km, the biggest
+# map yet (the Clyde is 36 x 37), most of it sea; for Voyage mode only, in
 # chunks the game streams in round the boat. The Aegean theme (themes.ts), as Syros.
 id: saronic
 name: The Saronic Islands
-bbox: [23.08, 37.48, 23.58, 37.89]   # lon/lat min, max
+bbox: [23.08, 37.22, 23.58, 37.89]   # lon/lat min, max
 theme: aegean
 chunked: true
 spine:
