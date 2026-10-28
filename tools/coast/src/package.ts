@@ -445,7 +445,14 @@ const inOutline = (ring: [number, number][], x: number, z: number) => {
   return inside;
 };
 const underModel = (x: number, z: number, pad = 0) => landmarkModels.some((m) => Math.hypot(m.x - x, m.z - z) < 250 && m.parts.some((p) => inOutline(p.outline, x, z) || (pad > 0 && p.outline.some(([px, pz]) => Math.hypot(px - x, pz - z) < pad))));
-const keptBuildings = buildings.filter((b: { x: number; z: number }) => !underModel(b.x, b.z));
+// (Nor the box the harbours stage made of a museum ship's hull outline, mapped as a building.)
+const onShip = (x: number, z: number) =>
+  ((F?.museumShips ?? []) as { x: number; z: number; yawDeg: number; length: number; beam: number }[]).some((sh) => {
+    const a = (sh.yawDeg * Math.PI) / 180;
+    const [dx, dz] = [x - sh.x, z - sh.z];
+    return Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) < sh.length / 2 + 5 && Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) < sh.beam / 2 + 5;
+  });
+const keptBuildings = buildings.filter((b: { x: number; z: number }) => !underModel(b.x, b.z) && !onShip(b.x, b.z));
 for (const s of skyline as { x: number; z: number; modelled?: boolean }[]) if (underModel(s.x, s.z, 25)) s.modelled = true;
 // A cable-stayed bridge's main span (`bridgePylons`): the piece of it that crosses the water
 // carries its pylons' height; the game stands them at the water's edges.
@@ -453,6 +460,18 @@ for (const b of bridges as { name: string; path: [number, number][]; pylons?: nu
   const h = req.bridgePylons?.[b.name];
   if (h && b.path.some(([x, z]) => hAt(x, z) < -2)) b.pylons = h;
 }
+// Museum ships and floating docks (features.ts) as the map gives them; a graving dock (Dock
+// Elbe 17) with its gate at the end that opens onto the water (the deeper of the two outside
+// its ends), its walls' top at the quay's height beside it.
+const museumShips = (F?.museumShips ?? []) as object[];
+const floatingDocks = ((F?.floatingDocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).map((d) => ({ ...d, x: r1(d.x), z: r1(d.z) }));
+const gravingDocks = ((F?.drydocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).map((d) => {
+  const a = (d.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const outside = (sign: number) => hAt(d.x + ux * sign * (d.length / 2 + 25), d.z + uz * sign * (d.length / 2 + 25));
+  const side = (sign: number) => hAt(d.x + vx * sign * (d.width / 2 + 12), d.z + vz * sign * (d.width / 2 + 12));
+  return { ...d, x: r1(d.x), z: r1(d.z), gate: outside(1) <= outside(-1) ? 1 : -1, top: r1(Math.max(2, (side(1) + side(-1)) / 2)) };
+});
 // Gantry cranes (Perno): each stands on its two rails, at the lower of the ground along them.
 const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[]).map((g) => {
   const a = (g.yawDeg * Math.PI) / 180;
@@ -680,6 +699,9 @@ const pkg = {
   bridges,
   follies,
   landmarkModels,
+  museumShips,
+  floatingDocks,
+  gravingDocks,
   gantries,
   yardShips,
   places,

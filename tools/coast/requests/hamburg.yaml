@@ -36,5 +36,14 @@ landmarkModels:
   - { wikidata: Q3987, name: Rathaus }
   - { osm: way/809288741, name: St. Pauli Landungsbrücken }   # the hall; its id is on its pier
   - { wikidata: Q460264, name: Old Elbe Tunnel }
+  # The Dockland office on the tip of the Fischereihafen pier: a parallelogram in elevation,
+  # its west end leaning 40 m out over the Elbe (owner: "the slanty Dockland building").
+  - { osm: way/19742852, name: Dockland, lean: 40, leanBearing: 270, wall: '#4a5862' }   # glass and steel
 # The Köhlbrandbrücke's pylons, 135 m: its span over the Köhlbrand drawn cable-stayed.
 bridgePylons: { Köhlbrandbrücke: 135 }
+# The museum ships at their berths (owner), drawn to the map's hull outlines: the cargo liner
+# Cap San Diego, the three-masted Rickmer Rickmers, and the four-masted Peking in the Hansahafen.
+museumShips:
+  - { wikidata: Q858079, name: Cap San Diego, design: cargo }
+  - { wikidata: Q479965, name: Rickmer Rickmers, design: barque, masts: 3, hull: '#2f6a4a' }   # green
+  - { wikidata: Q249918, name: Peking, design: barque, masts: 4, hull: '#1e1e22' }   # black

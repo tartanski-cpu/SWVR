@@ -35,7 +35,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { mergeParts, part } from '../render/geometryUtils';
-import type { BridgeDef, FollyDef, GantryDef, LandmarkModelDef, YardShipDef } from './defs';
+import type { BridgeDef, FloatingDockDef, FollyDef, GantryDef, GravingDockDef, LandmarkModelDef, MuseumShipDef, YardShipDef } from './defs';
 
 type V3 = [number, number, number];
 
@@ -270,6 +270,10 @@ export function landmarkModelParts(m: LandmarkModelDef): THREE.BufferGeometry[] 
       out.push(...waveCrown(cr, y0, top, wall, c.crownRoof, c.wave));
       continue;
     }
+    if (m.lean) {
+      out.push(leaningBlock(ring, y0, top, m.lean, m.leanBearing ?? 0, wall, roofCol));
+      continue;
+    }
     const shape = p.roof === 'round' ? 'dome' : p.roof;
     const deflt = shape === 'flat' ? 0 : shape === 'pyramidal' ? span * 1.2 : shape === 'dome' || shape === 'onion' ? span * 0.5 : span * 0.35;
     const rh = Math.min(p.roofHeight ?? deflt, p.height - p.min);
@@ -295,6 +299,31 @@ export function landmarkModelParts(m: LandmarkModelDef): THREE.BufferGeometry[] 
     out.push(ringed(ring, cx, cz, eaves, rh, profile, roofCol));
   }
   return out;
+}
+
+/**
+ * A block leaning `lean` m at its top toward `bearing` (deg): a parallelogram in elevation
+ * (the Dockland). Its footprint's box along the lean: the ground floor the back part of it,
+ * the roof the front part, the two ends slanting between, the sides parallelograms.
+ */
+function leaningBlock(ring: [number, number][], y0: number, top: number, lean: number, bearing: number, wall: number, roof: number): THREE.BufferGeometry {
+  const b = (bearing * Math.PI) / 180;
+  const [dx, dz] = [Math.sin(b), -Math.cos(b)];
+  const along = ring.map(([x, z]) => x * dx + z * dz);
+  const across = ring.map(([x, z]) => -x * dz + z * dx);
+  const [a0, a1, c0, c1] = [Math.min(...along), Math.max(...along), Math.min(...across), Math.max(...across)];
+  const L = Math.min(lean, (a1 - a0) * 0.6);
+  const at = (a: number, c: number, y: number) => [a * dx - c * dz, y, a * dz + c * dx];
+  const bot = [at(a0, c0, y0), at(a1 - L, c0, y0), at(a1 - L, c1, y0), at(a0, c1, y0)];
+  const up = [at(a0 + L, c0, top), at(a1, c0, top), at(a1, c1, top), at(a0 + L, c1, top)];
+  const tris: number[][] = [];
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4;
+    tris.push([...bot[i], ...bot[j], ...up[j]], [...bot[i], ...up[j], ...up[i]]);
+  }
+  const mid = at((a0 + a1) / 2, (c0 + c1) / 2, (y0 + top) / 2);
+  const walls = faces(tris, wall, (x, y, z) => [x - mid[0], 0.0001 * (y - mid[1]), z - mid[2]]);
+  return mergeParts([walls, faces([[...up[0], ...up[1], ...up[2]], [...up[0], ...up[2], ...up[3]]], roof, () => [0, 1, 0])]);
 }
 
 /** Triangles (non-indexed) of one colour, each turned so its face points away from `from` (or up, for a cap). */
@@ -751,8 +780,179 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
   return parts;
 }
 
-/** All of a region's bridges, follies, gantry cranes, yard ships and modelled landmarks, merged (null if it has none). */
-export function structuresGeometry(bridges: readonly BridgeDef[], follies: readonly FollyDef[], ground: (x: number, z: number) => number, gantries: readonly GantryDef[] = [], yardShips: readonly YardShipDef[] = [], landmarks: readonly LandmarkModelDef[] = []): THREE.BufferGeometry | null {
-  const parts = [...bridges.flatMap((b) => bridgeParts(b, ground)), ...follies.flatMap((f) => follyParts(f)), ...gantries.flatMap((g) => gantryParts(g)), ...yardShips.flatMap((y) => yardShipParts(y)), ...landmarks.flatMap((m) => landmarkModelParts(m))];
+/**
+ * A museum ship moored for good (Hamburg's): designs of the game's own, to the map's hull
+ * outline (length, beam, heading toward her bow), afloat at her draught.
+ *   cargo   a 1960s cargo liner: forecastle and poop, a white hull over a red bottom, her
+ *           superstructure in tiers amidships with her funnel, kingposts and derricks over
+ *           her hatches fore and aft (the Cap San Diego);
+ *   barque  a square-rigger: her hull in its colour with a white band, poop and forecastle,
+ *           `masts` masts crossed with yards (the aftmost fore-and-aft, gaff and boom), her
+ *           bowsprit and forestay (the Rickmer Rickmers, the Peking).
+ * Drawing only, like the other structures. Settings in CONFIG.structures.museumShip.
+ */
+export function museumShipParts(sh: MuseumShipDef): THREE.BufferGeometry[] {
+  const c = CONFIG.structures.museumShip;
+  const a = (sh.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const L = sh.length;
+  const B = sh.beam;
+  const P = (s: number, w: number): [number, number] => [sh.x + ux * s + vx * w, sh.z + uz * s + vz * w];
+  const V = (s: number, w: number, y: number): V3 => [sh.x + ux * s + vx * w, y, sh.z + uz * s + vz * w];
+  // Her half-breadth along her (t from -0.5 at the stern to 0.5 at the bow): a square-ish
+  // stern, parallel middle body, a fine bow to a point.
+  const hb = (t: number) => (B / 2) * (t < -0.42 ? 0.82 + (0.18 * (t + 0.5)) / 0.08 : t <= c.bowFrom ? 1 : Math.max(0, 1 - ((t - c.bowFrom) / (0.5 - c.bowFrom)) ** 1.8));
+  const STEPS = [-0.5, -0.46, -0.42, -0.2, 0, c.bowFrom, 0.24, 0.31, 0.37, 0.42, 0.46, 0.49, 0.5];
+  /** Her outline between t0 and t1, as a ring (starboard forward, port back). */
+  const ringBetween = (t0: number, t1: number, shrink = 0): [number, number][] => {
+    const ts = [t0, ...STEPS.filter((t) => t > t0 && t < t1), t1];
+    const ring = [...ts.map((t) => P(t * L, Math.max(0, hb(t) - shrink))), ...ts.reverse().map((t) => P(t * L, -Math.max(0, hb(t) - shrink)))];
+    return ring.filter((q, i) => i === 0 || Math.hypot(q[0] - ring[i - 1][0], q[1] - ring[i - 1][1]) > 0.05);
+  };
+  const d = sh.design === 'barque' ? c.barque : c.cargo;
+  const hull = sh.hull ?? d.colours.hull;
+  const parts: THREE.BufferGeometry[] = [];
+  const band = (ring: [number, number][], y0: number, y1: number, col: number) => parts.push(walls(ring, ring.map(() => y0), ring.map(() => y1), col));
+  const whole = ringBetween(-0.5, 0.5);
+  // The hull in bands: red below the waterline, her colour (a white band on a barque), the deck.
+  band(whole, -d.draught, c.boot, d.colours.boot);
+  if (sh.design === 'barque') {
+    band(whole, c.boot, d.freeboard - c.barque.band[1], hull);
+    band(whole, d.freeboard - c.barque.band[1], d.freeboard - c.barque.band[0], c.barque.colours.band);
+    band(whole, d.freeboard - c.barque.band[0], d.freeboard, hull);
+  } else band(whole, c.boot, d.freeboard, hull);
+  parts.push(cap(whole, whole.map(() => d.freeboard), d.colours.deck));
+  // Forecastle and poop: raised decks at the ends.
+  const fc = ringBetween(d.forecastle[0], 0.5);
+  band(fc, d.freeboard, d.freeboard + d.forecastle[1], hull);
+  parts.push(cap(fc, fc.map(() => d.freeboard + d.forecastle[1]), d.colours.deck));
+  const pp = ringBetween(-0.5, d.poop[0]);
+  band(pp, d.freeboard, d.freeboard + d.poop[1], hull);
+  parts.push(cap(pp, pp.map(() => d.freeboard + d.poop[1]), d.colours.deck));
+  const deck = d.freeboard;
+  const box = (s0: number, s1: number, half: number, y0: number, y1: number, col: number) => parts.push(slab(...P(s0, 0), ...P(s1, 0), half * 2, y0, y1, col));
+  if (sh.design !== 'barque') {
+    const k = c.cargo;
+    // The superstructure in tiers, each set in and stepped back; the bridge wings across her on top.
+    let y = deck;
+    k.tiers.forEach(([inset, back], i) => {
+      const s0 = k.house[0] * L + back;
+      const s1 = k.house[1] * L - back * 0.3;
+      box(s0, s1, B / 2 - inset, y, y + k.tier, k.colours.house);
+      y += k.tier;
+      if (i === k.tiers.length - 1) box(s1 - 3, s1 - 1, B / 2 + 0.4, y - k.tier + 0.6, y - 0.6, k.colours.house);
+    });
+    // Her funnel, white with its red top.
+    const fs = k.funnel[0] * L;
+    box(fs - k.funnel[1] / 2, fs + k.funnel[1] / 2, k.funnel[2] / 2, y, y + k.funnel[3] - 2.5, k.colours.house);
+    box(fs - k.funnel[1] / 2, fs + k.funnel[1] / 2, k.funnel[2] / 2, y + k.funnel[3] - 2.5, y + k.funnel[3], k.colours.funnelTop);
+    // Hatches, and the kingposts (a pair each) with their derricks leaning over them.
+    for (const t of k.hatches) box(t * L - L * 0.035, t * L + L * 0.035, B * 0.28, deck, deck + 1.3, k.colours.hatch);
+    for (const t of k.kingposts) {
+      for (const w of [-k.postApart / 2, k.postApart / 2]) {
+        parts.push(member(V(t * L, w, deck), V(t * L, w, deck + k.post), 0.9, 0.9, k.colours.post));
+        const toward = t > 0 ? -1 : 1;
+        parts.push(member(V(t * L, w, deck + 2), V(t * L + toward * k.derrick * 0.8, w * 0.6, deck + 2 + k.derrick * 0.6), 0.45, 0.45, k.colours.post));
+      }
+      parts.push(member(V(t * L, -k.postApart / 2, deck + k.post - 0.5), V(t * L, k.postApart / 2, deck + k.post - 0.5), 0.6, 0.8, k.colours.post));
+    }
+  } else {
+    const k = c.barque;
+    box(-0.05 * L, 0.06 * L, B * 0.22, deck, deck + 2.4, k.colours.house);
+    const at = k.mastAt[Math.min(Math.max(sh.masts, 2), 5)] ?? k.mastAt[3];
+    const main = L * k.mainHeight;
+    at.forEach((t, i) => {
+      const last = i === at.length - 1;
+      const h = main * (i === 0 ? k.foreShare : last ? k.aftShare : 1);
+      const s0 = t * L;
+      parts.push(member(V(s0, 0, deck - 1), V(s0, 0, deck + h), 0.9, 0.9, k.colours.mast));
+      if (!last) {
+        k.yards.forEach(([up, span]) => parts.push(member(V(s0, -(B * span) / 2, deck + h * up), V(s0, (B * span) / 2, deck + h * up), 0.45, 0.45, k.colours.yard)));
+      } else {
+        // Fore-and-aft: her boom and gaff, aft from the mast.
+        parts.push(member(V(s0, 0, deck + h * 0.12), V(s0 - L * 0.13, 0, deck + h * 0.14), 0.4, 0.4, k.colours.yard));
+        parts.push(member(V(s0, 0, deck + h * 0.45), V(s0 - L * 0.11, 0, deck + h * 0.58), 0.4, 0.4, k.colours.yard));
+      }
+    });
+    // The bowsprit and jib-boom, and the forestay from the foremast's head out to its end.
+    const bowY = deck + d.forecastle[1];
+    const tip = V(L / 2 + L * k.bowsprit, 0, bowY + 5);
+    parts.push(member(V(L / 2 - 4, 0, bowY + 0.5), tip, 0.7, 0.7, k.colours.mast));
+    parts.push(member(V(at[0] * L, 0, deck + main * k.foreShare * 0.97), tip, 0.18, 0.18, k.colours.yard));
+  }
+  return parts;
+}
+
+/**
+ * A floating dock (Blohm + Voss's): its pontoon just awash, a wing wall along each side of it
+ * (`wallShare` of its breadth high, between `wall` limits), each wall's coping, and a jib crane
+ * on each wall, reaching over the dock. A design of the game's own to the map's area.
+ */
+export function floatingDockParts(dk: FloatingDockDef): THREE.BufferGeometry[] {
+  const c = CONFIG.structures.floatingDock;
+  const a = (dk.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const at = (s: number, w: number, y: number): V3 => [dk.x + ux * s + vx * w, y, dk.z + uz * s + vz * w];
+  const plan = (s: number, w: number): [number, number] => [dk.x + ux * s + vx * w, dk.z + uz * s + vz * w];
+  const L = dk.length;
+  const W = dk.width;
+  const H = Math.max(c.wallHeight[0], Math.min(c.wallHeight[1], W * c.wallShare));
+  const t = Math.max(c.wallThick, W * 0.12);
+  const parts: THREE.BufferGeometry[] = [slab(...plan(-L / 2, 0), ...plan(L / 2, 0), W, c.pontoon[0], c.pontoon[1], c.colours.pontoon)];
+  for (const side of [-1, 1]) {
+    const w = side * (W / 2 - t / 2);
+    parts.push(slab(...plan(-L / 2, w), ...plan(L / 2, w), t, c.pontoon[1], c.pontoon[1] + H, c.colours.wall));
+    parts.push(slab(...plan(-L / 2, w), ...plan(L / 2, w), t + 0.4, c.pontoon[1] + H, c.pontoon[1] + H + 0.8, c.colours.coping));
+    // A crane on each wall, the two at opposite ends of the dock.
+    const s = side * L * 0.22;
+    const y0 = c.pontoon[1] + H + 0.8;
+    parts.push(member(at(s, w, y0), at(s, w, y0 + c.crane.tower), 2.6, 2.6, c.colours.crane));
+    parts.push(member(at(s, w, y0 + c.crane.tower), at(s, w - side * c.crane.jib * Math.cos(0.25), y0 + c.crane.tower + c.crane.jib * Math.sin(0.25)), 1.2, 1.6, c.colours.crane));
+  }
+  return parts;
+}
+
+/**
+ * A graving dock (Dock Elbe 17): its gate (a caisson) across the end that opens onto the river,
+ * up to the quay's height, and two big cranes on portals along one side, reaching over it.
+ */
+export function gravingDockParts(g: GravingDockDef): THREE.BufferGeometry[] {
+  const c = CONFIG.structures.gravingDock;
+  const a = (g.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const at = (s: number, w: number, y: number): V3 => [g.x + ux * s + vx * w, y, g.z + uz * s + vz * w];
+  const plan = (s: number, w: number): [number, number] => [g.x + ux * s + vx * w, g.z + uz * s + vz * w];
+  const sGate = (g.gate * g.length) / 2;
+  const parts: THREE.BufferGeometry[] = [slab(...plan(sGate - c.gateThick / 2, 0), ...plan(sGate + c.gateThick / 2, 0), g.width + 6, c.gateFoot, g.top + 0.5, c.colours.gate)];
+  for (const f of [-0.2, 0.2]) {
+    const s = f * g.length;
+    const w = g.width / 2 + c.crane.portal / 2 + 2;
+    for (const [ds, dw] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) parts.push(member(at(s + (ds * c.crane.portal) / 2, w + (dw * c.crane.portal) / 2, g.top), at(s, w, g.top + c.crane.portalHeight), 1.2, 1.2, c.colours.crane));
+    parts.push(member(at(s, w, g.top + c.crane.portalHeight), at(s, w, g.top + c.crane.tower), 3, 3, c.colours.crane));
+    parts.push(member(at(s, w, g.top + c.crane.tower), at(s, w - c.crane.jib * Math.cos(0.3), g.top + c.crane.tower + c.crane.jib * Math.sin(0.3)), 1.4, 2, c.colours.crane));
+  }
+  return parts;
+}
+
+/** The rest of a coast map's structures (each optional): modelled landmarks, museum ships, floating and graving docks. */
+export interface MoreStructures {
+  landmarks?: readonly LandmarkModelDef[];
+  museumShips?: readonly MuseumShipDef[];
+  floatingDocks?: readonly FloatingDockDef[];
+  gravingDocks?: readonly GravingDockDef[];
+}
+
+/** All of a region's bridges, follies, gantry cranes, yard ships, modelled landmarks, museum ships and docks, merged (null if it has none). */
+export function structuresGeometry(bridges: readonly BridgeDef[], follies: readonly FollyDef[], ground: (x: number, z: number) => number, gantries: readonly GantryDef[] = [], yardShips: readonly YardShipDef[] = [], more: MoreStructures = {}): THREE.BufferGeometry | null {
+  const parts = [
+    ...bridges.flatMap((b) => bridgeParts(b, ground)),
+    ...follies.flatMap((f) => follyParts(f)),
+    ...gantries.flatMap((g) => gantryParts(g)),
+    ...yardShips.flatMap((y) => yardShipParts(y)),
+    ...(more.landmarks ?? []).flatMap((m) => landmarkModelParts(m)),
+    ...(more.museumShips ?? []).flatMap((m) => museumShipParts(m)),
+    ...(more.floatingDocks ?? []).flatMap((d) => floatingDockParts(d)),
+    ...(more.gravingDocks ?? []).flatMap((g) => gravingDockParts(g)),
+  ];
   return parts.length ? mergeParts(parts) : null;
 }

@@ -361,6 +361,78 @@ export const MAP_CONFIG = {
       wave: { waves: 2.5, depth: 22, step: 6 },
     },
     /**
+     * Museum ships (Hamburg's; coastStructures.ts museumShipParts), as shares of her length and m:
+     * her bow fines from `bowFrom` of her length forward; red to `boot` m over the waterline.
+     *   cargo   draught and freeboard to her main deck; forecastle from [share, height up],
+     *           poop to [share, height]; her superstructure from `house` [aft, fore] shares in
+     *           `tier` m tiers, each [set in from her side, stepped back from its front] m; her
+     *           funnel [at, length, breadth, height]; hatches and kingposts (pairs `postApart` m
+     *           apart, `post` m tall, derricks `derrick` m) at shares of her length
+     *   barque  draught, freeboard, forecastle and poop the same; a white `band` [from, to] m
+     *           under her rail; her masts at shares of her length by how many (`mastAt`), the
+     *           mainmast `mainHeight` of her length over the deck, the fore `foreShare` of it
+     *           and the aftmost `aftShare`; the yards [height share, span in beams]; her
+     *           bowsprit reaching `bowsprit` of her length past the stem
+     */
+    museumShip: {
+      bowFrom: 0.16,
+      boot: 0.4,
+      cargo: {
+        draught: 7,
+        freeboard: 5.5,
+        forecastle: [0.37, 2.6] as [number, number],
+        poop: [-0.4, 2.4] as [number, number],
+        house: [-0.17, 0.03] as [number, number],
+        tier: 2.8,
+        tiers: [[0.6, 0], [1.4, 2.5], [2.6, 5], [4.5, 8]] as [number, number][],
+        funnel: [-0.11, 9, 5, 8] as [number, number, number, number],
+        hatches: [0.24, 0.1, -0.29],
+        kingposts: [0.31, 0.17, -0.24, -0.35],
+        postApart: 6,
+        post: 13,
+        derrick: 12,
+        colours: { hull: 0xf2f2ee, boot: 0x9a2a22, deck: 0x8a7a68, house: 0xf2f2ee, funnelTop: 0xb02a22, hatch: 0x3a5040, post: 0xd8c8a0 },
+      },
+      barque: {
+        draught: 5.5,
+        freeboard: 4,
+        forecastle: [0.39, 1.8] as [number, number],
+        poop: [-0.37, 2] as [number, number],
+        band: [0.8, 1.8] as [number, number],
+        mastAt: { 2: [0.2, -0.15], 3: [0.27, 0.02, -0.24], 4: [0.3, 0.1, -0.1, -0.3], 5: [0.32, 0.16, 0, -0.16, -0.32] } as Record<number, number[]>,
+        mainHeight: 0.5,
+        foreShare: 0.96,
+        aftShare: 0.82,
+        yards: [[0.3, 1.9], [0.43, 1.75], [0.56, 1.55], [0.68, 1.35], [0.8, 1.12], [0.91, 0.88]] as [number, number][],
+        bowsprit: 0.16,
+        colours: { hull: 0x1e1e22, boot: 0x9a2a22, deck: 0xb09878, band: 0xf2f0ea, house: 0xf2f0ea, mast: 0xc8b090, yard: 0x2a2a2a },
+      },
+    },
+    /**
+     * A floating dock (Blohm + Voss's): the pontoon from [bottom, top] m about the water; its wing
+     * walls `wallShare` of the dock's breadth high, between `wallHeight` limits (m), at least
+     * `wallThick` m thick; a crane on each wall, `tower` m tall with a `jib` m jib.
+     */
+    floatingDock: {
+      pontoon: [-7, 1.5] as [number, number],
+      wallShare: 0.42,
+      wallHeight: [12, 20] as [number, number],
+      wallThick: 4,
+      crane: { tower: 12, jib: 28 },
+      colours: { pontoon: 0x2e3236, wall: 0x50606a, coping: 0xc8ccd0, crane: 0xe0b030 },
+    },
+    /**
+     * A graving dock (Dock Elbe 17): its gate `gateThick` m thick from `gateFoot` m to the quay;
+     * two portal cranes along its side: the portal `portal` m square and `portalHeight` m high,
+     * the tower to `tower` m, a `jib` m jib.
+     */
+    gravingDock: {
+      gateThick: 10,
+      gateFoot: -10,
+      crane: { portal: 10, portalHeight: 12, tower: 40, jib: 50 },
+      colours: { gate: 0x50606a, crane: 0xe0b030 },
+    },
+    /**
      * A shipyard's gantry crane (Perno): the top of its girder above the rails (m), the girder's
      * depth and width, its legs' section and how far apart each A-frame's feet stand along the
      * rails, where its gantries stand along the track (shares of its length, for one, two or

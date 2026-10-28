@@ -583,7 +583,44 @@ export interface LandmarkModelDef {
   z: number;
   base: number;
   crown?: string;
+  /** It leans `lean` m at its top toward `leanBearing` (deg): a parallelogram in elevation (the Dockland). */
+  lean?: number;
+  leanBearing?: number;
   parts: { outline: [number, number][]; min: number; height: number; roof: string; roofHeight: number | null; wall: number | null; roofColour: number | null; material: string }[];
+}
+
+/**
+ * A museum ship moored for good (a coast map's: Hamburg's Cap San Diego, Rickmer Rickmers,
+ * Peking): where she lies, her heading (deg, toward her bow), length and beam (m), from the
+ * map's hull outline; the game's design for her (`cargo`, a 1960s cargo liner; `barque`, a
+ * square-rigger with `masts` masts) and her hull's colour. Drawn by world/coastStructures.ts.
+ */
+export interface MuseumShipDef {
+  name: string;
+  design: string;
+  masts: number;
+  hull?: number;
+  x: number;
+  z: number;
+  yawDeg: number;
+  length: number;
+  beam: number;
+}
+
+/** A floating dock (a coast map's: Blohm + Voss's): its middle, heading (deg), length and breadth (m), from the map's area. */
+export interface FloatingDockDef {
+  name: string;
+  x: number;
+  z: number;
+  yawDeg: number;
+  length: number;
+  width: number;
+}
+
+/** A graving dock (Dock Elbe 17): its basin's middle, heading, length and breadth, which end its gate closes (+1 along its heading, -1 back) and its walls' top (m). */
+export interface GravingDockDef extends FloatingDockDef {
+  gate: number;
+  top: number;
 }
 
 /** A folly from the map (McCaig's Tower): its footprint, the ground it stands on (m) and its height if mapped. */
@@ -765,6 +802,10 @@ export interface RegionDef {
   follies?: FollyDef[];
   /** Landmarks modelled from the map's 3D building parts (a coast map's; world/coastStructures.ts). */
   landmarkModels?: LandmarkModelDef[];
+  /** Museum ships, floating docks and graving docks (a coast map's; world/coastStructures.ts). */
+  museumShips?: MuseumShipDef[];
+  floatingDocks?: FloatingDockDef[];
+  gravingDocks?: GravingDockDef[];
   /** A shipyard's gantry cranes (a coast map's; world/coastStructures.ts). */
   gantries?: GantryDef[];
   /** Ships under construction at a yard (a coast map's; world/coastStructures.ts). */

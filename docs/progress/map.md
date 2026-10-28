@@ -10,6 +10,22 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hamburg: the Dockland, the museum ships, Blohm + Voss's docks (28 Oct 2026)
+
+Owner: "Make sure you do the slanty Dockland building and the Cap San Diego and the Rickmer ships in the harbour. Oh, and the dry docks from Blohm + Voss shipyard, of course."
+
+- **The Dockland** (`landmarkModels`, `osm: way/19742852`): the office on the tip of the Fischereihafen pier, 25 m, its outline from the map; a parallelogram in elevation, leaning `lean` 40 m out at its top toward `leanBearing` 270 (west, over the Elbe) (`coastStructures.ts` `leaningBlock`). Glass and steel grey (`wall` in the request: a landmark's colour where the map has none). The ground under it flattened as for the other landmarks.
+- **The museum ships** (`museumShips` in the request, by Wikidata id; `features.ts` takes each hull outline from the map: where she lies, her heading toward her bow (the narrower end of the outline), length and beam; `coastStructures.ts` `museumShipParts`, `CONFIG.structures.museumShip`). Designs of the game's own:
+  - **Cap San Diego** (159 m, `cargo`): a 1960s cargo liner, white hull over a red bottom, forecastle and poop, her superstructure in four tiers amidships with bridge wings, her funnel white with a red top, kingposts and derricks over the hatches fore and aft;
+  - **Rickmer Rickmers** (87 m, `barque`, 3 masts, green hull) and **Peking** (101 m, 4 masts, black hull; in the Hansahafen, not asked for but there): a square-rigger, a white band under her rail, poop and forecastle, masts crossed with six yards each, the aftmost with gaff and boom, bowsprit and forestay.
+  - The boxes the harbours stage had made of their hull outlines (mapped as buildings) are left out.
+- **Floating docks** (every one the map has as `waterway=dock`, `dock=floating`; `floatingDockParts`, `CONFIG.structures.floatingDock`): Blohm + Voss's Docks 11 (319 m), 5, 6, 12 and 16, and Docks I and II across the river: the pontoon just awash, a wing wall each side (0.42 of its breadth high, 12-20 m), the copings, a yellow jib crane on each wall.
+- **Dock Elbe 17** (the graving dock, from the map's `dock=drydock`; `gravingDocks` in the package, `gravingDockParts`): its gate across the end that opens onto the river, and two big portal cranes along its side.
+- **Tests** (`coastHamburg.test.ts`): the Dockland's lean, each ship at her berth afloat with no shed over her, her masts or funnel, the docks' sizes and the gate on the river end; each within its triangle budget. `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless.
+- **Drawing only, not solid**, like the yard ships and gantries: a boat sails through them. Making them solid is a new physics shape: the owner's call.
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`MuseumShipDef`, `FloatingDockDef`, `GravingDockDef`, `LandmarkModelDef.lean`), `src/world/coastStructures.ts` (`structuresGeometry` takes the rest as one object). Settings in `src/config/map.ts`.
+
 ### Hamburg: its landmarks, from the map's own 3D (28 Oct 2026)
 
 Owner: "Add landmarks first" (before the container terminals).

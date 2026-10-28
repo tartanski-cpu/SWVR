@@ -172,9 +172,9 @@ export class CoastTerrainView {
     const forest = forestOf(region.id);
     this.trees = forest ? new TreesView(forest) : null;
     if (this.trees) this.root.add(this.trees.root);
-    // Its bridges over the sea, follies, gantry cranes and modelled landmarks: one merged mesh,
+    // Its bridges over the sea, follies, gantry cranes, modelled landmarks, museum ships and docks: one merged mesh,
     // built now (a few thousand triangles at most), drawn wherever the fog allows.
-    const structures = structuresGeometry(region.bridges ?? [], region.follies ?? [], (x, z) => groundHeight(x, z), region.gantries ?? [], region.yardShips ?? [], region.landmarkModels ?? []);
+    const structures = structuresGeometry(region.bridges ?? [], region.follies ?? [], (x, z) => groundHeight(x, z), region.gantries ?? [], region.yardShips ?? [], { landmarks: region.landmarkModels, museumShips: region.museumShips, floatingDocks: region.floatingDocks, gravingDocks: region.gravingDocks });
     if (structures) {
       const m = new THREE.Mesh(structures, this.mat);
       m.name = 'coast-structures';

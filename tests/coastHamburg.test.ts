@@ -19,7 +19,7 @@ import { coastSample, registerChunkedCoast, type CoastSample } from '../src/worl
 import { coastGeoOf, coastLatLon, coastWorld } from '../src/world/coastGeo';
 import { mapRegion, voyageMap } from '../src/world/maps';
 import * as THREE from 'three';
-import { bridgeParts, landmarkModelParts, structuresGeometry } from '../src/world/coastStructures';
+import { bridgeParts, floatingDockParts, gravingDockParts, landmarkModelParts, museumShipParts, structuresGeometry } from '../src/world/coastStructures';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'public', 'regions', 'hamburg');
@@ -120,9 +120,9 @@ describe('Hamburg: its landmarks, from the map\'s own 3D building parts', () => 
   };
   const models = () => mapRegion(voyageMap('hamburg')!).landmarkModels!;
 
-  it('all nine, each at its mapped height over its ground: the Michel 132 m, St. Nikolai 147 m, the Elbphilharmonie 110 m', () => {
+  it('all ten, each at its mapped height over its ground: the Michel 132 m, St. Nikolai 147 m, the Elbphilharmonie 110 m', () => {
     const ms = models();
-    expect(ms.map((m) => m.name).sort()).toEqual(['Elbphilharmonie', 'Old Elbe Tunnel', 'Rathaus', 'St. Jacobi', 'St. Katharinen', 'St. Michaelis', 'St. Nikolai', 'St. Pauli Landungsbrücken', 'St. Petri'].sort());
+    expect(ms.map((m) => m.name).sort()).toEqual(['Dockland', 'Elbphilharmonie', 'Old Elbe Tunnel', 'Rathaus', 'St. Jacobi', 'St. Katharinen', 'St. Michaelis', 'St. Nikolai', 'St. Pauli Landungsbrücken', 'St. Petri'].sort());
     const tall = (n: string) => {
       const m = ms.find((x) => x.name === n)!;
       return bounds(landmarkModelParts(m)).y1 - m.base;
@@ -167,7 +167,7 @@ describe('Hamburg: its landmarks, from the map\'s own 3D building parts', () => 
     expect(r.skyline!.filter((s) => s.modelled).length).toBeGreaterThan(2);
     const all = models().reduce((t, m) => t + bounds(landmarkModelParts(m)).tris, 0);
     expect(all).toBeLessThan(8000);
-    expect(structuresGeometry(r.bridges ?? [], r.follies ?? [], (x, z) => h(x, z), r.gantries ?? [], r.yardShips ?? [], r.landmarkModels ?? [])).not.toBeNull();
+    expect(structuresGeometry(r.bridges ?? [], r.follies ?? [], (x, z) => h(x, z), r.gantries ?? [], r.yardShips ?? [], { landmarks: r.landmarkModels, museumShips: r.museumShips, floatingDocks: r.floatingDocks, gravingDocks: r.gravingDocks })).not.toBeNull();
   });
 
   it('the Köhlbrandbrücke cable-stayed: its span over the Köhlbrand carries pylons 135 m high, with their stays', () => {
@@ -178,5 +178,57 @@ describe('Hamburg: its landmarks, from the map\'s own 3D building parts', () => 
     const b = bounds(bridgeParts(main[0], (x, z) => h(x, z)));
     expect(b.y1).toBeGreaterThan(134);
     expect(b.tris).toBeLessThan(3000);
+  });
+});
+
+describe('Hamburg: the Dockland, the museum ships and the yards\' docks (owner)', () => {
+  const r = () => mapRegion(voyageMap('hamburg')!);
+  const tris = (parts: THREE.BufferGeometry[]) => parts.reduce((t, p) => t + p.attributes.position.count / 3, 0);
+  const top = (parts: THREE.BufferGeometry[]) => Math.max(...parts.map((p) => (p.computeBoundingBox(), p.boundingBox!.max.y)));
+
+  it('the Dockland leans 40 m out to the west at its top, over the Elbe', () => {
+    const m = r().landmarkModels!.find((x) => x.name === 'Dockland')!;
+    expect(m.lean).toBe(40);
+    const pos = landmarkModelParts(m).flatMap((g) => Array.from({ length: g.attributes.position.count }, (_, i) => [g.attributes.position.getX(i), g.attributes.position.getY(i)]));
+    const ys = pos.map((p) => p[1]);
+    const [lo, hi] = [Math.min(...ys), Math.max(...ys)];
+    const westAt = (y: number) => Math.min(...pos.filter((p) => Math.abs(p[1] - y) < 0.5).map((p) => p[0]));
+    // Its west end is further west at the roof than on the ground.
+    expect(westAt(lo) - westAt(hi)).toBeGreaterThan(30);
+  });
+
+  it('the Cap San Diego, Rickmer Rickmers and Peking at their berths, to the map\'s hull outlines, afloat; no shed drawn over them', () => {
+    const ships = r().museumShips!;
+    const by = (n: string) => ships.find((x) => x.name === n)!;
+    expect(by('Cap San Diego').length).toBeGreaterThan(150);
+    expect(by('Cap San Diego').design).toBe('cargo');
+    expect(by('Rickmer Rickmers').masts).toBe(3);
+    expect(by('Peking').masts).toBe(4);
+    for (const sh of ships) {
+      expect(h(sh.x, sh.z), sh.name).toBeLessThan(-3);
+      const parts = museumShipParts(sh);
+      expect(tris(parts)).toBeLessThan(2500);
+      // A barque's masts tower over her; the cargo liner's funnel over her decks.
+      expect(top(parts)).toBeGreaterThan(sh.design === 'barque' ? 40 : 20);
+      const a = (sh.yawDeg * Math.PI) / 180;
+      const onHer = (pkg.buildings as { x: number; z: number }[]).filter((b) => Math.abs((b.x - sh.x) * Math.sin(a) - (b.z - sh.z) * Math.cos(a)) < sh.length / 2 && Math.abs((b.x - sh.x) * Math.cos(a) + (b.z - sh.z) * Math.sin(a)) < sh.beam / 2);
+      expect(onHer, sh.name).toEqual([]);
+    }
+  });
+
+  it('Blohm + Voss\'s floating docks (Dock 11 the biggest, 319 m) with their wing walls and cranes; Dock Elbe 17 with its gate onto the river', () => {
+    const docks = r().floatingDocks!;
+    expect(docks.length).toBeGreaterThanOrEqual(5);
+    const d11 = docks.find((d) => d.name === 'Dock 11')!;
+    expect(d11.length).toBeGreaterThan(300);
+    for (const d of docks) expect(tris(floatingDockParts(d))).toBeLessThan(200);
+    const g = r().gravingDocks!.find((x) => x.name === 'Dock Elbe 17')!;
+    expect(g.length).toBeGreaterThan(340);
+    // Its gate end opens onto deep water.
+    const a = (g.yawDeg * Math.PI) / 180;
+    const beyond = (sign: number) => h(g.x + Math.sin(a) * sign * (g.length / 2 + 30), g.z - Math.cos(a) * sign * (g.length / 2 + 30));
+    expect(beyond(g.gate)).toBeLessThan(0);
+    expect(beyond(-g.gate)).toBeGreaterThan(0);
+    expect(top(gravingDockParts(g))).toBeGreaterThan(40);
   });
 });

@@ -480,7 +480,7 @@ function segDist(a: XZ, b: XZ, p: XZ): number {
   return Math.hypot(a[0] + dx * t - p[0], a[1] + dz * t - p[1]);
 }
 const partThings = things.filter((t) => t.kind === 'way' && t.tags['building:part'] && t.tags['building:part'] !== 'no');
-const landmarkModels: { name: string; wikidata: string; x: number; z: number; crown?: string; parts: ModelPart[] }[] = [];
+const landmarkModels: { name: string; wikidata: string; x: number; z: number; crown?: string; lean?: number; leanBearing?: number; parts: ModelPart[] }[] = [];
 const modelWarnings: string[] = [];
 for (const want of req.landmarkModels ?? []) {
   const own = things.filter((t) => (want.osm ? t.id === want.osm : t.tags.wikidata === want.wikidata) && !t.tags['building:part']);
@@ -504,13 +504,48 @@ for (const want of req.landmarkModels ?? []) {
   // Its own outline, where its parts leave most of it bare (a town hall mapped with only its tower in 3D).
   const ownTags = own.find((t) => ringsOf(t).includes(outline))?.tags;
   if (outline && ownTags && parts.filter((q) => q.min < 1).reduce((s, q) => s + area(q.outline), 0) < area(outline) * 0.5) parts.push(toPart(ownTags, outline));
+  // A wall colour from the request where the map gives none (the Dockland's glass and steel).
+  if (want.wall) for (const q of parts) q.wall ??= colourOf(want.wall);
   if (!parts.length) {
     modelWarnings.push(`landmark ${want.osm ?? want.wikidata} (${want.name ?? ''}): no 3D parts in the map data`);
     continue;
   }
-  landmarkModels.push({ name: want.name ?? nameOf(ownTags ?? own[0]?.tags ?? {}), wikidata: want.wikidata ?? '', x: r1(at[0]), z: r1(at[1]), ...(want.crown ? { crown: want.crown } : {}), parts });
+  landmarkModels.push({ name: want.name ?? nameOf(ownTags ?? own[0]?.tags ?? {}), wikidata: want.wikidata ?? '', x: r1(at[0]), z: r1(at[1]), ...(want.crown ? { crown: want.crown } : {}), ...(want.lean ? { lean: want.lean, leanBearing: want.leanBearing ?? 0 } : {}), parts });
 }
-const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, landmarkModels, modelWarnings, drydocks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
+// Museum ships moored for good (Hamburg's Cap San Diego and Rickmer Rickmers): the request
+// names each by its Wikidata id and the game's design for her (`museumShips`); the map gives
+// her hull's outline (building=ship), so where she lies, her heading, length and beam.
+const museumShips: { name: string; design: string; masts: number; hull?: number; x: number; z: number; yawDeg: number; length: number; beam: number }[] = [];
+for (const want of req.museumShips ?? []) {
+  const t = things.find((x) => x.tags.wikidata === want.wikidata && ringsOf(x).length);
+  if (!t) {
+    modelWarnings.push(`museum ship ${want.wikidata} (${want.name ?? ''}): no hull outline in the map data`);
+    continue;
+  }
+  const ring = ringsOf(t)[0];
+  const b = edgeBox(ring);
+  // Her bow: the narrower end of the outline (pointed, where her stern is square): heading toward it, 0-360.
+  const a = (b.yawDeg * Math.PI) / 180;
+  const [ux, uz] = [Math.sin(a), -Math.cos(a)];
+  const along = (p: XZ) => (p[0] - b.x) * ux + (p[1] - b.z) * uz;
+  const across = (p: XZ) => -(p[0] - b.x) * uz + (p[1] - b.z) * ux;
+  const spread = (sign: number) => {
+    const end = ring.filter((p) => sign * along(p) > b.length * 0.35).map(across);
+    return end.length ? Math.max(...end) - Math.min(...end) : 0;
+  };
+  const yawDeg = spread(1) <= spread(-1) ? b.yawDeg : (b.yawDeg + 180) % 360;
+  museumShips.push({ name: want.name ?? nameOf(t.tags), design: want.design, masts: want.masts ?? 0, ...(colourOf(want.hull) !== null ? { hull: colourOf(want.hull)! } : {}), x: r1(b.x), z: r1(b.z), yawDeg, length: b.length, beam: b.width });
+}
+// Floating docks (Blohm + Voss's): the map draws each as its area (waterway=dock, dock=floating):
+// its middle, heading, length and breadth, for the game's model of one.
+const floatingDocks: { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[] = [];
+for (const t of things) {
+  if (t.kind === 'node' || t.tags.waterway !== 'dock' || t.tags.dock !== 'floating') continue;
+  const ring = ringsOf(t).sort((a, b) => area(b) - area(a))[0];
+  if (!ring || !inBox(middle(ring))) continue;
+  floatingDocks.push({ name: nameOf(t.tags), ...edgeBox(ring) });
+}
+const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, landmarkModels, museumShips, floatingDocks, modelWarnings, drydocks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
 writeFileSync(join(D.out, 'features.json'), JSON.stringify(out));
 
 // Thin data, said plainly in the report (the milestones that use it have little to work with).
