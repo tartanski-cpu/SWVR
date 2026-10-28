@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The Saronic Islands, and big maps' buildings streamed (28 Oct 2026)
+
+Owner, from a map picture: "I'd like the Saronic Islands next"; "include Hydra and Spetses too"; "include Ermioni and Porto Heli harbours as ports too"; on loading: "is there any way to stream in the data?" ... "Yes, build the streaming for the Saronic map".
+
+- **The map** (`tools/coast/requests/saronic.yaml`): Aegina and Agia Marina, Agistri, Methana, Poros and Galatas, Hydra, Dokos, Spetses, and the Argolid coast from Pefkali and Korfos past Epidavros to Ermioni, Kosta and Porto Heli; the islets of the gulf. 44.1 by 74.5 km at full scale, the biggest map (the Clyde is 36 by 37), 35 % land, heights to 1,119 m. The Aegean theme, as Syros. 483 chunks (none over 11,633 drawn faces), 38.5 MB of mesh, streamed as ever. 65 ports, 88 berths, 460 pier and quay pieces, 2,666 buildings (those within 400 m of a harbour, as on every map), 50 named ferry lines (`ferriesNamed`), from Piraeus and between the islands, and the Poros strait's.
+- **Names** (`saronic.edits.yaml`): Aegina (the map's "Limenas Skafon Anapsychis"), Spetses ("Spétses pier"), Spetses (Tsaldari pier), Galatas (its taxi-boat landing on the strait), Agistri (Myloi) and (Skala), Ermioni ("Ermioni ferry port"), Porto Heli (the owner's spelling of the map's "Porto Cheli": its town quay).
+- **In Voyage** (`src/world/maps.ts`): you start at Aegina (`aegina-cargo`), the weather live from the middle of the gulf; on the landing page beside Hamburg.
+- **Streamed buildings** (`streamBuildings: true` in the request; `package.ts`; `coastView.ts` `fetchBuildings`; `coastStream.ts` `fetchJson`): a big map's buildings were most of its package (Hamburg 2.13 of 2.45 MB). Streamed, the package keeps only those within `keepNearBerth` 60 m of a berth (the start and the planning table look for them first), and the rest go one file per chunk (`buildings/<n>.json`), fetched as the viewer comes within the town's reach of it, its town made again when they're in; a failed fetch is tried again. Saronic's package is 0.31 MB, its buildings in 91 files. Tried on Hamburg first (and put back): the package 2.45 → 0.33 MB, the town's triangles at the start and at HafenCity exactly as before. Only Saronic streams for now; the other maps can take it by adding the line and running their package again.
+- **Measured** (headless, as the Quest draws it): loaded in 4.5 s, the start at Aegina 169 draw calls, 266,000 triangles.
+- **Tests:** `tests/coastSaronic.test.ts` (the box and chunks, Aegina's latitude and longitude, the streamed buildings each in its own chunk's file, the start berth and the ports the owner named, the ferry lines once each over water); `tests/coastStreamBuildings.test.ts` (the streamer's fetch). `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: Aegina's quay, Hydra's harbour, Poros, Spetses.
+- **Not checked:** on the Quest (how long it really loads, the frame rate, and whether a town arriving shows as a hitch).
+- **Shared changes:** `index.html` (the link). In my area otherwise.
+
 ### Hamburg: muddy Elbe water; the small structures and the quay cranes drawn near only; why the waves stay small (28 Oct 2026)
 
 **Owner approved; merged into `next`.**

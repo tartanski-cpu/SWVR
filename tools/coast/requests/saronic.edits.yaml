@@ -1,0 +1,29 @@
+# Hand edits for the Saronic Islands region (coast pipeline stage 7, src/harbours.ts), applied
+# after the harbours are generated, so re-running keeps them. See oban.edits.yaml for the
+# syntax. The map names some harbours in Greek or after a pier; the game calls them after
+# their towns, in the spellings the owner uses.
+
+change:
+  # Aegina town's harbour (the map: "Limenas Skafon Anapsychis", the small-craft harbour).
+  - match: limenas-skafon-anapsychis
+    set: { name: Aegina, id: aegina }
+  # Spetses town, at the Dapia (the map spells it "Spétses pier").
+  - match: spetses-pier
+    set: { name: Spetses, id: spetses }
+  # The pier along the waterfront east of the Dapia (the map: "Provlita Athanasiou Tsaldari").
+  - match: provlita-athanasiou-tsaldari
+    set: { name: Spetses (Tsaldari pier), id: spetses-tsaldari }
+  # Galatas: its landing on the strait, where the taxi boats cross to Poros.
+  - match: taxi-boats-pier
+    set: { name: Galatas, id: galatas }
+  # Agistri's two harbours: Myloi, and Skala.
+  - match: angistri
+    set: { name: Agistri (Myloi), id: agistri-myloi }
+  - match: skala-pier
+    set: { name: Agistri (Skala), id: agistri-skala }
+  # Ermioni (the map: "Ermioni ferry port").
+  - match: ermioni-ferry-port
+    set: { name: Ermioni, id: ermioni }
+  # Porto Heli (the owner's spelling; the map's "Porto Cheli"): its town quay.
+  - match: porto-cheli-pier-6
+    set: { name: Porto Heli, id: porto-heli }

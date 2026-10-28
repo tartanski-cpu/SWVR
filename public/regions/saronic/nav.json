@@ -1,0 +1,2876 @@
+{
+ "marks": [
+  {
+   "name": "",
+   "type": "beacon_lateral",
+   "category": "lateral",
+   "shape": "tower",
+   "colour": "white;red;white",
+   "pattern": "horizontal",
+   "topmark": null,
+   "gameKind": null,
+   "x": -14816.7,
+   "z": -9207.2,
+   "depth": -7.8,
+   "light": "QR"
+  },
+  {
+   "name": "",
+   "type": "beacon_lateral",
+   "category": "lateral",
+   "shape": "tower",
+   "colour": "white;green;white",
+   "pattern": "horizontal",
+   "topmark": null,
+   "gameKind": null,
+   "x": -14835.6,
+   "z": -9244.7,
+   "depth": -9.7,
+   "light": "QG"
+  },
+  {
+   "name": "Vathi",
+   "type": "beacon_special_purpose",
+   "category": "special_purpose",
+   "shape": "lattice",
+   "colour": null,
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 732.7,
+   "z": -4240.2,
+   "depth": -4,
+   "light": "FR"
+  },
+  {
+   "name": "",
+   "type": "beacon_special_purpose",
+   "category": "special_purpose",
+   "shape": "lattice",
+   "colour": null,
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 763.8,
+   "z": -4221.8,
+   "depth": -1.3,
+   "light": "FG"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": null,
+   "pattern": null,
+   "topmark": "cylinder",
+   "gameKind": "port",
+   "x": 8501,
+   "z": -20862.5,
+   "depth": -10.8,
+   "light": "FlR.5s"
+  },
+  {
+   "name": "Poros 9",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 10585.1,
+   "z": 6363.3,
+   "depth": -8.9
+  },
+  {
+   "name": "Poros 4",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 11287,
+   "z": 6469.3,
+   "depth": -6.9
+  },
+  {
+   "name": "Poros 8",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 10713.1,
+   "z": 6346.1,
+   "depth": -7.5
+  },
+  {
+   "name": "Poros 3",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 11383.6,
+   "z": 6597.3,
+   "depth": -7.6
+  },
+  {
+   "name": "Poros 1",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 11639.9,
+   "z": 6969.9,
+   "depth": -10.4
+  },
+  {
+   "name": "Poros 7",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 10924.1,
+   "z": 6403,
+   "depth": -7.1
+  },
+  {
+   "name": "Poros 2",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 11513.4,
+   "z": 6873.5,
+   "depth": -9.3
+  },
+  {
+   "name": "Poros 5",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 11207.2,
+   "z": 6429.3,
+   "depth": -7.1
+  },
+  {
+   "name": "Poros 6",
+   "type": "buoy_lateral",
+   "category": "lateral",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 11081.2,
+   "z": 6393.7,
+   "depth": -7.5
+  }
+ ],
+ "lights": [
+  {
+   "name": "Nisis Euraios",
+   "x": -16517.7,
+   "z": -33883.7,
+   "height": 48,
+   "range": 7,
+   "character": "Fl",
+   "period": 10,
+   "sequence": "0.5+(9.5)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.10s",
+   "on": "light"
+  },
+  {
+   "name": "Ormos Sofikou",
+   "x": -17734.7,
+   "z": -22637.5,
+   "height": 11,
+   "range": 5,
+   "character": "Fl",
+   "period": 4,
+   "sequence": "0.2+(3.8)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.4s",
+   "on": "light"
+  },
+  {
+   "name": "Spalathronisi",
+   "x": -8188.4,
+   "z": -16400.8,
+   "height": 37,
+   "range": 6,
+   "character": "Fl",
+   "period": 8,
+   "sequence": "0.4+(7.6)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.8s",
+   "on": "light"
+  },
+  {
+   "name": "Ormos Neas Epidhavrou",
+   "x": -15625.2,
+   "z": -13832.7,
+   "height": 7,
+   "range": 3,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "red",
+     "from": 257,
+     "to": 331
+    }
+   ],
+   "label": "FlR.3s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -15148,
+   "z": -9210.3,
+   "height": 8,
+   "range": 3,
+   "character": "Fl",
+   "period": 3,
+   "sectors": [
+    {
+     "colour": "red",
+     "from": 253,
+     "to": 280
+    }
+   ],
+   "label": "FlR.3s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -14816.7,
+   "z": -9207.2,
+   "height": 5,
+   "range": 3,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "QR",
+   "on": "beacon"
+  },
+  {
+   "name": "",
+   "x": -14835.6,
+   "z": -9244.7,
+   "height": 5,
+   "range": 3,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "QG",
+   "on": "beacon"
+  },
+  {
+   "name": "Limin Palaias Ediphavron",
+   "x": -14130.1,
+   "z": -9519.6,
+   "height": 10,
+   "range": 5,
+   "character": "Fl",
+   "period": 2,
+   "sequence": "0.4+(1.6)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.2s",
+   "on": "light"
+  },
+  {
+   "name": "Vathi",
+   "x": 732.7,
+   "z": -4240.2,
+   "height": 12,
+   "range": 3,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "beacon"
+  },
+  {
+   "name": "Nisos Lagousa",
+   "x": 12740.2,
+   "z": -28753.8,
+   "height": 12,
+   "range": 5,
+   "character": "LFl",
+   "period": 7.5,
+   "sequence": "2+(5.5)",
+   "sectors": [
+    {
+     "colour": "yellow",
+     "from": 130,
+     "to": 49
+    }
+   ],
+   "label": "LFlY.7.5s",
+   "on": "light"
+  },
+  {
+   "name": "Leonti",
+   "x": 12373.5,
+   "z": -24358.4,
+   "height": 7,
+   "range": 3,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.3s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Akra Tourlos",
+   "x": 20552.5,
+   "z": -23343.8,
+   "height": 28,
+   "range": 5,
+   "character": "Fl",
+   "period": 3.6,
+   "sequence": "0.5+(3.1)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 177,
+     "to": 24
+    }
+   ],
+   "label": "FlW.3.6s",
+   "on": "light"
+  },
+  {
+   "name": "Ayia Marina",
+   "x": 18404.3,
+   "z": -20945,
+   "height": 5,
+   "range": 3,
+   "character": "Fl",
+   "period": 2,
+   "sequence": "0.3+(1.7)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 8562.9,
+   "z": -21094.9,
+   "height": 7,
+   "range": 3,
+   "character": "Fl",
+   "period": 1.5,
+   "sequence": "0.2+(1.3)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.1.5s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": 8511.1,
+   "z": -21112.8,
+   "height": 7,
+   "range": 4,
+   "character": "Fl",
+   "period": 2,
+   "sequence": "0.3+(1.7)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": 8379.8,
+   "z": -21071,
+   "height": 7,
+   "range": 7,
+   "character": "Fl",
+   "period": 5,
+   "sequence": "0.5+(4.5)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.5s",
+   "on": "light"
+  },
+  {
+   "name": "Nisis Moni",
+   "x": 8239,
+   "z": -14579.9,
+   "height": 26,
+   "range": 11,
+   "character": "Fl",
+   "group": "2",
+   "period": 10,
+   "sequence": "1+(2),1+(6)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 296,
+     "to": 322
+    },
+    {
+     "colour": "red",
+     "from": 322,
+     "to": 336
+    },
+    {
+     "colour": "white",
+     "from": 336,
+     "to": 75
+    },
+    {
+     "colour": "green",
+     "from": 75,
+     "to": 165
+    },
+    {
+     "colour": "white",
+     "from": 165,
+     "to": 173
+    },
+    {
+     "colour": "red",
+     "from": 173,
+     "to": 187
+    },
+    {
+     "colour": "white",
+     "from": 187,
+     "to": 223
+    }
+   ],
+   "label": "Fl(2)WRG.10s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 5554.9,
+   "z": -2740.2,
+   "height": 7,
+   "range": 3,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.3s",
+   "on": "light"
+  },
+  {
+   "name": "Methana",
+   "x": 5299,
+   "z": -2205.3,
+   "height": 7,
+   "range": 3,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.3s",
+   "on": "light"
+  },
+  {
+   "name": "Akra Stavros",
+   "x": 11696.6,
+   "z": 6821.6,
+   "height": 7,
+   "range": 4,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "green",
+     "from": 253,
+     "to": 284
+    },
+    {
+     "colour": "red",
+     "from": 284,
+     "to": 309
+    },
+    {
+     "colour": "green",
+     "from": 309,
+     "to": 110
+    }
+   ],
+   "label": "FlGR.3s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Akra Nedha",
+   "x": 8081.5,
+   "z": 4102.8,
+   "range": 3,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Akra Dana",
+   "x": 8448,
+   "z": 3072.9,
+   "height": 31,
+   "range": 8,
+   "character": "Fl",
+   "period": 5,
+   "sequence": "1+(4)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 26,
+     "to": 200
+    },
+    {
+     "colour": "red",
+     "from": 200,
+     "to": 209
+    },
+    {
+     "colour": "white",
+     "from": 209,
+     "to": 266
+    }
+   ],
+   "label": "FlWR.5s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Nisoi Tselevinia",
+   "x": 19119.8,
+   "z": 12465,
+   "height": 31,
+   "range": 8,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.6+(2.4)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 78,
+     "to": 10
+    }
+   ],
+   "label": "FlW.3s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": 13625.7,
+   "z": 14805,
+   "height": 6,
+   "range": 3,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.3s",
+   "on": "light"
+  },
+  {
+   "name": "Fourkari",
+   "x": 13600.3,
+   "z": 14796.9,
+   "height": 6,
+   "range": 3,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.3s",
+   "on": "light"
+  },
+  {
+   "name": "Akra Zourvas",
+   "x": 21933.7,
+   "z": 21143.7,
+   "height": 36,
+   "range": 17,
+   "character": "Fl",
+   "group": "3",
+   "period": 20,
+   "sequence": "0.1+(3.3),0.1+(3.3),0.1+(13.4)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 128,
+     "to": 23
+    }
+   ],
+   "label": "Fl(3)W.20s",
+   "on": "light"
+  },
+  {
+   "name": "Akra Kastri",
+   "x": -6167.2,
+   "z": 18956.8,
+   "height": 22,
+   "range": 4,
+   "character": "Fl",
+   "period": 1.5,
+   "sequence": "0.3+(1.2)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.1.5s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Akra Aimilianos",
+   "x": -11490.6,
+   "z": 29663.1,
+   "height": 7,
+   "range": 8,
+   "character": "Fl",
+   "period": 10,
+   "sequence": "0.5+(9.5)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 193,
+     "to": 314
+    },
+    {
+     "colour": "red",
+     "from": 314,
+     "to": 357
+    },
+    {
+     "colour": "white",
+     "from": 357,
+     "to": 70
+    }
+   ],
+   "label": "FlWR.10s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 12049.7,
+   "z": 22636.6,
+   "height": 6,
+   "range": 2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": 12003.1,
+   "z": 22674.3,
+   "height": 5,
+   "range": 2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Limin Idhras",
+   "x": 12003.1,
+   "z": 22489.1,
+   "height": 10,
+   "range": 3,
+   "character": "Fl",
+   "period": 1.5,
+   "sequence": "0.3+(1.2)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.1.5s",
+   "on": "light"
+  },
+  {
+   "name": "Nisos Dhokos",
+   "x": 2317.8,
+   "z": 24886.8,
+   "height": 23,
+   "range": 6,
+   "character": "Fl_of1923",
+   "group": "2",
+   "period": 12,
+   "sequence": "0.5+(1.5),0.5+(9.5)",
+   "sectors": [
+    {
+     "colour": "white"
+    },
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Fl_of1923(2)WR.12s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Akra Mouzaki",
+   "x": -4600.1,
+   "z": 22909.9,
+   "height": 23,
+   "range": 4,
+   "character": "LFl",
+   "period": 7.5,
+   "sequence": "2.5+(5)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 127,
+     "to": 37
+    }
+   ],
+   "label": "LFlW.7.5s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Akra Mavrokavos",
+   "x": -14431,
+   "z": 34385,
+   "height": 7,
+   "range": 5,
+   "character": "Fl",
+   "period": 2,
+   "sequence": "0.4+(1.6)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 199,
+     "to": 314
+    },
+    {
+     "colour": "red",
+     "from": 314,
+     "to": 333
+    },
+    {
+     "colour": "white",
+     "from": 333,
+     "to": 19
+    }
+   ],
+   "label": "FlWR.2s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Limin Dipias",
+   "x": -15262,
+   "z": 31799.5,
+   "height": 6,
+   "range": 3,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Ormos Balitza",
+   "x": -14341.4,
+   "z": 32432.8,
+   "height": 5,
+   "range": 3,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "QR",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Nisos Spetsai",
+   "x": -14340.8,
+   "z": 32415.2,
+   "height": 27,
+   "range": 18,
+   "character": "Fl",
+   "period": 5,
+   "sequence": "0.2+(4.8)",
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 124,
+     "to": 254
+    },
+    {
+     "colour": "red",
+     "from": 254,
+     "to": 278
+    },
+    {
+     "colour": "white",
+     "from": 278,
+     "to": 330
+    }
+   ],
+   "label": "FlWR.5s",
+   "on": "light"
+  },
+  {
+   "name": "Cheli",
+   "x": -17203,
+   "z": 27341.6,
+   "height": 8,
+   "range": 3,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.3s",
+   "on": "light"
+  },
+  {
+   "name": "Limin Kheliou",
+   "x": -17891.9,
+   "z": 26751.7,
+   "height": 22,
+   "range": 5,
+   "character": "Fl",
+   "period": 1.5,
+   "sequence": "0.3+(1.2)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.1.5s",
+   "on": "light"
+  },
+  {
+   "name": "Nisis Petrokaravo",
+   "x": -22002.4,
+   "z": 30165,
+   "height": 22,
+   "range": 7,
+   "character": "Fl",
+   "group": "2",
+   "period": 9,
+   "sequence": "0.3+(1.2)+0.3+(7.2)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Fl(2)W.9s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -17888.8,
+   "z": 15292.1,
+   "height": 8,
+   "range": 3,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "Ormos Koiladhos",
+   "x": -19203.3,
+   "z": 14716.2,
+   "height": 6,
+   "range": 4,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.3s",
+   "on": "light"
+  },
+  {
+   "name": "Akra Kokhi",
+   "x": 10494.1,
+   "z": -35452.1,
+   "height": 34,
+   "range": 9,
+   "character": "Fl",
+   "period": 4,
+   "sequence": "0.5+(3.5)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.4s",
+   "on": "light"
+  },
+  {
+   "name": "Souvalas",
+   "x": 13950.3,
+   "z": -24311.8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Angistri",
+   "x": 1548,
+   "z": -17584.6,
+   "character": "Fl",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR",
+   "on": "lighthouse"
+  },
+  {
+   "name": "Angistri",
+   "x": 1650.8,
+   "z": -17660.1,
+   "character": "Fl",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -7039.4,
+   "z": 18787.8,
+   "range": 2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -7058.8,
+   "z": 18706.2,
+   "range": 3,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.2s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 763.8,
+   "z": -4221.8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "beacon"
+  },
+  {
+   "name": "",
+   "x": 8501,
+   "z": -20862.5,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 13836.7,
+   "z": -24469.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "lighthouse"
+  }
+ ],
+ "hazards": [
+  {
+   "name": "Sibyla",
+   "kind": "wreck",
+   "x": -15460.7,
+   "z": 26356.4,
+   "depth": -8.5,
+   "category": null,
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "rock",
+   "x": 15600.9,
+   "z": 3399.2,
+   "depth": -2.7,
+   "category": null,
+   "waterLevel": "submerged"
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": -7066.4,
+   "z": 18400.7,
+   "depth": -6.3,
+   "category": "hull_showing",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": -5921.3,
+   "z": -5739.8,
+   "depth": -60,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": -1689.6,
+   "z": 32339.2,
+   "depth": -24.1,
+   "category": "dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 2674,
+   "z": -34007,
+   "depth": -60,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 5948.6,
+   "z": 4427.9,
+   "depth": -2.2,
+   "category": null,
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 7272.5,
+   "z": -8061.6,
+   "depth": -29.7,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "obstruction",
+   "x": 8301,
+   "z": -13992,
+   "depth": -14.9,
+   "category": "foul_ground",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 7450.1,
+   "z": -34747.9,
+   "depth": -60,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 4657.8,
+   "z": -35582.5,
+   "depth": -60,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 10941,
+   "z": 6446.9,
+   "depth": -8.7,
+   "category": "dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 15059.3,
+   "z": 19181.2,
+   "depth": -60,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 15279.7,
+   "z": -2594.5,
+   "depth": -28,
+   "category": "dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 17850.8,
+   "z": 26408.8,
+   "depth": -60,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 19834.2,
+   "z": 25018.9,
+   "depth": -60,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 19466.9,
+   "z": 9822.2,
+   "depth": -60,
+   "category": "non-dangerous",
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "wreck",
+   "x": 21303.4,
+   "z": -22980.3,
+   "depth": -32.9,
+   "category": null,
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9969.3,
+   "z": 33765.4,
+   "depth": 0.6,
+   "radius": 25.5,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13163.8,
+   "z": 8174.6,
+   "depth": 1,
+   "radius": 53.6,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 5225.8,
+   "z": 29008.8,
+   "depth": 1,
+   "radius": 38.7,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 17656.6,
+   "z": 23295.9,
+   "depth": -8.5,
+   "radius": 45.4,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -10807.7,
+   "z": 23872.9,
+   "depth": 0.6,
+   "radius": 22.4,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 8478.1,
+   "z": 24354.3,
+   "depth": -0.8,
+   "radius": 52.2,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 6075.9,
+   "z": 25065.3,
+   "depth": -17.1,
+   "radius": 37.1,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10703.8,
+   "z": 22855,
+   "depth": -7,
+   "radius": 50.9,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "reef",
+   "x": -14822.1,
+   "z": 32124.6,
+   "depth": -10.3,
+   "category": null,
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10893,
+   "z": 5445.1,
+   "depth": 1.6,
+   "radius": 56.7,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9480.4,
+   "z": -23467,
+   "depth": -4.5,
+   "radius": 13.4,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9524.4,
+   "z": -23463,
+   "depth": -6.1,
+   "radius": 19.2,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 11753.8,
+   "z": 22548.5,
+   "depth": -2.7,
+   "radius": 10.5,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 11728.1,
+   "z": 22581.7,
+   "depth": 2.6,
+   "radius": 72.2,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 1563.4,
+   "z": 22732.1,
+   "depth": -5.4,
+   "radius": 17.3,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 2177.9,
+   "z": 31829,
+   "depth": -4.6,
+   "radius": 25.5,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9280.1,
+   "z": 27631,
+   "depth": -4.9,
+   "radius": 14.9,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9235.4,
+   "z": 27664,
+   "depth": -3.2,
+   "radius": 11.1,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9969.4,
+   "z": 23145.3,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9920.7,
+   "z": 33944.2,
+   "depth": 0.6,
+   "radius": 17.3,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10527.3,
+   "z": 33793.3,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15025.3,
+   "z": 25237.8,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15358.9,
+   "z": 26144,
+   "depth": -4,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15348.3,
+   "z": 26270.5,
+   "depth": -2.3,
+   "radius": 14.3,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9317.3,
+   "z": 27490.3,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 17674.6,
+   "z": 23070.9,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13076.4,
+   "z": 8103.8,
+   "depth": 0.6,
+   "radius": 21.1,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13093.1,
+   "z": 8059.4,
+   "depth": -4.9,
+   "radius": 24.9,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13291,
+   "z": 8131.8,
+   "depth": -9,
+   "radius": 13.4,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13084.5,
+   "z": 7873.4,
+   "depth": -6,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13808.9,
+   "z": 80.5,
+   "depth": -8.2,
+   "radius": 9.8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 213.1,
+   "z": -15869.8,
+   "depth": 1,
+   "radius": 38.5,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 2580,
+   "z": -17287.8,
+   "depth": 1.1,
+   "radius": 63.5,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 3396.3,
+   "z": -16894.8,
+   "depth": 2.1,
+   "radius": 18.3,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 3503.4,
+   "z": -16863.5,
+   "depth": -1.3,
+   "radius": 56.8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14490,
+   "z": 33590,
+   "depth": -1.3,
+   "radius": 37,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 11626.2,
+   "z": -36018.7,
+   "depth": 2.4,
+   "radius": 59.2,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10468,
+   "z": 23346,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9278.4,
+   "z": 27553.6,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9700.5,
+   "z": 26951.6,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9853.1,
+   "z": 26880.5,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15141.3,
+   "z": 24189.7,
+   "depth": 0.6,
+   "radius": 8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15508.6,
+   "z": 23543.2,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15194.7,
+   "z": 26379.7,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 4238.5,
+   "z": 26583.3,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -21298.2,
+   "z": 22617.1,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -21254.3,
+   "z": 22618,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -21200.8,
+   "z": 22589.6,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -20511.9,
+   "z": 22607.9,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -17037.6,
+   "z": 26419.1,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16693.5,
+   "z": 26885.3,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -17187.7,
+   "z": 27343,
+   "depth": -11.3,
+   "radius": 11.1,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16685.9,
+   "z": 27634.6,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16387.2,
+   "z": 28021.9,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -13970.2,
+   "z": 29937.6,
+   "depth": -5,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -12300.3,
+   "z": 28987.3,
+   "depth": -1.3,
+   "radius": 11.4,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -17946.5,
+   "z": 34943.5,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -19358.6,
+   "z": 33340.5,
+   "depth": -1.3,
+   "radius": 9.4,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -18900.5,
+   "z": 34105.7,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -18829,
+   "z": 34123,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -17408.4,
+   "z": 35130.1,
+   "depth": -1.3,
+   "radius": 12.6,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -19875.1,
+   "z": 32782.4,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -20043.4,
+   "z": 32067.1,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -20093.2,
+   "z": 32067.6,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -20251.9,
+   "z": 32108.6,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14374.2,
+   "z": 34415,
+   "depth": -5.3,
+   "radius": 15.3,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14730.9,
+   "z": 34864.3,
+   "depth": -3.2,
+   "radius": 11.3,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14963.4,
+   "z": 35016.1,
+   "depth": -2.3,
+   "radius": 21,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -15792.8,
+   "z": 35379.5,
+   "depth": -2.7,
+   "radius": 19.9,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -15542.7,
+   "z": 35439.3,
+   "depth": 2.6,
+   "radius": 8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16174.1,
+   "z": 35299.4,
+   "depth": -1.3,
+   "radius": 16.5,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -17257.5,
+   "z": 35462.4,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -17131.8,
+   "z": 30864.7,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -11682.6,
+   "z": 27421.6,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -11656.4,
+   "z": 27461.8,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -12270.8,
+   "z": 26534.1,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -6675.8,
+   "z": 23610.5,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -6703.4,
+   "z": 23650.1,
+   "depth": -5.9,
+   "radius": 13.5,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -6774.7,
+   "z": 23563.3,
+   "depth": -2.3,
+   "radius": 10.4,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -6976.5,
+   "z": 23388,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -8110.7,
+   "z": 23310.3,
+   "depth": 1,
+   "radius": 27.9,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -6100,
+   "z": 23630.8,
+   "depth": -3.2,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 16139.7,
+   "z": 13920,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 14649.1,
+   "z": 9137.2,
+   "depth": -3.6,
+   "radius": 20.1,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 17113,
+   "z": -16869.4,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 17093.1,
+   "z": -16818.1,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 17151.4,
+   "z": -16907.2,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 17818,
+   "z": -18647.4,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18255.1,
+   "z": -18687,
+   "depth": -4.1,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18328.3,
+   "z": -18715.2,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 19953.3,
+   "z": -22304.3,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 19999.3,
+   "z": -22307.5,
+   "depth": -3.6,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 20512.4,
+   "z": -22938,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 20679.1,
+   "z": -23087.6,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 20701.8,
+   "z": -23139.1,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 20722.5,
+   "z": -23206.4,
+   "depth": -4,
+   "radius": 21,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18936.8,
+   "z": -24157.4,
+   "depth": -4,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 12758.8,
+   "z": -6389.8,
+   "depth": -4.5,
+   "radius": 18.8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 12950.9,
+   "z": -6450,
+   "depth": -7.8,
+   "radius": 8.6,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13160.4,
+   "z": -6615.8,
+   "depth": -6.3,
+   "radius": 11.1,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16425.3,
+   "z": 27997,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 19088.7,
+   "z": 12526.7,
+   "depth": -4,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18342.9,
+   "z": 13166,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18404.2,
+   "z": 13189.9,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18607.9,
+   "z": 13080.4,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18930.7,
+   "z": 12825.9,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 17681.9,
+   "z": 13554.2,
+   "depth": -1.3,
+   "radius": 9,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 16831.2,
+   "z": 11682.9,
+   "depth": -4.2,
+   "radius": 10.5,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 14696.2,
+   "z": 5904.1,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18146.9,
+   "z": 4587,
+   "depth": -8.2,
+   "radius": 10.3,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10531.6,
+   "z": -14759.3,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10618.2,
+   "z": -14717.2,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10673.5,
+   "z": -14703.6,
+   "depth": -3.2,
+   "radius": 9,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10734.8,
+   "z": -14724.5,
+   "depth": -2.7,
+   "radius": 15.6,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 11882,
+   "z": -13866.7,
+   "depth": -2.3,
+   "radius": 12.4,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 11832.1,
+   "z": -13900.6,
+   "depth": 2.7,
+   "radius": 23.5,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13500,
+   "z": -13247.2,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13404.1,
+   "z": -13211.6,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13517.9,
+   "z": -13337.9,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13564.9,
+   "z": -13379.2,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15104.5,
+   "z": -13827.8,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15247.4,
+   "z": -14173.9,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15273.7,
+   "z": -14228.7,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15306.6,
+   "z": -14251.5,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15442.1,
+   "z": -14328.7,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 15533.1,
+   "z": -14380.2,
+   "depth": -2.7,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 18361.6,
+   "z": -18755.5,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 11882.2,
+   "z": -24112.5,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -459.7,
+   "z": -27233,
+   "depth": -1.3,
+   "radius": 10.9,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 541.7,
+   "z": -27471.1,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 2630.1,
+   "z": -29108.6,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14793.7,
+   "z": -14855.6,
+   "depth": 1,
+   "radius": 46.8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -18687.3,
+   "z": 26145.7,
+   "depth": -2.3,
+   "radius": 9.9,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16642.5,
+   "z": 26303.9,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16676.2,
+   "z": 26328.3,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -18061,
+   "z": 24535.8,
+   "depth": 1.2,
+   "radius": 71.8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 6067.9,
+   "z": -9150.2,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 7541.3,
+   "z": -6472.6,
+   "depth": -2.3,
+   "radius": 11.5,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 7286.9,
+   "z": -6176.2,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 6993.5,
+   "z": -5275.3,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "reef",
+   "x": 11131.7,
+   "z": -24195.5,
+   "depth": -8.7,
+   "category": null,
+   "waterLevel": null
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14571.8,
+   "z": -11174.9,
+   "depth": 1,
+   "radius": 30.6,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 3825.2,
+   "z": 405.3,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14721.8,
+   "z": 32405.5,
+   "depth": -1.3,
+   "radius": 11.4,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14798.3,
+   "z": 32345.7,
+   "depth": -1.3,
+   "radius": 15.8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16006.3,
+   "z": 31604.6,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -15978,
+   "z": 31638.5,
+   "depth": 1.2,
+   "radius": 8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16127.3,
+   "z": 31343.2,
+   "depth": -1.3,
+   "radius": 11.7,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16184.4,
+   "z": 31301.5,
+   "depth": 0.6,
+   "radius": 30.9,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14626.2,
+   "z": 33615.2,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16760.9,
+   "z": 31132.2,
+   "depth": 2.2,
+   "radius": 8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16277.5,
+   "z": 31243.8,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16992.5,
+   "z": 31024.5,
+   "depth": 0.6,
+   "radius": 8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -16863,
+   "z": 31070.6,
+   "depth": 0.6,
+   "radius": 10.3,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -15936.6,
+   "z": 31663.9,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -15889.4,
+   "z": 31707.6,
+   "depth": 0.6,
+   "radius": 8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -7924.8,
+   "z": -3218.9,
+   "depth": 0.8,
+   "radius": 8.4,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -7777.4,
+   "z": -3279.1,
+   "depth": 0.6,
+   "radius": 17.9,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -17612.8,
+   "z": -22869.5,
+   "depth": 0.6,
+   "radius": 8,
+   "drawn": true
+  },
+  {
+   "name": "Stavros",
+   "kind": "skerry",
+   "x": 11611.3,
+   "z": 7008,
+   "depth": -9.5,
+   "radius": 20.7,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 13562.9,
+   "z": 5644.7,
+   "depth": 1.9,
+   "radius": 8.5,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 12516.4,
+   "z": 5414,
+   "depth": 1,
+   "radius": 23,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10657.8,
+   "z": -35443.7,
+   "depth": -3.6,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 4443.7,
+   "z": 28450.1,
+   "depth": -1.3,
+   "radius": 37.6,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9242.4,
+   "z": 27794.3,
+   "depth": -1.3,
+   "radius": 14.7,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -15757.3,
+   "z": 28857.9,
+   "depth": -3.3,
+   "radius": 20.5,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 8543.4,
+   "z": 3483.4,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 9497.8,
+   "z": 3312.4,
+   "depth": -3.2,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -14428.9,
+   "z": 32360.7,
+   "depth": 1.1,
+   "radius": 8,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -12597.9,
+   "z": 36305.7,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 14065.3,
+   "z": 5944.9,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 14144.7,
+   "z": 5985.9,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 14178,
+   "z": 6011.7,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 14246.3,
+   "z": 5965,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 14810.1,
+   "z": 5889.8,
+   "depth": -1.3,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 14933.2,
+   "z": 5773.9,
+   "depth": -2.3,
+   "radius": 8,
+   "drawn": false
+  }
+ ],
+ "farms": [],
+ "currents": []
+}

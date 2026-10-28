@@ -1,0 +1,2145 @@
+{
+ "warnings": [
+  "features: no fog signals mapped (C5 foghorns: none here)",
+  "features: 3 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)",
+  "19 patches where the coastline's sides disagree (check the coast there)",
+  "overlapping piers at agistri-myloi (1542, -17721): decks 3.5 m and 2.4 m over 372 m²",
+  "overlapping piers at agistri-myloi (1560, -17719): decks 3.5 m and 2.4 m over 168 m²",
+  "overlapping piers at agistri-myloi (1588, -17711): decks 3.5 m and 2.4 m over 176 m²",
+  "overlapping piers at agistri-myloi (1455, -17652): decks 3.5 m and 2.4 m over 252 m²",
+  "overlapping piers at agistri-myloi (1520, -17725): decks 3.5 m and 2.4 m over 56 m²",
+  "overlapping piers at agistri-myloi (1497, -17708): decks 3.5 m and 2.4 m over 228 m²",
+  "overlapping piers at agistri-myloi (1477, -17676): decks 3.5 m and 2.4 m over 64 m²",
+  "overlapping piers at agistri-myloi (1488, -17695): decks 3.5 m and 2.4 m over 264 m²",
+  "overlapping piers at agistri-myloi (1633, -17689): decks 3.5 m and 2.4 m over 200 m²",
+  "overlapping piers at agistri-myloi (1648, -17673): decks 3.5 m and 2.4 m over 124 m²",
+  "overlapping piers at agistri-myloi (1646, -17661): decks 3.5 m and 2.4 m over 72 m²",
+  "overlapping piers at agistri-myloi (1621, -17697): decks 3.5 m and 2.4 m over 204 m²",
+  "overlapping piers at agistri-myloi (1603, -17706): decks 3.5 m and 2.4 m over 84 m²",
+  "overlapping piers at agistri-myloi (1437, -17633): decks 3.5 m and 2.4 m over 44 m²",
+  "overlapping piers at agistri-myloi (1433, -17626): decks 3.5 m and 2.4 m over 104 m²",
+  "overlapping piers at portes-pier (17103, -17080): decks 3.5 m and 2.4 m over 56 m²",
+  "overlapping piers at portes-pier (17102, -17067): decks 3.5 m and 2.4 m over 52 m²",
+  "galatas-pier: no berth with room for a boat (best blocked at 8 points): not a port",
+  "chinitsa-pier: no berth with room for a boat (best blocked at 7 points): not a port",
+  "vaia-pier-2: no berth with room for a boat (best blocked at 3 points): not a port",
+  "ligoneri-pier: no berth with room for a boat (best blocked at 3 points): not a port",
+  "salanti-pier: no berth with room for a boat (best blocked at 8 points): not a port",
+  "kyani-akti-pier: no berth with room for a boat (best blocked at 6 points): not a port",
+  "chinitsa-pier-5: no berth with room for a boat (best blocked at 8 points): not a port",
+  "agios-nektarios-pier: its berths are all on decks under 2.4 m wide: not a port",
+  "agii-anargyri-pier-2: no berth with room for a boat (best blocked at 5 points): not a port",
+  "pigadia-pier-2: no berth with room for a boat (best blocked at 3 points): not a port",
+  "kavos-pier: no berth with room for a boat (best blocked at 10 points): not a port",
+  "kavos-pier-2: no berth with room for a boat (best blocked at 6 points): not a port",
+  "agia-sotira-pier-4: its berths are all on decks under 2.4 m wide: not a port"
+ ],
+ "nav": {
+  "marks": 14,
+  "lights": 51,
+  "hazards": 194,
+  "farms": 0,
+  "currents": 0
+ },
+ "houses": {
+  "byType": {
+   "house": 1678,
+   "boathouse": 104,
+   "cottage": 270,
+   "terrace": 430,
+   "church": 51,
+   "warehouse": 108,
+   "shed": 40,
+   "castle": 1,
+   "ruin": 4
+  },
+  "fromTags": 11,
+  "fromRules": 89,
+  "plain": 1344
+ },
+ "harbours": {
+  "harbours": 120,
+  "blocks": 460,
+  "berths": 553,
+  "slipways": 2,
+  "buildings": 2686,
+  "edits": 8,
+  "sparse": [
+   "way/196267295: 484 m2 in a 1874 m2 box, 5.5 m thick",
+   "way/276235969: 73 m2 in a 151 m2 box, 2.2 m thick",
+   "way/276235974: 1738 m2 in a 3209 m2 box, 13.7 m thick",
+   "way/276235984: 538 m2 in a 1329 m2 box, 7.8 m thick",
+   "way/283556844: 576 m2 in a 1570 m2 box, 6.5 m thick",
+   "way/283556845: 1324 m2 in a 5017 m2 box, 8.3 m thick",
+   "way/292706282: 363 m2 in a 722 m2 box, 7.3 m thick",
+   "way/317522392: 1324 m2 in a 3025 m2 box, 10.7 m thick",
+   "way/317522394: 1065 m2 in a 3400 m2 box, 7.3 m thick",
+   "way/319265391: 1906 m2 in a 3735 m2 box, 10.2 m thick",
+   "way/319265406 (Provlita Athanasiou Tsaldari): 100 m2 in a 261 m2 box, 2.4 m thick",
+   "way/329137796: 360 m2 in a 1149 m2 box, 4.8 m thick",
+   "way/353391691: 48 m2 in a 229 m2 box, 1.6 m thick",
+   "way/472281306: 65 m2 in a 136 m2 box, 2.6 m thick",
+   "way/472281329: 137 m2 in a 415 m2 box, 3.5 m thick",
+   "way/501669784: 232 m2 in a 553 m2 box, 3.7 m thick",
+   "way/530914326: 1139 m2 in a 7683 m2 box, 6.3 m thick",
+   "way/531127385: 7108 m2 in a 25151 m2 box, 21.1 m thick",
+   "way/531127386: 2129 m2 in a 24228 m2 box, 6.5 m thick",
+   "way/596083559: 2449 m2 in a 8207 m2 box, 9.9 m thick",
+   "way/603407783: 65 m2 in a 171 m2 box, 2.7 m thick",
+   "way/603456479: 104 m2 in a 218 m2 box, 2.7 m thick",
+   "way/604657818: 184 m2 in a 352 m2 box, 3.6 m thick",
+   "way/604664172: 159 m2 in a 379 m2 box, 2.5 m thick",
+   "way/621267991: 132 m2 in a 506 m2 box, 2.9 m thick",
+   "way/623136833: 395 m2 in a 978 m2 box, 5.1 m thick",
+   "way/684458614: 126 m2 in a 621 m2 box, 2.1 m thick",
+   "way/685949591: 183 m2 in a 564 m2 box, 2.8 m thick",
+   "way/753863829: 39 m2 in a 104 m2 box, 1.5 m thick",
+   "way/830664671: 33 m2 in a 849 m2 box, 0.4 m thick",
+   "way/900166002: 24 m2 in a 186 m2 box, 0.9 m thick",
+   "way/900925051: 79 m2 in a 624 m2 box, 1.4 m thick",
+   "way/908890736: 203 m2 in a 396 m2 box, 3.9 m thick",
+   "way/908890737: 494 m2 in a 1380 m2 box, 4.1 m thick",
+   "way/953899125: 88 m2 in a 168 m2 box, 3.4 m thick",
+   "way/953899126: 143 m2 in a 323 m2 box, 3.1 m thick",
+   "way/954548671: 53 m2 in a 140 m2 box, 2.1 m thick",
+   "way/970989824: 5995 m2 in a 15905 m2 box, 21.5 m thick",
+   "way/972030947: 4297 m2 in a 8912 m2 box, 23.3 m thick",
+   "way/972047137: 1051 m2 in a 1958 m2 box, 11.3 m thick",
+   "way/972075725: 552 m2 in a 1626 m2 box, 5.8 m thick",
+   "way/972974836: 1812 m2 in a 3392 m2 box, 17.4 m thick",
+   "way/974653395: 59 m2 in a 216 m2 box, 2.0 m thick",
+   "way/978575813: 2150 m2 in a 6809 m2 box, 13.1 m thick",
+   "way/985756787: 1356 m2 in a 13525 m2 box, 4.5 m thick",
+   "way/985756788: 2625 m2 in a 28796 m2 box, 5.1 m thick"
+  ],
+  "roles": {
+   "harbour.sheltered": "Porto Heli",
+   "pier.exposed": "Aegina pier",
+   "anchorage": "Taktikoupoli anchorage"
+  }
+ },
+ "features": {
+  "farms": {},
+  "landmarks": {
+   "lighthouse": 31,
+   "turbine": 78,
+   "tower": 11,
+   "mast": 3,
+   "castle": 20,
+   "church": 231,
+   "monument": 6,
+   "chimney": 1,
+   "water_tower": 3
+  },
+  "shore": {
+   "rock": 358,
+   "beach": 224,
+   "sand": 30,
+   "shingle": 3
+  },
+  "cliffs": 41,
+  "farmland": 259,
+  "names": {
+   "cape": 9,
+   "town": 7,
+   "village": 57,
+   "peninsula": 1,
+   "hamlet": 75,
+   "locality": 15,
+   "neighbourhood": 3,
+   "isolated_dwelling": 6,
+   "quarter": 2,
+   "bay": 16,
+   "strait": 8,
+   "island": 16,
+   "islet": 39
+  },
+  "fogSignals": 0,
+  "wrecks": 16,
+  "cables": {
+   "cable": 3
+  },
+  "overhead": 3,
+  "overheadWithClearance": 0,
+  "ferryRoutes": 55,
+  "ferryTerminals": 23
+ },
+ "trees": {
+  "woodedKm2": {
+   "natural": 338.06,
+   "mixed": 156.82,
+   "scrub": 254.55,
+   "orchard": 16.55,
+   "broadleaf": 24.56
+  },
+  "mappedKm2": {
+   "scrub": 31.91,
+   "mixed": 165.32,
+   "orchard": 18.56,
+   "broadleaf": 27.29
+  },
+  "clearedCells": 189904,
+  "bytes": 1543010
+ },
+ "dredgedCells": 3051,
+ "landmarkCellsLowered": 0,
+ "triangles": 1486099,
+ "deepTriangles": 17001,
+ "vertices": 845541,
+ "bytes": 38496662,
+ "chunks": [
+  {
+   "id": 15,
+   "triangles": 4046
+  },
+  {
+   "id": 16,
+   "triangles": 8486
+  },
+  {
+   "id": 17,
+   "triangles": 2033
+  },
+  {
+   "id": 23,
+   "triangles": 582
+  },
+  {
+   "id": 25,
+   "triangles": 1655
+  },
+  {
+   "id": 39,
+   "triangles": 17
+  },
+  {
+   "id": 46,
+   "triangles": 5905
+  },
+  {
+   "id": 47,
+   "triangles": 7633
+  },
+  {
+   "id": 48,
+   "triangles": 1740
+  },
+  {
+   "id": 69,
+   "triangles": 2209
+  },
+  {
+   "id": 70,
+   "triangles": 4894
+  },
+  {
+   "id": 71,
+   "triangles": 8860
+  },
+  {
+   "id": 72,
+   "triangles": 1288
+  },
+  {
+   "id": 76,
+   "triangles": 1758
+  },
+  {
+   "id": 77,
+   "triangles": 2288
+  },
+  {
+   "id": 82,
+   "triangles": 3
+  },
+  {
+   "id": 85,
+   "triangles": 168
+  },
+  {
+   "id": 92,
+   "triangles": 698
+  },
+  {
+   "id": 93,
+   "triangles": 1908
+  },
+  {
+   "id": 94,
+   "triangles": 5128
+  },
+  {
+   "id": 95,
+   "triangles": 8422
+  },
+  {
+   "id": 96,
+   "triangles": 2447
+  },
+  {
+   "id": 98,
+   "triangles": 532
+  },
+  {
+   "id": 99,
+   "triangles": 4626
+  },
+  {
+   "id": 100,
+   "triangles": 434
+  },
+  {
+   "id": 101,
+   "triangles": 122
+  },
+  {
+   "id": 102,
+   "triangles": 1897
+  },
+  {
+   "id": 103,
+   "triangles": 1109
+  },
+  {
+   "id": 104,
+   "triangles": 1033
+  },
+  {
+   "id": 105,
+   "triangles": 791
+  },
+  {
+   "id": 108,
+   "triangles": 579
+  },
+  {
+   "id": 109,
+   "triangles": 1138
+  },
+  {
+   "id": 115,
+   "triangles": 625
+  },
+  {
+   "id": 116,
+   "triangles": 410
+  },
+  {
+   "id": 117,
+   "triangles": 1919
+  },
+  {
+   "id": 118,
+   "triangles": 5483
+  },
+  {
+   "id": 119,
+   "triangles": 4876
+  },
+  {
+   "id": 122,
+   "triangles": 24
+  },
+  {
+   "id": 123,
+   "triangles": 11
+  },
+  {
+   "id": 125,
+   "triangles": 397
+  },
+  {
+   "id": 126,
+   "triangles": 1049
+  },
+  {
+   "id": 133,
+   "triangles": 2
+  },
+  {
+   "id": 136,
+   "triangles": 3
+  },
+  {
+   "id": 138,
+   "triangles": 1893
+  },
+  {
+   "id": 139,
+   "triangles": 3340
+  },
+  {
+   "id": 140,
+   "triangles": 3536
+  },
+  {
+   "id": 141,
+   "triangles": 7582
+  },
+  {
+   "id": 142,
+   "triangles": 2943
+  },
+  {
+   "id": 153,
+   "triangles": 2024
+  },
+  {
+   "id": 154,
+   "triangles": 2807
+  },
+  {
+   "id": 155,
+   "triangles": 5215
+  },
+  {
+   "id": 156,
+   "triangles": 4263
+  },
+  {
+   "id": 157,
+   "triangles": 3058
+  },
+  {
+   "id": 158,
+   "triangles": 3639
+  },
+  {
+   "id": 159,
+   "triangles": 1711
+  },
+  {
+   "id": 161,
+   "triangles": 1237
+  },
+  {
+   "id": 162,
+   "triangles": 5384
+  },
+  {
+   "id": 163,
+   "triangles": 2594
+  },
+  {
+   "id": 164,
+   "triangles": 1495
+  },
+  {
+   "id": 165,
+   "triangles": 903
+  },
+  {
+   "id": 175,
+   "triangles": 856
+  },
+  {
+   "id": 176,
+   "triangles": 3614
+  },
+  {
+   "id": 177,
+   "triangles": 1259
+  },
+  {
+   "id": 178,
+   "triangles": 2940
+  },
+  {
+   "id": 179,
+   "triangles": 2516
+  },
+  {
+   "id": 180,
+   "triangles": 2708
+  },
+  {
+   "id": 181,
+   "triangles": 7273
+  },
+  {
+   "id": 182,
+   "triangles": 2088
+  },
+  {
+   "id": 184,
+   "triangles": 2016
+  },
+  {
+   "id": 185,
+   "triangles": 7328
+  },
+  {
+   "id": 186,
+   "triangles": 1131
+  },
+  {
+   "id": 199,
+   "triangles": 3263
+  },
+  {
+   "id": 200,
+   "triangles": 2091
+  },
+  {
+   "id": 201,
+   "triangles": 2551
+  },
+  {
+   "id": 202,
+   "triangles": 1766
+  },
+  {
+   "id": 203,
+   "triangles": 4142
+  },
+  {
+   "id": 204,
+   "triangles": 5530
+  },
+  {
+   "id": 205,
+   "triangles": 21
+  },
+  {
+   "id": 207,
+   "triangles": 775
+  },
+  {
+   "id": 208,
+   "triangles": 2741
+  },
+  {
+   "id": 209,
+   "triangles": 6100
+  },
+  {
+   "id": 210,
+   "triangles": 4716
+  },
+  {
+   "id": 211,
+   "triangles": 1661
+  },
+  {
+   "id": 218,
+   "triangles": 1040
+  },
+  {
+   "id": 219,
+   "triangles": 356
+  },
+  {
+   "id": 220,
+   "triangles": 1945
+  },
+  {
+   "id": 222,
+   "triangles": 419
+  },
+  {
+   "id": 223,
+   "triangles": 4225
+  },
+  {
+   "id": 224,
+   "triangles": 3843
+  },
+  {
+   "id": 225,
+   "triangles": 1868
+  },
+  {
+   "id": 226,
+   "triangles": 6275
+  },
+  {
+   "id": 227,
+   "triangles": 2390
+  },
+  {
+   "id": 230,
+   "triangles": 407
+  },
+  {
+   "id": 231,
+   "triangles": 506
+  },
+  {
+   "id": 232,
+   "triangles": 472
+  },
+  {
+   "id": 233,
+   "triangles": 5510
+  },
+  {
+   "id": 234,
+   "triangles": 1032
+  },
+  {
+   "id": 236,
+   "triangles": 430
+  },
+  {
+   "id": 237,
+   "triangles": 3409
+  },
+  {
+   "id": 238,
+   "triangles": 3663
+  },
+  {
+   "id": 240,
+   "triangles": 402
+  },
+  {
+   "id": 241,
+   "triangles": 6241
+  },
+  {
+   "id": 242,
+   "triangles": 7297
+  },
+  {
+   "id": 243,
+   "triangles": 11
+  },
+  {
+   "id": 245,
+   "triangles": 2490
+  },
+  {
+   "id": 246,
+   "triangles": 2740
+  },
+  {
+   "id": 247,
+   "triangles": 4741
+  },
+  {
+   "id": 248,
+   "triangles": 3640
+  },
+  {
+   "id": 249,
+   "triangles": 6084
+  },
+  {
+   "id": 253,
+   "triangles": 179
+  },
+  {
+   "id": 254,
+   "triangles": 1288
+  },
+  {
+   "id": 255,
+   "triangles": 3784
+  },
+  {
+   "id": 256,
+   "triangles": 4598
+  },
+  {
+   "id": 263,
+   "triangles": 6315
+  },
+  {
+   "id": 264,
+   "triangles": 7320
+  },
+  {
+   "id": 265,
+   "triangles": 3212
+  },
+  {
+   "id": 266,
+   "triangles": 5
+  },
+  {
+   "id": 268,
+   "triangles": 5184
+  },
+  {
+   "id": 269,
+   "triangles": 3247
+  },
+  {
+   "id": 270,
+   "triangles": 5695
+  },
+  {
+   "id": 271,
+   "triangles": 7185
+  },
+  {
+   "id": 272,
+   "triangles": 2433
+  },
+  {
+   "id": 276,
+   "triangles": 245
+  },
+  {
+   "id": 277,
+   "triangles": 1027
+  },
+  {
+   "id": 278,
+   "triangles": 4606
+  },
+  {
+   "id": 279,
+   "triangles": 7121
+  },
+  {
+   "id": 287,
+   "triangles": 489
+  },
+  {
+   "id": 290,
+   "triangles": 2
+  },
+  {
+   "id": 293,
+   "triangles": 434
+  },
+  {
+   "id": 299,
+   "triangles": 537
+  },
+  {
+   "id": 300,
+   "triangles": 1111
+  },
+  {
+   "id": 301,
+   "triangles": 2381
+  },
+  {
+   "id": 302,
+   "triangles": 9560
+  },
+  {
+   "id": 303,
+   "triangles": 16
+  },
+  {
+   "id": 310,
+   "triangles": 16
+  },
+  {
+   "id": 311,
+   "triangles": 443
+  },
+  {
+   "id": 312,
+   "triangles": 1196
+  },
+  {
+   "id": 322,
+   "triangles": 702
+  },
+  {
+   "id": 323,
+   "triangles": 908
+  },
+  {
+   "id": 324,
+   "triangles": 2970
+  },
+  {
+   "id": 325,
+   "triangles": 5168
+  },
+  {
+   "id": 332,
+   "triangles": 4515
+  },
+  {
+   "id": 333,
+   "triangles": 8571
+  },
+  {
+   "id": 334,
+   "triangles": 7928
+  },
+  {
+   "id": 335,
+   "triangles": 5004
+  },
+  {
+   "id": 336,
+   "triangles": 3521
+  },
+  {
+   "id": 345,
+   "triangles": 720
+  },
+  {
+   "id": 346,
+   "triangles": 844
+  },
+  {
+   "id": 347,
+   "triangles": 3311
+  },
+  {
+   "id": 348,
+   "triangles": 6981
+  },
+  {
+   "id": 349,
+   "triangles": 5914
+  },
+  {
+   "id": 354,
+   "triangles": 886
+  },
+  {
+   "id": 355,
+   "triangles": 10881
+  },
+  {
+   "id": 356,
+   "triangles": 6896
+  },
+  {
+   "id": 357,
+   "triangles": 3690
+  },
+  {
+   "id": 358,
+   "triangles": 4867
+  },
+  {
+   "id": 359,
+   "triangles": 8144
+  },
+  {
+   "id": 362,
+   "triangles": 152
+  },
+  {
+   "id": 368,
+   "triangles": 185
+  },
+  {
+   "id": 369,
+   "triangles": 174
+  },
+  {
+   "id": 370,
+   "triangles": 102
+  },
+  {
+   "id": 371,
+   "triangles": 1198
+  },
+  {
+   "id": 372,
+   "triangles": 6818
+  },
+  {
+   "id": 373,
+   "triangles": 9727
+  },
+  {
+   "id": 374,
+   "triangles": 3396
+  },
+  {
+   "id": 375,
+   "triangles": 513
+  },
+  {
+   "id": 378,
+   "triangles": 3
+  },
+  {
+   "id": 379,
+   "triangles": 5490
+  },
+  {
+   "id": 380,
+   "triangles": 4785
+  },
+  {
+   "id": 381,
+   "triangles": 6099
+  },
+  {
+   "id": 382,
+   "triangles": 4957
+  },
+  {
+   "id": 391,
+   "triangles": 206
+  },
+  {
+   "id": 392,
+   "triangles": 127
+  },
+  {
+   "id": 393,
+   "triangles": 99
+  },
+  {
+   "id": 394,
+   "triangles": 131
+  },
+  {
+   "id": 395,
+   "triangles": 773
+  },
+  {
+   "id": 396,
+   "triangles": 1583
+  },
+  {
+   "id": 397,
+   "triangles": 7037
+  },
+  {
+   "id": 398,
+   "triangles": 6834
+  },
+  {
+   "id": 399,
+   "triangles": 1129
+  },
+  {
+   "id": 402,
+   "triangles": 1410
+  },
+  {
+   "id": 403,
+   "triangles": 6499
+  },
+  {
+   "id": 404,
+   "triangles": 7683
+  },
+  {
+   "id": 405,
+   "triangles": 7
+  },
+  {
+   "id": 409,
+   "triangles": 155
+  },
+  {
+   "id": 414,
+   "triangles": 199
+  },
+  {
+   "id": 415,
+   "triangles": 156
+  },
+  {
+   "id": 416,
+   "triangles": 87
+  },
+  {
+   "id": 417,
+   "triangles": 91
+  },
+  {
+   "id": 418,
+   "triangles": 172
+  },
+  {
+   "id": 419,
+   "triangles": 235
+  },
+  {
+   "id": 420,
+   "triangles": 1147
+  },
+  {
+   "id": 421,
+   "triangles": 4547
+  },
+  {
+   "id": 422,
+   "triangles": 6959
+  },
+  {
+   "id": 423,
+   "triangles": 730
+  },
+  {
+   "id": 424,
+   "triangles": 1
+  },
+  {
+   "id": 426,
+   "triangles": 8903
+  },
+  {
+   "id": 427,
+   "triangles": 4218
+  },
+  {
+   "id": 431,
+   "triangles": 5105
+  },
+  {
+   "id": 437,
+   "triangles": 321
+  },
+  {
+   "id": 438,
+   "triangles": 130
+  },
+  {
+   "id": 439,
+   "triangles": 162
+  },
+  {
+   "id": 440,
+   "triangles": 106
+  },
+  {
+   "id": 441,
+   "triangles": 86
+  },
+  {
+   "id": 442,
+   "triangles": 156
+  },
+  {
+   "id": 443,
+   "triangles": 191
+  },
+  {
+   "id": 444,
+   "triangles": 1724
+  },
+  {
+   "id": 445,
+   "triangles": 6251
+  },
+  {
+   "id": 446,
+   "triangles": 5268
+  },
+  {
+   "id": 447,
+   "triangles": 3027
+  },
+  {
+   "id": 448,
+   "triangles": 3086
+  },
+  {
+   "id": 449,
+   "triangles": 7079
+  },
+  {
+   "id": 450,
+   "triangles": 7657
+  },
+  {
+   "id": 451,
+   "triangles": 4567
+  },
+  {
+   "id": 453,
+   "triangles": 974
+  },
+  {
+   "id": 454,
+   "triangles": 11590
+  },
+  {
+   "id": 455,
+   "triangles": 3800
+  },
+  {
+   "id": 460,
+   "triangles": 272
+  },
+  {
+   "id": 461,
+   "triangles": 198
+  },
+  {
+   "id": 462,
+   "triangles": 188
+  },
+  {
+   "id": 463,
+   "triangles": 125
+  },
+  {
+   "id": 464,
+   "triangles": 104
+  },
+  {
+   "id": 465,
+   "triangles": 165
+  },
+  {
+   "id": 466,
+   "triangles": 167
+  },
+  {
+   "id": 467,
+   "triangles": 1406
+  },
+  {
+   "id": 468,
+   "triangles": 2526
+  },
+  {
+   "id": 469,
+   "triangles": 4087
+  },
+  {
+   "id": 470,
+   "triangles": 5788
+  },
+  {
+   "id": 471,
+   "triangles": 2766
+  },
+  {
+   "id": 472,
+   "triangles": 1385
+  },
+  {
+   "id": 473,
+   "triangles": 5421
+  },
+  {
+   "id": 474,
+   "triangles": 7562
+  },
+  {
+   "id": 475,
+   "triangles": 9794
+  },
+  {
+   "id": 476,
+   "triangles": 8923
+  },
+  {
+   "id": 477,
+   "triangles": 7009
+  },
+  {
+   "id": 478,
+   "triangles": 10090
+  },
+  {
+   "id": 479,
+   "triangles": 6635
+  },
+  {
+   "id": 480,
+   "triangles": 114
+  },
+  {
+   "id": 483,
+   "triangles": 361
+  },
+  {
+   "id": 484,
+   "triangles": 260
+  },
+  {
+   "id": 485,
+   "triangles": 141
+  },
+  {
+   "id": 486,
+   "triangles": 169
+  },
+  {
+   "id": 487,
+   "triangles": 127
+  },
+  {
+   "id": 488,
+   "triangles": 106
+  },
+  {
+   "id": 489,
+   "triangles": 197
+  },
+  {
+   "id": 490,
+   "triangles": 560
+  },
+  {
+   "id": 491,
+   "triangles": 1045
+  },
+  {
+   "id": 492,
+   "triangles": 1590
+  },
+  {
+   "id": 493,
+   "triangles": 3483
+  },
+  {
+   "id": 494,
+   "triangles": 2553
+  },
+  {
+   "id": 495,
+   "triangles": 748
+  },
+  {
+   "id": 496,
+   "triangles": 2030
+  },
+  {
+   "id": 497,
+   "triangles": 3309
+  },
+  {
+   "id": 498,
+   "triangles": 3283
+  },
+  {
+   "id": 499,
+   "triangles": 11048
+  },
+  {
+   "id": 500,
+   "triangles": 6498
+  },
+  {
+   "id": 501,
+   "triangles": 7351
+  },
+  {
+   "id": 502,
+   "triangles": 2642
+  },
+  {
+   "id": 503,
+   "triangles": 101
+  },
+  {
+   "id": 506,
+   "triangles": 629
+  },
+  {
+   "id": 507,
+   "triangles": 558
+  },
+  {
+   "id": 508,
+   "triangles": 153
+  },
+  {
+   "id": 509,
+   "triangles": 273
+  },
+  {
+   "id": 510,
+   "triangles": 72
+  },
+  {
+   "id": 511,
+   "triangles": 112
+  },
+  {
+   "id": 512,
+   "triangles": 130
+  },
+  {
+   "id": 513,
+   "triangles": 256
+  },
+  {
+   "id": 514,
+   "triangles": 200
+  },
+  {
+   "id": 515,
+   "triangles": 295
+  },
+  {
+   "id": 516,
+   "triangles": 459
+  },
+  {
+   "id": 517,
+   "triangles": 1618
+  },
+  {
+   "id": 518,
+   "triangles": 3146
+  },
+  {
+   "id": 519,
+   "triangles": 4316
+  },
+  {
+   "id": 520,
+   "triangles": 3952
+  },
+  {
+   "id": 521,
+   "triangles": 5008
+  },
+  {
+   "id": 522,
+   "triangles": 9689
+  },
+  {
+   "id": 523,
+   "triangles": 5060
+  },
+  {
+   "id": 529,
+   "triangles": 4856
+  },
+  {
+   "id": 530,
+   "triangles": 4131
+  },
+  {
+   "id": 531,
+   "triangles": 2061
+  },
+  {
+   "id": 532,
+   "triangles": 93
+  },
+  {
+   "id": 533,
+   "triangles": 35
+  },
+  {
+   "id": 534,
+   "triangles": 317
+  },
+  {
+   "id": 535,
+   "triangles": 190
+  },
+  {
+   "id": 536,
+   "triangles": 124
+  },
+  {
+   "id": 537,
+   "triangles": 237
+  },
+  {
+   "id": 538,
+   "triangles": 816
+  },
+  {
+   "id": 539,
+   "triangles": 1459
+  },
+  {
+   "id": 540,
+   "triangles": 998
+  },
+  {
+   "id": 541,
+   "triangles": 1319
+  },
+  {
+   "id": 542,
+   "triangles": 1965
+  },
+  {
+   "id": 543,
+   "triangles": 1620
+  },
+  {
+   "id": 544,
+   "triangles": 2932
+  },
+  {
+   "id": 545,
+   "triangles": 4580
+  },
+  {
+   "id": 546,
+   "triangles": 7691
+  },
+  {
+   "id": 547,
+   "triangles": 9511
+  },
+  {
+   "id": 548,
+   "triangles": 558
+  },
+  {
+   "id": 552,
+   "triangles": 2419
+  },
+  {
+   "id": 553,
+   "triangles": 3428
+  },
+  {
+   "id": 554,
+   "triangles": 3208
+  },
+  {
+   "id": 555,
+   "triangles": 1473
+  },
+  {
+   "id": 556,
+   "triangles": 326
+  },
+  {
+   "id": 557,
+   "triangles": 148
+  },
+  {
+   "id": 558,
+   "triangles": 60
+  },
+  {
+   "id": 559,
+   "triangles": 56
+  },
+  {
+   "id": 560,
+   "triangles": 31
+  },
+  {
+   "id": 561,
+   "triangles": 606
+  },
+  {
+   "id": 562,
+   "triangles": 2609
+  },
+  {
+   "id": 563,
+   "triangles": 3114
+  },
+  {
+   "id": 564,
+   "triangles": 3394
+  },
+  {
+   "id": 565,
+   "triangles": 3034
+  },
+  {
+   "id": 566,
+   "triangles": 2537
+  },
+  {
+   "id": 567,
+   "triangles": 2894
+  },
+  {
+   "id": 568,
+   "triangles": 3401
+  },
+  {
+   "id": 569,
+   "triangles": 3573
+  },
+  {
+   "id": 570,
+   "triangles": 7654
+  },
+  {
+   "id": 571,
+   "triangles": 6565
+  },
+  {
+   "id": 572,
+   "triangles": 1158
+  },
+  {
+   "id": 576,
+   "triangles": 1523
+  },
+  {
+   "id": 577,
+   "triangles": 4748
+  },
+  {
+   "id": 578,
+   "triangles": 2012
+  },
+  {
+   "id": 579,
+   "triangles": 731
+  },
+  {
+   "id": 580,
+   "triangles": 537
+  },
+  {
+   "id": 581,
+   "triangles": 339
+  },
+  {
+   "id": 582,
+   "triangles": 869
+  },
+  {
+   "id": 583,
+   "triangles": 1179
+  },
+  {
+   "id": 584,
+   "triangles": 1449
+  },
+  {
+   "id": 585,
+   "triangles": 3329
+  },
+  {
+   "id": 586,
+   "triangles": 4927
+  },
+  {
+   "id": 587,
+   "triangles": 5515
+  },
+  {
+   "id": 588,
+   "triangles": 5361
+  },
+  {
+   "id": 589,
+   "triangles": 5321
+  },
+  {
+   "id": 590,
+   "triangles": 6241
+  },
+  {
+   "id": 591,
+   "triangles": 7198
+  },
+  {
+   "id": 592,
+   "triangles": 9364
+  },
+  {
+   "id": 593,
+   "triangles": 9820
+  },
+  {
+   "id": 594,
+   "triangles": 6647
+  },
+  {
+   "id": 595,
+   "triangles": 1549
+  },
+  {
+   "id": 598,
+   "triangles": 2
+  },
+  {
+   "id": 599,
+   "triangles": 5298
+  },
+  {
+   "id": 600,
+   "triangles": 5167
+  },
+  {
+   "id": 601,
+   "triangles": 1650
+  },
+  {
+   "id": 602,
+   "triangles": 1072
+  },
+  {
+   "id": 603,
+   "triangles": 1555
+  },
+  {
+   "id": 604,
+   "triangles": 1490
+  },
+  {
+   "id": 605,
+   "triangles": 3860
+  },
+  {
+   "id": 606,
+   "triangles": 6272
+  },
+  {
+   "id": 607,
+   "triangles": 5091
+  },
+  {
+   "id": 608,
+   "triangles": 3111
+  },
+  {
+   "id": 609,
+   "triangles": 5035
+  },
+  {
+   "id": 610,
+   "triangles": 3313
+  },
+  {
+   "id": 611,
+   "triangles": 4263
+  },
+  {
+   "id": 612,
+   "triangles": 4068
+  },
+  {
+   "id": 613,
+   "triangles": 6037
+  },
+  {
+   "id": 614,
+   "triangles": 6542
+  },
+  {
+   "id": 615,
+   "triangles": 2759
+  },
+  {
+   "id": 616,
+   "triangles": 154
+  },
+  {
+   "id": 621,
+   "triangles": 2748
+  },
+  {
+   "id": 622,
+   "triangles": 5825
+  },
+  {
+   "id": 623,
+   "triangles": 1811
+  },
+  {
+   "id": 624,
+   "triangles": 1024
+  },
+  {
+   "id": 625,
+   "triangles": 1113
+  },
+  {
+   "id": 626,
+   "triangles": 1494
+  },
+  {
+   "id": 627,
+   "triangles": 1776
+  },
+  {
+   "id": 628,
+   "triangles": 5945
+  },
+  {
+   "id": 629,
+   "triangles": 1776
+  },
+  {
+   "id": 630,
+   "triangles": 5961
+  },
+  {
+   "id": 631,
+   "triangles": 1843
+  },
+  {
+   "id": 635,
+   "triangles": 153
+  },
+  {
+   "id": 644,
+   "triangles": 4286
+  },
+  {
+   "id": 645,
+   "triangles": 3157
+  },
+  {
+   "id": 646,
+   "triangles": 1603
+  },
+  {
+   "id": 647,
+   "triangles": 1149
+  },
+  {
+   "id": 648,
+   "triangles": 715
+  },
+  {
+   "id": 649,
+   "triangles": 2562
+  },
+  {
+   "id": 650,
+   "triangles": 2932
+  },
+  {
+   "id": 651,
+   "triangles": 3947
+  },
+  {
+   "id": 652,
+   "triangles": 16
+  },
+  {
+   "id": 663,
+   "triangles": 1013
+  },
+  {
+   "id": 664,
+   "triangles": 1580
+  },
+  {
+   "id": 665,
+   "triangles": 620
+  },
+  {
+   "id": 667,
+   "triangles": 7469
+  },
+  {
+   "id": 668,
+   "triangles": 7061
+  },
+  {
+   "id": 669,
+   "triangles": 3601
+  },
+  {
+   "id": 670,
+   "triangles": 887
+  },
+  {
+   "id": 671,
+   "triangles": 2080
+  },
+  {
+   "id": 672,
+   "triangles": 3178
+  },
+  {
+   "id": 673,
+   "triangles": 3299
+  },
+  {
+   "id": 674,
+   "triangles": 6742
+  },
+  {
+   "id": 675,
+   "triangles": 2662
+  },
+  {
+   "id": 678,
+   "triangles": 34
+  },
+  {
+   "id": 679,
+   "triangles": 7
+  },
+  {
+   "id": 683,
+   "triangles": 453
+  },
+  {
+   "id": 684,
+   "triangles": 4234
+  },
+  {
+   "id": 685,
+   "triangles": 8515
+  },
+  {
+   "id": 686,
+   "triangles": 9496
+  },
+  {
+   "id": 687,
+   "triangles": 10779
+  },
+  {
+   "id": 688,
+   "triangles": 7836
+  },
+  {
+   "id": 690,
+   "triangles": 27
+  },
+  {
+   "id": 691,
+   "triangles": 3479
+  },
+  {
+   "id": 692,
+   "triangles": 5458
+  },
+  {
+   "id": 693,
+   "triangles": 2186
+  },
+  {
+   "id": 694,
+   "triangles": 2820
+  },
+  {
+   "id": 695,
+   "triangles": 3659
+  },
+  {
+   "id": 696,
+   "triangles": 4891
+  },
+  {
+   "id": 697,
+   "triangles": 4860
+  },
+  {
+   "id": 698,
+   "triangles": 4407
+  },
+  {
+   "id": 699,
+   "triangles": 2902
+  },
+  {
+   "id": 700,
+   "triangles": 3924
+  },
+  {
+   "id": 701,
+   "triangles": 5672
+  },
+  {
+   "id": 702,
+   "triangles": 4431
+  },
+  {
+   "id": 705,
+   "triangles": 2143
+  },
+  {
+   "id": 706,
+   "triangles": 8157
+  },
+  {
+   "id": 707,
+   "triangles": 6781
+  },
+  {
+   "id": 708,
+   "triangles": 8553
+  },
+  {
+   "id": 709,
+   "triangles": 5894
+  },
+  {
+   "id": 710,
+   "triangles": 473
+  },
+  {
+   "id": 714,
+   "triangles": 6817
+  },
+  {
+   "id": 715,
+   "triangles": 10666
+  },
+  {
+   "id": 716,
+   "triangles": 4219
+  },
+  {
+   "id": 717,
+   "triangles": 4211
+  },
+  {
+   "id": 721,
+   "triangles": 10
+  },
+  {
+   "id": 722,
+   "triangles": 3814
+  },
+  {
+   "id": 723,
+   "triangles": 3981
+  },
+  {
+   "id": 724,
+   "triangles": 5252
+  },
+  {
+   "id": 725,
+   "triangles": 1029
+  },
+  {
+   "id": 726,
+   "triangles": 2964
+  },
+  {
+   "id": 727,
+   "triangles": 7616
+  },
+  {
+   "id": 728,
+   "triangles": 7140
+  },
+  {
+   "id": 729,
+   "triangles": 6736
+  },
+  {
+   "id": 730,
+   "triangles": 4964
+  },
+  {
+   "id": 731,
+   "triangles": 6389
+  },
+  {
+   "id": 738,
+   "triangles": 7128
+  },
+  {
+   "id": 739,
+   "triangles": 6685
+  },
+  {
+   "id": 740,
+   "triangles": 6186
+  },
+  {
+   "id": 741,
+   "triangles": 4720
+  },
+  {
+   "id": 744,
+   "triangles": 1
+  },
+  {
+   "id": 745,
+   "triangles": 1
+  },
+  {
+   "id": 748,
+   "triangles": 5253
+  },
+  {
+   "id": 749,
+   "triangles": 11633
+  },
+  {
+   "id": 750,
+   "triangles": 9305
+  },
+  {
+   "id": 751,
+   "triangles": 5823
+  },
+  {
+   "id": 752,
+   "triangles": 158
+  },
+  {
+   "id": 753,
+   "triangles": 5
+  },
+  {
+   "id": 754,
+   "triangles": 6
+  },
+  {
+   "id": 759,
+   "triangles": 1072
+  },
+  {
+   "id": 760,
+   "triangles": 2659
+  },
+  {
+   "id": 761,
+   "triangles": 674
+  },
+  {
+   "id": 762,
+   "triangles": 5031
+  },
+  {
+   "id": 763,
+   "triangles": 6330
+  },
+  {
+   "id": 764,
+   "triangles": 2567
+  },
+  {
+   "id": 770,
+   "triangles": 2
+  },
+  {
+   "id": 771,
+   "triangles": 1886
+  },
+  {
+   "id": 772,
+   "triangles": 1338
+  },
+  {
+   "id": 773,
+   "triangles": 1072
+  },
+  {
+   "id": 774,
+   "triangles": 1
+  },
+  {
+   "id": 782,
+   "triangles": 4830
+  },
+  {
+   "id": 783,
+   "triangles": 10982
+  },
+  {
+   "id": 784,
+   "triangles": 10095
+  },
+  {
+   "id": 785,
+   "triangles": 5244
+  },
+  {
+   "id": 790,
+   "triangles": 4741
+  },
+  {
+   "id": 791,
+   "triangles": 1261
+  },
+  {
+   "id": 792,
+   "triangles": 582
+  },
+  {
+   "id": 793,
+   "triangles": 397
+  },
+  {
+   "id": 794,
+   "triangles": 891
+  },
+  {
+   "id": 805,
+   "triangles": 1
+  },
+  {
+   "id": 806,
+   "triangles": 7833
+  },
+  {
+   "id": 807,
+   "triangles": 7541
+  },
+  {
+   "id": 808,
+   "triangles": 9464
+  },
+  {
+   "id": 809,
+   "triangles": 19
+  },
+  {
+   "id": 813,
+   "triangles": 472
+  },
+  {
+   "id": 814,
+   "triangles": 3
+  },
+  {
+   "id": 815,
+   "triangles": 194
+  },
+  {
+   "id": 820,
+   "triangles": 238
+  },
+  {
+   "id": 821,
+   "triangles": 2372
+  },
+  {
+   "id": 829,
+   "triangles": 258
+  },
+  {
+   "id": 830,
+   "triangles": 7471
+  },
+  {
+   "id": 831,
+   "triangles": 7494
+  },
+  {
+   "id": 832,
+   "triangles": 607
+  },
+  {
+   "id": 838,
+   "triangles": 2
+  },
+  {
+   "id": 853,
+   "triangles": 2
+  },
+  {
+   "id": 854,
+   "triangles": 1052
+  },
+  {
+   "id": 855,
+   "triangles": 357
+  }
+ ],
+ "landShare": 0.3537214154861977,
+ "seenFromWater": 0.66,
+ "coastPoints": 30661,
+ "shoreBandPoints": 52775,
+ "chunkBudget": 12000,
+ "package": {
+  "ports": 65,
+  "berths": 88,
+  "blocks": 460,
+  "buildings": 2686,
+  "marks": 1,
+  "lights": 50,
+  "slipways": 2,
+  "fishingGrounds": 1,
+  "pottingGrounds": 194,
+  "landmarks": [
+   "Koni",
+   "Akra Dana FlWR.5s"
+  ],
+  "bytes": 306652
+ }
+}
