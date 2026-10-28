@@ -32,7 +32,10 @@
  * It takes over from `engageFrom` of her take-off speed, fully at it; below, her flaps are
  * level and she runs on her hulls (her foils lifting a little at their incidence). Heeled past
  * `safeHeelDeg` (a sea beyond her: a foil come out of the water), it brings her down onto her
- * hulls, holding her level as she lands, rather than fight to stay up.
+ * hulls, holding her level as she lands, rather than fight to stay up. HULL at her helm
+ * (`VesselControls.foilMode` 0) does the same at any speed: she stays down on her hulls, or
+ * comes down gently onto them if she was flying. Her ride height is her design's
+ * `rideDepth`, a step deeper (low) or shallower (high) by `controls.foilRide`.
  */
 import { CONFIG } from '../../config';
 import type { PhysicsPort } from '../../modular/module';
@@ -82,8 +85,11 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
  * Her foils' and struts' forces this tick, through the physics port. `mass` and `cgZ`: hers
  * now (payload in), for the share of her weight each foil should carry.
  */
-export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: number): void {
+export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: number, controls: { foilMode?: number; foilRide?: number } = {}): { engaged: number; flaps: number[] } {
   const c = CONFIG.foils;
+  // Her helm: FOIL or HULL, and her ride height (a step deeper or shallower than her design's).
+  const foiling = (controls.foilMode ?? 1) > 0.5;
+  const rideDepth = fs.rideDepth + c.rideSteps[Math.round(Math.min(2, Math.max(0, controls.foilRide ?? 1)))];
   const rho = CONFIG.ocean.density;
   const g = CONFIG.ocean.gravity;
   const W = mass * g;
@@ -133,9 +139,10 @@ export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: 
   // Past `safeHeelDeg` of heel (a sea beyond her, a foil out of the water) she comes down onto
   // her hulls: each foil asked for only `landShare` of its share, her roll still held level.
   const safe = (k.safeHeelDeg * Math.PI) / 180;
-  const over = clamp((Math.abs(heelDown) - safe) / (0.5 * safe), 0, 1);
+  // (HULL at her helm: the same, her foils asked for only `landShare` whatever her heel.)
+  const over = foiling ? clamp((Math.abs(heelDown) - safe) / (0.5 * safe), 0, 1) : 1;
   const land = 1 - (1 - k.landShare) * over;
-  const front = land * W * shareF * (1 + k.kh * clamp(depthF - fs.rideDepth, -k.climb, k.climb) - k.kv * riseF - k.kpf * Math.max(0, pitch - trim));
+  const front = land * W * shareF * (1 + k.kh * clamp(depthF - rideDepth, -k.climb, k.climb) - k.kv * riseF - k.kpf * Math.max(0, pitch - trim));
   const roll = k.kr * eRoll + k.krd * rollRateDown;
   const after = land * W * shareA * (1 + k.kp * (pitch - trim) + k.kq * pitchRate);
   const want = (p: FoilPanel) => (p.role === 'aft' ? after / aft.length : (front / fwd.length) * (1 + (p.role === 'starboard' ? roll : -roll)));
@@ -197,4 +204,5 @@ export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: 
     port.addForce(mid, -side - (D * f.x) / sp, 0, -(D * f.z) / sp);
     foilTelemetry.drag += D;
   }
+  return { engaged: foiling ? engaged : 0, flaps: [...foilTelemetry.flaps] };
 }
