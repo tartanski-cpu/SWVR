@@ -12,6 +12,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Hydrofoils in the physics; the foiling electric ferry, her hull and foils (owner)
 
+- **On `next`** (28 Oct, the owner's word): merged with `origin/next`; typecheck and all 1740 tests pass. Handed over: her house, drive and Shipyard one-off to the Shipyard chat; her helm and flight controls to the main game chat.
 - **The owner:** a small foiling electric ferry, from photographs of one: 12 m, 30 passengers, 25 kn; "does the physics engine support foiling?" (it didn't) and "do the foil physics here". Our own design of the type, not the real vessel's.
 - **Her hull** (`designs.ts`, `foilFerry`): a catamaran, 12.0 x 4.5 m, two deep-V hulls 3.3 m apart under a bridge deck 0.95 m up, 8.8 t with her 30 passengers aboard (about 6.3 t light, a battery of about 1.5 t, 2.6 t of people and luggage), 0.76 m on her hulls, KM 7.5 m.
 - **Her foils** (`foilFerry.foils`, game axes): a main foil 3.9 m span x 0.42 m chord, in two halves, 1.3 m forward of amidships between two struts on her hulls' centrelines (it carries about 70 % of her weight); an aft foil 2.4 x 0.38 m, 5.4 m aft, on the centreline strut from her wet deck that carries her motor pod. 2.2 m under her waterline on her hulls; she flies her forward foil 0.8 m deep, her keels about 0.6 m clear. Take-off about 15.5 kn. Drawn in the hull study (`src/hulls/foilsMesh.ts`).
