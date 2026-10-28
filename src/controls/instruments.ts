@@ -1320,6 +1320,123 @@ export function azimuthDial(g: CanvasRenderingContext2D, cx: number, cy: number,
   g.fill();
 }
 
+/**
+ * FOILS (owner, 28 Oct 2026: the foiling ferry's flight display; vessel/physics/foils.ts):
+ * what she's doing (FLYING, TAKING OFF, LANDING, ON HER HULLS), her speed and power, FOIL or
+ * HULL, her ride height setting, how far her flight computer is in charge, a side view of her
+ * over the water (her keels' height over the mean sea, her foils under it, each foil tilted
+ * by its flap), and each flap's angle. From her state's `foil` (the host's flight, so a
+ * crew-mate's screen shows the same), her `foilMode` and `foilRide`.
+ */
+type FoilPhase = 'FLYING' | 'TAKING OFF' | 'LANDING' | 'ON HER HULLS';
+/** What she's doing (CONFIG.foilHelm): flying once her hulls are clear and her flight computer has her; else rising onto her foils, or coming down off them in HULL. */
+export function foilPhase(s: VesselState): FoilPhase {
+  const f = s.foil;
+  const c = CONFIG.foilHelm;
+  if (!f) return 'ON HER HULLS';
+  const hull = (s.controls.foilMode ?? 1) < 0.5;
+  if (f.clear >= c.flyingClear && !hull) return 'FLYING';
+  if (hull) return f.clear > c.landedClear ? 'LANDING' : 'ON HER HULLS';
+  return f.engaged > 0.05 && f.clear > c.landedClear ? 'TAKING OFF' : 'ON HER HULLS';
+}
+/** Her keels' height over the mean sea (m): + clear of it, - in it. */
+function keelClearance(s: VesselState, def: VesselDef): number {
+  return s.position[1] + def.hull.params.keelY;
+}
+const RIDE_NAMES = ['LOW', 'NORM', 'HIGH'] as const;
+function foilKey(s: VesselState, def: VesselDef): string {
+  const f = s.foil;
+  if (!f) return '';
+  return [foilPhase(s), s.controls.foilMode ?? 1, s.controls.foilRide ?? 1, Math.round(f.engaged * 20), ...f.flaps.map((x) => Math.round(x * 2)), Math.round(keelClearance(s, def) * 50), logKnots(s).toFixed(1), Math.round(Math.max(0, s.engine.powerKw ?? 0))].join('|');
+}
+const paintFoil: Painter = (g, s, def) => {
+  title(g, 'FOILS');
+  const f = s.foil;
+  if (!f) {
+    text(g, 'NO FOILS', 20, 110, DIM);
+    return;
+  }
+  const hull = (s.controls.foilMode ?? 1) < 0.5;
+  const ride = Math.max(0, Math.min(2, Math.round(s.controls.foilRide ?? 1)));
+  const phase = foilPhase(s);
+  // Top right: FOIL or HULL, as the switch is.
+  text(g, hull ? 'HULL MODE' : 'FOIL MODE', 248, 16, hull ? AMBER : GREEN, TEXT_PX, 'right');
+  // Left: what she's doing, her speed and power.
+  g.textAlign = 'left';
+  big(g, phase, 20, 66, phase.length > 10 ? 30 : 38, phase === 'FLYING' ? GREEN : phase === 'ON HER HULLS' ? AMBER : '#ffe6b0');
+  text(g, `${logKnots(s).toFixed(1)} kn   ${Math.round(Math.max(0, s.engine.powerKw ?? 0))} kW`, 20, 92, AMBER);
+  // Her ride height: the three settings, hers lit.
+  text(g, 'RIDE', 20, 128, DIM, SMALL_PX);
+  RIDE_NAMES.forEach((n, i) => {
+    const x = 70 + i * 60;
+    g.fillStyle = i === ride ? AMBER : 'transparent';
+    g.strokeStyle = i === ride ? AMBER : DIM;
+    g.lineWidth = 2;
+    g.fillRect(x, 124, 54, 24);
+    g.strokeRect(x, 124, 54, 24);
+    text(g, n, x + 27, 128, i === ride ? BG : DIM, SMALL_PX, 'center');
+  });
+  // Her flight computer: how far it's in charge.
+  text(g, 'FLIGHT CTRL', 20, 164, DIM, SMALL_PX);
+  g.fillStyle = '#2a2014';
+  g.fillRect(140, 166, 104, 12);
+  g.fillStyle = hull ? DIM : GREEN;
+  g.fillRect(140, 166, 104 * Math.max(0, Math.min(1, f.engaged)), 12);
+  // Each flap's angle (deg, + down: more lift).
+  ['P', 'S', 'AFT'].forEach((n, i) => {
+    const deg = f.flaps[i] ?? 0;
+    text(g, `${n} ${deg >= 0 ? '+' : ''}${deg.toFixed(1)}°`, 20 + i * 78, 198, Math.abs(deg) > CONFIG.foilHelm.flapWarnDeg ? RED : AMBER, SMALL_PX);
+  });
+  text(g, 'FLAPS', 20, 222, DIM, SMALL_PX);
+  // Right: a side view of her over the water, at her height.
+  const k = CONFIG.foilHelm.viewPxPerM;
+  const sea = 128;
+  const x0 = 284;
+  const x1 = 488;
+  g.fillStyle = '#0b2a36';
+  g.fillRect(272, sea, 230, 246 - sea);
+  g.strokeStyle = '#3f8fb0';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(272, sea);
+  g.lineTo(502, sea);
+  g.stroke();
+  const clear = keelClearance(s, def);
+  const keel = sea - clear * k;
+  // Her hull (bow to the right) and cabin.
+  g.fillStyle = '#c8ccc8';
+  g.beginPath();
+  g.moveTo(x0, keel - 26);
+  g.lineTo(x1 - 6, keel - 26);
+  g.lineTo(x1, keel - 18);
+  g.lineTo(x1 - 26, keel);
+  g.lineTo(x0 + 8, keel);
+  g.lineTo(x0, keel - 8);
+  g.closePath();
+  g.fill();
+  g.fillRect(x0 + 60, keel - 44, 90, 18);
+  // Her struts down to her foils, each foil tilted by its flap (drawn larger, to see it).
+  const foilY = keel + CONFIG.foilHelm.foilDepthM * k;
+  const foil = (x: number, deg: number) => {
+    g.strokeStyle = '#8c9399';
+    g.lineWidth = 4;
+    g.beginPath();
+    g.moveTo(x, keel);
+    g.lineTo(x, foilY);
+    g.stroke();
+    const a = (deg * 3 * Math.PI) / 180;
+    g.strokeStyle = '#e8e8e2';
+    g.lineWidth = 5;
+    g.beginPath();
+    g.moveTo(x - Math.cos(a) * 22, foilY - Math.sin(a) * 22);
+    g.lineTo(x + Math.cos(a) * 22, foilY + Math.sin(a) * 22);
+    g.stroke();
+  };
+  foil(x1 - 60, ((f.flaps[0] ?? 0) + (f.flaps[1] ?? 0)) / 2);
+  foil(x0 + 30, f.flaps[2] ?? 0);
+  text(g, clear > 0 ? `KEELS +${clear.toFixed(2)} m` : 'HULLS IN THE WATER', 490, 16, clear > 0 ? GREEN : DIM, SMALL_PX, 'right');
+};
+
 /** The screens there are, for the screen module (modules/screen) to pick from. */
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
@@ -1329,6 +1446,7 @@ export const SCREENS = {
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   efficiency: { paint: paintEfficiency, key: efficiencyKey },
   solar: { paint: paintSolar, key: solarKey },
+  foil: { paint: paintFoil, key: foilKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
   towline: { paint: paintTowline, cells: [2, 1], key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
   // Old school: the analogue gauges, each a quarter.
@@ -1371,10 +1489,10 @@ export type ScreenName = keyof typeof SCREENS;
 // you have tabs that you have to flip between to see the different information") ──
 
 /** The pages a touchscreen can show, in tab order: each is one of the screens above, drawn in it. */
-export const TOUCH_PAGES = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'anchor', 'towline', 'nav'] as const;
+export const TOUCH_PAGES = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'foil', 'anchor', 'towline', 'nav'] as const;
 export type TouchPage = (typeof TOUCH_PAGES)[number];
 /** What each page's tab says. */
-export const TOUCH_TABS: Record<TouchPage, string> = { speed: 'SPEED', heading: 'HDG', rpm: 'ENGINE', engineMonitor: 'SYSTEMS', efficiency: 'ECO', solar: 'SOLAR', anchor: 'ANCHOR', towline: 'TOW', nav: 'WIND' };
+export const TOUCH_TABS: Record<TouchPage, string> = { speed: 'SPEED', heading: 'HDG', rpm: 'ENGINE', engineMonitor: 'SYSTEMS', efficiency: 'ECO', solar: 'SOLAR', foil: 'FOILS', anchor: 'ANCHOR', towline: 'TOW', nav: 'WIND' };
 /**
  * The tab bar and the page area, in the screen's own pixels (512 x 256; the bezel is the outer
  * 10). The tabs are along the top: from the helm the wheel's rim hides a dash screen's foot.

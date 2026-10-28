@@ -313,6 +313,19 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.slots.solar = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
     consoleMount.modules!.push({ socket: 'solar', module: 'instrument.screen', config: { screen: 'solar' } });
   }
+  // A foiling boat's helm (owner, 28 Oct 2026: "Do 1, 3 and 4, three ride heights"; her foils
+  // fly her, vessel/physics/foils.ts): FOIL / HULL and her ride height (LOW / NORM / HIGH) in
+  // their own FOILS group on the switch panel, and the FOILS screen (her flight) on her dash,
+  // whatever her instruments (on a touchscreen, its FOILS page).
+  const foiler = p.form.kind === 'lofted' && !!p.form.design.foils;
+  if (foiler) {
+    cc.slots.foil = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
+    consoleMount.modules!.push(
+      { socket: 'foilMode', module: 'control.toggle', config: { label: 'FOIL / HULL: on her foils at speed (up), or kept down on her hulls (down: in harbour)', engrave: 'FOIL' }, bind: { value: 'foils.mode' } },
+      { socket: 'foilRide', module: 'control.selector3', config: { label: 'Ride height: LOW, NORM or HIGH over the water (press to step)', engrave: 'RIDE', marks: ['LO', 'N', 'HI'] }, bind: { value: 'foils.ride' } },
+      { socket: 'foil', module: 'instrument.screen', config: { screen: 'foil' } },
+    );
+  }
   // ANCHOR (owner, Oct 2026: "is the chain going down? Is the anchor set? Is the chain going
   // up? Is it in?"): a quarter screen beside the speed screen, on any boat with an anchor.
   if (anchorAt) {
@@ -338,8 +351,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const touch = d.controls ? Math.max(0, Math.min(2, d.touch ?? 0)) : 0;
   const touchIds = touch ? ['touch1', 'touch2'].slice(0, touch) : [];
   if (touch) {
-    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(p.electric && p.base.solarRoof ? (['solar'] as const) : []), ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
-    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline'].includes(m.socket));
+    const pages: TouchPage[] = ['speed', ...(foiler ? (['foil'] as const) : []), 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(p.electric && p.base.solarRoof ? (['solar'] as const) : []), ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
+    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline', 'foil'].includes(m.socket));
     touchIds.forEach((id, k) => {
       cc.slots[id] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
       consoleMount.modules!.push({ socket: id, module: 'instrument.screen', config: { screen: 'touch', pages, channel: k ? 'touchPage2' : 'touchPage1', first: k ? 2 : 0 } });
@@ -353,7 +366,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     consoleMount.modules!.push({ socket: clockId, module: 'instrument.screen', config: { screen: clockId } });
   }
   // What the basic controls keep at the helm (the rest comes off with them, below).
-  const BASIC_KEEP = ['wheel', 'throttle', 'throttle2', 'aziTransit', 'aziSync', 'podJoystick', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
+  const BASIC_KEEP = ['wheel', 'throttle', 'throttle2', 'aziTransit', 'aziSync', 'podJoystick', 'foilMode', 'foilRide', 'foil', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
   /** The switch panel's groups (CS2) from whichever switches she has (`has`). */
   const panelGroups = (has: (id: string) => boolean): PanelGroup[] => {
     const search = ['spotlight', 'firePump'].filter(has);
@@ -363,6 +376,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
       { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'start2', 'key'].filter(has) },
       { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
+      // FOIL / HULL and her ride height (a foiling boat's), with her drive's switches.
+      { title: 'FOILS', color: 0x3a9ad9, side: 'starboard', members: ['foilMode', 'foilRide'].filter(has) },
       // (Last of the starboard side's: nearest the wheel, under the helmsman's hand.)
       { title: 'AUTOPILOT', color: 0xe0a020, side: 'starboard', members: ['apPort', 'apOn', 'apStbd'].filter(has) },
     ];
@@ -410,7 +425,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // CS6, `lampsUpBelow`, it would run under the wheel's rim, so it goes up on the face too.)
   const lampsUp = !lowSills(d) && !panelPinned && !toFace.includes('ENGINE') && fitted('lamps') && 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow;
   const faceItems = [...faceItemsFor(toFace), ...(lampsUp ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])];
-  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
+  const screens = (touch ? touchIds : oldSchool ? [...dials, 'foil', clockId] : ['speed', 'anchorScreen', 'foil', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'foil', 'rpm', 'clock'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
   // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
   // by its rules in this order, the half-height ones stacked two high in one screen's place
