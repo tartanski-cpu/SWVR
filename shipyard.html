@@ -603,7 +603,8 @@
         <canvas id="liveChart" width="520" height="110"></canvas>
         <div id="liveNow" class="meta"></div>
         <div id="liveResult"></div>
-        <div class="meta liveKey">Physics debug, as in the game: <span style="color:#66ccff">blue</span> the slices of her hull the physics floats, <span style="color:#ffe14d">yellow</span> the buoyancy on each (10 kN to a metre), <span style="color:#ff5050">red</span> her centre of gravity.</div>
+        <div class="meta liveKey" id="liveKeyDrop">Physics debug, as in the game: <span style="color:#66ccff">blue</span> the slices of her hull the physics floats, <span style="color:#ffe14d">yellow</span> the buoyancy on each (10 kN to a metre), <span style="color:#ff5050">red</span> her centre of gravity.</div>
+        <div class="meta liveKey" id="liveKeyStab" hidden>Her stability, from the physics' own buoyancy: <span style="color:#ff6a5a">G</span> her centre of gravity, <span style="color:#6aa8ff">B</span> her centre of buoyancy and its line straight up, <span style="color:#3fbf6a">GZ</span> her righting lever (G across to that line), <span style="color:#e8b030">M</span> where it crosses her centreline (GM above G). Roll: her GZ against her heel as she swings back, with her GM's line (GZ = GM sin φ).</div>
       </div>
       <!-- The console laid out by hand, at the Controls step (page.ts showConsoleEditor). -->
       <div id="consolePanel" hidden><div class="liveHead"><b>Console layout</b><span class="meta">her console from the helm: drag a screen or a switch group to free cells, or click it, then click where it goes</span></div><div id="consoleEditor"></div></div>

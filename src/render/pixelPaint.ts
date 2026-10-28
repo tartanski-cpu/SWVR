@@ -23,10 +23,12 @@ import { CONFIG } from '../config';
  * The tiles, in their order in the texture (0 is no paint). The first four are the boats';
  * the rest dress the cargo, the harbours and the sea marks (step 2, owner: the crates, the
  * houses, the buoys and nav marks). `crate` and `window` are whole pictures, one to a face
- * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`. The last four dress
- * the wheelhouse inside (CONFIG.interiors and CONFIG.cabinFloors, chosen in the Shipyard).
+ * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`. Some dress the
+ * wheelhouse inside (CONFIG.interiors and CONFIG.cabinFloors, chosen in the Shipyard); the last
+ * four the engine rooms (owner, Oct 2026: "another pass on the engine room textures to make
+ * it pop"): painted machinery, the exhausts' lagging, galvanised sheet, the deckhead's cladding.
  */
-export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed', 'facade', 'beamsLight', 'beamsDark', 'topsides'] as const;
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed', 'facade', 'beamsLight', 'beamsDark', 'topsides', 'machinery', 'lagging', 'galv', 'perforated'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -432,6 +434,82 @@ const PAINTERS: Record<PaintName, () => (x: number, y: number) => Pixel> = {
       for (let i = 0; i < len; i++) px[y0 * TILE + ((x0 + i) % TILE)] = [0.56, 0.56, 0.56];
     }
     return (x, y) => px[y * TILE + x];
+  },
+  /**
+   * Painted machinery (the engines, generator sets, pumps, air bottles): the paint a little
+   * uneven over a cast or fabricated surface (a fine speckle), dark oil stains here and there
+   * with a run down from some, and a few chips where the paint's knocked off to bright metal.
+   */
+  machinery: () => {
+    const r = rng(161);
+    const mottle = noise(162, 16);
+    const stain = noise(163, 8);
+    const px = Array.from({ length: TILE * TILE }, (_, i) => {
+      const x = i % TILE;
+      const y = Math.floor(i / TILE);
+      const s = stain(x, y);
+      // The stains: where the coarse noise runs high, darker, darkest at their hearts.
+      const oil = s > 0.68 ? 0.1 + 0.25 * (s - 0.68) : 0;
+      return 0.52 + 0.06 * (mottle(x, y) - 0.5) + (r() - 0.5) * 0.06 - oil;
+    });
+    // Oil runs down the face (y up the face: a run goes down from its start).
+    for (let k = 0; k < 6; k++) {
+      const x0 = Math.floor(r() * TILE);
+      const y0 = Math.floor(r() * TILE);
+      const len = 6 + Math.floor(r() * 14);
+      for (let i = 0; i < len; i++) px[((y0 - i + TILE) % TILE) * TILE + x0] -= 0.12 * (1 - i / len);
+    }
+    // Chips to bright metal.
+    for (let k = 0; k < 10; k++) px[Math.floor(r() * TILE * TILE)] = 0.78;
+    return (x, y) => px[y * TILE + x];
+  },
+  /**
+   * Exhaust lagging: quilted insulating cloth in pillows 20 cm square (16 pixels at 0.8 m), each
+   * one puffed (lighter at its middle, shading to its edges), sewn along a dark stitch line,
+   * the cloth's weave a fine speckle over it.
+   */
+  lagging: () => {
+    const r = rng(167);
+    const weave = Array.from({ length: TILE * TILE }, () => (r() - 0.5) * 0.05);
+    return (x, y) => {
+      const u = x % 16;
+      const v = y % 16;
+      if (u === 0 || v === 0) return (u + v) % 3 === 0 ? 0.24 : 0.32; // the stitching, a dash at a time
+      const d = Math.max(Math.abs(u - 8), Math.abs(v - 8)) / 8; // 0 at the pillow's middle, 1 at its edge
+      return 0.6 - 0.18 * d * d + weave[y * TILE + x];
+    };
+  },
+  /**
+   * Galvanised ductwork: sections 1.2 m long (32 pixels at 2.4 m) joined by a raised seam, the
+   * zinc a quiet speckle with a faint streak along the sheet. (A pressed cross-break was tried:
+   * on a duct this shallow only broken bits of it showed.)
+   */
+  galv: () => {
+    const r = rng(173);
+    const row = Array.from({ length: TILE }, () => (r() - 0.5) * 0.04);
+    const px = Array.from({ length: TILE * TILE }, (_, i) => 0.5 + row[Math.floor(i / TILE)] + (r() - 0.5) * 0.03);
+    return (x, y) => {
+      const u = x % 32;
+      if (u === 0) return 0.66; // the seam, standing proud
+      if (u === 1) return 0.34; // its shadow
+      return px[y * TILE + x];
+    };
+  },
+  /**
+   * The deckhead's insulation, cladded in perforated sheet: panels 60 cm square (32 pixels at
+   * 1.2 m), a dark joint and a bright edge where they meet, the holes a grid of dark dots every
+   * 4 pixels, the sheet a little stained here and there.
+   */
+  perforated: () => {
+    const stain = noise(179, 16);
+    return (x, y) => {
+      const u = x % 32;
+      const v = y % 32;
+      if (u === 0 || v === 0) return 0.26; // the joint
+      if (u === 1 || v === 1) return 0.68; // the panel's edge, turned
+      const s = 0.06 * (stain(x, y) - 0.5);
+      return (u % 4 === 2 && v % 4 === 2 ? 0.26 : 0.53) + s;
+    };
   },
   facade: () => {
     const r = rng(139);

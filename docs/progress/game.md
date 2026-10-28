@@ -10,6 +10,40 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The foiling electric ferry's helm: decided, waiting on the physics and the Shipyard (28 Oct 2026)
+
+Not built yet. The hull modifications chat put her hydrofoils and flight computer on next (842d0d8) and handed her helm to this chat. Owner: "Do 1, 3 and 4, three ride heights; hull chat does physics."
+- **This chat will build:**
+  - a FOIL / HULL switch;
+  - a three-way ride height knob (low, normal, high; no trim control);
+  - a flight display (flying or not, ride height, flap angles, power);
+  - the sound and feel of lifting clear (the hull noise stopping).
+- **The hull chat does the physics side:** reading the switch and ride height from her state (proposed `controls.foilMode`, `controls.foilRide`, bus keys `foils.mode`, `foils.ride`, ride depths in CONFIG.foils), bringing her down gently on HULL, and a small `foil` summary in her state for the display and sound, so crew in multiplayer see it too (the `foilTelemetry` global is the host's only).
+- **Waiting on:** that physics, and the Shipyard chat making her a one-off you can sail.
+- **Shared changes:** none.
+
+### The engine rooms' textures: another pass to make them pop (28 Oct 2026)
+
+Owner (passed on by the hull modifications chat, then confirmed here: "Go ahead with textures"): "Do another pass on the engine room textures to make it 'pop'."
+- **Found** (headless screenshots, the tug's room from six places): nearly every surface was one flat colour under an even light (a bright fill, 1.25 and 0.3, lamps 2.2 over 7 m, no shine). Only the floor wore a texture, so the walls, deckhead, duct and engines read like card.
+- **New pixel paint tiles** (`render/pixelPaint.ts`, sizes in `CONFIG.pixelPaint.tileMetres`):
+  - `machinery` 1.6 m: painted cast or fabricated metal, a fine speckle, oil stains and runs, chips to bright metal.
+  - `lagging` 0.8 m: quilted exhaust cloth in 20 cm puffed pillows with stitch lines.
+  - `galv` 2.4 m: galvanised ductwork, a seam every 1.2 m. A spangle was tried first; close overhead it read as blocks. A pressed cross-break was tried next; on a duct this shallow only fragments showed.
+  - `perforated` 1.2 m: the deckhead's insulation cladding, 60 cm panels with a grid of holes.
+- **Where they go:**
+  - Every room's shell (`app/engineRoom/view.ts`): the sides and bulkheads wear the existing `steel` tile (plates and weld seams), the deckhead `perforated`, and a plain room's floor `chequer`.
+  - In the tug's room, each kind of surface wears its tile by its colour (`tug/kit.ts` `PAINT_BY_COLOUR`): the engines (blocks, heads and rocker covers), the generator sets, air bottles, compressor, starter boxes, stands, fans, bases and drip trays get `machinery`; the lagging gets `lagging`; the day tanks and thruster room door get `steel`; the duct gets `galv`.
+  - Pipes, rails, valves and signs stay plain colours and shine.
+- **Shading** (`app/engineRoom/look.ts`, `CONFIG.engineRoom.look`):
+  - A satin sheen: Phong in place of Lambert, `sheen.specular` 0.3 and `shininess` 30.
+  - Dirt baked into the vertex colours by height (`grime`): 38 % darker at the floor plates, clean from 1.4 m up, and 18 % darker in the last 0.5 m under the deckhead. The floor plates' own faces are left alone.
+  - The tug's lights (`lights`): a dimmer fill (`hemi` 0.7, `ambient` 0.12) and brighter lamps (`lamp` 4, `lampRange` 9 m, `lampDecay` 1.4), so there are pools of light and shade, and the sheen shows.
+  - Its light fittings' diffusers glow (drawn unlit, `lampGlow`), going dark at dead ship.
+- **Cost:** one more draw call below (the diffusers); no new shapes. Phong's shine costs a little more per pixel than Lambert, with the same three lamps.
+- **Tests:** tests/pixelPaint.test.ts covers the new tiles (each averages mid-grey, and is the same every time); the full suite passes. **Checked headless:** the tug's room from six places, before and after (aft and forward along the aisle, beside an engine, the switchboard, the control room console, the day tanks, a generator); at dead ship; and the trawler's plain room. **Not checked:** VR, and the Quest's frame rate with Phong. Worth a look: if it drops, `roomMaterial` can go back to Lambert (the tiles, dirt and lights stay).
+- **Shared changes:** none (`render/` and `config.ts` are this area's).
+
 ### The harbour tug's prop wash follows her drives (27 Oct 2026)
 
 Owner: "The prop wash effects do not respect the direction of the kort nozzels."

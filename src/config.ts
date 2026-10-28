@@ -102,7 +102,7 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4, facade: 3, beamsLight: 1.68, beamsDark: 1.68, topsides: 3 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4, facade: 3, beamsLight: 1.68, beamsDark: 1.68, topsides: 3, machinery: 1.6, lagging: 0.8, galv: 2.4, perforated: 1.2 },
     /**
      * The house fronts' windows at night (the house kit): the share of windows lit, their
      * glow (colour, its brightness is the strength), and how dark it must be before they
@@ -748,6 +748,27 @@ export const CONFIG = {
      * flat out sound loud and dense without clipping; it's open (0 dB) everywhere else.
      */
     sound: { level: 1.2, mech: 5, compress: { thresholdDb: -22, ratio: 8 } },
+    /**
+     * Its look (owner, Oct 2026: "another pass on the engine room textures to make it pop").
+     * No new shapes and no new draw calls but one (the lamps' glow):
+     *   grime      dirt baked into the colours by height (app/engineRoom/view.ts `grime`):
+     *              everything is `floor` darker at the floor plates, clean from `height` m up,
+     *              and `deckhead` darker in the last `under` m under the deckhead (the floor
+     *              plates' own faces are left: they're painted chequer plate)
+     *   sheen      the paint's satin shine (Phong): `specular` (0..1, grey) and `shininess`; the
+     *              lamps catch the pipes, rails and engines
+     *   lampGlow   the light fittings' diffusers lit (colour, drawn unlit) and with the lights out
+     *   lights     the tug's room lit (tug/room.ts): a dimmer even fill (`hemi`, `ambient`) and
+     *              brighter lamps (`lamp`, reaching `lampRange` m, falling off as `lampDecay`),
+     *              so there are pools of light and shade, and the sheen shows (it had a bright
+     *              fill, 1.25 and 0.3, lamps 2.2 over 7 m, decay 1.6: everything evenly lit, flat)
+     */
+    look: {
+      grime: { floor: 0.38, height: 1.4, deckhead: 0.18, under: 0.5 },
+      sheen: { specular: 0.3, shininess: 30 },
+      lampGlow: { on: 0xfff6e0, off: 0x6a6c68 },
+      lights: { hemi: 0.7, ambient: 0.12, lamp: 4, lampRange: 9, lampDecay: 1.4 },
+    },
   },
 
   /**

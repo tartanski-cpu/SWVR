@@ -18,6 +18,8 @@ import type { EngineRoomPlan } from './plan';
 import { tugLayout } from './tug/layout';
 import { TugRoom } from './tug/room';
 import type { Control } from '../../controls/Control';
+import type { PaintName } from '../../render/pixelPaint';
+import { grime, roomMaterial } from './look';
 
 const PLATE = 0x8d9296; // chequer plate, worn grey
 const LINING = 0xd9dcd6; // painted lining, off-white
@@ -29,9 +31,9 @@ const LADDER = 0xd8a020; // safety yellow
 const LAMP = 0xfff4d8;
 const DOOR = 0x9aa3a8;
 
-/** A box of size (w, h, d) centred at (x, y, z), coloured. */
-function box(w: number, h: number, d: number, x: number, y: number, z: number, colour: number): THREE.BufferGeometry {
-  return part(new THREE.BoxGeometry(w, h, d).translate(x, y, z), colour);
+/** A box of size (w, h, d) centred at (x, y, z), coloured, and wearing a pixel paint tile if given. */
+function box(w: number, h: number, d: number, x: number, y: number, z: number, colour: number, paint?: PaintName): THREE.BufferGeometry {
+  return part(new THREE.BoxGeometry(w, h, d).translate(x, y, z), colour, paint);
 }
 
 export class EngineRoomView {
@@ -59,18 +61,20 @@ export class EngineRoomView {
     const h = p.deckhead - p.sole;
     const ym = (p.sole + p.deckhead) / 2;
     // Floor plates (the tug's are her own), and the sides, the deckhead and the two bulkheads: a closed box.
-    if (!layout) parts.push(box(w, 0.04, len, 0, p.sole - 0.02, zm, PLATE));
-    for (const s of [-1, 1]) parts.push(box(0.04, h, len, s * (p.halfWidth + 0.02), ym, zm, LINING));
-    parts.push(box(w, 0.04, len, 0, p.deckhead + 0.02, zm, DECKHEAD));
-    parts.push(box(w, h, 0.04, 0, ym, p.z0 - 0.02, BULKHEAD));
-    parts.push(box(w, h, 0.04, 0, ym, p.z1 + 0.02, BULKHEAD));
+    // (Painted: the sides and bulkheads steel plating with its welds, the deckhead's insulation
+    // cladded in perforated sheet, the floor chequer plate. look.ts.)
+    if (!layout) parts.push(box(w, 0.04, len, 0, p.sole - 0.02, zm, PLATE, 'chequer'));
+    for (const s of [-1, 1]) parts.push(box(0.04, h, len, s * (p.halfWidth + 0.02), ym, zm, LINING, 'steel'));
+    parts.push(box(w, 0.04, len, 0, p.deckhead + 0.02, zm, DECKHEAD, 'perforated'));
+    parts.push(box(w, h, 0.04, 0, ym, p.z0 - 0.02, BULKHEAD, 'steel'));
+    parts.push(box(w, h, 0.04, 0, ym, p.z1 + 0.02, BULKHEAD, 'steel'));
     // Her frames up the sides and the deck beams over them, every 0.6 m (a steel hull's spacing).
     for (let z = p.z0 + 0.3; z < p.z1 - 0.1; z += 0.6) {
       for (const s of [-1, 1]) parts.push(box(0.08, h, 0.08, s * (p.halfWidth - 0.04), ym, z, FRAME));
       parts.push(box(w, 0.14, 0.08, 0, p.deckhead - 0.07, z, FRAME));
     }
     // A watertight door in the forward bulkhead (shut: the forepeak beyond isn't built yet).
-    if (!layout) parts.push(box(0.75, 1.6, 0.06, -p.halfWidth / 2, p.sole + 0.95, p.z0 + 0.03, DOOR));
+    if (!layout) parts.push(box(0.75, 1.6, 0.06, -p.halfWidth / 2, p.sole + 0.95, p.z0 + 0.03, DOOR, 'steel'));
     // Her engines, as the boat's own are drawn (vessel/view/engineModels.ts), and their shafts aft through the bulkhead.
     for (const e of layout ? [] : p.engines) {
       parts.push(...engineGeometry(e.model, e.size, { x: e.x, flangeY: e.flangeY, flangeZ: e.flangeZ, angleDeg: e.angleDeg }));
@@ -90,7 +94,9 @@ export class EngineRoomView {
     };
     parts.push(stringer(L.x - 0.22), stringer(L.x + 0.22));
     for (let y = 0.28; y < rise - 0.1; y += 0.28) parts.push(box(0.44, 0.03, 0.05, L.x, L.foot + y, L.z + lean * (1 - y / rise), LADDER));
-    const mesh = new THREE.Mesh(mergeParts(parts), new THREE.MeshLambertMaterial({ vertexColors: true }));
+    const merged = mergeParts(parts);
+    grime(merged, p.sole, p.deckhead);
+    const mesh = new THREE.Mesh(merged, roomMaterial());
     mesh.matrixAutoUpdate = false;
     this.root.add(mesh);
 

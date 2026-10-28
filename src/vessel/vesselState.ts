@@ -25,6 +25,14 @@ export interface VesselControls {
   aziTransit?: number;
   /** Azimuth drives: the two throttles synchronised (1): either lever's power sets both (vessel/vesselControl.ts). */
   aziSync?: number;
+  /**
+   * Hydrofoils (vessel/physics/foils.ts; owner, Oct 2026: the foiling ferry's helm): FOIL (1,
+   * or unset) her flight computer flies her on her foils at speed; HULL (0) it keeps her down
+   * on her hulls (switched while flying, she comes down gently).
+   */
+  foilMode?: number;
+  /** Her ride height: 0 low, 1 normal (or unset), 2 high (CONFIG.foils.rideSteps). */
+  foilRide?: number;
   /** Helm (wheel) position, -1 (hard to port) .. +1 (hard to starboard). */
   helm: number;
   /** Navigation lights switch, 0 off / 1 on. */
@@ -275,6 +283,13 @@ export interface VesselState {
    * they went down: each one's species ('' if it isn't named). Absent: none in it (or no hold).
    */
   hold?: { boxes: string[] };
+  /**
+   * A foiling boat's flight, as of the last tick (vessel/physics/foils.ts), for her helm's
+   * display and sound (in her state, so a crew's game sees it too): how far her flight
+   * computer is in charge (0..1), each foil panel's flap (deg), how far her hulls are out of
+   * the water (0..1). Absent on other boats.
+   */
+  foil?: { engaged: number; flaps: number[]; clear: number };
   /** Her trawl's warps out (0..1) and its net on its drum (0..1): what the trawl winches and net drum show (fishing.ts). Absent: in, and all on the drum. */
   trawlGear?: { warp: number; net: number };
   /** How far her A-frame has swung inboard on its rams (0 raked aft over the stern, 1 in over the deck; fishing/codend.ts). Absent: 0. */

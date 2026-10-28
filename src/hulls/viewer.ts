@@ -8,6 +8,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DESIGNS } from './designs';
 import { buildHullMesh, curveAt, hydrostatics, loft, type HullDesign, type LoftedHull } from './loft';
 import { fenderingGeometry } from './fendering';
+import { FOIL_GREY, foilsGeometry } from './foilsMesh';
 import { hullFormFromDesign } from '../vessel/hullForm';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import type { LayoutConfig } from '../vessel/vesselDef';
@@ -76,6 +77,15 @@ function fendering(d: HullDesign, h: LoftedHull): THREE.Object3D | null {
   return mesh;
 }
 
+/** Her foils, struts and pod (a foiling boat's), in the game's axes for her, placed as gameHull places her. */
+function foils(d: HullDesign, h: LoftedHull): THREE.Object3D | null {
+  if (!d.foils) return null;
+  const mesh = new THREE.Mesh(foilsGeometry(d.foils), new THREE.MeshStandardMaterial({ color: FOIL_GREY, roughness: 0.6 }));
+  const ends = h.sections.map((s) => s.pts[s.pts.length - 1].z);
+  mesh.position.z = (ends[0] + ends[ends.length - 1]) / 2;
+  return mesh;
+}
+
 function show(id: string): void {
   const d = DESIGNS.find((x) => x.id === id) ?? DESIGNS[0];
   group.clear();
@@ -85,6 +95,8 @@ function show(id: string): void {
   group.add(game && typeof game !== 'string' ? game : buildHullMesh(current));
   const fenders = fendering(d, current);
   if (fenders) group.add(fenders);
+  const foilSet = foils(d, current);
+  if (foilSet) group.add(foilSet);
   group.add(linesOverlay(current));
   const note = document.getElementById('gameNote')!;
   note.textContent = !asGame ? '' : typeof game === 'string' ? `The game can't take this hull yet: ${game.replace(/^hull design '[^']*': /, '')}. Shown as the study draws her.` : "As the game builds and draws her: its stations, bare (no house).";

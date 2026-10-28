@@ -1868,4 +1868,43 @@ export const VESSELS_CONFIG = {
     heaveAddedMass: 0.8,
     rollGyradius: 0.37,
   },
+
+  /**
+   * Hydrofoils (owner, Oct 2026: the foiling electric ferry; vessel/physics/foils.ts):
+   *   cd0            each foil's profile drag coefficient (a smooth, thin section);
+   *   oswald         its span efficiency (induced drag: CL^2 / (pi e AR));
+   *   stallDeg       its angle of attack at stall; past it its lift falls to `postStall` of
+   *                  its peak over the next stallDeg;
+   *   flapTau        a flap's effectiveness: one degree of flap is this many of incidence;
+   *   flapMaxDeg     how far a flap moves each way;
+   *   surfaceChords  near the surface a foil loses lift, 1 - exp(-depth / (this x chord));
+   *   strutCd        a strut's drag coefficient on its wetted area;
+   *   rideSteps      her helm's three ride heights, low / normal / high: her forward foil this
+   *                  much deeper (+) or shallower (-) than her design's ride depth (m);
+   *   control        her flight computer (each a fraction of a foil's share of her weight):
+   *     engageFrom   it takes over from this share of her take-off speed, fully at take-off;
+   *     kh, kv       her forward foil: per m too deep (at most `climb` m counted: she climbs
+   *                  to her ride height steadily), per m/s rising (height and its damping);
+   *     kpf          her forward foil eases off per rad her bow is up past her trim (no leap at
+   *                  take-off);
+   *     kp, kq       her aft foil: per rad bow up, per rad/s pitching (trim and its damping);
+   *     kr, krd      her forward foil's halves, each way: per rad heeled past her bank, per
+   *                  rad/s rolling;
+   *     bank         she banks into a turn this share of a coordinated turn's angle
+   *                  (atan(U r / g)), at most maxBankDeg;
+   *     safeHeelDeg  heeled past this (a sea beyond her), she's brought down onto her hulls,
+   *                  each foil asked for `landShare` of its share by half as much again.
+   */
+  foils: {
+    cd0: 0.008,
+    oswald: 0.9,
+    stallDeg: 12,
+    postStall: 0.6,
+    flapTau: 0.5,
+    flapMaxDeg: 12,
+    surfaceChords: 0.5,
+    strutCd: 0.012,
+    rideSteps: [0.2, 0, -0.2],
+    control: { engageFrom: 0.8, kh: 2.0, climb: 0.2, kv: 0.6, kpf: 4, kp: 4, kq: 1.5, kr: 12, krd: 3, bank: 0.7, maxBankDeg: 12, safeHeelDeg: 12, landShare: 0.3 },
+  },
 };

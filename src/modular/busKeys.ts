@@ -20,6 +20,7 @@ import { gearOf } from '../boats/sims';
 import { engageAutopilot, nudgeAutopilot, quickStart } from '../vessel/autopilot';
 import { toggleDock } from '../vessel/physics/mooring';
 import { BREAKERS, type BreakerName, type VesselControls, type VesselState } from '../vessel/vesselState';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { BusKeySpec, BusValue } from './bus';
 
 const RAD = 180 / Math.PI;
@@ -224,6 +225,11 @@ function diveKey(spec: BusKeySpec): BusKeySpec {
   return { ...spec, bind: { ...spec.bind, get: (s) => (hasDiveFrame(s) ? get(s) : undefined) } };
 }
 /** An azimuth drives key (modules/dieselInboard `azimuth`): there only on a boat with them. */
+/** A key only a boat with hydrofoils has (VesselDef.foils). */
+function foilKey(spec: BusKeySpec): BusKeySpec {
+  const get = spec.bind.get;
+  return { ...spec, bind: { ...spec.bind, get: (s) => (VESSEL_DEFS[s.defId]?.foils ? get(s) : undefined) } };
+}
 function aziKey(spec: BusKeySpec): BusKeySpec {
   const get = spec.bind.get;
   return { ...spec, bind: { ...spec.bind, get: (s) => (gearOf(s, 'diesel')?.azimuth ? get(s) : undefined) } };
@@ -267,6 +273,26 @@ export const BUS_KEYS = {
   'azimuth.transit': aziKey(control('aziTransit', 'Azimuth drives: TRANSIT on. The wheel swings both drives together as rudders (the autopilot can steer her); each lever then sets only its engine\'s power, ahead while it\'s turned into its forward half, astern into its after half.', { writer: 'module' })),
   'azimuth.angle': state('number', (s) => (s.engine.azimuth === undefined ? undefined : (s.engine.azimuth * 180) / Math.PI), 'Azimuth drives: where the port drive points, the way it pushes (0 ahead, + to starboard), following its lever at its steering rate.', { unit: 'deg', writer: 'module' }),
   'azimuth.angle2': state('number', (s) => (s.engine.stbd?.azimuth === undefined ? undefined : (s.engine.stbd.azimuth * 180) / Math.PI), 'Azimuth drives: where the starboard drive points (as azimuth.angle).', { unit: 'deg', writer: 'module' }),
+  // Hydrofoils (vessel/physics/foils.ts; owner, Oct 2026: the foiling ferry's helm): FOIL / HULL
+  // and her ride height. Only on a boat with foils.
+  'foils.mode': foilKey({
+    ...control('foilMode', 'Hydrofoils: FOIL (true, the default) her flight computer flies her on her foils at speed; HULL (false) it keeps her down on her hulls, bringing her down gently if she was flying.', { writer: 'module', default: true }),
+    bind: {
+      get: (s) => (s.controls.foilMode ?? 1) > 0.5,
+      set: (s, v) => {
+        s.controls.foilMode = v ? 1 : 0;
+      },
+    },
+  }),
+  'foils.ride': foilKey({
+    ...setting('foilRide', [0, 2], 'step', 'Hydrofoils: her ride height, 0 low, 1 normal, 2 high (her forward foil CONFIG.foils.rideSteps deeper or shallower than her design ride depth).', { integer: true, writer: 'module', default: 1 }),
+    bind: {
+      get: (s) => s.controls.foilRide ?? 1,
+      set: (s, v) => {
+        s.controls.foilRide = Math.round(Math.min(2, Math.max(0, v as number)));
+      },
+    },
+  }),
   'helm.demand': setting('helm', [-1, 1], '-1..1', 'Wheel (or tiller) position: -1 hard to port, +1 hard to starboard.', { hold: 'helm', aliases: ['helm'] }),
   'ignition.key': {
     type: 'boolean',
