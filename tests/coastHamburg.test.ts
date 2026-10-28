@@ -21,8 +21,9 @@ import { mapRegion, voyageMap } from '../src/world/maps';
 import { fleets } from '../src/traffic/ferries';
 import { ferryGeometry } from '../src/traffic/ferryKit';
 import * as THREE from 'three';
-import { bridgeParts, floatingDockParts, gravingDockParts, landmarkModelParts, museumShipParts, structuresGeometry } from '../src/world/coastStructures';
+import { bridgeParts, floatingDockParts, gravingDockParts, landmarkModelParts, museumShipParts, structuresGeometry, yardShipParts } from '../src/world/coastStructures';
 
+const CONFIG_PONTOON_TOP = 1.5;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'public', 'regions', 'hamburg');
 const region = JSON.parse(readFileSync(join(dir, 'region.json'), 'utf8'));
@@ -267,5 +268,41 @@ describe('Hamburg: big ships in and out, and the harbour ferries of its own kind
     expect(rs.find((r) => r.name === 'Line 62')!.cls).toBe('harbour');
     expect(new Set(rs.filter((r) => r.cls === 'harbour').map((r) => r.livery))).toEqual(new Set(['harbour-yellow', 'harbour-red']));
     for (const [cls, livery] of [['harbour', 'harbour-yellow'], ['container', 'cargo-blue']] as const) expect(ferryGeometry(cls, livery).attributes.position.count / 3).toBeLessThan(4000);
+  });
+});
+
+describe('Hamburg: ships in the docks, water in Elbe 17, no buildings on the pontoons (owner)', () => {
+  const r = () => mapRegion(voyageMap('hamburg')!);
+
+  it('Dock Elbe 17 is water, not a grey mass of land, with a cruise ship afloat in it for a refit', () => {
+    const g = r().gravingDocks!.find((x) => x.name === 'Dock Elbe 17')!;
+    expect(h(g.x, g.z)).toBeLessThan(-3);
+    const ship = r().yardShips!.find((y) => Math.hypot(y.x - g.x, y.z - g.z) < 30)!;
+    expect(ship.stage).toBeGreaterThan(0.9);
+    expect(ship.keel).toBeLessThan(-5);
+    expect(ship.length).toBeLessThan(g.length);
+    expect(ship.beam).toBeLessThan(g.width);
+    expect(yardShipParts(ship).length).toBeGreaterThan(0);
+  });
+
+  it('a cargo ship raised on the blocks of each big floating dock, inside its wing walls', () => {
+    const docks = r().floatingDocks!.filter((d) => d.length >= 150);
+    const inDocks = r().museumShips!.filter((s) => s.lift);
+    expect(inDocks.length).toBe(docks.length);
+    for (const s of inDocks) {
+      const d = docks.find((k) => Math.hypot(k.x - s.x, k.z - s.z) < 5)!;
+      expect(s.length).toBeLessThan(d.length);
+      expect(s.beam).toBeLessThan(d.width * 0.8);
+      // Her keel over the pontoon's deck.
+      const ys = museumShipParts(s).flatMap((g) => (g.computeBoundingBox(), [g.boundingBox!.min.y]));
+      expect(Math.min(...ys)).toBeGreaterThan(CONFIG_PONTOON_TOP);
+    }
+  });
+
+  it('no building stands over the water (the pavilions on the pontoons by the Cap San Diego)', () => {
+    const over = (pkg.buildings as { x: number; z: number }[]).filter((b) => h(b.x, b.z) < -1);
+    expect(over.length).toBeLessThan(5);
+    const near = (pkg.buildings as { x: number; z: number }[]).filter((b) => Math.hypot(b.x - 3387, b.z + 2023) < 120);
+    expect(near).toEqual([]);
   });
 });

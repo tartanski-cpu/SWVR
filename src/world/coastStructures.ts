@@ -880,6 +880,8 @@ export function museumShipParts(sh: MuseumShipDef): THREE.BufferGeometry[] {
     parts.push(member(V(L / 2 - 4, 0, bowY + 0.5), tip, 0.7, 0.7, k.colours.mast));
     parts.push(member(V(at[0] * L, 0, deck + main * k.foreShare * 0.97), tip, 0.18, 0.18, k.colours.yard));
   }
+  // Raised on a floating dock's blocks.
+  if (sh.lift) for (const g of parts) g.translate(0, sh.lift, 0);
   return parts;
 }
 

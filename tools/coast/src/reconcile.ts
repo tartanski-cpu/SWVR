@@ -98,6 +98,23 @@ if (req.inlandWater) {
   }
   console.log(`inland water: ${waterLines.length} outlines, ${waterLines.reduce((n, l) => n + l.length, 0)} points`);
 }
+// A mapped dock's basin (waterway=dock: a floating dock's berth, a graving dock such as Elbe 17)
+// is water whatever the land cover says: it sees a dock with a ship in it as built-up.
+const inDock = new Uint8Array(N);
+if (req.inlandWater)
+  for (const w of Object.values(osm.ways)) {
+    if (w.tags?.waterway !== 'dock' || w.nodes.length < 4 || w.nodes[0] !== w.nodes[w.nodes.length - 1]) continue;
+    const ring = w.nodes.map((n) => osm.nodes[n]).filter(Boolean).map(([lon, lat]) => P.fwd(lon, lat));
+    const xs = ring.map((q) => q[0]);
+    const zs = ring.map((q) => q[1]);
+    for (let j = Math.max(0, Math.floor((Math.min(...zs) - P.z0) / T.cell)); j <= Math.min(H - 1, Math.ceil((Math.max(...zs) - P.z0) / T.cell)); j++)
+      for (let i = Math.max(0, Math.floor((Math.min(...xs) - P.x0) / T.cell)); i <= Math.min(W - 1, Math.ceil((Math.max(...xs) - P.x0) / T.cell)); i++) {
+        const [x, z] = [cx(i), cz(j)];
+        let inside = false;
+        for (let a = 0, b = ring.length - 1; a < ring.length; b = a++) if (ring[a][1] > z !== ring[b][1] > z && x < ((ring[b][0] - ring[a][0]) * (z - ring[a][1])) / (ring[b][1] - ring[a][1]) + ring[a][0]) inside = !inside;
+        if (inside) inDock[j * W + i] = 1;
+      }
+  }
 
 const BARRIER = 255;
 const label = new Uint8Array(N); // 0 free, BARRIER coast
@@ -153,6 +170,7 @@ const patchSea: number[] = [];
 const patchDem: number[] = [];
 const patchSize: number[] = [];
 const patchWet: number[] = [];
+const patchDock: number[] = [];
 const stack = new Int32Array(N);
 /** ESA WorldCover's class for permanent water. */
 const COVER_WATER = 80;
@@ -164,6 +182,7 @@ for (let start = 0; start < N; start++) {
   let demSum = 0;
   let size = 0;
   let wet = 0;
+  let dock = 0;
   let sp = 0;
   stack[sp++] = start;
   patch[start] = id;
@@ -174,6 +193,7 @@ for (let start = 0; start < N; start++) {
     sea += label[k] === BARRIER ? 0 : seaSeed[k];
     demSum += Number.isFinite(demH[k]) ? demH[k] : 0;
     if (coverC[k] === COVER_WATER) wet++;
+    dock += inDock[k];
     const i = k % W;
     const j = (k - i) / W;
     const nb = [i > 0 ? k - 1 : -1, i < W - 1 ? k + 1 : -1, j > 0 ? k - W : -1, j < H - 1 ? k + W : -1];
@@ -184,8 +204,9 @@ for (let start = 0; start < N; start++) {
   patchDem.push(demSum / size);
   patchSize.push(size);
   patchWet.push(wet);
+  patchDock.push(dock);
 }
-const isLandPatch = patchSize.map((_, p) => (patchLand[p] + patchSea[p] > 0 ? patchLand[p] >= patchSea[p] : req.inlandWater ? patchWet[p] < 0.5 * patchSize[p] : patchDem[p] > 2));
+const isLandPatch = patchSize.map((_, p) => (patchLand[p] + patchSea[p] > 0 ? patchLand[p] >= patchSea[p] : req.inlandWater ? patchWet[p] + patchDock[p] < 0.5 * patchSize[p] : patchDem[p] > 2));
 const land = new Uint8Array(N);
 for (let k = 0; k < N; k++) if (label[k] !== BARRIER) land[k] = isLandPatch[patch[k]] ? 1 : 0;
 // The barrier cells themselves: the side most of their neighbours are on.

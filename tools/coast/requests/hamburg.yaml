@@ -55,3 +55,8 @@ shipping:
   - { to: burchardkai-2 }
   - { to: predohlkai-3 }
   - { to: ballinkai }
+# Ships in the yard's docks (owner): a cargo ship raised in each big floating dock, and a cruise
+# ship in for a refit afloat in Dock Elbe 17.
+dockedShips: true
+yardShips:
+  - { dock: Dock Elbe 17, stage: 0.97, length: 290, painted: true }

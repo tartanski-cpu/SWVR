@@ -72,6 +72,8 @@ export interface RegionRequest {
   /** Museum ships moored for good, by Wikidata id, with the game's design for each (`cargo`, `barque` with `masts`) (features.ts). */
   /** The passenger launches drawn as harbour ferries, cabin forward and wheelhouse aft (Hamburg's; package.ts). */
   harbourFerries?: boolean;
+  /** A ship raised in each big floating dock (package.ts). */
+  dockedShips?: boolean;
   /** Big ships in and out of the port: to each port's cargo berth (`to`, a port id) from the map's edge on `from` (west, east, north, south) (package.ts). */
   shipping?: { to: string; from?: string }[];
   museumShips?: { wikidata: string; name?: string; design: string; masts?: number; hull?: string }[];

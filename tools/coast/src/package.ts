@@ -48,6 +48,9 @@ const T = {
   shipThin: 25,
   shipOff: 26,
   shipLength: 300,
+  /** A floating dock this long or more (m) has a ship in it (`dockedShips`), raised this far from afloat (m: the pontoon's deck 1.5 m up, her keel a metre over it, her 7 m draught). */
+  dockedShip: 150,
+  dockedLift: 9.5,
   /** The game puts you ashore this far in from where a boat lies (m; CONFIG.start.quayBack): on a deck. */
   quayBack: 2,
   /**
@@ -460,7 +463,10 @@ const onShip = (x: number, z: number) =>
     const [dx, dz] = [x - sh.x, z - sh.z];
     return Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) < sh.length / 2 + 5 && Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) < sh.beam / 2 + 5;
   });
-const keptBuildings = buildings.filter((b: { x: number; z: number }) => !underModel(b.x, b.z) && !onShip(b.x, b.z));
+// (Nor a building whose middle stands over the water: the map's pavilions on the pontoons by
+// the Überseebrücke, made 15 m warehouses by the house rules (owner: "there shouldn't be any
+// buildings on those pontoons").)
+const keptBuildings = buildings.filter((b: { x: number; z: number }) => !underModel(b.x, b.z) && !onShip(b.x, b.z) && hAt(b.x, b.z) >= 0);
 for (const s of skyline as { x: number; z: number; modelled?: boolean }[]) if (underModel(s.x, s.z, 25)) s.modelled = true;
 // A cable-stayed bridge's main span (`bridgePylons`): the piece of it that crosses the water
 // carries its pylons' height; the game stands them at the water's edges.
@@ -472,6 +478,19 @@ for (const b of bridges as { name: string; path: [number, number][]; pylons?: nu
 // Elbe 17) with its gate at the end that opens onto the water (the deeper of the two outside
 // its ends), its walls' top at the quay's height beside it.
 const museumShips = (F?.museumShips ?? []) as object[];
+// A ship in each floating dock of `dockedShip` m or more (owner: "there should be some ship
+// inside the docks"): a cargo ship of the museum ships' design, raised on the dock's blocks
+// (`lift`: her keel a metre over the pontoon deck), most of its length, her beam within its
+// wing walls; her hull's colour and which way she lies by the dock's name, the same each time.
+const DOCKED_HULLS = ['#1d2f4f', '#6a1e1c', '#2f4a3a', '#5a6266', '#18191b'];
+if (req.dockedShips)
+  ((F?.floatingDocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).forEach((d, i) => {
+    if (d.length < T.dockedShip) return;
+    const length = Math.round(d.length * 0.8);
+    const inner = d.width - 2 * Math.max(4, d.width * 0.12);
+    const hash = [...d.name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 997, 7);
+    museumShips.push({ name: `in ${d.name}`, design: 'cargo', masts: 0, hull: parseInt(DOCKED_HULLS[(hash + i) % DOCKED_HULLS.length].slice(1), 16), x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (hash % 2) * 180) % 360, length, beam: Math.round(Math.min(inner * 0.85, length * 0.15)), lift: T.dockedLift });
+  });
 const floatingDocks = ((F?.floatingDocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).map((d) => ({ ...d, x: r1(d.x), z: r1(d.z) }));
 const gravingDocks = ((F?.drydocks ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; width: number }[]).map((d) => {
   const a = (d.yawDeg * Math.PI) / 180;
@@ -501,7 +520,9 @@ for (const [i, y] of (req.yardShips ?? []).entries()) {
       warnings.push(`yard ship ${i + 1}: no dry dock "${y.dock}"`);
       continue;
     }
-    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(hAt(d.x, d.z) + 1), stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
+    // On the dock's floor (Perno's, drained), or afloat where the dock is flooded (Elbe 17).
+    const floor = hAt(d.x, d.z);
+    yardShips.push({ x: r1(d.x), z: r1(d.z), yawDeg: (d.yawDeg + (y.bow === -1 ? 180 : 0)) % 360, length: Math.min(y.length, d.length - 20), beam: Math.min(beam, d.width - 10), keel: r1(floor < -2 ? -T.yardDraught : floor + 1), stage: y.stage, seed: y.seed ?? i + 1, ...(y.painted ? { painted: true } : {}) });
   } else if (y.berth) {
     const b = (berths as { id: string; x: number; z: number; headingDeg: number; shoreX: number; shoreZ: number }[]).find((k) => k.id === y.berth);
     if (!b) {

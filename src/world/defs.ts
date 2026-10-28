@@ -602,6 +602,8 @@ export interface MuseumShipDef {
   design: string;
   masts: number;
   hull?: number;
+  /** Raised this far from afloat (m): a ship on a floating dock's blocks. */
+  lift?: number;
   x: number;
   z: number;
   yawDeg: number;
