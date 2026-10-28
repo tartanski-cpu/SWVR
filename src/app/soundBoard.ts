@@ -13,6 +13,7 @@ import { RadioAudio } from '../audio/radioAudio';
 import { RescueSounds } from '../audio/rescueSounds';
 import { ShipHorn } from '../audio/shipHorn';
 import { WaterAudio } from '../audio/waterAudio';
+import { FoilAudio } from '../audio/foilAudio';
 import { WhistleAudio } from '../audio/whistleAudio';
 import { FmRadio } from '../audio/fmRadio';
 import { WildlifeAudio } from '../audio/wildlifeAudio';
@@ -39,6 +40,8 @@ export class SoundBoard {
   /** Hull contact (bumps and grinding), water past the hull and bow slams, splashes. */
   readonly contact = new ContactAudio();
   readonly water = new WaterAudio();
+  /** A foiling boat's struts and foils cutting the water, once she flies. */
+  readonly foil = new FoilAudio();
   /** The VHF (voice and squelch) and the survivors' whistle. */
   readonly radio = new RadioAudio();
   readonly whistle = new WhistleAudio();
@@ -76,7 +79,7 @@ export class SoundBoard {
     this.engine.unlock();
     const ctx = this.engine.context;
     this.tenderEngine.attach(ctx);
-    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.handset, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race, this.surf, this.boats, this.plant]) s.attach(ctx);
+    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.handset, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race, this.surf, this.boats, this.plant, this.foil]) s.attach(ctx);
     watchVoices();
   }
 }

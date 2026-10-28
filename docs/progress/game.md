@@ -10,6 +10,40 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The foiling ferry's helm: FOIL / HULL, the ride height knob, the FOILS screen, her sound and feel (28 Oct 2026)
+
+Owner: "Do 1, 3 and 4, three ride heights; hull chat does physics", then "build the foiling controls and display and noises". The hull chat put the physics side on next (foilMode, foilRide, bus keys `foils.mode` and `foils.ride`, her flight in `VesselState.foil`); the Shipyard made her a one-off (3badedb).
+- **Her switch panel:** a FOILS group (blue) with:
+  - the **FOIL** toggle (`control.toggle` on `foils.mode`): up FOIL, down HULL;
+  - the **RIDE** knob, a new three-position rotary selector (`controls/Selector3.ts`, module `control.selector3`, `modules/selector3`) on `foils.ride`: LO, N and HI round it, a press steps it on, its pointer showing where it is.
+
+  A toggle's three-way setting was looked at first: its middle is "off", so normal ride height would have shown tilted.
+- **The FOILS screen** (`controls/instruments.ts` `foil`; a FOILS page on a touchscreen; with any instruments, old school too):
+  - what she's doing (`foilPhase`: FLYING once her hulls are `flyingClear` 0.85 out of the water in FOIL, TAKING OFF, LANDING in HULL, ON HER HULLS under `landedClear` 0.35);
+  - her speed and power, FOIL or HULL, the ride setting lit;
+  - how far the flight computer has her;
+  - a side view of her over the mean sea at her keels' height, her foils under her, each tilted by its flap (drawn three times larger, to see it);
+  - each flap's angle, red past `flapWarnDeg` 8°.
+
+  All from her state, so a crew-mate's screen shows the same.
+- **Sound** (`audio/foilAudio.ts`, `CONFIG.foilHelm.wash`, `hiss`): as her hulls come clear the water's rush along them falls to `wash.floor` 12 % of its level. The struts and foils hiss instead: band-passed noise at 2.6 kHz, as speed squared, with a faint singing tone that climbs with her speed. Rendered offline at 25 kn: the hull's water 0.030 rms on her hulls; flying, 0.005 of it left and 0.011 of hiss: about 8 dB quieter overall, and thinner.
+- **Feel** (`FoilFeel`, `CONFIG.foilHelm.liftOff`): a light buzz through both controllers as her hulls lift past 0.6 clear, a firmer thump and a splash as they come back under 0.3. The gap between the two keeps a wave from making it chatter.
+- **Tests:** tests/foilHelm.test.ts:
+  - her console has the switch, knob and screen, in a FOILS group, with every instrument choice (basic, advanced, touchscreen, old school), and no other boat gets them;
+  - the switch and knob work her through the bus;
+  - the screen's phases;
+  - the sound's levels;
+  - lift-off and touchdown felt once each, no chatter.
+
+  Shipyard tests all pass.
+- **Checked headless:** her dash with the FOILS screen; the switches close up; the screen painted in four states (on her hulls, taking off, flying, landing in HULL); flying her in the game (full ahead: lifting off at about 16 kn, flying at 18, settling at 26 to 27 kn on 100 to 135 kW, her keels about 0.6 m clear, the screen reading FLYING); the real knob pressed to HIGH, and she rose about 0.12 m; the real switch to HULL at 25 kn, and the flight computer let go and she settled onto her hulls over about 4 s, the screen reading LANDING then ON HER HULLS.
+- **Passed on to the hull chat** (owner, mid-change, foils and physics being its area): her real foil specs (draught 1.2 m foiling, 2.7 m with the wings down at rest, 1.0 m retracted in shallow mode; "she will operate better in higher sea states") and her actual foil arrangement (from the owner's picture: two slim struts with small T-foils at one end, a pi frame with one wide foil spanning between the hulls, winglets at its tips, at the other). Proposed for the helm: FOIL / HULL / SHALLOW on the one switch (a three-way toggle: forward FOIL, middle HULL, aft SHALLOW).
+- **Not checked:** VR, and the sound by ear.
+- **Shared changes:**
+  - `src/shipyard/parts/recipe.ts` (the Shipyard's): her switch, knob and screen; the FOILS panel group; the screen in her dash row and touch pages; kept with the basic controls.
+  - `src/modules/selector3/` (new) and `src/boats/library.ts` (registering it).
+  - `src/audio/waterAudio.ts` (`wet`: how much of her hull makes the water's sound).
+
 ### The foiling electric ferry's helm: decided, waiting on the physics and the Shipyard (28 Oct 2026)
 
 Not built yet. The hull modifications chat put her hydrofoils and flight computer on next (842d0d8) and handed her helm to this chat. Owner: "Do 1, 3 and 4, three ride heights; hull chat does physics."

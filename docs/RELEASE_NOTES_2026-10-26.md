@@ -2,7 +2,7 @@
 
 **Covers:** everything on the test build since the 23 October notes (Friday afternoon), from every chat's work, up to Tuesday 27 October.
 
-**What's where:** all of this is on the test build (76638d4) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) took everything up to multiplayer batch 2 on 27 Oct (31b20c7); batches 3 and 4, the engine rooms, the tug's start-up and driving, and the 27 Oct fixes are on the test build only. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
+**What's where:** all of this is on the test build (e0fb520) at https://tartanski-cpu.github.io/SWVR/next/. The live game (https://tartanski-cpu.github.io/SWVR/) took everything up to multiplayer batch 2 on 27 Oct (31b20c7); batches 3 and 4, the engine rooms, the tug's start-up and driving, and the 27 Oct fixes are on the test build only. Both addresses share one browser storage, so careers, favourites and settings are the same on both.
 
 A page with screenshots of the same is published alongside these notes.
 
@@ -19,6 +19,19 @@ A page with screenshots of the same is published alongside these notes.
 - **Twin engines** worked separately, each with its own lever and START.
 - **Playing together, made sturdy:** four batches of multiplayer fixes. Dropouts are noticed in seconds, nobody loses their boat or cargo, you're taken to the right game, each boat has her own rescue gear, and what the host sends is 15 to 50 times smaller.
 - **Fixes:** the game no longer drops to a few frames a second beside the boats board, multiplayer copes with a host whose page is out of date, and Step ashore puts you beside your boat.
+
+## The engine rooms, textured and lit to pop (28 Oct)
+
+Almost every surface below was one flat colour under an even, bright light, so the walls, deckhead, duct and engines read like card. Now they're textured, shine a little, carry their dirt, and are lit by their lamps. One more draw call; no new shapes.
+- **Textures on the big surfaces:** painted steel plating with weld seams on the sides and bulkheads; perforated insulation cladding on the deckhead; painted machinery with a fine casting speckle, oil stains and chips on the engines, generator sets, air bottles, pumps and drip trays; quilted cloth on the exhaust lagging; section seams on the galvanised duct.
+- **A satin shine** on the paint, so the lamps catch the pipes, rails, drums and engines.
+- **Dirt worked in:** darker low down by the floor plates and bilges, a little sooty under the deckhead.
+- **Lit by its lamps:** a dimmer overall fill and brighter deckhead lamps, so there are pools of light and shade. The fittings glow while the switchboard is live and go dark at dead ship.
+- The trawler's plain room gets the plating, the cladding and the dirt too.
+
+## Her prop wash follows her nozzles (27 Oct, night)
+
+The owner: "The prop wash effects do not respect the direction of the kort nozzels." The foam was laid at her transom and always carried straight aft. Now each azimuth drive lays its own: from its propeller, the opposite way to its push, at its own thrust. Drives athwartships throw it out to either side; turned astern, it runs forward under her and out past the bow; split, one ribbon each way. A drive out of gear throws none. No extra draw call.
 
 ## The tug's start-up
 
@@ -177,13 +190,14 @@ A study of everything that went wrong playing together turned into four batches 
 
 - The beginner boat has no chartplotter or duty board: the project's lines and rings need a boat with a plotter, and what's next is on the Jobs page.
 - The live game has everything up to multiplayer batch 2 (moved over 27 Oct). Batches 3 and 4, the engine rooms, the tug's start-up and driving, and the 27 Oct fixes are on the test build only, so play together on the same address.
-- The engine room hasn't been measured on the Quest (draw calls below went from 5–10 to about 8–50 with the controls and plates). The V16's voice was tuned by measurement, not by ear.
+- The engine room hasn't been measured on the Quest (draw calls below went from 5–10 to about 8–50 with the controls and plates, one more for the lamps' glow; the satin shine costs a little per pixel: if it costs frames it can go and the textures stay). The V16's voice was tuned by measurement, not by ear.
 - The tug's controller driving was checked by its sums only (no controller here), and the keys in a headless browser.
 - The TV needs a desktop player to share a tab; VR players see it but can't start it.
 - Multiplayer was checked with two and three headless browsers through the real game finder, not yet on the Quest: voice in either order, and letting go on taking the headset off, need a try there.
 
 ## Coming next
 
+- The foiling electric ferry's helm: a FOIL / HULL switch, a three-way ride height knob, a flight display and the sound of her lifting clear. Her foil physics is on the test build; she needs to be a one-off in the Shipyard first.
 - Multiplayer on the Quest: the owner's test of the four batches with friends, and the snapshot cost measured on the headset.
 - The V16's voice tuned by ear, and the Quest's frame rate measured below.
 - Moving batches 3 and 4 and the engine rooms to the live game, when the owner says they're good.

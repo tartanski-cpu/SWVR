@@ -158,6 +158,7 @@ import { lineLength, lineOf, nearestTowTarget, sternLocal, towAlertT, towName, t
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
+import { FoilFeel, foilSoundLevels } from '../audio/foilAudio';
 import { lastSpeech, speechVoices } from '../audio/babble';
 import { mixer, type Bus } from '../audio/mixer';
 import type { TillerApi } from '../modules/tiller';
@@ -739,6 +740,9 @@ export class App {
   /** Our field of view before we became the camera (back to it after). */
   private camOldFov = 0;
   private camWasHeld = false;
+  /** Lifting clear and touching down, felt (a foiling boat's; audio/foilAudio.ts), and whose. */
+  private readonly foilFeel = new FoilFeel();
+  private foilFeelBoat = '';
   /** The boat of whoever last held us, to ride with when they let go. */
   private camHolderBoat: string | null = null;
   /** A camera body in our VR hand (we've asked the host, or it's ours), by hand. */
@@ -1666,7 +1670,25 @@ export class App {
       const washBoat = inSkiff && inSkiff.id !== this.testVesselId && !onCrane(inSkiff) ? inSkiff : testVessel;
       const washD = washBoat === testVessel ? d : (this.vesselRoots.get(washBoat.id)?.position.distanceTo(this.focus) ?? d);
       const muffle = this.insideHouse ? this.closed * CONFIG.wheelhouseSound.washMuffle : 0;
-      this.sound.water.update(Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]), washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt, muffle);
+      // (A foiling boat: the rush along her hulls fades as they lift clear, and her struts and
+      // foils hiss instead; lifting clear and touching down are felt. audio/foilAudio.ts.)
+      const washSpeed = Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]);
+      const clear = washBoat.foil?.clear ?? 0;
+      const foilKn = washSpeed * 1.943844;
+      this.sound.water.update(washSpeed, washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt, muffle, washBoat.foil ? foilSoundLevels(foilKn, clear).washScale : 1);
+      this.sound.foil.update(foilKn, clear, washD, muffle);
+      if (washBoat.id !== this.foilFeelBoat) {
+        this.foilFeel.reset();
+        this.foilFeelBoat = washBoat.id;
+      }
+      const felt = washBoat.foil ? this.foilFeel.update(clear) : null;
+      if (felt && aboard) {
+        const lo = CONFIG.foilHelm.liftOff;
+        const [i, ms] = felt === 'liftOff' ? lo.upPulse : lo.downPulse;
+        this.xrInput.pulse('left', i, ms);
+        this.xrInput.pulse('right', i, ms);
+        if (felt === 'touchDown') this.sound.water.splash(lo.splash, washD);
+      }
       if (slam > 0.1 && aboard) {
         this.xrInput.pulse('left', 0.15 + 0.35 * slam, 40 + 60 * slam);
         this.xrInput.pulse('right', 0.15 + 0.35 * slam, 40 + 60 * slam);

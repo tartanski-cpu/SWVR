@@ -784,6 +784,38 @@ export const CONFIG = {
    *                  second (about 40 s from empty); each start takes `startAirBar`, and a start
    *                  needs `airStartMinBar`
    */
+  /**
+   * The foiling ferry's helm (owner, 28 Oct 2026: "Do 1, 3 and 4, three ride heights": a
+   * FOIL / HULL switch, a three-way ride height knob, a flight display, and the sound and feel
+   * of lifting clear; her foils and flight computer are vessel/physics/foils.ts, CONFIG.foils).
+   *   flyingClear    she's FLYING (the FOILS screen, controls/instruments.ts) once her hulls are
+   *                  this far out of the water (her state's `foil.clear`, 0..1) in FOIL mode;
+   *                  `landedClear` and under she's ON HER HULLS
+   *   flapWarnDeg    a flap angle past this shows red (working hard: a sea beyond her)
+   *   viewPxPerM     the screen's side view, pixels a metre; `foilDepthM` how far her foils
+   *                  hang under her keels (about 2.1 m, the Shipyard's "under water on her hulls"
+   *                  less her draught: the drawing's, not the physics')
+   *   liftOff        lifting clear (her `foil.clear` rising past `up`) and touching down
+   *                  (falling under `down` from flying): a buzz through the hands (intensity, ms),
+   *                  and a splash on touching down (0..1)
+   *   wash           her hull's water noise on foils: it falls to `floor` of its level as her
+   *                  hulls come clear (1 - clear x (1 - floor))
+   *   hiss           the struts and foils cutting the water, heard once she flies: filtered noise
+   *                  at `freq` Hz (band-pass, `q`), `level` at `refKn` knots, as speed squared,
+   *                  scaled by how far she's clear; and a faint tone (the struts singing) at
+   *                  `toneHz` + `toneHzPerKn` a knot, `toneLevel` of the hiss
+   */
+  foilHelm: {
+    flyingClear: 0.85,
+    landedClear: 0.35,
+    flapWarnDeg: 8,
+    viewPxPerM: 26,
+    foilDepthM: 2.1,
+    liftOff: { up: 0.6, down: 0.3, upPulse: [0.35, 90] as [number, number], downPulse: [0.8, 140] as [number, number], splash: 0.6 },
+    wash: { floor: 0.12 },
+    hiss: { freq: 2600, q: 1.1, level: 0.05, refKn: 25, toneHz: 380, toneHzPerKn: 9, toneLevel: 0.25 },
+  },
+
   plant: {
     genRunUpS: 8,
     starveS: 6,
