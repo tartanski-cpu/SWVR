@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Ålesund and Sunnmøre: West Norway's fjords (28 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner, with a map picture of Sunnmøre (Ålesund, Sula, Hareidlandet, Gurskøya, the Vartdalsfjorden to Ørsta): "Next area to make into a map".
 
 - **The map** (`tools/coast/requests/sunnmore.yaml`): Ålesund on its islands, Ellingsøya, Valderøya, Vigra and Godøya, Uksenøya and the Brusdalsvatnet, Sula and the Åsefjorden, the Breisundet, Hareidlandet with Hareid, Brandal and Ulsteinvik, Gurskøya and Herøy (Fosnavåg), the Vartdalsfjorden and the mouth of the Storfjorden, south to Ørsta. 55.4 by 52.3 km at full scale, 52 % land, the mountains over 1,000 m straight out of the fjords. 716 chunks (none over 10,795 drawn faces), 57.7 MB of mesh, streamed as ever; buildings streamed as Saronic's (133 files, 14,751 buildings). 106 ports, 167 berths, 955 pier and quay pieces, 22 named ferry lines (Hareid - Sulesund, Ålesund - Langevåg, Sykkylven - Magerholm, Festøya - Solavågen, the Hurtigruten...).
@@ -29,6 +31,8 @@ Owner, with a map picture of Sunnmøre (Ålesund, Sula, Hareidlandet, Gurskøya,
 
 ### The front page's chart of the maps (28 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: the Saronic map "doesn't show up in preview as the front page does not account for the new map, maybe put an interactive map there so you can look around the map and choose an area". (The link was there; the preview hadn't published the new build yet when they looked.)
 
 - **The chart** (`src/world/coastMapPicker.ts`; the Voyage tile's **Choose on the chart**, or the address `index.html#maps`): Europe with every Voyage map marked, full screen. Drag to look round, scroll or pinch to zoom (+, − and "every map" buttons too; Esc or × closes, and so does Back). A map's box opens out into its own coast and harbours as you zoom in (its coast from 70 px wide, its harbours from 260 px); the start harbour is blue. Pick a map (on the chart or from the row of names) and the panel gives its blurb and **Sail the map** (where you were last time, or its start); pick a harbour and it gives **Start at <harbour>**. Mercator, plain 2D canvas, nothing of the game loaded.
@@ -39,6 +43,8 @@ Owner: the Saronic map "doesn't show up in preview as the front page does not ac
 - **Shared changes:** `index.html` (the button, and the script tag for the chart).
 
 ### The Saronic Islands, and big maps' buildings streamed (28 Oct 2026)
+
+**Owner approved; merged into `next`.**
 
 Owner, from a map picture: "I'd like the Saronic Islands next"; "include Hydra and Spetses too"; "include Ermioni and Porto Heli harbours as ports too"; on loading: "is there any way to stream in the data?" ... "Yes, build the streaming for the Saronic map".
 
