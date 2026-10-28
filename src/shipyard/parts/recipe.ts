@@ -35,7 +35,7 @@ function electricSteering(look: { strutChord: number; podLength: number; podRadi
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
   const { code, d, id } = a;
-  const { fendering, markings, bowStaple, towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowFender, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
+  const { fendering, markings, bowStaple, towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowFender, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, skiff2At, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
   const recipe = structuredClone(landingCraftRecipe) as unknown as Recipe;
   recipe.id = `vessel.${id}`;
@@ -232,6 +232,18 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     start.config = { ...start.config, label: 'START port engine (hold)', engrave: 'START P' };
     consoleMount.modules!.push({ socket: 'start2', module: 'control.push-button', config: { ...start.config, label: 'START starboard engine (hold)', engrave: 'START S', lit: { key: 'propulsion.state2', is: 'running' } }, bind: { press: 'ignition.start2' } });
   }
+  // An electric boat's helm (owner, 28 Oct 2026: "the electric vessels don't need a start
+  // button ... there should probably be a key to turn on the drive system ... a different set of
+  // warning lights"): no START (the key switches her drive on: modules/pods), the key engraved
+  // DRIVE, her own lamps (READY, NEUTRAL, BATT, SHORE, BILGE, HULL) and start-up card. Her
+  // instruments come on with their breaker, as every boat's.
+  if (p.electric) {
+    consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'start' && m.socket !== 'start2');
+    for (const m of consoleMount.modules) {
+      if (m.socket === 'key') m.config = { ...m.config, engrave: 'DRIVE' };
+      if (m.socket === 'lamps' || m.socket === 'card') m.config = { ...m.config, electric: true };
+    }
+  }
   // The ANCHOR switch (in the DECK group with the skiff crane's button: the switch panel, below).
   if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
   // The autopilot's buttons (with the helm assist panel; owner, Oct 2026: "a separate control that
@@ -321,6 +333,19 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.slots.solar = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
     consoleMount.modules!.push({ socket: 'solar', module: 'instrument.screen', config: { screen: 'solar' } });
   }
+  // A foiling boat's helm (owner, 28 Oct 2026: "Do 1, 3 and 4, three ride heights"; her foils
+  // fly her, vessel/physics/foils.ts): FOIL / HULL and her ride height (LOW / NORM / HIGH) in
+  // their own FOILS group on the switch panel, and the FOILS screen (her flight) on her dash,
+  // whatever her instruments (on a touchscreen, its FOILS page).
+  const foiler = p.form.kind === 'lofted' && !!p.form.design.foils;
+  if (foiler) {
+    cc.slots.foil = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
+    consoleMount.modules!.push(
+      { socket: 'foilMode', module: 'control.toggle', config: { label: 'FOIL / HULL: on her foils at speed (up), or kept down on her hulls (down: in harbour)', engrave: 'FOIL' }, bind: { value: 'foils.mode' } },
+      { socket: 'foilRide', module: 'control.selector3', config: { label: 'Ride height: LOW, NORM or HIGH over the water (press to step)', engrave: 'RIDE', marks: ['LO', 'N', 'HI'] }, bind: { value: 'foils.ride' } },
+      { socket: 'foil', module: 'instrument.screen', config: { screen: 'foil' } },
+    );
+  }
   // ANCHOR (owner, Oct 2026: "is the chain going down? Is the anchor set? Is the chain going
   // up? Is it in?"): a quarter screen beside the speed screen, on any boat with an anchor.
   if (anchorAt) {
@@ -346,8 +371,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const touch = d.controls ? Math.max(0, Math.min(2, d.touch ?? 0)) : 0;
   const touchIds = touch ? ['touch1', 'touch2'].slice(0, touch) : [];
   if (touch) {
-    const pages: TouchPage[] = ['speed', 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(p.electric && p.base.solarRoof ? (['solar'] as const) : []), ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
-    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline'].includes(m.socket));
+    const pages: TouchPage[] = ['speed', ...(foiler ? (['foil'] as const) : []), 'heading', 'rpm', 'engineMonitor', 'efficiency', ...(p.electric && p.base.solarRoof ? (['solar'] as const) : []), ...(anchorAt ? (['anchor'] as const) : []), ...(sternRoller ? (['towline'] as const) : []), 'nav'];
+    consoleMount.modules = consoleMount.modules!.filter((m) => !['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline', 'foil'].includes(m.socket));
     touchIds.forEach((id, k) => {
       cc.slots[id] = { position: [0, cc.slots.speed.position[1], cc.slots.speed.position[2]] };
       consoleMount.modules!.push({ socket: id, module: 'instrument.screen', config: { screen: 'touch', pages, channel: k ? 'touchPage2' : 'touchPage1', first: k ? 2 : 0 } });
@@ -361,7 +386,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     consoleMount.modules!.push({ socket: clockId, module: 'instrument.screen', config: { screen: clockId } });
   }
   // What the basic controls keep at the helm (the rest comes off with them, below).
-  const BASIC_KEEP = ['wheel', 'throttle', 'throttle2', 'aziTransit', 'aziSync', 'podJoystick', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
+  const BASIC_KEEP = ['wheel', 'throttle', 'throttle2', 'aziTransit', 'aziSync', 'podJoystick', 'foilMode', 'foilRide', 'foil', 'start', 'start2', 'key', 'lamps', 'card', 'navLights', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor', ...dials, 'clock', 'dialClock'];
   /** The switch panel's groups (CS2) from whichever switches she has (`has`). */
   const panelGroups = (has: (id: string) => boolean): PanelGroup[] => {
     const search = ['spotlight', 'firePump'].filter(has);
@@ -369,8 +394,10 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { title: 'LIGHTS', color: colourOf.LIGHTS, side: 'port', members: ['navLights', 'cabinLight', 'wipers'].filter(has) },
       { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
       { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
-      { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'start2', 'key'].filter(has) },
-      { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
+      { title: p.electric ? 'DRIVE' : 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'start2', 'key'].filter(has) },
+      { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : []), ...(skiff2At ? ['skiffCrane2'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
+      // FOIL / HULL and her ride height (a foiling boat's), with her drive's switches.
+      { title: 'FOILS', color: 0x3a9ad9, side: 'starboard', members: ['foilMode', 'foilRide'].filter(has) },
       // (Last of the starboard side's: nearest the wheel, under the helmsman's hand.)
       { title: 'AUTOPILOT', color: 0xe0a020, side: 'starboard', members: ['apPort', 'apOn', 'apStbd'].filter(has) },
     ];
@@ -418,7 +445,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // CS6, `lampsUpBelow`, it would run under the wheel's rim, so it goes up on the face too.)
   const lampsUp = !lowSills(d) && !panelPinned && !toFace.includes('ENGINE') && fitted('lamps') && 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow;
   const faceItems = [...faceItemsFor(toFace), ...(lampsUp ? [{ id: 'sw:lamps', cells: [2, 1] as [number, number] }] : [])];
-  const screens = (touch ? touchIds : oldSchool ? [...dials, clockId] : ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'rpm', 'clock'].includes(id)));
+  const screens = (touch ? touchIds : oldSchool ? [...dials, 'foil', clockId] : ['speed', 'anchorScreen', 'foil', 'heading', 'rpm', 'engineMonitor', 'efficiency', 'solar', 'towline', clockId]).filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || oldSchool || ['speed', 'anchorScreen', 'foil', 'rpm', 'clock'].includes(id)));
   // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
   // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
   // by its rules in this order, the half-height ones stacked two high in one screen's place
@@ -578,7 +605,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       if (key === 'lamps') {
         cc.slots.lamps = { position: [r3(at.x), r3(yc), r3(faceZ(yc) + 0.003)], rotationDeg: rot };
         const lampMod = consoleMount.modules!.find((m) => m.socket === 'lamps');
-        if (lampMod) lampMod.config = { ...lampMod.config, spacing: r3((at.width * 0.92) / 9) };
+        // (Spread over the strip by how many lamps: an electric boat's six, a diesel's nine.)
+        if (lampMod) lampMod.config = { ...lampMod.config, spacing: r3((at.width * 0.92) / (p.electric ? 6 : 9)) };
         continue;
       }
       const g = groupsNow.find((q) => panelKey(q) === key)!;
@@ -703,12 +731,13 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       cc.slots[id] = { position: [r3(x), was?.[1] ?? 0.01, was?.[2] ?? -0.2] };
     }
     cc.groups = laid.runs.filter((r) => r.group.title).map((r) => ({ title: r.group.title, color: r.group.color, x: [r3(r.x0 + hc.plateInset), r3(r.x1 - hc.plateInset)] }));
-    const engine = laid.runs.find((r) => r.group.title === 'ENGINE');
+    const engine = laid.runs.find((r) => panelKey(r.group) === 'ENGINE');
     if (engine) {
       const mid = r3((engine.x0 + engine.x1) / 2);
       for (const id of lampsUp ? ['card'] : ['lamps', 'card']) if (cc.slots[id]) cc.slots[id].position = [mid, cc.slots[id].position[1], cc.slots[id].position[2]];
       // (The lamps' row is wider than ENGINE's plate: kept on the console, CS6.)
-      const halfRow = (9 * CONFIG.modules.warningLamps.spacing) / 2;
+      // (An electric boat's row: six lamps, not nine.)
+      const halfRow = ((p.electric ? 6 : 9) * CONFIG.modules.warningLamps.spacing) / 2;
       if (cc.slots.lamps && !lampsUp) cc.slots.lamps.position = [r3(Math.min(mid, Math.max(0, dashHalf - halfRow))), cc.slots.lamps.position[1], cc.slots.lamps.position[2]];
     }
     // Her switch panel, for the Shipyard (CS3) and the tests: its whole row of cells, whether
@@ -756,12 +785,20 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { socket: 'sideDoorOut', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
     );
   if (anchorAt) recipe.modules.push({ socket: 'anchor', module: 'deck.anchor-windlass', ...(bowRamp ? { config: { aft: ac.kedgeAft } } : {}) });
-  if (skiffAt && cc.slots.skiffCrane) {
-    // Its SKIFF CRANE button on the dash, starboard of the wheel (beside the ANCHOR switch).
-    const [bx, , bz] = cc.slots.skiffCrane.position as V3;
-    // (The rescue boat's bigger crane, for her: design.rescueBoat.)
-    recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { ...(d.rescueBoat ? CONFIG.vessels.rib.crane : {}), consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))] } });
-  }
+  // Each ship's boat's crane (a second on a big boat: design.skiff2, owner, 28 Oct 2026), its
+  // button on the dash, starboard of the wheel (beside the ANCHOR switch). (The rescue boat's
+  // bigger crane, for her: design.rescueBoat.) With two, each button and crane says whose it
+  // is: SKIFF CRANE and RIB CRANE (or 1 and 2, if both are the same boat).
+  const boats = [skiffAt && { socket: 'tenderCrane', slot: 'skiffCrane', rescue: d.rescueBoat }, skiff2At && { socket: 'tenderCrane2', slot: 'skiffCrane2', rescue: d.rescueBoat2 }].filter((b): b is { socket: string; slot: string; rescue: number } => !!b);
+  boats.forEach((b, k) => {
+    const slot = cc.slots[b.slot];
+    if (!slot) return;
+    const [bx, , bz] = slot.position as V3;
+    const same = boats.length > 1 && boats[0].rescue === boats[1].rescue;
+    const word = b.rescue ? 'RIB' : 'SKIFF';
+    const named = boats.length > 1 ? { consoleLabel: same ? `${word} CRANE ${k + 1}` : `${word} CRANE`, name: `${b.rescue ? 'Rescue boat' : 'Skiff'} crane${same ? ` ${k + 1}` : ''}` } : {};
+    recipe.modules.push({ socket: b.socket, module: 'deck.tender-crane', config: { ...(b.rescue ? CONFIG.vessels.rib.crane : {}), consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))], ...named } });
+  });
   if (craneAt || winchAt || skiffAt || aFrame || p.diveFrame) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
   if (pushFender) recipe.modules.push({ socket: 'pushFender', module: 'hull.push-fender', config: pushFender });

@@ -25,7 +25,7 @@ import { BoatView } from '../app/boatView';
 import { createVesselState } from '../vessel/vesselState';
 import { CONFIG } from '../config';
 import { LIBRARY, RECIPES } from '../boats/library';
-import { gearOf, useDesign } from '../boats/sims';
+import { gearOf, tenderCranesOf, useDesign } from '../boats/sims';
 import { assembleView } from '../modular/assemble';
 import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS, wetOutlet } from '../vessel/vesselDef';
@@ -45,7 +45,7 @@ import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
 import { electricOf } from './parts/solar';
 import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, NO_FURNITURE, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -326,8 +326,16 @@ function showDisplays(view: ReturnType<typeof assembleView>, def: typeof VESSEL_
 }
 
 function addSkiff(root: THREE.Group): void {
-  const crane = gearOf({ defId: 'design' }, 'tenderCrane');
-  if (!crane) return;
+  // (Each crane's: a big boat may carry two, design.skiff2.)
+  const cranes = tenderCranesOf({ defId: 'design' });
+  if (!cranes.length) return;
+  const group = new THREE.Group();
+  group.name = 'skiff';
+  for (const crane of cranes) group.add(skiffMesh(crane));
+  root.add(group);
+}
+/** The boat a crane carries in her cradle. */
+function skiffMesh(crane: ReturnType<typeof tenderCranesOf>[number]): THREE.Object3D {
   // The boat her crane carries (the dinghy, or the rescue boat), and her tubes (modules/tubes),
   // as the game draws them; the rescue boat's console too (her modules' fixed parts).
   const id = crane.tenderDefId;
@@ -341,8 +349,7 @@ function addSkiff(root: THREE.Group): void {
     if (built.staticParts.length) mesh.add(new THREE.Mesh(mergeParts(built.staticParts), flatVertexColorMaterial()));
   }
   mesh.position.set(...crane.stow);
-  mesh.name = 'skiff';
-  root.add(mesh);
+  return mesh;
 }
 /** The modules that protect her hull (build.ts: hull protection, the push fender, the fender basket). */
 const PROTECTION = new Set(['hull.guard', 'hull.push-fender', 'deck.fenders']);
@@ -865,6 +872,8 @@ function optionTiles(key: keyof ShipDesign, label: string, tiles: Tile[]): HTMLE
   controls.appendChild(wrap);
   return wrap;
 }
+/** The Furniture step's interiors row brought up to her type (set up with the row). */
+let interiorsRow: () => void = () => {};
 /** The deckhouse's width buttons and when each is the one chosen (they set two fields: dhWidth, dhNarrow). */
 const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
 /** The deckhouse's Width slider shown from the design (it sets two fields: set up with the slider). */
@@ -872,7 +881,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'solarBattery' ? !!(ENGINES[design.engine] as { electric?: boolean } | undefined)?.electric : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'interiors' ? !!DESIGN_HULLS[design.hull]?.interiors?.length : cond === 'solarBattery' ? !!(ENGINES[design.engine] as { electric?: boolean } | undefined)?.electric : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -1130,6 +1139,11 @@ section('3. Deck gear');
     { icon: HOUSE_ICONS.dinghy, name: 'Dinghy', info: 'The 3.25 m rubber dinghy with an electric outboard and a tiller: fits most boats (about 3.7 m of clear deck).' },
     { icon: HOUSE_ICONS.ribBoat, name: 'Rescue boat', info: 'A 6 m fast rescue boat (a RIB): orange tubes, a centre console with a wheel, one 150 hp outboard, about 28 knots. On a bigger crane: she needs about 6.8 m by 4.4 m of clear deck, so a big boat (the stern trawler, the small tug at her longest, the big landing craft). Travels as a link or file.' },
   ]);
+  // The second ship's boat (design.rescueBoat2), once she's placed.
+  optionTiles('rescueBoat2', "Second ship's boat", [
+    { icon: HOUSE_ICONS.dinghy, name: 'Dinghy', info: 'The 3.25 m rubber dinghy on her own crane, her own SKIFF CRANE button on the dash.' },
+    { icon: HOUSE_ICONS.ribBoat, name: 'Rescue boat', info: 'The 6 m fast rescue boat on her own bigger crane, her own RIB CRANE button on the dash (about 6.8 m by 4.4 m of clear deck).' },
+  ]).dataset.when = 'skiff2';
   optionTiles('fishHold', 'Fish hold', [
     { icon: HOUSE_ICONS.noHold, name: 'None', info: 'No fish hold.' },
     { icon: HOUSE_ICONS.hold, name: 'Under the deck', info: 'An insulated hold in her hull under the open deck (where there’s most room, clear of the engine and the houses), its hatch on deck; the catch goes down into it in boxes, and the yellow button on the hatch lifts one out.' },
@@ -1137,6 +1151,32 @@ section('3. Deck gear');
   controls.append(menu);
 }
 section('4. Furniture');
+// Her type's interiors to start from (DesignHull.interiors; the foiling ferry's: owner, 28 Oct
+// 2026, "1 as ferry and 1 as explorer vessel"): every piece taken off, then the interior's put in.
+{
+  const row = document.createElement('div');
+  row.className = 'row opts';
+  row.dataset.when = 'interiors';
+  row.innerHTML = '<label>Start from</label><div></div>';
+  controls.appendChild(row);
+  const box = row.querySelector('div')!;
+  const show = (): void => {
+    const list = DESIGN_HULLS[design.hull]?.interiors ?? [];
+    if (box.dataset.hull === String(design.hull)) return;
+    box.dataset.hull = String(design.hull);
+    box.replaceChildren(
+      ...list.map((it) => {
+        const c = document.createElement('span');
+        c.className = 'choice';
+        c.textContent = it.name;
+        c.title = it.info;
+        c.onclick = () => change({ ...NO_FURNITURE, ...it.pins });
+        return c;
+      }),
+    );
+  };
+  interiorsRow = show;
+}
 {
   // Her furniture (furnishing.ts): a card a piece, Add as many as fit; under it, each one on her.
   const menu = document.createElement('div');
@@ -1410,6 +1450,7 @@ function lockOneOff(): void {
 }
 function showControls(): void {
   syncDhWidth();
+  interiorsRow();
   // The Paint step's '=' swatches show the colour they follow; each row names the one chosen.
   document.querySelectorAll<HTMLElement>('.swatch[data-like]').forEach((el) => (el.style.background = hex(PAINT_LIKE[el.dataset.like!](design))));
   document.querySelectorAll<HTMLElement>('output[data-paint]').forEach((el) => (el.textContent = optionNames[el.dataset.paint as keyof ShipDesign]?.[design[el.dataset.paint as keyof ShipDesign] as number] ?? ''));
@@ -3084,9 +3125,12 @@ const USUAL: Record<string, string[]> = {
   sideDoor: ['', "in the wheelhouse's port wall"],
   rodRack: ['', "on the wheelhouse's aft wall, port of the door", "on the wheelhouse's aft wall, starboard of the door", "on the wheelhouse's port wall", "on the wheelhouse's starboard wall"],
   skiff: SKIFFS.map((s) => s.toLowerCase()),
+  skiff2: SKIFFS.map((s) => s.toLowerCase()),
 };
 /** Take a piece off her. */
 function takeOff(eq: Equipment): void {
+  // (The first ship's boat off with a second aboard: the second becomes the first, where she is.)
+  if (eq.id === 'skiff' && design.skiff2) return change({ skiff: design.skiff2, rescueBoat: design.rescueBoat2, skiff2: 0, rescueBoat2: 0 });
   change(removeGear(eq));
 }
 /** Where a fitted piece is, in words (its usual place, where it was pinned; left off for want of room). */
@@ -3094,8 +3138,10 @@ function whereOnHer(eq: Equipment): string {
   const v = design[eq.field] ?? 0;
   const at = eq.key ? boat.placed[eq.key] : undefined;
   // Fitted but left off for want of room (the builder says so in her warnings).
-  const short = eq.id === 'anchor' ? 'anchor' : eq.id === 'skiff' ? 'skiff' : eq.id === 'sideDoor' ? 'side door' : '';
-  const leftOff = short && boat.warnings.some((w) => w.toLowerCase().includes(short) && /left off/.test(w)) ? ' (no room: left off, see the warnings)' : '';
+  const short = eq.id === 'anchor' ? 'anchor' : eq.id === 'sideDoor' ? 'side door' : '';
+  // (A ship's boat's: her cradle's warning, the second's saying so.)
+  const mine = (w: string) => (eq.how === 'skiff' ? /cradle/.test(w) && /second ship/.test(w) === (eq.id === 'skiff2') : !!short && w.toLowerCase().includes(short));
+  const leftOff = boat.warnings.some((w) => mine(w) && /left off/i.test(w)) ? ' (no room: left off, see the warnings)' : '';
   const ramp = DESIGN_HULLS[design.hull].ramp;
   if (eq.id === 'anchor') return (ramp ? 'a kedge at the stern (her bow is the ramp)' : 'at the bow roller') + leftOff;
   if (eq.key && design[eq.key] && at) return `${USUAL[eq.id]?.[v] ?? ''}, where you put it: ${at.x === 0 ? 'on the centreline' : `${Math.abs(at.x).toFixed(2)} m to ${at.x < 0 ? 'port' : 'starboard'}`}`;
@@ -3112,7 +3158,8 @@ function showOnHer(): void {
   for (const g of GEAR_GROUPS) {
     // (Not a one-off's fixed gear, the harbour tug's bow winch, stern roller and the rest: DesignHull.fixed.)
     const fixed = DESIGN_HULLS[design.hull]?.fixed ?? {};
-    const items = g.items.map((id) => equipmentOf(id)!).filter((eq) => eq && !(eq.field in fixed));
+    // (The second ship's boat only once she's aboard: she's placed from the first's card.)
+    const items = g.items.map((id) => equipmentOf(id)!).filter((eq) => eq && !(eq.field in fixed) && (eq.id !== 'skiff2' || fitted(eq, design)));
     if (!items.length) continue;
     const on = items.filter((eq) => fitted(eq, design)).length;
     const det = document.createElement('details');
@@ -3144,6 +3191,14 @@ function showOnHer(): void {
         const at = has && eq.key && eq.turns ? placeOf(eq.key, design[eq.key]) : null;
         if (at) button('Turn ↻', `A quarter turn on its spot (now ${FACINGS[eq.key!][at.face]})`, () => turnGear(eq));
       } else if (!has) button('Fit', `Fit it: it goes ${USUAL[eq.id]?.[1] ?? 'in its place'}${eq.id === 'anchor' ? ' (or a kedge at the stern on a ramp-bow boat)' : ''}`, () => change(placeGear(eq, [0, 0, 0], undefined, 0).patch), true);
+      // A second ship's boat on her own crane (owner, 28 Oct 2026: "a button which says place
+      // another, obviously for bigger vessels"), the other boat to start with.
+      const another = equipmentOf('skiff2');
+      if (eq.id === 'skiff' && has && another && !fitted(another, design) && boat.figures.lengthM >= CONFIG.shipyard.secondBoatMinLength)
+        button('Place another', `A second ship's boat on her own crane (the ${design.rescueBoat ? 'dinghy' : 'rescue boat'} to start with; pick which below): point at her, and click on the deck where she goes`, () => {
+          change({ rescueBoat2: design.rescueBoat ? 0 : 1 });
+          startPlacing({ kind: 'gear', eq: another });
+        });
       if (has) button('Take off', 'Take it off her (and its pin, if it has one)', () => takeOff(eq));
       det.appendChild(card);
     }

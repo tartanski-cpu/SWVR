@@ -289,9 +289,10 @@ export interface VesselState {
    * display and sound (in her state, so a crew's game sees it too): how far her flight
    * computer is in charge (0..1), each foil panel's flap (deg), how far her hulls are out of
    * the water (0..1), how far her foils are down (0 retracted .. 1 down; between: moving), and
-   * her draught now (m, to her foils' and pods' lowest point). Absent on other boats.
+   * her draught now (m, to her foils' and pods' lowest point; those two always set by the
+   * physics, optional for older snapshots). Absent on other boats.
    */
-  foil?: { engaged: number; flaps: number[]; clear: number; deploy: number; draught: number };
+  foil?: { engaged: number; flaps: number[]; clear: number; deploy?: number; draught?: number };
   /** Her trawl's warps out (0..1) and its net on its drum (0..1): what the trawl winches and net drum show (fishing.ts). Absent: in, and all on the drum. */
   trawlGear?: { warp: number; net: number };
   /** How far her A-frame has swung inboard on its rams (0 raked aft over the stern, 1 in over the deck; fishing/codend.ts). Absent: 0. */
@@ -447,6 +448,12 @@ export type BreakerName = (typeof BREAKERS)[number];
  */
 export interface TenderState {
   hostId: EntityId;
+  /**
+   * Which of her ship's tender cranes carries her (boats/sims.ts tenderCranesOf, recipe
+   * order): absent, the first; 1, the second (owner, 28 Oct 2026: the skiff and the rescue
+   * boat on one ship, each on her own crane).
+   */
+  crane?: number;
   phase: 'free' | 'stowed' | 'lowering' | 'hoisting';
   t: number;
   /** Hoisting: her pose in the ship's axes when she was hooked on (x, y, z, yaw rad). */

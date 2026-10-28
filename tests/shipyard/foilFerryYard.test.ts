@@ -10,7 +10,7 @@ import { useDesign } from '../../src/boats/sims';
 import { LIBRARY, RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
 import { buildDesign, DESIGN_HULLS } from '../../src/shipyard/build';
-import { BATTERY_STEPS, DEFAULT_DESIGN, type ShipDesign } from '../../src/shipyard/design';
+import { BATTERY_STEPS, DEFAULT_DESIGN, NO_FURNITURE, type ShipDesign } from '../../src/shipyard/design';
 import { designToken, readDesign, shortCode } from '../../src/shipyard/designDoc';
 import { FERRY_MOTOR, FOIL_FERRY } from '../../src/shipyard/parts/catalog';
 import { hullCards } from '../../src/shipyard/hullCards';
@@ -95,6 +95,25 @@ describe('the foiling ferry in the Shipyard', () => {
     expect(Object.entries(b.placed).filter(([k, v]) => k.startsWith('seatAt') && v).length).toBe(12);
     const less = buildDesign({ ...ferry, seatAt12: 0 });
     expect(less.recipe.modules.filter((m) => m.module === 'furniture.piece').length).toBe(b.recipe.modules.filter((m) => m.module === 'furniture.piece').length - 1);
+  });
+
+  it('two interiors to start from (owner: "1 as ferry and 1 as explorer vessel i.e sofas etc."): each builds clean, every piece where it\'s pinned', () => {
+    const list = DESIGN_HULLS[FOIL_FERRY].interiors!;
+    expect(list.map((i) => i.name)).toEqual(['Ferry', 'Explorer']);
+    for (const it of list) {
+      const b = buildDesign({ ...ferry, ...NO_FURNITURE, ...it.pins });
+      expect(b.warnings, it.name).toEqual([]);
+      const keys = Object.keys(it.pins);
+      for (const k of keys) expect(b.placed[k as keyof typeof b.placed], `${it.name} ${k}`).toBeTruthy();
+      // Nothing else aboard but the interior's pieces.
+      expect(b.recipe.modules.filter((m) => m.module === 'furniture.piece').length, it.name).toBe(keys.length);
+    }
+    // The explorer's: sofas, a table, a galley, a berth, a head and a TV; no passenger seats.
+    const exp = list[1].pins;
+    for (const k of ['setteeAt', 'setteeAt2', 'messAt', 'galleyAt', 'berthAt', 'headAt', 'tvAt']) expect(k in exp, k).toBe(true);
+    expect(Object.keys(exp).some((k) => k.startsWith('seatAt'))).toBe(false);
+    // She comes as a ferry.
+    for (const [k, v] of Object.entries(list[0].pins)) expect(ferry[k as keyof ShipDesign], k).toBe(v);
   });
 
   it('her battery: more is heavier and further on a charge at 25 kn on her foils', () => {

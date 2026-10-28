@@ -67,7 +67,7 @@ interface Sample {
   flaps: number[];
   thrust: number;
   /** Her state's flight summary (VesselState.foil). */
-  foil?: { engaged: number; flaps: number[]; clear: number; deploy: number; draught: number };
+  foil?: { engaged: number; flaps: number[]; clear: number; deploy?: number; draught?: number };
 }
 
 /**
@@ -215,7 +215,7 @@ describe('the foiling ferry\'s helm: FOIL / HULL and her ride height', () => {
     const rest = run(5, () => 0);
     expect(rest[rest.length - 1].foil!.draught).toBeCloseTo(2.7, 1);
     const flying = after(run(50, (t) => (t < 12 ? 16000 : -1)), 40);
-    for (const x of flying) expect(Math.abs(x.foil!.draught - 1.2)).toBeLessThan(0.08);
+    for (const x of flying) expect(Math.abs(x.foil!.draught! - 1.2)).toBeLessThan(0.08);
     const shallow = run(30, () => 0, undefined, [], () => ({ foilMode: 2 }));
     const last = shallow[shallow.length - 1].foil!;
     expect(last.deploy).toBe(0);

@@ -23,7 +23,7 @@ export interface GearGroup {
 }
 
 export const GEAR_GROUPS: GearGroup[] = [
-  { name: 'Rescue and firefighting', items: ['skiff', 'lifeRing', 'searchlight', 'fireMonitor'] },
+  { name: 'Rescue and firefighting', items: ['skiff', 'skiff2', 'lifeRing', 'searchlight', 'fireMonitor'] },
   { name: 'Towing', items: ['towWinch', 'sternRoller'] },
   { name: 'Fishing', items: ['aFrame', 'netDrum', 'trawlWinches', 'rodRack'] },
   { name: 'Cargo', items: ['deckCrane'] },
@@ -34,6 +34,7 @@ export const GEAR_GROUPS: GearGroup[] = [
 /** What each piece is for, in a line. */
 export const GEAR_ABOUT: Record<string, string> = {
   skiff: 'A 3.25 m rubber dinghy with an electric outboard, in a cradle on deck, with its own crane to launch and recover her: for reaching people in the water and running goods to the beach (three crates). Needs about 3.7 m of clear deck.',
+  skiff2: 'A second ship\'s boat in her own cradle, with her own crane and her own button on the dash: the dinghy or the rescue boat (pick which below). For a bigger boat, with deck room for both.',
   lifeRing: 'Thrown on its line to someone in the water; the boat hook beside it to bring them alongside.',
   rodRack: 'Four handheld rods standing in a rack on a wall of the wheelhouse, a bucket beside them: cast over the side, play what bites, sell the bucket in port.',
   searchlight: 'A steerable lamp for searching at night.',
@@ -95,6 +96,8 @@ export const GEAR_ICONS: Record<string, string> = {
   fireMonitor: svg('<path d="M6 21v-8M3 21h6M6 13l5-4.5M11 8.5l2.5-1M14 6.5c3-2.5 5.5-2 7 0M15 9.5c2.2-1 4-.5 5.5 1.2M15.5 12.5c1.5-.3 2.8.2 3.8 1.3"/>'),
   // A small boat, and the davit over her with its fall.
   skiff: svg('<path d="M3 15.5h18l-3 4.5H6.5zM7 15.5l1-3h7.5M19 15.5V4.5h-6M13 4.5v4.5"/>'),
+  // The same, and a 2.
+  skiff2: svg('<path d="M3 15.5h18l-3 4.5H6.5zM7 15.5l1-3h7.5M19 15.5V4.5h-6M13 4.5v4.5M3.5 5.5a1.8 1.8 0 0 1 3.4.6c0 1.4-3.4 2.6-3.4 4.4h3.6"/>'),
   // Its column, the jib, the hook on its wire.
   deckCrane: svg('<path d="M7 21V6.5M4 21h6M7 6.5l13 3.5M7 6.5L5 5.5M18 9.5v6M16.5 15.5h3M18 15.5v1.5a1.2 1.2 0 1 1-1.5 1.2"/>'),
   // The drum between its flanges, the wire leading off it.

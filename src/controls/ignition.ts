@@ -126,7 +126,15 @@ function selectorLabel(): THREE.CanvasTexture {
 }
 
 /** Warning lamps in front of the ignition, left to right. */
-const LAMPS = [
+/** A lamp: its name and its colours lit and dark. */
+export interface LampDef {
+  name: string;
+  on: number;
+  off: number;
+}
+
+/** A diesel's lamps (modules/warningLamps; their keys lamp.oil ... lamp.engine). */
+export const DIESEL_LAMPS: readonly LampDef[] = [
   { name: 'OIL', on: 0xff3020, off: 0x2a0c08 },
   { name: 'CHARGE', on: 0xff3020, off: 0x2a0c08 },
   { name: 'GLOW', on: 0xffa020, off: 0x2a1a06 },
@@ -136,7 +144,22 @@ const LAMPS = [
   { name: 'BILGE', on: 0xff3020, off: 0x2a0c08 },
   { name: 'HULL', on: 0xffa020, off: 0x2a1a06 },
   { name: 'ENGINE', on: 0xffa020, off: 0x2a1a06 },
-] as const;
+];
+
+/**
+ * An electric boat's lamps (owner, 28 Oct 2026: "we need a different set of warning lights for
+ * electrical vessels"): READY (green: the key on, her drive live: the levers move her), NEUTRAL,
+ * BATT (amber: her battery under its low mark, blinking nearly flat), SHORE (blue: plugged in
+ * at the quay), BILGE and HULL. No oil, charge, glow, coolant or fuel to show.
+ */
+export const ELECTRIC_LAMPS: readonly LampDef[] = [
+  { name: 'READY', on: 0x40e060, off: 0x0c2a12 },
+  { name: 'NEUTRAL', on: 0x40e060, off: 0x0c2a12 },
+  { name: 'BATT', on: 0xffa020, off: 0x2a1a06 },
+  { name: 'SHORE', on: 0x3a90ff, off: 0x0a1a30 },
+  { name: 'BILGE', on: 0xff3020, off: 0x2a0c08 },
+  { name: 'HULL', on: 0xffa020, off: 0x2a1a06 },
+];
 
 /**
  * The engine's warning lamps, as on a real panel: OIL, CHARGE, GLOW, NEUTRAL, TEMP, FUEL, BILGE, and her
@@ -152,7 +175,11 @@ export class WarningLamps {
   private readonly tmpColor = new THREE.Color();
   private shown = '';
 
-  constructor(cfg: { spacing: number; position?: [number, number, number] }) {
+  private readonly set: readonly LampDef[];
+
+  constructor(cfg: { spacing: number; position?: [number, number, number] }, lamps: readonly LampDef[] = DIESEL_LAMPS) {
+    this.set = lamps;
+    const LAMPS = lamps;
     if (cfg.position) this.root.position.fromArray(cfg.position);
     const n = LAMPS.length;
     this.lamps = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.017, 0.017, 0.01, 14), new THREE.MeshBasicMaterial(), n);
@@ -164,7 +191,7 @@ export class WarningLamps {
     this.root.add(this.lamps);
     const w = cfg.spacing * n;
     // Tilted up 45 degrees toward the helmsman, standing on its near edge, like the dash labels.
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.03).rotateX(-Math.PI / 4), panelLit(new THREE.MeshBasicMaterial({ map: lampLabels(n), transparent: true })));
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.03).rotateX(-Math.PI / 4), panelLit(new THREE.MeshBasicMaterial({ map: lampLabels(LAMPS), transparent: true })));
     label.position.set(0, 0.002 + 0.015 * Math.SQRT1_2, 0.028 - 0.015 * Math.SQRT1_2);
     this.root.add(label);
   }
@@ -172,6 +199,7 @@ export class WarningLamps {
   /** Each lamp 'off', 'on' or 'blink' (blinking at 2 Hz), left to right. */
   show(states: readonly string[]): void {
     const blink = Math.floor(performance.now() / 250) % 2 === 0;
+    const LAMPS = this.set;
     const lit = LAMPS.map((_, i) => states[i] === 'on' || (states[i] === 'blink' && blink));
     const key = lit.map((x) => (x ? 1 : 0)).join('');
     if (key === this.shown) return;
@@ -181,7 +209,8 @@ export class WarningLamps {
   }
 }
 
-function lampLabels(n: number): THREE.CanvasTexture {
+function lampLabels(LAMPS: readonly LampDef[]): THREE.CanvasTexture {
+  const n = LAMPS.length;
   const c = document.createElement('canvas');
   c.width = 128 * n;
   c.height = 40;
@@ -196,8 +225,27 @@ function lampLabels(n: number): THREE.CanvasTexture {
   return t;
 }
 
-/** The laminated start-up card by the ignition (drawn once). */
-export function checklistCard(cfg: { position: [number, number, number]; width: number; height: number }): THREE.Mesh {
+/** An electric boat's card: switching on her drive (no glow, no START). */
+const ELECTRIC_STEPS = [
+  '1  Battery MASTER on',
+  '    (aft wall, by the door)',
+  '2  INSTR breaker on',
+  '    (panel by the helm)',
+  '3  Levers in NEUTRAL',
+  '4  KEY on: the READY lamp',
+  '    lights, her drive is live',
+  '5  CHART, RADIO, NAV LTS',
+  '    breakers as needed',
+  '',
+  'BATT lamp: charge soon.',
+  'At the quay: plug in at the',
+  '  charging post (SHORE lamp).',
+  'STOP: levers neutral, key off;',
+  '  master off when leaving her.',
+];
+
+/** The laminated start-up card by the ignition (drawn once); an electric boat's (`electric`) for switching on her drive. */
+export function checklistCard(cfg: { position: [number, number, number]; width: number; height: number; electric?: boolean }): THREE.Mesh {
   const c = document.createElement('canvas');
   c.width = 512;
   c.height = Math.round((512 * cfg.height) / cfg.width);
@@ -209,8 +257,8 @@ export function checklistCard(cfg: { position: [number, number, number]; width: 
   g.fillStyle = '#fff';
   g.font = 'bold 40px system-ui, sans-serif';
   g.textBaseline = 'middle';
-  g.fillText('ENGINE START', 24, 36);
-  const steps = [
+  g.fillText(cfg.electric ? 'DRIVE ON' : 'ENGINE START', 24, 36);
+  const steps = cfg.electric ? ELECTRIC_STEPS : [
     '1  Battery MASTER on',
     '    (aft wall, by the door)',
     '2  INSTR breaker on',

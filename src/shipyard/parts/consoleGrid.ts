@@ -202,7 +202,7 @@ export function placeDashByHand(items: GridItem[], rows: number, cap: number, wa
 }
 
 /** A switch group's key in the design (PANEL_SLOTS): its title, the searchlight's whatever it's called, the horn by name. */
-export const panelKey = (g: PanelGroup): string => (g.title === '' ? 'horn' : g.title.includes('SEARCH') || g.title === 'FIRE' ? 'SEARCH' : g.title);
+export const panelKey = (g: PanelGroup): string => (g.title === '' ? 'horn' : g.title.includes('SEARCH') || g.title === 'FIRE' ? 'SEARCH' : g.title === 'DRIVE' ? 'ENGINE' : g.title);
 
 /**
  * Switch groups placed by hand along the panel's `cap` cells: each from the cell it was put

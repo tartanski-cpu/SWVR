@@ -84,10 +84,13 @@ export class TenderCraneView {
    * carries (the app does: a recipe can't know which boat that is).
    */
   constructor(
-    private readonly crane: TenderCrane,
+    /** Its geometry, placed (the app matches it to the ship's crane that carries a tender). */
+    readonly crane: TenderCrane,
     deckY: (z: number) => number,
     /** Where the SKIFF CRANE button stands on the helm console (ship axes); null: none. */
     private readonly consoleAt: readonly [number, number, number] | null,
+    /** What its buttons call it (with two on a ship, each its boat's: "Rescue boat crane"). */
+    private readonly name = 'Skiff crane',
   ) {
     const c = crane;
     const [cx, cz] = c.column;
@@ -136,7 +139,7 @@ export class TenderCraneView {
     const c = this.crane;
     const [bx, by, bz] = c.button;
     this.tenderId = tenderId;
-    const button = (id: string) => new Button(`${id}:${tenderId}`, `${tenderId}:crane`, 'Skiff crane: launch / recover', 'pulse', 0x2a8f3a, () => this.moving);
+    const button = (id: string) => new Button(`${id}:${tenderId}`, `${tenderId}:crane`, `${this.name}: launch / recover`, 'pulse', 0x2a8f3a, () => this.moving);
     const column = button('crane');
     column.root.position.set(bx, by, bz);
     column.root.rotation.z = (-Math.sign(bx - c.column[0]) || -1) * (Math.PI / 2); // facing outboard, from the box's outboard face
@@ -174,14 +177,14 @@ export class TenderCraneView {
     const charge = Math.round((tender.battery ?? 0) * 100);
     const label =
       phase === 'stowed'
-        ? `Skiff crane: LAUNCH (battery ${charge} %)`
+        ? `${this.name}: LAUNCH (battery ${charge} %)`
         : phase === 'lowering'
-          ? 'Skiff crane: lowering...'
+          ? `${this.name}: lowering...`
           : phase === 'hoisting'
-            ? 'Skiff crane: hoisting...'
+            ? `${this.name}: hoisting...`
             : recover.ok
-              ? 'Skiff crane: RECOVER'
-              : `Skiff crane: RECOVER - ${recover.why}`;
+              ? `${this.name}: RECOVER`
+              : `${this.name}: RECOVER - ${recover.why}`;
     for (const b of this.buttons) {
       b.label = label;
       b.sync(tender);

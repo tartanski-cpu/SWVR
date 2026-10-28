@@ -202,6 +202,11 @@ export class BoatView {
     return this.modules.api<T>(moduleId);
   }
 
+  /** Every module of this id's own handle, in recipe order (a boat with two tender cranes). */
+  apis<T extends object>(moduleId: string): T[] {
+    return this.modules.apis<T>(moduleId);
+  }
+
   /** A module's group on the boat (its place), by module id; null if she has none. */
   moduleRoot(moduleId: string): THREE.Object3D | null {
     return this.modules.modules.find((m) => m.id === moduleId)?.root ?? null;

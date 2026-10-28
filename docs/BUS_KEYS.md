@@ -392,6 +392,9 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `lamp.engine` | off / on / blink | read only | legacy |  | ENGINE lamp: on with engine wear worth an overhaul, blinking when bad. |
 | `lamp.temp` | off / on / blink | read only | legacy |  | TEMP lamp: blinking with the coolant over its alarm temperature. |
 | `lamp.fuel` | off / on / blink | read only | legacy |  | FUEL lamp: on with the fuel under its low mark. |
+| `lamp.ready` | off / on / blink | read only | legacy |  | READY lamp (an electric boat's): on while her drive is live (the key on, 12 V, charge in her battery): the levers move her. |
+| `lamp.batt` | off / on / blink | read only | legacy |  | BATT lamp (an electric boat's): on with her battery under its low mark, blinking nearly flat. |
+| `lamp.shore` | off / on / blink | read only | legacy |  | SHORE lamp (an electric boat's): on while she's plugged in at the quay (shore power). |
 
 ## nav
 

@@ -85,6 +85,8 @@ export interface AssembledView {
   footprints(read: BusReader): Footprint[];
   /** The first module of this id's app-facing part (ModuleViewInstance.api), if any. */
   api<T extends object>(moduleId: string): T | null;
+  /** Every module of this id's app-facing part, in recipe order (two tender cranes). */
+  apis<T extends object>(moduleId: string): T[];
   /**
    * Each frame: every module's view from the boat's state, and the screens (only when
    * someone could see them: the atlas upload is the costly part on the Quest).
@@ -109,6 +111,7 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
   const labels: PlacedLabel[] = [];
   const atlas = new DisplayAtlas();
   const shared = new SharedParts();
+  const full: ViewFrame = { darkness: 0, viewer: new THREE.Vector3() };
   const local = new Map<string, string>();
   const v = new THREE.Vector3();
   for (const m of mounted) {
@@ -194,10 +197,16 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
         }),
       ),
     api: <T extends object>(id: string) => (modules.find((m) => m.id === id)?.instance.api as T | undefined) ?? null,
+    apis: <T extends object>(id: string) => modules.filter((m) => m.id === id && m.instance.api).map((m) => m.instance.api as T),
     update(state, dt, s, frame = NO_FRAME) {
       if (modules.length) {
         const read = busOf(state);
-        for (const m of modules) m.instance.update(read, state.modules?.[m.path]?.s, dt, frame);
+        // (The boat and her weather ride along with the frame: one object, filled in again each time.)
+        full.darkness = frame.darkness;
+        full.viewer = frame.viewer;
+        full.vessel = state;
+        full.env = s?.env ?? frame.env ?? null;
+        for (const m of modules) m.instance.update(read, state.modules?.[m.path]?.s, dt, full);
         if (interlocks.length) {
           disabled.clear();
           for (const il of interlocks) if (evalCondition(il.cond, read)) for (const c of il.controls) disabled.add(c);

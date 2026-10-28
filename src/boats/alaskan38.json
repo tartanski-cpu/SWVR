@@ -493,7 +493,13 @@
             6.0
           ]
         }
-      }
+      },
+      "modules": [
+        {
+          "socket": "vane",
+          "module": "mount.wind-vane"
+        }
+      ]
     },
     {
       "socket": "cleatFwdPort",

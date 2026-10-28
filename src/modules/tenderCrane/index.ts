@@ -27,6 +27,12 @@ import { placeTenderCrane, type TenderCrane } from '../../vessel/tenderCrane';
 export type TenderCraneConfig = TenderCrane & {
   /** Where its SKIFF CRANE button stands on the helm console (the boat's axes); null: none. */
   consoleButton: readonly [number, number, number] | null;
+  /**
+   * Its button's word on the console and what its buttons call it (owner, 28 Oct 2026: with
+   * two ship's boats, each crane its own, by her boat). Unset: SKIFF CRANE, "Skiff crane".
+   */
+  consoleLabel?: string;
+  name?: string;
 };
 
 export const TENDER_CRANE: ModuleDefinition<TenderCraneConfig> = {
@@ -52,13 +58,13 @@ export const TENDER_CRANE: ModuleDefinition<TenderCraneConfig> = {
     build({ config, hull, socket }) {
       // Its socket's place (a hull's deck.equipment socket: in the boat's axes).
       const c = placeTenderCrane(config, socket.transform.position);
-      const crane = new TenderCraneView(c, hull.deckY, c.consoleButton);
+      const crane = new TenderCraneView(c, hull.deckY, c.consoleButton, c.name);
       return {
         staticParts: crane.fixedParts,
         movingParts: [crane.root],
         // Its buttons come with the skiff (api.attach); the app hands them to the interaction system.
         controls: [],
-        labels: c.consoleButton ? [{ text: 'SKIFF CRANE', at: [...c.consoleButton] }] : [],
+        labels: c.consoleButton ? [{ text: c.consoleLabel ?? 'SKIFF CRANE', at: [...c.consoleButton] }] : [],
         update: () => {},
         api: crane,
       };

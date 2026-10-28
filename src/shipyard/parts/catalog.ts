@@ -192,6 +192,13 @@ export interface DesignHull {
    * instead, from a towing hook aft of her house, as the small tug does.
    */
   towsOverBow?: boolean;
+  /**
+   * Interiors to start her furniture from (the foiling ferry's: owner, 28 Oct 2026, "2 options
+   * for the interior ... 1 as ferry and 1 as explorer vessel i.e sofas etc."): each a name, a
+   * line on it, and its pieces' pins (every other piece taken off). The Furniture step offers
+   * them; each piece is still the player's to move or take off.
+   */
+  interiors?: { name: string; info: string; pins: Partial<ShipDesign> }[];
   /** A solar roof over her house charging her battery (the solar catamaran's; modules/solarRoof, parts/recipe.ts). */
   solarRoof?: boolean;
   /**
@@ -511,10 +518,25 @@ const FOIL_FERRY_FIXED: Partial<ShipDesign> = {
   lifeRing: 1,
 };
 
+/** Her ferry interior: rows of seats either side of an aisle, facing forward (pins: x from her centreline, metres forward of her transom). */
+const FERRY_SEATS: Partial<ShipDesign> = Object.fromEntries([-1.35, -0.75, 0.75, 1.35].flatMap((x, i) => [5.9, 5.0, 4.1].map((z, j) => [FURNITURE_SLOTS.seat[i * 3 + j], furnitureCell(x, z)])));
+/**
+ * Her explorer interior (owner, 28 Oct 2026: "sofas etc."): to port a sofa aft, a table and a
+ * berth forward; to starboard a sofa aft, the galley, the head forward; a TV on the starboard wall.
+ */
+const EXPLORER: Partial<ShipDesign> = {
+  setteeAt: furnitureCell(-1.4, 3.5),
+  messAt: furnitureCell(-1.4, 4.9),
+  berthAt: furnitureCell(-1.35, 7.4),
+  setteeAt2: furnitureCell(1.4, 3.5),
+  galleyAt: furnitureCell(1.4, 5.4),
+  headAt: furnitureCell(1.4, 7.6),
+  tvAt: furnitureCell(1.8, 4.4),
+};
+
 /**
  * Where her house and cabin start (the player's to change): a long, low passenger cabin with
- * big windows nearly the length of her, her helm at its front; rows of seats either side of an
- * aisle facing forward (pins: x from her centreline, metres forward of her transom).
+ * big windows nearly the length of her, her helm at its front; her ferry interior (FERRY_SEATS).
  */
 const FOIL_FERRY_HOUSE: Partial<ShipDesign> = {
   ...fromSteps({ visor: 1, lowerFront: 0 }),
@@ -532,9 +554,7 @@ const FOIL_FERRY_HOUSE: Partial<ShipDesign> = {
   saloonRoof: 0,
   overhead: 0,
   dhLength: 0,
-  ...Object.fromEntries(
-    [-1.35, -0.75, 0.75, 1.35].flatMap((x, i) => [5.9, 5.0, 4.1].map((z, j) => [FURNITURE_SLOTS.seat[i * 3 + j], furnitureCell(x, z)])),
-  ),
+  ...FERRY_SEATS,
 };
 
 const HARBOUR_TUG_HOUSE: Partial<ShipDesign> = {
@@ -781,6 +801,10 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 1.5,
     foredeck: 1.5,
     centrePod: true,
+    interiors: [
+      { name: 'Ferry', info: 'Twelve seats in rows either side of an aisle, facing forward: a passenger ferry.', pins: FERRY_SEATS },
+      { name: 'Explorer', info: 'Sofas aft either side, a table, a galley, a berth and a head, a TV on the wall: for living aboard and exploring.', pins: EXPLORER },
+    ],
     fixed: FOIL_FERRY_FIXED,
     oneOffNote: 'Her hull and hydrofoils are a one-off, fixed as she’s drawn, and so are her electric pod (two motors, two propellers turning opposite ways) and her deck fittings. Yours to choose: her wheelhouse and cabin, its inside, her controls and her furniture, her battery (Engine step) and her paint.',
     // White, a light house, a dark roof, as new; her biggest battery.

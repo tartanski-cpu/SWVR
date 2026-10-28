@@ -1,6 +1,6 @@
 import type { FuelState } from '../fuel/fuelHose';
 import type { TimberState } from '../voyage/timber';
-import { gearOf } from '../boats/sims';
+import { tenderCranesOf } from '../boats/sims';
 import type { BoardState } from '../board/board';
 import { CONFIG } from '../config';
 import { createEnvironment, type EnvironmentState } from '../environment/environmentState';
@@ -154,10 +154,11 @@ export function createWorld(
   const vessel = createVesselState(vesselId, vesselDefId);
   if (opts.harbour) mooredAtStart(vessel);
   else dropVessel(vessel);
-  // Her tender only if she has a crane to carry it (the workboat; M7: not every boat does):
-  // the boat her crane is made for (the dinghy, or the rescue boat on its bigger crane).
-  const crane = opts.tender ? gearOf({ defId: vesselDefId }, 'tenderCrane') : null;
-  const tender = crane ? createVesselState(ids.next('vessel'), crane.tenderDefId) : null;
+  // Her tenders only if she has a crane to carry one (the workboat; M7: not every boat does):
+  // for each crane, the boat it's made for (the dinghy, or the rescue boat on its bigger
+  // crane; a big Shipyard boat may have both, owner, 28 Oct 2026).
+  const cranes = opts.tender ? tenderCranesOf({ defId: vesselDefId }) : [];
+  const tenders = cranes.map((c) => createVesselState(ids.next('vessel'), c.tenderDefId));
   const player = createPlayerState(localPlayerId, 'Player 1');
   // Ashore beside her berth (Calder's quay, or Brannock's pier for a deep boat: startSpot.ts).
   placeAshore(player, opts.harbour ? vessel.mooring.berthId : null);
@@ -168,7 +169,7 @@ export function createWorld(
     players: {
       [localPlayerId]: player,
     },
-    vessels: { [vesselId]: vessel, ...(tender ? { [tender.id]: tender } : {}) },
+    vessels: { [vesselId]: vessel, ...Object.fromEntries(tenders.map((t) => [t.id, t])) },
     homeVesselId: vesselId,
     geography: 'archipelago',
     cargo: {},
@@ -194,8 +195,8 @@ export function createWorld(
     vessel.electrics.master = 0;
     for (const k of Object.keys(vessel.electrics.breakers) as (keyof typeof vessel.electrics.breakers)[]) vessel.electrics.breakers[k] = 0;
   }
-  // The tender starts in her cradle on the ship's foredeck.
-  if (tender) stowTender(world, tender, vesselId);
+  // Each tender starts in her cradle on the ship's deck.
+  tenders.forEach((t, k) => stowTender(world, t, vesselId, k));
   stockPorts(world);
   if (opts.voyage) world.voyage = true;
   return { world, localPlayerId, vesselId };
