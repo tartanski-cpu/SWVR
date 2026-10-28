@@ -125,7 +125,9 @@ export class CoastTerrainView {
     /** A whole region's: where its faces are in the one mesh. */
     start: number;
     count: number;
-    mid: THREE.Mesh | null;
+    /** Its coarse copy (drawn between `coastFineDistance` and `coastMidDistance`), merged with the others into `midMeshes`; and whether it's in them now. */
+    mid: TerrainArrays | null;
+    midOn: boolean;
     /** Its very coarse copy, merged with the others drawn far into `farMesh`. */
     far: TerrainArrays | null;
     fine: THREE.Mesh | null;
@@ -147,6 +149,14 @@ export class CoastTerrainView {
   private readonly terminalStacks: { mesh: THREE.InstancedMesh; x0: number; z0: number; x1: number; z1: number }[] = [];
   /** The chunks drawn far, as one mesh; which they are (their indices), and when it was last merged (ms). */
   private farMesh: THREE.Mesh | null = null;
+  /**
+   * The chunks drawn coarse, merged into `coastCoarseWedges` slices round the viewer (as they
+   * were when last merged), so the frustum still leaves out those behind: a draw call a slice
+   * instead of one a chunk (owner, Oct 2026: 210-300 draw calls at Ålesund on the Quest; the
+   * coarse ring was 10-18 of them a view). Merged again when the chunks in it change.
+   */
+  private midMeshes: THREE.Mesh[] = [];
+  private midKey = '';
   private farSet = new Set<number>();
   private farAt = -Infinity;
   /** The chunks by distance from where the viewer was when last sorted (CONFIG.regions.coastResort). */
@@ -284,7 +294,7 @@ export class CoastTerrainView {
       const z1 = z0 + ch.size;
       const buildings = region.buildings.filter((b) => b.x >= x0 && b.x < x1 && b.z >= z0 && b.z < z1);
       const streamed = !!region.coast?.pkg.buildingChunks?.chunks.includes(k);
-      this.chunks.push({ k, x0, z0, x1, z1, start: ch.start, count: ch.count, mid: null, far: null, fine: null, buildings, town: null, ...(streamed ? { stream: 'want' as const } : {}) });
+      this.chunks.push({ k, x0, z0, x1, z1, start: ch.start, count: ch.count, mid: null, midOn: false, far: null, fine: null, buildings, town: null, ...(streamed ? { stream: 'want' as const } : {}) });
     });
   }
 
@@ -311,6 +321,40 @@ export class CoastTerrainView {
       .catch(() => {
         ch.stream = 'want';
       });
+  }
+
+  /** The coarse chunks merged into slices round (x, z), again only when which they are has changed. */
+  private mergeMid(list: CoastTerrainView['chunks'], x: number, z: number, wedges: number): void {
+    const key = list.map((ch) => ch.k).join(',');
+    for (const ch of this.chunks) ch.midOn = false;
+    for (const ch of list) ch.midOn = true;
+    if (key === this.midKey) return;
+    this.midKey = key;
+    for (const m of this.midMeshes) {
+      this.root.remove(m);
+      m.geometry.dispose();
+    }
+    this.midMeshes = [];
+    const slices: CoastTerrainView['chunks'][] = Array.from({ length: wedges }, () => []);
+    for (const ch of list) {
+      const a = Math.atan2((ch.z0 + ch.z1) / 2 - z, (ch.x0 + ch.x1) / 2 - x);
+      slices[Math.min(wedges - 1, Math.floor(((a + Math.PI) / (2 * Math.PI)) * wedges))].push(ch);
+    }
+    for (const slice of slices) {
+      const n = slice.reduce((t, ch) => t + ch.mid!.position.length, 0);
+      if (!n) continue;
+      const position = new Float32Array(n);
+      const color = new Float32Array(n);
+      let at = 0;
+      for (const ch of slice) {
+        position.set(ch.mid!.position, at);
+        color.set(ch.mid!.color, at);
+        at += ch.mid!.position.length;
+      }
+      const m = toMesh({ position, color }, this.mat, 'coast-coarse');
+      this.root.add(m);
+      this.midMeshes.push(m);
+    }
   }
 
   /** Built everything at least roughly (the whole region can be shown). */
@@ -349,8 +393,6 @@ export class CoastTerrainView {
     // The fog's reach, in steps, rounded up (nothing in sight left out).
     const fog = Number.isFinite(fogFar) ? Math.ceil(fogFar / c.coastFogStep) * c.coastFogStep : Infinity;
     const hyst = c.coastHysteresis;
-    const grid = (ch: (typeof this.chunks)[number], cell: number, overlap: number, drop: number, name: string) =>
-      toMesh(gridArrays(ch.x0 - overlap, ch.z0 - overlap, ch.x1 + overlap, ch.z1 + overlap, cell, -0.5, drop), this.mat, name);
     // The very coarse copy of every chunk (the whole region at least roughly), several a
     // call, nearest first, on a budget of their own, so a big region's near ground (below)
     // isn't kept waiting for its far hills. Open sea (nothing drawn) needs none: the sea hides it.
@@ -367,6 +409,7 @@ export class CoastTerrainView {
     // for a narrow sound, and would stand as grey slopes over the water there (owner, at
     // Naantali: "grey geometry ... I can drive through them").
     const nearer = new Set<number>();
+    const midList: (typeof this.chunks)[number][] = [];
     for (const { ch, d } of order) {
       // A chunked region's chunk that has been dropped: its full mesh goes with it.
       if (ch.fine && !this.t.piece && !this.t.pieces.has(ch.k)) {
@@ -385,27 +428,21 @@ export class CoastTerrainView {
       }
       if (!ch.fine) full = false;
       // Coarse within coastMidDistance; one already drawn coarse stays so a little past it.
-      const mid = !full && d < c.coastMidDistance + (ch.mid?.visible ? hyst : 0);
-      if (ch.mid && !mid && d > c.coastMidDistance * c.coastDropFactor) {
-        // Well past it: freed, made again on coming back.
-        this.root.remove(ch.mid);
-        ch.mid.geometry.dispose();
-        ch.mid = null;
-      }
+      const mid = !full && d < c.coastMidDistance + (ch.midOn ? hyst : 0);
+      if (ch.mid && !mid && d > c.coastMidDistance * c.coastDropFactor) ch.mid = null; // well past it: freed, made again on coming back
       if (mid && !ch.mid && built < maxBuilds) {
-        ch.mid = grid(ch, c.coastCoarseCell, c.coastCoarseOverlap, c.coastCoarseDrop, 'coast-coarse');
-        this.root.add(ch.mid);
+        ch.mid = gridArrays(ch.x0 - c.coastCoarseOverlap, ch.z0 - c.coastCoarseOverlap, ch.x1 + c.coastCoarseOverlap, ch.z1 + c.coastCoarseOverlap, c.coastCoarseCell, -0.5, c.coastCoarseDrop);
         built++;
       }
       const showMid = mid && !!ch.mid;
       if (ch.fine) ch.fine.visible = full;
-      if (ch.mid) ch.mid.visible = showMid;
+      if (showMid) midList.push(ch);
       // Past where the fog is total (the clearest day's haze, or today's visibility) a far
       // chunk can't be seen: left out (a big map is mostly beyond it).
       if (ch.far && !full && !showMid && d < fog) farList.push(ch);
       if (ch.far && !full && !showMid && d < fog + c.coastFarAhead) farWant.push(ch);
       if (full || showMid) nearer.add(ch.k);
-      tris += full ? ch.count : showMid ? count(ch.mid!) : 0;
+      if (full) tris += ch.count;
       // The buildings, near only; a streamed chunk's fetched first (its town made again with them).
       if (ch.stream === 'want' && d < c.coastBuildingDistance) this.fetchBuildings(ch);
       const town = d < c.coastBuildingDistance && ch.buildings.length > 0;
@@ -462,6 +499,8 @@ export class CoastTerrainView {
       }
     }
     if (this.farMesh) tris += count(this.farMesh);
+    this.mergeMid(midList, x, z, c.coastCoarseWedges);
+    for (const m of this.midMeshes) tris += count(m);
     if (this.trees) {
       this.trees.update(x, z);
       tris += this.trees.triangles;

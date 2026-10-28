@@ -2723,7 +2723,7 @@
   "berths": 167,
   "blocks": 955,
   "buildings": 14751,
-  "marks": 151,
+  "marks": 53,
   "lights": 201,
   "slipways": 1,
   "fishingGrounds": 2,
@@ -2732,6 +2732,6 @@
    "Råna",
    "Erkna Oc(3)RGW.10s"
   ],
-  "bytes": 791620
+  "bytes": 785572
  }
 }

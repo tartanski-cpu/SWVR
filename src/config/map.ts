@@ -59,6 +59,8 @@ export const MAP_CONFIG = {
     coastCoarseCell: 90,
     coastCoarseOverlap: 90,
     coastCoarseDrop: 1,
+    /** The coarse chunks are drawn merged, in this many slices round the viewer (coastView mergeMid: a draw call a slice; the frustum leaves out those behind). */
+    coastCoarseWedges: 8,
     coastSilhouetteCell: 150,
     coastBuildingDistance: 2000,
     /**
@@ -76,9 +78,10 @@ export const MAP_CONFIG = {
      * On a standalone headset (the trees' device level, treesView.ts treeLevel: the Quest), the
      * coast maps' reach drawn shorter (owner, Oct 2026: Hamburg ran at 30-40 fps): the town's
      * buildings, the harbour kit's squares (and the map's own near structures), a container terminal's
-     * stacks and its quay cranes within these (m).
+     * stacks and its quay cranes within these (m); and the ground from 1 to 6 km out sampled
+     * coarser (m; Ålesund at 35 fps: its mountains, a quarter of the triangles at 90 m).
      */
-    coastQuest: { coastBuildingDistance: 1300, coastStructureDistance: 1600, stackDistance: 1800, craneDistance: 3500 },
+    coastQuest: { coastBuildingDistance: 1300, coastStructureDistance: 1600, stackDistance: 1800, craneDistance: 3500, coastCoarseCell: 125, coastCoarseOverlap: 125 },
     /** A mussel farm's long-line (a coast map's, the coast extras plan C2; worldView.buildFarm): one float every this many metres along it. */
     lineFloat: 6,
     coastLoadDistance: 1500,

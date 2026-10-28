@@ -372,12 +372,12 @@ const slipways = (hb.slipways as { x: number; z: number; headingDeg: number; wid
 });
 
 // ── Sea ──
-// The game draws its marks as buoys, afloat. An isolated-danger beacon is a pole fixed on the
-// rock it marks (Norway's skerry beacons: 435 of them round Sunnmøre, where a buoy is 370
-// triangles, drawn everywhere: a third of the frame): left out. Its rock is still in the ground,
-// and in the chart's shallows.
+// The game draws its marks as buoys, afloat. A beacon is a pole fixed on the rock or the shore
+// it marks (Norway charts its skerries with them: 533 round Sunnmøre, 435 isolated-danger and
+// 98 lateral; each drawn as a buoy of 130-370 triangles, everywhere: at first a third of the
+// frame): left out. Its rock is still in the ground, and in the chart's shallows.
 const marks = (nav.marks as { name: string; type: string; gameKind: string | null; category: string; x: number; z: number }[])
-  .filter((m) => m.gameKind && m.type !== 'beacon_isolated_danger')
+  .filter((m) => m.gameKind && m.type.startsWith('buoy_'))
   .map((m, i) => ({ name: m.name || `${m.category} No ${i + 1}`, kind: m.gameKind, x: m.x, z: m.z }));
 const COLOUR: Record<string, 'red' | 'green' | 'white'> = { red: 'red', green: 'green' };
 const lights = (nav.lights as { name: string; x: number; z: number; height?: number; period?: number; sectors: { colour: string; from?: number }[]; label: string; on: string }[])
