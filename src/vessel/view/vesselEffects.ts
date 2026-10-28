@@ -58,8 +58,12 @@ export class VesselEffects {
     ocean: Record<string, { value: unknown }>,
   ) {
     // Her propeller's size for the jet (the skiff's outboard: a small one).
-    const propD = gearOf({ defId: def.id }, 'diesel')?.propeller.diameter ?? 0.25;
-    this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2, { propD, length: def.hull.params.length, planing: def.planing });
+    const diesel = gearOf({ defId: def.id }, 'diesel');
+    const propD = diesel?.propeller.diameter ?? 0.25;
+    // Her azimuth drives (the harbour tug's): each lays its own wash, the way its nozzle points.
+    const az = diesel?.azimuth;
+    const drives = az ? { x: [-(diesel.twinX ?? 0), diesel.twinX ?? 0], legZ: az.legZ, propY: az.propY, fwd: CONFIG.modules.azimuth.propFwd * propD } : undefined;
+    this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2, { propD, length: def.hull.params.length, planing: def.planing, drives });
     this.spray = new Spray(def);
     this.equip = new Equipment(def, world);
     world.add(this.wake.mesh, this.spray.points);
