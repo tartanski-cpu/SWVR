@@ -884,10 +884,26 @@ export const MODULES_CONFIG = {
     /**
      * mount.mast (M5b): the signal mast on the wheelhouse roof (its look was the hull's).
      * A square pole at (x, z) from the roof up to `height` above the roof's underside, a
-     * yard across it `yardHeight` up, `yardSpan` wide; the wind sock at its head.
+     * yard across it `yardHeight` up, `yardSpan` wide; the wind sock at its head (`windSock`; off
+     * where a masthead wind vane, mount.wind-vane, shows the wind instead).
      * `keepClear`: the half-size of the square round its foot you can't walk into.
      */
-    mast: { x: 0, z: 0.4, size: 0.12, height: 1.7, yardHeight: 1.3, yardSpan: 0.9, yardDepth: 0.08, keepClear: 0.25 },
+    mast: { x: 0, z: 0.4, size: 0.12, height: 1.7, yardHeight: 1.3, yardSpan: 0.9, yardDepth: 0.08, keepClear: 0.25, windSock: true },
+
+    /**
+     * mount.wind-vane (owner, Oct 2026: "every ship should have ... a Windex"): the masthead
+     * wind vane on top of the masthead light (light.navigation's `vane` socket).
+     *   scale         its size against a real yacht's vane (1: an arm about 0.4 m); bigger so
+     *                 it reads from the deck and from the boat beside
+     *   armLength     the vane's arm at scale 1 (m): with the airspeed it sets how fast it swings
+     *   stiffness     the fin's turning moment against the vane's inertia (no unit; 1 = a natural
+     *                 frequency of airspeed / arm length, about 2 Hz in a fresh breeze)
+     *   damping       its damping ratio (under 1: a little overshoot before it settles)
+     *   minWind       below this apparent wind (m/s) the bearing's friction holds it still
+     *   referenceDeg  the two fixed reference arms, each this far off dead aft (deg)
+     *   colours       the body (black), the arrowhead, the reflector tabs and the fin's stripe
+     */
+    windVane: { scale: 1.3, armLength: 0.4, stiffness: 1, damping: 0.35, minWind: 0.4, referenceDeg: 35, colours: { body: 0x1e2124, arrow: 0x1e2124, tab: 0xff6a1a } },
 
     /**
      * light.navigation's light mast (owner, Oct 2026: the masthead light hung in the air above

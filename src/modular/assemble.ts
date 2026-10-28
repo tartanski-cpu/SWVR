@@ -109,6 +109,7 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
   const labels: PlacedLabel[] = [];
   const atlas = new DisplayAtlas();
   const shared = new SharedParts();
+  const full: ViewFrame = { darkness: 0, viewer: new THREE.Vector3() };
   const local = new Map<string, string>();
   const v = new THREE.Vector3();
   for (const m of mounted) {
@@ -197,7 +198,12 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
     update(state, dt, s, frame = NO_FRAME) {
       if (modules.length) {
         const read = busOf(state);
-        for (const m of modules) m.instance.update(read, state.modules?.[m.path]?.s, dt, frame);
+        // (The boat and her weather ride along with the frame: one object, filled in again each time.)
+        full.darkness = frame.darkness;
+        full.viewer = frame.viewer;
+        full.vessel = state;
+        full.env = s?.env ?? frame.env ?? null;
+        for (const m of modules) m.instance.update(read, state.modules?.[m.path]?.s, dt, full);
         if (interlocks.length) {
           disabled.clear();
           for (const il of interlocks) if (evalCondition(il.cond, read)) for (const c of il.controls) disabled.add(c);

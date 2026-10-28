@@ -92,8 +92,9 @@
     {
       "socket": "mast",
       "module": "mount.mast",
+      "config": { "windSock": false },
       "modules": [
-        { "socket": "masthead", "module": "light.navigation" }
+        { "socket": "masthead", "module": "light.navigation", "modules": [{ "socket": "vane", "module": "mount.wind-vane" }] }
       ]
     }
   ],

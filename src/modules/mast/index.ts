@@ -23,7 +23,7 @@ export type MastConfig = typeof CONFIG.modules.mast & {
 
 /** What the app hands the mast: the weather, for its wind sock. */
 export interface MastApi {
-  readonly windSock: WindSock;
+  readonly windSock: WindSock | null;
 }
 
 /** The roof's underside and top where the mast stands. */
@@ -52,13 +52,14 @@ export const MAST: ModuleDefinition<MastConfig> = {
       const colour = 0x3a3f44;
       const box = (hx: number, y0: number, y1: number, hz: number) =>
         part(new THREE.BoxGeometry(2 * hx, y1 - y0, 2 * hz).translate(c.x, (y0 + y1) / 2, c.z), colour);
-      const windSock = new WindSock([c.x, under + c.height, c.z]);
+      // (No sock where a masthead wind vane shows the wind: `windSock` off.)
+      const windSock = c.windSock ? new WindSock([c.x, under + c.height, c.z]) : null;
       return {
         staticParts: [
           box(c.size / 2, top, under + c.height, c.size / 2), // the pole
           box(c.yardSpan / 2, under + c.yardHeight, under + c.yardHeight + c.yardDepth, c.yardDepth / 2), // the yard
         ],
-        movingParts: [windSock.root],
+        movingParts: windSock ? [windSock.root] : [],
         controls: [],
         update: () => {},
         api: { windSock } satisfies MastApi,
