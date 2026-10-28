@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The foiling electric ferry's helm: decided, waiting on the physics and the Shipyard (28 Oct 2026)
+
+Not built yet. The hull modifications chat put her hydrofoils and flight computer on next (842d0d8) and handed her helm to this chat. Owner: "Do 1, 3 and 4, three ride heights; hull chat does physics."
+- **This chat will build:**
+  - a FOIL / HULL switch;
+  - a three-way ride height knob (low, normal, high; no trim control);
+  - a flight display (flying or not, ride height, flap angles, power);
+  - the sound and feel of lifting clear (the hull noise stopping).
+- **The hull chat does the physics side:** reading the switch and ride height from her state (proposed `controls.foilMode`, `controls.foilRide`, bus keys `foils.mode`, `foils.ride`, ride depths in CONFIG.foils), bringing her down gently on HULL, and a small `foil` summary in her state for the display and sound, so crew in multiplayer see it too (the `foilTelemetry` global is the host's only).
+- **Waiting on:** that physics, and the Shipyard chat making her a one-off you can sail.
+- **Shared changes:** none.
+
 ### The engine rooms' textures: another pass to make them pop (28 Oct 2026)
 
 Owner (passed on by the hull modifications chat, then confirmed here: "Go ahead with textures"): "Do another pass on the engine room textures to make it 'pop'."
