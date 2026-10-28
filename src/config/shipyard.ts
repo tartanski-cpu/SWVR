@@ -108,6 +108,9 @@ export const SHIPYARD_CONFIG = {
       // built of foam and plywood): under half aluminium's weight a square metre; dear to build
       // by the kilo (hand laid-up), cheap by the boat.
       'foam and plywood': { shellKgPerM2: 16, houseKgPerM2: 9, pricePerKg: 40 },
+      // A carbon and glass sandwich over a foam core (the foiling ferry's, owner, 28 Oct 2026: a
+      // foiler lives or dies by her weight): lighter still a square metre, and the dearest by the kilo.
+      composite: { shellKgPerM2: 12, houseKgPerM2: 7, pricePerKg: 90 },
     },
     /**
      * Her other weights (build.ts), and her load as trialled:
@@ -320,6 +323,33 @@ export const SHIPYARD_CONFIG = {
      *                 less slams in a chop.
      */
     solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.31, motor: { efficiency: 0.93, inertia: 0.05, propInertia: 0.4, responseS: 0.4 }, solar: { panelEff: 0.21, tempCoeff: -0.004, noctC: 45, airTempC: 16, controllerEff: 0.97, chargeEff: 0.96, taperFrom: 0.9 }, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
+    /**
+     * The foiling electric ferry (owner, 28 Oct 2026: a one-off, her house, controls and
+     * furniture the player's, "a contra-rotating pair" on her pod, a battery slider like the
+     * solar cat's; the hull modifications chat's `foilFerry` lines and foils, 12 x 4.5 m): her
+     * battery (design.battery, the solar cat's slider) and her drive, as `solarCat`'s keys:
+     *   batteryKgPerKWh, batteryPricePerKWh, usableShare  her battery: lighter packs than the
+     *                 solar cat's (about 6 kg a kWh: a foiler's weight is everything), low in her
+     *                 hulls amidships;
+     *   podKg         her one pod: its long strut down from her wet deck to her aft foil, the
+     *                 nacelle with her two motors' housings, the two propellers (her motors
+     *                 themselves are ENGINES' twin 95 kW);
+     *   foilsKg, foilsPrice  her foils and their two struts on her hulls (carbon), and her
+     *                 flight computer with its sensors and flap actuators;
+     *   cruiseKn, cruiseKw, cruiseRefT, cruiseKwPerT  her range is given at her service speed
+     *                 on her foils, `cruiseKn`, on the power it takes from her battery: measured
+     *                 in the game 28 Oct 2026 (flying level in calm water, her motors' draw),
+     *                 `cruiseKw` at `cruiseRefT` tonnes, `cruiseKwPerT` more a tonne heavier
+     *                 (her foils' drag grows with the lift they give; tests/shipyard/foilFerry
+     *                 keeps it to the game's physics);
+     *   motor         her pod's motors in the game (physics/electricMotor.ts), as the solar
+     *                 cat's: their efficiency, rotor inertia (kg m2), both propellers' inertia
+     *                 (kg m2) and how quickly the controller answers (s);
+     *   look          her pod (modules/pods look.ts): a slimmer, longer strut than a workboat's
+     *                 pod drive, down from her wet deck to her aft foil;
+     *   pack          how her battery's drawn on the Engine step (as the solar cat's).
+     */
+    foilFerry: { batteryKgPerKWh: 6, batteryPricePerKWh: 500, usableShare: 0.9, podKg: 180, foilsKg: 450, foilsPrice: 90000, cruiseKn: 25, cruiseKw: 79, cruiseRefT: 7.05, cruiseKwPerT: 4.3, motor: { efficiency: 0.95, inertia: 0.08, propInertia: 0.5, responseS: 0.5 }, look: { strutLength: 0.45, strutChord: 0.34, strutWidth: 0.07, podLength: 1.3, podRadius: 0.16, propFwd: 0.62 }, pack: { litresPerKWh: 4, height: 0.3, width: 0.35 } },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing

@@ -56,7 +56,7 @@ export interface DesignedBoat {
   recipe: Recipe;
   /** floorM: the cabin floor about the deck under the house (as built: a fine hull can bring a low one up). */
   /** engineShortM: how far her engine stands above the cabin floor (0: it fits; machinery.ts). */
-  figures: { solar?: SolarFigures; lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; engineShortM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number; material: Material; freeboardM: number };
+  figures: { solar?: SolarFigures; /** A foiling boat's: how far her foils reach under the water, floating on her hulls (m). */ foilsDraughtM?: number; lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; engineShortM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number; material: Material; freeboardM: number };
   warnings: string[];
   /** Her shaft line and the engine on it (machinery.ts): for the Shipyard's drawing of her machinery. */
   shaft: ShaftLine;

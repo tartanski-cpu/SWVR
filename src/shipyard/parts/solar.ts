@@ -10,6 +10,8 @@
  *   wet deck her bridge deck's underside over the water as she floats (her lines' `tunnel`,
  *            raised or sunk with her weight).
  * Solar charging at sea isn't counted here (later, with the game's sun).
+ * The foiling ferry's (CONFIG.shipyard.foilFerry): her cruise on her foils at 25 kn, its power
+ * as measured in the game for her weight; her battery's usable share at it, her range.
  */
 import { CONFIG } from '../../config';
 import type { HullDefinition } from '../../modular/hull';
@@ -18,6 +20,7 @@ import type { MotorSpec } from '../../vessel/physics/electricMotor';
 import { calmWaterResistance } from '../../vessel/physics/propulsion';
 import { wettedSurfaceAtDWL, type VesselDef } from '../../vessel/vesselDef';
 import { BATTERY_DEFAULT, batteryKWh, type ShipDesign } from '../design';
+import { DESIGN_HULLS } from './catalog';
 
 export interface SolarFigures {
   batteryKWh: number;
@@ -40,15 +43,23 @@ export function solarFigures(d: ShipDesign, hull: HullDefinition, shape: HullFor
     else hi = m;
   }
   const kWh = batteryKWh(d.battery ?? BATTERY_DEFAULT);
-  const cruiseKn = lo / 0.5144;
-  const hours = (kWh * c.usableShare) / c.cruiseKw;
+  // (The foiling ferry: on her foils at her service speed, the power measured for her weight; CONFIG.shipyard.foilFerry.)
+  const ff = DESIGN_HULLS[d.hull]?.centrePod ? CONFIG.shipyard.foilFerry : null;
+  const cruiseKn = ff ? ff.cruiseKn : lo / 0.5144;
+  const cruiseKw = ff ? Math.round(ff.cruiseKw + ff.cruiseKwPerT * (massKg / 1000 - ff.cruiseRefT)) : c.cruiseKw;
+  const hours = (kWh * electricOf(d).usableShare) / cruiseKw;
   const r1 = (v: number) => Math.round(v * 10) / 10;
-  return { batteryKWh: kWh, cruiseKw: c.cruiseKw, cruiseKn: r1(cruiseKn), hours: r1(hours), rangeNm: Math.round(hours * cruiseKn), wetDeckM: Math.round((shape.catamaran?.tunnel ?? 0) * 100) / 100 };
+  return { batteryKWh: kWh, cruiseKw, cruiseKn: r1(cruiseKn), hours: r1(hours), rangeNm: Math.round(hours * cruiseKn), wetDeckM: Math.round((shape.catamaran?.tunnel ?? 0) * 100) / 100 };
 }
 
-/** Her pod motors in the game (modules/pods `electric`; CONFIG.shipyard.solarCat.motor), from her battery's usable share. */
+/** An electric boat's battery and drive figures: the foiling ferry's own (CONFIG.shipyard.foilFerry), else the solar catamaran's. */
+export function electricOf(d: Pick<ShipDesign, 'hull'>): typeof CONFIG.shipyard.solarCat | typeof CONFIG.shipyard.foilFerry {
+  return DESIGN_HULLS[d.hull]?.centrePod ? CONFIG.shipyard.foilFerry : CONFIG.shipyard.solarCat;
+}
+
+/** Her pod motors in the game (modules/pods `electric`; her type's `motor`, electricOf), from her battery's usable share. */
 export function motorSpec(d: ShipDesign): MotorSpec {
-  const c = CONFIG.shipyard.solarCat;
+  const c = electricOf(d);
   const m = c.motor;
   return { usableKWh: Math.round(batteryKWh(d.battery ?? BATTERY_DEFAULT) * c.usableShare * 10) / 10, efficiency: m.efficiency, inertia: m.inertia, responseS: m.responseS };
 }

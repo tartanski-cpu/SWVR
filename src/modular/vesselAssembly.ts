@@ -75,6 +75,8 @@ export function vesselDefFrom(id: string, recipe: Recipe, lib: { hulls: HullLibr
     wettedSurface: wettedSurfaceAtDWL(form),
     resistance: hull.resistance,
     ...(hull.planing ? { planing: hull.planing } : {}),
+    // A foiling boat's hydrofoils, with her lines (hulls/designs.ts `foils`; vessel/physics/foils.ts flies her on them).
+    ...(hull.form.kind === 'lofted' && hull.form.design.foils ? { foils: hull.form.design.foils } : {}),
     boardingSpot: [...hull.helm.stand] as Vec3,
     spawn: hull.spawn,
     windage: hull.windage,

@@ -16,6 +16,7 @@ import { deckhouseHalfWidth } from '../../vessel/deckhouse';
 import { STACK_POS_STEPS } from '../design';
 import { atDWL, type BuildArgs, type V3 } from './common';
 import { DESIGN_HULLS, liveryOf, TUG_DIESEL, TUG_HULL } from './catalog';
+import { electricOf } from './solar';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
 import type { TrimPart } from './trim';
@@ -121,7 +122,8 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     ...(stack ? [{ id: 'exhaustStack', type: 'deck.fitting' as const, transform: { position: [stack.pipes[0].x, stack.floor, stack.pipes[0].z] as V3 }, label: stack.outer ? 'On the deckhouse: her exhaust stacks' : 'The wheelhouse\'s aft corners: her exhaust stacks' }] : []),
     ...(bowFender ? [{ id: 'bowFender', type: 'hull.side' as const, transform: { position: [0, bowFender.bottom, bowFender.front] as V3 }, label: 'Her bow: the bow fender' }] : []),
     ...(pushFender ? [{ id: 'pushFender', type: 'hull.side' as const, transform: { position: [0, pushFender.bottom, pushFender.z] as V3 }, label: 'Her square bow: the push fender' }] : []),
-    ...(electric ? [{ id: 'solarRoof', type: 'deck.equipment' as const, transform: { position: [0, roofY, (front + aft) / 2] as V3 }, label: 'Her roof: the solar panels' }] : []),
+    ...(electric && p.base.solarRoof ? [{ id: 'solarRoof', type: 'deck.equipment' as const, transform: { position: [0, roofY, (front + aft) / 2] as V3 }, label: 'Her roof: the solar panels' }] : []),
+    ...(p.form.kind === 'lofted' && p.form.design.foils ? [{ id: 'foils', type: 'hull.side' as const, transform: { position: [0, 0, 0] as V3 }, label: 'Under her: her hydrofoils and their struts' }] : []),
     ...(markings ? [{ id: 'markings', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: 'Her topsides: the service markings' }] : []),
     ...(fendering ? [{ id: 'fendering', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: 'Her sides, stern and bow: the fendering' }] : []),
     ...(prot.side ? [{ id: 'hullGuard', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: prot.side === 'strake' ? 'Her sheer, all round: the rubbing strake' : 'Her sides: the tyres' }] : []),
@@ -160,7 +162,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipLess(weighed, [
-      outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : pods ? (electric ? CONFIG.shipyard.solarCat.podKg : pdc.legKg) : 0)) * n, at: at.engineBed },
+      outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : pods ? (electric ? electricOf(d).podKg : pdc.legKg) : 0)) * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
       // The deck crane, if she has one: designed in where its column stands, so she still
       // floats on her lines and upright with it (her hull and ballast lighter by its weight,
