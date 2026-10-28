@@ -54,6 +54,9 @@ const T = {
   /** The box's edges ease down to this (the game's open-sea floor, world/terrain.ts MAX_DEPTH) over this far (m). */
   edgeFloor: -40,
   edgeFade: 400,
+  /** A modelled landmark's footprint, and this much round it (m), comes down to the ground about it: the land between these distances outside (m). */
+  landmarkPad: 6,
+  landmarkRing: [15, 45] as [number, number],
   /** Most faces a chunk may draw: more and the stage fails (and the game's test with it). The Quest's budget. */
   chunkBudget: 12000,
   /** A lost skerry stands this high at its middle (m above MSL). */
@@ -202,6 +205,54 @@ for (const sk of skerries) {
       const top = T.skerryHeight - (T.skerryHeight - heights[k]) * (d / r) ** 1.5;
       heights[k] = Math.max(heights[k], top);
     }
+}
+
+// Under a modelled landmark (features.ts `landmarkModels`): the height data is a surface
+// model, so a big building is in it as a mound (the Elbphilharmonie's, 25-30 m), which would
+// bury the model drawn on it. Its footprint (and `landmarkPad` m round it) comes down to the
+// ground about it: the lower quarter of the land's heights `landmarkRing` m outside. Water
+// isn't raised; nothing else changes.
+const featFile = join(D.out, 'features.json');
+const models = existsSync(featFile) ? ((JSON.parse(readFileSync(featFile, 'utf8')).landmarkModels ?? []) as { parts: { outline: [number, number][] }[] }[]) : [];
+const inPoly = (ring: [number, number][], x: number, z: number) => {
+  let inside = false;
+  for (let a = 0, b = ring.length - 1; a < ring.length; b = a++) {
+    const [xa, za] = ring[a];
+    const [xb, zb] = ring[b];
+    if (za > z !== zb > z && x < ((xb - xa) * (z - za)) / (zb - za) + xa) inside = !inside;
+  }
+  return inside;
+};
+const nearPoly = (ring: [number, number][], x: number, z: number, d: number) =>
+  inPoly(ring, x, z) ||
+  ring.some((q, a) => {
+    if (!a) return false;
+    const p0 = ring[a - 1];
+    const [dx, dz] = [q[0] - p0[0], q[1] - p0[1]];
+    const t = Math.max(0, Math.min(1, ((x - p0[0]) * dx + (z - p0[1]) * dz) / (dx * dx + dz * dz || 1)));
+    return Math.hypot(p0[0] + dx * t - x, p0[1] + dz * t - z) < d;
+  });
+let flattened = 0;
+for (const m of models) {
+  const rings = m.parts.map((q) => q.outline);
+  const xs = rings.flat().map((q) => q[0]);
+  const zs = rings.flat().map((q) => q[1]);
+  const pad = T.landmarkRing[1];
+  const [i0, i1] = [Math.floor((Math.min(...xs) - pad - grid.x0) / cell), Math.ceil((Math.max(...xs) + pad - grid.x0) / cell)];
+  const [j0, j1] = [Math.floor((Math.min(...zs) - pad - grid.z0) / cell), Math.ceil((Math.max(...zs) + pad - grid.z0) / cell)];
+  const under: number[] = [];
+  const around: number[] = [];
+  for (let j = Math.max(0, j0); j <= Math.min(H - 1, j1); j++)
+    for (let i = Math.max(0, i0); i <= Math.min(W - 1, i1); i++) {
+      const [x, z] = [grid.x0 + (i + 0.5) * cell, grid.z0 + (j + 0.5) * cell];
+      const k = j * W + i;
+      if (rings.some((r) => nearPoly(r, x, z, T.landmarkPad))) under.push(k);
+      else if (heights[k] > 0 && rings.some((r) => nearPoly(r, x, z, T.landmarkRing[1])) && !rings.some((r) => nearPoly(r, x, z, T.landmarkRing[0]))) around.push(heights[k]);
+    }
+  if (!around.length) continue;
+  around.sort((a, b) => a - b);
+  const ground = Math.max(0.5, around[Math.floor(around.length / 4)]);
+  for (const k of under) if (heights[k] > ground) (heights[k] = ground), flattened++;
 }
 
 // The box's edges: land and sea ease to the game's open-sea floor (`edgeFloor`) over the
@@ -716,6 +767,7 @@ const earlier = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'ut
 const report = {
   ...earlier,
   dredgedCells: dredged,
+  landmarkCellsLowered: flattened,
   triangles: drawn,
   deepTriangles: faces.length - drawn,
   vertices: nv,

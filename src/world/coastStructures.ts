@@ -35,7 +35,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { mergeParts, part } from '../render/geometryUtils';
-import type { BridgeDef, FollyDef, GantryDef, YardShipDef } from './defs';
+import type { BridgeDef, FollyDef, GantryDef, LandmarkModelDef, YardShipDef } from './defs';
 
 type V3 = [number, number, number];
 
@@ -137,6 +137,39 @@ export function bridgeParts(b: BridgeDef, ground: (x: number, z: number) => numb
       const [px, , pz] = at(s, 0, 0);
       parts.push(slab(px - ux * 2, pz - uz * 2, px + ux * 2, pz + uz * 2, b.width + 2, Math.min(ground(px, pz), 0) - 2, footY(s), c.colours.stone));
     }
+  } else if (b.pylons) {
+    // A cable-stayed main span (the Köhlbrandbrücke): an A-frame pylon at each edge of the
+    // water, `pylons` m high, its legs from the river bank either side of the deck to a head
+    // over its middle; fans of stays from each head to both deck edges, out over the main
+    // span and back over the approach; the main span free of piers, the approaches on piers
+    // every `approachSpan` m down to the ground. A design of the game's own to the map's line.
+    const k = c.cableStayed;
+    for (const side of [-1, 1]) parts.push(member(at(0, side * (half - 0.6), deck - c.deckDepth - 0.6), at(L, side * (half - 0.6), deck - c.deckDepth - 0.6), 0.6, 1.2, c.colours.steel));
+    const main = s1 - s0;
+    for (const sp of [s0, s1]) {
+      const foot = footY(sp);
+      const head = b.pylons;
+      for (const side of [-1, 1]) parts.push(member(at(sp, side * (half + k.legOut), foot - 2), at(sp, side * k.headHalf, head), k.leg, k.leg, k.colour));
+      // The cross beam carrying the deck, and the tie at the head.
+      parts.push(member(at(sp, -(half + k.legOut * 0.7), deck - c.deckDepth - 1.5), at(sp, half + k.legOut * 0.7, deck - c.deckDepth - 1.5), k.leg, 2, k.colour));
+      parts.push(member(at(sp, -k.headHalf - 1, head - 4), at(sp, k.headHalf + 1, head - 4), k.leg, 3, k.colour));
+      // The stays: `stays` a side of each fan, from the head's anchorage down to each deck edge.
+      const toMiddle = sp === s0 ? 1 : -1;
+      for (let i = 1; i <= k.stays; i++) {
+        const y = head - 6 - (i - 1) * k.anchorStep;
+        const reach = (main / 2 - 8) * (i / k.stays);
+        for (const dir of [toMiddle, -toMiddle]) {
+          const sd = Math.max(0, Math.min(L, sp + dir * reach));
+          for (const side of [-1, 1]) parts.push(member(at(sp, side * k.headHalf, y), at(sd, side * (half - 0.4), deck), k.stay, k.stay, k.stayColour));
+        }
+      }
+    }
+    // The approaches' piers (none in the main span), from the ground up to the girders.
+    for (let s = k.approachSpan; s < L - 5; s += k.approachSpan) {
+      if (s > s0 - k.approachSpan / 2 && s < s1 + k.approachSpan / 2) continue;
+      const [px, , pz] = at(s, 0, 0);
+      parts.push(slab(px - ux * 1.5, pz - uz * 1.5, px + ux * 1.5, pz + uz * 1.5, b.width * 0.6, ground(px, pz) - 1, deck - c.deckDepth - 1.2, k.colour));
+    }
   } else {
     // A beam bridge: girders under the deck, piers to the seabed every `beamSpan` m over the water.
     for (const side of [-1, 1]) parts.push(member(at(0, side * (half - 0.6), deck - c.deckDepth - 0.6), at(L, side * (half - 0.6), deck - c.deckDepth - 0.6), 0.6, 1.2, c.colours.steel));
@@ -193,6 +226,230 @@ export function follyParts(f: FollyDef): THREE.BufferGeometry[] {
     parts.push(slab(ax, az, bx, bz, c.thick + 0.3, y0 + H - c.cornice, y0 + H, c.colours.cornice));
   }
   return parts;
+}
+
+/**
+ * A landmark modelled from the map's own 3D building parts (Hamburg's Elbphilharmonie and main
+ * churches; features.ts): each part its footprint, walled from `min` up to its eaves and roofed
+ * to `height` in the shape the map gives:
+ *   flat              a flat top;
+ *   pyramidal         to a point over the footprint's middle (a spire, a tower's cap);
+ *   dome, round       in `domeRings` rings, a quarter circle in section;
+ *   onion             a bulb, swelling past the walls then drawing in to a point;
+ *   gabled            on a four-sided footprint, a ridge along its long sides with gable ends;
+ *   skillion          a single slope across its long side;
+ *   anything else     (hipped, mansard, gambrel...) a hip: drawn in to a ridge-like top.
+ * In the map's colours, else its material's (CONFIG.structures.landmark.material). `crown:
+ * 'wave'` crests the tallest part's top in waves along its length (the Elbphilharmonie's roof,
+ * which the map can't describe), its glass walls rising to meet each crest.
+ */
+export function landmarkModelParts(m: LandmarkModelDef): THREE.BufferGeometry[] {
+  const c = CONFIG.structures.landmark;
+  const out: THREE.BufferGeometry[] = [];
+  const tallest = m.parts.reduce((a, p) => (p.height > a.height ? p : a), m.parts[0]);
+  // A crown spans the building's whole footprint (the widest part reaching into the tallest's
+  // height); the parts inside its height range are inside it, and aren't drawn.
+  const area = (r: [number, number][]) => Math.abs(r.reduce((t, q, i) => t + q[0] * r[(i + 1) % r.length][1] - r[(i + 1) % r.length][0] * q[1], 0)) / 2;
+  const crowned = m.crown === 'wave';
+  const crownRing = crowned ? m.parts.filter((p) => p.height > tallest.min).reduce((a, p) => (area(p.outline) > area(a) ? p.outline : a), tallest.outline) : null;
+  for (const p of m.parts) {
+    if (crowned && p !== tallest && p.min >= tallest.min - 5 && p.height <= tallest.height) continue;
+    const ring = p.outline.slice();
+    if (ring.length > 2 && Math.hypot(ring[0][0] - ring[ring.length - 1][0], ring[0][1] - ring[ring.length - 1][1]) < 0.05) ring.pop();
+    if (ring.length < 3 || p.height <= p.min) continue;
+    const mat = c.material[p.material as keyof typeof c.material];
+    const wall = p.wall ?? mat ?? c.wall;
+    const roofCol = p.roofColour ?? (p.material === 'copper' ? c.material.copper : c.roof);
+    const y0 = m.base + p.min;
+    const top = m.base + p.height;
+    const [cx, cz] = [ring.reduce((t, q) => t + q[0], 0) / ring.length, ring.reduce((t, q) => t + q[1], 0) / ring.length];
+    const span = Math.max(...ring.map(([x, z]) => Math.hypot(x - cx, z - cz))) * 2;
+    if (crowned && p === tallest) {
+      const cr = crownRing!.slice();
+      if (Math.hypot(cr[0][0] - cr[cr.length - 1][0], cr[0][1] - cr[cr.length - 1][1]) < 0.05) cr.pop();
+      out.push(...waveCrown(cr, y0, top, wall, c.crownRoof, c.wave));
+      continue;
+    }
+    const shape = p.roof === 'round' ? 'dome' : p.roof;
+    const deflt = shape === 'flat' ? 0 : shape === 'pyramidal' ? span * 1.2 : shape === 'dome' || shape === 'onion' ? span * 0.5 : span * 0.35;
+    const rh = Math.min(p.roofHeight ?? deflt, p.height - p.min);
+    const eaves = top - rh;
+    // The walls (up to the eaves), turned to face out.
+    if (eaves - y0 > 0.05) out.push(walls(ring, ring.map(() => y0), ring.map(() => eaves), wall));
+    if (rh < 0.05 || shape === 'flat') {
+      out.push(cap(ring, ring.map(() => eaves), roofCol));
+      continue;
+    }
+    if (shape === 'skillion') {
+      const u = axisOf(ring);
+      out.push(walls(ring, ring.map(() => eaves), ring.map(([x, z]) => eaves + rh * u(x, z)), wall));
+      out.push(cap(ring, ring.map(([x, z]) => eaves + rh * u(x, z)), roofCol));
+      continue;
+    }
+    if (shape === 'gabled' && ring.length === 4) {
+      out.push(...gable(ring, eaves, top, roofCol, wall));
+      continue;
+    }
+    // Ringed roofs: each profile step a ring scaled toward the middle at a share of the roof's height.
+    const profile = shape === 'pyramidal' ? c.profiles.pyramidal : shape === 'dome' ? c.profiles.dome : shape === 'onion' ? c.profiles.onion : c.profiles.hip;
+    out.push(ringed(ring, cx, cz, eaves, rh, profile, roofCol));
+  }
+  return out;
+}
+
+/** Triangles (non-indexed) of one colour, each turned so its face points away from `from` (or up, for a cap). */
+function faces(tris: number[][], color: number, from: (cx: number, cy: number, cz: number) => [number, number, number]): THREE.BufferGeometry {
+  const pos: number[] = [];
+  for (const [ax, ay, az, bx, by, bz, qx, qy, qz] of tris) {
+    // The face's normal (b - a) x (c - a); against the way out, swap two corners.
+    const [ux, uy, uz, vx, vy, vz] = [bx - ax, by - ay, bz - az, qx - ax, qy - ay, qz - az];
+    const n = [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx];
+    const [ox, oy, oz] = from((ax + bx + qx) / 3, (ay + by + qy) / 3, (az + bz + qz) / 3);
+    if (n[0] * ox + n[1] * oy + n[2] * oz < 0) pos.push(ax, ay, az, qx, qy, qz, bx, by, bz);
+    else pos.push(ax, ay, az, bx, by, bz, qx, qy, qz);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return part(g, color);
+}
+
+/** A footprint's walls from `low[i]` to `high[i]` at each corner, facing out (by the footprint's winding). */
+function walls(ring: [number, number][], low: number[], high: number[], color: number): THREE.BufferGeometry {
+  const n = ring.length;
+  // Shoelace in x, z: positive when the footprint runs one way round; outward is to the right of each edge then.
+  const sgn = ring.reduce((t, q, i) => t + q[0] * ring[(i + 1) % n][1] - ring[(i + 1) % n][0] * q[1], 0) > 0 ? 1 : -1;
+  const tris: number[][] = [];
+  const outward: [number, number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const [ax, az] = ring[i];
+    const [bx, bz] = ring[j];
+    const o: [number, number, number] = [sgn * (bz - az), 0, -sgn * (bx - ax)];
+    tris.push([ax, low[i], az, bx, low[j], bz, bx, high[j], bz], [ax, low[i], az, bx, high[j], bz, ax, high[i], az]);
+    outward.push(o, o);
+  }
+  let k = 0;
+  return faces(tris, color, () => outward[k++]);
+}
+
+/** A footprint's top at `ys[i]` at each corner, facing up. */
+function cap(ring: [number, number][], ys: number[], color: number): THREE.BufferGeometry {
+  const idx = THREE.ShapeUtils.triangulateShape(ring.map(([x, z]) => new THREE.Vector2(x, z)), []);
+  return faces(idx.map(([a, b, q]) => [ring[a][0], ys[a], ring[a][1], ring[b][0], ys[b], ring[b][1], ring[q][0], ys[q], ring[q][1]]), color, () => [0, 1, 0]);
+}
+
+/** Where each corner lies along the footprint's longest edge, 0 at one end to 1 at the other. */
+function axisOf(ring: [number, number][]): (x: number, z: number) => number {
+  let d = [1, 0];
+  let best = 0;
+  ring.forEach((q, i) => {
+    const r = ring[(i + 1) % ring.length];
+    const l = Math.hypot(r[0] - q[0], r[1] - q[1]);
+    if (l > best) [best, d] = [l, [(r[0] - q[0]) / l, (r[1] - q[1]) / l]];
+  });
+  const along = ring.map(([x, z]) => x * d[0] + z * d[1]);
+  const [a0, a1] = [Math.min(...along), Math.max(...along)];
+  return (x, z) => (x * d[0] + z * d[1] - a0) / Math.max(0.01, a1 - a0);
+}
+
+/** A roof drawn in rings: `profile` [share of the ring's size, share of the roof's height] from the eaves up. */
+function ringed(ring: [number, number][], cx: number, cz: number, eaves: number, rh: number, profile: readonly (readonly [number, number])[], color: number): THREE.BufferGeometry {
+  const tris: number[][] = [];
+  const ringAt = (k: number) => ring.map(([x, z]) => [cx + (x - cx) * profile[k][0], eaves + rh * profile[k][1], cz + (z - cz) * profile[k][0]]);
+  for (let k = 1; k < profile.length; k++) {
+    const [lo, hi] = [ringAt(k - 1), ringAt(k)];
+    for (let i = 0; i < ring.length; i++) {
+      const j = (i + 1) % ring.length;
+      tris.push([...lo[i], ...lo[j], ...hi[j]]);
+      if (profile[k][0] > 0.001) tris.push([...lo[i], ...hi[j], ...hi[i]]);
+    }
+  }
+  // A top ring left open (a hip's ridge-like top) is closed flat.
+  const last = profile[profile.length - 1];
+  if (last[0] > 0.001) {
+    const topRing = ringAt(profile.length - 1);
+    for (const [a, b, q] of THREE.ShapeUtils.triangulateShape(topRing.map(([x, , z]) => new THREE.Vector2(x, z)), [])) tris.push([...topRing[a], ...topRing[b], ...topRing[q]]);
+  }
+  // Out from the roof's axis (a point well below its middle sees every face from inside).
+  const below = eaves - rh * 2 - 10;
+  return faces(tris, color, (x, y, z) => [x - cx, y - below, z - cz]);
+}
+
+/** A gable roof on a four-sided footprint: the ridge along its long sides, the gable ends in the walls' colour. */
+function gable(ring: [number, number][], eaves: number, top: number, roofCol: number, wallCol: number): THREE.BufferGeometry[] {
+  const [p0, p1, p2, p3] = ring;
+  const long01 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) >= Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+  // The ridge runs between the midpoints of the two short sides.
+  const [a, b, q, d] = long01 ? [p0, p1, p2, p3] : [p1, p2, p3, p0];
+  const r1: [number, number] = [(b[0] + q[0]) / 2, (b[1] + q[1]) / 2];
+  const r2: [number, number] = [(d[0] + a[0]) / 2, (d[1] + a[1]) / 2];
+  const [cx, cz] = [(r1[0] + r2[0]) / 2, (r1[1] + r2[1]) / 2];
+  const v = (pt: [number, number], y: number) => [pt[0], y, pt[1]];
+  const below = eaves - (top - eaves) * 2 - 10;
+  const away = (x: number, y: number, z: number): [number, number, number] => [x - cx, y - below, z - cz];
+  const slopes = faces([[...v(a, eaves), ...v(b, eaves), ...v(r1, top)], [...v(a, eaves), ...v(r1, top), ...v(r2, top)], [...v(q, eaves), ...v(d, eaves), ...v(r2, top)], [...v(q, eaves), ...v(r2, top), ...v(r1, top)]], roofCol, away);
+  const ends = faces([[...v(b, eaves), ...v(q, eaves), ...v(r1, top)], [...v(d, eaves), ...v(a, eaves), ...v(r2, top)]], wallCol, away);
+  return [slopes, ends];
+}
+
+/**
+ * The wave crown: the part's top cresting in `waves` waves along its length, `depth` m from
+ * crest to trough. Built in strips across the part (a section every `step` m along it, from
+ * one side of the footprint to the other), so each crest is a clean fold, and the walls rise
+ * to the same line.
+ */
+function waveCrown(ring: [number, number][], y0: number, top: number, wallCol: number, roofCol: number, w: { waves: number; depth: number; step: number }): THREE.BufferGeometry[] {
+  // The footprint's long axis (its longest edge) and the way across it.
+  let d = [1, 0];
+  let best = 0;
+  ring.forEach((q, i) => {
+    const r = ring[(i + 1) % ring.length];
+    const l = Math.hypot(r[0] - q[0], r[1] - q[1]);
+    if (l > best) [best, d] = [l, [(r[0] - q[0]) / l, (r[1] - q[1]) / l]];
+  });
+  const along = (x: number, z: number) => x * d[0] + z * d[1];
+  const across = (x: number, z: number) => -x * d[1] + z * d[0];
+  const as = ring.map(([x, z]) => along(x, z));
+  const [a0, a1] = [Math.min(...as), Math.max(...as)];
+  const height = (a: number) => top - (w.depth * (1 - Math.cos((2 * Math.PI * w.waves * (a - a0)) / Math.max(0.01, a1 - a0)))) / 2;
+  const back = (a: number, c: number): [number, number] => [a * d[0] - c * d[1], a * d[1] + c * d[0]];
+  // Each section: where a line across at `a` enters and leaves the footprint.
+  const section = (a: number): [number, number] => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    ring.forEach((q, i) => {
+      const r = ring[(i + 1) % ring.length];
+      const [qa, ra] = [along(q[0], q[1]), along(r[0], r[1])];
+      if ((qa - a) * (ra - a) > 0 || qa === ra) return;
+      const t = (a - qa) / (ra - qa);
+      const c = across(q[0] + (r[0] - q[0]) * t, q[1] + (r[1] - q[1]) * t);
+      [lo, hi] = [Math.min(lo, c), Math.max(hi, c)];
+    });
+    return [lo, hi];
+  };
+  const n = Math.max(2, Math.ceil((a1 - a0) / w.step));
+  const tris: number[][] = [];
+  for (let k = 0; k < n; k++) {
+    const [p, q] = [a0 + ((a1 - a0) * k) / n + 0.01, a0 + ((a1 - a0) * (k + 1)) / n - 0.01];
+    const [sp, sq] = [section(p), section(q)];
+    if (!Number.isFinite(sp[0]) || !Number.isFinite(sq[0])) continue;
+    const [yp, yq] = [height(p), height(q)];
+    const P0 = back(p, sp[0]);
+    const P1 = back(p, sp[1]);
+    const Q0 = back(q, sq[0]);
+    const Q1 = back(q, sq[1]);
+    tris.push([P0[0], yp, P0[1], P1[0], yp, P1[1], Q1[0], yq, Q1[1]], [P0[0], yp, P0[1], Q1[0], yq, Q1[1], Q0[0], yq, Q0[1]]);
+  }
+  const roof = faces(tris, roofCol, () => [0, 1, 0]);
+  // The walls: corners every `step` m round it, rising to the crest line.
+  const pts: [number, number][] = [];
+  ring.forEach((q, i) => {
+    const r = ring[(i + 1) % ring.length];
+    const m = Math.max(1, Math.ceil(Math.hypot(r[0] - q[0], r[1] - q[1]) / w.step));
+    for (let k = 0; k < m; k++) pts.push([q[0] + ((r[0] - q[0]) * k) / m, q[1] + ((r[1] - q[1]) * k) / m]);
+  });
+  return [walls(pts, pts.map(() => y0), pts.map(([x, z]) => height(along(x, z))), wallCol), roof];
 }
 
 /**
@@ -494,8 +751,8 @@ export function yardShipParts(y: YardShipDef): THREE.BufferGeometry[] {
   return parts;
 }
 
-/** All of a region's bridges, follies, gantry cranes and yard ships, merged (null if it has none). */
-export function structuresGeometry(bridges: readonly BridgeDef[], follies: readonly FollyDef[], ground: (x: number, z: number) => number, gantries: readonly GantryDef[] = [], yardShips: readonly YardShipDef[] = []): THREE.BufferGeometry | null {
-  const parts = [...bridges.flatMap((b) => bridgeParts(b, ground)), ...follies.flatMap((f) => follyParts(f)), ...gantries.flatMap((g) => gantryParts(g)), ...yardShips.flatMap((y) => yardShipParts(y))];
+/** All of a region's bridges, follies, gantry cranes, yard ships and modelled landmarks, merged (null if it has none). */
+export function structuresGeometry(bridges: readonly BridgeDef[], follies: readonly FollyDef[], ground: (x: number, z: number) => number, gantries: readonly GantryDef[] = [], yardShips: readonly YardShipDef[] = [], landmarks: readonly LandmarkModelDef[] = []): THREE.BufferGeometry | null {
+  const parts = [...bridges.flatMap((b) => bridgeParts(b, ground)), ...follies.flatMap((f) => follyParts(f)), ...gantries.flatMap((g) => gantryParts(g)), ...yardShips.flatMap((y) => yardShipParts(y)), ...landmarks.flatMap((m) => landmarkModelParts(m))];
   return parts.length ? mergeParts(parts) : null;
 }

@@ -64,6 +64,11 @@ export interface RegionRequest {
   inlandDepth?: number;
   /** Deck heights (m) of high bridges the map doesn't give, by name: every piece of it (package.ts). */
   bridgeDecks?: Record<string, number>;
+  /** Pylon heights (m) of cable-stayed bridges, by name: their main span over the water drawn with pylons and stays (package.ts). */
+  bridgePylons?: Record<string, number>;
+  /** Landmarks modelled from the map's own 3D building parts, by Wikidata id (features.ts): `crown: wave` gives the tallest part a wave-crested roof (the Elbphilharmonie). */
+  landmarkModels?: { wikidata?: string; osm?: string; name?: string; radius?: number; crown?: string }[];
+  /* (`osm`: a way's id, `way/<n>`, where its building has no Wikidata id of its own.) */
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

@@ -129,102 +129,102 @@
   "bytes": 60722
  },
  "dredgedCells": 1492,
- "triangles": 84935,
+ "triangles": 84927,
  "deepTriangles": 7045,
- "vertices": 49162,
- "bytes": 2166939,
+ "vertices": 49163,
+ "bytes": 2166831,
  "chunks": [
   {
    "id": 0,
-   "triangles": 3725
+   "triangles": 3714
   },
   {
    "id": 1,
-   "triangles": 2023
+   "triangles": 2011
   },
   {
    "id": 2,
-   "triangles": 881
+   "triangles": 875
   },
   {
    "id": 3,
-   "triangles": 2039
+   "triangles": 2033
   },
   {
    "id": 4,
-   "triangles": 2948
+   "triangles": 2952
   },
   {
    "id": 5,
-   "triangles": 6472
+   "triangles": 6595
   },
   {
    "id": 6,
-   "triangles": 2023
+   "triangles": 2021
   },
   {
    "id": 7,
-   "triangles": 834
+   "triangles": 831
   },
   {
    "id": 8,
-   "triangles": 1935
+   "triangles": 1936
   },
   {
    "id": 9,
-   "triangles": 2651
+   "triangles": 2647
   },
   {
    "id": 10,
-   "triangles": 3523
+   "triangles": 3514
   },
   {
    "id": 11,
-   "triangles": 6920
+   "triangles": 6918
   },
   {
    "id": 12,
-   "triangles": 8104
+   "triangles": 8115
   },
   {
    "id": 13,
-   "triangles": 4876
+   "triangles": 4857
   },
   {
    "id": 14,
-   "triangles": 2658
+   "triangles": 2656
   },
   {
    "id": 15,
-   "triangles": 2090
+   "triangles": 2085
   },
   {
    "id": 16,
-   "triangles": 1690
+   "triangles": 1681
   },
   {
    "id": 17,
-   "triangles": 3202
+   "triangles": 3198
   },
   {
    "id": 18,
-   "triangles": 7877
+   "triangles": 7864
   },
   {
    "id": 19,
-   "triangles": 6541
+   "triangles": 6535
   },
   {
    "id": 20,
-   "triangles": 3155
+   "triangles": 3145
   },
   {
    "id": 21,
-   "triangles": 131
+   "triangles": 132
   },
   {
    "id": 22,
-   "triangles": 450
+   "triangles": 447
   },
   {
    "id": 23,
@@ -232,11 +232,11 @@
   },
   {
    "id": 24,
-   "triangles": 1419
+   "triangles": 1411
   },
   {
    "id": 25,
-   "triangles": 3485
+   "triangles": 3471
   },
   {
    "id": 26,
@@ -265,6 +265,7 @@
   "landmarks": [
    "Blankenese IsoW.4s"
   ],
-  "bytes": 2348427
- }
+  "bytes": 2383961
+ },
+ "landmarkCellsLowered": 282
 }

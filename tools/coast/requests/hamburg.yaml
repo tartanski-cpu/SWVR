@@ -23,3 +23,18 @@ ferriesNamed: true
 # The Köhlbrandbrücke clears about 53 m over the water, on viaducts end to end; the map gives
 # no height (package.ts).
 bridgeDecks: { Köhlbrandbrücke: 55 }
+# Landmarks modelled from the map's own 3D building parts (features.ts), by Wikidata id:
+# the Elbphilharmonie (its glass top crested like a wave, as the map can't say), the five main
+# churches, the Rathaus, the Landungsbrücken hall and the old Elbe tunnel's domed hall.
+landmarkModels:
+  - { wikidata: Q673223, name: Elbphilharmonie, crown: wave }
+  - { wikidata: Q674472, name: St. Michaelis }
+  - { wikidata: Q535443, name: St. Petri }
+  - { wikidata: Q564532, name: St. Jacobi }
+  - { wikidata: Q616790, name: St. Katharinen }
+  - { wikidata: Q425622, name: St. Nikolai, radius: 70 }
+  - { wikidata: Q3987, name: Rathaus }
+  - { osm: way/809288741, name: St. Pauli Landungsbrücken }   # the hall; its id is on its pier
+  - { wikidata: Q460264, name: Old Elbe Tunnel }
+# The Köhlbrandbrücke's pylons, 135 m: its span over the Köhlbrand drawn cable-stayed.
+bridgePylons: { Köhlbrandbrücke: 135 }

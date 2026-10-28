@@ -421,6 +421,38 @@ const follies = ((F?.follies ?? []) as { name: string; outline: [number, number]
   base: r1(Math.min(...f.outline.map(([x, z]) => hAt(x, z)))),
   ...(f.height ? { height: f.height } : {}),
 }));
+// Landmarks modelled from the map's 3D building parts (features.ts `landmarkModels`): each
+// stands on the lowest ground under its parts; a part two landmarks share (the old Elbe
+// tunnel's hall in the Landungsbrücken) is drawn once. The plain buildings standing in their
+// outlines aren't drawn, nor the skyline's own church or tower there (still on the chart).
+type ModelPart = { outline: [number, number][]; min: number; height: number; roof: string; roofHeight: number | null; wall: number | null; roofColour: number | null; material: string };
+const seenParts = new Set<string>();
+const landmarkModels = ((F?.landmarkModels ?? []) as { name: string; wikidata: string; x: number; z: number; crown?: string; parts: ModelPart[] }[]).map((m) => {
+  const parts = m.parts.filter((p) => {
+    const key = `${p.outline[0]}|${p.min}|${p.height}`;
+    return !seenParts.has(key) && seenParts.add(key);
+  });
+  const base = r1(Math.min(...parts.flatMap((p) => p.outline.map(([x, z]) => hAt(x, z)))));
+  return { ...m, base: Math.max(0.5, base), parts };
+}).filter((m) => m.parts.length);
+const inOutline = (ring: [number, number][], x: number, z: number) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, zi] = ring[i];
+    const [xj, zj] = ring[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+};
+const underModel = (x: number, z: number, pad = 0) => landmarkModels.some((m) => Math.hypot(m.x - x, m.z - z) < 250 && m.parts.some((p) => inOutline(p.outline, x, z) || (pad > 0 && p.outline.some(([px, pz]) => Math.hypot(px - x, pz - z) < pad))));
+const keptBuildings = buildings.filter((b: { x: number; z: number }) => !underModel(b.x, b.z));
+for (const s of skyline as { x: number; z: number; modelled?: boolean }[]) if (underModel(s.x, s.z, 25)) s.modelled = true;
+// A cable-stayed bridge's main span (`bridgePylons`): the piece of it that crosses the water
+// carries its pylons' height; the game stands them at the water's edges.
+for (const b of bridges as { name: string; path: [number, number][]; pylons?: number }[]) {
+  const h = req.bridgePylons?.[b.name];
+  if (h && b.path.some(([x, z]) => hAt(x, z) < -2)) b.pylons = h;
+}
 // Gantry cranes (Perno): each stands on its two rails, at the lower of the ground along them.
 const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[]).map((g) => {
   const a = (g.yawDeg * Math.PI) / 180;
@@ -639,7 +671,7 @@ const pkg = {
   licence: region.licence,
   landmarks,
   blocks,
-  buildings,
+  buildings: keptBuildings,
   marks,
   lights: [...lights, ...farmLights],
   farms,
@@ -647,6 +679,7 @@ const pkg = {
   skylineStyle,
   bridges,
   follies,
+  landmarkModels,
   gantries,
   yardShips,
   places,

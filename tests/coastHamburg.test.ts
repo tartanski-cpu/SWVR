@@ -5,7 +5,10 @@
  * the canals' and the docks' outlines (reconcile.ts `inlandWater`), held to a dredged depth.
  * Checks the files, the start at the Landungsbrücken, the water where the river is and the
  * land where the city is, the harbour ferry lines each once over water, and the
- * Köhlbrandbrücke standing high over the Köhlbrand.
+ * Köhlbrandbrücke standing high over the Köhlbrand. And its landmarks (owner: "Add landmarks
+ * first"), modelled from the map's own 3D building parts: the Elbphilharmonie with its wave
+ * crown, the main churches' spires, the Rathaus, the Landungsbrücken; the Köhlbrandbrücke
+ * cable-stayed.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -15,6 +18,8 @@ import { setRemotePackage, type ChunkedCoastTerrain, type CoastPackage } from '.
 import { coastSample, registerChunkedCoast, type CoastSample } from '../src/world/coastTerrain';
 import { coastGeoOf, coastLatLon, coastWorld } from '../src/world/coastGeo';
 import { mapRegion, voyageMap } from '../src/world/maps';
+import * as THREE from 'three';
+import { bridgeParts, landmarkModelParts, structuresGeometry } from '../src/world/coastStructures';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'public', 'regions', 'hamburg');
@@ -100,5 +105,78 @@ describe('Hamburg in Voyage', () => {
     expect(k.length).toBeGreaterThan(0);
     for (const b of k) expect(b.deck).toBe(55);
     expect(k.some((b) => b.path.some(([x, z]) => h(x, z) < -8))).toBe(true);
+  });
+});
+
+describe('Hamburg: its landmarks, from the map\'s own 3D building parts', () => {
+  const bounds = (parts: THREE.BufferGeometry[]) => {
+    let [y1, tris] = [-Infinity, 0];
+    for (const p of parts) {
+      p.computeBoundingBox();
+      y1 = Math.max(y1, p.boundingBox!.max.y);
+      tris += p.attributes.position.count / 3;
+    }
+    return { y1, tris };
+  };
+  const models = () => mapRegion(voyageMap('hamburg')!).landmarkModels!;
+
+  it('all nine, each at its mapped height over its ground: the Michel 132 m, St. Nikolai 147 m, the Elbphilharmonie 110 m', () => {
+    const ms = models();
+    expect(ms.map((m) => m.name).sort()).toEqual(['Elbphilharmonie', 'Old Elbe Tunnel', 'Rathaus', 'St. Jacobi', 'St. Katharinen', 'St. Michaelis', 'St. Nikolai', 'St. Pauli Landungsbrücken', 'St. Petri'].sort());
+    const tall = (n: string) => {
+      const m = ms.find((x) => x.name === n)!;
+      return bounds(landmarkModelParts(m)).y1 - m.base;
+    };
+    expect(tall('St. Michaelis')).toBeCloseTo(132, 0);
+    expect(tall('St. Nikolai')).toBeCloseTo(147, 0);
+    expect(tall('St. Petri')).toBeCloseTo(132, 0);
+    expect(tall('Rathaus')).toBeCloseTo(112, 0);
+    expect(tall('Elbphilharmonie')).toBeCloseTo(110, 0);
+  });
+
+  it('the Elbphilharmonie: crowned in waves, its top dipping 22 m between crests; standing on flattened ground, not in its own mound in the height data', () => {
+    const m = models().find((x) => x.name === 'Elbphilharmonie')!;
+    expect(m.crown).toBe('wave');
+    const ys = landmarkModelParts(m).flatMap((g) => Array.from(g.attributes.position.array).filter((_, i) => i % 3 === 1));
+    const top = Math.max(...ys);
+    expect(ys.some((y) => y < top - 20 && y > top - 23)).toBe(true);
+    // The ground in the middle of its footprint: down near the quay's, not 25-30 m up.
+    expect(h(m.x, m.z)).toBeLessThan(12);
+  });
+
+  it('every wall faces out (drawn one-sided): per part, no level face points into it', () => {
+    for (const m of models())
+      for (const part of m.parts) {
+        const [cx, cz] = [part.outline.reduce((t, q) => t + q[0], 0) / part.outline.length, part.outline.reduce((t, q) => t + q[1], 0) / part.outline.length];
+        // Only simple footprints (four corners, so convex enough to judge from the middle).
+        if (part.outline.length > 5) continue;
+        for (const g of landmarkModelParts({ ...m, crown: undefined, parts: [part] })) {
+          const a = g.attributes.position.array;
+          const n = g.attributes.normal.array;
+          for (let t = 0; t < a.length; t += 9) {
+            if (Math.abs(n[t + 1]) > 0.3) continue;
+            const [fx, fz] = [(a[t] + a[t + 3] + a[t + 6]) / 3 - cx, (a[t + 2] + a[t + 5] + a[t + 8]) / 3 - cz];
+            expect(n[t] * fx + n[t + 2] * fz, m.name).toBeGreaterThanOrEqual(-1e-6);
+          }
+        }
+      }
+  });
+
+  it('the skyline\'s own church towers there are not drawn twice (still on the chart); all of it within the Quest\'s budget, one merged mesh', () => {
+    const r = mapRegion(voyageMap('hamburg')!);
+    expect(r.skyline!.filter((s) => s.modelled).length).toBeGreaterThan(2);
+    const all = models().reduce((t, m) => t + bounds(landmarkModelParts(m)).tris, 0);
+    expect(all).toBeLessThan(8000);
+    expect(structuresGeometry(r.bridges ?? [], r.follies ?? [], (x, z) => h(x, z), r.gantries ?? [], r.yardShips ?? [], r.landmarkModels ?? [])).not.toBeNull();
+  });
+
+  it('the Köhlbrandbrücke cable-stayed: its span over the Köhlbrand carries pylons 135 m high, with their stays', () => {
+    const r = mapRegion(voyageMap('hamburg')!);
+    const main = r.bridges!.filter((b) => b.name === 'Köhlbrandbrücke' && b.pylons);
+    expect(main).toHaveLength(1);
+    expect(main[0].pylons).toBe(135);
+    const b = bounds(bridgeParts(main[0], (x, z) => h(x, z)));
+    expect(b.y1).toBeGreaterThan(134);
+    expect(b.tris).toBeLessThan(3000);
   });
 });

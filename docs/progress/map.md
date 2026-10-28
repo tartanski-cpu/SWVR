@@ -10,6 +10,25 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hamburg: its landmarks, from the map's own 3D (28 Oct 2026)
+
+Owner: "Add landmarks first" (before the container terminals).
+
+- **Modelled from the map data, not by hand** (`features.ts`, `landmarkModels` in `requests/hamburg.yaml`): OpenStreetMap has Hamburg's landmarks drawn in 3D, as building parts with heights, roof shapes and colours (its "Simple 3D Buildings"). A request names a landmark by its Wikidata id (or an OSM way, `osm: way/<n>`, where its building has none: the Landungsbrücken hall), and the features stage takes the building parts inside its outline. Nine for Hamburg:
+  - the Elbphilharmonie (110 m);
+  - the five main churches: St. Michaelis (the Michel, 132 m, its green copper top in stages), St. Petri (132 m), St. Nikolai (147 m, the ruin's spire), St. Jacobi (125 m), St. Katharinen (117 m, its green bulb);
+  - the Rathaus (its tower 112 m);
+  - the St. Pauli Landungsbrücken hall with its towers, and the old Elbe tunnel's domed hall.
+- **How they're drawn** (`coastStructures.ts` `landmarkModelParts`, one merged mesh with the bridges, 4,000 triangles for all nine): each part's footprint walled up to its eaves and roofed in its shape: flat, pyramidal (spires), dome, onion, gabled (four-sided footprints), skillion, and a hip for the rest. In the map's colours, else by material (`CONFIG.structures.landmark`).
+- **The Elbphilharmonie's crown** (`crown: wave`): the map can't describe its roof, so its glass top is crested in 2.5 waves along its length, 22 m from crest to trough (`landmark.wave`), across the whole footprint; the overlapping glass shell the map also has is left out inside it.
+- **The ground under them** (`mesh.ts`): the height data is a surface model, so the Elbphilharmonie was in it as a 25-30 m mound that buried the model. Under each landmark's footprint (and `landmarkPad` 6 m round it) the ground now comes down to the land about it (the lower quarter of the heights 15-45 m outside, `landmarkRing`): 282 cells. Water isn't raised.
+- **Not drawn twice:** the plain buildings in their footprints are left out (5), and the skyline's generic church and tower symbols there are marked `modelled` (not drawn, still on the chart).
+- **The Köhlbrandbrücke cable-stayed** (`bridgePylons: { Köhlbrandbrücke: 135 }`; `bridgeParts`, `CONFIG.structures.cableStayed`): the piece over the Köhlbrand gets an A-frame pylon at each edge of the water, 135 m high, with fans of 9 stays a side to both deck edges; the main span free of piers, the approaches on piers every 45 m. A design of the game's own to the map's line.
+- **Tests** (`coastHamburg.test.ts`): all nine at their mapped heights, the crown's dip, the flattened ground, every wall facing out, the budget, the bridge's pylons. `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: the Elbphilharmonie from the river and from above, the old town's spires from the Zollkanal, the Landungsbrücken, the Köhlbrandbrücke from the Köhlbrand.
+- **Not yet:** the TV tower (Heinrich-Hertz-Turm, 280 m) stands 300 m north of the map's edge, so it isn't in; widening the box means fetching and building the map again. The museum ships (Rickmer Rickmers, Cap San Diego) and the container terminals are still to come. The landmarks stand among few other buildings away from the harbours (the map brings in buildings within 400 m of a harbour only).
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/world/defs.ts` (`LandmarkModelDef`, `BridgeDef.pylons`, `SkylineDef.modelled`), `src/world/view/skylineView.ts` (skips a modelled one), `src/world/coastStructures.ts`. Settings in `src/config/map.ts` (`structures.landmark`, `structures.cableStayed`).
+
 ### The Port of Hamburg: a river port, the first map without a coastline (27 Oct 2026)
 
 Owner: "I'd like a Hamburg harbour map".

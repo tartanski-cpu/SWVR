@@ -333,6 +333,34 @@ export const MAP_CONFIG = {
     beamSpan: 30,
     colours: { steel: 0x4c5a55, deck: 0x55585a, stone: 0x8a8478 },
     /**
+     * A cable-stayed bridge's main span (the map request's `bridgePylons`: the Köhlbrandbrücke):
+     * each pylon an A-frame, its legs `leg` m square from `legOut` m outside the deck's edges
+     * up to a head `headHalf` m either side of its middle; `stays` stays a side of each fan,
+     * their anchorages `anchorStep` m apart down the head, `stay` m thick; the approaches on
+     * piers every `approachSpan` m. White concrete pylons, pale grey stays.
+     */
+    cableStayed: { leg: 3.5, legOut: 4, headHalf: 2.5, stays: 9, anchorStep: 2.2, stay: 0.4, approachSpan: 45, colour: 0xe6e6e0, stayColour: 0xc8ccd0 },
+    /**
+     * A landmark modelled from the map's 3D building parts (Hamburg): the colours where the map
+     * gives none (a wall by its material, else `wall`; a roof `roof`, copper verdigris); the
+     * roofs' profiles in rings, [share of the footprint's size, share of the roof's height] from
+     * the eaves up; the wave crown (the Elbphilharmonie's): `waves` crests along its length,
+     * `depth` m from crest to trough, the walls' corners every `step` m, its roof `crownRoof`.
+     */
+    landmark: {
+      wall: 0xc8b8a0,
+      roof: 0x5a5e62,
+      crownRoof: 0xf2f2ee,
+      material: { brick: 0x9a4a32, sandstone: 0xd8c8a0, glass: 0xa6c0cc, copper: 0x4b7869, metal: 0x9aa0a4, concrete: 0xb8b4ac, stone: 0xa8a090, plaster: 0xe6dcc6 },
+      profiles: {
+        pyramidal: [[1, 0], [0, 1]],
+        dome: [[1, 0], [0.92, 0.38], [0.7, 0.71], [0.38, 0.92], [0, 1]],
+        onion: [[1, 0], [1.22, 0.22], [1.08, 0.45], [0.62, 0.68], [0.22, 0.88], [0, 1]],
+        hip: [[1, 0], [0.3, 1]],
+      } as Record<string, readonly (readonly [number, number])[]>,
+      wave: { waves: 2.5, depth: 22, step: 6 },
+    },
+    /**
      * A shipyard's gantry crane (Perno): the top of its girder above the rails (m), the girder's
      * depth and width, its legs' section and how far apart each A-frame's feet stand along the
      * rails, where its gantries stand along the track (shares of its length, for one, two or

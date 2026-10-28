@@ -155,13 +155,15 @@ interface Thing {
   lines: XZ[][];
   /** A relation whose outline lies mostly outside the map (most of its member ways not in the download). */
   partial?: boolean;
+  /** A way's id, `way/<n>` (a landmark named by it). */
+  id?: string;
 }
 const things: Thing[] = [];
 for (const [id, tags] of Object.entries(osm.nodeTags)) {
   const p = pt(id);
   if (p) things.push({ tags, kind: 'node', lines: [[p]] });
 }
-for (const w of Object.values(osm.ways)) if (w.tags) things.push({ tags: w.tags, kind: 'way', lines: [wayPts(w.nodes)] });
+for (const [id, w] of Object.entries(osm.ways)) if (w.tags) things.push({ tags: w.tags, kind: 'way', id: `way/${id}`, lines: [wayPts(w.nodes)] });
 for (const r of Object.values(osm.relations)) {
   if (!r.tags) continue;
   const ways = r.members.filter((m) => m.type === 'way');
@@ -435,7 +437,80 @@ for (const t of things) {
   if (dock) drydocks.push({ name: nameOf(t.tags), ...b });
   else if (b.width >= T.gantryMinSpan) gantries.push({ name: nameOf(t.tags), x: b.x, z: b.z, yawDeg: b.yawDeg, length: b.length, span: b.width, count: Math.max(1, Number.parseInt(t.tags.count ?? '1', 10) || 1) });
 }
-const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, drydocks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
+
+// Landmarks modelled from the map's own 3D (owner, Oct 2026, Hamburg: "Add landmarks first"):
+// the request names them by their Wikidata id (`landmarkModels`); each one's building parts
+// (OSM's Simple 3D Buildings: `building:part` ways with `height`, `min_height`, `roof:shape`,
+// `roof:height` and colours) are those whose middle lies in its outline, or within `radius`
+// m of it where it has none. Its own outline is a part too, unless its parts already cover
+// half of it. Nothing invented: what the map gives, drawn as it gives it (world/coastStructures.ts).
+type ModelPart = { outline: XZ[]; min: number; height: number; roof: string; roofHeight: number | null; wall: number | null; roofColour: number | null; material: string };
+const COLOURS: Record<string, number> = { white: 0xf2f0ea, grey: 0x9a9c9e, gray: 0x9a9c9e, silver: 0xc0c4c8, black: 0x2a2a2a, red: 0x9a3a2a, brown: 0x6a4a3a, green: 0x4b7869, darkgreen: 0x2f5a44, yellow: 0xd8c060, beige: 0xd8ccb0, blue: 0x3a5a8a, lightgrey: 0xc8cacc, darkgrey: 0x5a5c5e };
+const colourOf = (v: string | undefined): number | null => {
+  if (!v) return null;
+  const k = v.trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(k)) return parseInt(k.slice(1), 16);
+  if (/^#[0-9a-f]{3}$/.test(k)) return parseInt(k.slice(1).split('').map((c) => c + c).join(''), 16);
+  return COLOURS[k] ?? null;
+};
+const num = (v: string | undefined) => {
+  const n = parseFloat(v ?? '');
+  return Number.isFinite(n) ? n : null;
+};
+const toPart = (t: Tags, ring: XZ[]): ModelPart => {
+  const levels = num(t['building:levels']);
+  const height = num(t.height) ?? (levels !== null ? levels * 3.2 + 2 : 12);
+  return {
+    outline: simplify(ring, 0.3),
+    min: num(t.min_height) ?? (num(t['building:min_level']) ?? 0) * 3.2,
+    height,
+    roof: t['roof:shape'] ?? 'flat',
+    roofHeight: num(t['roof:height']),
+    wall: colourOf(t['building:colour']),
+    roofColour: colourOf(t['roof:colour']),
+    material: t['building:material'] ?? '',
+  };
+};
+const ringsOf = (t: Thing) => t.lines.filter((l) => l.length > 3 && Math.hypot(l[0][0] - l[l.length - 1][0], l[0][1] - l[l.length - 1][1]) < 0.5);
+const nearRing = (ring: XZ[], p: XZ, d: number) => inRing(ring, p) || ring.some((q, i) => i > 0 && segDist(ring[i - 1], q, p) < d);
+function segDist(a: XZ, b: XZ, p: XZ): number {
+  const [dx, dz] = [b[0] - a[0], b[1] - a[1]];
+  const L = dx * dx + dz * dz || 1;
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / L));
+  return Math.hypot(a[0] + dx * t - p[0], a[1] + dz * t - p[1]);
+}
+const partThings = things.filter((t) => t.kind === 'way' && t.tags['building:part'] && t.tags['building:part'] !== 'no');
+const landmarkModels: { name: string; wikidata: string; x: number; z: number; crown?: string; parts: ModelPart[] }[] = [];
+const modelWarnings: string[] = [];
+for (const want of req.landmarkModels ?? []) {
+  const own = things.filter((t) => (want.osm ? t.id === want.osm : t.tags.wikidata === want.wikidata) && !t.tags['building:part']);
+  // A building's outline before anything else of the same id (the Landungsbrücken's id is on its pier too).
+  const isBuilding = (t: Thing) => !!t.tags.building || t.tags.type === 'building';
+  const outlines = (own.some((t) => isBuilding(t) && ringsOf(t).length) ? own.filter(isBuilding) : own).flatMap(ringsOf).sort((a, b) => area(b) - area(a));
+  const outline = outlines[0];
+  const at = outline ? middle(outline) : own.map(where).find((p): p is XZ => !!p);
+  if (!at) {
+    modelWarnings.push(`landmark ${want.osm ?? want.wikidata} (${want.name ?? ''}): not in the map data`);
+    continue;
+  }
+  const radius = want.radius ?? 40;
+  const parts: ModelPart[] = [];
+  for (const t of partThings) {
+    const ring = ringsOf(t)[0];
+    if (!ring) continue;
+    const m = middle(ring);
+    if (outline ? nearRing(outline, m, 6) : Math.hypot(m[0] - at[0], m[1] - at[1]) < radius) parts.push(toPart(t.tags, ring));
+  }
+  // Its own outline, where its parts leave most of it bare (a town hall mapped with only its tower in 3D).
+  const ownTags = own.find((t) => ringsOf(t).includes(outline))?.tags;
+  if (outline && ownTags && parts.filter((q) => q.min < 1).reduce((s, q) => s + area(q.outline), 0) < area(outline) * 0.5) parts.push(toPart(ownTags, outline));
+  if (!parts.length) {
+    modelWarnings.push(`landmark ${want.osm ?? want.wikidata} (${want.name ?? ''}): no 3D parts in the map data`);
+    continue;
+  }
+  landmarkModels.push({ name: want.name ?? nameOf(ownTags ?? own[0]?.tags ?? {}), wikidata: want.wikidata ?? '', x: r1(at[0]), z: r1(at[1]), ...(want.crown ? { crown: want.crown } : {}), parts });
+}
+const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, landmarkModels, modelWarnings, drydocks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
 writeFileSync(join(D.out, 'features.json'), JSON.stringify(out));
 
 // Thin data, said plainly in the report (the milestones that use it have little to work with).

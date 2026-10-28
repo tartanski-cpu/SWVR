@@ -567,6 +567,23 @@ export interface BridgeDef {
   width: number;
   path: [number, number][];
   deck: number;
+  /** A cable-stayed main span's pylons (m, the map request's): stood at the water's edges, with their stays. */
+  pylons?: number;
+}
+
+/**
+ * A landmark modelled from the map's own 3D building parts (a coast map's; Hamburg's
+ * Elbphilharmonie, its main churches): each part a footprint extruded from `min` to `height`
+ * (m above `base`, the ground it stands on) under its roof shape, in its mapped colours.
+ * `crown: 'wave'` crests its tallest part's roof in waves. Drawn by world/coastStructures.ts.
+ */
+export interface LandmarkModelDef {
+  name: string;
+  x: number;
+  z: number;
+  base: number;
+  crown?: string;
+  parts: { outline: [number, number][]; min: number; height: number; roof: string; roofHeight: number | null; wall: number | null; roofColour: number | null; material: string }[];
 }
 
 /** A folly from the map (McCaig's Tower): its footprint, the ground it stands on (m) and its height if mapped. */
@@ -640,6 +657,8 @@ export interface SkylineDef {
   z: number;
   height?: number;
   size?: number;
+  /** Modelled in full instead (a LandmarkModelDef stands there): not drawn by the skyline, still on the chart. */
+  modelled?: boolean;
 }
 
 /**
@@ -744,6 +763,8 @@ export interface RegionDef {
   /** Its bridges over the sea and follies (a coast map's; world/coastStructures.ts). */
   bridges?: BridgeDef[];
   follies?: FollyDef[];
+  /** Landmarks modelled from the map's 3D building parts (a coast map's; world/coastStructures.ts). */
+  landmarkModels?: LandmarkModelDef[];
   /** A shipyard's gantry cranes (a coast map's; world/coastStructures.ts). */
   gantries?: GantryDef[];
   /** Ships under construction at a yard (a coast map's; world/coastStructures.ts). */
