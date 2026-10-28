@@ -2,7 +2,7 @@
  * The electric pods' steering (owner, 28 Oct 2026: "both the solar catamaran and the hydrofoil
  * catamaran hardly steer": 430 m turning circles, about 1°/s). Their pods swing to 45° and
  * their whole side counts as their rudder (CONFIG.shipyard.electricPods); the foiling ferry's
- * long pod strut turns with her pod (physics/foils.ts `steered`), and at speed her wheel's lock
+ * pod struts turn with her pods (physics/foils.ts `steered`), and at speed her wheel's lock
  * shrinks so hard over turns her hard and keeps her flying.
  */
 import { afterAll, describe, expect, it } from 'vitest';

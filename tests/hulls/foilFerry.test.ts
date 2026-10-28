@@ -38,13 +38,17 @@ describe('the foiling ferry (hull study)', () => {
     expect(fwd[0].at[0] + fwd[0].span / 2).toBeCloseTo(0, 6);
     for (const s of f.struts.filter((s) => s.z === zF)) expect(Math.abs(s.x)).toBeCloseTo(design.catamaran!.spacing / 2, 6);
     expect(fwd.reduce((a, p) => a + p.span, 0) / 2).toBeGreaterThan(design.catamaran!.spacing / 2);
-    // Every foil's strut reaches from her hull down to its foil; her pod's strut, on her
-    // centreline from her wet deck, carries no foil, its pod well under her keels.
-    for (const s of f.struts.filter((s) => !s.podDragArea)) expect(s.bottom).toBeCloseTo(fwd[0].at[1], 6);
+    // Every strut reaches from her hull down to its foil; her pods (her motors, owner 28 Oct:
+    // "the bulbs on the stern foils") at the feet of her aft struts, one under each hull, each
+    // turning with her steering.
+    for (const s of f.struts) expect(s.bottom).toBeCloseTo(fwd[0].at[1], 6);
     const pod = f.struts.filter((s) => s.podDragArea);
-    expect(pod).toHaveLength(1);
-    expect(pod[0].x).toBe(0);
-    expect(keel - pod[0].bottom).toBeGreaterThan(1.5);
+    expect(pod.map((s) => s.x).sort((a, b) => a - b)).toEqual([-design.catamaran!.spacing / 2, design.catamaran!.spacing / 2]);
+    for (const s of pod) {
+      expect(s.steered).toBe(true);
+      expect(s.z).toBeGreaterThan(zF);
+      expect(keel - s.bottom).toBeGreaterThan(1.5);
+    }
     // Retracted (shallow mode), nothing reaches below 1.0 m: her foils and the pod's foot.
     expect(Math.min(...f.panels.map((p) => p.at[1]), ...f.struts.map((s) => s.bottom)) + f.retract!).toBeGreaterThan(-1.0 + CONFIG.foils.belowFoil - 1e-9);
   });

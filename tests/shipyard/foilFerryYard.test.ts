@@ -1,9 +1,9 @@
 /**
  * The foiling electric ferry in the Shipyard (owner, 28 Oct 2026: a one-off, her house,
- * controls and furniture "hers to shape" as the solar cat's; "a contra-rotating pair" on her
- * pod; a battery slider like the solar cat's; the hull modifications chat's `foilFerry` lines
- * and foils): composite; her foils in her vessel definition and drawn; one electric pod on her
- * centreline on her aft foil's strut; her battery's weight and range in her figures.
+ * controls and furniture "hers to shape" as the solar cat's; a battery slider like the solar
+ * cat's; the hull modifications chat's `foilFerry` lines and foils): composite; her foils in her
+ * vessel definition and drawn; an electric pod at the foot of each aft strut ("the bulbs on the
+ * stern foils are her motors"), a lever each; her battery's weight and range in her figures.
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { useDesign } from '../../src/boats/sims';
@@ -38,7 +38,7 @@ describe('the foiling ferry in the Shipyard', () => {
     // (Her lines' 2.7 m at rest with her foils down, owner 28 Oct 2026; a little less, lighter.)
     expect(b.figures.foilsDraughtM).toBeGreaterThan(2.4);
     expect(b.figures.foilsDraughtM).toBeLessThan(2.8);
-    expect(b.figures.engine).toMatch(/^2 x 95 kW electric motors in one contra-rotating pod/);
+    expect(b.figures.engine).toMatch(/^Twin 95 kW electric pod motor/);
     const names = b.weights.items.map((i) => i.name);
     expect(names).toContain('Battery (200 kWh)');
     expect(names).toContain('Hydrofoils and their struts');
@@ -56,27 +56,31 @@ describe('the foiling ferry in the Shipyard', () => {
     expect(foils.struts[0].top - foils.struts[0].bottom).toBeCloseTo(study.foils!.struts[0].top - study.foils!.struts[0].bottom, 6);
     const drawn = b.recipe.modules.find((m) => m.module === 'hull.foils')!.config as { panels: unknown[]; struts: { podDragArea?: number }[] };
     expect(drawn.panels).toHaveLength(study.foils!.panels.length);
-    expect(drawn.struts).toHaveLength(study.foils!.struts.length - 1);
+    // (Her aft struts are her pods', drawn by them.)
+    expect(drawn.struts).toHaveLength(study.foils!.struts.length - 2);
     expect(drawn.struts.some((s) => s.podDragArea)).toBe(false);
   });
 
-  it('one pod on her centreline, hung from her wet deck on her aft foil’s strut; no rudder, no solar roof, no oil checks, no motor drawn inside', () => {
+  it('a pod at the foot of each aft strut (owner: "the bulbs on the stern foils are her motors"), a lever each, rising with her foils; no rudder, no solar roof, no oil checks, no motor drawn inside', () => {
     const b = buildDesign(ferry);
     const mods = b.recipe.modules.map((m) => m.module);
     expect(mods.filter((m) => m === 'propulsion.pods')).toHaveLength(1);
     for (const m of ['control.rudder', 'deck.solar-roof', 'maintenance.dipstick', 'maintenance.oil-can']) expect(mods, m).not.toContain(m);
-    const pod = b.recipe.modules.find((m) => m.module === 'propulsion.pods')!.config as { units: number[]; mount: { y: number; z: number }; strut: number; installed?: unknown; electric?: { usableKWh: number }; propeller: { diameter: number } };
-    expect(pod.units).toEqual([0]);
+    const pod = b.recipe.modules.find((m) => m.module === 'propulsion.pods')!.config as { units: number[]; mount: { y: number; z: number }; strut: number; installed?: unknown; electric?: { usableKWh: number }; propeller: { diameter: number }; split?: boolean; retract?: number };
+    expect(pod.units).toEqual([-1.65, 1.65]);
+    expect(pod.split).toBe(true);
+    expect(pod.retract).toBeCloseTo(study.foils!.retract!, 6);
+    expect(b.recipe.modules.flatMap((m) => [m, ...(m.modules ?? [])]).some((m) => m.module === 'control.twin-throttle')).toBe(true);
     const strut = VESSEL_DEFS.design.foils ? buildDesign(ferry) && useDesign(ferry) && VESSEL_DEFS.design.foils.struts.find((s) => s.podDragArea)! : null;
     expect(pod.mount.z).toBeCloseTo(strut!.z, 2);
     expect(pod.mount.y).toBeCloseTo(strut!.top, 2);
     expect(pod.mount.y - pod.strut).toBeCloseTo(strut!.bottom, 2);
     expect(pod.installed).toBeUndefined();
     expect(pod.electric!.usableKWh).toBeCloseTo(180, 0);
-    expect(pod.propeller.diameter).toBeCloseTo(0.65, 2);
+    expect(pod.propeller.diameter).toBeCloseTo(0.6, 2);
   });
 
-  it('her hull, foils, pod and deck fixed, whatever the design says', () => {
+  it('her hull, foils, pods and deck fixed, whatever the design says', () => {
     const as = buildDesign(ferry);
     const tried = buildDesign({ ...ferry, length: 0, engine: 0, twin: 1, pods: 0, deckCrane: 1, gear: 9, markings: 1, foreCabin: 1, material: 1 });
     expect(tried.figures).toEqual(as.figures);

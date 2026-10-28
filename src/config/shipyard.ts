@@ -331,15 +331,15 @@ export const SHIPYARD_CONFIG = {
     solarCat: { batteryKgPerKWh: 7, batteryPricePerKWh: 450, usableShare: 0.9, solarM2: 70, solarKg: 800, solarPrice: 30000, podKg: 90, cruiseKw: 10, propulsiveEff: 0.31, motor: { efficiency: 0.93, inertia: 0.05, propInertia: 0.4, responseS: 0.4 }, solar: { panelEff: 0.21, tempCoeff: -0.004, noctC: 45, airTempC: 16, controllerEff: 0.97, chargeEff: 0.96, taperFrom: 0.9 }, pack: { litresPerKWh: 6, height: 0.35, width: 0.3 }, roof: { panel: [1.0, 1.6], gap: 0.04, wingClear: 0.03, wingWidth: 1.0, rack: { length: 2.4, clear: 0.7, height: 0.6, inset: 0.45 } }, wetDeckWarn: 0.6 },
     /**
      * The foiling electric ferry (owner, 28 Oct 2026: a one-off, her house, controls and
-     * furniture the player's, "a contra-rotating pair" on her pod, a battery slider like the
-     * solar cat's; the hull modifications chat's `foilFerry` lines and foils, 12 x 4.5 m): her
+     * furniture the player's, a battery slider like the solar cat's; her drive at first one
+     * contra-rotating pod on her centreline, then "the bulbs on the stern foils are her
+     * motors": a pod at the foot of each aft strut, a lever each; the hull modifications chat's `foilFerry` lines and foils, 12 x 4.5 m): her
      * battery (design.battery, the solar cat's slider) and her drive, as `solarCat`'s keys:
      *   batteryKgPerKWh, batteryPricePerKWh, usableShare  her battery: lighter packs than the
      *                 solar cat's (about 6 kg a kWh: a foiler's weight is everything), low in her
      *                 hulls amidships;
-     *   podKg         her one pod: its long strut down from her wet deck to her aft foil, the
-     *                 nacelle with her two motors' housings, the two propellers (her motors
-     *                 themselves are ENGINES' twin 95 kW);
+     *   podKg         each pod: its nacelle at the foot of an aft strut, the motor's housing,
+     *                 the propeller (her motors themselves are ENGINES' 95 kW, one in each);
      *   foilsKg, foilsPrice  her foils and their two struts on her hulls (carbon), and her
      *                 flight computer with its sensors and flap actuators;
      *   cruiseKn, cruiseKw, cruiseRefT, cruiseKwPerT  her range is given at her service speed
@@ -349,11 +349,12 @@ export const SHIPYARD_CONFIG = {
      *                 `cruiseKw` at `cruiseRefT` tonnes, `cruiseKwPerT` more a tonne heavier
      *                 (her foils' drag grows with the lift they give; tests/shipyard/foilFerry
      *                 keeps it to the game's physics);
-     *   motor         her pod's motors in the game (physics/electricMotor.ts), as the solar
-     *                 cat's: their efficiency, rotor inertia (kg m2), both propellers' inertia
+     *   motor         her pods' motors in the game (physics/electricMotor.ts), as the solar
+     *                 cat's: their efficiency, rotor inertia (kg m2), each propeller's inertia
      *                 (kg m2) and how quickly the controller answers (s);
-     *   look          her pod (modules/pods look.ts): a slimmer, longer strut than a workboat's
-     *                 pod drive, down from her wet deck to her aft foil;
+     *   look          her pods (modules/pods look.ts): each strut as her aft foil's (its chord
+     *                 and thickness), a slim nacelle at its foot, its bottom about a radius
+     *                 below the foil (her draught retracted stays about 1.0 m);
      *   pack          how her battery's drawn on the Engine step (as the solar cat's).
      */
     /**
@@ -361,8 +362,8 @@ export const SHIPYARD_CONFIG = {
      * catamaran hardly steer"; parts/recipe.ts): an electric pod swings further than a diesel
      * pod drive, to `lockDeg` either way (an azimuthing pod: its push turned well across her),
      * and its whole side counts as its rudder: its strut (its length x chord) and its nacelle
-     * (length x diameter). (The foiling ferry's long strut is her foils' steered strut,
-     * physics/foils.ts: her pod counts its nacelle only.) Past `fullLockToKn` the wheel's lock
+     * (length x diameter). (The foiling ferry's pod struts are her foils' steered struts,
+     * physics/foils.ts: her pods count their nacelles only.) Past `fullLockToKn` the wheel's lock
      * shrinks as (that speed / hers)², the steering's force about what full lock gives at that
      * speed: the foiling ferry hard over at 25 kn has about 6° (a 13°/s turn, about 105 m
      * across, still flying; full lock threw her off her foils, and a lock opening sooner let her
@@ -370,7 +371,7 @@ export const SHIPYARD_CONFIG = {
      * CONFIG.modules.pods.steering.
      */
     electricPods: { lockDeg: 45, fullLockToKn: 9 },
-    foilFerry: { batteryKgPerKWh: 6, batteryPricePerKWh: 500, usableShare: 0.9, podKg: 180, foilsKg: 450, foilsPrice: 90000, cruiseKn: 25, cruiseKw: 102, cruiseRefT: 7.05, cruiseKwPerT: 4.3, motor: { efficiency: 0.95, inertia: 0.08, propInertia: 0.5, responseS: 0.5 }, look: { strutLength: 0.45, strutChord: 0.34, strutWidth: 0.07, podLength: 1.3, podRadius: 0.16, propFwd: 0.62 }, pack: { litresPerKWh: 4, height: 0.3, width: 0.35 } },
+    foilFerry: { batteryKgPerKWh: 6, batteryPricePerKWh: 500, usableShare: 0.9, podKg: 110, foilsKg: 450, foilsPrice: 90000, cruiseKn: 25, cruiseKw: 102, cruiseRefT: 7.05, cruiseKwPerT: 4.3, motor: { efficiency: 0.95, inertia: 0.05, propInertia: 0.3, responseS: 0.5 }, look: { strutLength: 0.45, strutChord: 0.28, strutWidth: 0.06, podLength: 1.1, podRadius: 0.11, propFwd: 0.55 }, pack: { litresPerKWh: 4, height: 0.3, width: 0.35 } },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing

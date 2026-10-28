@@ -294,6 +294,7 @@ export const BUS_KEYS = {
       },
     },
   }),
+  'foils.deploy': foilKey(state('number', (s) => s.foil?.deploy ?? 1, 'Hydrofoils: how far down her foils are, 1 down (as she flies) .. 0 retracted (SHALLOW, vessel/physics/foils.ts). Retracting pods rise with them (modules/pods `retract`).', { unit: '0..1' })),
   'foils.ride': foilKey({
     ...setting('foilRide', [0, 2], 'step', 'Hydrofoils: her ride height, 0 low, 1 normal, 2 high (her forward foil CONFIG.foils.rideSteps deeper or shallower than her design ride depth).', { integer: true, writer: 'module', default: 1 }),
     bind: {

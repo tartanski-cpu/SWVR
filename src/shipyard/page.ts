@@ -379,16 +379,16 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const sd = !!cfg('sternDrive') || !!cfg('pods');
   // (Azimuth drives have no rudder: the Z-drives are drawn from her propellers' place.)
   if (!bed || (!sd && (!prop || (!rudder && !engine?.azimuth)))) return null;
-  // (The foiling ferry's one pod, her motors in its nacelle at the foot of its strut: DesignHull.centrePod.)
-  const pod = DESIGN_HULLS[design.hull].centrePod ? (cfg('pods') as { mount: { y: number; z: number }; strut: number } | undefined) : undefined;
-  // (Pod drives are otherwise always twin.)
-  const twin = !pod && (!!design.twin || !!cfg('pods')) && !SINGLE_ONLY_ENGINES.includes(design.engine);
+  // (The foiling ferry's pods, a motor in each nacelle at the foot of its strut: DesignHull.foilPods.)
+  const pod = DESIGN_HULLS[design.hull].foilPods ? (cfg('pods') as { units: number[]; mount: { y: number; z: number }; strut: number } | undefined) : undefined;
+  // (Pod drives are always twin.)
+  const twin = (!!design.twin || !!cfg('pods')) && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;
-  const fit = pod ? { ...boat.shaft, x: 0, flangeY: pod.mount.y - pod.strut, flangeZ: pod.mount.z + ENGINES[design.engine].size[0] / 2, angleDeg: 0, fits: true, topY: pod.mount.y } : boat.shaft;
+  const fit = pod ? { ...boat.shaft, x: Math.max(...pod.units), flangeY: pod.mount.y - pod.strut, flangeZ: pod.mount.z + ENGINES[design.engine].size[0] / 2, angleDeg: 0, fits: true, topY: pod.mount.y } : boat.shaft;
   const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd, nozzle: !!engine?.nozzle, zDrive: !!DESIGN_HULLS[design.hull].zDrives });
   g.name = 'machinery';
   const name = ENGINES[design.engine].name.split(' (')[0];
-  const tag = nameTag(pod ? `${name}, in her pod` : fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
+  const tag = nameTag(pod ? `2 × ${name}, one in each pod` : fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
   tag.position.set(0, fit.topY + 0.45, fit.flangeZ - ENGINES[design.engine].size[0] / 2);
   const lowest = Math.min(...g.children.filter((c) => c.name === 'propeller').map((c) => c.position.y));
   const ptag = nameTag(`Propeller ⌀ ${propD.toFixed(2)} m${engine?.nozzle ? ' in a Kort nozzle' : ''}${twin ? ' (two)' : ''}`, '#8a5a1c');
@@ -1704,8 +1704,8 @@ function rollWords(period: number | null): string {
 /** The solar catamaran's battery at full power on both motors (h; undefined: not her). */
 function batteryHoursFlatOut(): number | undefined {
   const s = boat.figures.solar;
-  // (The foiling ferry's one pod; the solar catamaran's two.)
-  return s ? (s.batteryKWh * electricOf(design).usableShare) / ((DESIGN_HULLS[design.hull].centrePod ? 1 : 2) * ENGINES[design.engine].kw) : undefined;
+  // (Two motors, one in each pod: the solar catamaran's and the foiling ferry's.)
+  return s ? (s.batteryKWh * electricOf(design).usableShare) / (2 * ENGINES[design.engine].kw) : undefined;
 }
 /** ...and how far that takes her at her top speed (nm). */
 function batteryRangeFlatOut(topKn: number): number | undefined {

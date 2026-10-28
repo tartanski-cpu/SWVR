@@ -34,8 +34,12 @@
  * the starboard's), its own state (EngineState.stbd), so one ahead and one astern turns her on
  * the spot. The wheel still swings both pods; the joystick still works both together.
  *
- * One pod (owner, 28 Oct 2026, the Shipyard's foiling ferry): a single unit on her centreline,
- * as her pair of motors in one pod with its two propellers; the joystick isn't fitted with one.
+ * One pod: a single unit on her centreline (the joystick isn't fitted with one).
+ *
+ * Retracting (`retract`; owner, 28 Oct 2026, the foiling ferry: her pods at the feet of her aft
+ * foils' struts, "the bulbs on the stern foils are her motors"): the pods slide up with her
+ * foils, `retract` m when they're fully up (SHALLOW: VesselState.foil.deploy, on the bus as
+ * foils.deploy, 1 down .. 0 up): their push and their strut's lift from there, drawn there.
  *
  * Electric (`electric`; owner, 27 Oct 2026, the Shipyard's solar catamaran): an electric motor
  * in place of each diesel, from her battery (physics/electricMotor.ts): the key switches the
@@ -90,6 +94,8 @@ export interface PodsConfig {
   electric?: MotorSpec;
   /** Electric twin pods each on its own lever (see above). */
   split?: boolean;
+  /** How far (m) the pods rise with a foiling boat's foils retracted (see above); unset, fixed. */
+  retract?: number;
   installed?: { model: number; size: [number, number, number]; xs: number[]; flangeY: number; flangeZ: number; angleDeg: number };
 }
 
@@ -147,6 +153,7 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
   ports: {
     throttle: { dir: 'read', key: 'throttle.demand' },
     throttle2: { dir: 'read', key: 'throttle.demand2', required: false },
+    deploy: { dir: 'read', key: 'foils.deploy', required: false },
     key: { dir: 'read', key: 'ignition.key' },
     heat: { dir: 'read', key: 'ignition.heat' },
     start: { dir: 'read', key: 'ignition.start' },
@@ -281,10 +288,13 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
         throttle = most > 0.01 ? nb + 0.02 + (j.lever - nb - 0.02) * Math.max(0, (effort - j.slip) / (1 - j.slip)) : 0;
         s.swing = s.angles.reduce((a, b) => a + b, 0) / n;
       }
+      // How far up they are with her foils (retracting pods; else 0).
+      const up = c.retract ? c.retract * (1 - Math.min(1, Math.max(0, io.has('deploy') ? io.num('deploy') : 1))) : 0;
+      const at: [number, number, number] = up ? [p.position[0], p.position[1] + up, p.position[2]] : p.position;
       // The water at the propellers (one sample does for the pair).
-      const flow = port.flowAt(p.position);
+      const flow = port.flowAt(at);
       const D = p.diameter;
-      const wet = Math.min(1, Math.max(0, (port.depthAt(p.position) + D / 2) / D));
+      const wet = Math.min(1, Math.max(0, (port.depthAt(at) + D / 2) / D));
       // The speed of advance: the water's along the first pod's heading.
       const d0 = s.angles[0];
       const along = -flow.z * Math.cos(d0) - flow.x * Math.sin(d0);
@@ -331,14 +341,14 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       // Each pod: its net push T(1 - t) times its share, along its heading, from its propellers
       // (forward of the axis, where its heading has swung them); and its strut's lift.
       const spec = strutSpec(c, joy);
-      const propY = c.mount.y - c.strut;
+      const propY = c.mount.y - c.strut + up;
       for (let i = 0; i < n; i++) {
         const d = s.angles[i];
         const T = each[i] * (1 - p.thrustDeduction) * push[i];
         const x = c.units[i];
         port.addForce([x - Math.sin(d) * c.look.propFwd, propY, c.mount.z - Math.cos(d) * c.look.propFwd], -Math.sin(d) * T, 0, -Math.cos(d) * T);
         rudderForceAt(d, spec, flow.x, flow.z, 0, lift);
-        port.addForce([x, c.mount.y - c.strut / 2, c.mount.z], lift.x * wet, 0, lift.z * wet);
+        port.addForce([x, c.mount.y - c.strut / 2 + up, c.mount.z], lift.x * wet, 0, lift.z * wet);
       }
     },
     tick({ config: c }, s, dt) {
@@ -367,9 +377,11 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
       const up = new THREE.Vector3(0, 1, 0);
       const last = c.units.map(() => NaN);
       const swing = new TickSmoother([45, 45]);
+      // (Retracting pods: how far up they're drawn, with her foils.)
+      let rise = 0;
       const place = (i: number, deg: number) => {
         q.setFromAxisAngle(up, (deg * Math.PI) / 180);
-        mesh.setMatrixAt(i, m.compose(new THREE.Vector3(c.units[i], c.mount.y, c.mount.z), q, one));
+        mesh.setMatrixAt(i, m.compose(new THREE.Vector3(c.units[i], c.mount.y + rise, c.mount.z), q, one));
         last[i] = deg;
       };
       c.units.forEach((_, i) => place(i, 0));
@@ -382,9 +394,12 @@ export const PODS: ModuleDefinition<PodsConfig, PodsState> = {
           let moved = false;
           // (Their swing drawn smoothly between the simulation's ticks: mechanisms/tickSmoother.ts.)
           const swung = swing.update([read.num(keys.portAngle), read.num(keys.stbdAngle)], dt);
+          const r = c.retract ? c.retract * (1 - Math.min(1, Math.max(0, keys.deploy && read.has(keys.deploy) ? read.num(keys.deploy) : 1))) : 0;
+          const lifted = Math.abs(r - rise) > 0.002;
+          if (lifted) rise = r;
           c.units.forEach((_, i) => {
             const deg = swung[i];
-            if (Math.abs(deg - last[i]) > 0.05) {
+            if (lifted || Math.abs(deg - last[i]) > 0.05) {
               place(i, deg);
               moved = true;
             }

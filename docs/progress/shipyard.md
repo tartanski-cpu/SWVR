@@ -14,6 +14,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The foiling ferry's drive: a pod on each aft strut, a lever each (28 Oct 2026; on next for the owner to try)
+
+Owner, 28 Oct 2026, through the hull modifications chat (whose new foils put a bulb at the foot of each aft strut): "the bulbs on the stern foils are her motors". To me: "yes go ahead, twin levers".
+
+- **Two pods** (parts/engineRoom.ts `podSet` from every strut her lines give a pod, port then starboard; DesignHull `foilPods`, was `centrePod`): one at the foot of each aft strut (x ±1.65, z 5.2), a **95 kW** motor in each (ENGINES 7 is now one motor: kw 95, kg 55, propMaxM 0.6; together the 190 kW she had in one pod). Each strut still turns with her steering as a rudder, its pod with it. Her pods look like her struts (`foilFerry.look`: strut chord 0.28, a slim nacelle, radius 0.11, length 1.1); `podKg` 110 each, `motor` inertia and propeller inertia per motor.
+- **Twin levers**: the solar cat's split levers (the pods' `split`, the twin lever control), now hers too: both ahead, straight; half ahead against full astern, she turns at about 2.6°/s with no way ahead (her pods are well aft, so she pivots forward of her middle).
+- **Shallow mode**: her pods slide up with her foils (shared, modules/pods `retract`, the strut's travel; a new read-only bus key **`foils.deploy`**, VesselState.foil.deploy: their push, strut lift and drawing come up with it).
+- **Her foils' data** (the hull modifications chat's `src/hulls/designs.ts`, at their request): the centreline pod strut taken off; the aft struts' bulbs (`bulbDragArea` 0.0025) now pods, `podDragArea` 0.008 each (a nacelle of about 0.04 m² frontal area; at 0.0065 the Rough-sea test's foil came 2 mm inside its 10 cm margin, at 0.005 and 0.008 it passes: a sensitive margin, not a trend). `tests/hulls/foilFerry.test.ts`: two pods under the hulls, steered.
+- Her figures: cruise power and range as measured (foilFerryDrive passes on `cruiseKw` 102); the Engine step draws a motor in each pod; flat-out battery hours count two motors.
+- **Shared changes:** `src/hulls/designs.ts` (foilFerry struts), `modules/pods` (`retract`, the `deploy` port), `modular/busKeys.ts` (`foils.deploy`), `docs/BUS_KEYS.md` (regenerated), `tests/hulls/foilFerry.test.ts`.
+- Tests: `tests/shipyard/foilFerryPods.test.ts` (new: one ahead and one astern turns her, each motor its own way, from her battery; both ahead straight; in SHALLOW the pods' drawing rises the full 1.7 m and she still drives); `foilFerryYard` (two pods, split, retract, the twin lever control). All her drive, sea, helm and steering tests pass. Checked in headless Chromium: the pods on her aft struts from below, the twin levers on her console, the Engine step. Not checked in VR.
+
 ### Two ship's boats: Place another (28 Oct 2026; on next for the owner to try)
 
 Owner, 28 Oct 2026: "I would like the ability to place the skiff and the rib. So there should be a button which says place another, obviously for bigger vessels." Asked who builds the game side (two tenders on one ship is shared simulation code): "You do it all here".

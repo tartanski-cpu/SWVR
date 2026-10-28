@@ -47,8 +47,8 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const maxKw = base.regime === 'displacement' ? CONFIG.shipyard.maxKwPerTonne * h.volume * 1.025 : Infinity;
   const tooMuchForTwin = !!d.twin && !singleOnly && !outboardCount(d) && 2 * kw > maxKw && kw <= maxKw;
   if (tooMuchForTwin) warnings.push(`Two ${eng.name.split(' (')[0]}s are too much for her: ${2 * kw} kW in a hull of ${Math.round(h.volume * 1.025)} t (she takes about ${Math.round(maxKw / 10) * 10} kW). She has one.`);
-  // (The foiling ferry's one pod on her centreline: DesignHull.centrePod.)
-  const twin = !base.centrePod && (!!d.twin || pods || !!base.catamaran) && !singleOnly && !tooMuchForTwin;
+  // (The foiling ferry's two pods on her aft foils' struts: DesignHull.foilPods, a motor each.)
+  const twin = (!!d.twin || pods || !!base.catamaran) && !singleOnly && !tooMuchForTwin;
   // Stern drives (owner, Oct 2026; design.sternDrive): the engine against the transom, a
   // leg through it that swings to steer (CONFIG.modules.sternDrive). Not the slow tug
   // diesel (its big slow propeller wants a shaft); outboards, if chosen, instead.
@@ -72,7 +72,7 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const twinX = shape.catamaran ? Math.round((shape.catamaran.spacing / 2) * 100) / 100 : Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
   // (An electric motor's full torque from rest turns its own big slow propeller, ENGINES propMaxM, whatever its power.)
   // (A pod hung deep under her on her aft foil's strut, the foiling ferry's: as big as her motors turn, her draught aft no bound.)
-  const propD = base.centrePod ? eng.propMaxM : Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, electric ? eng.propMaxM : 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
+  const propD = base.foilPods ? eng.propMaxM : Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, electric ? eng.propMaxM : 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
   // Her shaft and the engine on it (machinery.ts): the shaft rises forward from the
   // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
   // must be under the cabin floor (under the house) or the deck (elsewhere): a tall engine in
@@ -133,7 +133,7 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     ? { ...sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, CONFIG.shipyard.harbourTug.zDriveEngineAft * lengthM), propY: -(base.propDepth ?? 0) + propD / 2 }
     : sd || pods
     ? // (The foiling ferry's motors are in her pod: her machinery space, with its controllers and her 12 V batteries, is in her starboard hull aft, under the hatch over it.)
-      sternDriveLine(shape, eng.size, twin || base.centrePod ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
+      sternDriveLine(shape, eng.size, twin || base.foilPods ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
     : layShaft(shape, eng.size, twin ? (shape.catamaran ? twinX : twinEngineX(twinX, eng.size[1])) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
   // A stern drive's legs: one behind each engine, through the transom; the top of each (its
   // gimbal housing) over the engine's output, its anti-ventilation plate level with her
@@ -151,11 +151,12 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   // enough that its propellers' tips clear her bottom (and never shorter than the look's).
   // (An electric motor's pods turn its own big slow propeller: no pod gears to keep it small.)
   const podPropD = electric ? propD : Math.min(propD, pdc.propMaxM);
-  // (The foiling ferry's one pod: on her aft foil's strut, the one her lines give a pod, from
-  // her wet deck at its top down to its foot, where her aft foil is.)
-  const podStrut = base.centrePod && p.form.kind === 'lofted' ? p.form.design.foils?.struts.find((s) => s.podDragArea) : undefined;
+  // (The foiling ferry's pods: on her aft foils' struts, the ones her lines give a pod, port
+  // then starboard, each from her hull's bottom at its top down to its foot, where its foil is.)
+  const podStruts = base.foilPods && p.form.kind === 'lofted' ? (p.form.design.foils?.struts ?? []).filter((s) => s.podDragArea).sort((a, b) => a.x - b.x) : [];
+  const podStrut = podStruts[0];
   const podSet = podStrut
-    ? { units: [0], mount: { y: rnd(podStrut.top), z: rnd(podStrut.z) }, strut: rnd(podStrut.top - podStrut.bottom) }
+    ? { units: podStruts.map((s) => rnd(s.x)), mount: { y: rnd(podStrut.top), z: rnd(podStrut.z) }, strut: rnd(podStrut.top - podStrut.bottom) }
     : pods
     ? (() => {
         const units = [-shaft.x, shaft.x].map(rnd);

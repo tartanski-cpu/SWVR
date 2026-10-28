@@ -38,8 +38,8 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const houseM2 = 2 * (houseL + 2 * hw) * (roofY - floorY) - 2 * saloonL * roofDrop + 2 * (2 * hw * houseL);
   const machineKg = outboards ? obc.massKg * nOb : eng.kg * n;
   // (The foiling ferry's motors in her pod, at its foot.)
-  const machineY = outboards ? outboards.mount.y : base.centrePod && podSet ? podSet.mount.y - podSet.strut : at.engineBed[1];
-  const machineZ = outboards ? outboards.mount.z : base.centrePod && podSet ? podSet.mount.z : at.engineBed[2];
+  const machineY = outboards ? outboards.mount.y : base.foilPods && podSet ? podSet.mount.y - podSet.strut : at.engineBed[1];
+  const machineZ = outboards ? outboards.mount.z : base.foilPods && podSet ? podSet.mount.z : at.engineBed[2];
   const gearAt: [number, number][] = [
     ...(winchAt ? [[wc.gear.towWinch, winchAt[2]] as [number, number]] : []),
     ...(aFrame ? [[wc.gear.aFrame, transom - afc.footFromTransom] as [number, number]] : []),

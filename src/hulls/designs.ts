@@ -1050,8 +1050,9 @@ export const DESIGNS: HullDesign[] = [
     // owner's arrangement (28 Oct): forward, a pi frame, a main foil 3.9 m span between two
     // struts on her hulls' centrelines, with end plates (winglets) on its ends, carrying about
     // 70 % of her weight; aft, a T-foil on a strut under each hull, a bulb where foil and strut
-    // meet, the struts turning with her steering as twin rudders. Her drive stays the Shipyard's one pod on her centreline (its strut down from her wet
-    // deck, no foil on it). Draught (owner): 2.7 m at rest with her foils down, 1.2 m foiling (her forward foil
+    // meet, the struts turning with her steering as twin rudders. The bulbs are her drive (owner, 28 Oct:
+    // "the bulbs on the stern foils are her motors"): an electric pod at the foot of each aft strut, its
+    // drag `podDragArea` (the Shipyard's pods module draws and drives them). Draught (owner): 2.7 m at rest with her foils down, 1.2 m foiling (her forward foil
     // 1.05 m deep, her keels about 0.8 m clear), 1.0 m with them retracted (shallow mode: her
     // struts slide 1.7 m up into her hulls). Take-off about 15.5 kn.
     foils: {
@@ -1064,9 +1065,8 @@ export const DESIGNS: HullDesign[] = [
       struts: [
         { x: -1.65, z: -1.3, top: -0.7, bottom: -2.62, chord: 0.3 },
         { x: 1.65, z: -1.3, top: -0.7, bottom: -2.62, chord: 0.3 },
-        { x: -1.65, z: 5.2, top: -0.6, bottom: -2.62, chord: 0.28, bulbDragArea: 0.0025, steered: true },
-        { x: 1.65, z: 5.2, top: -0.6, bottom: -2.62, chord: 0.28, bulbDragArea: 0.0025, steered: true },
-        { x: 0, z: 5.6, top: 0.95, bottom: -2.5, chord: 0.32, podDragArea: 0.008 },
+        { x: -1.65, z: 5.2, top: -0.6, bottom: -2.62, chord: 0.28, podDragArea: 0.008, steered: true },
+        { x: 1.65, z: 5.2, top: -0.6, bottom: -2.62, chord: 0.28, podDragArea: 0.008, steered: true },
       ],
       endPlate: 0.3,
       retract: 1.7,

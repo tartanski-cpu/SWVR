@@ -202,11 +202,12 @@ export interface DesignHull {
   /** A solar roof over her house charging her battery (the solar catamaran's; modules/solarRoof, parts/recipe.ts). */
   solarRoof?: boolean;
   /**
-   * Her drive one pod on her centreline (the foiling ferry's): hung from her wet deck on the
-   * strut of her aft foil (her lines' foils, the strut with a pod), its motors inside it, so no
-   * engine inside her and no second pod.
+   * Her drive in pods on her foils' struts (the foiling ferry's; owner, 28 Oct 2026: "the
+   * bulbs on the stern foils are her motors"): one at the foot of each strut her lines give a
+   * pod (`podDragArea`: her aft struts, one under each hull), its motor inside it, so no engine
+   * inside her. Each strut turns with her steering, its pod with it.
    */
-  centrePod?: boolean;
+  foilPods?: boolean;
 }
 
 /** Is her gearbox fixed with her type (a one-off's), so never matched by trial? */
@@ -790,7 +791,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     catamaran: true,
     // No fuel of her own (a token tank, never drawn on), as the solar catamaran.
     fuelL: 40,
-    // (Her pod's strut turns with her pod: it steers her, physics/foils.ts `steered`.)
+    // (Her pods' struts turn with her pods: they steer her, physics/foils.ts `steered`.)
     form: () => {
       const d = study('foilFerry');
       return { kind: 'lofted', design: { ...scaledStudy(d, 1, 1, 1, null, false, 0), catamaran: d.catamaran, ...(d.foils ? { foils: { ...d.foils, struts: d.foils.struts.map((s) => (s.podDragArea ? { ...s, steered: true } : s)) } } : {}) } };
@@ -800,13 +801,13 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: false,
     cockpit: 1.5,
     foredeck: 1.5,
-    centrePod: true,
+    foilPods: true,
     interiors: [
       { name: 'Ferry', info: 'Twelve seats in rows either side of an aisle, facing forward: a passenger ferry.', pins: FERRY_SEATS },
       { name: 'Explorer', info: 'Sofas aft either side, a table, a galley, a berth and a head, a TV on the wall: for living aboard and exploring.', pins: EXPLORER },
     ],
     fixed: FOIL_FERRY_FIXED,
-    oneOffNote: 'Her hull and hydrofoils are a one-off, fixed as she’s drawn, and so are her electric pod (two motors, two propellers turning opposite ways) and her deck fittings. Yours to choose: her wheelhouse and cabin, its inside, her controls and her furniture, her battery (Engine step) and her paint.',
+    oneOffNote: 'Her hull and hydrofoils are a one-off, fixed as she’s drawn, and so are her electric pods (one at the foot of each aft foil’s strut, a motor in each, a lever each) and her deck fittings. Yours to choose: her wheelhouse and cabin, its inside, her controls and her furniture, her battery (Engine step) and her paint.',
     // White, a light house, a dark roof, as new; her biggest battery.
     defaults: { ...FOIL_FERRY_HOUSE, ...FOIL_FERRY_FIXED, paint: 4, houseColour: 0, frames: 0, roofPaint: 4, roofTop: 0, finish: 2, battery: BATTERY_STEPS - 1 },
   },
@@ -848,10 +849,10 @@ export const ENGINES = [
   // The solar catamaran's (owner, 26 Oct 2026): an electric motor driving each of her pods,
   // from her battery (in the game: physics/electricMotor.ts, through her pods; 27 Oct 2026).
   { name: '25 kW electric pod motor', kw: 25, kg: 60, voice: 'electric' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.7, pricePerKw: 300, size: [0.7, 0.4, 0.4] as const, only: [SOLAR_CAT] as readonly number[], electric: true, about: 'The solar catamaran’s: an electric motor for each of her pods, quiet and clean, running on her battery.' },
-  // The foiling ferry's (owner, 28 Oct 2026: "a contra-rotating pair"): two motors in her one
-  // pod, each turning one of its two propellers, opposite ways (the after one takes back the
-  // swirl the forward one leaves); in the game one motor of their power (physics/electricMotor.ts).
-  { name: '2 x 95 kW electric motors in one contra-rotating pod', kw: 190, kg: 110, voice: 'electric' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.65, pricePerKw: 350, size: [1.0, 0.32, 0.32] as const, only: [FOIL_FERRY] as readonly number[], electric: true, about: 'The foiling ferry’s: two electric motors in her pod, each turning one of its two propellers, opposite ways. Enough to lift her over the hump onto her foils.' },
+  // The foiling ferry's (owner, 28 Oct 2026: "the bulbs on the stern foils are her motors"):
+  // a motor in each of her two pods, at the feet of her aft struts, each on its own lever
+  // (physics/electricMotor.ts, through her pods). Together the 190 kW she had in one pod.
+  { name: '95 kW electric pod motor', kw: 95, kg: 55, voice: 'electric' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 0.6, pricePerKw: 350, size: [0.8, 0.26, 0.26] as const, only: [FOIL_FERRY] as readonly number[], electric: true, about: 'The foiling ferry’s: an electric motor in each of her two pods, at the feet of her aft foils’ struts, each on its own lever. Together enough to lift her over the hump onto her foils.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */

@@ -134,9 +134,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02, ...(p.electric ? { inertia: electricOf(d).motor.propInertia } : {}) },
         ...podSet,
         // (Electric pods steer wider, their whole side a rudder: CONFIG.shipyard.electricPods.)
-        steering: p.electric ? electricSteering(p.base.centrePod ? CONFIG.shipyard.foilFerry.look : pdc.look, podSet.strut, !!p.base.centrePod) : pdc.steering,
-        // (The foiling ferry's: a slimmer, longer strut, down from her wet deck to her aft foil.)
-        look: p.base.centrePod ? CONFIG.shipyard.foilFerry.look : pdc.look,
+        steering: p.electric ? electricSteering(p.base.foilPods ? CONFIG.shipyard.foilFerry.look : pdc.look, podSet.strut, !!p.base.foilPods) : pdc.steering,
+        // (The foiling ferry's: a slim nacelle at the foot of each aft foil's strut.)
+        look: p.base.foilPods ? CONFIG.shipyard.foilFerry.look : pdc.look,
         joystick: pdc.joystick,
         centreZ: rnd(h.lcb),
         alternatorAmps: engine.alternatorAmps ?? CONFIG.modules.dieselInboard.alternatorAmps,
@@ -145,8 +145,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
         massKg: eng.kg + (p.electric ? electricOf(d).podKg : pdc.legKg),
         maintenance: engine.maintenance,
         voice: eng.voice,
-        // (The foiling ferry's motors are in her pod: nothing drawn inside her.)
-        ...(p.base.centrePod ? {} : { installed: engine.installed }),
+        // (The foiling ferry's motors are in her pods, nothing drawn inside her; they rise with
+        // her foils in SHALLOW, physics/foils.ts `retract`.)
+        ...(p.base.foilPods ? (p.form.kind === 'lofted' && p.form.design.foils?.retract ? { retract: p.form.design.foils.retract } : {}) : { installed: engine.installed }),
         // The solar catamaran's electric motors, from her battery (CONFIG.shipyard.solarCat.motor; modules/pods).
         ...(p.electric ? { electric: motorSpec(d) } : {}),
         // (Electric twin pods each on its own lever: the solar catamaran's; owner, 28 Oct 2026.)
