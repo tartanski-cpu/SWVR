@@ -16,6 +16,8 @@ export interface ToggleConfig {
   engrave: string;
   /** 2: off / on; 3: off / 1 / 2 (each press steps on). */
   positions: 2 | 3;
+  /** Three-way: each press moves it to the next position along its travel, turning back at the ends (forward, middle, aft, middle ...), not round from 2 to 0. */
+  sweep?: boolean;
 }
 
 export const TOGGLE: ModuleDefinition<ToggleConfig> = {
@@ -28,7 +30,7 @@ export const TOGGLE: ModuleDefinition<ToggleConfig> = {
   view: {
     build({ config, keys, socket, share }) {
       const key = keys.value;
-      const toggle = new Toggle(socket.id, key, config.label, (s) => busOf(s).num(key), config.positions);
+      const toggle = new Toggle(socket.id, key, config.label, (s) => busOf(s).num(key), config.positions, !!config.sweep);
       share(toggle.batMesh, 'toggleBat');
       return { staticParts: [], movingParts: [], controls: [toggle], labels: config.engrave ? [{ text: config.engrave, at: [0, 0, 0] }] : [], update: () => {} };
     },

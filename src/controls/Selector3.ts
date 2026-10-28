@@ -91,11 +91,12 @@ function marksTexture(marks: readonly [string, string, string]): THREE.CanvasTex
     const a = ((i - 1) * Math.PI) / 3; // -60, 0, +60 degrees from straight ahead (up the canvas)
     const [sx, sy] = [Math.sin(a), -Math.cos(a)];
     g.beginPath();
-    g.moveTo(cx + sx * 66, cy + sy * 66);
-    g.lineTo(cx + sx * 80, cy + sy * 80);
+    g.moveTo(cx + sx * 54, cy + sy * 54);
+    g.lineTo(cx + sx * 64, cy + sy * 64);
     g.stroke();
-    g.font = `bold ${m.length > 2 ? 34 : 42}px system-ui, sans-serif`;
-    g.fillText(m, cx + sx * 104, cy + sy * 104 + (i === 1 ? 6 : 0));
+    // (The side marks just inside the plate's edges: at 60 degrees out, x = 96 +- 0.87 r.)
+    g.font = `bold ${m.length > 2 ? 26 : 32}px system-ui, sans-serif`;
+    g.fillText(m, cx + sx * 80, cy + sy * 80 + (i === 1 ? 4 : 0));
   });
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;

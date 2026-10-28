@@ -743,6 +743,8 @@ export class App {
   /** Lifting clear and touching down, felt (a foiling boat's; audio/foilAudio.ts), and whose. */
   private readonly foilFeel = new FoilFeel();
   private foilFeelBoat = '';
+  /** Her foils' deployment last frame (`foil.deploy`): moving, the hydraulics run. */
+  private lastDeploy: number | undefined;
   /** The boat of whoever last held us, to ride with when they let go. */
   private camHolderBoat: string | null = null;
   /** A camera body in our VR hand (we've asked the host, or it's ours), by hand. */
@@ -2864,11 +2866,16 @@ export class App {
     const ownWinches = !!gearOf(v, 'trawlWinches');
     if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun && !ownWinches ? (netIn ? 1 : -1) : 0;
     const af = aFrameOf(v);
+    const deploy = v.foil?.deploy;
+    const foilsMoving = deploy !== undefined && this.lastDeploy !== undefined && Math.abs(deploy - this.lastDeploy) > 1e-5;
+    this.lastDeploy = deploy;
     this.sound.hydraulics.update(
       {
         crane: { run: craneRun, load: tp === 'hoisting' ? 0.7 : 0.5, distance: cr ? dist(cr.column[0], cr.shoulderY, cr.column[1]) : 1e9 },
         winch: { run: winchRun, load: line ? Math.min(1, line.tension / CONFIG.tow.winch.pullN) : 0, stalled, distance: tw ? dist(0, 1.2, tw.lead[2]) : 1e9 },
         trawl: { run: trawlRun, load: f?.net === 'hauling' || f?.net === 'lifting' || (c.netIn ?? 0) > 0.5 ? 0.7 : 0.3, distance: af ? dist(0, af.top - 0.3, af.headZ) : 1e9 },
+        // A foiling boat's foils going up or down (her state's `foil.deploy` moving), under her middle.
+        foils: { run: foilsMoving ? 1 : 0, load: 0.5, distance: v.foil ? dist(0, -0.5, 0) : 1e9 },
       },
       this.insideHouse ? this.closed : 0,
     );

@@ -792,6 +792,7 @@ export const CONFIG = {
    *                  this far out of the water (her state's `foil.clear`, 0..1) in FOIL mode;
    *                  `landedClear` and under she's ON HER HULLS
    *   flapWarnDeg    a flap angle past this shows red (working hard: a sea beyond her)
+   *   deepDraughtM   her draught shows amber deeper than this (her foils down at rest)
    *   viewPxPerM     the screen's side view, pixels a metre; `foilDepthM` how far her foils
    *                  hang under her keels (about 2.1 m, the Shipyard's "under water on her hulls"
    *                  less her draught: the drawing's, not the physics')
@@ -809,6 +810,8 @@ export const CONFIG = {
     flyingClear: 0.85,
     landedClear: 0.35,
     flapWarnDeg: 8,
+    /** Her draught on the screen shows amber deeper than this (m: her foils down at rest, 2.7 m; keep to deep water), green shallower. */
+    deepDraughtM: 1.5,
     viewPxPerM: 26,
     foilDepthM: 2.1,
     liftOff: { up: 0.6, down: 0.3, upPulse: [0.35, 90] as [number, number], downPulse: [0.8, 140] as [number, number], splash: 0.6 },
