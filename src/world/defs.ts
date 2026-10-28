@@ -621,6 +621,20 @@ export interface FloatingDockDef {
   width: number;
 }
 
+/**
+ * A container terminal (a coast map's: Hamburg's), laid out by the pipeline from the map's
+ * area and quays: its ship-to-shore cranes along the quay faces (each where it stands, the
+ * bearing its boom reaches out over the water, the quay's height, and whether its boom is
+ * raised), and its blocks of container stacks (each block's middle, the bearing of its long
+ * side, the ground, and a seed for its stacks' heights and colours). Drawn by
+ * world/view/coastView.ts, instanced; sizes CONFIG.structures.terminal.
+ */
+export interface TerminalDef {
+  name: string;
+  cranes: { x: number; z: number; yawDeg: number; base: number; up: boolean }[];
+  stacks: { x: number; z: number; yawDeg: number; base: number; seed: number }[];
+}
+
 /** A graving dock (Dock Elbe 17): its basin's middle, heading, length and breadth, which end its gate closes (+1 along its heading, -1 back) and its walls' top (m). */
 export interface GravingDockDef extends FloatingDockDef {
   gate: number;
@@ -810,6 +824,8 @@ export interface RegionDef {
   museumShips?: MuseumShipDef[];
   floatingDocks?: FloatingDockDef[];
   gravingDocks?: GravingDockDef[];
+  /** Container terminals' quay cranes and stacks (a coast map's; world/view/coastView.ts). */
+  terminals?: TerminalDef[];
   /** A shipyard's gantry cranes (a coast map's; world/coastStructures.ts). */
   gantries?: GantryDef[];
   /** Ships under construction at a yard (a coast map's; world/coastStructures.ts). */

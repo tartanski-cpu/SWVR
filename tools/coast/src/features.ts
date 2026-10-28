@@ -545,7 +545,20 @@ for (const t of things) {
   if (!ring || !inBox(middle(ring))) continue;
   floatingDocks.push({ name: nameOf(t.tags), ...edgeBox(ring) });
 }
-const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, landmarkModels, museumShips, floatingDocks, modelWarnings, drydocks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
+// Container terminals (the request's `containerTerminals`, by name; owner: "add containers and
+// quay cranes to the terminals"): each one's area as the map draws it (a relation's outer rings
+// or a way's), for the package to lay out its quay cranes and container stacks in.
+const containerTerminals: { name: string; rings: XZ[][] }[] = [];
+for (const name of req.containerTerminals ?? []) {
+  const t = things.filter((x) => x.tags.name === name && x.kind !== 'node' && (x.tags.landuse || x.tags.man_made === 'container_terminal' || x.tags.industrial));
+  const rings = t.flatMap(ringsOf).filter((r) => r.length > 3).map((r) => simplify(r, 2));
+  if (!rings.length) {
+    modelWarnings.push(`container terminal "${name}": no area in the map data`);
+    continue;
+  }
+  containerTerminals.push({ name, rings });
+}
+const out = { farms, landmarks, bridges: bridges.map(({ wet: _wet, ...b }) => b), follies, gantries, landmarkModels, museumShips, floatingDocks, containerTerminals, modelWarnings, drydocks, shore, cliffs, farmland, names, fogSignals, wrecks, cables, overhead, ferries: { routes: ferryRoutes, terminals }, counts };
 writeFileSync(join(D.out, 'features.json'), JSON.stringify(out));
 
 // Thin data, said plainly in the report (the milestones that use it have little to work with).

@@ -426,6 +426,27 @@ export const MAP_CONFIG = {
      * two portal cranes along its side: the portal `portal` m square and `portalHeight` m high,
      * the tower to `tower` m, a `jib` m jib.
      */
+    /**
+     * A container terminal (Hamburg's; laid out by the pipeline, drawn instanced by coastView.ts):
+     *   crane   a ship-to-shore crane: `gauge` m between its rails, its legs `legSpan` m apart
+     *           along them, `leg` m thick, its portal `portal` m high; the boom `outreach` m out
+     *           over the water and `backreach` m back; the A-frame's head `apex` m over the boom
+     *   stacks  a block `block` [long, wide] m in `split` [along, across] stacks, `gap` m apart,
+     *           each `tiers` [least, most] containers of `tier` m high, in the `colours`
+     *   distance a terminal's stacks are drawn within this of the viewer (m); its cranes always
+     */
+    terminal: {
+      crane: { gauge: 30, legSpan: 18, leg: 1.8, portal: 42, outreach: 62, backreach: 22, apex: 28, colours: { frame: 0x2f5f9f, boom: 0xe8e8e4, house: 0xf2f2ee, stay: 0x3a3e44 } },
+      stacks: {
+        block: [60, 22] as [number, number],
+        split: [2, 2] as [number, number],
+        gap: 1.6,
+        tiers: [1, 5] as [number, number],
+        tier: 2.6,
+        colours: [0xa8201c, 0x1d4f9a, 0xe8a020, 0x2a7a4a, 0xd8d8d0, 0x7a3a2a, 0x5a6266, 0x2a8aa8, 0x8a1a4a, 0xc8601a],
+      },
+      distance: 3500,
+    },
     gravingDock: {
       gateThick: 10,
       gateFoot: -10,

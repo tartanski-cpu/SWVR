@@ -10,6 +10,21 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hamburg: containers and quay cranes on the terminals (28 Oct 2026)
+
+Owner: "Add containers and quay cranes to the terminals".
+
+- **The terminals** (`containerTerminals` in the request, by their names in the map; `features.ts` takes each area): Container Terminal Burchardkai, Eurogate Container Terminal Hamburg, Container Terminal Tollerort, Containerterminal Altenwerder. The map draws neither the cranes nor the boxes, so the package stage lays them out (`package.ts`, the terminals pass):
+  - **Quay cranes:** along every quay wall in or beside a terminal (within `termReach` 80 m), on its face to the water, one every `craneSpacing` 100 m, `craneEnd` 35 m clear of the ends, standing `craneBack` 18 m in from the face, the boom out over the water; three in ten with the boom raised, as when no ship lies there. 66 cranes: Burchardkai 28, Eurogate 16, Altenwerder 15, Tollerort 7, about the real numbers.
+  - **Container stacks:** blocks 60 x 22 m (`stackBlock`) with lanes between (`stackLane`) on a grid squared to the terminal's main quay, wherever a block's middle is in the area, on land, no water within `stackBack` 60 m, clear of the buildings. 1,279 blocks, each four stacks of 1 to 5 containers high in mixed colours.
+- **The crane** (`coastStructures.ts` `quayCraneGeometry`, `CONFIG.structures.terminal.crane`): an A-frame portal on four legs straddling the quay (30 m between its rails), the boom 62 m out over the water and 22 m back, the machinery house on the back end, the cab, the A-frame head stayed to the boom's ends. Blue frame, white boom. A design of the game's own.
+- **Cheap on the Quest** (`coastView.ts`): instanced. All the cranes are two instanced meshes (boom down, boom up), 252 triangles each, 17,000 in all, always drawn (they're the port's skyline); each terminal's stacks are one instanced mesh (8,700 to 19,000 triangles) drawn only within `terminal.distance` 3.5 km. At the start (the Landungsbrücken) the scene is unchanged: 151 draw calls, 320,000 triangles in the headless browser; near Burchardkai and Eurogate about 55,000 triangles more in five draw calls.
+- **Drawing only, not solid**, like the other structures.
+- **Tests** (`coastHamburg.test.ts`): the four terminals with cranes and stacks; every crane on its quay with its boom over the water; the stacks on land; the budgets. `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless at Burchardkai and Eurogate.
+- **Not yet:** straddle carriers and lorries between the stacks; cranes working (the boom and trolley still); the ships' own cranes alongside.
+- **Not checked:** on the Quest (the frame rate near the terminals is the owner's check).
+- **Shared changes:** `src/world/defs.ts` (`TerminalDef`), `src/world/coastStructures.ts`. Settings in `src/config/map.ts` (`structures.terminal`).
+
 ### Hamburg: ships in the docks, water in Elbe 17, no buildings on the pontoons (28 Oct 2026)
 
 Owner: "the Blohm + Voss dry dock seems to still have land inside it ... a grey mass"; "there should be some ship inside the docks as well"; "the buildings on the dock side next to the Cap San Diego seem to be a bit high. I don't think there should be any buildings on those pontoons."

@@ -60,3 +60,10 @@ shipping:
 dockedShips: true
 yardShips:
   - { dock: Dock Elbe 17, stage: 0.97, length: 290, painted: true }
+# The container terminals (owner: "add containers and quay cranes to the terminals"), by their
+# names in the map: ship-to-shore cranes along their quays, stacks of containers behind.
+containerTerminals:
+  - Container Terminal Burchardkai
+  - Eurogate Container Terminal Hamburg
+  - Container Terminal Tollerort
+  - Containerterminal Altenwerder

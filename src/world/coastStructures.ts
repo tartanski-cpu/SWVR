@@ -35,7 +35,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { mergeParts, part } from '../render/geometryUtils';
-import type { BridgeDef, FloatingDockDef, FollyDef, GantryDef, GravingDockDef, LandmarkModelDef, MuseumShipDef, YardShipDef } from './defs';
+import type { BridgeDef, FloatingDockDef, FollyDef, GantryDef, GravingDockDef, LandmarkModelDef, MuseumShipDef, TerminalDef, YardShipDef } from './defs';
 
 type V3 = [number, number, number];
 
@@ -934,6 +934,77 @@ export function gravingDockParts(g: GravingDockDef): THREE.BufferGeometry[] {
     parts.push(member(at(s, w, g.top + c.crane.tower), at(s, w - c.crane.jib * Math.cos(0.3), g.top + c.crane.tower + c.crane.jib * Math.sin(0.3)), 1.4, 2, c.colours.crane));
   }
   return parts;
+}
+
+/**
+ * A container terminal's ship-to-shore crane, in its own frame (its rails along x, the water
+ * toward -z, the quay at y = 0), for instancing: an A-frame portal on four legs straddling the
+ * quay, `gauge` m between its rails; its boom across the top, reaching `outreach` m out over
+ * the water and `backreach` m back over the quay, the machinery house on its back end, the
+ * trolley's cab under it; the A-frame head over the landside legs, stayed to the boom's ends.
+ * With `up`, the boom's outer part raised near upright (no ship alongside). A design of the
+ * game's own; CONFIG.structures.terminal.crane.
+ */
+export function quayCraneGeometry(up: boolean): THREE.BufferGeometry {
+  const c = CONFIG.structures.terminal.crane;
+  const k = c.colours;
+  const [G, S, P] = [c.gauge, c.legSpan, c.portal];
+  const p: THREE.BufferGeometry[] = [];
+  for (const x of [-S / 2, S / 2]) for (const z of [-G / 2, G / 2]) p.push(member([x, 0, z], [x, P, z], c.leg, c.leg, k.frame));
+  // The portal's beams, and a brace across each side.
+  for (const z of [-G / 2, G / 2]) p.push(member([-S / 2, P, z], [S / 2, P, z], c.leg, 2, k.frame), member([-S / 2, 2, z], [S / 2, 2, z], 1.2, 1.2, k.frame));
+  for (const x of [-S / 2, S / 2]) {
+    p.push(member([x, P, -G / 2], [x, P, G / 2], c.leg, 2, k.frame));
+    p.push(member([x, P * 0.35, -G / 2], [x, P * 0.95, G / 2], 0.9, 0.9, k.frame));
+  }
+  const by = P + 3;
+  const hinge = -G / 2 - 2;
+  const tipZ = -G / 2 - c.outreach;
+  // The boom: its back part over the quay, its outer part over the water (level, or raised).
+  p.push(member([0, by, hinge], [0, by, G / 2 + c.backreach], 4, 3, k.boom));
+  const tip: V3 = up ? [0, by + c.outreach * Math.sin(1.35), hinge - c.outreach * Math.cos(1.35)] : [0, by, tipZ];
+  p.push(member([0, by, hinge], tip, 4, 3, k.boom));
+  // The machinery house on the back end; the cab under the boom over the quay's edge.
+  p.push(member([0, by + 1.5, G / 2 + c.backreach - 8], [0, by + 1.5, G / 2 + c.backreach - 1], 9, 6, k.house));
+  if (!up) p.push(member([0, by - 3.5, -G / 2 - 8], [0, by - 3.5, -G / 2 - 4], 3, 3, k.house));
+  // The A-frame head over the landside legs, stayed out to the boom's tip and back end.
+  const apex: V3 = [0, by + c.apex, G / 2 - 4];
+  for (const x of [-S / 2, S / 2]) p.push(member([x * 0.8, P, G / 2 - 4], apex, 1.4, 1.4, k.frame));
+  p.push(member(apex, tip, 0.5, 0.5, k.stay), member(apex, [0, by, (hinge + tipZ) / 2], 0.5, 0.5, k.stay), member(apex, [0, by, G / 2 + c.backreach - 2], 0.5, 0.5, k.stay));
+  const g = mergeParts(p);
+  g.computeBoundingSphere();
+  return g;
+}
+
+/** One container stack box (a unit box standing on y = 0, white for its instance's colour). */
+export function stackBoxGeometry(): THREE.BufferGeometry {
+  const g = mergeParts([part(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), 0xffffff)]);
+  g.computeBoundingSphere();
+  return g;
+}
+
+/**
+ * A block of container stacks (a TerminalDef's): `split` [along, across] stacks, each its own
+ * height (whole tiers of `tier` m, between `tiers`) and colour, by the block's seed; `gap` m
+ * between them. Each as (its middle, its size, its colour) for an instance.
+ */
+export function stackBoxes(b: TerminalDef['stacks'][number]): { x: number; z: number; y: number; yaw: number; sx: number; sy: number; sz: number; colour: number }[] {
+  const c = CONFIG.structures.terminal.stacks;
+  const a = (b.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const [L, W] = c.block;
+  const [na, nc] = c.split;
+  const out: ReturnType<typeof stackBoxes> = [];
+  let h = (b.seed * 2654435761) >>> 0;
+  for (let i = 0; i < na; i++)
+    for (let j = 0; j < nc; j++) {
+      h = (Math.imul(h, 1103515245) + 12345) >>> 0;
+      const tiers = c.tiers[0] + (h % (c.tiers[1] - c.tiers[0] + 1));
+      const s = -L / 2 + (L / na) * (i + 0.5);
+      const w = -W / 2 + (W / nc) * (j + 0.5);
+      out.push({ x: b.x + ux * s + vx * w, z: b.z + uz * s + vz * w, y: b.base, yaw: -a, sx: W / nc - c.gap, sy: tiers * c.tier, sz: L / na - c.gap, colour: c.colours[(h >>> 8) % c.colours.length] });
+    }
+  return out;
 }
 
 /** The rest of a coast map's structures (each optional): modelled landmarks, museum ships, floating and graving docks. */

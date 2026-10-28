@@ -51,6 +51,17 @@ const T = {
   /** A floating dock this long or more (m) has a ship in it (`dockedShips`), raised this far from afloat (m: the pontoon's deck 1.5 m up, her keel a metre over it, her 7 m draught). */
   dockedShip: 150,
   dockedLift: 9.5,
+  /** Container terminals (see the terminals pass): quay walls within this of the area (m); the water looked for this far off a face (m); cranes every this far (m), this far clear of a quay's ends (m), standing this far in from the face (m); stack blocks [long, wide] (m), lanes [along, across] (m), no water within this (m), this clear of a building (m), at most this many a terminal. */
+  termReach: 80,
+  termFaceProbe: 20,
+  craneSpacing: 100,
+  craneEnd: 35,
+  craneBack: 18,
+  stackBlock: [60, 22] as [number, number],
+  stackLane: [14, 16] as [number, number],
+  stackBack: 60,
+  stackClear: 12,
+  stackMax: 600,
   /** The game puts you ashore this far in from where a boat lies (m; CONFIG.start.quayBack): on a deck. */
   quayBack: 2,
   /**
@@ -499,6 +510,66 @@ const gravingDocks = ((F?.drydocks ?? []) as { name: string; x: number; z: numbe
   const side = (sign: number) => hAt(d.x + vx * sign * (d.width / 2 + 12), d.z + vz * sign * (d.width / 2 + 12));
   return { ...d, x: r1(d.x), z: r1(d.z), gate: outside(1) <= outside(-1) ? 1 : -1, top: r1(Math.max(2, (side(1) + side(-1)) / 2)) };
 });
+// Container terminals (features.ts `containerTerminals`): laid out from the map's area and quays,
+// as the map draws neither the cranes nor the boxes.
+//   quay cranes  along every quay wall (a `quay` block) in or beside the terminal (its middle
+//                within `termReach` m of the area), on its face to the water (the side where
+//                the river is, `termFaceProbe` m out), one every `craneSpacing` m, `craneEnd` m
+//                clear of each end; each stands `craneBack` m in from the face, its boom out
+//                over the water; some with the boom raised (by a steady hash), as when no ship lies there
+//   stacks       blocks of stacks `stackBlock` [long, wide] m on a grid squared to the
+//                terminal's longest quay, `stackLane` [along, across] m lanes between, wherever
+//                the block's middle is in the area, on land, no water within `stackBack` m, and
+//                clear of the buildings (`stackClear` m); at most `stackMax` blocks a terminal
+type QuayBlock = { kind: string; x: number; z: number; halfLength: number; halfWidth: number; yawDeg: number; top: number };
+const terminals = ((F?.containerTerminals ?? []) as { name: string; rings: [number, number][][] }[]).map((t) => {
+  const inside = (x: number, z: number) => t.rings.some((r) => inOutline(r, x, z));
+  const nearArea = (x: number, z: number, d: number) => inside(x, z) || t.rings.some((r) => r.some(([px, pz]) => Math.hypot(px - x, pz - z) < d));
+  const cranes: { x: number; z: number; yawDeg: number; base: number; up: boolean }[] = [];
+  let main: QuayBlock | null = null;
+  for (const b of blocks as QuayBlock[]) {
+    if (b.kind !== 'quay' || b.halfLength < 40 || !nearArea(b.x, b.z, T.termReach)) continue;
+    const a = (b.yawDeg * Math.PI) / 180;
+    const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+    // Which long side looks onto the water.
+    const wet = (sg: number) => hAt(b.x + vx * sg * (b.halfWidth + T.termFaceProbe), b.z + vz * sg * (b.halfWidth + T.termFaceProbe)) < -3;
+    const sg = wet(1) ? 1 : wet(-1) ? -1 : 0;
+    if (!sg) continue;
+    if (!main || b.halfLength > main.halfLength) main = b;
+    const n = Math.floor((2 * b.halfLength - 2 * T.craneEnd) / T.craneSpacing);
+    for (let k = 0; k <= n; k++) {
+      const s0 = -b.halfLength + T.craneEnd + ((2 * b.halfLength - 2 * T.craneEnd) * k) / Math.max(1, n);
+      const [fx, fz] = [b.x + ux * s0 + vx * sg * b.halfWidth, b.z + uz * s0 + vz * sg * b.halfWidth];
+      const [cx, cz] = [fx - vx * sg * T.craneBack, fz - vz * sg * T.craneBack];
+      // Facing the water: the boom reaches toward +sg across the quay.
+      const yawDeg = Math.round(((Math.atan2(vx * sg, -vz * sg) * 180) / Math.PI + 360) % 360);
+      const hash = Math.abs(Math.round(cx * 7.3 + cz * 3.1)) % 10;
+      cranes.push({ x: r1(cx), z: r1(cz), yawDeg, base: r1(Math.max(b.top, 2)), up: hash < 3 });
+    }
+  }
+  // The stacks, on a grid along the main quay (or the area's own lie where it has none).
+  const stacks: { x: number; z: number; yawDeg: number; base: number; seed: number }[] = [];
+  const yaw = main ? main.yawDeg : 0;
+  const a = (yaw * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  const pts = t.rings.flat();
+  const along = pts.map(([x, z]) => x * ux + z * uz);
+  const across = pts.map(([x, z]) => x * vx + z * vz);
+  const [pa, pc] = [T.stackBlock[0] + T.stackLane[0], T.stackBlock[1] + T.stackLane[1]];
+  const clearOfWater = (x: number, z: number) => {
+    for (let k = 0; k < 8; k++) if (hAt(x + Math.cos((k * Math.PI) / 4) * T.stackBack, z + Math.sin((k * Math.PI) / 4) * T.stackBack) < 0) return false;
+    return true;
+  };
+  const kept = keptBuildings as { x: number; z: number; width: number; depth: number }[];
+  for (let A = Math.min(...along) + pa / 2; A < Math.max(...along) && stacks.length < T.stackMax; A += pa)
+    for (let C = Math.min(...across) + pc / 2; C < Math.max(...across) && stacks.length < T.stackMax; C += pc) {
+      const [x, z] = [A * ux + C * vx, A * uz + C * vz];
+      if (!inside(x, z) || hAt(x, z) < 0.5 || !clearOfWater(x, z)) continue;
+      if (kept.some((b) => Math.hypot(b.x - x, b.z - z) < Math.max(b.width, b.depth) / 2 + T.stackClear)) continue;
+      stacks.push({ x: r1(x), z: r1(z), yawDeg: yaw, base: r1(hAt(x, z)), seed: stacks.length + 1 });
+    }
+  return { name: t.name, cranes, stacks };
+});
 // Gantry cranes (Perno): each stands on its two rails, at the lower of the ground along them.
 const gantries = ((F?.gantries ?? []) as { name: string; x: number; z: number; yawDeg: number; length: number; span: number; count: number }[]).map((g) => {
   const a = (g.yawDeg * Math.PI) / 180;
@@ -897,6 +968,7 @@ const pkg = {
   museumShips,
   floatingDocks,
   gravingDocks,
+  terminals,
   gantries,
   yardShips,
   places,

@@ -21,7 +21,7 @@ import { mapRegion, voyageMap } from '../src/world/maps';
 import { fleets } from '../src/traffic/ferries';
 import { ferryGeometry } from '../src/traffic/ferryKit';
 import * as THREE from 'three';
-import { bridgeParts, floatingDockParts, gravingDockParts, landmarkModelParts, museumShipParts, structuresGeometry, yardShipParts } from '../src/world/coastStructures';
+import { quayCraneGeometry, stackBoxes, bridgeParts, floatingDockParts, gravingDockParts, landmarkModelParts, museumShipParts, structuresGeometry, yardShipParts } from '../src/world/coastStructures';
 
 const CONFIG_PONTOON_TOP = 1.5;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -304,5 +304,38 @@ describe('Hamburg: ships in the docks, water in Elbe 17, no buildings on the pon
   it('no building stands over the water (the pavilions on the pontoons by the Cap San Diego)', () => {
     const near = (pkg.buildings as { x: number; z: number }[]).filter((b) => Math.hypot(b.x - 3387, b.z + 2023) < 90);
     expect(near).toEqual([]);
+  });
+});
+
+describe('Hamburg: the container terminals\' quay cranes and stacks (owner)', () => {
+  const ts = () => mapRegion(voyageMap('hamburg')!).terminals!;
+
+  it('Burchardkai, Eurogate, Tollerort and Altenwerder, each with its cranes and stacks', () => {
+    const t = ts();
+    expect(t.map((x) => x.name).sort()).toEqual(['Container Terminal Burchardkai', 'Container Terminal Tollerort', 'Containerterminal Altenwerder', 'Eurogate Container Terminal Hamburg']);
+    for (const x of t) {
+      expect(x.cranes.length, x.name).toBeGreaterThan(4);
+      expect(x.stacks.length, x.name).toBeGreaterThan(100);
+    }
+  });
+
+  it('every crane stands on its quay, its boom reaching out over the water', () => {
+    for (const t of ts())
+      for (const c of t.cranes) {
+        const a = (c.yawDeg * Math.PI) / 180;
+        expect(h(c.x, c.z), t.name).toBeGreaterThan(-1);
+        expect(h(c.x + Math.sin(a) * 60, c.z - Math.cos(a) * 60), t.name).toBeLessThan(0);
+      }
+  });
+
+  it('the stacks on land, back from the water; all of it within budget, instanced', () => {
+    let boxes = 0;
+    for (const t of ts())
+      for (const b of t.stacks) {
+        expect(h(b.x, b.z), t.name).toBeGreaterThan(0);
+        boxes += stackBoxes(b).length;
+      }
+    expect(boxes).toBeLessThan(6000);
+    for (const up of [false, true]) expect(quayCraneGeometry(up).attributes.position.count / 3).toBeLessThan(600);
   });
 });
