@@ -150,12 +150,14 @@ function circuitKeys(): Record<`circuit.${BreakerName}.live`, BusKeySpec> {
  */
 type Lamp = 'off' | 'on' | 'blink';
 const LAMP = ['off', 'on', 'blink'] as const;
-function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge' | 'hull' | 'engine' | 'temp' | 'fuel'): Lamp | undefined {
+function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge' | 'hull' | 'engine' | 'temp' | 'fuel' | 'ready' | 'batt' | 'shore'): Lamp | undefined {
   const diesel = gearOf(s, 'diesel');
   if (!diesel) return undefined;
   const instr = isPowered(s, 'instruments');
   const e = s.engine;
   const running = e.phase === 'running';
+  // (READY, BATT and SHORE are an electric boat's only.)
+  if ((which === 'ready' || which === 'batt' || which === 'shore') && !diesel.electric) return undefined;
   switch (which) {
     case 'oil':
       // No oil pressure stopped; blinks running with the sump nearly dry.
@@ -186,6 +188,14 @@ function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bi
       return instr && engineAlarms(s, diesel).highTemp ? 'blink' : 'off';
     case 'fuel':
       return instr && engineAlarms(s, diesel).lowFuel ? 'on' : 'off';
+    // An electric boat's (owner, 28 Oct 2026): her drive live (the key on, 12 V, charge in her
+    // battery), her battery low (blinking nearly flat), plugged in at the quay.
+    case 'ready':
+      return instr && running ? 'on' : 'off';
+    case 'batt':
+      return !instr || !engineAlarms(s, diesel).lowFuel ? 'off' : (s.battery ?? 0) < CONFIG.modules.warningLamps.battFlat ? 'blink' : 'on';
+    case 'shore':
+      return instr && s.shore ? 'on' : 'off';
   }
 }
 
@@ -509,6 +519,9 @@ export const BUS_KEYS = {
   'lamp.engine': state('enum', (s) => lamp(s, 'engine'), 'ENGINE lamp: on with engine wear worth an overhaul, blinking when bad.', { values: LAMP }),
   'lamp.temp': state('enum', (s) => lamp(s, 'temp'), 'TEMP lamp: blinking with the coolant over its alarm temperature.', { values: LAMP }),
   'lamp.fuel': state('enum', (s) => lamp(s, 'fuel'), 'FUEL lamp: on with the fuel under its low mark.', { values: LAMP }),
+  'lamp.ready': state('enum', (s) => lamp(s, 'ready'), 'READY lamp (an electric boat\'s): on while her drive is live (the key on, 12 V, charge in her battery): the levers move her.', { values: LAMP }),
+  'lamp.batt': state('enum', (s) => lamp(s, 'batt'), 'BATT lamp (an electric boat\'s): on with her battery under its low mark, blinking nearly flat.', { values: LAMP }),
+  'lamp.shore': state('enum', (s) => lamp(s, 'shore'), 'SHORE lamp (an electric boat\'s): on while she\'s plugged in at the quay (shore power).', { values: LAMP }),
 
   // ── Navigation (from her motion) ──
   'nav.speedKts': state('number', (s) => Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) / KNOT, 'Speed over ground.', { unit: 'kn', writer: 'core' }),

@@ -14,6 +14,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Electric boats' helm: no START, the key for the drive, their own warning lamps; the ferry's two interiors (28 Oct 2026; on next for the owner to try)
+
+Owner, 28 Oct 2026: "the electric vessels don't need a start button. You should basically turn on the breaker like the other vessels. And then there should probably be a key to turn on the drive system ... we need a different set of warning lights for electrical vessels"; then "I'd like 2 options for the interior of the foil ferry, 1 as ferry and 1 as explorer vessel i.e sofas etc."
+
+- **An electric boat's helm** (the solar cat, the ferry; parts/recipe.ts): no START button; her key engraved **DRIVE** (the key switches her drive on: the motors take the levers once it's on with 12 V and charge, as before); the switch group titled DRIVE (it keeps the ENGINE group's place: a pinned placing still holds, consoleGrid.ts `panelKey`). Her instruments come on with the INSTR breaker, as every boat's (no change).
+- **Her own warning lamps** (shared, controls/ignition.ts `ELECTRIC_LAMPS`, modules/warningLamps `electric`, modular/busKeys.ts): **READY** (green: her drive live), **NEUTRAL**, **BATT** (amber under her low mark, 10 %; blinking under `CONFIG.modules.warningLamps.battFlat`, 5 %), **SHORE** (blue: plugged in at the quay), **BILGE**, **HULL**. New bus keys `lamp.ready`, `lamp.batt`, `lamp.shore` (an electric boat's only; `docs/BUS_KEYS.md` regenerated). A diesel's lamps are unchanged.
+- **Her start-up card** (shared, modules/startCard `electric`): DRIVE ON: master on, INSTR breaker on, levers in neutral, key on (READY lights), the breakers as needed; BATT and SHORE explained; how to stop.
+- **The ferry's two interiors** (DesignHull `interiors`; the Furniture step's **Start from: Ferry | Explorer**, which takes every piece off and puts that interior in, each piece still movable): **Ferry**, her twelve seats in rows (as she comes); **Explorer**, a sofa aft each side, a table, the galley, a berth forward, the head, a TV on the starboard wall.
+- (Checked on the way: the lamps and small switches looked missing in my screenshots because the game hides a wheelhouse's small parts while the player is outside it, a draw-call saving. They show aboard.)
+- **Shared changes:** `controls/ignition.ts` (lamp sets, the electric card), `modules/warningLamps`, `modules/startCard`, `modular/busKeys.ts` (three lamp keys), `config/modules.ts` (`warningLamps.battFlat`), `docs/BUS_KEYS.md`.
+- Tests: `tests/shipyard/electricHelm.test.ts` (new: no START, DRIVE, the electric lamps and card on both boats and both tiers of controls; READY with the key, NEUTRAL, BATT low and blinking, SHORE plugged in), `foilFerryYard` (both interiors build clean, every piece where pinned). The golden runs pass (the new lamps aren't a diesel's). Checked in the browser: the solar cat's helm (DRIVE, the lamps lit READY and NEUTRAL, the card), the ferry's Explorer interior in the Shipyard and aboard (screenshots). Not checked: VR.
+
 ### The solar catamaran's twin levers; the foiling ferry's foils stay fixed, her foil controls with the main game chat (28 Oct 2026; on next for the owner to try)
 
 Owner, 28 Oct 2026: "For the solar catamaran, I'm kind of surprised it doesn't have two throttle levers, because that would fix your turning problem at low speed, I suspect. And for the foiling ferry, I'm wondering if the foils need to be retractable"; then "I also would have expected some control ... so we can control how the [foils] operate". Asked: twin levers, the joystick kept; the foils fixed; the foil controls left to the main game chat.

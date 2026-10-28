@@ -433,8 +433,12 @@ export const MODULES_CONFIG = {
       tyres: { radius: 0.45, hole: 0.21, thickness: 0.28, drop: 0.4, spacing: 0.92, minBeam: 0.45, kgEach: 45, formFactorAdd: 0.03 },
     },
 
-    /** instrument.warning-lamps: the lamps' spacing (m). Closer since TEMP and FUEL joined (CS5: nine lamps, 0.5 m, about the row's old length). */
-    warningLamps: { spacing: 0.056 },
+    /**
+     * instrument.warning-lamps: the lamps' spacing (m). Closer since TEMP and FUEL joined (CS5: nine lamps, 0.5 m, about the row's old length).
+     * `battFlat`: an electric boat's BATT lamp blinks under this share of her battery (it's on
+     * from her low mark, the engine's fuel lowFraction; modular/busKeys.ts lamp.batt).
+     */
+    warningLamps: { spacing: 0.056, battFlat: 0.05 },
 
     /** furniture.start-card: the laminated start-up card (m). */
     startCard: { width: 0.19, height: 0.26 },

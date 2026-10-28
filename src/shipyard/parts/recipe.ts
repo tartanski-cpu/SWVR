@@ -232,6 +232,18 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     start.config = { ...start.config, label: 'START port engine (hold)', engrave: 'START P' };
     consoleMount.modules!.push({ socket: 'start2', module: 'control.push-button', config: { ...start.config, label: 'START starboard engine (hold)', engrave: 'START S', lit: { key: 'propulsion.state2', is: 'running' } }, bind: { press: 'ignition.start2' } });
   }
+  // An electric boat's helm (owner, 28 Oct 2026: "the electric vessels don't need a start
+  // button ... there should probably be a key to turn on the drive system ... a different set of
+  // warning lights"): no START (the key switches her drive on: modules/pods), the key engraved
+  // DRIVE, her own lamps (READY, NEUTRAL, BATT, SHORE, BILGE, HULL) and start-up card. Her
+  // instruments come on with their breaker, as every boat's.
+  if (p.electric) {
+    consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'start' && m.socket !== 'start2');
+    for (const m of consoleMount.modules) {
+      if (m.socket === 'key') m.config = { ...m.config, engrave: 'DRIVE' };
+      if (m.socket === 'lamps' || m.socket === 'card') m.config = { ...m.config, electric: true };
+    }
+  }
   // The ANCHOR switch (in the DECK group with the skiff crane's button: the switch panel, below).
   if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
   // The autopilot's buttons (with the helm assist panel; owner, Oct 2026: "a separate control that
@@ -369,7 +381,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { title: 'LIGHTS', color: colourOf.LIGHTS, side: 'port', members: ['navLights', 'cabinLight', 'wipers'].filter(has) },
       { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
       { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
-      { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'start2', 'key'].filter(has) },
+      { title: p.electric ? 'DRIVE' : 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'start2', 'key'].filter(has) },
       { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
       // (Last of the starboard side's: nearest the wheel, under the helmsman's hand.)
       { title: 'AUTOPILOT', color: 0xe0a020, side: 'starboard', members: ['apPort', 'apOn', 'apStbd'].filter(has) },
@@ -578,7 +590,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       if (key === 'lamps') {
         cc.slots.lamps = { position: [r3(at.x), r3(yc), r3(faceZ(yc) + 0.003)], rotationDeg: rot };
         const lampMod = consoleMount.modules!.find((m) => m.socket === 'lamps');
-        if (lampMod) lampMod.config = { ...lampMod.config, spacing: r3((at.width * 0.92) / 9) };
+        // (Spread over the strip by how many lamps: an electric boat's six, a diesel's nine.)
+        if (lampMod) lampMod.config = { ...lampMod.config, spacing: r3((at.width * 0.92) / (p.electric ? 6 : 9)) };
         continue;
       }
       const g = groupsNow.find((q) => panelKey(q) === key)!;
@@ -703,12 +716,13 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       cc.slots[id] = { position: [r3(x), was?.[1] ?? 0.01, was?.[2] ?? -0.2] };
     }
     cc.groups = laid.runs.filter((r) => r.group.title).map((r) => ({ title: r.group.title, color: r.group.color, x: [r3(r.x0 + hc.plateInset), r3(r.x1 - hc.plateInset)] }));
-    const engine = laid.runs.find((r) => r.group.title === 'ENGINE');
+    const engine = laid.runs.find((r) => panelKey(r.group) === 'ENGINE');
     if (engine) {
       const mid = r3((engine.x0 + engine.x1) / 2);
       for (const id of lampsUp ? ['card'] : ['lamps', 'card']) if (cc.slots[id]) cc.slots[id].position = [mid, cc.slots[id].position[1], cc.slots[id].position[2]];
       // (The lamps' row is wider than ENGINE's plate: kept on the console, CS6.)
-      const halfRow = (9 * CONFIG.modules.warningLamps.spacing) / 2;
+      // (An electric boat's row: six lamps, not nine.)
+      const halfRow = ((p.electric ? 6 : 9) * CONFIG.modules.warningLamps.spacing) / 2;
       if (cc.slots.lamps && !lampsUp) cc.slots.lamps.position = [r3(Math.min(mid, Math.max(0, dashHalf - halfRow))), cc.slots.lamps.position[1], cc.slots.lamps.position[2]];
     }
     // Her switch panel, for the Shipyard (CS3) and the tests: its whole row of cells, whether

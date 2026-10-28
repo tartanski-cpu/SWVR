@@ -1,4 +1,6 @@
 /**
+ * (An electric boat's, `electric`: READY, NEUTRAL, BATT, SHORE, BILGE, HULL.)
+ *
  * Module instrument.warning-lamps: the engine panel's row of warning lamps, OIL, CHARGE,
  * GLOW, NEUTRAL and BILGE (modular boats M3), and her condition, HULL and ENGINE (on when
  * worth a repair, blinking when bad); TEMP (coolant over its alarm) and FUEL (low) in every tier
@@ -8,12 +10,14 @@
  * a lamp changes.
  */
 import { CONFIG } from '../../config';
-import { WarningLamps } from '../../controls/ignition';
+import { DIESEL_LAMPS, ELECTRIC_LAMPS, WarningLamps } from '../../controls/ignition';
 import type { ModuleDefinition } from '../../modular/module';
 
 const NAMES = ['oil', 'charge', 'glow', 'neutral', 'temp', 'fuel', 'bilge', 'hull', 'engine'] as const;
+/** An electric boat's (`electric`; owner, 28 Oct 2026): READY, NEUTRAL, BATT, SHORE, BILGE, HULL (controls/ignition.ts ELECTRIC_LAMPS). */
+const ELECTRIC_NAMES = ['ready', 'neutral', 'batt', 'shore', 'bilge', 'hull'] as const;
 
-export const WARNING_LAMPS: ModuleDefinition<{ spacing: number }> = {
+export const WARNING_LAMPS: ModuleDefinition<{ spacing: number; electric?: boolean }> = {
   id: 'instrument.warning-lamps',
   version: 1,
   fits: ['panel.slot'],
@@ -29,15 +33,19 @@ export const WARNING_LAMPS: ModuleDefinition<{ spacing: number }> = {
     engine: { dir: 'read', key: 'lamp.engine' },
     temp: { dir: 'read', key: 'lamp.temp' },
     fuel: { dir: 'read', key: 'lamp.fuel' },
+    ready: { dir: 'read', key: 'lamp.ready' },
+    batt: { dir: 'read', key: 'lamp.batt' },
+    shore: { dir: 'read', key: 'lamp.shore' },
   },
   view: {
     build({ config, keys }) {
-      const lamps = new WarningLamps(config);
+      const lamps = new WarningLamps(config, config.electric ? ELECTRIC_LAMPS : DIESEL_LAMPS);
+      const names = config.electric ? ELECTRIC_NAMES : NAMES;
       return {
         staticParts: [],
         movingParts: [lamps.root],
         controls: [],
-        update: (read) => lamps.show(NAMES.map((n) => String(read.get(keys[n])))),
+        update: (read) => lamps.show(names.map((n) => String(read.get(keys[n])))),
       };
     },
   },

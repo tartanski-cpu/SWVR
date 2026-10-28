@@ -6,7 +6,8 @@ import { CONFIG } from '../../config';
 import { checklistCard } from '../../controls/ignition';
 import type { ModuleDefinition } from '../../modular/module';
 
-export const START_CARD: ModuleDefinition<{ width: number; height: number }> = {
+/** (`electric`: an electric boat's card, switching on her drive: controls/ignition.ts checklistCard.) */
+export const START_CARD: ModuleDefinition<{ width: number; height: number; electric?: boolean }> = {
   id: 'furniture.start-card',
   version: 1,
   fits: ['panel.slot'],

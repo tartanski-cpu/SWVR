@@ -45,7 +45,7 @@ import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
 import { electricOf } from './parts/solar';
 import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, NO_FURNITURE, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -865,6 +865,8 @@ function optionTiles(key: keyof ShipDesign, label: string, tiles: Tile[]): HTMLE
   controls.appendChild(wrap);
   return wrap;
 }
+/** The Furniture step's interiors row brought up to her type (set up with the row). */
+let interiorsRow: () => void = () => {};
 /** The deckhouse's width buttons and when each is the one chosen (they set two fields: dhWidth, dhNarrow). */
 const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
 /** The deckhouse's Width slider shown from the design (it sets two fields: set up with the slider). */
@@ -872,7 +874,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'solarBattery' ? !!(ENGINES[design.engine] as { electric?: boolean } | undefined)?.electric : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'interiors' ? !!DESIGN_HULLS[design.hull]?.interiors?.length : cond === 'solarBattery' ? !!(ENGINES[design.engine] as { electric?: boolean } | undefined)?.electric : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -1137,6 +1139,32 @@ section('3. Deck gear');
   controls.append(menu);
 }
 section('4. Furniture');
+// Her type's interiors to start from (DesignHull.interiors; the foiling ferry's: owner, 28 Oct
+// 2026, "1 as ferry and 1 as explorer vessel"): every piece taken off, then the interior's put in.
+{
+  const row = document.createElement('div');
+  row.className = 'row opts';
+  row.dataset.when = 'interiors';
+  row.innerHTML = '<label>Start from</label><div></div>';
+  controls.appendChild(row);
+  const box = row.querySelector('div')!;
+  const show = (): void => {
+    const list = DESIGN_HULLS[design.hull]?.interiors ?? [];
+    if (box.dataset.hull === String(design.hull)) return;
+    box.dataset.hull = String(design.hull);
+    box.replaceChildren(
+      ...list.map((it) => {
+        const c = document.createElement('span');
+        c.className = 'choice';
+        c.textContent = it.name;
+        c.title = it.info;
+        c.onclick = () => change({ ...NO_FURNITURE, ...it.pins });
+        return c;
+      }),
+    );
+  };
+  interiorsRow = show;
+}
 {
   // Her furniture (furnishing.ts): a card a piece, Add as many as fit; under it, each one on her.
   const menu = document.createElement('div');
@@ -1410,6 +1438,7 @@ function lockOneOff(): void {
 }
 function showControls(): void {
   syncDhWidth();
+  interiorsRow();
   // The Paint step's '=' swatches show the colour they follow; each row names the one chosen.
   document.querySelectorAll<HTMLElement>('.swatch[data-like]').forEach((el) => (el.style.background = hex(PAINT_LIKE[el.dataset.like!](design))));
   document.querySelectorAll<HTMLElement>('output[data-paint]').forEach((el) => (el.textContent = optionNames[el.dataset.paint as keyof ShipDesign]?.[design[el.dataset.paint as keyof ShipDesign] as number] ?? ''));
