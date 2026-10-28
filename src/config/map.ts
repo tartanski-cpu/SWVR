@@ -72,6 +72,12 @@ export const MAP_CONFIG = {
     coastStructureDistance: 2500,
     /** ...each square made only as the viewer comes within that distance of it (and a square more), piece by piece, up to this many ms a frame; those round the start before the first frame (worldView CoastKit). */
     coastKitMs: 4,
+    /**
+     * On a standalone headset (the trees' device level, treesView.ts treeLevel: the Quest), the
+     * coast maps' reach drawn shorter (owner, Oct 2026: Hamburg ran at 30-40 fps): the town's
+     * buildings, the harbour kit's squares and a container terminal's stacks within these (m).
+     */
+    coastQuest: { coastBuildingDistance: 1300, coastStructureDistance: 1600, stackDistance: 1800 },
     /** A mussel farm's long-line (a coast map's, the coast extras plan C2; worldView.buildFarm): one float every this many metres along it. */
     lineFloat: 6,
     coastLoadDistance: 1500,
@@ -339,6 +345,13 @@ export const MAP_CONFIG = {
      * their anchorages `anchorStep` m apart down the head, `stay` m thick; the approaches on
      * piers every `approachSpan` m. White concrete pylons, pale grey stays.
      */
+    /**
+     * The harbour kit's piers and quays (world/view/worldView.ts buildBlock; owner, Oct 2026:
+     * Hamburg's piers were the biggest share of the triangles): a pier's piles every
+     * `pileSpacing` m each side, `pileRadius` m, `pileSides` sides, open-ended, its outer piles
+     * its fenders; a quay's fender boards every `fenderSpacing` m.
+     */
+    kit: { pileSpacing: 9, pileRadius: 0.3, pileSides: 5, fenderSpacing: 8 },
     cableStayed: { leg: 3.5, legOut: 4, headHalf: 2.5, stays: 9, anchorStep: 2.2, stay: 0.4, approachSpan: 45, colour: 0xe6e6e0, stayColour: 0xc8ccd0 },
     /**
      * A landmark modelled from the map's 3D building parts (Hamburg): the colours where the map
@@ -445,7 +458,7 @@ export const MAP_CONFIG = {
         tier: 2.6,
         colours: [0xa8201c, 0x1d4f9a, 0xe8a020, 0x2a7a4a, 0xd8d8d0, 0x7a3a2a, 0x5a6266, 0x2a8aa8, 0x8a1a4a, 0xc8601a],
       },
-      distance: 3500,
+      distance: 2500,
     },
     gravingDock: {
       gateThick: 10,

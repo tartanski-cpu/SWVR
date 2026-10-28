@@ -976,9 +976,14 @@ export function quayCraneGeometry(up: boolean): THREE.BufferGeometry {
   return g;
 }
 
-/** One container stack box (a unit box standing on y = 0, white for its instance's colour). */
+/** One container stack box (a unit box standing on y = 0, white for its instance's colour), without the bottom face no one sees. */
 export function stackBoxGeometry(): THREE.BufferGeometry {
-  const g = mergeParts([part(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), 0xffffff)]);
+  const box = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+  // Its faces in order +x, -x, +y, -y, +z, -z, two triangles each: the -y pair left out.
+  const idx = Array.from(box.index!.array);
+  box.setIndex([...idx.slice(0, 18), ...idx.slice(24)]);
+  box.clearGroups();
+  const g = mergeParts([part(box, 0xffffff)]);
   g.computeBoundingSphere();
   return g;
 }
