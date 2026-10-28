@@ -3,14 +3,16 @@
  * hull study's `foilFerry`: 12 m, about 9 t, 25 kn foilborne). Her hull's catamaran physics
  * with her foils and their flight computer, pushed by a thrust at her motor pod (her drive
  * comes later): she runs on her hulls below take-off, climbs steadily onto her foils, flies
- * level at her ride height at 25 kn on about 110 kW, banks into a turn, rides the game's
- * usual sea without a foil breaking the surface, and lands level.
+ * level at her ride height at 25 kn on about 140 kW, banks into a turn, rides the game's
+ * usual sea and its Rough sea without a foil breaking the surface, and lands level. Her draught
+ * (owner): 2.7 m at rest, about 1.2 m foiling, 1.0 m with her foils retracted (SHALLOW).
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/config';
 import { DESIGNS } from '../src/hulls/designs';
 import { prepareWaves, type WaveComponent } from '../src/ocean/waves';
+import { seaStateWaves } from '../src/environment/environmentState';
 import { catamaranHandling } from '../src/vessel/catamaran';
 import { hullFormFromDesign } from '../src/vessel/hullForm';
 import { foilTelemetry } from '../src/vessel/physics/foils';
@@ -65,7 +67,7 @@ interface Sample {
   flaps: number[];
   thrust: number;
   /** Her state's flight summary (VesselState.foil). */
-  foil?: { engaged: number; flaps: number[]; clear: number };
+  foil?: { engaged: number; flaps: number[]; clear: number; deploy: number; draught: number };
 }
 
 /**
@@ -106,13 +108,12 @@ function run(seconds: number, thrust: (t: number, kn: number) => number, side: (
 const after = (r: Sample[], t0: number, t1 = Infinity) => r.filter((x) => x.t >= t0 && x.t < t1);
 
 describe('hydrofoils: the foiling ferry', () => {
-  it('flies level at 25 kn at her ride depth, her hulls clear of the water, on about 110 kW', { timeout: 60000 }, () => {
+  it('flies level at 25 kn at her ride depth, her hulls clear of the water, on about 140 kW', { timeout: 60000 }, () => {
     const r = run(60, (t) => (t < 12 ? 16000 : -1));
     const cruise = after(r, 40);
     for (const x of cruise) {
       expect(x.kn).toBeGreaterThan(24.5);
-      expect(x.depth[0]).toBeGreaterThan(0.7);
-      expect(x.depth[0]).toBeLessThan(0.9);
+      expect(Math.abs(x.depth[0] - design.foils!.rideDepth)).toBeLessThan(0.1);
       expect(x.pitch).toBeGreaterThan(0);
       expect(x.pitch).toBeLessThan(2);
       expect(Math.abs(x.heel)).toBeLessThan(0.5);
@@ -121,27 +122,29 @@ describe('hydrofoils: the foiling ferry', () => {
     // Her thrust's power at 25 kn, at the game's propulsive efficiency (0.55).
     const T = cruise.reduce((a, x) => a + x.thrust, 0) / cruise.length;
     const kw = (T * 25 * KN) / 0.55 / 1000;
-    expect(kw).toBeGreaterThan(80);
-    expect(kw).toBeLessThan(140);
+    expect(kw).toBeGreaterThan(110);
+    expect(kw).toBeLessThan(160);
   });
 
   it('below her take-off speed she runs on her hulls, her flaps level; given enough, she climbs onto her foils gently', { timeout: 60000 }, () => {
-    const slow = after(run(40, () => 6000), 25);
+    // (Her flight computer starts lifting her from CONFIG.foils.control.engageFrom of her
+    // take-off speed, about 9 kn.)
+    const slow = after(run(40, () => 4500), 25);
     for (const x of slow) {
-      expect(x.kn).toBeLessThan(12);
+      expect(x.kn).toBeLessThan((CONFIG.foils.control.engageFrom * design.foils!.takeoff) / KN);
       expect(x.depth[0]).toBeGreaterThan(1.8);
       expect(Math.abs(x.flaps[0])).toBeLessThan(0.01);
     }
     const up = run(30, () => 13000);
     // Flying by 20 s, never leaping bow-high on the way.
-    expect(after(up, 20).every((x) => x.depth[0] < 1.0 && x.keelClear > 0.3)).toBe(true);
+    expect(after(up, 20).every((x) => x.depth[0] < design.foils!.rideDepth + 0.2 && x.keelClear > 0.5)).toBe(true);
     expect(Math.max(...up.map((x) => x.pitch))).toBeLessThan(5);
   });
 
   it('banks into a turn as a coordinated turn would, holding her height', { timeout: 60000 }, () => {
     // A push to port at her stern turns her to starboard. In these axes a turn to starboard is
     // a negative yaw rate (about y, up), and starboard down a negative heel (about z, aft).
-    const r = run(60, (t) => (t < 12 ? 16000 : -1), (t) => (t > 30 ? -2500 : 0));
+    const r = run(60, (t) => (t < 12 ? 16000 : -1), (t) => (t > 30 ? -4000 : 0));
     const turning = after(r, 45);
     const yaw = turning.reduce((a, x) => a + x.yawRate, 0) / turning.length;
     const heel = turning.reduce((a, x) => a + x.heel, 0) / turning.length;
@@ -152,7 +155,19 @@ describe('hydrofoils: the foiling ferry', () => {
     const coordinated = (Math.atan((25 * KN * (Math.abs(yaw) * Math.PI) / 180) / CONFIG.ocean.gravity) * 180) / Math.PI;
     expect(heel).toBeLessThan(-0.5 * CONFIG.foils.control.bank * coordinated);
     expect(heel).toBeGreaterThan(-1.5 * CONFIG.foils.control.bank * coordinated);
-    for (const x of turning) expect(Math.abs(x.depth[0] - 0.8)).toBeLessThan(0.1);
+    for (const x of turning) expect(Math.abs(x.depth[0] - design.foils!.rideDepth)).toBeLessThan(0.1);
+  });
+
+  it('flies the game\'s Rough sea too (owner: deeper foils, for higher sea states), no foil breaking the surface', { timeout: 120000 }, () => {
+    const r = after(run(120, (t) => (t < 20 ? 16000 : -1), undefined, seaStateWaves(1.8)), 40);
+    // On her foils throughout; her hulls brushing the bigger crests now and then (about 2 m
+    // seas, more than her 1.9 m from foil to keel), mostly clear of them.
+    expect(r.every((x) => x.foil!.engaged > 0.9)).toBe(true);
+    expect(r.filter((x) => x.foil!.clear > 0.9).length / r.length).toBeGreaterThan(0.8);
+    for (const x of r) {
+      expect(Math.min(...x.depth)).toBeGreaterThan(0.1);
+      expect(Math.abs(x.heel)).toBeLessThan(8);
+    }
   });
 
   it('rides the game\'s usual sea on her foils, none breaking the surface', { timeout: 60000 }, () => {
@@ -194,6 +209,33 @@ describe('the foiling ferry\'s helm: FOIL / HULL and her ride height', () => {
     expect(Math.abs(low - (ride + steps[0]))).toBeLessThan(0.06);
     expect(Math.abs(normal - (ride + steps[1]))).toBeLessThan(0.06);
     expect(Math.abs(high - (ride + steps[2]))).toBeLessThan(0.06);
+  });
+
+  it('her draught (owner): 2.7 m at rest with her foils down, about 1.2 m foiling, 1.0 m with them retracted (SHALLOW)', { timeout: 120000 }, () => {
+    const rest = run(5, () => 0);
+    expect(rest[rest.length - 1].foil!.draught).toBeCloseTo(2.7, 1);
+    const flying = after(run(50, (t) => (t < 12 ? 16000 : -1)), 40);
+    for (const x of flying) expect(Math.abs(x.foil!.draught - 1.2)).toBeLessThan(0.08);
+    const shallow = run(30, () => 0, undefined, [], () => ({ foilMode: 2 }));
+    const last = shallow[shallow.length - 1].foil!;
+    expect(last.deploy).toBe(0);
+    expect(last.draught).toBeCloseTo(1.0, 1);
+    // Moving meanwhile: part way down at half her retraction time.
+    const mid = shallow.find((x) => x.t >= CONFIG.foils.retractSeconds / 2)!.foil!.deploy;
+    expect(mid).toBeGreaterThan(0.3);
+    expect(mid).toBeLessThan(0.7);
+  });
+
+  it('SHALLOW while flying: she comes down onto her hulls first, and her foils retract only once she\'s slowed', { timeout: 120000 }, () => {
+    const r = run(100, (t) => (t < 12 ? 16000 : t < 30 ? -1 : 0), undefined, [], (t) => ({ foilMode: t < 30 ? 1 : 2 }));
+    for (const x of after(r, 30)) {
+      expect(Math.abs(x.pitch)).toBeLessThan(4);
+      // Not retracting while she's still fast enough for her flight computer.
+      if (x.kn > 0.85 * design.foils!.takeoff / KN) expect(x.foil!.deploy).toBe(1);
+    }
+    const last = r[r.length - 1].foil!;
+    expect(last.deploy).toBe(0);
+    expect(last.draught).toBeCloseTo(1.0, 1);
   });
 
   it('switched to HULL while flying, she comes down onto her hulls gently and level', { timeout: 60000 }, () => {

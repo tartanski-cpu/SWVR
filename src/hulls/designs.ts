@@ -996,11 +996,12 @@ export const DESIGNS: HullDesign[] = [
     // A small foiling electric ferry (owner, Oct 2026: 12 m, 30 passengers, 25 kn foilborne;
     // from photographs of a foiling passenger ferry; our own lines of the type): two deep-V
     // hulls under a high bridge deck, which fly clear of the water on fully submerged foils
-    // (vessel/physics/foils.ts): a main foil forward between two struts, a smaller one aft on
-    // the strut that carries her motor pod. Hull only here; her house and drive to come.
+    // (vessel/physics/foils.ts): a main foil forward between two struts, a T-foil aft under
+    // each hull carrying a motor pod; they retract for shallow water. Hull only here; her
+    // house and drive to come.
     id: 'foilFerry',
     name: 'Foiling electric ferry (12 m type)',
-    blurb: 'Small foiling electric passenger ferry: two deep-V hulls under a high bridge deck, flying clear of the water at 25 kn on fully submerged foils, a main foil forward between two struts and a smaller one aft on the strut that carries her electric pod, held at her ride height by a flight computer. 30 passengers. 12.0 x 4.5 m, draught 0.55 m on her hulls (about 2 m to her foils).',
+    blurb: 'Small foiling electric passenger ferry: two deep-V hulls under a high bridge deck, flying clear of the water at 25 kn on fully submerged foils, a main foil forward spanning between two struts with winglets on its ends and a T-foil aft under each hull with a propulsion pod, held at her ride height by a flight computer; her foils retract for shallow water. 30 passengers. 12.0 x 4.5 m, 0.76 m on her hulls; draught 2.7 m with her foils down at rest, 1.2 m foiling, 1.0 m with them retracted.',
     length: 12.0,
     catamaran: { spacing: 3.3, tunnel: 0.95 },
     // One hull's deck half-breadth.
@@ -1045,24 +1046,32 @@ export const DESIGNS: HullDesign[] = [
       [0, 0],
       [1, 0],
     ],
-    // Her foils (game axes: x to starboard, y up from her DWL, z aft, amidships 0): the main foil
-    // 1.3 m forward of amidships, carrying about 70 % of her weight (her CG 0.73 m aft), in two
-    // halves between her hulls' struts; the aft foil 5.4 m aft on the centreline strut that
-    // carries her motor pod. 2.2 m under her waterline on her hulls; flying her forward foil
-    // 0.8 m deep lifts her keels about 0.65 m clear. Take-off about 15.5 kn.
+    // Her foils (game axes: x to starboard, y up from her DWL, z aft, amidships 0), as the
+    // owner's arrangement (28 Oct): forward, a pi frame, a main foil 3.9 m span between two
+    // struts on her hulls' centrelines, with end plates (winglets) on its ends, carrying about
+    // 70 % of her weight; aft, a T-foil on a strut under each hull, a bulb where foil and strut
+    // meet, the struts turning with her steering as twin rudders. Her drive stays the Shipyard's one pod on her centreline (its strut down from her wet
+    // deck, no foil on it). Draught (owner): 2.7 m at rest with her foils down, 1.2 m foiling (her forward foil
+    // 1.05 m deep, her keels about 0.8 m clear), 1.0 m with them retracted (shallow mode: her
+    // struts slide 1.7 m up into her hulls). Take-off about 15.5 kn.
     foils: {
       panels: [
-        { at: [-0.975, -2.2, -1.3], span: 1.95, chord: 0.42, incidenceDeg: 3, role: 'port' },
-        { at: [0.975, -2.2, -1.3], span: 1.95, chord: 0.42, incidenceDeg: 3, role: 'starboard' },
-        { at: [0, -2.2, 5.4], span: 2.4, chord: 0.38, incidenceDeg: 3, role: 'aft' },
+        { at: [-0.975, -2.62, -1.3], span: 1.95, chord: 0.42, incidenceDeg: 3, role: 'port' },
+        { at: [0.975, -2.62, -1.3], span: 1.95, chord: 0.42, incidenceDeg: 3, role: 'starboard' },
+        { at: [-1.65, -2.62, 5.2], span: 1.3, chord: 0.32, incidenceDeg: 3, role: 'aft' },
+        { at: [1.65, -2.62, 5.2], span: 1.3, chord: 0.32, incidenceDeg: 3, role: 'aft' },
       ],
       struts: [
-        { x: -1.65, z: -1.3, top: -0.7, bottom: -2.2, chord: 0.3 },
-        { x: 1.65, z: -1.3, top: -0.7, bottom: -2.2, chord: 0.3 },
-        { x: 0, z: 5.4, top: 0.95, bottom: -2.2, chord: 0.32, podDragArea: 0.008 },
+        { x: -1.65, z: -1.3, top: -0.7, bottom: -2.62, chord: 0.3 },
+        { x: 1.65, z: -1.3, top: -0.7, bottom: -2.62, chord: 0.3 },
+        { x: -1.65, z: 5.2, top: -0.6, bottom: -2.62, chord: 0.28, bulbDragArea: 0.0025, steered: true },
+        { x: 1.65, z: 5.2, top: -0.6, bottom: -2.62, chord: 0.28, bulbDragArea: 0.0025, steered: true },
+        { x: 0, z: 5.6, top: 0.95, bottom: -2.5, chord: 0.32, podDragArea: 0.008 },
       ],
-      rideDepth: 0.8,
-      trimDeg: 0.5,
+      endPlate: 0.3,
+      retract: 1.7,
+      rideDepth: 1.05,
+      trimDeg: 0.3,
       takeoff: 8.0,
     },
     colours: { topsides: 0xeef0ef, bulwark: 0xeef0ef, bottom: 0x1f2326, boot: 0x1f2326, house: 0xeef0ef, deck: 0x6e7470, roof: 0xeef0ef },

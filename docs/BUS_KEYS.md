@@ -37,7 +37,7 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
-| `foils.mode` | on / off | player sets | module |  | Hydrofoils: FOIL (true, the default) her flight computer flies her on her foils at speed; HULL (false) it keeps her down on her hulls, bringing her down gently if she was flying. |
+| `foils.mode` | mode, 0 to 2, whole | player sets | module |  | Hydrofoils: 1 FOIL (the default) her flight computer flies her on her foils at speed; 0 HULL it keeps her down on her hulls, foils down, bringing her down gently if she was flying; 2 SHALLOW as HULL, then her foils retract once she's off them and slowed. |
 | `foils.ride` | step, 0 to 2, whole | player sets | module |  | Hydrofoils: her ride height, 0 low, 1 normal, 2 high (her forward foil CONFIG.foils.rideSteps deeper or shallower than her design ride depth). |
 
 ## helm

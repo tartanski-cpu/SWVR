@@ -276,11 +276,11 @@ export const BUS_KEYS = {
   // Hydrofoils (vessel/physics/foils.ts; owner, Oct 2026: the foiling ferry's helm): FOIL / HULL
   // and her ride height. Only on a boat with foils.
   'foils.mode': foilKey({
-    ...control('foilMode', 'Hydrofoils: FOIL (true, the default) her flight computer flies her on her foils at speed; HULL (false) it keeps her down on her hulls, bringing her down gently if she was flying.', { writer: 'module', default: true }),
+    ...setting('foilMode', [0, 2], 'mode', 'Hydrofoils: 1 FOIL (the default) her flight computer flies her on her foils at speed; 0 HULL it keeps her down on her hulls, foils down, bringing her down gently if she was flying; 2 SHALLOW as HULL, then her foils retract once she\'s off them and slowed.', { integer: true, writer: 'module', default: 1 }),
     bind: {
-      get: (s) => (s.controls.foilMode ?? 1) > 0.5,
+      get: (s) => s.controls.foilMode ?? 1,
       set: (s, v) => {
-        s.controls.foilMode = v ? 1 : 0;
+        s.controls.foilMode = Math.round(Math.min(2, Math.max(0, v as number)));
       },
     },
   }),

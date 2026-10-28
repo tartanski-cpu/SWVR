@@ -23,7 +23,7 @@ const ferry: ShipDesign = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[FOIL_FERRY].defau
 const study = DESIGNS.find((d) => d.id === 'foilFerry')!;
 
 describe('the foiling ferry in the Shipyard', () => {
-  it('builds clean: 12 x 4.5 m of composite, about 6.5-7.5 t, her foils 2 m and more under her', () => {
+  it('builds clean: 12 x 4.5 m of composite, about 6.5-7.5 t, her foils about 2.5 m under her', () => {
     expect(DESIGN_HULLS[FOIL_FERRY].name).toMatch(/^Foiling electric ferry/);
     const b = useDesign(ferry);
     expect(b.warnings).toEqual([]);
@@ -35,8 +35,9 @@ describe('the foiling ferry in the Shipyard', () => {
     expect(b.figures.massT).toBeLessThan(7.5);
     expect(b.figures.draughtM).toBeGreaterThan(0.55);
     expect(b.figures.draughtM).toBeLessThan(0.76);
-    expect(b.figures.foilsDraughtM).toBeGreaterThan(2);
-    expect(b.figures.foilsDraughtM).toBeLessThan(2.3);
+    // (Her lines' 2.7 m at rest with her foils down, owner 28 Oct 2026; a little less, lighter.)
+    expect(b.figures.foilsDraughtM).toBeGreaterThan(2.4);
+    expect(b.figures.foilsDraughtM).toBeLessThan(2.8);
     expect(b.figures.engine).toMatch(/^2 x 95 kW electric motors in one contra-rotating pod/);
     const names = b.weights.items.map((i) => i.name);
     expect(names).toContain('Battery (200 kWh)');
@@ -54,8 +55,8 @@ describe('the foiling ferry in the Shipyard', () => {
     expect(rise).toBeGreaterThan(0);
     expect(foils.struts[0].top - foils.struts[0].bottom).toBeCloseTo(study.foils!.struts[0].top - study.foils!.struts[0].bottom, 6);
     const drawn = b.recipe.modules.find((m) => m.module === 'hull.foils')!.config as { panels: unknown[]; struts: { podDragArea?: number }[] };
-    expect(drawn.panels).toHaveLength(3);
-    expect(drawn.struts).toHaveLength(2);
+    expect(drawn.panels).toHaveLength(study.foils!.panels.length);
+    expect(drawn.struts).toHaveLength(study.foils!.struts.length - 1);
     expect(drawn.struts.some((s) => s.podDragArea)).toBe(false);
   });
 
@@ -103,11 +104,12 @@ describe('the foiling ferry in the Shipyard', () => {
     expect(big.solar!.batteryKWh).toBe(200);
     expect(big.massT - small.massT).toBeCloseTo((180 * 6) / 1000, 1);
     expect(big.solar!.cruiseKn).toBe(25);
-    // 200 kWh: about 80 kW at 25 kn (foilFerryDrive.test.ts measures it), a little over 2 h, 50-60 nm.
-    expect(big.solar!.cruiseKw).toBeGreaterThan(70);
-    expect(big.solar!.cruiseKw).toBeLessThan(90);
-    expect(big.solar!.rangeNm).toBeGreaterThan(48);
-    expect(big.solar!.rangeNm).toBeLessThan(64);
+    // 200 kWh: about 100 kW at 25 kn on her deeper foils (foilFerryDrive.test.ts measures it),
+    // about 1 3/4 h, 40-50 nm.
+    expect(big.solar!.cruiseKw).toBeGreaterThan(92);
+    expect(big.solar!.cruiseKw).toBeLessThan(112);
+    expect(big.solar!.rangeNm).toBeGreaterThan(40);
+    expect(big.solar!.rangeNm).toBeLessThan(50);
     expect(big.solar!.rangeNm).toBeGreaterThan(5 * small.solar!.rangeNm);
   });
 

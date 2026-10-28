@@ -1881,8 +1881,13 @@ export const VESSELS_CONFIG = {
    *   strutCd        a strut's drag coefficient on its wetted area;
    *   rideSteps      her helm's three ride heights, low / normal / high: her forward foil this
    *                  much deeper (+) or shallower (-) than her design's ride depth (m);
+   *   retractSeconds her foils' whole travel up or down (shallow mode), s;
+   *   belowFoil      her draught reaches this far below a foil's middle or a strut's foot (the
+   *                  foil's thickness, the pods' bulbs), m;
    *   control        her flight computer (each a fraction of a foil's share of her weight):
-   *     engageFrom   it takes over from this share of her take-off speed, fully at take-off;
+   *     engageFrom   it takes over from this share of her take-off speed, fully at take-off
+   *                  (lifting her early unloads her hulls over their hump: 0.6, owner 28 Oct
+   *                  2026, her deeper foils' struts drag more there);
    *     kh, kv       her forward foil: per m too deep (at most `climb` m counted: she climbs
    *                  to her ride height steadily), per m/s rising (height and its damping);
    *     kpf          her forward foil eases off per rad her bow is up past her trim (no leap at
@@ -1912,6 +1917,8 @@ export const VESSELS_CONFIG = {
     surfaceChords: 0.5,
     strutCd: 0.012,
     rideSteps: [0.2, 0, -0.2],
-    control: { engageFrom: 0.8, kh: 2.0, climb: 0.2, kv: 0.6, kpf: 4, kp: 4, kq: 1.5, kr: 12, krd: 3, bank: 0.7, maxBankDeg: 12, follow: 0, guard: 0.45, safeHeelDeg: 12, landShare: 0.3 },
+    retractSeconds: 20,
+    belowFoil: 0.08,
+    control: { engageFrom: 0.6, kh: 2.0, climb: 0.2, kv: 0.6, kpf: 4, kp: 4, kq: 1.5, kr: 12, krd: 3, bank: 0.7, maxBankDeg: 12, follow: 0, guard: 0.45, safeHeelDeg: 12, landShare: 0.3 },
   },
 };

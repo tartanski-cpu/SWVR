@@ -2,6 +2,7 @@
  * The foiling electric ferry (owner, Oct 2026: 12 m, 30 passengers, 25 kn foilborne; our own
  * lines of the type): her hull and her foils' layout. Her flying is tests/foils.test.ts.
  */
+import { CONFIG } from '../../src/config';
 import { describe, expect, it } from 'vitest';
 import { DESIGNS } from '../../src/hulls/designs';
 import { hydrostatics, loft } from '../../src/hulls/loft';
@@ -37,7 +38,14 @@ describe('the foiling ferry (hull study)', () => {
     expect(fwd[0].at[0] + fwd[0].span / 2).toBeCloseTo(0, 6);
     for (const s of f.struts.filter((s) => s.z === zF)) expect(Math.abs(s.x)).toBeCloseTo(design.catamaran!.spacing / 2, 6);
     expect(fwd.reduce((a, p) => a + p.span, 0) / 2).toBeGreaterThan(design.catamaran!.spacing / 2);
-    // Every strut reaches from her hull (or her wet deck) down to its foil.
-    for (const s of f.struts) expect(s.bottom).toBeCloseTo(fwd[0].at[1], 6);
+    // Every foil's strut reaches from her hull down to its foil; her pod's strut, on her
+    // centreline from her wet deck, carries no foil, its pod well under her keels.
+    for (const s of f.struts.filter((s) => !s.podDragArea)) expect(s.bottom).toBeCloseTo(fwd[0].at[1], 6);
+    const pod = f.struts.filter((s) => s.podDragArea);
+    expect(pod).toHaveLength(1);
+    expect(pod[0].x).toBe(0);
+    expect(keel - pod[0].bottom).toBeGreaterThan(1.5);
+    // Retracted (shallow mode), nothing reaches below 1.0 m: her foils and the pod's foot.
+    expect(Math.min(...f.panels.map((p) => p.at[1]), ...f.struts.map((s) => s.bottom)) + f.retract!).toBeGreaterThan(-1.0 + CONFIG.foils.belowFoil - 1e-9);
   });
 });

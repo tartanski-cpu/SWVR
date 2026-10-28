@@ -385,9 +385,10 @@ export function stepVessel(
   if (def.foils) {
     portWaves = waves;
     // (Her steering's angle, for a strut that turns with it: a pod's, VesselState.rudder.)
-    const fl = stepFoils(def.foils, port, mass, cgL.z, state.controls, state.rudder);
-    // (For her helm's display and sound, in her state: a crew's game sees it too.)
-    state.foil = { engaged: Math.round(fl.engaged * 1000) / 1000, flaps: fl.flaps.map((x) => Math.round(x * 10) / 10), clear: Math.round((1 - immersion) * 1000) / 1000 };
+    const fl = stepFoils(def.foils, port, mass, cgL.z, state.controls, state.rudder, state.foil?.deploy ?? 1, dt);
+    // (For her helm's display and sound, in her state: a crew's game sees it too. `deploy`
+    // carries her foils' travel from tick to tick: not rounded.)
+    state.foil = { engaged: Math.round(fl.engaged * 1000) / 1000, flaps: fl.flaps.map((x) => Math.round(x * 10) / 10), clear: Math.round((1 - immersion) * 1000) / 1000, deploy: fl.deploy, draught: Math.round(fl.draught * 100) / 100 };
   }
   // Added resistance in waves (CONFIG.ocean.addedResistance): the sea's drag on a hull
   // beyond calm water, ρ g ζ² B²/L × gain (the classic scaling), ζ the waves' amplitude

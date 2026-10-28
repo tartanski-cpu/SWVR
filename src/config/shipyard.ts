@@ -338,7 +338,8 @@ export const SHIPYARD_CONFIG = {
      *                 flight computer with its sensors and flap actuators;
      *   cruiseKn, cruiseKw, cruiseRefT, cruiseKwPerT  her range is given at her service speed
      *                 on her foils, `cruiseKn`, on the power it takes from her battery: measured
-     *                 in the game 28 Oct 2026 (flying level in calm water, her motors' draw),
+     *                 in the game 28 Oct 2026 (flying level in calm water, her motors' draw;
+   *                 102 kW on the owner's deeper foils, the hull modifications chat, 28 Oct),
      *                 `cruiseKw` at `cruiseRefT` tonnes, `cruiseKwPerT` more a tonne heavier
      *                 (her foils' drag grows with the lift they give; tests/shipyard/foilFerry
      *                 keeps it to the game's physics);
@@ -363,7 +364,7 @@ export const SHIPYARD_CONFIG = {
      * CONFIG.modules.pods.steering.
      */
     electricPods: { lockDeg: 45, fullLockToKn: 9 },
-    foilFerry: { batteryKgPerKWh: 6, batteryPricePerKWh: 500, usableShare: 0.9, podKg: 180, foilsKg: 450, foilsPrice: 90000, cruiseKn: 25, cruiseKw: 79, cruiseRefT: 7.05, cruiseKwPerT: 4.3, motor: { efficiency: 0.95, inertia: 0.08, propInertia: 0.5, responseS: 0.5 }, look: { strutLength: 0.45, strutChord: 0.34, strutWidth: 0.07, podLength: 1.3, podRadius: 0.16, propFwd: 0.62 }, pack: { litresPerKWh: 4, height: 0.3, width: 0.35 } },
+    foilFerry: { batteryKgPerKWh: 6, batteryPricePerKWh: 500, usableShare: 0.9, podKg: 180, foilsKg: 450, foilsPrice: 90000, cruiseKn: 25, cruiseKw: 102, cruiseRefT: 7.05, cruiseKwPerT: 4.3, motor: { efficiency: 0.95, inertia: 0.08, propInertia: 0.5, responseS: 0.5 }, look: { strutLength: 0.45, strutChord: 0.34, strutWidth: 0.07, podLength: 1.3, podRadius: 0.16, propFwd: 0.62 }, pack: { litresPerKWh: 4, height: 0.3, width: 0.35 } },
     markings: { offset: 0.012, topDrop: 0.16, depthShare: 0.8, from: 0.04, to: 0.9, rows: 6, pxPerM: 64, maxPx: 2048, textAt: 0.6, textShare: 0.4 },
     /**
      * The harbour tug (owner, Oct 2026; DESIGN_HULLS 'Harbour tug'): her plating and framing
