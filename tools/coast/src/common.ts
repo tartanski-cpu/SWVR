@@ -70,6 +70,10 @@ export interface RegionRequest {
   landmarkModels?: { wikidata?: string; osm?: string; name?: string; radius?: number; crown?: string; lean?: number; leanBearing?: number; wall?: string }[];
   /* (`lean`: the building leans this far (m) at its top toward `leanBearing` (deg): the Dockland, a parallelogram in elevation.) */
   /** Museum ships moored for good, by Wikidata id, with the game's design for each (`cargo`, `barque` with `masts`) (features.ts). */
+  /** The passenger launches drawn as harbour ferries, cabin forward and wheelhouse aft (Hamburg's; package.ts). */
+  harbourFerries?: boolean;
+  /** Big ships in and out of the port: to each port's cargo berth (`to`, a port id) from the map's edge on `from` (west, east, north, south) (package.ts). */
+  shipping?: { to: string; from?: string }[];
   museumShips?: { wikidata: string; name?: string; design: string; masts?: number; hull?: string }[];
   /* (`osm`: a way's id, `way/<n>`, where its building has no Wikidata id of its own.) */
 }

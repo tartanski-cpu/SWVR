@@ -40,6 +40,14 @@ const T = {
   /** A cargo or fuel berth wants this much deck behind its face (m): room to step ashore
    * (the game puts you 2 m in): a pontoon (2.5 m) has; a narrower walkway's berths aren't chosen. */
   namedDeck: 2.4,
+  /** Big ships (`shipping`): their way found on a grid this fine (m), in water this deep (m), this far inside the box's faded edges (m); each cell dearer by this over its cells from the bank; the path thinned where it strays this much (m); alongside this far out from the berth's face (m); the container ship's length (m: CONFIG.ferries.classes.container). */
+  shipCell: 50,
+  shipDepth: 8,
+  shipEdge: 450,
+  shipBank: 6,
+  shipThin: 25,
+  shipOff: 26,
+  shipLength: 300,
   /** The game puts you ashore this far in from where a boat lies (m; CONFIG.start.quayBack): on a deck. */
   quayBack: 2,
   /**
@@ -595,6 +603,172 @@ const ferryRoutes: object[] = [];
     ferryRoutes.push({ id: `${req.id}-ferry-${n + 1}`, name: r.name, ship: names[n % names.length], cls, livery, path: best.map(([x, z]) => [r1(x), r1(z)]), ends, length: Math.round(len(best)) });
   }
 }
+// Hamburg's harbour ferries (`harbourFerries`): the passenger launches drawn as the harbour
+// ferry the port is known by, cabin forward and wheelhouse aft (owner).
+// One colour all over, yellow or red (owner), by turns down the lines.
+let harbourN = 0;
+if (req.harbourFerries) for (const f of ferryRoutes as { cls: string; livery: string }[]) if (f.cls === 'launch') [f.cls, f.livery] = ['harbour', harbourN++ % 2 ? 'harbour-red' : 'harbour-yellow'];
+// Big ships in and out of the port (`shipping`, owner: "some big ships going in and out"): each
+// a route like a ferry's, from the map's edge where the river comes in (`from`: west, east...)
+// up the channel to her terminal's cargo berth, alongside the quay, and back out to sea. Her
+// way through the water: the cheapest path on a `shipCell` m grid of water at least `shipDepth`
+// m deep, kept `shipEdge` m inside the box (its edges are faded to open sea), each cell dearer
+// the nearer the bank, so she keeps to the middle of the channel; then thinned and her last
+// stretch laid along the quay so she lies alongside it.
+const SHIP_NAMES = ['Nordic Meridian', 'Atlantic Corvus', 'Elbe Venture', 'Cape Halden', 'Baltic Sentinel', 'Hanse Pioneer', 'Ocean Larkspur', 'Northern Tide'];
+const LIVERIES = ['cargo-blue', 'cargo-red', 'cargo-grey'];
+for (const [n, want] of (req.shipping ?? []).entries()) {
+  const port = (ports as { id: string; name: string }[]).find((q) => q.id === want.to);
+  const b = (berths as { id: string; x: number; z: number; shoreX: number; shoreZ: number }[]).find((q) => q.id === `${want.to}-cargo`);
+  if (!port || !b) {
+    warnings.push(`shipping to ${want.to}: no such port with a cargo berth`);
+    continue;
+  }
+  const cell = T.shipCell;
+  const [gx0, gz0] = [box.x0 + T.shipEdge, box.z0 + T.shipEdge];
+  const [GW, GH] = [Math.floor((box.x1 - box.x0 - 2 * T.shipEdge) / cell), Math.floor((box.z1 - box.z0 - 2 * T.shipEdge) / cell)];
+  const wet = new Uint8Array(GW * GH);
+  for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) wet[j * GW + i] = hAt(gx0 + (i + 0.5) * cell, gz0 + (j + 0.5) * cell) < -T.shipDepth ? 1 : 0;
+  // How far each wet cell is from the bank (cells, a chamfer distance).
+  const far = new Float32Array(GW * GH).fill(1e9);
+  for (let k = 0; k < GW * GH; k++) if (!wet[k]) far[k] = 0;
+  for (let pass = 0; pass < 2; pass++)
+    for (let j0 = 0; j0 < GH; j0++)
+      for (let i0 = 0; i0 < GW; i0++) {
+        const [i, j] = pass ? [GW - 1 - i0, GH - 1 - j0] : [i0, j0];
+        const k = j * GW + i;
+        const d = pass ? 1 : -1;
+        if (i - d >= 0 && i - d < GW) far[k] = Math.min(far[k], far[k - d] + 1);
+        if (j - d >= 0 && j - d < GH) far[k] = Math.min(far[k], far[k - d * GW] + 1);
+      }
+  const cellOf = (x: number, z: number) => [Math.max(0, Math.min(GW - 1, Math.floor((x - gx0) / cell))), Math.max(0, Math.min(GH - 1, Math.floor((z - gz0) / cell)))];
+  // Where she enters: the widest water on the given side's edge of the grid.
+  const side = want.from ?? 'west';
+  const edgeCells: [number, number][] = [];
+  if (side === 'west' || side === 'east') for (let j = 0; j < GH; j++) edgeCells.push([side === 'west' ? 0 : GW - 1, j]);
+  else for (let i = 0; i < GW; i++) edgeCells.push([i, side === 'north' ? 0 : GH - 1]);
+  const start = edgeCells.filter(([i, j]) => wet[j * GW + i]).sort((p, q) => far[q[1] * GW + q[0]] - far[p[1] * GW + p[0]])[0];
+  // Her place alongside: `shipOff` m out from the berth's face, her whole length (and 20 m
+  // more each end) over water `shipDepth` deep: slid along the face from the berth, the least
+  // way that fits. She comes in along the quay from the side with the longer run of water.
+  const half = T.shipLength / 2 + 6;
+  const [ox, oz] = [-b.shoreX, -b.shoreZ];
+  const [ax, az] = [b.shoreZ, -b.shoreX];
+  const at = (u: number): [number, number] => [b.x + ox * T.shipOff + ax * u, b.z + oz * T.shipOff + az * u];
+  const fits = (u: number) => {
+    for (let t = -half - 20; t <= half + 20; t += 20) if (hAt(...at(u + t)) > -T.shipDepth) return false;
+    return true;
+  };
+  let mid = NaN;
+  for (let shift = 0; shift <= 800 && Number.isNaN(mid); shift += 20) for (const u of [shift, -shift]) if (Number.isNaN(mid) && fits(u)) mid = u;
+  if (Number.isNaN(mid)) {
+    warnings.push(`shipping to ${want.to}: no stretch of the quay with water for her length`);
+    continue;
+  }
+  const run = (sg: number) => {
+    let n = 0;
+    for (let t = half; t <= half + 600 && hAt(...at(mid + sg * t)) < -T.shipDepth; t += 20) n++;
+    return n;
+  };
+  // She arrives heading `sg` along the quay, from behind (the longer open run), bow ahead.
+  const sg = run(-1) >= run(1) ? 1 : -1;
+  const end = at(mid + sg * half);
+  const pre = at(mid - sg * 400);
+  if (!start) {
+    warnings.push(`shipping to ${want.to}: no water on the map's ${side} edge`);
+    continue;
+  }
+  // Dijkstra on the grid (eight ways), dearer near the bank.
+  const goal = cellOf(pre[0], pre[1]);
+  const cost = new Float64Array(GW * GH).fill(Infinity);
+  const from = new Int32Array(GW * GH).fill(-1);
+  const heap: [number, number][] = [];
+  const push = (k: number, c: number) => {
+    heap.push([c, k]);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const up = (i - 1) >> 1;
+      if (heap[up][0] <= heap[i][0]) break;
+      [heap[up], heap[i]] = [heap[i], heap[up]];
+      i = up;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap.pop()!;
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const [l, r] = [2 * i + 1, 2 * i + 2];
+        let m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]];
+        i = m;
+      }
+    }
+    return top;
+  };
+  const k0 = start[1] * GW + start[0];
+  cost[k0] = 0;
+  push(k0, 0);
+  const kGoal = goal[1] * GW + goal[0];
+  while (heap.length) {
+    const [c, k] = pop();
+    if (c > cost[k]) continue;
+    if (k === kGoal) break;
+    const [i, j] = [k % GW, Math.floor(k / GW)];
+    for (let dj = -1; dj <= 1; dj++)
+      for (let di = -1; di <= 1; di++) {
+        if (!di && !dj) continue;
+        const [ni, nj] = [i + di, j + dj];
+        if (ni < 0 || nj < 0 || ni >= GW || nj >= GH) continue;
+        const nk = nj * GW + ni;
+        if (!wet[nk] && nk !== kGoal) continue;
+        const step = Math.hypot(di, dj) * (1 + T.shipBank / Math.max(1, far[nk]));
+        if (c + step < cost[nk]) {
+          cost[nk] = c + step;
+          from[nk] = k;
+          push(nk, c + step);
+        }
+      }
+  }
+  if (!Number.isFinite(cost[kGoal])) {
+    warnings.push(`shipping to ${want.to}: no way through water ${T.shipDepth} m deep`);
+    continue;
+  }
+  const cellsPath: [number, number][] = [];
+  for (let k = kGoal; k >= 0; k = from[k]) cellsPath.push([gx0 + ((k % GW) + 0.5) * cell, gz0 + (Math.floor(k / GW) + 0.5) * cell]);
+  cellsPath.reverse();
+  // Thinned (a point kept where the line strays `shipThin` m), from the box's very edge.
+  const raw: [number, number][] = [[side === 'west' ? box.x0 + 2 : side === 'east' ? box.x1 - 2 : cellsPath[0][0], side === 'north' ? box.z0 + 2 : side === 'south' ? box.z1 - 2 : cellsPath[0][1]], ...cellsPath, pre, end];
+  const keep = new Uint8Array(raw.length);
+  keep[0] = keep[raw.length - 1] = keep[raw.length - 2] = 1;
+  const stack: [number, number][] = [[0, raw.length - 2]];
+  while (stack.length) {
+    const [a0, a1] = stack.pop()!;
+    let worst = 0;
+    let at = -1;
+    for (let i = a0 + 1; i < a1; i++) {
+      const [px, pz] = raw[i];
+      const [x0, z0] = raw[a0];
+      const [x1, z1] = raw[a1];
+      const L = Math.hypot(x1 - x0, z1 - z0) || 1;
+      const dd = Math.abs((x1 - x0) * (z0 - pz) - (x0 - px) * (z1 - z0)) / L;
+      if (dd > worst) [worst, at] = [dd, i];
+    }
+    if (worst > T.shipThin) {
+      keep[at] = 1;
+      stack.push([a0, at], [at, a1]);
+    }
+  }
+  const path = raw.filter((_, i) => keep[i]).map(([x, z]) => [r1(x), r1(z)] as [number, number]);
+  const length = Math.round(path.reduce((t, q, i) => (i ? t + Math.hypot(q[0] - path[i - 1][0], q[1] - path[i - 1][1]) : 0), 0));
+  (ferryRoutes as object[]).push({ id: `${req.id}-ship-${n + 1}`, name: `${port.name} service`, ship: SHIP_NAMES[n % SHIP_NAMES.length], cls: 'container', livery: LIVERIES[n % LIVERIES.length], path, ends: [{ dock: false, name: 'the sea' }, { dock: true, name: port.name }], length });
+}
+
 // Place names for the charts and the radio (the coast extras plan, C4): the map's towns,
 // villages, hamlets, islands, islets and the sea's own names (bays, headlands, straits),
 // ranked as features.ts ranks them (1 shown farthest out). Farms, single houses and town

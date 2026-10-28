@@ -47,3 +47,11 @@ museumShips:
   - { wikidata: Q858079, name: Cap San Diego, design: cargo }
   - { wikidata: Q479965, name: Rickmer Rickmers, design: barque, masts: 3, hull: '#2f6a4a' }   # green
   - { wikidata: Q249918, name: Peking, design: barque, masts: 4, hull: '#1e1e22' }   # black
+# Hamburg's harbour ferries drawn as the port's own kind: cabin forward, wheelhouse aft (owner).
+harbourFerries: true
+# Big ships in and out (owner): container ships up the Elbe from the west to the terminals at
+# Burchardkai, Waltershof (Predöhlkai) and Altenwerder (Ballinkai, through the Köhlbrand).
+shipping:
+  - { to: burchardkai-2 }
+  - { to: predohlkai-3 }
+  - { to: ballinkai }

@@ -10,6 +10,20 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Hamburg: big ships in and out, and harbour ferries of the port's own kind (28 Oct 2026)
+
+Owner: "Hamburg, being a busy harbour, needs some AI ships, some big ships going in and out. And the ferries should look a little bit more like the Hamburg ferries ... they've got a wheelhouse at the back, and then the cabin at the front."
+
+- **Container ships** (`shipping` in the request; `package.ts`): three routes, each in from the map's west edge up the Elbe to a terminal's cargo berth: Burchardkai, Predöhlkai (Waltershof) and Ballinkai (Altenwerder, through the Köhlbrand under the bridge). Each way is the cheapest path through water at least 8 m deep (`T.shipDepth`) on a 50 m grid (`shipCell`), kept 450 m inside the box's faded edges (`shipEdge`), each cell dearer the nearer the bank (`shipBank`), so they keep to the middle of the channel, then thinned (`shipThin`). At the quay she lies `shipOff` 26 m out from the face, her whole length over deep water (slid along the face from the berth until she fits), coming in along the quay from the longer open side.
+- **They sail as the ferries do** (`traffic/ferries.ts`, unchanged but for one rule): in from the edge, slowing into her berth, alongside 8 minutes, off to sea with a call on the VHF ("Nordic Meridian, leaving Burchardkai for the sea"), out of sight half an hour, back in; on the AIS, lit at night, solid, keeping her course and stopping rather than run you down. The three routes share the sea end, so they're one fleet of three ships. Names invented (`SHIP_NAMES`), three hull liveries of the game's own (dark blue, dark red, grey).
+- **A fleet is one class** (`ferries.ts` `fleets`): routes are grouped by a shared end only within one class, so a harbour ferry never sails a container route (both use Bubendey-Ufer, say).
+- **The container ship design** (`ferryKit.ts` `container`, `CONFIG.ferries.classes.container`: 300 x 45 m, 12 m draught, 4.2 m/s): her hull, the accommodation block and bridge aft with its wings across her beam, the funnel behind, bay after bay of containers in mixed colours, three stacks across, each 3 to 6 high, lashing bridges between.
+- **The harbour ferry** (`ferryKit.ts` `harbour`; `harbourFerries: true` in the request makes Hamburg's 11 launch lines this class; `CONFIG.ferries.classes.harbour`: 30 x 8.2 m, after the port's "Bügeleisen"): a beamy shallow hull, the enclosed cabin forward with its windows, its roof an open upper deck behind a rail; aft, the wheelhouse raised on an arch over the open after deck and the boarding ramp. One colour all over, hull and upperworks, yellow or red by turns down the lines (liveries `harbour-yellow`, `harbour-red`; owner: "typically like all yellow or all red"), a dark boot-topping and dark windows.
+- **Tests** (`coastHamburg.test.ts`): the three ship routes to their terminals, all in water to the end alongside; a fleet is one class; the harbour ferry lines; each design within budget. `npm run test:map`, the typecheck and all of `npm test` pass. Seen in the game headless: a ship alongside at Burchardkai, another under way up the Elbe, a harbour ferry at her pier.
+- **Not yet:** cruise ships, bulk carriers and tugs; the ships don't meet the ferries' timetables (they keep clear of you, not of each other beyond the ferries' rules).
+- **Not checked:** on the Quest.
+- **Shared changes:** `src/config.ts` (`ferries.classes.harbour`, `.container`), `src/traffic/ferryKit.ts` (the two designs, liveries, their lights), `src/traffic/ferries.ts` (`fleets` by class), `src/world/defs.ts` (`FerryRouteDef` classes and liveries).
+
 ### Hamburg: the Dockland, the museum ships, Blohm + Voss's docks (28 Oct 2026)
 
 Owner: "Make sure you do the slanty Dockland building and the Cap San Diego and the Rickmer ships in the harbour. Oh, and the dry docks from Blohm + Voss shipyard, of course."

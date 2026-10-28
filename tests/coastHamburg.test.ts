@@ -18,6 +18,8 @@ import { setRemotePackage, type ChunkedCoastTerrain, type CoastPackage } from '.
 import { coastSample, registerChunkedCoast, type CoastSample } from '../src/world/coastTerrain';
 import { coastGeoOf, coastLatLon, coastWorld } from '../src/world/coastGeo';
 import { mapRegion, voyageMap } from '../src/world/maps';
+import { fleets } from '../src/traffic/ferries';
+import { ferryGeometry } from '../src/traffic/ferryKit';
 import * as THREE from 'three';
 import { bridgeParts, floatingDockParts, gravingDockParts, landmarkModelParts, museumShipParts, structuresGeometry } from '../src/world/coastStructures';
 
@@ -230,5 +232,40 @@ describe('Hamburg: the Dockland, the museum ships and the yards\' docks (owner)'
     expect(beyond(g.gate)).toBeLessThan(0);
     expect(beyond(-g.gate)).toBeGreaterThan(0);
     expect(top(gravingDockParts(g))).toBeGreaterThan(40);
+  });
+});
+
+describe('Hamburg: big ships in and out, and the harbour ferries of its own kind (owner)', () => {
+  const routes = () => mapRegion(voyageMap('hamburg')!).ferries!;
+
+  it('container ships from the sea to Burchardkai, Predöhlkai and Altenwerder, their way all in water to the end alongside', () => {
+    const ships = routes().filter((r) => r.cls === 'container');
+    expect(ships.map((r) => r.ends[1].name).sort()).toEqual(['Ballinkai', 'Burchardkai', 'Predöhlkai']);
+    for (const r of ships) {
+      expect(r.ends[0].dock).toBe(false);
+      expect(r.ends[1].dock).toBe(true);
+      // Sampled every 50 m from inside the box's faded edge to the end of her berth: water.
+      // (The pipeline found her way in its 10 m grid, 8 m deep; the game's overview grid,
+      // which this reads, is coarser and draws no detail in deep water.)
+      let s = 500;
+      for (let i = 1; i < r.path.length; i++) {
+        const [a, b] = [r.path[i - 1], r.path[i]];
+        const seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        for (; s < seg; s += 50) expect(h(a[0] + ((b[0] - a[0]) * s) / seg, a[1] + ((b[1] - a[1]) * s) / seg), r.name).toBeLessThan(-1);
+        s -= seg;
+      }
+    }
+  });
+
+  it('a fleet is one class: no harbour ferry sails a container ship\'s route', () => {
+    for (const g of fleets(routes())) expect(new Set(g.routes.map((r) => r.cls)).size).toBe(1);
+  });
+
+  it('the harbour ferry lines are the harbour ferry design; each design within budget', () => {
+    const rs = routes();
+    expect(rs.filter((r) => r.cls === 'harbour').length).toBeGreaterThan(8);
+    expect(rs.find((r) => r.name === 'Line 62')!.cls).toBe('harbour');
+    expect(new Set(rs.filter((r) => r.cls === 'harbour').map((r) => r.livery))).toEqual(new Set(['harbour-yellow', 'harbour-red']));
+    for (const [cls, livery] of [['harbour', 'harbour-yellow'], ['container', 'cargo-blue']] as const) expect(ferryGeometry(cls, livery).attributes.position.count / 3).toBeLessThan(4000);
   });
 });

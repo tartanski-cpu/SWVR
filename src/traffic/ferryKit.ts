@@ -12,6 +12,13 @@
  *           each end, the passenger lounge and wheelhouse along one side, a small funnel
  *   launch  a passenger launch: a cabin with a row of windows, the wheelhouse on top forward,
  *           an open deck aft
+ *   harbour a harbour ferry of Hamburg's kind (owner: "a wheelhouse at the back, and then the
+ *           cabin at the front"): a beamy, shallow hull; the enclosed passenger cabin forward
+ *           with its windows, its roof an open upper deck behind a rail; aft, the wheelhouse
+ *           raised on an arch over the open after deck and the boarding ramp
+ *   container  a container ship: a long hull with a flared bow, her accommodation block and
+ *           bridge aft with its wings across her beam, her funnel behind it, and bay after bay
+ *           of containers stacked on deck in mixed colours, lashing bridges between
  *
  * Liveries (the owner's choice for the Clyde and the Hebrides): `calmac` the colours a
  * Clyde or Hebridean ferry is known by (black hull, red boot-topping, white upperworks, red
@@ -29,6 +36,14 @@ const LIVERY: Record<Livery, { hull: number; band: number; boot: number; upper: 
   calmac: { hull: 0x18191b, band: 0x18191b, boot: 0xa8201c, upper: 0xf2f0ea, funnel: 0xc8201c, funnelTop: 0x18191b },
   other: { hull: 0x1d2f4f, band: 0x1d2f4f, boot: 0xa8201c, upper: 0xf2f0ea, funnel: 0x1d3f7a, funnelTop: 0x1d3f7a, funnelBand: 0xf2f0ea },
   aegean: { hull: 0xf2f0ea, band: 0x1d4f9a, boot: 0xa8201c, upper: 0xf2f0ea, funnel: 0x1d4f9a, funnelTop: 0xf2f0ea },
+  // Hamburg's harbour ferries (owner: "typically like all yellow or all red"): one colour all
+  // over, hull and upperworks, a dark boot-topping.
+  'harbour-yellow': { hull: 0xf0c020, band: 0xf0c020, boot: 0x2a2a2a, upper: 0xf0c020, funnel: 0xf0c020, funnelTop: 0xf0c020 },
+  'harbour-red': { hull: 0xc42a22, band: 0xc42a22, boot: 0x2a2a2a, upper: 0xc42a22, funnel: 0xc42a22, funnelTop: 0xc42a22 },
+  // Container ships' hulls (invented lines): dark blue, dark red, grey; white accommodation.
+  'cargo-blue': { hull: 0x1d2f4f, band: 0x1d2f4f, boot: 0x9a2a22, upper: 0xf2f0ea, funnel: 0x1d2f4f, funnelTop: 0x18191b },
+  'cargo-red': { hull: 0x6a1e1c, band: 0x6a1e1c, boot: 0x3a1a1a, upper: 0xf2f0ea, funnel: 0xf2f0ea, funnelTop: 0x6a1e1c },
+  'cargo-grey': { hull: 0x5a6266, band: 0x5a6266, boot: 0x9a2a22, upper: 0xf2f0ea, funnel: 0x2a5a8a, funnelTop: 0x18191b },
 };
 const GLASS = 0x1c2a34;
 const DECK = 0x6a6c6a;
@@ -144,6 +159,61 @@ function launch(L: number, B: number, d: number, fb: number, c: (typeof LIVERY)[
   return p;
 }
 
+function harbour(L: number, B: number, d: number, fb: number, c: (typeof LIVERY)[Livery]): THREE.BufferGeometry[] {
+  const p: THREE.BufferGeometry[] = [
+    ...hullBands(L, B, 0.2, 0.9, [[-d, -0.4, c.hull], [-0.4, 0.3, c.boot], [0.3, fb, c.hull]]),
+    hullPlan(L * 0.996, B * 0.99, fb, fb + 0.06, 0.2, 0.9, DECK),
+  ];
+  // The cabin forward (bow toward -z): from just abaft the bow to past her middle, nearly her full beam.
+  const z0 = -L / 2 + L * 0.14;
+  const z1 = L * 0.12;
+  p.push(box(B * 0.9, 2.3, z1 - z0, 0, fb + 1.15, (z0 + z1) / 2, c.upper));
+  windows(B * 0.45, fb + 1.35, 2.3, 1, z0 + 1, z1 - 1, p);
+  p.push(box(B * 0.7, 1.1, 0.1, 0, fb + 1.4, z0 - 0.05, GLASS));
+  // Its roof the open upper deck, a rail round it.
+  for (const sd of [-1, 1]) p.push(box(0.1, 1.0, z1 - z0, sd * B * 0.44, fb + 2.8, (z0 + z1) / 2, c.upper));
+  p.push(box(B * 0.88, 1.0, 0.1, 0, fb + 2.8, z0 + 0.05, c.upper));
+  // Aft: the arch over the after deck, the wheelhouse on it, glass all round, a mast.
+  const za = L / 2 - L * 0.17;
+  for (const sd of [-1, 1]) p.push(box(0.5, 4.6, 0.6, sd * B * 0.38, fb + 2.3, za, c.upper));
+  p.push(box(B * 0.8, 0.6, 1.2, 0, fb + 4.7, za, c.upper));
+  p.push(box(B * 0.42, 2.2, 2.8, 0, fb + 6.1, za, c.upper), box(B * 0.43, 1.0, 2.85, 0, fb + 6.4, za, GLASS));
+  p.push(cyl(0.08, 0.06, 2.2, 0, fb + 7.2, za + 0.6, GREY, 6));
+  // The boarding ramp at her stern.
+  p.push(part(new THREE.BoxGeometry(B * 0.4, 0.2, 2.6).rotateX(0.35).translate(0, fb + 0.5, L / 2 + 0.6), GREY));
+  return p;
+}
+
+/** Container colours, picked down the bays by a steady hash (the same every ship of a design). */
+const BOXES = [0xa8201c, 0x1d4f9a, 0xe8a020, 0x2a7a4a, 0xf2f0ea, 0x7a3a8a, 0x5a6266, 0xd85a1a];
+function container(L: number, B: number, d: number, fb: number, c: (typeof LIVERY)[Livery]): THREE.BufferGeometry[] {
+  const p: THREE.BufferGeometry[] = [
+    ...hullBands(L, B, 0.16, 0.8, [[-d, 0, c.boot], [0, fb, c.hull]]),
+    hullPlan(L * 0.996, B * 0.99, fb, fb + 0.08, 0.16, 0.8, DECK),
+  ];
+  // Her accommodation aft (bow toward -z): a tall block, the bridge on top with wings across her beam.
+  const hz = L / 2 - L * 0.13;
+  p.push(box(B * 0.5, 20, 14, 0, fb + 10, hz, c.upper));
+  for (let r = 0; r < 6; r++) for (const sd of [-1, 1]) p.push(box(0.06, 0.9, 12, sd * (B * 0.25 + 0.03), fb + 3 + r * 3, hz, GLASS));
+  p.push(box(B * 1.02, 2.6, 6, 0, fb + 21.3, hz - 4, c.upper), box(B * 0.5, 1.0, 0.1, 0, fb + 21.6, hz - 7.05, GLASS));
+  p.push(box(5, 9, 6, 0, fb + 24, hz + 9, c.funnel), box(5.05, 2, 6.05, 0, fb + 29.5, hz + 9, c.funnelTop));
+  p.push(cyl(0.3, 0.2, 10, 0, fb + 22.6, hz - 2, GREY, 6));
+  // Bays of containers (6.1 m each, a lashing gap between), from the forecastle to the house,
+  // each bay three stacks across, each stack its own height and colour.
+  let k = 7;
+  for (let z = -L / 2 + L * 0.12; z < hz - 10; z += 13.2) {
+    for (const x of [-B * 0.31, 0, B * 0.31]) {
+      k = (k * 1103515245 + 12345) & 0x7fffffff;
+      const tiers = 3 + (k % 4);
+      p.push(box(B * 0.3, tiers * 2.6, 12.4, x, fb + (tiers * 2.6) / 2, z + 6.6, BOXES[(k >> 4) % BOXES.length]));
+    }
+    p.push(box(B * 0.96, 0.4, 0.5, 0, fb + 2, z, GREY));
+  }
+  // The forecastle's bulwark at the bow, and a mast on it.
+  p.push(box(B * 0.5, 2.5, 4, 0, fb + 1.2, -L / 2 + L * 0.06, c.hull), cyl(0.25, 0.2, 9, 0, fb + 2.5, -L / 2 + L * 0.07, GREY, 6));
+  return p;
+}
+
 const CACHE = new Map<string, THREE.BufferGeometry>();
 /** A ferry's mesh (built once for each class and livery). */
 export function ferryGeometry(cls: FerryRouteDef['cls'], livery: Livery): THREE.BufferGeometry {
@@ -151,7 +221,7 @@ export function ferryGeometry(cls: FerryRouteDef['cls'], livery: Livery): THREE.
   let g = CACHE.get(key);
   if (!g) {
     const k = CONFIG.ferries.classes[cls];
-    const build = cls === 'large' ? large : cls === 'small' ? small : launch;
+    const build = cls === 'large' ? large : cls === 'small' ? small : cls === 'harbour' ? harbour : cls === 'container' ? container : launch;
     g = mergeParts(build(k.length, k.beam, k.draught, k.freeboard, LIVERY[livery]));
     g.computeBoundingSphere();
     CACHE.set(key, g);
@@ -167,8 +237,8 @@ export function ferryLights(cls: FerryRouteDef['cls']): { p: [number, number, nu
   const k = CONFIG.ferries.classes[cls];
   const L = k.length;
   const B = k.beam;
-  const top = cls === 'large' ? k.freeboard + 5.4 + 14 : cls === 'small' ? k.freeboard + 9 : k.freeboard + 6;
-  const side = cls === 'large' ? k.freeboard + 5.4 + 6.4 : k.freeboard + 3;
+  const top = cls === 'large' ? k.freeboard + 5.4 + 14 : cls === 'small' ? k.freeboard + 9 : cls === 'container' ? k.freeboard + 32 : cls === 'harbour' ? k.freeboard + 9.3 : k.freeboard + 6;
+  const side = cls === 'large' ? k.freeboard + 5.4 + 6.4 : cls === 'container' ? k.freeboard + 21.3 : cls === 'harbour' ? k.freeboard + 5 : k.freeboard + 3;
   const out: { p: [number, number, number]; c: number }[] = [
     { p: [0, top, cls === 'large' ? -L * 0.26 : -1], c: 0xffffff },
     { p: [-B * 0.5, side, -L * 0.25], c: 0xff2020 },
@@ -184,6 +254,11 @@ export function ferryLights(cls: FerryRouteDef['cls']): { p: [number, number, nu
       [k.freeboard + 5.4 + 4.3, B * 0.43, -L * 0.26, L * 0.2],
     ])
       for (let i = 0; i < 10; i++) for (const s of [-1, 1]) out.push({ p: [s * hw, y, z0 + ((z1 - z0) * i) / 9], c: warm });
+  else if (cls === 'container') {
+    // Her forward masthead light too, and her accommodation's windows aft.
+    out.push({ p: [0, k.freeboard + 11, -L / 2 + L * 0.07], c: 0xffffff });
+    for (let r = 0; r < 6; r++) for (const sd of [-1, 1]) out.push({ p: [sd * B * 0.26, k.freeboard + 3 + r * 3, L / 2 - L * 0.13], c: warm });
+  } else if (cls === 'harbour') for (let i = 0; i < 5; i++) for (const sd of [-1, 1]) out.push({ p: [sd * B * 0.46, k.freeboard + 1.35, -L / 2 + L * 0.18 + i * L * 0.09], c: warm });
   else if (cls === 'small') for (let i = 0; i < 5; i++) for (const s of [-1, 1]) out.push({ p: [B * 0.36 + s * B * 0.13, k.freeboard + 2.6, -L * 0.18 + i * L * 0.09], c: warm });
   else for (let i = 0; i < 4; i++) for (const s of [-1, 1]) out.push({ p: [s * B * 0.41, k.freeboard + 1.3, -L * 0.26 + i * L * 0.14], c: warm });
   return out;

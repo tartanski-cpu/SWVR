@@ -541,14 +541,16 @@ export interface WindFarmDef {
  * A ferry route from the map (the coast extras plan, C7; a coast map's): the route cut to the
  * map, each end a terminal (`dock`: she berths there) or the map's edge (she sails in from
  * beyond, or out of sight), each named. Her class, livery and (invented) name; the path's
- * length (m). Sailed by traffic/ferries.ts, drawn by traffic/ferryView.ts.
+ * length (m). Sailed by traffic/ferries.ts, drawn by traffic/ferryView.ts. A big ship's
+ * route into a port (`container`: Hamburg's) is one too: in from the map's edge to her
+ * terminal, alongside a while, and out again.
  */
 export interface FerryRouteDef {
   id: string;
   name: string;
   ship: string;
-  cls: 'large' | 'small' | 'launch';
-  livery: 'calmac' | 'other' | 'aegean';
+  cls: 'large' | 'small' | 'launch' | 'harbour' | 'container';
+  livery: 'calmac' | 'other' | 'aegean' | 'harbour-yellow' | 'harbour-red' | 'cargo-blue' | 'cargo-red' | 'cargo-grey';
   path: [number, number][];
   ends: { dock: boolean; name: string }[];
   length: number;
