@@ -59,6 +59,8 @@ const T = {
   landmarkRing: [15, 45] as [number, number],
   /** Most faces a chunk may draw: more and the stage fails (and the game's test with it). The Quest's budget. */
   chunkBudget: 12000,
+  /** Refinement stops adding points to a chunk at this share of its budget (the rest of the refinement goes elsewhere). */
+  chunkFill: 0.9,
   /** A lost skerry stands this high at its middle (m above MSL). */
   skerryHeight: 1.8,
   /** Error weight in the shallows (0 > h > shallowTo); none deeper. */
@@ -524,9 +526,30 @@ for (let round = 0; ; round++) {
   }
   if (!cand.length) break;
   cand.sort((p, q) => q.err - p.err);
+  // Each chunk's triangles so far (by their middles; each point added makes about two more):
+  // a chunk filled to `chunkFill` of its budget takes no more points (Sunnmøre: steep mountains
+  // straight out of an intricate coast put chunks over the Quest's budget).
+  const chunkKey = (x: number, z: number) => Math.floor((z - Z0) / T.chunk) * 100000 + Math.floor((x - X0) / T.chunk);
+  const perChunk = new Map<number, number>();
+  for (let t = 0; t < nt; t++) {
+    const a = tri[3 * t];
+    const b = tri[3 * t + 1];
+    const c = tri[3 * t + 2];
+    const k = chunkKey((xs[a] + xs[b] + xs[c]) / 3, (zs[a] + zs[b] + zs[c]) / 3);
+    perChunk.set(k, (perChunk.get(k) ?? 0) + 1);
+  }
+  const chunkCap = T.chunkBudget * T.chunkFill;
   const room = Math.floor((T.budget - nt) / 2);
-  const take = Math.min(cand.length, room, Math.max(400, Math.floor(xs.length * 0.25)));
-  for (let k = 0; k < take; k++) add(cand[k].x, cand[k].z, cand[k].h);
+  const most = Math.min(cand.length, room, Math.max(400, Math.floor(xs.length * 0.25)));
+  let take = 0;
+  for (let k = 0; k < cand.length && take < most; k++) {
+    const key = chunkKey(cand[k].x, cand[k].z);
+    const n = perChunk.get(key) ?? 0;
+    if (n + 2 > chunkCap) continue;
+    perChunk.set(key, n + 2);
+    add(cand[k].x, cand[k].z, cand[k].h);
+    take++;
+  }
   console.log(`round ${round}: ${nt} triangles, worst ${cand[0].err.toFixed(1)} m, +${take} points`);
   if (take < 1) break;
 }

@@ -65,6 +65,22 @@ const ELBE_WEATHER = {
   hold: [600, 1500] as [number, number],
 };
 
+/**
+ * West Norway's weather (Ålesund, Sunnmøre): the Atlantic's, wet and changeable: overcast
+ * and rain the most, squalls off the sea in the westerlies, fog in the calm spells, now and
+ * then a clear, still day between the fronts when the fjords mirror the mountains.
+ */
+const NORWEGIAN_WEATHER = {
+  next: {
+    Clear: { Clear: 2, Overcast: 2, Fog: 0.3, Squall: 0.2 },
+    Overcast: { Overcast: 3, Rain: 2.5, Clear: 1, Fog: 0.4, Squall: 0.6 },
+    Fog: { Overcast: 2, Clear: 1 },
+    Rain: { Rain: 1.5, Overcast: 2, Squall: 0.6 },
+    Squall: { Rain: 2, Overcast: 1.5 },
+  },
+  hold: [600, 1500] as [number, number],
+};
+
 export interface VoyageMap {
   id: string;
   name: string;
@@ -85,6 +101,7 @@ export const VOYAGE_MAPS: readonly VoyageMap[] = [
   { id: 'turku', name: 'Turku and the Archipelago Sea', blurb: 'Turku and its port, the Meyer Turku yard at Perno, Ruissalo, the Airisto fairway, Pargas, Nagu and the islands between: 37 by 38 km at full scale.', remote: { x: 0, z: 0, weather: BALTIC_WEATHER }, startBerth: 'port-of-turku-cargo', weatherAt: { lat: 60.3, lon: 22.1 } },
   { id: 'hamburg', name: 'The Port of Hamburg', blurb: 'The Elbe from Finkenwerder and Övelgönne to the Elbe bridges: the Landungsbrücken, the Speicherstadt and HafenCity, the container terminals and the Köhlbrand: 14 by 8 km at full scale.', remote: { x: 0, z: 0, weather: ELBE_WEATHER }, startBerth: 'landungsbrucken-cargo', weatherAt: { lat: 53.54, lon: 9.95 } },
   { id: 'saronic', name: 'The Saronic Islands', blurb: 'Aegina, Agistri, Methana, Poros, Hydra and Spetses, and the Argolid coast from Korfos and Epidavros to Ermioni and Porto Heli: 44 by 74 km at full scale.', remote: { x: 0, z: 0, weather: AEGEAN_WEATHER }, startBerth: 'aegina-cargo', weatherAt: { lat: 37.6, lon: 23.4 } },
+  { id: 'sunnmore', name: 'Ålesund and Sunnmøre', blurb: 'Ålesund on its islands, Ellingsøya, Valderøya, Vigra and Godøya, Sula, Hareid and Ulsteinvik, Gurskøya and Herøy, the Vartdalsfjorden and the Storfjorden to Ørsta: 55 by 52 km at full scale.', remote: { x: 0, z: 0, weather: NORWEGIAN_WEATHER }, startBerth: 'alesund-cargo', weatherAt: { lat: 62.4, lon: 6.05 } },
   { id: 'tayvallich', name: 'Tayvallich and Loch Sween', blurb: 'Tayvallich and its bay, Caol Scotnish and the Fairy Isles, Loch Sween to Achnamara, and the Sound of Jura shore: 11 by 16 km at full scale.', region: TAYVALLICH, startBerth: 'tayvallich-cargo', weatherAt: { lat: 55.95, lon: -5.7 } },
 ];
 

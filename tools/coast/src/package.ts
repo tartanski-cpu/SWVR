@@ -28,6 +28,8 @@ import { addCoastChunk, coastHeight, coastTerrain, registerChunkedCoast, registe
 
 const T = {
   berthsPerPort: 10,
+  /** A port's lamp and flood light stand this far along the quay from its cargo stack (m). */
+  lampAlong: 8,
   /** A berth faces the way a request asks (`berthFacing`) within this (deg); the cargo and fuel berths at least `namedApart` m apart. */
   facingTolerance: 30,
   namedApart: 30,
@@ -187,6 +189,9 @@ for (let i = 0; i < blocks.length; i++) {
 warnings.push(...overlaps);
 const blockOf = new Map<string, { kind: string; halfWidth: number }>();
 for (const b of hb.blocks) blockOf.set(b.source, blockOf.get(b.source) ?? b);
+/** Every kit block of each map piece (a long quay is several). */
+const blocksOf = new Map<string, KitBlock[]>();
+for (const b of hb.blocks) blocksOf.set(b.source, [...(blocksOf.get(b.source) ?? []), b]);
 // The buildings for the game's house kit (world/view/houseKit.ts): what harbours.ts worked
 // out, less its own bookkeeping (where it came from, its ground).
 const buildings = hb.buildings.map(({ source: _s, base: _b, tagged: _t, ...b }: Record<string, unknown>) => b);
@@ -207,6 +212,13 @@ const onDeck = (b: Berth, back: number) => {
   const w = blockOf.get(b.source)?.halfWidth ?? 3;
   const d = b.shoreDist + Math.min(back, w);
   return { x: r1(b.x + b.shoreX * d), z: r1(b.z + b.shoreZ * d) };
+};
+/** A spot `back` m ashore from a berth (as onDeck) and `along` m along its face, if that's still on its deck. */
+const alongDeck = (b: Berth, back: number, along: number) => {
+  const p = onDeck(b, back);
+  const x = r1(p.x - b.shoreZ * along);
+  const z = r1(p.z + b.shoreX * along);
+  return (blocksOf.get(b.source) ?? []).some((k) => insideBlock(k, x, z)) ? { x, z } : null;
 };
 // Each harbour's own berths: those whose piece is one of its pieces.
 const pieceOf = new Map<string, string>();
@@ -338,8 +350,12 @@ harbours.forEach((h, n) => {
   for (const [b, role] of [[cargo, 'cargo'], [fuel, 'fuel']] as [Berth | null, string][]) {
     if (b) berths.push({ id: `${h.id}-${role}`, portId: h.id, name: `${h.name} (${role})`, x: b.x, z: b.z, headingDeg: b.headingDeg, shoreX: b.shoreX, shoreZ: b.shoreZ, shoreDist: b.shoreDist, deckY: b.deckY });
   }
-  lamps.push({ x: stack.x, z: stack.z, y: cargo.deckY + 5.5 });
-  portFloods.push({ portId: h.id, x: stack.x, y: cargo.deckY + 8, z: stack.z });
+  // The lamp and the berth's flood light on their mast, along the quay from the cargo stack
+  // (`lampAlong` m, whichever way stays on the same deck): at the stack it stood among the
+  // crates and on the spot a step ashore where the game puts you (owner's Poros start).
+  const lamp = alongDeck(cargo, 3, T.lampAlong) ?? alongDeck(cargo, 3, -T.lampAlong) ?? stack;
+  lamps.push({ x: lamp.x, z: lamp.z, y: cargo.deckY + 5.5 });
+  portFloods.push({ portId: h.id, x: lamp.x, y: cargo.deckY + 8, z: lamp.z });
   // Shelter: the more open water a harbour looks across, the less it is sheltered.
   shelters.push({ x: ax, z: az, rIn: 80, rOut: 220, factor: Math.min(0.7, Math.max(0.15, h.fetch / 2500)) });
 });
@@ -356,8 +372,12 @@ const slipways = (hb.slipways as { x: number; z: number; headingDeg: number; wid
 });
 
 // ── Sea ──
-const marks = (nav.marks as { name: string; gameKind: string | null; category: string; x: number; z: number }[])
-  .filter((m) => m.gameKind)
+// The game draws its marks as buoys, afloat. An isolated-danger beacon is a pole fixed on the
+// rock it marks (Norway's skerry beacons: 435 of them round Sunnmøre, where a buoy is 370
+// triangles, drawn everywhere: a third of the frame): left out. Its rock is still in the ground,
+// and in the chart's shallows.
+const marks = (nav.marks as { name: string; type: string; gameKind: string | null; category: string; x: number; z: number }[])
+  .filter((m) => m.gameKind && m.type !== 'beacon_isolated_danger')
   .map((m, i) => ({ name: m.name || `${m.category} No ${i + 1}`, kind: m.gameKind, x: m.x, z: m.z }));
 const COLOUR: Record<string, 'red' | 'green' | 'white'> = { red: 'red', green: 'green' };
 const lights = (nav.lights as { name: string; x: number; z: number; height?: number; period?: number; sectors: { colour: string; from?: number }[]; label: string; on: string }[])
@@ -627,6 +647,8 @@ const FERRY_NAMES: Record<string, string[]> = {
   baltic: ['Luotoranta', 'Holmvik', 'Kallioniemi', 'Havsbris', 'Skärvind', 'Ulapanlaine', 'Kuutamo', 'Lokinsiipi', 'Saarenkulma', 'Fjärdstjärna', 'Kivikko', 'Sundholm'],
   // Invented German names for the harbour ferries (no real ship's).
   hanseatic: ['Strompaddler', 'Kaimöwe', 'Lotsenkind', 'Nebelhorn', 'Hafenlicht', 'Elbwind', 'Kranblick', 'Speichergruß', 'Tidenhub', 'Schlickläufer', 'Fleetmöwe', 'Kehrwiederstern'],
+  // Invented Norwegian names (no real ship's).
+  'west-norwegian': ['Fjordglimt', 'Havørn', 'Brattsund', 'Nordvind', 'Skjærgard', 'Måkeskjer', 'Storbølge', 'Kvitnes', 'Sunnmørsbris', 'Lysøy', 'Bølgeblikk', 'Fjellheim'],
   aegean: ['Galini', 'Meltemi', 'Thalassopouli', 'Kyma', 'Ostria', 'Aigaio Star', 'Levantes', 'Pelagia', 'Kalimera', 'Glaros', 'Zefyros', 'Anemoni'],
 };
 type Ferry = { name: string; operator: string; foot: boolean; path: [number, number][] };

@@ -161,7 +161,10 @@ export function nameOf(tags: Record<string, string> | undefined, key = 'name'): 
   return tags[`${key}:en`] ?? tags.int_name ?? latin(tags[key] ?? '');
 }
 
+/** Letters that don't come apart into a plain one and an accent (Norway's ø and æ: Lepsøya is lepsoya, not leps-ya). */
+const PLAIN: Record<string, string> = { ø: 'o', æ: 'ae', œ: 'oe', ł: 'l', đ: 'd', þ: 'th', ð: 'd' };
+
 /** An id from a name: lower case, dashes. */
 export function slug(name: string): string {
-  return latin(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return latin(name).toLowerCase().replace(/[øæœłđþð]/g, (c) => PLAIN[c]).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
