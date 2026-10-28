@@ -70,6 +70,11 @@ export function gearOf<K extends GearKind>(v: { defId: string }, kind: K): GearF
   return simOf(v.defId)?.gear[kind] ?? null;
 }
 
+/** Every tender crane she has, in recipe order (the first is `gearOf(v, 'tenderCrane')`). */
+export function tenderCranesOf(v: { defId: string }): readonly GearFacts['tenderCrane'][] {
+  return simOf(v.defId)?.tenderCranes ?? [];
+}
+
 /**
  * Where her modules stand solid (M5b; the boat's axes): the walk area and cargo placement
  * keep out of these. None for a boat without a recipe.

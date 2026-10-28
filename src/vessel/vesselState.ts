@@ -445,6 +445,12 @@ export type BreakerName = (typeof BREAKERS)[number];
  */
 export interface TenderState {
   hostId: EntityId;
+  /**
+   * Which of her ship's tender cranes carries her (boats/sims.ts tenderCranesOf, recipe
+   * order): absent, the first; 1, the second (owner, 28 Oct 2026: the skiff and the rescue
+   * boat on one ship, each on her own crane).
+   */
+  crane?: number;
   phase: 'free' | 'stowed' | 'lowering' | 'hoisting';
   t: number;
   /** Hoisting: her pose in the ship's axes when she was hooked on (x, y, z, yaw rad). */

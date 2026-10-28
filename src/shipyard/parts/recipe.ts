@@ -35,7 +35,7 @@ function electricSteering(look: { strutChord: number; podLength: number; podRadi
 /** Her recipe: the landing craft's as the template, with her machinery, her controls laid out on the console, her lights and her deck gear. */
 export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart & InteriorPart & HouseGearPart & HullDefPart & FurniturePart & HoldPart) {
   const { code, d, id } = a;
-  const { fendering, markings, bowStaple, towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowFender, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
+  const { fendering, markings, bowStaple, towHook, aFrame, ac, anchorAt, hx, at, basketAt, bowCleat, bowFender, bowRamp, chartTableAt, consoleHalf, craneAt, cranePlaced, dip, dipZ, dp, eh, eng, engH, engL, engMid, engW, engX, fenderZs, front, gear, h, hasLamp, hasMonitor, helmAssist, house, hw, kw, lampFoot, lampOnRoof, lampRoof, layout, midCleat, monitorFoot, monitorOnRoof, monitorRoof, nozzle, obc, outboards, pdc, podPropD, podSet, pods, prop, propD, propPos, prot, pushFender, q, r2, ring, rnd, rodRack, roofBack, roofFront, roofThickness, roofTopAt, roofY, rs, rudderArea, rudderPos, sb, sdLegs, sdPropD, sdc, shaft, sideDoor, skiffAt, skiff2At, stack, sternCleat, sternRoller, tankL, transom, twin, twinX, wall, winchAt, zHead } = p;
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
   const recipe = structuredClone(landingCraftRecipe) as unknown as Recipe;
   recipe.id = `vessel.${id}`;
@@ -395,7 +395,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
       { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
       { title: p.electric ? 'DRIVE' : 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'start2', 'key'].filter(has) },
-      { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
+      { title: 'DECK', color: 0xd0a24c, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : []), ...(skiff2At ? ['skiffCrane2'] : [])] }, // (the skiff crane's button is fitted after the panel's laid out)
       // FOIL / HULL and her ride height (a foiling boat's), with her drive's switches.
       { title: 'FOILS', color: 0x3a9ad9, side: 'starboard', members: ['foilMode', 'foilRide'].filter(has) },
       // (Last of the starboard side's: nearest the wheel, under the helmsman's hand.)
@@ -785,12 +785,20 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { socket: 'sideDoorOut', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
     );
   if (anchorAt) recipe.modules.push({ socket: 'anchor', module: 'deck.anchor-windlass', ...(bowRamp ? { config: { aft: ac.kedgeAft } } : {}) });
-  if (skiffAt && cc.slots.skiffCrane) {
-    // Its SKIFF CRANE button on the dash, starboard of the wheel (beside the ANCHOR switch).
-    const [bx, , bz] = cc.slots.skiffCrane.position as V3;
-    // (The rescue boat's bigger crane, for her: design.rescueBoat.)
-    recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { ...(d.rescueBoat ? CONFIG.vessels.rib.crane : {}), consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))] } });
-  }
+  // Each ship's boat's crane (a second on a big boat: design.skiff2, owner, 28 Oct 2026), its
+  // button on the dash, starboard of the wheel (beside the ANCHOR switch). (The rescue boat's
+  // bigger crane, for her: design.rescueBoat.) With two, each button and crane says whose it
+  // is: SKIFF CRANE and RIB CRANE (or 1 and 2, if both are the same boat).
+  const boats = [skiffAt && { socket: 'tenderCrane', slot: 'skiffCrane', rescue: d.rescueBoat }, skiff2At && { socket: 'tenderCrane2', slot: 'skiffCrane2', rescue: d.rescueBoat2 }].filter((b): b is { socket: string; slot: string; rescue: number } => !!b);
+  boats.forEach((b, k) => {
+    const slot = cc.slots[b.slot];
+    if (!slot) return;
+    const [bx, , bz] = slot.position as V3;
+    const same = boats.length > 1 && boats[0].rescue === boats[1].rescue;
+    const word = b.rescue ? 'RIB' : 'SKIFF';
+    const named = boats.length > 1 ? { consoleLabel: same ? `${word} CRANE ${k + 1}` : `${word} CRANE`, name: `${b.rescue ? 'Rescue boat' : 'Skiff'} crane${same ? ` ${k + 1}` : ''}` } : {};
+    recipe.modules.push({ socket: b.socket, module: 'deck.tender-crane', config: { ...(b.rescue ? CONFIG.vessels.rib.crane : {}), consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))], ...named } });
+  });
   if (craneAt || winchAt || skiffAt || aFrame || p.diveFrame) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
   if (pushFender) recipe.modules.push({ socket: 'pushFender', module: 'hull.push-fender', config: pushFender });

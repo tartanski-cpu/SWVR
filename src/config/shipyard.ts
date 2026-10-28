@@ -144,6 +144,12 @@ export const SHIPYARD_CONFIG = {
      */
     skiffOffset: 0.3,
     /**
+     * A second ship's boat on her own crane (owner, 28 Oct 2026: "place another, obviously for
+     * bigger vessels"): the skiff's card offers Place another only on a boat at least this long
+     * (m). The builder still checks there's room for her cradle, and says so if not.
+     */
+    secondBoatMinLength: 12.5,
+    /**
      * Live sea trials at the Trials step (shipyard/liveTrial.ts; owner, Oct 2026: see how the
      * hull behaves). Calm deep water; she settles for `settleS` first.
      *   drop      lifted `dropM` above her rest, heeled `dropHeelDeg` and trimmed

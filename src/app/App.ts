@@ -30,7 +30,7 @@ import { prepareWaves, significantWaveHeight, surfaceHeight, type PreparedWave }
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { paperColour } from '../render/nightPaper';
 import { HydroDebugView } from '../debug/hydroDebugView';
-import { onCrane, recoverCheck } from '../vessel/tenderCrane';
+import { craneOf, onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { beaufort, compass8, setLiveWeather, visibilityAt, windVector } from '../environment/weather';
 import { seaStateWaves } from '../environment/environmentState';
@@ -1316,9 +1316,9 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.homeView && testVessel) {
       {
-        const p = this.ourSkiff()?.tender;
-        const free = p?.phase === 'free';
-        for (const c of this.homeView.cleats) c.painterOn = free && (p?.painter?.cleat === c.index || p?.sternPainter?.cleat === c.index);
+        // (A line from any of her tenders: the skiff's, the rescue boat's.)
+        const lines = this.ourTenders().map((s) => s.tender!).filter((p) => p.phase === 'free');
+        for (const c of this.homeView.cleats) c.painterOn = lines.some((p) => p.painter?.cleat === c.index || p.sternPainter?.cleat === c.index);
       }
       this.homeView.api<FendersApi>('deck.fenders')?.setWalk(testVessel.walkFender);
       this.homeView.update(testVessel, dt, this.dashInView(), this.world.environment, frame);
@@ -2779,6 +2779,25 @@ export class App {
     return Object.values(this.world.vessels).find((v) => v.tender?.hostId === this.testVesselId);
   }
 
+  /** All our ship's tenders (a big boat may carry the skiff and the rescue boat). */
+  private ourTenders(): VesselState[] {
+    return Object.values(this.world.vessels).filter((v) => v.tender?.hostId === this.testVesselId);
+  }
+
+  /**
+   * The tender a ship's cleat clicked means: the one whose line is on it; else the nearest
+   * one afloat whose line would go to it; else the first (to say why not).
+   */
+  private painterTender(cleat: number): VesselState | undefined {
+    const all = this.ourTenders();
+    if (all.length < 2 || cleat < 0) return all[0];
+    const plans = all.map((s) => ({ s, plan: painterPlan(this.world, s, cleat) }));
+    const on = plans.find((p) => p.plan.action === 'castOff');
+    if (on) return on.s;
+    const reach = plans.filter((p) => p.plan.action === 'makeFast').sort((a, b) => (a.plan.action === 'makeFast' ? a.plan.length : 0) - (b.plan.action === 'makeFast' ? b.plan.length : 0));
+    return (reach[0] ?? plans[0]).s;
+  }
+
   /** The skiff's lines clicked (at `cleat`: a ship's, or -1 / -2 her bow / stern cleat): say what happens, or why not. */
   private painterHint(skiff: VesselState, cleat: number): void {
     const plan = painterPlan(this.world, skiff, cleat);
@@ -2813,8 +2832,11 @@ export class App {
     const hyd = hydraulicsOn(v);
     const dist = (x: number, y: number, z: number) => root.localToWorld(this.tmpV.set(x, y, z)).distanceTo(this.focus);
     // Crane: on the move between cradle and water (unfolding, lifting, slewing, lowering).
-    const tp = this.skiff()?.tender?.phase;
-    const cr = gearOf(v, 'tenderCrane');
+    // (With two cranes: the one on the move, else the first.)
+    const tenders = this.ourTenders();
+    const moving = tenders.find((s) => s.tender!.phase === 'lowering' || s.tender!.phase === 'hoisting') ?? this.skiff();
+    const tp = moving?.tender?.phase;
+    const cr = (moving?.tender && craneOf(this.world, moving.tender)?.crane) ?? gearOf(v, 'tenderCrane');
     const craneRun = hyd && (tp === 'lowering' || tp === 'hoisting') ? 1 : 0;
     // Tow winch: a button held; stalled heaving against more pull than it has.
     const line = lineOf(this.world, v.id);
@@ -4497,9 +4519,12 @@ export class App {
     const v = this.world.vessels[this.testVesselId];
     const home = this.homeView;
     if (!v || !home) return;
-    const crane = home.api<TenderCraneView>('deck.tender-crane');
-    const tender = Object.values(this.world.vessels).find((t) => t.tender?.hostId === v.id);
-    if (crane && tender && !this.cranes.includes(crane)) {
+    // Each crane given the tender it carries (two on a big boat: matched by where it stands).
+    for (const tender of Object.values(this.world.vessels)) {
+      if (tender.tender?.hostId !== v.id) continue;
+      const own = craneOf(this.world, tender.tender)?.crane;
+      const crane = home.apis<TenderCraneView>('deck.tender-crane').find((c) => own && c.crane.column[0] === own.column[0] && c.crane.column[1] === own.column[1]);
+      if (!crane || this.cranes.includes(crane)) continue;
       crane.attach(tender.id, VESSEL_DEFS[tender.defId]);
       this.vesselViews.get(tender.id)?.root.add(crane.remote);
       this.cranes.push(crane);
@@ -4774,7 +4799,9 @@ export class App {
         }
         // A midship cleat: the painter's on the skiff (aimed at her), whichever cleat leads it.
         if (channel === 'painterCleat' || channel.endsWith(':painter')) {
-          const skiff = this.ourSkiff();
+          // (Her own cleat's channel names her; a ship's cleat, whichever tender it means.)
+          const own = channel.endsWith(':painter') ? this.world.vessels[channel.slice(0, -':painter'.length)] : undefined;
+          const skiff = own?.tender ? own : this.painterTender(value);
           if (!skiff) return;
           this.painterHint(skiff, value);
           return this.pushIntentTo(skiff.id, 'painter', value);
@@ -5815,8 +5842,7 @@ export class App {
     for (const [id, boat] of this.boats) {
       if (id === this.testVesselId) continue;
       const t = this.world.vessels[id]?.tender;
-      const host = t && this.world.vessels[t.hostId];
-      boat.setCovered(t?.phase === 'stowed' && (!host || (gearOf(host, 'tenderCrane')?.cover ?? true)));
+      boat.setCovered(t?.phase === 'stowed' && ((t && craneOf(this.world, t)?.crane.cover) ?? true));
     }
   }
 

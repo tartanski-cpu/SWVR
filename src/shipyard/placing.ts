@@ -38,7 +38,7 @@ export interface Preview {
 }
 
 /** The socket a piece of gear is drawn on (its own id, but the skiff's crane). */
-export const gearSocketId = (eq: Equipment): string => (eq.id === 'skiff' ? 'tenderCrane' : eq.id);
+export const gearSocketId = (eq: Equipment): string => (eq.id === 'skiff' ? 'tenderCrane' : eq.id === 'skiff2' ? 'tenderCrane2' : eq.id);
 
 /** The socket a target is drawn on. */
 export function socketIdOf(t: Target): string {
@@ -70,6 +70,7 @@ export function ghostSize(t: Target, onRoof = false): [number, number, number] {
     searchlight: onRoof ? [0.5, 0.5, 0.5] : [0.4, 2.6, 0.4],
     fireMonitor: onRoof ? [0.5, 0.6, 0.5] : [0.4, 2.4, 0.4],
     skiff: [1.9, 0.9, 4.0],
+    skiff2: [1.9, 0.9, 4.0],
     lifeRing: [0.8, 0.8, 0.2],
     rodRack: [0.5, 1.6, 0.7],
   };
@@ -128,8 +129,9 @@ export function previewPlace(
   // The skiff, the life ring, the rods: placed by the builder from the side or deck pointed at.
   const where = whereIs(b, t);
   if (!where) {
-    const short = eq.id === 'skiff' ? 'skiff' : eq.id === 'rodRack' ? 'rod' : eq.id === 'lifeRing' ? 'life ring' : eq.name.toLowerCase();
-    const w = b.warnings.find((x) => x.toLowerCase().includes(short));
+    // (A ship's boat's: the last word on a cradle, hers, the dinghy's or the rescue boat's.)
+    const short = eq.how === 'skiff' ? 'cradle' : eq.id === 'rodRack' ? 'rod' : eq.id === 'lifeRing' ? 'life ring' : eq.name.toLowerCase();
+    const w = [...b.warnings].reverse().find((x) => x.toLowerCase().includes(short));
     return miss(patch, w ? w.replace(/:? ?left off\.?.*$/i, '').replace(/^There's /, '') : 'no room here');
   }
   return { patch, ok: true, at: where.at, yawDeg: where.yawDeg, words: '' };

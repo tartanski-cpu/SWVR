@@ -547,7 +547,7 @@ export function overheadPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   const ohc = CONFIG.shipyard.overhead;
   if (d.overhead) {
     const want = SCALES.overhead(d.overhead);
-    const booms = [craneAt && craneAt[2] > aft ? 'the deck crane' : null, skiffAt && skiffAt[2] > aft ? "the skiff's crane" : null].filter((b): b is string => !!b);
+    const booms = [craneAt && craneAt[2] > aft ? 'the deck crane' : null, skiffAt && skiffAt[2] > aft ? "the skiff's crane" : null, p.skiff2At && p.skiff2At[2] > aft ? "the second ship's boat's crane" : null].filter((b): b is string => !!b);
     let z1 = Math.min(aft + want, transom - ohc.transomClear);
     let shortOf = z1 < aft + want - 0.01 ? 'the transom' : '';
     const stopAt = (z: number, what: string) => {

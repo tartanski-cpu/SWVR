@@ -53,6 +53,8 @@ export const EQUIPMENT: Equipment[] = [
   { id: 'sideDoor', name: 'Side door (port wall)', how: 'wall', field: 'sideDoor' },
   { id: 'anchor', name: 'Anchor and windlass', how: 'anchor', field: 'noAnchor', off: 1 },
   { id: 'skiff', name: 'Skiff and crane', how: 'skiff', field: 'skiff' },
+  // (Placed from the skiff's card, Place another: a big boat's second ship's boat.)
+  { id: 'skiff2', name: "Second ship's boat and crane", how: 'skiff', field: 'skiff2' },
 ];
 
 /** Does she carry it? */
@@ -99,7 +101,7 @@ export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox |
   if (eq.how === 'anchor') return { patch: { noAnchor: 0 }, words: 'at her bow roller (a kedge at the stern on a ramp-bow boat)' };
   if (eq.how === 'skiff') {
     const fore = !house || z < mid;
-    return { patch: { skiff: (fore ? 1 : 3) + (x < 0 ? 1 : 0) }, words: `on the ${fore ? 'foredeck' : 'aft deck'}, its crane to ${x < 0 ? 'port' : 'starboard'}` };
+    return { patch: { [eq.field]: (fore ? 1 : 3) + (x < 0 ? 1 : 0) } as Partial<ShipDesign>, words: `on the ${fore ? 'foredeck' : 'aft deck'}, its crane to ${x < 0 ? 'port' : 'starboard'}` };
   }
   if (eq.how === 'wall') return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: "in the wheelhouse's port wall" };
   if (eq.how === 'rack') {

@@ -85,6 +85,8 @@ export interface AssembledView {
   footprints(read: BusReader): Footprint[];
   /** The first module of this id's app-facing part (ModuleViewInstance.api), if any. */
   api<T extends object>(moduleId: string): T | null;
+  /** Every module of this id's app-facing part, in recipe order (two tender cranes). */
+  apis<T extends object>(moduleId: string): T[];
   /**
    * Each frame: every module's view from the boat's state, and the screens (only when
    * someone could see them: the atlas upload is the costly part on the Quest).
@@ -195,6 +197,7 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
         }),
       ),
     api: <T extends object>(id: string) => (modules.find((m) => m.id === id)?.instance.api as T | undefined) ?? null,
+    apis: <T extends object>(id: string) => modules.filter((m) => m.id === id && m.instance.api).map((m) => m.instance.api as T),
     update(state, dt, s, frame = NO_FRAME) {
       if (modules.length) {
         const read = busOf(state);

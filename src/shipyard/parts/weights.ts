@@ -45,6 +45,7 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     ...(aFrame ? [[wc.gear.aFrame, transom - afc.footFromTransom] as [number, number]] : []),
     ...(sternRoller ? [[wc.gear.sternRoller, transom] as [number, number]] : []),
     ...(skiffAt ? [[d.rescueBoat ? wc.gear.rescueBoat : wc.gear.skiff, skiffAt[2]] as [number, number]] : []),
+    ...(p.skiff2At ? [[d.rescueBoat2 ? wc.gear.rescueBoat : wc.gear.skiff, p.skiff2At[2]] as [number, number]] : []),
     ...(anchorAt ? [[wc.gear.anchor, anchorAt.at[2]] as [number, number]] : []),
     ...(rodRack ? [[wc.gear.rodRack, rodRack.bucket[2]] as [number, number]] : []),
     ...(p.netDrumAt ? [[wc.gear.netDrum, p.netDrumAt[2]] as [number, number]] : []),
@@ -104,7 +105,7 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Cockpit overhead|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg + p.furnitureKg * CONFIG.shipyard.furniture.pricePerKg + p.holdPrice;
 
   const gp = dg.price;
-  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? (d.rescueBoat ? gp.rescueBoat : gp.skiff) : 0) + (p.netDrumAt ? gp.netDrum : 0) + (p.trawlWinchesAt ? gp.trawlWinches : 0) + (p.diveFrame ? gp.diveFrame : 0);
+  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? (d.rescueBoat ? gp.rescueBoat : gp.skiff) : 0) + (p.skiff2At ? (d.rescueBoat2 ? gp.rescueBoat : gp.skiff) : 0) + (p.netDrumAt ? gp.netDrum : 0) + (p.trawlWinchesAt ? gp.trawlWinches : 0) + (p.diveFrame ? gp.diveFrame : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (bowFender ? CONFIG.shipyard.bowFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
   const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (electric ? batteryKWh(d.battery ?? BATTERY_DEFAULT) * electricOf(d).batteryPricePerKWh + (base.solarRoof ? CONFIG.shipyard.solarCat.solarPrice : 0) : 0) + (foils ? CONFIG.shipyard.foilFerry.foilsPrice : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 + Math.min(2, d.touch ?? 0) * CONFIG.shipyard.touchPrice : d.oldSchool ? CONFIG.shipyard.oldSchoolPrice : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   // The solar catamaran's battery figures (parts/solar.ts), and a warning if her wet deck sits low.

@@ -39,7 +39,7 @@ import { hydraulicsOn } from './electrics';
 import { hullPlan } from './layout';
 import { CONFIG } from '../config';
 import { VESSEL_DEFS } from './vesselDef';
-import { gearOf } from '../boats/sims';
+import { tenderCranesOf } from '../boats/sims';
 import type { TenderState, VesselState } from './vesselState';
 
 /** The crane's geometry and its launch and recovery path (the tender-crane module's config). */
@@ -123,16 +123,19 @@ export function launchPoint(c: TenderCrane, time: number, out: THREE.Vector3): T
   return out.set(ox, raised + (c.waterY - raised) * f, oz);
 }
 
-/** Her ship and its tender crane (modular boats M5: the ship's module deck.tender-crane), or null. */
-function craneOf(world: WorldState, t: TenderState): { host: VesselState; crane: TenderCrane } | null {
+/**
+ * Her ship and the tender crane that carries her (modular boats M5: the ship's module
+ * deck.tender-crane; with two, the one she's told, TenderState `crane`), or null.
+ */
+export function craneOf(world: WorldState, t: TenderState): { host: VesselState; crane: TenderCrane } | null {
   const host = world.vessels[t.hostId];
-  const crane = host && gearOf(host, 'tenderCrane');
+  const crane = host && tenderCranesOf(host)[t.crane ?? 0];
   return host && crane ? { host, crane } : null;
 }
 
-/** Put a tender in her ship's cradle (world creation). */
-export function stowTender(world: WorldState, tender: VesselState, hostId: string): void {
-  tender.tender = { hostId, phase: 'stowed', t: 0 };
+/** Put a tender in her ship's cradle (world creation): the ship's first crane's, or crane `crane`'s. */
+export function stowTender(world: WorldState, tender: VesselState, hostId: string, crane = 0): void {
+  tender.tender = { hostId, ...(crane ? { crane } : {}), phase: 'stowed', t: 0 };
   stepTender(world, tender, 0);
 }
 

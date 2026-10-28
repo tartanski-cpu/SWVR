@@ -45,6 +45,12 @@ export interface VesselSimDef {
   mounts: SimMount[];
   /** Her deck gear's facts, by kind (M5). */
   gear: Partial<GearFacts>;
+  /**
+   * Every tender crane she has, in recipe order (owner, 28 Oct 2026: a big boat may carry the
+   * skiff and the rescue boat, each on her own crane). `gear.tenderCrane` is the first of them;
+   * a tender knows which of these carries her (TenderState `crane`).
+   */
+  tenderCranes: GearFacts['tenderCrane'][];
   /** Where her modules stand solid on deck and roof (M5b; the boat's axes). */
   footprints: GearFootprint[];
 }
@@ -76,6 +82,7 @@ export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: 
   const { mounted } = flattenMounts(recipe, lib.hulls, lib.modules);
   const mounts: SimMount[] = [];
   const gear: Partial<GearFacts> = {};
+  const tenderCranes: GearFacts['tenderCrane'][] = [];
   const footprints: GearFootprint[] = [];
   const places = mountPlaces(mounted);
   for (const m of mounted) {
@@ -91,13 +98,15 @@ export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: 
     // The first module giving each kind of gear tells the world about it.
     const facts = m.def.gear?.(m.config, hull, at) ?? {};
     for (const k of Object.keys(facts) as GearKind[]) if (!(k in gear)) Object.assign(gear, { [k]: facts[k] });
+    // (Tender cranes: every one, each carrying her own boat.)
+    if (facts.tenderCrane) tenderCranes.push(facts.tenderCrane);
     const roles = m.def.power?.(m.config) ?? [];
     if (!m.def.sim && !roles.length) continue;
     mounts.push({ path: m.path, def: m.def, config: m.config, keys: m.keys, socket: m.socket, roles });
   }
   const stores = mounts.flatMap((m) => m.roles.filter((r) => r.role === 'store'));
   if (stores.length > 1) throw new Error(`Recipe '${recipe.id}': more than one battery bank (one house bank for now)`);
-  return { recipe: recipe.id, mounts, gear, footprints };
+  return { recipe: recipe.id, mounts, gear, tenderCranes, footprints };
 }
 
 /** A footprint in a module's axes onto the boat's (a box: the box around its turned corners). */
