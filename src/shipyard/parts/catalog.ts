@@ -494,9 +494,11 @@ const FOIL_FERRY_FIXED: Partial<ShipDesign> = {
   sheer: 0,
   foreCabin: 0,
   engine: FERRY_MOTOR,
-  // Her pod's reduction fixed (no matching): the step the yard's trial matches for her motors,
-  // 28 Oct 2026 (1.33 : 1; about 34 kn flat out on her foils, the motors at their rated revs).
-  gear: 3,
+  // Her pod's reduction fixed (no matching), 1.6 : 1 (owner, 28 Oct 2026, from the choppy-sea
+  // test): enough torque at her propellers to lift her over the hump into a Moderate sea; about
+  // 28 kn flat out in calm water, her motors at their rated revs. (The trial's match for top
+  // speed, 1.33 : 1, gave 34 kn but left her stuck on her hulls at 10-12 kn into a Moderate sea.)
+  gear: 5,
   twin: 0,
   pods: 1,
   outboards: 0,

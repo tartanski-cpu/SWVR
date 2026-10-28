@@ -126,8 +126,21 @@ export function stepFoils(fs: FoilSystem, port: PhysicsPort, mass: number, cgZ: 
   const zA = aft.reduce((a, p) => a + p.at[2], 0) / Math.max(1, aft.length);
   const shareF = aft.length ? clamp((zA - cgZ) / (zA - zF), 0, 1) : 1;
   const shareA = 1 - shareF;
-  // Her forward foil's depth and how fast it's rising (world).
-  const depthF = fwd.reduce((a, p) => a + port.depthAt(p.at), 0) / Math.max(1, fwd.length);
+  // Her forward foil's depth and how fast it's rising (world). The depth her flight computer
+  // flies by (owner, 28 Oct 2026, "they should be pretty much completely smooth because they ride
+  // over the waves"): under the mean sea, still water level, not the wave over the foil, so she
+  // holds her height level over the crests and troughs ("platforming") and her foils run deeper
+  // under a crest and shallower in a trough. `control.follow` of the wave over it is taken in as
+  // well (0 level over them, 1 up and down with every one: "contouring"). In a trough deep enough
+  // to bring a foil within `control.guard` m of the surface, she follows it down, as much as it
+  // takes to keep the foil that far under (a foil near the surface loses its lift, and out of it
+  // she'd drop).
+  const depthF =
+    fwd.reduce((a, p) => {
+      const still = -port.worldPoint(p.at).y;
+      const local = port.depthAt(p.at);
+      return a + Math.min(still + k.follow * (local - still), local + rideDepth - k.guard);
+    }, 0) / Math.max(1, fwd.length);
   const riseF = fwd.reduce((a, p) => a + port.worldVelocity(p.at).y, 0) / Math.max(1, fwd.length);
   const maxBank = (k.maxBankDeg * Math.PI) / 180;
   const bankTarget = clamp(k.bank * Math.atan((U * yawRate) / g), -maxBank, maxBank);

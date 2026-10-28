@@ -14,6 +14,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The foiling ferry on a choppy sea: she flies level over the waves; geared to take off in a Moderate sea (28 Oct 2026)
+
+Owner, 28 Oct 2026: "maybe a nice test to do for the hydrofoils is take them out on a choppy sea, and obviously they should be pretty much completely smooth because they ride over the waves." Then, on what it found: "You do it here" (the flight computer's change) and "Yes, 1.6:1" (her gearing).
+
+- **What the test found:** she wasn't smooth. Her flight computer held her forward foil a set depth under the *local* wave surface, so she rose and fell with every wave ("contouring"): about 1.65 m/s² rms (0.17 g) of up-and-down at her helm into a Slight sea, more than she felt running on her hulls in it. And in a Moderate sea she couldn't get over the hump into the waves or across them (stuck on her hulls at 10 to 12 kn): her motors ran out of torque at low speed with the 1.33 : 1 reduction matched for top speed.
+- **Flying level over the waves** (shared, `vessel/physics/foils.ts`; `CONFIG.foils.control.follow` 0, `guard` 0.45): her flight computer now holds her height over the mean sea (still water level), so her foils run deeper under a crest and shallower in a trough, as a real foiler's does ("platforming"). `follow` takes in a share of the wave over the foil (1 is the old contouring). A trough that would bring her forward foil within `guard` m of the surface she follows down, to keep it that deep (one of the hull chat's tests caught the foil coming within 0.2 m of the surface in a Moderate sea without it).
+- **Her pod's reduction 1.6 : 1** (was 1.33; `FOIL_FERRY_FIXED.gear` 5): more torque at her propellers over the hump. **28 kn flat out** in calm water (was 34; her motors reach their rated revs before their full power); 25 kn still takes 79 kW, so her range figure is unchanged (57 nm on 200 kWh).
+- **How she rides now** (the game's open-sea waves, 23 kn, up-and-down at her helm, rms): Slight sea, into the waves 0.14 m/s², across 0.07, with them 0.06 (about 1/100 g; never touches); on her hulls into the same sea, 1.2. Moderate sea: she takes off every way, 21 to 23 kn, 0.84 into the waves (brushing a crest once in 30 s), 0.44 across, 0.53 with them; the pilot boat planing at 37 kn in the same sea gets 1.5 to 4.2. A Rough sea is beyond her: she can't get up onto her foils.
+- **Shared changes:** `vessel/physics/foils.ts` (the depth her flight computer flies by), `config/vessels.ts` (`foils.control.follow`, `foils.control.guard`). The hull chat's foil tests all pass with it.
+- Tests: `tests/shipyard/foilFerrySea.test.ts` (new: a Slight sea three ways, flying smoothly, far smoother than on her hulls; a Moderate sea into and across the waves, she gets up and flies on), `foilFerryDrive` (past 26 kn flat out). Not checked: VR (how it feels at her helm), screenshots (nothing new to see).
+
 ### The foiling electric ferry, a one-off: her foils fly her, one contra-rotating electric pod, her battery (28 Oct 2026)
 
 Owner, 28 Oct 2026, on the hull modifications chat's `foilFerry` (her lines and hydrofoils) and its hand-over: her house, controls and furniture "hers to shape (Recommended)", as the solar cat's; "a contra-rotating pair" on her pod; "a slider like the solar cat" for her battery; "Yes, start now".
