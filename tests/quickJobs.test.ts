@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/config';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
@@ -9,6 +9,15 @@ import { isPot } from '../src/potting/potting';
 import { distanceToHull, vesselToWorld } from '../src/rescue/recovery';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { POTTING_GROUNDS, PORTS } from '../src/world/archipelago';
+
+// These tests carry, stow and pot with the ports kept stocked and the pot pallet filled: the
+// old way, kept as CONFIG.cargo.onDemand off. Goods on order (the game's way now): cargoOrder.test.ts.
+beforeAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = false;
+});
+afterAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = true;
+});
 
 const DT = 1 / 60;
 
@@ -89,14 +98,14 @@ describe('quick jobs from the menu: the same rules, no walking', () => {
     at('calder');
     send('potQuickLoad');
     const pots = () => aboard(world, v.id).filter(isPot);
-    expect(pots()).toHaveLength(CONFIG.potting.pots);
+    expect(pots()).toHaveLength(CONFIG.potting.palletPots);
     const g = POTTING_GROUNDS[2];
     placeVessel(v, g.x, 0, g.z, 0);
     send('potQuickShoot');
     send('potQuickShoot');
     expect(world.potting!.shot).toHaveLength(2);
     expect(world.potting!.shot.every((s) => s.ground === g.id)).toBe(true);
-    expect(pots()).toHaveLength(CONFIG.potting.pots - 2);
+    expect(pots()).toHaveLength(CONFIG.potting.palletPots - 2);
     // Not up yet (sinking): nothing to haul.
     send('potQuickHaul');
     expect(world.potting!.shot).toHaveLength(2);
@@ -111,7 +120,7 @@ describe('quick jobs from the menu: the same rules, no walking', () => {
     const money0 = world.career?.money ?? 0;
     send('cargoQuickUnload');
     expect(world.career!.money).toBeGreaterThan(money0);
-    expect(pots()).toHaveLength(CONFIG.potting.pots); // the pots stay aboard
+    expect(pots()).toHaveLength(CONFIG.potting.palletPots); // the pots stay aboard
     expect(pots().every((c) => !c.pot || c.pot.crab + c.pot.lobster === 0)).toBe(true);
   });
 });

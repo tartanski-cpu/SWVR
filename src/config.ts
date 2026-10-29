@@ -1275,6 +1275,32 @@ export const CONFIG = {
      * back from the water.
      */
     perPort: 12,
+    /**
+     * Goods on order (owner, 29 Oct 2026: "it doesn't make sense to have the cargo crates on
+     * the side of the quay all the time"; cargo/order.ts): true, the ports keep nothing
+     * waiting and nothing appears when goods are delivered or lost; the crew order crates,
+     * crane lifts and pots at each harbour's cargo screen (ui/cargoTerminal.ts). False: the
+     * old way, every port stocked to `perPort` (and `crane.perPort`) and kept so.
+     */
+    onDemand: true,
+    /**
+     * The cargo screen (ui/cargoTerminal.ts): a small screen on a post at the near end of each
+     * harbour's goods row, `beforeRow` (m) before its first place, facing the water (a step
+     * further along, or at the row's far end, if that isn't dry ground at least `minGround` m
+     * above the sea, `clearOfLamp` m from the quay's lamp posts).
+     *   maxOrder  the most of one sort made in one order (a full load stops sooner if she's
+     *             full), and the most crates waiting on one quay
+     *   countTo   her room is counted up to this many (the screen says "N+" past it)
+     *   fillMisses a full load of crates tries this many of the port's goods that won't fit
+     *             (each a different kind: a long timber may not, a sack still may), then tops
+     *             her up with plain crates, as many as the screen said she had room for
+     *   width     the screen (m); `up` its middle above the ground (m)
+     *   range     it lights up as you come within this (m); `reach` the pointer's reach (m)
+     *   post      the post's colour; `drawRange` the post is drawn this near (m)
+     *   refreshS  what the screen shows is worked out again this often (s: her room is a dry
+     *             run of loading, too much for every frame)
+     */
+    terminal: { beforeRow: 1.7, minGround: 0.3, clearOfLamp: 1.6, maxOrder: 24, countTo: 40, fillMisses: 8, width: 1.25, up: 1.35, range: 14, reach: 4, post: 0x3a4650, drawRange: 120, refreshS: 0.4 },
     /** Goods waiting ashore are drawn only this near you (m: cargo/cargoView.ts). */
     drawRange: 400,
     stackRow: 6,
@@ -2443,7 +2469,14 @@ export const CONFIG = {
   potting: {
     // Just aft of a boat at the Calder Haven cargo berth, 4 m in from the quay edge (owner: it was 25 m forward of her).
     pallet: { x: 716, z: 670.5, yawDeg: 90 },
-    pots: 5,
+    /**
+     * The most pots in play at once (on the quays, aboard and in the water). With goods on
+     * order (CONFIG.cargo.onDemand: owner, 29 Oct 2026) they're ordered at a harbour's cargo
+     * screen, and the pallet isn't stocked.
+     */
+    pots: 12,
+    /** Without goods on order (the old way): the pots kept on the pallet, replaced as they're lost. */
+    palletPots: 5,
     maxShot: 24,
     sinkTime: 2.5,
     /** Desktop: a pot set down from the rail is thrown this far out the way you look (m). */

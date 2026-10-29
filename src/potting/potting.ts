@@ -7,7 +7,7 @@ import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
 import * as THREE from 'three';
-import { aboard, deckHeightAt, footprint, quickDeckPoint, quickPort, stowOnDeck, type CargoItem, type PotContents } from '../cargo/cargo';
+import { aboard, deckHeightAt, footprint, portAtPoint, quickDeckPoint, quickPort, stowOnDeck, type CargoItem, type PotContents } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
 import { deckSpot } from '../cargo/deck';
 import { hullPlan } from '../vessel/layout';
@@ -109,10 +109,11 @@ export function potsOwned(world: WorldState): number {
   return cargo + (world.potting?.shot.length ?? 0);
 }
 
-/** Make up the pots to `CONFIG.potting.pots` on the pallet (pots are free for now). */
+/** Make up the pots to `CONFIG.potting.palletPots` on the pallet (pots are free for now). */
 export function stockPallet(world: WorldState): void {
   const p = world.potting;
-  if (!p) return;
+  // (Goods on order, CONFIG.cargo.onDemand: pots are ordered at a cargo screen, the pallet isn't stocked.)
+  if (!p || CONFIG.cargo.onDemand) return;
   const cfg = CONFIG.potting;
   const kind = potKind();
   const k = CONFIG.cargo.kinds[kind];
@@ -124,8 +125,8 @@ export function stockPallet(world: WorldState): void {
     const slot = palletSlotAt(c.at.ground[0], c.at.ground[2]);
     if (slot >= 0) taken.add(slot);
   }
-  let missing = cfg.pots - potsOwned(world);
-  for (let slot = 0; slot < cfg.pots + 4 && missing > 0; slot++) {
+  let missing = cfg.palletPots - potsOwned(world);
+  for (let slot = 0; slot < cfg.palletPots + 4 && missing > 0; slot++) {
     if (taken.has(slot)) continue;
     const [x, y, z] = palletSlot(slot);
     const id = `pot-${++p.seq}`;
@@ -146,7 +147,7 @@ function palletSlot(i: number): [number, number, number] {
 }
 
 function palletSlotAt(x: number, z: number): number {
-  for (let i = 0; i < CONFIG.potting.pots + 4; i++) {
+  for (let i = 0; i < CONFIG.potting.palletPots + 4; i++) {
     const [sx, , sz] = palletSlot(i);
     if (Math.hypot(sx - x, sz - z) < 0.25) return i;
   }
@@ -443,14 +444,15 @@ export function isPottingIntent(control: string): boolean {
 // ── Quick potting (the menu's Potting buttons) ──
 // The same jobs as by hand, in a click (see cargo.ts "Quick jobs"): the same rules hold.
 
-/** Pots waiting on the pallet, if the vessel is at the pallet's harbour. */
+/** Pots waiting ashore at the port the vessel's at: on its quay (ordered at its cargo screen), or on the pallet if it's the pallet's harbour. */
 export function quickPalletPots(world: WorldState, v: VesselState): CargoItem[] {
   const { x, z } = CONFIG.potting.pallet;
   const port = quickPort(v);
+  if (!port) return [];
   // The pallet's harbour: the port nearest it.
   const home = [...PORTS].sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
-  if (!port || port.id !== home?.id) return [];
-  return Object.values(world.cargo).filter((c) => isPot(c) && 'ground' in c.at && Math.hypot(c.at.ground[0] - x, c.at.ground[2] - z) < CONFIG.cargo.deliveryRadius);
+  const near = (g: number[]) => (port.id === home?.id && Math.hypot(g[0] - x, g[2] - z) < CONFIG.cargo.deliveryRadius) || portAtPoint(g[0], g[2])?.id === port.id;
+  return Object.values(world.cargo).filter((c) => isPot(c) && 'ground' in c.at && near(c.at.ground));
 }
 
 /** The buoy nearest the vessel within `quickHaulRange` (up, not being hauled), or null. */

@@ -107,6 +107,7 @@ import { CameraMode } from '../player/cameraMode';
 import { GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padLever, type PadState } from '../player/gamepad';
 import { HelmPrompt } from '../ui/helmPrompt';
 import { YardBoard } from '../ui/yardBoard';
+import { CargoTerminal } from '../ui/cargoTerminal';
 import { careerShipyardSpots, ShipyardDoor } from '../ui/shipyardDoor';
 import { Wheel } from '../controls/Wheel';
 import type { PlayerState } from '../player/playerState';
@@ -745,6 +746,8 @@ export class App {
   private readonly helmPrompt = new HelmPrompt();
   /** The boatyards' boards (ui/yardBoard.ts), one per yard (CONFIG.boatyards). */
   private yardBoards: YardBoard[] = [];
+  /** The harbours' cargo screens (ui/cargoTerminal.ts: goods on order), one screen moved to the nearest. */
+  private cargoTerminal!: CargoTerminal;
   /** The recording camera (Menu > Crew > Be the camera; desktop): player/cameraMode.ts. */
   private readonly camMode = new CameraMode();
   /** The camera views at the helm with a controller (player/helmCamera.ts): inside, orbit, flyby. */
@@ -936,6 +939,14 @@ export class App {
     // The career's Shipyard signs, one on the quay at every harbour (Voyage's stands by the planning table: setupPlan).
     // ...and beside each, the Your boats board (your Shipyard favourites).
     if (MODE === 'career') this.shipyardSigns = careerShipyardSpots().flatMap((at) => [ShipyardDoor.shipyard(host, at), ShipyardDoor.boats(host, at)]);
+    // The cargo screen at every harbour's goods row: crates, crane lifts and pots on order (cargo/order.ts).
+    this.cargoTerminal = new CargoTerminal({
+      world: () => this.world,
+      ownBoatId: () => this.testVesselId,
+      boatName: (v) => this.boatLabel(v.defId),
+      send: (control, targetId, value, ref, args) => this.intents.push({ playerId: this.localPlayerId, targetId, control, value, ref, ...(args ? { args } : {}) }),
+      notify: (text) => this.overlay.notify(text, 3),
+    });
     this.belowDecks = new BelowDecks({
       scene: this.scene,
       world: () => this.world,
@@ -948,7 +959,7 @@ export class App {
       addControls: (cs) => this.interaction?.addControls(cs),
       removeControls: (cs) => this.interaction?.removeControls(cs),
     });
-    this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine));
+    this.scene.add(this.gangway.root, this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine), ...this.shipyardSigns.map((s) => s.menu.rayLine), this.cargoTerminal.menu.rayLine);
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -1504,6 +1515,7 @@ export class App {
     this.noteKeys.menu.refresh();
     for (const b of this.yardBoards) b.update(this.scene, this.focus);
     for (const s of this.shipyardSigns) s.updateAt(this.scene, this.focus);
+    this.cargoTerminal.update(this.scene, this.focus);
     this.belowDecks.update(dt);
     this.plantNotes();
     this.plantSound();
@@ -3281,7 +3293,7 @@ export class App {
       setPotting: (on) => {
         userSettings.potting = on;
         saveSettings();
-        this.overlay.notify(on ? 'Potting on: five pots wait on the pallet on the Calder Haven quay' : 'Potting off from your next game (pots already out stay out)', 4);
+        this.overlay.notify(on ? 'Potting on: order pots at the CARGO screen on any harbour quay' : 'Potting off from your next game (pots already out stay out)', 4);
       },
       potsAboard: () => {
         if (!this.world.potting) return this.overlay.notify('Switch potting on first (Settings → Game)', 3);
@@ -6354,12 +6366,12 @@ export class App {
     setTimeout(() => window.location.assign(diveUrl(ready.site, back.toString(), session)), CONFIG.modules.diveFrame.dive.fadeS * 1000);
   }
 
-  /** The world's fixed boards worked like the menu: the boatyards' and the Shipyard signs (Voyage's one, the career's at every harbour). */
+  /** The world's fixed boards worked like the menu: the boatyards', the Shipyard signs (Voyage's one, the career's at every harbour) and the cargo screen. */
   private boardMenus(): WristMenu[] {
     // One list, kept (asked for several times a frame), made again only if the boards change.
     const solo = [this.shipyardDoor, this.boatsBoard].filter((b): b is ShipyardDoor => !!b);
-    const n = this.yardBoards.length + this.shipyardSigns.length + solo.length;
-    if (this.boardMenuList.length !== n) this.boardMenuList = [...this.yardBoards.map((b) => b.menu), ...this.shipyardSigns.map((s) => s.menu), ...solo.map((s) => s.menu)];
+    const n = this.yardBoards.length + this.shipyardSigns.length + solo.length + 1;
+    if (this.boardMenuList.length !== n) this.boardMenuList = [...this.yardBoards.map((b) => b.menu), ...this.shipyardSigns.map((s) => s.menu), ...solo.map((s) => s.menu), this.cargoTerminal.menu];
     return this.boardMenuList;
   }
   private boardMenuList: WristMenu[] = [];
@@ -6619,7 +6631,7 @@ export class App {
       case 'load': {
         if (!port) return say(notAtPort);
         const k = quickLoadable(this.world, v).length;
-        if (!k) return say('Nothing waiting here for another port');
+        if (!k) return say('Nothing waiting here for another port: order some at the CARGO screen on the quay');
         this.pushVesselIntent('cargoQuickLoad', 1);
         return say(`Loading ${n(k, 'item')} waiting here (as many as she has room for), lashed down`);
       }
@@ -6647,9 +6659,9 @@ export class App {
     switch (what) {
       case 'potLoad': {
         const k = quickPalletPots(this.world, v).length;
-        if (!k) return say(port ? 'No pots waiting on the pallet here (it is at Calder Haven)' : 'The pot pallet is at Calder Haven: come alongside there and stop');
+        if (!k) return say(port ? 'No pots waiting on this quay: order some at the CARGO screen' : 'Come alongside a harbour quay and stop, and order pots at its CARGO screen');
         this.pushVesselIntent('potQuickLoad', 1);
-        return say(`Loading ${n(k, 'pot')} from the pallet, lashed down`);
+        return say(`Loading ${n(k, 'pot')} from the quay, lashed down`);
       }
       case 'potShoot': {
         if (!pots.length) return say('No pots aboard');

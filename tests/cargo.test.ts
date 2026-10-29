@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   aboard,
   deckVelocitiesBefore,
@@ -22,6 +22,15 @@ import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { PORTS } from '../src/world/archipelago';
 import { standingHeight } from '../src/world/geography';
+
+// These tests carry, stow and pot with the ports kept stocked and the pot pallet filled: the
+// old way, kept as CONFIG.cargo.onDemand off. Goods on order (the game's way now): cargoOrder.test.ts.
+beforeAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = false;
+});
+afterAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = true;
+});
 
 const DT = 1 / 60;
 

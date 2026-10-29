@@ -10,6 +10,30 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The cargo screen: crates, crane lifts and pots ordered on the quay, sized to her (29 Oct 2026)
+
+Owner: "it doesn't make sense to have the cargo crates on the side of the quay all the time. So I'd like another set of buttons or mini screen, which allows you to spawn cargo and lobster pots ... it tells you how many slots of cargo your ship has, which is docked at it. And it allows you to spawn individually or the maximum amount, and the same with lobster pots."
+- **Goods on order** (`cargo/order.ts`, `CONFIG.cargo.onDemand` true):
+  - The ports start empty and stay so: nothing is stocked at the start (`createWorld`), and nothing new appears when goods are delivered or lost (`retire`). Off, it's the old way (every port kept stocked).
+  - **The pot pallet** at Calder Haven isn't stocked either (`stockPallet` does nothing with it on). Pots come from the screen, at any harbour, up to `potting.pots` (now 12, the most in play: on the quays, aboard and in the water). The old pallet count is kept as `potting.palletPots` 5 for the old way. Ordering a pot switches potting on in the world.
+  - **`cargoOrder`** (ref: the port; args [0 crates, 1 crane lifts, 2 pots]; value: how many, 0 a full load; targetId: the boat lying there): made by the host, as every cargo intent. **`cargoOrderReturn`** sends back what was ordered at that port and still waits on its quay (not project goods, salvage or the trawl's fish).
+  - **A full load** is what the boat lying there takes: her payload, her slots (a slot-limited boat) and room on her open deck, as a dry run of quick loading (the same `deckSpot`, oldest first), counting what's already waiting for her. Each new item is made, packed with the rest, and taken back if it won't go. Goods come as the port's own products; after `terminal.fillMisses` (8) that won't fit, plain crates top her up, so the screen's count and the load agree. One order makes at most `terminal.maxOrder` (24), also the most crates waiting on one quay.
+  - Crane lifts: at a harbour with a cargo quay, on its edge as before; a full load wants a deck crane aboard.
+  - With a cargo contract running, crates (and crane lifts) ordered anywhere are bound for its port.
+  - Crate and pot makers split out per port (`makeCargoAt`, `makeCraneCargoAt`); the old stocking uses them, unchanged.
+  - Quick loading now takes the oldest first by number (cargo-9 before cargo-10: `byNumber`), so goods ordered later go on last and the dry run packs as the loading does.
+- **The screen** (`ui/cargoTerminal.ts`): a post at the near end of each harbour's goods row (`terminalSpot`: `terminal.beforeRow` 1.7 m before its first place, facing the water; a step further along or at the row's far end if that isn't dry ground or is within `clearOfLamp` 1.6 m of a quay lamp post), a housing and a lit **CARGO** sign.
+  - Within `terminal.range` 14 m its screen (1.25 m wide) lights up, worked like the boatyard's board: the harbour; the boat lying there (yours if she's there) with her payload free and slots (or "no slot limit"); for Crates, Crane lifts and Lobster pots her room for more, **Order 1** and **Full load** (or why not: she's full, no crane aboard, no cargo quay here, all pots out); what's waiting on the quay and **Send back**.
+  - One menu and one post for every harbour, moved to the nearest within `drawRange` 120 m: three draw calls near a harbour, none elsewhere. What it shows is worked out every `refreshS` 0.4 s, not each frame (her room is a dry run of loading).
+  - In the career and on every Voyage map.
+- **Texts:** the tutorial's cargo step sends you to the screen; the menu's Load and Load pots say to order at the screen when nothing waits; the Potting setting's notice.
+- **Tests:**
+  - tests/cargoOrder.test.ts (8): the quays start empty; every harbour's screen on dry ground in its goods area; one at a time, with or without a boat; a full load that all goes aboard; pots up to their limit; crane lifts only at a cargo quay; send back; a contract's port.
+  - tests/cargo, cargoHands, duties, potting and quickJobs test carrying, lashing, potting and hauling with the ports stocked (`onDemand` off for those files), as before.
+- **Checked headless:** at Calder Haven (the starter gillnetter: room for 15 crates; a full load of 13 and two pots on the quay; room 0 after) and on Oban (the pilot boat), the screen read and in the clear of the lamp posts.
+- **Not checked:** on the Quest (reading it, pointing at it), and a crew-mate ordering in multiplayer.
+- **Shared changes:** `src/core/world.ts` (no stocking at the start with goods on order).
+
 ### The planning chart: zoom and pan your own view, anywhere, Voyage and career (28 Oct 2026)
 
 Owner: "I really like the voyage planning map, but it doesn't spawn in on all harbor sites. And I would kind of like to have it on the boat as well ... plan a route where they've got control over the map so they can zoom in and out". Then, of the ideas (a chart board you carry, the boat's chart table, a reliable quay table): "go ahead with step 1, own view each, career too".

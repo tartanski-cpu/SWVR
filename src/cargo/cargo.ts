@@ -2,12 +2,13 @@
  * Cargo between ports, carried by hand. Plain-data simulation (WorldState.cargo),
  * multiplayer-ready like the rest: players send intents, the simulation checks them.
  *
- *   - Every port keeps CONFIG.cargo.perPort items waiting in a row on its quay or beach,
- *     each bound for another port.
+ *   - Goods wait in a row on a port's quay or beach, each bound for another port: ordered at
+ *     its cargo screen (cargo/order.ts, CONFIG.cargo.onDemand), or with that off, kept
+ *     stocked to CONFIG.cargo.perPort at every port.
  *   - Pick one up ('cargoTake'), carry it (one hand, or both for the heavy ones), set it
  *     down ('cargoPlace': on a deck, or ashore). Set down ashore near its destination's
- *     goods stack, it's delivered, and a replacement appears somewhere else.
- *   - Dropped in the sea, it's lost (a replacement appears too).
+ *     goods stack, it's delivered (stocked ports: a replacement appears somewhere else).
+ *   - Dropped in the sea, it's lost (stocked ports: a replacement appears too).
  *   - On deck, unlashed items slide when the apparent gravity along the deck beats friction
  *     (stepDeckCargo below), and can go over the rail. Strapped to a lashing point
  *     ('cargoLash') they stay put.
@@ -42,6 +43,7 @@ import { hydraulicsOn } from '../vessel/electrics';
 import { safeLoadAt } from '../modules/deckCrane';
 import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
+import { applyOrderIntent } from './order';
 import { berthWithId } from '../world/berths';
 import type { BerthDef } from '../world/defs';
 import { isProjectBuoy, isProjectItem, layProjectBuoy, projectItemLost, projectItemName } from '../career/projects';
@@ -204,7 +206,7 @@ function groundNear(world: WorldState, x: number, z: number, r: number): Vec3[] 
   return out;
 }
 
-function waitingAt(world: WorldState, port: PortDef, crane = false): CargoItem[] {
+export function waitingAt(world: WorldState, port: PortDef, crane = false): CargoItem[] {
   return Object.values(world.cargo).filter((c) => c.from !== 'pots' && !isProjectItem(c) && craneOnly(c) === crane && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
 }
 
@@ -229,28 +231,40 @@ export function spawnCargo(world: WorldState, tally?: Map<string, number>): Carg
   const counts = PORTS.map((p) => waiting.get(p.id) ?? 0);
   const min = Math.min(...counts);
   if (min >= cfg.perPort) return null;
-  const n = ++world.cargoSeq;
   // Among the emptiest ports, pick one by hash so it isn't always the first.
   const candidates = PORTS.filter((_, i) => counts[i] === min);
-  const from = candidates[Math.floor(hash01(n) * candidates.length)];
-  // The kind: one of the port's products (PortDef.economy.products), else any trade kind.
+  const from = candidates[Math.floor(hash01(world.cargoSeq + 1) * candidates.length)];
+  const item = makeCargoAt(world, from);
+  if (tally && 'ground' in item.at) {
+    const at = portAtPoint(item.at.ground[0], item.at.ground[2]);
+    if (at) tally.set(at.id, (tally.get(at.id) ?? 0) + 1);
+  }
+  return item;
+}
+
+/**
+ * One new item of hand cargo waiting at a port, in the first free place in its goods row: one
+ * of the port's products (PortDef.economy.products), else any trade kind, bound for a port
+ * that needs it (else one that takes anything, else any other). `prefer`: bound there
+ * instead (a cargo contract's port: cargo/order.ts), if it isn't this one; `kindAsked`: that
+ * kind instead (a plain crate, topping up a full load).
+ */
+export function makeCargoAt(world: WorldState, from: PortDef, prefer?: string, kindAsked?: number): CargoItem {
+  const cfg = CONFIG.cargo;
+  const n = ++world.cargoSeq;
   const products = (from.economy?.products ?? []).map((name) => cfg.kinds.findIndex((k) => k.name === name)).filter((i) => i >= 0 && i < cfg.tradeKinds);
-  const kind = products.length ? products[Math.floor(hash01(n + 0.25) * products.length)] : Math.floor(hash01(n + 0.25) * cfg.tradeKinds); // trade cargo only (not pots)
-  // Where to: a port that needs it; else one that takes anything (no needs listed); else any other.
+  const kind = kindAsked ?? (products.length ? products[Math.floor(hash01(n + 0.25) * products.length)] : Math.floor(hash01(n + 0.25) * cfg.tradeKinds)); // trade cargo only (not pots)
   const kindName = cfg.kinds[kind].name;
   const others = PORTS.filter((p) => p.id !== from.id);
+  const preferred = others.find((p) => p.id === prefer);
   const needing = others.filter((p) => p.economy?.needs?.includes(kindName));
   const takers = needing.length ? needing : others.filter((p) => !p.economy?.needs?.length);
   const pool = takers.length ? takers : others;
-  const to = pool[Math.floor(hash01(n + 0.5) * pool.length)];
+  const to = preferred ?? pool[Math.floor(hash01(n + 0.5) * pool.length)];
   const pos = freeStackSpot(world, from);
   const yaw = (from.cargo.stackYawDeg * Math.PI) / 180 + (hash01(n + 0.75) - 0.5) * 0.3;
-  const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw } };
+  const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: (to ?? from).id, at: { ground: pos, yaw } };
   world.cargo[item.id] = item;
-  if (tally) {
-    const at = portAtPoint(pos[0], pos[2]);
-    if (at) tally.set(at.id, (tally.get(at.id) ?? 0) + 1);
-  }
   return item;
 }
 
@@ -259,31 +273,42 @@ export function spawnCargo(world: WorldState, tally?: Map<string, number>): Carg
  * waiting, bound for another, in the first free place along its berth's quay edge.
  */
 export function spawnCraneCargo(world: WorldState, tally?: Map<string, number>): CargoItem | null {
-  const cfg = CONFIG.cargo;
-  const c = cfg.crane;
+  const c = CONFIG.cargo.crane;
   const quays = PORTS.filter((p) => cargoBerth(p));
   if (quays.length < 2 || !c.kinds.length) return null;
   const waiting = tally ?? waitingCounts(world, true);
-  const freeAt = (port: PortDef) => freeCraneSpot(world, port);
   // The ports short of their crane cargo with room on the quay, the emptiest first.
-  const open = quays.map((p) => ({ p, n: waiting.get(p.id) ?? 0 })).filter((o) => o.n < c.perPort && freeAt(o.p));
+  const open = quays.map((p) => ({ p, n: waiting.get(p.id) ?? 0 })).filter((o) => o.n < c.perPort && freeCraneSpot(world, o.p));
   if (!open.length) return null;
   const min = Math.min(...open.map((o) => o.n));
-  const n = ++world.cargoSeq;
   const candidates = open.filter((o) => o.n === min).map((o) => o.p);
-  const from = candidates[Math.floor(hash01(n) * candidates.length)];
-  const others = quays.filter((p) => p.id !== from.id);
-  const to = others[Math.floor(hash01(n + 0.5) * others.length)];
-  const kind = cfg.kinds.findIndex((k) => k.name === c.kinds[Math.floor(hash01(n + 0.25) * c.kinds.length)]);
-  const pos = freeAt(from);
-  if (!pos || kind < 0) return null;
-  const b = cargoBerth(from)!;
-  const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw: (b.headingDeg * Math.PI) / 180 } };
-  world.cargo[item.id] = item;
-  if (tally) {
-    const at = portAtPoint(pos[0], pos[2]);
+  const from = candidates[Math.floor(hash01(world.cargoSeq + 1) * candidates.length)];
+  const item = makeCraneCargoAt(world, from);
+  if (item && tally && 'ground' in item.at) {
+    const at = portAtPoint(item.at.ground[0], item.at.ground[2]);
     if (at) tally.set(at.id, (tally.get(at.id) ?? 0) + 1);
   }
+  return item;
+}
+
+/**
+ * One crane cargo item waiting at a port with a cargo quay, in the first free place along its
+ * quay edge, bound for another cargo quay (`prefer`: that one, if it has one). Null with no
+ * cargo quay here, none elsewhere, or no room on the quay edge.
+ */
+export function makeCraneCargoAt(world: WorldState, from: PortDef, prefer?: string): CargoItem | null {
+  const cfg = CONFIG.cargo;
+  const c = cfg.crane;
+  const b = cargoBerth(from);
+  const others = PORTS.filter((p) => p.id !== from.id && cargoBerth(p));
+  const pos = freeCraneSpot(world, from);
+  if (!b || !others.length || !c.kinds.length || !pos) return null;
+  const n = ++world.cargoSeq;
+  const to = others.find((p) => p.id === prefer) ?? others[Math.floor(hash01(n + 0.5) * others.length)];
+  const kind = cfg.kinds.findIndex((k) => k.name === c.kinds[Math.floor(hash01(n + 0.25) * c.kinds.length)]);
+  if (kind < 0) return null;
+  const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw: (b.headingDeg * Math.PI) / 180 } };
+  world.cargo[item.id] = item;
   return item;
 }
 
@@ -354,6 +379,8 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: str
     world.lost = (world.lost ?? 0) + 1;
     cargoLost(world, item.from);
   }
+  // (Goods on order, CONFIG.cargo.onDemand: nothing new appears; you order more at a cargo screen.)
+  if (CONFIG.cargo.onDemand) return;
   if (craneOnly(item)) spawnCraneCargo(world);
   else spawnCargo(world);
 }
@@ -411,7 +438,7 @@ export function takeBlocker(item: CargoItem): string | null {
   return null;
 }
 
-function deckDisc(c: CargoItem): { x: number; z: number; r: number } {
+export function deckDisc(c: CargoItem): { x: number; z: number; r: number } {
   const at = c.at as Extract<CargoAt, { vessel: string }>;
   const f = footprint(c);
   return { x: at.pos[0], z: at.pos[2], r: Math.max(f.hx, f.hz) };
@@ -432,9 +459,11 @@ export function canLash(v: VesselState, item: CargoItem): boolean {
  *   cargoTake               pick it up (if free and not lashed)
  *   cargoPlace  args [x, y, z, yaw]   set it down there, in the vessel's axes or the world
  *   cargoLash   value 1/0   strap down / release (where it stands on open deck)
+ * The quick jobs ('cargoQuick...', below) and the cargo screen's orders ('cargoOrder...',
+ * cargo/order.ts) are handled first.
  */
 export function applyCargoIntent(world: WorldState, intent: Intent): void {
-  if (applyQuickIntent(world, intent)) return;
+  if (applyQuickIntent(world, intent) || applyOrderIntent(world, intent)) return;
   const item = intent.ref ? world.cargo[intent.ref] : undefined;
   if (!item) return;
   const v = world.vessels[intent.targetId];
@@ -676,7 +705,7 @@ export function dropCarried(world: WorldState, playerId: EntityId): void {
 }
 
 /** A pot's catch sold to the fish buyer at a port (bycatch thrown away); the pot is kept, empty. */
-function sellPotCatch(world: WorldState, item: CargoItem, portId: string): void {
+export function sellPotCatch(world: WorldState, item: CargoItem, portId: string): void {
   if (!item.pot) return;
   const { crab, lobster } = item.pot;
   if (crab || lobster) earn(world, 'catch', { port: portId, crab, lobster, text: `${catchText(crab, lobster)} sold at ${portName(portId)}` });
@@ -696,13 +725,19 @@ export function quickPort(v: VesselState): PortDef | null {
   return cargoPortAt(v);
 }
 
+/** Items in the order they were made (their ids by number: cargo-9 before cargo-10). */
+export function byNumber(a: CargoItem, b: CargoItem): number {
+  return a.id.localeCompare(b.id, 'en', { numeric: true });
+}
+
 /** Items waiting at the port she's at that could be loaded (bound somewhere else). */
 export function quickLoadable(world: WorldState, v: VesselState): CargoItem[] {
   const port = quickPort(v);
   if (!port) return [];
+  // (Oldest first, by number: cargo-9 before cargo-10, so goods ordered later go on last.)
   return waitingAt(world, port)
     .filter((c) => c.to !== port.id)
-    .sort((a, b) => (a.id < b.id ? -1 : 1));
+    .sort(byNumber);
 }
 
 /** Items aboard that would be landed here (bound for this port, or any harbour), and pots with a catch to sell. */

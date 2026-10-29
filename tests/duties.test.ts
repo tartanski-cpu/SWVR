@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/config';
 import type { Intent } from '../src/core/intents';
 import { IdFactory } from '../src/core/ids';
@@ -7,6 +7,15 @@ import { createWorld } from '../src/core/world';
 import { towVessel } from '../src/tow/tow';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { PORTS } from '../src/world/archipelago';
+
+// These tests carry, stow and pot with the ports kept stocked and the pot pallet filled: the
+// old way, kept as CONFIG.cargo.onDemand off. Goods on order (the game's way now): cargoOrder.test.ts.
+beforeAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = false;
+});
+afterAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = true;
+});
 
 const DT = 1 / 60;
 
