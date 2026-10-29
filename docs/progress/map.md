@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Buildings streamed on the Clyde, Turku and Hamburg (29 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "Turn on building streaming for Clyde, Turku and Hamburg" (and: "Ålesund is now better at 55 fps on Quest", from 35).
 
 - **Streamed** (`streamBuildings: true` in `clyde.yaml`, `turku.yaml`, `hamburg.yaml`; their package stage run again): each map's buildings now come one file per chunk as the boat comes near, as on the Saronic and Sunnmøre. What you download before the map starts: the Clyde 1.49 → 0.24 MB, Turku 2.50 → 0.67 MB (most of what's left is its 3,276 cottage jetties), Hamburg 2.39 → 0.32 MB. The towns at each start, measured headless, the same as before to within a building.
