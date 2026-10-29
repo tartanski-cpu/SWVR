@@ -241,10 +241,13 @@ export class CrewAreaView {
     /** A level sheet over a deck's plan with the well cut out of it. */
     const sheet = (x0: number, x1: number, z0: number, z1: number, y: number, t: number, colour: number, hole: boolean) => {
       if (!hole || !w) return rect(x0, x1, z0, z1, y, t, colour);
-      rect(x0, x1, z0, Math.max(z0, w.z0), y, t, colour);
-      rect(x0, x1, Math.min(z1, w.z1), z1, y, t, colour);
-      rect(x0, w.x0, Math.max(z0, w.z0), Math.min(z1, w.z1), y, t, colour);
-      rect(w.x1, x1, Math.max(z0, w.z0), Math.min(z1, w.z1), y, t, colour);
+      // (The hole's ends kept within this sheet: two sheets side by side mustn't overlap, or their faces fight.)
+      const h0 = Math.min(z1, Math.max(z0, w.z0));
+      const h1 = Math.min(z1, Math.max(z0, w.z1));
+      rect(x0, x1, z0, h0, y, t, colour);
+      rect(x0, x1, h1, z1, y, t, colour);
+      rect(x0, w.x0, h0, h1, y, t, colour);
+      rect(w.x1, x1, h0, h1, y, t, colour);
     };
     // The main deck's floor: the lobby's rubber matting aft, vinyl forward.
     const zL = l.doorways.find((d) => d.plate === 'MESS')?.at ?? M.z1 - 2;
@@ -263,8 +266,9 @@ export class CrewAreaView {
         for (const s of [-1, 1]) kit.box(0.05, h, len, s * (deck.halfWidth + 0.025), ym, zm, C.lining);
         for (const z of [deck.z0 - 0.025, deck.z1 + 0.025]) kit.box(2 * deck.halfWidth + 0.1, h, 0.05, 0, ym, z, C.lining);
       });
+      // (Skirtings of slightly different heights where they meet: the same height, their tops would fight.)
       for (const s of [-1, 1]) kit.box(0.02, 0.1, len, s * (deck.halfWidth - 0.01), deck.floor + 0.05, zm, C.trim);
-      for (const z of [deck.z0 + 0.01, deck.z1 - 0.01]) kit.box(2 * deck.halfWidth, 0.1, 0.02, 0, deck.floor + 0.05, z, C.trim);
+      for (const z of [deck.z0 + 0.01, deck.z1 - 0.01]) kit.box(2 * deck.halfWidth - 0.04, 0.095, 0.02, 0, deck.floor + 0.0475, z, C.trim);
       // A wooden rail round the walls at hand height (the boat moves).
       for (const s of [-1, 1]) kit.box(0.04, 0.05, len - 0.2, s * (deck.halfWidth - 0.03), deck.floor + 0.95, zm, C.darkWood);
     };
@@ -278,8 +282,9 @@ export class CrewAreaView {
       box(L);
       // The well's sides between the decks (the deck's thickness, lined).
       if (w) {
-        const y0 = L.deckhead;
-        const y1 = M.floor;
+        // (Between the deckhead's sheet and the floor's, not into them: coplanar faces fight.)
+        const y0 = L.deckhead + 0.04;
+        const y1 = M.floor - 0.04;
         kit.painted('render', () => {
           for (const x of [w.x0 - 0.02, w.x1 + 0.02]) kit.box(0.04, y1 - y0, w.z1 - w.z0, x, (y0 + y1) / 2, (w.z0 + w.z1) / 2, C.lining);
           for (const z of [w.z0 - 0.02, w.z1 + 0.02]) kit.box(w.x1 - w.x0 + 0.08, y1 - y0, 0.04, (w.x0 + w.x1) / 2, (y0 + y1) / 2, z, C.lining);
@@ -290,7 +295,7 @@ export class CrewAreaView {
     for (const b of l.walls) {
       const deck = l.decks[b.deck]!;
       kit.painted('render', () => kit.box(b.x1 - b.x0, b.h, b.z1 - b.z0, (b.x0 + b.x1) / 2, deck.floor + b.h / 2, (b.z0 + b.z1) / 2, C.lining));
-      kit.box(b.x1 - b.x0 + 0.02, 0.1, b.z1 - b.z0 + 0.02, (b.x0 + b.x1) / 2, deck.floor + 0.05, (b.z0 + b.z1) / 2, C.trim);
+      kit.box(b.x1 - b.x0 + 0.02, 0.09, b.z1 - b.z0 + 0.02, (b.x0 + b.x1) / 2, deck.floor + 0.045, (b.z0 + b.z1) / 2, C.trim);
     }
     // Windows (daylight through them) and portholes, each in its frame on the lining.
     for (const win of l.windows) {
@@ -447,7 +452,7 @@ export class CrewAreaView {
         // A fiddle rail round its edge, a pedestal and its foot bolted to the deck.
         for (const s of [-1, 1]) {
           b(L, 0.025, 0.02, 0, H + 0.0125, s * (D / 2 - 0.01), C.darkWood);
-          b(0.02, 0.025, D, s * (L / 2 - 0.01), H + 0.0125, 0, C.darkWood);
+          b(0.02, 0.025, D - 0.04, s * (L / 2 - 0.01), H + 0.0125, 0, C.darkWood);
         }
         k.cyl(0.05, [0, 0, 0], [0, H - 0.03, 0], C.steel, 10);
         k.cyl(0.25, [0, 0, 0], [0, 0.03, 0], C.steel, 14);
@@ -486,7 +491,10 @@ export class CrewAreaView {
           b(r1 - r0, 0.08, D - 0.1, (r0 + r1) / 2, 0.04, -0.05, C.trim);
           for (let x = r0 + 0.5; x < r1 - 0.1; x += 0.5) b(0.01, 0.7, 0.01, x, 0.47, front - 0.035, 0x9a8f80);
         }
-        k.painted('brushed', () => b(L + 0.02, 0.04, D + 0.02, 0, 0.88, 0, 0xcfcac0));
+        // The worktop over each run (the sink has its own; the cooker its hob).
+        k.painted('brushed', () => {
+          for (const [r0, r1] of runs) b(r1 - r0 + (r0 <= -L / 2 + 0.001 || r1 >= L / 2 - 0.001 ? 0.01 : 0), 0.04, D + 0.02, (r0 + r1) / 2, 0.88, 0, 0xcfcac0);
+        });
         break;
       }
       case 'cooker': {
@@ -588,8 +596,8 @@ export class CrewAreaView {
         // Two berths, one over the other, between end boards; a ladder at the foot; a lee rail on the upper.
         k.painted('wood', () => {
           for (const s of [-1, 1]) b(0.04, H, D, s * (L / 2 - 0.02), H / 2, 0, C.wood);
-          b(L, 0.3, D, 0, 0.15, 0, C.wood);
-          b(L - 0.08, 0.06, D, 0, 1.03, 0, C.wood);
+          b(L - 0.08, 0.3, D - 0.01, 0, 0.15, 0, C.wood);
+          b(L - 0.08, 0.06, D - 0.01, 0, 1.03, 0, C.wood);
           b(L - 0.08, 0.2, 0.03, 0, 1.28, front - 0.015, C.darkWood);
         });
         k.painted('sacking', () => {
@@ -637,7 +645,7 @@ export class CrewAreaView {
       case 'shower': {
         // A tray, walls to the ceiling at the back and the far side, a curtain drawn half across its front, the shower head.
         b(L, 0.08, D, 0, 0.04, 0, C.white);
-        b(L, H, 0.03, 0, H / 2, back + 0.015, C.white);
+        b(L - 0.06, H, 0.03, 0, H / 2, back + 0.015, C.white);
         b(0.03, H, D, -L / 2 + 0.015, H / 2, 0, C.white);
         b(0.03, H, D, L / 2 - 0.015, H / 2, 0, C.white);
         k.cyl(0.012, [-L / 2, 2.0, front - 0.03], [L / 2, 2.0, front - 0.03], C.steel, 6);

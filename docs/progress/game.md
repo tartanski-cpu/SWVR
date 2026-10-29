@@ -10,6 +10,23 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The crew area: flickering floors fixed, a stair you can walk (29 Oct 2026)
+
+Owner, trying it on desktop: "a bunch of Zed fighting, mostly on the floors", "I wasn't able to go down the stairs", "stairs have a very narrow passage ... I don't know why the collision should just be a plane. You shouldn't consider the railing at all ... real problems at the top of the stair", "be good to see an image of the collision physics".
+- **The floors** (`crew/view.ts`): cutting the stair's hole out of the main floor let the lobby's matting run on forward over the vinyl, two floors in one place: the hole now stays within each sheet. The smaller coplanar spots fixed too:
+  - the stair well's linings ran into the floor and the deckhead;
+  - the worktop over the sink (now in runs round the cooker and sink);
+  - the bunk's base against its end boards;
+  - the table's rails at its corners;
+  - the shower's back wall;
+  - the skirting where its runs meet (each a little different in height).
+- **The stair is a slope** (`crew/walk.ts`): walked as one plane from the main floor at its head down to the lower floor a tread beyond its foot, just over the treads' nosings, across its whole width between its walls. The handrails are only drawn. No more settling from tread to tread, so no catch at the top.
+- **Wider**: the stair `CONFIG.crewArea.stair.width` 0.9 → 1.1 m (the corridor and trunk with it). Doorways 0.75 → 0.85 m. The body kept 0.15 m off walls and furniture, not 0.22 (passing a doorway you had to be within 0.3 m of its middle; now 0.55).
+- **A picture of the walking** (headless, sent to the owner): each deck in plan, where you can stand, what's blocked, the stair's slope, and the stair from the side with the slope against the treads.
+- **Tests:** tests/crewArea.test.ts now walks down the slope 5 cm at a time with no step, across it at x −0.4, 0 and 0.4. Doorways are passed 0.25 m off their middle. The stair is at least 1 m wide.
+- **Checked headless:** walking in from the door with W through the mess doorway well off its middle; the floors from the passage and the messroom; the picture.
+- **Not checked:** on the Quest.
+
 ### The harbour tug's crew area, first draft: two decks, loaded as its own space (29 Oct 2026)
 
 Owner, on the modular-builder chat's handover (below): "You can do the first draft of the interior. I think two decks, if you can make it work." It works: both decks.

@@ -156,8 +156,9 @@ export function crewLayout(plan: CrewAreaPlan): CrewLayout {
   const lobby = { z0: zL + h, z1: M.z1 };
   const well = S ? { x0: S.x - S.width / 2, x1: S.x + S.width / 2, z0: S.zFoot, z1: S.zTop } : null;
   // The lobby's forward wall: doorways into the messroom (port), the corridor (middle), the galley (starboard).
-  const messDoor: [number, number] = [-cw - 0.85, -cw - 0.1];
-  const galleyDoor: [number, number] = [cw + 0.1, cw + 0.85];
+  // (Doorways 0.85 m clear: a person passes without brushing the frames.)
+  const messDoor: [number, number] = [-cw - 0.95, -cw - 0.1];
+  const galleyDoor: [number, number] = [cw + 0.1, cw + 0.95];
   walls.push(...wallAlongX(M, 'main', zL, -M.halfWidth, M.halfWidth, [messDoor, [-cw + 0.03, cw - 0.03], galleyDoor]));
   doorways.push({ deck: 'main', along: 'x', at: zL, from: messDoor[0], to: messDoor[1], plate: 'MESS', plateSide: 1, leaf: { hinge: 0, into: -1 } });
   doorways.push({ deck: 'main', along: 'x', at: zL, from: galleyDoor[0], to: galleyDoor[1], plate: 'GALLEY', plateSide: 1, leaf: { hinge: 1, into: -1 } });
@@ -227,14 +228,14 @@ export function crewLayout(plan: CrewAreaPlan): CrewLayout {
     // The stair trunk, aft from its foot to the engine room bulkhead (the cabins' inboard walls).
     for (const s of [-1, 1]) walls.push(...wallAlongZ(L, 'lower', s * tw, cz1, L.z1));
     // The cabins' forward wall, their doorways near the trunk.
-    const master: [number, number] = [-tw - 0.85, -tw - 0.1];
-    const crew: [number, number] = [tw + 0.1, tw + 0.85];
+    const master: [number, number] = [-tw - 0.95, -tw - 0.1];
+    const crew: [number, number] = [tw + 0.1, tw + 0.95];
     walls.push(...wallAlongX(L, 'lower', cz1, -L.halfWidth, L.halfWidth, [master, [-tw + 0.03, tw - 0.03], crew]));
     doorways.push({ deck: 'lower', along: 'x', at: cz1, from: master[0], to: master[1], plate: 'MASTER', plateSide: -1, leaf: { hinge: 0, into: 1 } });
     doorways.push({ deck: 'lower', along: 'x', at: cz1, from: crew[0], to: crew[1], plate: 'CREW', plateSide: -1, leaf: { hinge: 1, into: 1 } });
     // The corridor's forward wall, the washroom and the laundry beyond, split down the middle.
-    const wc: [number, number] = [-1.0, -0.2];
-    const lau: [number, number] = [0.2, 1.0];
+    const wc: [number, number] = [-1.05, -0.2];
+    const lau: [number, number] = [0.2, 1.05];
     walls.push(...wallAlongX(L, 'lower', cz0, -L.halfWidth, L.halfWidth, [wc, lau]));
     walls.push(...wallAlongZ(L, 'lower', 0, L.z0, cz0));
     doorways.push({ deck: 'lower', along: 'x', at: cz0, from: wc[0], to: wc[1], plate: 'WC', plateSide: 1, leaf: { hinge: 1, into: -1 } });

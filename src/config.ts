@@ -740,7 +740,7 @@ export const CONFIG = {
     minLoaM: 20,
     main: { minLength: 4.5, minWidth: 4, minHeadroom: 2.0, deckheadDrop: 0.25, wall: 0.08 },
     lower: { deckDrop: 0.3, headroom: 2.0, lining: 0.12, forepeakShare: 0.12, minLength: 4.5, minHalf: 2.8 },
-    stair: { width: 0.9, maxRise: 0.22, tread: 0.27, minTread: 0.2 },
+    stair: { width: 1.1, maxRise: 0.22, tread: 0.27, minTread: 0.2 },
     door: { width: 0.75, height: 1.85, sill: 0.3 },
     rooms: { lobby: 2.2, corridor: 1.0 },
     /**

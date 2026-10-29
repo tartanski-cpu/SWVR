@@ -51,11 +51,13 @@ describe('the crew area', () => {
     for (const id of FLEET_IDS) expect(crewAreaFor(id), id).toBeNull();
   });
 
-  it('its stair joins the decks a step at a time', () => {
+  it('its stair joins the decks a step at a time (drawn), walked as a slope', () => {
     const l = crewLayout(crewAreaFor(tug)!);
     const ys = [l.plan.main.floor, ...l.steps.map((s) => s.y), l.plan.lower!.floor];
     for (let i = 1; i < ys.length; i++) expect(ys[i - 1] - ys[i]).toBeLessThanOrEqual(STEP_HEIGHT - 0.1);
     for (let i = 1; i < l.steps.length; i++) expect(l.steps[i].z1).toBeCloseTo(l.steps[i - 1].z0, 5);
+    // Wide enough to pass on: about a metre between its walls.
+    expect(l.plan.stair!.width).toBeGreaterThanOrEqual(1.0);
   });
 
   it('every room has its things, and nothing stands in a wall or another thing', () => {
@@ -85,10 +87,29 @@ describe('the crew area', () => {
       const c = (d.from + d.to) / 2;
       for (const off of [-0.3, 0.3]) expect(standsAt(l, d.along === 'x' ? c : d.at + off, y, d.along === 'x' ? d.at + off : c), `${d.plate} doorway`).toBe(true);
     }
-    // The corridor from the lobby to the stair head; every tread; the corridor at its foot.
+    // The corridor from the lobby to the stair head; down the stair, a smooth slope, across its
+    // whole width (owner: the handrails aren't in the way); the corridor at its foot.
     expect(standsAt(l, 0, M.floor, S.zTop + 0.3)).toBe(true);
-    for (const s of l.steps) expect(standsAt(l, 0, s.y, (s.z0 + s.z1) / 2)).toBe(true);
+    const w = crewWalkArea(l);
+    let was = M.floor;
+    for (let z = S.zTop; z >= S.zFoot - S.tread; z -= 0.05) {
+      const y = Math.max(...w.floorsAt(0, z).filter((f) => f <= was + 0.05));
+      expect(was - y, `a step at z ${z.toFixed(2)}`).toBeLessThan(0.05);
+      for (const x of [-0.4, 0, 0.4]) expect(w.walkable(x, z, y), `on the stair at x ${x}, z ${z.toFixed(2)}`).toBe(true);
+      was = y;
+    }
+    // And a step beyond its foot, on the lower deck's floor (the slope ends on it).
+    expect(Math.max(...w.floorsAt(0, S.zFoot - S.tread - 0.05).filter((f) => f <= was + 0.05))).toBeCloseTo(L.floor, 5);
+    expect(was - L.floor).toBeLessThan(0.05);
     expect(standsAt(l, 0, L.floor, S.zFoot - 0.5)).toBe(true);
+    // Doorways are passed off their middle too.
+    for (const d of l.doorways) {
+      const y = d.deck === 'main' ? M.floor : L.floor;
+      const c = (d.from + d.to) / 2;
+      for (const off of [-0.25, 0.25]) expect(standsAt(l, c + off, y, d.at), `${d.plate} doorway at ${off}`).toBe(true);
+    }
+    // The corridor doorway into the stair passage, a hand's breadth off its middle.
+    expect(standsAt(l, 0.35, M.floor, doorway(l, 'MESS')!.at)).toBe(true);
     // A partition is solid away from its doorways.
     const lobbyWall = doorway(l, 'MESS')!;
     expect(crewWalkArea(l).walkable(-M.halfWidth + 0.5, lobbyWall.at, M.floor)).toBe(false);
@@ -96,5 +117,7 @@ describe('the crew area', () => {
     expect(crewWalkArea(l).floorsAt(-2.5, S.zFoot + 1.2)).toEqual(expect.arrayContaining([M.floor, L.floor]));
     // Not under the stair on the lower deck.
     expect(crewWalkArea(l).walkable(0, (S.zFoot + S.zTop) / 2, L.floor)).toBe(false);
+    // Nor through the stair's side walls from the stair.
+    expect(crewWalkArea(l).walkable(0.75, (S.zFoot + S.zTop) / 2, (M.floor + L.floor) / 2)).toBe(false);
   });
 });

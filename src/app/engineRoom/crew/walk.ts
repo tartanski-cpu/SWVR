@@ -1,7 +1,10 @@
 /**
- * Walking in the crew area (crew/layout.ts): each deck's floor inside its walls, the stair's
- * treads between them (the main deck has a hole there), round the partitions and the
- * furniture. Which deck you're on is by your height: the floors overlap in plan (the cabins are
+ * Walking in the crew area (crew/layout.ts): each deck's floor inside its walls, the stair
+ * between them (the main deck has a hole there), round the partitions and the furniture.
+ * The stair is walked as one smooth slope (owner, 29 Oct 2026: "I don't know why the collision
+ * should just be a plane"; it is now), from the main floor at its head down to the lower
+ * deck a tread beyond its foot, under the treads' nosings, across its whole width between
+ * its walls: its handrails are only drawn. Which deck you're on is by your height: the floors overlap in plan (the cabins are
  * under the messroom). The boat's own walk area is put back when you go out (BelowDecks). In VR
  * its walls are solid too, and a head leaned through one fades the view (`insideSolid`).
  */
@@ -9,14 +12,21 @@ import type { WalkArea } from '../../../vessel/layout';
 import { deckAtHeight, onDeck, type Box, type CrewLayout, type DeckName } from './layout';
 
 /** How close to a wall or a piece your body goes (m). */
-const BODY = 0.22;
+const BODY = 0.15;
 
 export function crewWalkArea(l: CrewLayout): WalkArea {
   const M = l.decks.main!;
   const L = l.decks.lower;
   const deckOf = (n: DeckName) => (n === 'main' ? M : L!);
   const inWell = (x: number, z: number, m = 0) => !!l.well && x > l.well.x0 - m && x < l.well.x1 + m && z > l.well.z0 - m && z < l.well.z1 + m;
-  const stepAt = (x: number, z: number) => l.steps.find((s) => x >= s.x0 && x <= s.x1 && z >= s.z0 && z <= s.z1);
+  // The stair's slope: its height at z, within its walls (its width and the gap to them), from
+  // its head (the main floor) to a tread beyond its foot (the lower floor).
+  const S = l.plan.stair;
+  const half = S ? S.width / 2 + 0.05 : 0;
+  const rampAt = (x: number, z: number): number | null => {
+    if (!S || Math.abs(x - S.x) > half || z > S.zTop || z < S.zFoot - S.tread) return null;
+    return Math.max(S.foot, S.top - ((S.zTop - z) * S.rise) / S.tread);
+  };
   // On the lower deck the stair stands in its trunk: the space under it is closed.
   const underStair = (x: number, z: number) => !!l.well && x > l.well.x0 && x < l.well.x1 && z > l.well.z0 && z < l.well.z1;
   const blocks = (n: DeckName): Box[] => [...l.walls.filter((w) => w.deck === n), ...l.pieces.filter((p) => p.solid && p.deck === n)];
@@ -25,16 +35,16 @@ export function crewWalkArea(l: CrewLayout): WalkArea {
   return {
     floorsAt: (x, z) => {
       const out: number[] = [];
-      const step = stepAt(x, z);
-      if (step) out.push(step.y);
+      const ramp = rampAt(x, z);
+      if (ramp !== null) out.push(ramp);
       if (onDeck(M, x, z) && !inWell(x, z)) out.push(M.floor);
       if (L && onDeck(L, x, z) && !underStair(x, z)) out.push(L.floor);
       return out;
     },
     walkable: (x, z, y) => {
-      // On the stair: within its width (its trunk's walls either side).
-      const step = stepAt(x, z);
-      if (step && Math.abs(y - step.y) < 0.5) return Math.abs(x - (step.x0 + step.x1) / 2) <= (step.x1 - step.x0) / 2 - 0.12;
+      // On the stair: anywhere between its walls.
+      const ramp = rampAt(x, z);
+      if (ramp !== null && Math.abs(y - ramp) < 0.5) return Math.abs(x - S!.x) <= half - BODY;
       const n = deckAtHeight(l, y);
       const deck = deckOf(n);
       if (Math.abs(y - deck.floor) > 0.5 || !onDeck(deck, x, z, BODY)) return false;

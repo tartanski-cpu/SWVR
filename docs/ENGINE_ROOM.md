@@ -67,7 +67,7 @@ The owner: "a detailed interior for the big tug's crew area, same treatment as t
 - **Its layout** (`crew/layout.ts`), plain boxes in her axes for the drawing and the walking:
   - main deck: the lobby aft, the messroom to port, the galley to starboard, the stair between them;
   - lower deck: the corridor across her at the stair's foot; the master's and the crew's cabins aft of it; the washroom and the laundry and store forward of it.
-- **Walking** (`crew/walk.ts`): both floors (they overlap in plan: which one is by your height), the stair's treads (a hole in the main floor over them), walls and furniture solid.
+- **Walking** (`crew/walk.ts`): both floors (they overlap in plan: which one is by your height), the stair walked as one smooth slope across its whole width (a hole in the main floor over it; its handrails only drawn), walls and furniture solid, your body 0.15 m off them.
 - **Its drawing** (`crew/view.ts`), only while you're inside, its code its own download:
   - one merged painted mesh: painted-render linings, cladded deckheads, vinyl, carpet and matting, wood joinery, woven upholstery;
   - one unlit mesh: daylight in the windows, portholes, the ceiling lights, the mirror;
