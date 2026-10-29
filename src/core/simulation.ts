@@ -59,8 +59,7 @@ import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import { homeVessel, type WorldState } from './world';
 import { regionAt } from '../world/regions';
-import { applyPlanIntent, isPlanIntent, stepPlan, tableFollows } from '../voyage/plan';
-import { PORTS } from '../world/archipelago';
+import { applyPlanIntent, isPlanIntent, stepPlan } from '../voyage/plan';
 
 /** Optional per-vessel diagnostics written during a tick (not part of WorldState). */
 export type SimDebug = Map<EntityId, HydroDebug>;
@@ -161,8 +160,6 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       if (!placed) applyVesselIntent(world.vessels[intent.targetId], { ...intent, control: 'teleportToPort' });
       // Settling into her new berth is no crash (CONFIG.wear.spawnGraceS).
       world.vessels[intent.targetId].settleUntil = world.time + CONFIG.wear.spawnGraceS;
-      // The host's boat sent somewhere: the planning table goes with her (voyage/plan.ts).
-      if (intent.targetId === world.homeVesselId && PORTS.some((p) => p.id === intent.ref)) tableFollows(world, intent.ref);
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {

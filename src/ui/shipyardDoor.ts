@@ -82,16 +82,17 @@ export class ShipyardDoor {
   }
 
   /**
-   * Once a frame: shown beside the table (`table`, its root: the sign goes with it when it
-   * follows the host) while the viewer is within `range`.
+   * Once a frame, Voyage's: shown beside the planning table (`table`, its root, or the spot it
+   * would stand at: the sign goes with it from harbour to harbour, and stands there without
+   * it where it won't fit; `halfWidth` its half width) while the viewer is within `range`.
    */
-  update(table: THREE.Object3D, viewer: THREE.Vector3): void {
+  update(table: THREE.Object3D, halfWidth: number, viewer: THREE.Vector3): void {
     const d = CONFIG.voyage.shipyardSign;
     table.getWorldPosition(this.world);
     const near = viewer.distanceTo(this.world) < d.range;
     // To the right of the table as you face it (the table's local +z is the reader's side), or
     // to the left (`side` < 0: the boats board, on the table's other side).
-    const x = CONFIG.voyage.plan.table.width / 2 + d.besideM;
+    const x = halfWidth + d.besideM;
     if (near && !this.menu.isOpen) {
       this.onOpen();
       this.menu.openFixed(table, this.side < 0 ? -x : x, d.up, 0, 0);

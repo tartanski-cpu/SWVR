@@ -14,12 +14,11 @@
  *   undo / clear   the last point off / every point off
  *   zoom / out / whole   the table's view (shared: one table, one chart on it): zoomed in
  *                  on (x, z), out, or the whole map
- *   goto           the player put ashore by the table
+ *   goto           the player put ashore by the table at the harbour nearest them
  *
- * The table stands at the harbour the host last went to with the Go button (owner, Oct
- * 2026: "this collaborative planning table appears wherever the host teleports to"): the Go
- * button moving the home boat sets `harbour` (core/simulation.ts), and every page moves its
- * table there. Unset: the map's start harbour.
+ * The table stands at the harbour you're at (owner, 29 Oct 2026: "it appears at whichever
+ * harbour the players are at, not only where Go was used"): each page puts it at the harbour
+ * nearest its player (tableBerthNear), and Go to the table lands you by the one nearest you.
  *
  * Afloat, the plan's next point is every boat's: the chartplotter draws the route and steers
  * for it (nav/chartPlotter.ts), and when any player's boat comes within its reach
@@ -32,7 +31,8 @@ import type { WorldState } from '../core/world';
 import { playerBoats } from '../core/launch';
 import { sheetById } from '../nav/chartSheets';
 import { placeAshore } from '../player/playerControl';
-import { PORTS } from '../world/archipelago';
+import { FARMS, PORTS } from '../world/archipelago';
+import { startBerthId } from '../world/startSpot';
 import { REGIONS } from '../world/regions';
 
 export type PlanKind = 'way' | 'stop' | 'look';
@@ -59,8 +59,6 @@ export interface VoyagePlan {
   view: PlanView;
   /** The last news (a point reached), for the pages to show once: its text and the world time. */
   note?: { text: string; t: number };
-  /** The port the table stands at (the host's last Go); unset: the map's start harbour. */
-  harbour?: string;
   /** Counts changes (the table redraws its route, the host saves). */
   seq: number;
 }
@@ -206,29 +204,46 @@ export function applyPlanIntent(world: WorldState, intent: Intent): void {
       return;
     case 'goto': {
       const p = world.players[intent.playerId];
-      if (p) placeAshore(p, tableBerthId(world));
+      const at = playerAt(world, intent.playerId);
+      if (p && at) placeAshore(p, tableBerthNear(at[0], at[1]));
       return;
     }
   }
 }
 
 /**
- * The berth whose quay the table stands by: at the plan's harbour, its cargo berth (else its
- * first); null with no harbour set (the map's start: startSpot.ts).
+ * The berth whose quay the planning table stands by for someone at (x, z) (voyage/planTable.ts):
+ * at the harbour nearest them (one with a berth; not a fish farm's feed barge), its cargo berth,
+ * else its first; at the map's start harbour, the start's own berth. `current`, the berth it's
+ * by now, keeps it unless another harbour is `table.harbourHoldM` nearer (no hopping between
+ * two as you walk about). Null: no harbour with a berth on the map.
  */
-export function tableBerthId(world: WorldState): string | null {
-  const port = world.plan?.harbour;
-  if (!port) return null;
-  const berths = REGIONS.flatMap((r) => r.berths).filter((b) => b.portId === port);
-  return (berths.find((b) => b.id.endsWith('-cargo')) ?? berths[0])?.id ?? null;
+export function tableBerthNear(x: number, z: number, current: string | null = null): string | null {
+  const berths = REGIONS.flatMap((r) => r.berths);
+  const startPort = berths.find((b) => b.id === startBerthId())?.portId;
+  const farms = new Set(FARMS.map((f) => f.port).filter(Boolean));
+  let best: { port: (typeof PORTS)[number]; d: number } | null = null;
+  let held: number | null = null;
+  const heldPort = current ? berths.find((b) => b.id === current)?.portId : undefined;
+  for (const p of PORTS) {
+    if (farms.has(p.id) || !berths.some((b) => b.portId === p.id)) continue;
+    const d = Math.hypot(p.x - x, p.z - z);
+    if (p.id === heldPort) held = d;
+    if (!best || d < best.d) best = { port: p, d };
+  }
+  if (!best) return null;
+  if (current && held !== null && held - best.d < C().table.harbourHoldM) return current;
+  if (best.port.id === startPort) return startBerthId();
+  const own = berths.filter((b) => b.portId === best.port.id);
+  return (own.find((b) => b.id.endsWith('-cargo')) ?? own[0]).id;
 }
 
-/** The Go button moved the home boat to `portId` (the host's teleport): the table goes there too. */
-export function tableFollows(world: WorldState, portId: string): void {
-  const plan = (world.plan ??= createPlan());
-  if (plan.harbour === portId) return;
-  plan.harbour = portId;
-  plan.seq += 1;
+/** Where a player is on the map (aboard: her boat's place). */
+function playerAt(world: WorldState, playerId: string): [number, number] | null {
+  const p = world.players[playerId];
+  if (!p) return null;
+  const v = p.aboardVesselId ? world.vessels[p.aboardVesselId] : undefined;
+  return v ? [v.position[0], v.position[2]] : [p.position[0], p.position[2]];
 }
 
 export function isPlanIntent(control: string): boolean {
@@ -254,14 +269,14 @@ export function stepPlan(world: WorldState): void {
 
 /** The plan for saving (the host's, per map): its points, how far along, the table's view. */
 export function savePlanText(plan: VoyagePlan): string {
-  return JSON.stringify({ points: plan.points, next: plan.next, view: plan.view, ...(plan.harbour ? { harbour: plan.harbour } : {}) });
+  return JSON.stringify({ points: plan.points, next: plan.next, view: plan.view });
 }
 
 /** A saved plan, checked: anything malformed is dropped (null: none, or none usable). */
 export function parsePlan(raw: string | null): VoyagePlan | null {
   if (!raw) return null;
   try {
-    const o = JSON.parse(raw) as { points?: unknown; next?: unknown; view?: Partial<PlanView>; harbour?: unknown };
+    const o = JSON.parse(raw) as { points?: unknown; next?: unknown; view?: Partial<PlanView> };
     if (!Array.isArray(o.points)) return null;
     const plan = createPlan();
     for (const p of o.points as PlanPoint[]) {
@@ -272,7 +287,6 @@ export function parsePlan(raw: string | null): VoyagePlan | null {
     plan.next = Number.isFinite(o.next) ? Math.max(0, Math.min(plan.points.length, Math.floor(o.next as number))) : 0;
     const v = o.view;
     if (v && [v.cx, v.cz, v.span].every(Number.isFinite)) plan.view = clampView(v as PlanView);
-    if (typeof o.harbour === 'string' && PORTS.some((p) => p.id === o.harbour)) plan.harbour = o.harbour;
     return plan;
   } catch {
     return null;

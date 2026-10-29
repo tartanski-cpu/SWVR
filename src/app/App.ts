@@ -70,7 +70,8 @@ import { hullPlan, STEP_HEIGHT, vesselWalkArea, type WalkArea } from '../vessel/
 import { standingHeight } from '../world/geography';
 import { climbOut, jump, swimArea, updateAir, updateSwim, yawOf, type BodyVessel } from '../player/body';
 import { beached, rampCrossing, rampFloor, rampWalkable, slipOf } from '../world/slipway';
-import { worldWalkArea } from '../world/landWalkArea';
+import { landFloor, worldWalkArea } from '../world/landWalkArea';
+import { quaySpot } from '../world/startSpot';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
 import { ComfortOverlay, MotionDecoupler } from '../player/comfort';
@@ -85,8 +86,9 @@ import { SurfListener } from '../world/surf';
 import { REGIONS, regionAt, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
-import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthId } from '../voyage/plan';
-import { PlanTable, planTableSpot } from '../voyage/planTable';
+import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthNear } from '../voyage/plan';
+import { planFaceAspect, PlanTable, planTableSize, planTableSpot, type PlanTableForm, type PlanTableSpot } from '../voyage/planTable';
+import { ChartPad, PadFaces, type PadFace } from '../voyage/chartPad';
 import { PlanChartPanel } from '../ui/planChartPanel';
 import { KEYS } from '../core/keybindings';
 import { ChartBoard } from '../player/chartBoard';
@@ -530,8 +532,26 @@ export class App {
   private touch: TouchControls | null = null;
   /** Board at the helm on the first frame (touch controls, CONFIG.touch.startAboard). */
   private boardOnStart = false;
-  /** Voyage mode: the planning table on the start quay (voyage/planTable.ts), the plan's changes saved, its last note shown. */
+  /**
+   * Voyage mode: the planning table at the harbour you're at, or its stand where there's no
+   * room (voyage/planTable.ts: each made the first time it's wanted, then moved), the one up
+   * now, and the planning chart they show (this page's own view); the plan's changes saved,
+   * its last note shown.
+   */
+  private readonly planTables: Partial<Record<PlanTableForm, PlanTable>> = {};
   private planTable: PlanTable | null = null;
+  private quayPad: ChartPad | null = null;
+  /** Where the quay's Shipyard signs stand by when neither a table nor a stand fits (the spot ashore). */
+  private readonly planAnchor = new THREE.Group();
+  /** Each harbour's table spot, once looked for (the search is long): the table, the stand, or neither (null). */
+  private readonly planSpots = new Map<string, { form: PlanTableForm; at: PlanTableSpot } | null>();
+  /** Seconds to the next look for the nearest harbour. */
+  private planLookT = 0;
+  /**
+   * The planning charts on things in the world (voyage/chartPad.ts): the quay table's, the
+   * chart table's PLAN sheet, the plotter's PLAN mode; a hand's ray or the reticle works them.
+   */
+  private readonly padFaces = new PadFaces();
   /** The planning chart, each player's own view (voyage/planChart.ts): full-screen on the desktop (M), on a board in the left hand in VR. */
   private readonly planPanel = new PlanChartPanel({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) });
   private readonly chartBoard = new ChartBoard({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) });
@@ -543,7 +563,7 @@ export class App {
   private shipyardSigns: ShipyardDoor[] = [];
   private planSaved = -1;
   private planNoteT = -1;
-  /** The berth the table was placed by (null: the map's start). */
+  /** The berth the table was placed by (null: not placed yet). */
   private planTableBerth: string | null = null;
   /** Seconds since the voyage place was last remembered (rememberVoyagePlace). */
   private rememberT = 0;
@@ -4652,7 +4672,34 @@ export class App {
       // On the leaf: the marks and tools fold with it.
       this.chartTable.leafFrame.add(this.chartTools.root);
     }
+    this.wireBoatPads(home);
   }
+
+  /**
+   * Her planning charts (owner, 29 Oct 2026: "step 3"; voyage/chartPad.ts): the chart table's
+   * PLAN sheet (the last in its rack) and the chartplotter's PLAN mode, each this page's own
+   * view, worked by a hand's ray or the reticle (padFaces). Made again with her bridge.
+   */
+  private wireBoatPads(home: BoatView): void {
+    this.padFaces.faces.splice(0, this.padFaces.faces.length, ...this.padFaces.faces.filter((f) => !this.boatPadFaces.includes(f)));
+    this.boatPadFaces = [];
+    this.leafPad = null;
+    const c = CONFIG.voyage.plan.chart;
+    const land = (id: string) => this.worldView.terrainPositions(id);
+    const table = this.chartTable;
+    if (table) {
+      const pad = new ChartPad(this.planPadHost(), { px: c.leaf.px, aspect: table.planAspect, toolbarShare: c.leaf.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in'], redrawS: c.leaf.redrawS });
+      pad.setLandSource(land);
+      table.setPlanChart(pad.texture);
+      this.leafPad = pad;
+      this.boatPadFaces.push({ mesh: table.chartFace, pad, reach: c.leaf.reach, on: () => table.planning && table.isOpen });
+    }
+    if (home.chart) this.boatPadFaces.push(home.chart.setPlanHost(this.planPadHost(), land));
+    this.padFaces.faces.push(...this.boatPadFaces);
+  }
+  /** The planning charts on her (wireBoatPads), and the chart table's. */
+  private boatPadFaces: PadFace[] = [];
+  private leafPad: ChartPad | null = null;
 
   /** A boat's name for the menu: a fleet boat's, a Shipyard design's, or her type. */
   private boatLabel(defId: string): string {
@@ -4868,7 +4915,7 @@ export class App {
     this.interaction = new InteractionSystem(
       // Every boat's controls (the home boat's first), the crane's buttons, the gear brackets.
       // (Boats that come later, the tows, have none.)
-      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.filter((g) => g.aboard).map((g) => g.bracket), ...(this.planTable?.controls ?? [])],
+      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.filter((g) => g.aboard).map((g) => g.bracket)],
       (channel, value) => {
         // A berth: lie down in it, or get up (yours, not the boat's: nothing goes to her).
         if (channel === 'berthRest' || channel.endsWith(':berthRest')) return this.toggleRest();
@@ -4946,11 +4993,13 @@ export class App {
       { passive: false },
     );
     this.pointer.gearHeld = () => this.gear.some((g) => g.held === 'desk');
-    if (this.chartTools) {
-      const tools = this.chartTools;
-      // Drawing on the chart only with the leaf unfolded.
-      this.pointer.chart = (ray, b) => (this.chartTable?.isOpen ? tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt) : { label: null, consumed: false });
-    }
+    // The reticle on a planning chart in the world works it (voyage/chartPad.ts); else, with
+    // the chart table's leaf unfolded on a paper sheet, the pencil draws.
+    this.pointer.chart = (ray, b) => {
+      const pad = this.padFaces.updateDesktop(ray, b.down, b.wheel);
+      if (pad.consumed) return pad;
+      return this.chartTools && this.chartTable?.isOpen && !this.chartTable.planning ? this.chartTools.updateDesktop(this.chartCtx(), ray, b, this.frameDt) : { label: null, consumed: false };
+    };
   }
 
   /**
@@ -5557,6 +5606,17 @@ export class App {
       }
       // The chart board (voyage/planChart.ts): the left hand holds it, the right hand's pointer works it.
       const onBoard = this.chartBoard.updateXR(this.hands, this.camera.getWorldPosition(this.tmpV), this.frameDt, (h, i, ms) => this.xrInput.pulse(h, i, ms));
+      // The planning charts on things (the quay table, the chart table's PLAN sheet, the plotter's
+      // PLAN mode): a hand's ray on one works it with its trigger (and the right stick's forward
+      // and back zoom); its grip and the left stick stay free (grab-walking, walking up to it).
+      const onPads = this.padFaces.updateXR(this.hands, onBoard, this.frameDt, (h, i, ms) => this.xrInput.pulse(h, i, ms));
+      for (const h of ['left', 'right'] as const) {
+        if (!onPads[h]) continue;
+        const f = this.hands[h];
+        f.triggerDown = f.triggerPressed = false;
+        f.trigger = 0;
+        if (h === 'right' && f.stick) f.stick = [f.stick[0], 0];
+      }
       for (const h of ['left', 'right'] as const) {
         if (!onBoard[h]) continue;
         const f = this.hands[h];
@@ -5594,7 +5654,7 @@ export class App {
         onBino[h] = true; // busy for the rest of the frame
       }
       // The chart table's tools: a hand holding one gives its grip and trigger to the tool.
-      const onTools = this.chartTools && this.chartTable?.isOpen ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
+      const onTools = this.chartTools && this.chartTable?.isOpen && !this.chartTable.planning ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
       for (const h of ['left', 'right'] as const) {
         if (!onTools[h]) continue;
         const f = this.hands[h];
@@ -5714,7 +5774,9 @@ export class App {
     const l = boat ? boat.worldToLocal(this.tableRef.copy(this.focus)) : this.tableRef.set(0, wh.floorY, 0); // the wheelhouse's frame
     const near = Math.abs(l.x - houseX(wh)) < wh.halfWidth + 0.3 && l.z > wh.front - 0.3 && l.z < wh.aft + 0.6 && l.y > wh.floorY - 0.5;
     this.chartTable.setDetail(near);
-    if (this.chartTools) this.chartTools.root.visible = near;
+    // (The planning chart out on the leaf: drawn while you're by it; the pencil and its marks put by.)
+    if (this.chartTable.planning && near && this.chartTable.isOpen) this.leafPad?.update(dt);
+    if (this.chartTools) this.chartTools.root.visible = near && !this.chartTable.planning;
     this.chartTools?.refresh(this.marks);
     // Tools a crewmate is holding aren't lying on our table.
     if (this.chartTools) {
@@ -6135,9 +6197,9 @@ export class App {
   }
 
   /**
-   * Voyage mode: the planning table on the start quay (voyage/planTable.ts), and the plan
-   * saved for this map last time (alone or hosting: the crew get the host's). Its saved
-   * note isn't news: it's not shown again.
+   * The plan saved for this map last time (alone or hosting: the crew get the host's; its
+   * saved note isn't news: it's not shown again), the chart board, and in Voyage the quay's
+   * planning chart and the Shipyard signs that go with the table (voyage/planTable.ts).
    */
   private setupPlanTable(): void {
     // The plan saved here last time (alone or hosting: the crew get the host's): a Voyage map's, or the career's.
@@ -6152,18 +6214,60 @@ export class App {
     this.planSaved = this.world.plan?.seq ?? -1;
     this.scene.add(this.chartBoard.root);
     if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
-    this.planTableBerth = tableBerthId(this.world);
-    const at = planTableSpot(this.planTableBerth);
-    if (!at) return;
-    this.planTable = new PlanTable(at, {
-      send: (ref, args) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'plan', value: 1, ref, ...(args ? { args } : {}) }),
-      notify: (text) => this.overlay.notify(text, 3),
-    });
-    this.scene.add(this.planTable.root);
-    this.interaction?.addControls(this.planTable.controls);
+    // The quay's planning chart (the table's and the stand's), and the Shipyard signs beside
+    // it, or at the spot ashore where neither fits (placed with the table: updatePlan).
+    const t = CONFIG.voyage.plan.table;
+    this.quayPad = new ChartPad(this.planPadHost(), { px: t.px, aspect: planFaceAspect(), toolbarShare: t.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in'], redrawS: t.redrawS });
+    this.quayPad.setLandSource((id) => this.worldView.terrainPositions(id));
+    this.scene.add(this.planAnchor);
     this.shipyardDoor = ShipyardDoor.shipyard(this.menuHost());
     this.boatsBoard = ShipyardDoor.boats(this.menuHost());
     this.scene.add(this.shipyardDoor.menu.rayLine, this.boatsBoard.menu.rayLine);
+  }
+
+  /** What a planning chart (a pad) needs of the app: the world, your boat, the plan intent. */
+  private planPadHost(): { world(): WorldState; ownBoatId(): string; send(ref: string, args?: number[]): void } {
+    return { world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) };
+  }
+
+  /**
+   * The quay's table at a harbour (by its berth): the table where it fits, else the stand,
+   * else neither (the Shipyard signs then stand by the spot ashore). Each harbour's spot is
+   * looked for once (planTableSpot searches the quay) and kept.
+   */
+  private placePlanTable(berth: string): void {
+    let spot = this.planSpots.get(berth);
+    if (spot === undefined) {
+      const table = planTableSpot(berth, planTableSize('table'));
+      const stand = table ? null : planTableSpot(berth, planTableSize('stand'));
+      spot = table ? { form: 'table', at: table } : stand ? { form: 'stand', at: stand } : null;
+      this.planSpots.set(berth, spot);
+    }
+    for (const f of Object.values(this.planTables)) f.root.visible = false;
+    this.planTable = null;
+    if (spot && this.quayPad) {
+      let pt = this.planTables[spot.form];
+      if (!pt) {
+        pt = this.planTables[spot.form] = new PlanTable(spot.form, spot.at, this.quayPad, () => !!this.planTable && this.focus.distanceTo(this.planTable.root.position) < CONFIG.voyage.plan.table.reach + 2);
+        this.scene.add(pt.root);
+        this.padFaces.faces.push(pt.face);
+      }
+      pt.moveTo(spot.at);
+      pt.root.visible = true;
+      this.planTable = pt;
+      return;
+    }
+    // Neither fits: the signs by the spot ashore, facing in from the water as the table would.
+    const b = berthWithId(berth);
+    const q = quaySpot(berth);
+    const ax = b?.shoreX ?? 0;
+    const az = b?.shoreZ ?? 1;
+    const back = CONFIG.voyage.plan.table.back;
+    const x = q.x + ax * back;
+    const z = q.z + az * back;
+    this.planAnchor.position.set(x, landFloor(x, z) ?? landFloor(q.x, q.z) ?? 1.6, z);
+    this.planAnchor.rotation.y = -Math.atan2(ax, -az);
+    this.planAnchor.updateMatrixWorld(true);
   }
 
   /** A plan action to the host (the `plan` env intent): the planning chart's and board's. */
@@ -6179,16 +6283,26 @@ export class App {
     const plan = this.world.plan;
     this.planPanel.update();
     if (this.renderer.xr.isPresenting === false && this.chartBoard.isOut) this.chartBoard.putAway();
-    // The host went to another harbour with the Go button: the table goes there too.
-    const berth = tableBerthId(this.world);
-    if (berth !== this.planTableBerth && this.planTable) {
-      this.planTableBerth = berth;
-      const at = planTableSpot(berth);
-      if (at) this.planTable.moveTo(at);
+    // The quay's table at the harbour you're at (looked for each second; it holds its harbour
+    // until another is clearly nearer: tableBerthNear), its chart drawn while you're by it.
+    if (this.quayPad) {
+      this.planLookT -= this.frameDt;
+      if (this.planLookT <= 0) {
+        this.planLookT = 1;
+        const berth = tableBerthNear(this.focus.x, this.focus.z, this.planTableBerth);
+        if (berth && berth !== this.planTableBerth) {
+          this.planTableBerth = berth;
+          this.placePlanTable(berth);
+        }
+      }
+      const anchor = this.planTable?.root ?? this.planAnchor;
+      if (this.planTable && this.focus.distanceTo(this.planTable.root.position) < 60) this.quayPad.update(this.frameDt);
+      if (this.planTableBerth) {
+        const half = this.planTable?.halfWidth ?? 0.6;
+        this.shipyardDoor?.update(anchor, half, this.focus);
+        this.boatsBoard?.update(anchor, half, this.focus);
+      }
     }
-    if (this.planTable && this.focus.distanceTo(this.planTable.root.position) < 250) this.planTable.update(this.world);
-    if (this.planTable && this.shipyardDoor) this.shipyardDoor.update(this.planTable.root, this.focus);
-    if (this.planTable && this.boatsBoard) this.boatsBoard.update(this.planTable.root, this.focus);
     if (plan?.note && plan.note.t !== this.planNoteT) {
       if (this.planNoteT >= 0 || plan.note.t > this.world.time - 5) this.overlay.notify(plan.note.text, 6);
       this.planNoteT = plan.note.t;

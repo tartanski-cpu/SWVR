@@ -42,7 +42,9 @@ export class DesktopPointer {
    * erase. Called before everything else; while it uses the buttons, nothing else sees
    * them (no laser, no control press).
    */
-  chart: ((ray: THREE.Ray | null, b: { down: boolean; right: boolean; shift: boolean }) => { label: string | null; consumed: boolean }) | null = null;
+  chart: ((ray: THREE.Ray | null, b: { down: boolean; right: boolean; shift: boolean; wheel: number }) => { label: string | null; consumed: boolean }) | null = null;
+  /** The mouse wheel's notches since the last frame (+ toward you), for a planning chart's zoom. */
+  private wheel = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -99,6 +101,9 @@ export class DesktopPointer {
       this.down = false;
       this.released = true;
     });
+    document.addEventListener('wheel', (e) => {
+      if (document.pointerLockElement === canvas) this.wheel += Math.sign(e.deltaY);
+    });
     document.addEventListener('mousemove', (e) => {
       if (!this.down || this.freeLook) return;
       this.dx += e.movementX;
@@ -149,7 +154,7 @@ export class DesktopPointer {
       ray = this.ray;
     }
     const onMenu = this.menu.updateDesktop(ray, this.pressed);
-    const chart = !onMenu && this.chart && !this.cargo?.carrying() ? this.chart(locked ? ray : null, { down: this.down && locked, right: this.rightDown && locked, shift: this.shift }) : null;
+    const chart = !onMenu && this.chart && !this.cargo?.carrying() ? this.chart(locked ? ray : null, { down: this.down && locked, right: this.rightDown && locked, shift: this.shift, wheel: locked ? this.wheel : 0 }) : null;
     if (chart?.consumed) {
       // The pencil or eraser has the buttons.
       this.pressed = false;
@@ -190,6 +195,7 @@ export class DesktopPointer {
   }
 
   private endFrame(): void {
+    this.wheel = 0;
     this.pressed = false;
     this.released = false;
     this.dx = 0;

@@ -108,8 +108,6 @@ export class InteractionSystem {
   private readonly hitObjects: THREE.Object3D[] = [];
   /** VR pointer-ray targets: buttons and switches only. Levers and the wheel are hand-only. */
   private readonly pressHitObjects: THREE.Object3D[] = [];
-  /** The desktop reticle's hit point on the control under it this frame (none: aim help, or nothing). */
-  private deskHitPoint: THREE.Vector3 | null = null;
   private readonly raycaster = new THREE.Raycaster();
   private readonly hands: Record<Handedness, HandState>;
   private readonly pointers: Record<Handedness, Pointer>;
@@ -259,7 +257,6 @@ export class InteractionSystem {
         }
       } else if (best?.kind === 'press' && f.triggerPressed && !h.pressing) {
         best.bind(this.context(hand, best));
-        best.pressPoint = byRay && rayHit ? rayHit.clone() : f.ray.origin.clone();
         best.pressStart();
         h.pressing = best;
       }
@@ -348,8 +345,6 @@ export class InteractionSystem {
       this.raycaster.far = CONFIG.interaction.desktopReach;
       const hit = this.raycaster.intersectObjects(this.hitObjects, false).find((x) => this.owner.get(x.object)?.enabled);
       hover = hit ? (this.owner.get(hit.object) ?? null) : null;
-      // Where the click lands on it (a direct hit only; the aim help below has none).
-      this.deskHitPoint = hit ? hit.point.clone() : null;
       // Aim help, only when the ray hits nothing (a direct hit always wins): keep what we
       // were on while the reticle is still near it, else take the nearest control just
       // missed (see CONFIG.interaction.desktopStickyDeg / desktopAssistDeg).
@@ -388,7 +383,6 @@ export class InteractionSystem {
         this.dragging = hover;
         hover.nudge(dx, dy);
       } else {
-        hover.pressPoint = this.deskHitPoint;
         hover.pressStart();
         this.deskPressing = hover;
       }

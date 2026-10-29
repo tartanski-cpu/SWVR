@@ -3029,9 +3029,9 @@ export const CONFIG = {
     /**
      * The voyage planning table (owner, Oct 2026: "in the harbour that you spawn in, a large
      * map table with a chart laid out ... that you can cooperatively plan on"; voyage/plan.ts,
-     * voyage/planTable.ts). A big chart table on the quay at the map's start, behind where
-     * you begin; the crew plan a route on it together (waypoints, stops, things to look at),
-     * and every boat's chartplotter then shows the route and steers for its next point.
+     * voyage/planTable.ts). A big chart table on the quay of the harbour you're at; the crew
+     * plan a route on it together (waypoints, stops, things to look at), and every boat's
+     * chartplotter then shows the route and steers for its next point.
      *   maxPoints   points in a plan at most
      *   reach       how near any player's boat must come to a point (m) for it to count as
      *               reached and the next to come up: a waypoint, a stop (in the harbour),
@@ -3042,10 +3042,18 @@ export const CONFIG = {
      *               else the nearest town
      *   removeShare Remove takes the point nearest the press within this share of the
      *               chart's width
-     *   minSpan     the table zoomed in as far as it goes: this much sea across (m)
-     *   drawPx      the chart drawn this many pixels across (sharper costs more to draw)
-     *   table       its top (m: width along the quay, depth, height), how far behind the
-     *               start spot it stands (m), its keys' row
+     *   minSpan     the old shared table view (the `zoom` intent) zoomed in as far as it
+     *               goes: this much sea across (m)
+     *   table       (owner, 29 Oct 2026: "step 2"; voyage/planTable.ts) at the harbour you're
+     *               at: its top (m: width along the quay, depth, height), how far behind the
+     *               spot ashore it stands at least (m); worked from up to `reach` m away; its
+     *               chart drawn `px` pixels across (sharper costs more to draw), at most every
+     *               `redrawS` s, the bottom `toolbarShare` the keys. `harbourHoldM`: another
+     *               harbour takes the table only once it's this much nearer you than the
+     *               one it's at (so it doesn't hop as you walk about between two)
+     *     stand     where the table won't fit: a chart stand, `width` x `depth` on the ground
+     *               (m), its chart `face` m across (the table's shape), its near edge
+     *               `height` up, tilted up toward you `tiltDeg`
      */
     plan: {
       maxPoints: 30,
@@ -3054,8 +3062,18 @@ export const CONFIG = {
       nameLookM: 2500,
       removeShare: 0.05,
       minSpan: 1500,
-      drawPx: 2048,
-      table: { width: 2.4, depth: 1.6, height: 0.9, back: 3.2, keyDepth: 0.12 },
+      table: {
+        width: 2.4,
+        depth: 1.6,
+        height: 0.9,
+        back: 3.2,
+        reach: 3,
+        px: 1536,
+        redrawS: 0.12,
+        toolbarShare: 0.1,
+        harbourHoldM: 150,
+        stand: { width: 1.0, depth: 0.8, face: 0.9, height: 1.0, tiltDeg: 25 },
+      },
       /**
        * The planning chart each player zooms and pans for themselves (owner, 28 Oct 2026: "own
        * view each, career too"; voyage/planChart.ts): full-screen on the desktop
@@ -3066,10 +3084,17 @@ export const CONFIG = {
        *   wheelStep       a mouse wheel notch zooms by this
        *   stickZoomPerS   VR: the right thumbstick held over the board zooms by this a second
        *   dragPx          a press that moves less than this (px) is a press on the chart, not a drag
+       *   startSpan       first opened, it shows this much sea across (m) round your boat
        *   board           VR: the board's width (m) and its picture's (px, its height 3/4 of that,
        *                   the bottom `toolbarShare` the tool keys); where it sits from the left
        *                   hand (m, in the hand's own axes: right, up, back), turned to face you;
        *                   a redraw at most every `redrawS` s
+       *   leaf            the chart table's PLAN sheet (owner, "step 3": the planning chart on
+       *                   the drop leaf; vessel/view/chartTable.ts): its picture (px across), a
+       *                   redraw at most every `redrawS` s, the keys' share; worked from up to
+       *                   `reach` m
+       *   plotter         the chartplotter's PLAN mode (nav/chartPlotter.ts): the same, on its
+       *                   screen
        */
       chart: {
         minSpan: 300,
@@ -3078,6 +3103,9 @@ export const CONFIG = {
         stickZoomPerS: 3,
         dragPx: 5,
         board: { width: 0.6, px: 1024, toolbarShare: 0.14, offset: [0.03, 0.05, -0.16] as [number, number, number], redrawS: 0.08 },
+        startSpan: 6000,
+        leaf: { px: 1280, redrawS: 0.1, toolbarShare: 0.13, reach: 1.6 },
+        plotter: { px: 768, redrawS: 0.15, toolbarShare: 0.16, reach: 1.6 },
       },
     },
     /**

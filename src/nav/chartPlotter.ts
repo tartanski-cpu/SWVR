@@ -17,6 +17,8 @@ import { nextPoint, pointLabel } from '../voyage/plan';
 import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
+import { Control } from '../controls/Control';
+import { ChartPad, type ChartPadHost, type PadFace } from '../voyage/chartPad';
 import { allFarms } from '../world/windFarm';
 import { LandLayer } from './landLayer';
 import { activeProject, foundations, installAt, jackUpAt, laidMarks, towId } from '../career/projects';
@@ -43,8 +45,16 @@ const H = 384;
  * now; AUTO goes back to choosing for you. The zoom is the boat's (`chartZoom`), so the crew
  * see the range the helmsman set; the screen says which, top left.
  *
- * Draw calls: bezel (merged) + screen (+ the buttons' caps). The screen redraws at a few Hz,
- * and only when the App says it could be seen.
+ * PLAN (owner, 29 Oct 2026: "the chartplotter gets a PLAN button: drag on it to look away from
+ * your boat, tap to add a point"): a key at the strip's right end turns its screen to the
+ * planning chart (voyage/chartPad.ts), your own view of it, starting round your boat at the
+ * range it showed: drag on the screen to look round, press it to put a point (WAY STOP LOOK
+ * DEL along its foot; UNDO), − and + zoom it and AUTO brings your boat back to the middle (the
+ * boat's own range is left as it was). PLAN again goes back. Each player's own (nothing sent
+ * but the points).
+ *
+ * Draw calls: bezel (merged) + screen (+ the buttons' caps, the PLAN key). The screen redraws
+ * at a few Hz, and only when the App says it could be seen.
  */
 export class ChartPlotter {
   readonly root = new THREE.Group();
@@ -78,6 +88,16 @@ export class ChartPlotter {
   readonly zoomButtons: Button[];
   /** The ground across the screen at its last redraw (m): − and + step on from it. */
   private shownSpan = 1000;
+  /** The PLAN key (at the strip's right end): the screen to the planning chart and back. */
+  readonly planKey: PlotterPlanKey;
+  /** The planning chart in PLAN mode (made when the App gives it the world: setPlanHost). */
+  private planPad: ChartPad | null = null;
+  private planOn = false;
+  /** The boat's own zoom at the last look (what − AUTO + send back unchanged in PLAN). */
+  private zoomNow = 0;
+  /** The App said it could be seen, last frame. */
+  private seen = false;
+  private readonly screen: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
 
   /**
    * Built at its root's origin (the chartplotter module places it, turned toward the helm).
@@ -106,18 +126,22 @@ export class ChartPlotter {
     ];
     const ranges = CONFIG.chartPlotter.ranges;
     // The next range in (smaller than what it shows now), or out; as a zoom number (1 the first range).
+    // (In PLAN, they zoom the planning chart, AUTO puts your boat back in its middle, and the boat's range is sent back as it was.)
     const zoomIn = () => {
+      if (this.planning) return this.planPad!.zoomBy(1.6), this.zoomNow;
       for (let k = ranges.length - 1; k >= 0; k--) if (ranges[k] < this.shownSpan * 0.99) return k + 1;
       return 1;
     };
     const zoomOut = () => {
+      if (this.planning) return this.planPad!.zoomBy(1 / 1.6), this.zoomNow;
       for (let k = 0; k < ranges.length; k++) if (ranges[k] > this.shownSpan * 1.01) return k + 1;
       return ranges.length;
     };
+    const auto = () => (this.planning ? (this.planPad!.centreOnBoat(), this.zoomNow) : 0);
     this.zoomButtons = (
       [
         ['chartZoomOut', 'Chartplotter: ZOOM OUT', 0x3a3f44, -0.075, zoomOut],
-        ['chartZoomAuto', 'Chartplotter: AUTO ZOOM (it chooses the range)', 0xe0a020, 0, () => 0],
+        ['chartZoomAuto', 'Chartplotter: AUTO ZOOM (it chooses the range; in PLAN, your boat to the middle)', 0xe0a020, 0, auto],
         ['chartZoomIn', 'Chartplotter: ZOOM IN', 0x3a3f44, 0.075, zoomIn],
       ] as const
     ).map(([id, label, colour, x, sends]) => {
@@ -135,14 +159,56 @@ export class ChartPlotter {
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false })));
     screen.position.z = 0.002;
     set.add(screen);
+    this.screen = screen;
+    this.planKey = new PlotterPlanKey(() => this.togglePlan(), () => this.planOn);
+    this.planKey.root.position.set(0.172, stripY, 0);
+    set.add(this.planKey.root);
+  }
+
+  /** In PLAN mode, with the planning chart made. */
+  private get planning(): boolean {
+    return this.planOn && !!this.planPad;
+  }
+
+  /**
+   * The App's world for PLAN mode (the planning chart is made here, once), and the world
+   * view's built terrains for its coast. Returns its screen as a planning chart's face, for
+   * the pointer (voyage/chartPad.ts PadFaces).
+   */
+  setPlanHost(host: ChartPadHost, landSource: (regionId: string) => Float32Array | null): PadFace {
+    const c = CONFIG.voyage.plan.chart.plotter;
+    const pad = (this.planPad ??= new ChartPad(host, { px: c.px, aspect: W / H, toolbarShare: c.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo'], redrawS: c.redrawS }));
+    pad.setLandSource(landSource);
+    return { mesh: this.screen, pad, reach: c.reach, on: () => this.planOn && this.seen && !this.dark };
+  }
+
+  /** PLAN pressed: the screen to the planning chart (round your boat at the range it showed, the first time) or back. */
+  private togglePlan(): void {
+    if (!this.planPad) return;
+    this.planOn = !this.planOn;
+    if (this.planOn && !this.planLooked) this.planPad.centreOnBoat(this.shownSpan);
+    this.planLooked ||= this.planOn;
+    this.planPad.input(null, false);
+    this.planKey.sync();
+    this.showScreen();
+  }
+  private planLooked = false;
+
+  /** The screen's picture: the planning chart in PLAN (powered), else its own. */
+  private showScreen(): void {
+    const map = this.planOn && !this.dark && this.planPad ? this.planPad.texture : this.texture;
+    if (this.screen.material.map === map) return;
+    this.screen.material.map = map;
+    this.screen.material.needsUpdate = true;
   }
 
   update(world: WorldState, vesselId: string, dt: number, visible: boolean): void {
     this.since += dt;
-    if (!visible || this.since < 0.4) return;
-    this.since = 0;
+    this.seen = visible;
+    if (!visible) return;
     const v = world.vessels[vesselId];
     if (!v) return;
+    this.zoomNow = v.controls.chartZoom ?? 0;
     // No 12 V: a black screen (drawn once).
     if (!isPowered(v, 'chart')) {
       if (!this.dark) {
@@ -150,10 +216,21 @@ export class ChartPlotter {
         this.g.fillStyle = '#020303';
         this.g.fillRect(0, 0, this.canvas.width, this.canvas.height);
         this.texture.needsUpdate = true;
+        this.showScreen();
       }
       return;
     }
-    this.dark = false;
+    if (this.dark) {
+      this.dark = false;
+      this.showScreen();
+    }
+    // PLAN: the planning chart (it redraws when it changes); its own picture waits.
+    if (this.planning) {
+      this.planPad!.update(dt);
+      return;
+    }
+    if (this.since < 0.4) return;
+    this.since = 0;
     const g = this.g;
     const [sx, , sz] = v.position;
     const r = world.rescue;
@@ -894,4 +971,65 @@ export class ChartPlotter {
 function niceDistance(m: number): number {
   const steps = [50, 100, 200, 250, 500, 1000, 2000];
   return steps.reduce((best, s) => (Math.abs(s - m) < Math.abs(best - m) ? s : best), steps[0]);
+}
+
+/**
+ * The PLAN key at the right end of the plotter's zoom strip: a small square key, PLAN printed
+ * on it, lit magenta while the planning chart is on the screen. A press turns it on or off
+ * (this page's own: nothing is sent).
+ */
+class PlotterPlanKey extends Control {
+  readonly kind = 'press' as const;
+  readonly label = 'Chartplotter: PLAN (the planning chart: drag to look round, press to put a point)';
+  private readonly face: THREE.MeshLambertMaterial;
+  private pressed = false;
+  private wasLit = false;
+
+  constructor(
+    private readonly onPress: () => void,
+    private readonly lit: () => boolean,
+  ) {
+    super('chartPlan', 'chartPlan');
+    const c = document.createElement('canvas');
+    c.width = 128;
+    c.height = 96;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, 128, 96);
+    g.fillStyle = '#101418';
+    g.font = 'bold 44px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('PLAN', 64, 50);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.face = this.material(0x8a8f94);
+    this.face.map = tex;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.012).translate(0, 0, 0.006), this.material(0x3a3f44));
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(0.036, 0.026).translate(0, 0, 0.0125), this.face);
+    this.root.add(body, top);
+    this.hitObjects.push(body, top);
+  }
+
+  distanceTo(world: THREE.Vector3): number {
+    return this.toLocal(world).length();
+  }
+
+  pressStart(): void {
+    if (this.pressed) return;
+    this.pressed = true;
+    this.ctx?.haptic(0.5, 30);
+    this.onPress();
+  }
+
+  pressEnd(): void {
+    this.pressed = false;
+  }
+
+  sync(): void {
+    const on = this.lit();
+    if (on === this.wasLit) return;
+    this.wasLit = on;
+    this.face.color.setHex(on ? 0xff60c0 : 0x8a8f94);
+  }
 }

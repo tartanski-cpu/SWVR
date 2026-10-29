@@ -405,7 +405,7 @@ export function mainMenu(h: MenuHost): MainMenu {
   };
 
   const voyage: MenuRow[] = [
-    // The crew's plan from the planning table on the start quay (voyage/planTable.ts).
+    // The crew's plan (voyage/plan.ts), from the planning table at the harbour you're at (voyage/planTable.ts) or any planning chart.
     // (And the planning chart, each player's own view, in Voyage and the career: voyage/planChart.ts.)
     { heading: 'Voyage plan' },
     { label: '', buttons: [{ text: () => h.planLine(), weight: 2.6 }, { text: 'Open the chart', press: () => h.openPlanChart() }, ...(MODE === 'voyage' ? [{ text: 'Go to the table', press: () => h.goPlanTable() }] : [])] },

@@ -36,7 +36,7 @@ export class ChartTableView {
   readonly lampSwitch: Toggle;
   /** The knob that folds and unfolds the leaf, for the interaction system. */
   readonly leafHandle: ChartLeafHandle;
-  /** The chart rack on the wall above the table: a press turns to the next sheet (regions: the archipelago sheet, a sheet per region). */
+  /** The chart rack on the wall above the table: a press turns to the next sheet (regions: the archipelago sheet, a sheet per region; then the planning chart). */
   readonly sheetTab: ChartSheetTab;
   /** The leaf's contents' frame: the table frame while unfolded (chart tools go in here). */
   readonly leafFrame = new THREE.Group();
@@ -52,6 +52,10 @@ export class ChartTableView {
   private sheetIndex = Math.max(0, SHEETS.findIndex((s) => s.id === (regionById('home') ?? REGIONS[0]).id));
   private readonly drawn = new Map<string, PaperChart>();
   private readonly chartTex: THREE.CanvasTexture;
+  /** The chart on the leaf (the paper sheet, or the planning chart), for the planning chart's pointer. */
+  readonly chartFace: THREE.Mesh;
+  /** The planning chart's picture (the App's: voyage/chartPad.ts), the last "sheet" in the rack; null: none. */
+  private planTexture: THREE.Texture | null = null;
   /** Table metres per world metre on the chart, and the chart's centre on the table. */
   scale: number;
   private readonly chartDepth: number;
@@ -151,6 +155,7 @@ export class ChartTableView {
     this.chartMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
     const chart = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), this.chartMat);
     chart.name = 'paperChart';
+    this.chartFace = chart;
     this.chartCenter = new THREE.Vector3((x0 + x1) / 2, T + 0.001, z0 + 0.03 + cw / 2);
     chart.matrixAutoUpdate = false;
     chart.matrix.makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)).setPosition(this.chartCenter);
@@ -179,14 +184,43 @@ export class ChartTableView {
     this.detail = [chart, bulb];
   }
 
-  /** The sheet on the table. */
+  /** The paper sheet on the table (or the last one, while the planning chart is out). */
   get sheet(): ChartSheet {
-    return SHEETS[this.sheetIndex];
+    return SHEETS[Math.min(this.sheetIndex, SHEETS.length - 1)];
+  }
+
+  /**
+   * The planning chart out on the leaf (owner, 29 Oct 2026: "the drop-leaf chart table shows
+   * the planning chart on its leaf"): the rack's last "sheet", after the paper ones. The
+   * pencil and its marks are put by while it's out (they're the paper's).
+   */
+  get planning(): boolean {
+    return this.sheetIndex >= SHEETS.length;
+  }
+
+  /** The planning chart's picture (its canvas the chart's shape: planAspect), the rack's last sheet. */
+  setPlanChart(texture: THREE.Texture): void {
+    this.planTexture = texture;
+  }
+
+  /** The chart's width (along the leaf) over its depth (across it), for the planning chart's picture. */
+  get planAspect(): number {
+    const g = this.chartFace.geometry as THREE.PlaneGeometry;
+    return g.parameters.width / g.parameters.height;
   }
 
   /** Turn to the next sheet (drawn the first time it's wanted); the marks, in world metres, fall where they should. */
   nextSheet(): void {
-    this.sheetIndex = (this.sheetIndex + 1) % SHEETS.length;
+    this.sheetIndex = (this.sheetIndex + 1) % (SHEETS.length + (this.planTexture ? 1 : 0));
+    if (this.planning) {
+      this.chartMat.map = this.planTexture;
+      this.chartMat.needsUpdate = true;
+      return;
+    }
+    if (this.chartMat.map !== this.chartTex) {
+      this.chartMat.map = this.chartTex;
+      this.chartMat.needsUpdate = true;
+    }
     const sheet = SHEETS[this.sheetIndex];
     let chart = this.drawn.get(sheet.id);
     if (!chart) {
@@ -334,7 +368,7 @@ export class ChartLeafHandle extends Control {
  */
 export class ChartSheetTab extends Control {
   readonly kind = 'press' as const;
-  readonly label = 'Chart rack: next sheet';
+  readonly label = 'Chart rack: next sheet (the last is the planning chart)';
   private pressed = false;
 
   constructor(private readonly onTurn: () => void) {
