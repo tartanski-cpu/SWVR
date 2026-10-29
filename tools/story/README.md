@@ -45,6 +45,11 @@ To update the existing deck, publish to its URL above rather than making a new o
 
 - New change sets: add entries to the `T` array in `page/index.html` (title, part, era,
   what, why, numbers, a quote) and, when there is one, a new screenshot in `page/img/`.
+- The map of the work (the "How the work branched" slide): `LANES` are the streams,
+  `G` the milestones with a day in October (`d`, fractional to order a day; before the 20th
+  the log's order, from the 20th the commit dates), a `from` for a branch or a feed from
+  another stream, `major` for a label at the fitted zoom, `merge` for a live-game merge
+  (every stream active since the previous merge runs into it by itself).
 - New boats or modules appear in the live views by themselves, since they come from the
   game's own fleet, recipes and hull designs.
 - The test count and the commits-a-day chart are typed in; refresh them from `npm test` and

@@ -139,6 +139,46 @@
   .entry .quote { margin-top: 8px; font-size: .92rem; }
   .entry .demo-link { font-size: .85rem; margin-top: 6px; }
 
+  /* The map of the work */
+  .g-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; min-height: 0; }
+  .g-main { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; }
+  .g-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; }
+  .g-controls button { font: inherit; font-size: .85rem; color: var(--fg); background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  .g-controls button:hover { border-color: var(--accent); }
+  .g-controls input[type=range] { flex: 1; min-width: 120px; max-width: 420px; accent-color: var(--accent); }
+  .g-dayout { font-family: var(--mono); font-size: .8rem; color: var(--muted); min-width: 7ch; }
+  .g-hint { font-family: var(--mono); font-size: .72rem; color: var(--faint); margin-left: auto; }
+  .g-svgbox { position: relative; flex: 1; min-height: 260px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; cursor: grab; }
+  .g-svgbox.dragging { cursor: grabbing; }
+  .g-svgbox svg { width: 100%; height: 100%; display: block; touch-action: none; }
+  .g-svg .lane-band { fill: var(--surface2); opacity: .5; }
+  .g-svg .lane-label { font-family: var(--display); font-size: 15px; fill: var(--fg); }
+  .g-svg .lane-sub { font-family: var(--mono); font-size: 9px; fill: var(--muted); }
+  .g-svg .day-line { stroke: var(--rule); stroke-width: 1; }
+  .g-svg .day-label { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+  .g-svg .day-weekend { fill: var(--rule); opacity: .25; }
+  .g-svg .edge { fill: none; stroke-width: 2.2; opacity: .75; }
+  .g-svg .edge.cross { stroke-dasharray: 5 4; }
+  .g-svg .node { cursor: pointer; stroke: var(--bg); stroke-width: 2; }
+  .g-svg .node.major { stroke-width: 2.5; }
+  .g-svg .node:hover, .g-svg .node.on { stroke: var(--fg); }
+  .g-svg .node-label { font-family: var(--body); font-size: 11px; fill: var(--fg); pointer-events: none; }
+  .g-svg .node-label.minor { display: none; fill: var(--muted); }
+  .g-svg.zoomed .node-label.minor { display: block; }
+  .g-svg .future { opacity: .08; }
+  .g-svg .cursor { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 3; }
+  .g-svg .lane-off { opacity: .12; }
+  .g-tip { position: absolute; pointer-events: none; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 9px; font-size: .78rem; max-width: 260px; box-shadow: 0 4px 16px rgba(0,0,0,.3); z-index: 3; }
+  .g-tip b { display: block; }
+  .g-tip .d { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+  .g-detail { min-width: 0; overflow: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: .88rem; }
+  .g-detail h3 { font-size: 1.15rem; }
+  .g-detail .lane-tag { font-family: var(--mono); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
+  .g-detail .d { font-family: var(--mono); font-size: .74rem; color: var(--muted); }
+  .g-detail .links { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--muted); }
+  .g-detail .links span::before { content: "→ "; color: var(--accent); }
+  @media (max-width: 900px) { .g-wrap { grid-template-columns: minmax(0, 1fr); } .g-svgbox { height: 340px; } }
+
   /* Charts and diagrams */
   .chart-box { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px; min-height: 0; }
   .chart-box svg { width: 100%; height: auto; display: block; }
@@ -279,6 +319,32 @@
         <span class="tl-count" id="tl-count"></span>
       </div>
       <div class="tl-list" id="tl-list"></div>
+    </section>
+
+    <!-- 4b The map of the work -->
+    <section class="slide one" id="graph" data-chapter="The map of the work">
+      <div class="tl-head">
+        <h2>How the work branched</h2>
+        <div class="tl-filters" id="g-lanes"></div>
+        <span class="tl-count" id="g-count"></span>
+      </div>
+      <div class="g-wrap">
+        <div class="g-main">
+          <div class="g-controls">
+            <button type="button" id="g-play">▶ Play the sixteen days</button>
+            <input type="range" id="g-day" min="12" max="29" step="0.05" value="29" aria-label="Show the work up to this day">
+            <span class="g-dayout num" id="g-dayout">to 28 Oct</span>
+            <button type="button" id="g-fit">Fit</button>
+            <span class="g-hint">wheel to zoom · drag to pan · click a node</span>
+          </div>
+          <div class="g-svgbox" id="g-svgbox"><svg id="g-svg" role="img" aria-label="A map of the project's streams of work over sixteen days: the game itself, modular boats, the Shipyard, boats and hulls, the world and its maps, multiplayer, the sister games, and the process, with the branches between them and the merges into the live game"></svg><div class="g-tip" id="g-tip" hidden></div></div>
+        </div>
+        <aside class="g-detail" id="g-detail">
+          <span class="eyebrow">The map</span>
+          <p>Each row is a stream of work; time runs left to right from 12 October. A dot is a milestone, a line between rows is work branching off or feeding back. The amber dots on the top row are the live game: every few days, everything on the <code>next</code> branch was merged there, so the lines run back into it.</p>
+          <p class="muted">Positions before 20 Oct follow the log's order (git only reaches back to the 16th, and the 17th to 20th were committed in one batch). From the 20th the dates are the commits'. Click any dot for what it was.</p>
+        </aside>
+      </div>
     </section>
 
     <!-- 5 Ocean demo -->
@@ -659,6 +725,278 @@ renderTimeline();
   });
   s += `<text x="${W - R}" y="${Tp + 4}" text-anchor="end" font-size="10" font-family="var(--mono)" fill="var(--faint)">October 2026 · the 28th up to midday</text>`;
   document.getElementById('commits-chart').innerHTML = s;
+})();
+
+// ── The map of the work ───────────────────────────────────────────────────────────────
+// Streams (rows) and milestones (dots) over the sixteen days. `d` is the day in October
+// 2026, fractional to order a day's work; before the 20th it follows the log's order.
+// `from`: a node this one branched from or was fed by (an edge across rows). `major`:
+// labelled at the fitted zoom. `merge`: a live-game merge; every stream active since the
+// previous merge runs into it.
+const LANES = [
+  { id: 'game', name: 'The game', sub: 'trunk · next · live', color: '#f2b84b' },
+  { id: 'mod', name: 'Modular boats', sub: 'bus, sockets, recipes', color: '#46b3c2' },
+  { id: 'yard', name: 'The Shipyard', sub: 'design page, builder', color: '#e4845c' },
+  { id: 'hull', name: 'Boats & hulls', sub: 'hull study, one-offs', color: '#b48cff' },
+  { id: 'world', name: 'World & maps', sub: 'regions, coast pipeline', color: '#6fcf97' },
+  { id: 'mp', name: 'Multiplayer', sub: 'peer to peer, many boats', color: '#5aa9ff' },
+  { id: 'sister', name: 'Other screens', sub: 'phone, sister games', color: '#f26d9b' },
+  { id: 'proc', name: 'Process', sub: 'branches, chats, reviews', color: '#9fb3c0' },
+];
+const G = [
+  // the game
+  { id: 'm1', lane: 'game', d: 12.0, major: true, t: 'The scaffold', s: 'Vite, TypeScript, Three.js; a 60 Hz fixed-step simulation of a plain-JSON world; WebXR at 90 Hz; GitHub Pages. 9 tests.' },
+  { id: 'm2', lane: 'game', d: 12.5, t: 'The ocean', s: 'Gerstner waves on the GPU with a CPU height that inverts the same sums. Owner: "Stormworks-like, feels alive."' },
+  { id: 'm3', lane: 'game', d: 13.0, major: true, t: 'The floating hull', s: 'Strip-theory buoyancy on 17 stations, a hand-written rigid body. 18.35 t, GM 1.17 m.' },
+  { id: 'm4', lane: 'game', d: 13.35, t: 'Propulsion and sea trials', s: 'Diesel, prop, rudder, resistance; 9.2 kn; the drop-test rebound fixed with water-entry drag.' },
+  { id: 'm5', lane: 'game', d: 13.7, t: 'Walk-in wheelhouse, grab-the-world', s: 'Locomotion, snap turn, the motion-coupling slider that VR testing sent back to 100 %.' },
+  { id: 'm6', lane: 'game', d: 14.0, major: true, t: 'Bridge controls', s: 'Levers, a two-handed wheel, buttons, toggles, haptics; three owner feedback rounds. The MVP is complete.' },
+  { id: 'arch', lane: 'game', d: 14.4, t: 'The archipelago', s: 'Islands, harbours, IALA lights, fuel and engine temperatures, an anchor; one groundHeight() for everything. 95 tests.' },
+  { id: 'cargo', lane: 'game', d: 14.8, t: 'Cargo, docking, sound', s: 'Cargo as real deadweight; docking lines as damped springs; a diesel voice firing each cylinder.' },
+  { id: 'rescue', lane: 'game', d: 15.2, major: true, t: 'Rescues', s: 'VHF, chartplotter, survivors on the waves, a life ring on a line, a boat hook; four milestones with VR tests between.' },
+  { id: 'elec', lane: 'game', d: 15.5, t: 'Electrics, weather, chart', s: 'A ten-milestone brief: batteries and breakers, a cold start, a weather director, a paper chart you draw on, AI traffic.' },
+  { id: 'jobs', lane: 'game', d: 15.8, t: 'Towing, fires, salvage, trawling, the career', s: 'Each flagged against the standing rules first; money, reputation, damage and wear.' },
+  { id: 'v1', lane: 'game', d: 16.0, major: true, t: 'Workboat World v1.0', s: 'Renamed, tagged by the owner as the restore point. 306 tests. From here the work branches.' },
+  { id: 'pots', lane: 'game', d: 16.4, t: 'Potting, charted dangers, hand gear', s: 'Lobster pots in five milestones; a wreck, a reef and IALA buoys; a torch and an extinguisher.' },
+  { id: 'spray', lane: 'game', d: 18.0, t: 'Prop wash, planing spray, white horses, clouds', s: 'Actuator-disc wash, a moon, clouds in the sky shader that show the next weather.' },
+  { id: 'camera', lane: 'game', d: 18.6, t: 'VR hands, the recording camera', s: 'Your own mitts with gestures; a GoPro a VR player can hold and a desktop player can fly.' },
+  { id: 'tugwork', lane: 'game', d: 19.4, t: 'Tug work and hand tools', s: 'Berthing a ship, the line gun, a tow hook amidships, the roving fender, a fishing rod.' },
+  { id: 'live1', lane: 'game', d: 21.0, major: true, merge: true, t: 'Everything on next goes live', s: '21 Oct: three modes from one front page, the fleet, the real coast maps, the Shipyard. Six days, about four hundred changes.' },
+  { id: 'live2', lane: 'game', d: 23.1, merge: true, t: 'next goes live', s: '23 Oct: the day the areas split, the catamaran, Oban\'s new start, the timber run.' },
+  { id: 'fetch', lane: 'game', d: 23.4, t: 'Short steep seas in enclosed water', s: 'A fetch map and JONSWAP growth: a gale over 3 km gives 0.56 m at 2.5 s, over 100 km 3.2 m at 7.9 s.' },
+  { id: 'fixes', lane: 'game', d: 24.3, t: 'Review fixes', s: 'The Clyde\'s 25 s start freeze to 1.3 s; harbour boats 11.9 to 1.7 ms a frame; a board that priced boats every frame.' },
+  { id: 'farm', lane: 'game', d: 25.3, major: true, t: 'Build a wind farm', s: 'Construction projects in six stages: survey, cardinals, 190 t monopiles towed to a jack-up, turbines, commissioning.' },
+  { id: 'live3', lane: 'game', d: 26.0, merge: true, t: 'next goes live', s: '26 Oct: Turku, the harbour tug, the dive ship, multiplayer batches 1 to 4.' },
+  { id: 'live4', lane: 'game', d: 27.0, merge: true, t: 'next goes live', s: '27 Oct: the engine rooms, the tug\'s start-up and driving, the solar catamaran\'s electrics.' },
+  { id: 'eng', lane: 'game', d: 27.4, major: true, t: 'Engine rooms', s: 'Go below on the tug: a nine-step start-up from dead ship with 18 working controls, a V16 voice, alarms, a checklist card.' },
+  { id: 'eng2', lane: 'game', d: 28.2, t: 'Engine room textures, prop wash per drive', s: 'Machinery, lagging and cladding tiles; each Z-drive lays its own wash.' },
+  // modular boats
+  { id: 'mod1', lane: 'mod', d: 16.2, from: 'v1', major: true, t: 'M1: contracts and golden runs', s: 'A bus of 88 typed keys, sockets, recipes with interlocks; twelve recorded sessions every later step must reproduce to a millionth.' },
+  { id: 'mod2', lane: 'mod', d: 16.6, t: 'M2: the throttle lever', s: 'The first module writes one key "and doesn\'t know an engine exists". Nothing visible changed.' },
+  { id: 'mod3', lane: 'mod', d: 17.0, t: 'M3: the wheelhouse as modules', s: '42 modules; every toggle bat one instanced mesh; draw calls 67 → 56 at the helm.' },
+  { id: 'mod4', lane: 'mod', d: 17.35, t: 'M4: engine and electrics as modules', s: 'A physics port for the diesel; the energy network; goldens to nine significant figures.' },
+  { id: 'mod5', lane: 'mod', d: 17.7, t: 'M5–M6: deck gear; hulls hold their mass', s: 'Crane, winch, A-frame, cleats as modules; gear facts; the hand-built bridge gone. Owner, in VR: "all the modular work so far works".' },
+  { id: 'mod7', lane: 'mod', d: 18.1, major: true, t: 'M7: the landing craft', s: 'The second boat from modules: a hull file, one recipe, 35 modules. The architecture\'s test, passed.' },
+  { id: 'ramp', lane: 'mod', d: 18.5, t: 'Bow ramp, 20 knots, a V8 voice', s: 'An animated ramp on two rams; planing bank; a turbocharged V8 synthesised with an uneven burble.' },
+  { id: 'crane', lane: 'mod', d: 19.3, t: 'A placeable deck crane', s: 'Slews, luffs, hoists from a post; motion compensation as an upgrade; then every deck module made placeable.' },
+  { id: 'crew', lane: 'mod', d: 24.4, major: true, t: 'Crew transfer to wind farms', s: 'A bow fender that grips a turbine\'s landing like push knees; technicians step across. Held within 7 cm at Hs 0.6 m.' },
+  { id: 'azi', lane: 'mod', d: 26.3, major: true, t: 'Azimuth drives', s: 'Z-drives slewing at 12°/s with twist-and-throttle levers redrawn from the owner\'s photos. 48 t bollard pull.' },
+  { id: 'dive', lane: 'mod', d: 26.6, t: 'Dive A-frame and submersible', s: 'Real launch interlocks; placeable only where the stability checks pass. Five draw calls.' },
+  { id: 'poster', lane: 'mod', d: 27.3, t: 'Driving guide poster, SYNC, thumbstick levers', s: 'The tug\'s guide painted on a canvas poster on the port wall.' },
+  // the Shipyard
+  { id: 'yard1', lane: 'yard', d: 18.3, from: 'mod7', major: true, t: 'Stop 1: the design page and the code', s: 'Sliders, a 3D view drawn by the game\'s code, the game\'s sea trials in a worker, a 10-character code with a check character.' },
+  { id: 'yard2', lane: 'yard', d: 18.8, t: 'Hulls, the pilot boat, twin engines', s: 'Stem rake 0–50°, a 14 m deep-V, codes to 11 characters; the wheelhouse shaped from the owner\'s photos.' },
+  { id: 'yard3', lane: 'yard', d: 19.5, t: 'Placeable gear, 17-character codes', s: 'Winch, roller, A-frame, life ring, side door as choices; gear on a 25 cm grid in a code extension.' },
+  { id: 'yard4', lane: 'yard', d: 19.9, major: true, t: 'Designing together', s: 'A shared session over the game\'s own peer link, no server; pins, marks, variants, compare, merge.' },
+  { id: 'yard5', lane: 'yard', d: 20.2, t: 'The designer\'s workflow', s: 'Brief, jobs, targets; hull types ranked by measured trials; Suggest fits the cheapest engine that meets the brief. Owner: "Maximum effort."' },
+  { id: 'yard6', lane: 'yard', d: 20.6, t: 'Favourites, projects, live trials, the tug type', s: 'A drop, a roll and a real inclining experiment at the handover step; the small push tug as a fifth hull.' },
+  { id: 'fleet', lane: 'yard', d: 21.2, major: true, t: 'The fleet, designed in the yard', s: '"Eat our own dog food": the game\'s boats become Shipyard design files; the beginner boat is the owner\'s Gillnetter 7.8 m.' },
+  { id: 'weigh', lane: 'yard', d: 21.6, t: 'Boats float at what they weigh', s: 'Steel or aluminium, part by part; the workboat 21.1 → 9.4 t in aluminium; hull types ride as their kind.' },
+  { id: 'pods', lane: 'yard', d: 22.2, t: 'Pods and a helm joystick', s: 'Least-squares thrust allocation over four pod forces; crab at 1 kn, twist 5°/s on the spot.' },
+  { id: 'trawl', lane: 'yard', d: 22.6, t: 'Toward a trawler', s: 'From one photo: raised foredeck, sheer, ladders; a fish hold, trawl gear, a 20 m stern trawler hull, a 750 kW six.' },
+  { id: 'handles', lane: 'yard', d: 23.5, t: 'Handles on the 3D view, hull cards', s: 'Drag handles replace sliders; picture cards per hull type; gear placed by pointing. Owner: "placement is a bit clunky".' },
+  { id: 'tug', lane: 'yard', d: 26.2, major: true, t: 'The harbour tug, a one-off', s: 'A 25 m ASD tug from the hull study\'s lines; 1,850 kW V16s; 315 t of ballast; 30.8 t bollard pull.' },
+  { id: 'solar', lane: 'yard', d: 27.2, major: true, t: 'The solar catamaran, electric drives', s: 'A clear-sky irradiance model: 32 m² of panels, ~4.5 kW at noon, about 4 kn on the sun alone; quay chargers at 35p/kWh.' },
+  { id: 'gz', lane: 'yard', d: 28.1, t: 'Live GZ and GM', s: 'The roll test plots the GZ curve; the inclining experiment finds GM 0.77 m against 0.76 computed.' },
+  // boats and hulls
+  { id: 'study', lane: 'hull', d: 16.3, from: 'v1', major: true, t: 'The hull study', s: 'A lines-plan generator: curves lofted to stations, hydrostatics, ten original types. Groundwork for modular boats.' },
+  { id: 'alaskan', lane: 'hull', d: 19.6, from: 'yard2', t: 'The Alaskan 38, from screenshots', s: 'A one-off from ~35 video stills: 26 kn, 9.23 t, GM 1.8 m, one merged mesh.' },
+  { id: 'p1', lane: 'hull', d: 20.1, t: 'P1: the design document', s: 'Designs become JSON; codes still work while they fit. Owner: "if all the older ships break, it doesn\'t matter."' },
+  { id: 'p2', lane: 'hull', d: 20.5, t: 'P2: houses as a list, a saloon, a cabin below', s: 'Proved byte-identical on 4 MB of samples before the first visible change.' },
+  { id: 'p4', lane: 'hull', d: 21.3, t: 'P4–P5: the builder split by part; furniture', s: 'build.ts 2,300 lines → 150, parts in their own files, fingerprinted on 171 boats; a section-cutting tool.' },
+  { id: 'cat', lane: 'hull', d: 23.2, major: true, t: 'The fast catamaran', s: 'Two hulls in the game\'s physics without special cases; 25–28 kn; twelve golden runs unchanged.' },
+  { id: 'tuglines', lane: 'hull', d: 25.2, t: 'The harbour tug\'s lines and fendering', s: '25.0 × 10.5 m, 494 t, Cb 0.59; a round bilge drawn as two chines; ~1,800 triangles of fendering.' },
+  { id: 'solarhull', lane: 'hull', d: 26.4, t: 'The solar catamaran\'s hull', s: 'Redrawn after a naval architect\'s review: draught 1.2 → 0.86 m, wetted surface −22 %, a wave-piercing centre bow.' },
+  // world and maps
+  { id: 'reg1', lane: 'world', d: 17.2, from: 'v1', t: 'Regions M1–M2: the world as data, seeing far', s: 'A RegionDef shape; a 14 km far plane; regions built in a web worker and streamed.' },
+  { id: 'reg3', lane: 'world', d: 17.8, major: true, t: 'Tidal races, the Sounds, the Fjord, the Narrows', s: 'Current zones on a six-hour cycle; katabatic gusts; a 12 kn race over a pinnacle. Owner\'s Quest: 85–87 fps.' },
+  { id: 'coast1', lane: 'world', d: 19.0, major: true, t: 'Coast pipeline: Oban from open data', s: 'OSM, Copernicus, WorldCover, EMODnet; a 10 m grid; Delaunay to a budget; 12 harbours, 774 buildings. The product is data.' },
+  { id: 'coast2', lane: 'world', d: 19.8, t: 'Oban in the game; Tayvallich', s: 'A 117 kB package; the mesh is the ground for physics, charts and drawing; a second coastline-heavy region.' },
+  { id: 'clyde', lane: 'world', d: 20.3, major: true, t: 'The Firth of Clyde, in chunks', s: '35.6 × 36.7 km, 331 chunk files, 78 harbours, 1,470 berths; every harbour modelled, as the owner asked.' },
+  { id: 'syros', lane: 'world', d: 20.7, t: 'Syros', s: 'The first Aegean map; Greek names transliterated; a theme tuned by eye.' },
+  { id: 'settle', lane: 'world', d: 21.4, t: 'Houses and trees from the map', s: 'Nine building types from tags or rules; a forest map with five tree models in distance bands.' },
+  { id: 'extras', lane: 'world', d: 22.1, t: 'Surf, ferries, names, harbour boats', s: 'Surf from noise by shore type; ferries in fleets on the real routes; 1,280 harbour boats on the Clyde in 7 draw calls.' },
+  { id: 'landmarks', lane: 'world', d: 23.3, t: 'Landmarks, live weather', s: 'Connel Bridge and McCaig\'s Tower read from OSM; Open-Meteo wind and waves per map.' },
+  { id: 'turku', lane: 'world', d: 26.1, major: true, t: 'Turku and the Archipelago Sea', s: '2.1 million OSM points, 359 chunks, a Baltic theme; cruise ships building at the Perno yard under 100 m gantries.' },
+  { id: 'turku2', lane: 'world', d: 27.1, t: 'Turku loads faster', s: '3,276 jetty pieces built square by square; start-up 10.4 → 2.6 s.' },
+  // multiplayer
+  { id: 'mp1', lane: 'mp', d: 15.0, from: 'cargo', major: true, t: 'Peer-to-peer play', s: 'A host-authoritative world, intents up, 20 Hz snapshots down; added without touching the physics.' },
+  { id: 'mp2', lane: 'mp', d: 19.2, t: 'Crew voice, a handheld VHF', s: 'WebRTC audio over the same peer link: proximity chat and a radio within 5 km.' },
+  { id: 'mp3', lane: 'mp', d: 20.0, t: 'Surviving the real world', s: 'Stale pages, a 16 KB message limit, host handover by election, one address as the invite.' },
+  { id: 'mb1', lane: 'mp', d: 21.1, major: true, t: 'Multi-boat M1–M3', s: 'Boats by token; your boat is the one you\'re aboard; berth slots worked out from each quay face.' },
+  { id: 'mb4', lane: 'mp', d: 21.8, t: 'M4–M5: level of detail, crew boats', s: 'Far boats on four stations every other tick; crew boats as AIS targets; two tugs push one coaster.' },
+  { id: 'table', lane: 'mp', d: 22.3, t: 'The planning table, boats heard in 3D', s: 'Plan a route together on the quay; engines, wash and horns of the crew\'s boats with Doppler.' },
+  { id: 'delta', lane: 'mp', d: 26.0, major: true, t: 'Batches 1–4: deltas, heartbeats', s: 'Snapshots 156 KB → 3 KB; a hidden host keeps stepping 20 times a second through a Web Worker clock.' },
+  // other screens
+  { id: 'plan3', lane: 'sister', d: 16.1, from: 'v1', t: 'One engine, three games', s: 'The owner\'s plan: a shared core with the VR game, a phone driving game and a free-sail world as thin pages on it.' },
+  { id: 'touch', lane: 'sister', d: 18.4, from: 'ramp', t: 'Touchscreen controls', s: 'A throttle slider with a neutral notch, one-button start, drag to look; she made 10 kn on an emulated phone.' },
+  { id: 'timber', lane: 'sister', d: 23.0, major: true, t: 'The timber run: a handoff to Big Timber', s: 'Anchor in the bay and the page hands you to a separate game through the address bar; come back with logs.' },
+  { id: 'wrecks', lane: 'sister', d: 25.1, t: 'Dive sites', s: 'Eight wreck sites at real depths on Oban\'s map, for the submersible game.' },
+  { id: 'rov', lane: 'sister', d: 26.7, from: 'dive', major: true, t: 'DIVE: the round trip to Wreck ROV', s: 'The red button on the dive ship opens the sister game at the wreck she\'s over; salvage crates priced on return.' },
+  // process
+  { id: 'next', lane: 'proc', d: 16.15, from: 'v1', t: 'A test address: /next/', s: 'Milestones go to the owner before the live game; a push to next wakes the publishing workflow.' },
+  { id: 'twochats', lane: 'proc', d: 17.5, t: 'Two chats, one boat', s: 'The dev branch merged twice into the modular work; the anchor golden run\'s 3,312 values identical on both.' },
+  { id: 'notes', lane: 'proc', d: 21.0, t: 'Release notes since v1.0', s: '"Six days, about four hundred changes", 16–21 Oct.' },
+  { id: 'areas', lane: 'proc', d: 23.0, major: true, t: 'Five chats, one per area', s: 'A 5,800-line settings file split in a day; a log, tests and a preview address per area. 1,394 → 1,687 tests in four days.' },
+  { id: 'review', lane: 'proc', d: 24.0, major: true, t: 'A full-game review', s: 'Nine area reviewers plus adversarial verifiers: 115 confirmed findings, all 11 high reproduced.' },
+  { id: 'relart', lane: 'proc', d: 26.5, t: 'Release notes as published pages', s: 'Owner: "release notes like this form from now on": a page with screenshots, filters and a before-and-after.' },
+  { id: 'deck', lane: 'proc', d: 28.5, major: true, t: 'This deck', s: 'Built on the 28th from the logs, with the game\'s own code running in it.' },
+];
+(function buildGraph() {
+  const svg = document.getElementById('g-svg');
+  const box = document.getElementById('g-svgbox');
+  const tip = document.getElementById('g-tip');
+  const detail = document.getElementById('g-detail');
+  const laneChips = document.getElementById('g-lanes');
+  const count = document.getElementById('g-count');
+  const dayIn = document.getElementById('g-day');
+  const dayOut = document.getElementById('g-dayout');
+  const play = document.getElementById('g-play');
+  const D0 = 11.7, D1 = 29.0, PX = 90; // day → x
+  const LX = 150, TOP = 34, LH = 88; // lane labels' width, top margin, lane height
+  const W = LX + (D1 - D0) * PX + 20, H = TOP + LANES.length * LH + 10;
+  const x = (d) => LX + (d - D0) * PX;
+  const laneY = (id) => TOP + LANES.findIndex((l) => l.id === id) * LH + LH / 2;
+  const byId = Object.fromEntries(G.map((n) => [n.id, n]));
+  const col = (id) => LANES.find((l) => l.id === id).color;
+  const off = new Set();
+  let shownTo = 29, selected = null;
+  const esc2 = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; // 12 Oct 2026 is a Monday
+  const dow = (d) => DOW[(d - 12 + 1 + 7) % 7];
+  // edges: along each lane, plus `from` links, plus every active lane into each merge
+  const edges = [];
+  for (const l of LANES) {
+    const ns = G.filter((n) => n.lane === l.id).sort((a, b) => a.d - b.d);
+    for (let i = 1; i < ns.length; i++) edges.push({ a: ns[i - 1], b: ns[i], kind: 'lane' });
+  }
+  for (const n of G) if (n.from && byId[n.from]) edges.push({ a: byId[n.from], b: n, kind: 'cross' });
+  const merges = G.filter((n) => n.merge).sort((a, b) => a.d - b.d);
+  merges.forEach((m, i) => {
+    const prev = i ? merges[i - 1].d : 16.0;
+    for (const l of LANES) {
+      if (l.id === 'game' || l.id === 'proc') continue;
+      const last = G.filter((n) => n.lane === l.id && n.d > prev && n.d < m.d).sort((a, b) => b.d - a.d)[0];
+      if (last) edges.push({ a: last, b: m, kind: 'merge' });
+    }
+  });
+  const curve = (a, b) => {
+    const x1 = x(a.d), y1 = laneY(a.lane), x2 = x(b.d), y2 = laneY(b.lane);
+    if (y1 === y2) return `M${x1},${y1} L${x2},${y2}`;
+    const c = Math.max(24, (x2 - x1) * 0.5);
+    return `M${x1},${y1} C${x1 + c},${y1} ${x2 - c},${y2} ${x2},${y2}`;
+  };
+  let s = '';
+  LANES.forEach((l, i) => {
+    const y = TOP + i * LH;
+    if (i % 2) s += `<rect class="lane-band" x="0" y="${y}" width="${W}" height="${LH}"/>`;
+    s += `<text class="lane-label" x="12" y="${y + LH / 2 - 2}">${esc2(l.name)}</text><text class="lane-sub" x="12" y="${y + LH / 2 + 12}">${esc2(l.sub)}</text><rect x="${LX - 8}" y="${y + 10}" width="3" height="${LH - 20}" fill="${l.color}" rx="1.5"/>`;
+  });
+  for (let d = 12; d <= 28; d++) {
+    const wd = dow(d);
+    if (wd === 'Sat' || wd === 'Sun') s += `<rect class="day-weekend" x="${x(d)}" y="${TOP}" width="${PX}" height="${H - TOP}"/>`;
+    s += `<line class="day-line" x1="${x(d)}" x2="${x(d)}" y1="${TOP - 6}" y2="${H}"/><text class="day-label" x="${x(d) + 4}" y="${TOP - 10}">${wd} ${d} Oct</text>`;
+  }
+  s += `<g id="g-edges">${edges.map((e, i) => `<path class="edge ${e.kind}" data-i="${i}" d="${curve(e.a, e.b)}" stroke="${col(e.kind === 'merge' ? e.a.lane : e.b.lane)}"/>`).join('')}</g>`;
+  s += `<line id="g-cursor" class="cursor" x1="0" x2="0" y1="${TOP - 6}" y2="${H}" visibility="hidden"/>`;
+  // Labels: the major milestones' at the fitted zoom, alternating above and below along
+  // each row so neighbours don't collide; every other label only when zoomed in.
+  s += `<g id="g-nodes">${G.map((n) => {
+    const cx = x(n.d), cy = laneY(n.lane), r = n.merge ? 9 : n.major ? 7.5 : 5.5;
+    const peers = G.filter((m) => m.lane === n.lane && !!m.major === !!n.major).sort((a, b) => a.d - b.d);
+    const above = peers.indexOf(n) % 2 === 1;
+    const text = n.t.length > 28 ? n.t.slice(0, 27) + '…' : n.t;
+    const label = `<text class="node-label${n.major ? '' : ' minor'}" data-for="${n.id}" x="${cx}" y="${above ? cy - 14 : cy + 24}" text-anchor="middle">${esc2(text)}</text>`;
+    return `<circle class="node${n.major ? ' major' : ''}" data-id="${n.id}" cx="${cx}" cy="${cy}" r="${r}" fill="${n.merge ? 'var(--accent)' : col(n.lane)}"/>${label}`;
+  }).join('')}</g>`;
+  svg.innerHTML = s;
+  svg.classList.add('g-svg');
+  // view: pan and zoom through the viewBox
+  let vb = { x: 0, y: 0, w: W, h: H };
+  const fit = () => { const r = box.getBoundingClientRect(); const ar = r.width / Math.max(1, r.height); vb = ar > W / H ? { x: 0, y: 0, w: H * ar, h: H } : { x: 0, y: 0, w: W, h: W / ar }; applyVb(); };
+  const applyVb = () => { svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); svg.classList.toggle('zoomed', vb.w < W * 0.6); };
+  fit();
+  new ResizeObserver(fit).observe(box);
+  document.getElementById('g-fit').addEventListener('click', fit);
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = box.getBoundingClientRect();
+    const px = vb.x + ((e.clientX - r.left) / r.width) * vb.w;
+    const py = vb.y + ((e.clientY - r.top) / r.height) * vb.h;
+    const k = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+    const w = Math.min(W * 1.5, Math.max(W / 8, vb.w * k)); const h = vb.h * (w / vb.w);
+    vb = { x: px - (px - vb.x) * (w / vb.w), y: py - (py - vb.y) * (h / vb.h), w, h };
+    applyVb();
+  }, { passive: false });
+  let drag = null;
+  svg.addEventListener('pointerdown', (e) => { if (e.target.classList.contains('node')) return; drag = { x: e.clientX, y: e.clientY, vx: vb.x, vy: vb.y }; box.classList.add('dragging'); svg.setPointerCapture(e.pointerId); });
+  svg.addEventListener('pointermove', (e) => {
+    if (drag) { const r = box.getBoundingClientRect(); vb.x = drag.vx - (e.clientX - drag.x) * (vb.w / r.width); vb.y = drag.vy - (e.clientY - drag.y) * (vb.h / r.height); applyVb(); return; }
+    const n = e.target.classList.contains('node') ? byId[e.target.dataset.id] : null;
+    if (!n) { tip.hidden = true; return; }
+    const r = box.getBoundingClientRect();
+    tip.innerHTML = `<b>${esc2(n.t)}</b><span class="d">${dow(Math.floor(n.d))} ${Math.floor(n.d)} Oct · ${esc2(LANES.find((l) => l.id === n.lane).name)}</span>`;
+    tip.hidden = false;
+    tip.style.left = `${Math.min(r.width - 270, e.clientX - r.left + 12)}px`;
+    tip.style.top = `${e.clientY - r.top + 14}px`;
+  });
+  const endDrag = () => { drag = null; box.classList.remove('dragging'); };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+  svg.addEventListener('pointerleave', () => (tip.hidden = true));
+  svg.addEventListener('click', (e) => { if (e.target.classList.contains('node')) select(byId[e.target.dataset.id]); });
+  function select(n) {
+    selected = n;
+    for (const c of svg.querySelectorAll('.node')) c.classList.toggle('on', c.dataset.id === n.id);
+    const lane = LANES.find((l) => l.id === n.lane);
+    const ins = edges.filter((e) => e.b === n && e.a.lane !== n.lane).map((e) => e.a);
+    const outs = edges.filter((e) => e.a === n && e.b.lane !== n.lane).map((e) => e.b);
+    detail.innerHTML = `<span class="lane-tag" style="color:${lane.color}">${esc2(lane.name)}</span><h3>${esc2(n.t)}</h3><span class="d">${dow(Math.floor(n.d))} ${Math.floor(n.d)} October 2026${n.d < 20 ? ' · placed by the log\'s order' : ''}</span><p>${esc2(n.s)}</p>` +
+      (ins.length ? `<div class="links"><b>Came from</b>${ins.map((m) => `<span>${esc2(m.t)} (${esc2(LANES.find((l) => l.id === m.lane).name)})</span>`).join('')}</div>` : '') +
+      (outs.length ? `<div class="links"><b>Led to</b>${outs.map((m) => `<span>${esc2(m.t)} (${esc2(LANES.find((l) => l.id === m.lane).name)})</span>`).join('')}</div>` : '');
+  }
+  // lane filter chips
+  const allChip = document.createElement('span'); allChip.className = 'chip on'; allChip.textContent = 'All streams'; allChip.tabIndex = 0; laneChips.appendChild(allChip);
+  for (const l of LANES) { const c = document.createElement('span'); c.className = 'chip'; c.dataset.lane = l.id; c.tabIndex = 0; c.innerHTML = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${l.color};margin-right:5px;vertical-align:0"></span>${esc2(l.name)}`; laneChips.appendChild(c); }
+  const toggleLane = (c) => {
+    if (!c.dataset.lane) off.clear();
+    else if (off.has(c.dataset.lane)) off.delete(c.dataset.lane);
+    else off.add(c.dataset.lane);
+    for (const ch of laneChips.children) ch.classList.toggle('on', ch.dataset.lane ? !off.has(ch.dataset.lane) : off.size === 0);
+    refresh();
+  };
+  laneChips.addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) toggleLane(c); });
+  laneChips.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { const c = e.target.closest('.chip'); if (c) { e.preventDefault(); toggleLane(c); } } });
+  // time: the slider and play
+  function refresh() {
+    let shown = 0;
+    for (const c of svg.querySelectorAll('.node')) {
+      const n = byId[c.dataset.id];
+      const hidden = n.d > shownTo, dim = off.has(n.lane);
+      c.classList.toggle('future', hidden); c.classList.toggle('lane-off', dim);
+      if (!hidden && !dim) shown++;
+    }
+    for (const t of svg.querySelectorAll('.node-label')) { const n = byId[t.dataset.for]; t.classList.toggle('future', n.d > shownTo); t.classList.toggle('lane-off', off.has(n.lane)); }
+    svg.querySelectorAll('.edge').forEach((p, i) => { const e = edges[i]; p.classList.toggle('future', e.b.d > shownTo); p.classList.toggle('lane-off', off.has(e.a.lane) || off.has(e.b.lane)); });
+    const cur = document.getElementById('g-cursor');
+    cur.setAttribute('visibility', shownTo < 28.6 ? 'visible' : 'hidden');
+    cur.setAttribute('x1', x(shownTo)); cur.setAttribute('x2', x(shownTo));
+    count.textContent = `${shown} of ${G.length} milestones`;
+    dayOut.textContent = shownTo >= 28.6 ? 'to 28 Oct' : `${dow(Math.floor(shownTo))} ${Math.floor(shownTo)} Oct`;
+  }
+  dayIn.addEventListener('input', () => { shownTo = Number(dayIn.value); stopPlay(); refresh(); });
+  let timer = 0;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function stopPlay() { if (timer) { clearInterval(timer); timer = 0; play.textContent = '▶ Play the sixteen days'; } }
+  play.addEventListener('click', () => {
+    if (timer) return stopPlay();
+    if (reduced) { shownTo = 29; dayIn.value = '29'; refresh(); return; }
+    shownTo = 12; dayIn.value = '12'; refresh();
+    play.textContent = '❚❚ Pause';
+    timer = setInterval(() => { shownTo = Math.min(29, shownTo + 0.04); dayIn.value = String(shownTo); refresh(); if (shownTo >= 29) stopPlay(); }, 40);
+  });
+  refresh();
+  select(byId.v1);
 })();
 
 // ── The deck ──────────────────────────────────────────────────────────────────────────
