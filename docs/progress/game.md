@@ -32,6 +32,10 @@ Owner, asking why potting needed switching on: "remove the switch, potting alway
 - **Tests:** tests/menu.test.ts's host without the two entries; the full suite.
 - **Not checked:** on the Quest.
 
+### (From the modular-builder chat) The driving keys run straight through neutral (29 Oct 2026)
+
+On the owner's word ("full forward, full reverse without it stopping at neutral"): holding a throttle key no longer stops at neutral. Changed: `App.handleDebugDriving` (single lever and the twin E/D, R/F keys) and `Tiller.tick`, both now behind a new setting `CONFIG.debugDriving.stopAtNeutral` (false; true gives the old stop). `tests/tiller.test.ts` updated. Full write-up in `docs/progress/modules.md`.
+
 ### The planning chart's layers; the stern trawler's fuel tanks (29 Oct 2026)
 
 Owner: "they don't show the fishing areas or the lobster pot areas or the wrecks. It'd be good to have a button that turns those layers on and off, or maybe it's a level of detail." And: "the main big trawler ... the fuel tank seems to be small. It's only got 52 nautical miles range."

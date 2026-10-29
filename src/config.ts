@@ -2012,6 +2012,14 @@ export const CONFIG = {
     leverRate: 0.9,
     /** Helm travel per second while the key is held (full range is -1..1). */
     helmRate: 0.8,
+    /**
+     * The keys' throttle stops in neutral on its way between ahead and astern, until the key is
+     * let go and pressed again (a review, Oct 2026: holding S to slow down ran on into astern).
+     * Off (owner, 29 Oct 2026: "go full forward, full reverse without it stopping at neutral"):
+     * held, it runs straight through. The helm keys and bumpers, the twin keys, the tiller's keys.
+     * (A lever dragged with the mouse still clicks into its own neutral notch.)
+     */
+    stopAtNeutral: false,
   },
 
   /**

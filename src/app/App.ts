@@ -1867,10 +1867,9 @@ export class App {
     if (leverIn === 0) this.neutralLatched = false;
     else if (!this.neutralLatched) {
       const next = clamp(lever + leverIn * cfg.leverRate * dt, -1, 1);
-      // Stop at the neutral detent on the way through, and stay there while the key is held:
-      // let go and press again to go on (review, Oct 2026: holding S to slow down ran straight
-      // on into astern).
-      if (Math.sign(next) !== Math.sign(lever) && lever !== 0) {
+      // With `stopAtNeutral`: stop at the neutral detent on the way through, and stay there while
+      // the key is held; let go and press again to go on. Without (as set): straight through.
+      if (cfg.stopAtNeutral && Math.sign(next) !== Math.sign(lever) && lever !== 0) {
         lever = 0;
         this.neutralLatched = true;
       } else lever = next;
@@ -1886,7 +1885,7 @@ export class App {
     // Twin engines worked separately, holding the wheel (owner, Oct 2026): E / D the port lever,
     // R / F the starboard one, each at the keys' rate and stopping at neutral on the way through.
     if (this.twinLeverKeys()) {
-      const levers = [v.controls.lever, v.controls.lever2 ?? v.controls.lever];
+      const levers = [v.controls.lever, v.controls.lever2 ?? 0];
       (['throttle.demand', 'throttle.demand2'] as const).forEach((key, i) => {
         const input = (k.action(i ? 'stbdAhead' : 'portAhead') ? 1 : 0) - (k.action(i ? 'stbdAstern' : 'portAstern') ? 1 : 0);
         if (input === 0) {
@@ -1896,7 +1895,7 @@ export class App {
         if (this.twinLatched[i]) return;
         const cur = levers[i];
         let next = clamp(cur + input * cfg.leverRate * dt, -1, 1);
-        if (Math.sign(next) !== Math.sign(cur) && cur !== 0) {
+        if (cfg.stopAtNeutral && Math.sign(next) !== Math.sign(cur) && cur !== 0) {
           next = 0;
           this.twinLatched[i] = true;
         }
@@ -1934,7 +1933,7 @@ export class App {
     const transit = (c.aziTransit ?? 0) > 0.5;
     const cur: DriveAsk[] = [
       { angle: c.aziAngle ?? 0, power: Math.max(0, c.lever) },
-      { angle: c.aziAngle2 ?? 0, power: Math.max(0, c.lever2 ?? c.lever) },
+      { angle: c.aziAngle2 ?? 0, power: Math.max(0, c.lever2 ?? 0) },
     ];
     const send = (i: number, ask: DriveAsk) => {
       const s = i ? '2' : '';
@@ -5088,7 +5087,7 @@ export class App {
       azi
         ? [
             { deg: ((azi.engine.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle ?? 0, power: Math.max(0, azi.controls.lever), sync: !!azi.controls.aziSync },
-            { deg: ((azi.engine.stbd?.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle2 ?? 0, power: Math.max(0, azi.controls.lever2 ?? azi.controls.lever), sync: !!azi.controls.aziSync },
+            { deg: ((azi.engine.stbd?.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle2 ?? 0, power: Math.max(0, azi.controls.lever2 ?? 0), sync: !!azi.controls.aziSync },
           ]
         : null,
     );

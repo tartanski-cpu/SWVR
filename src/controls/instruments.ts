@@ -417,7 +417,7 @@ const paintRpm: Painter = (g, s) => {
       // her bow up: the arrow where the drive points (the way it pushes), the ring where its
       // lever asks it to (they part while it turns), TRANSIT when the wheel has them.
       const asks = [s.controls.aziAngle ?? 0, s.controls.aziAngle2 ?? s.controls.aziAngle ?? 0];
-      const levers = [s.controls.lever, s.controls.lever2 ?? s.controls.lever];
+      const levers = [s.controls.lever, s.controls.lever2 ?? 0];
       [e, e.stbd].forEach((x, k) => azimuthDial(g, k ? 370 : 142, 192, ((x.azimuth ?? 0) * 180) / Math.PI, (levers[k] ?? 0) < 0 ? asks[k] + 180 : asks[k], k ? GREEN : RED));
       if (s.controls.aziTransit) text(g, 'TRANSIT', 256, 196, AMBER, SMALL_PX, 'center');
       return;

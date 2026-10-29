@@ -261,11 +261,12 @@ export const BUS_KEYS = {
     writer: 'module',
   }),
   // Twin engines worked separately (the twin lever control; owner, Oct 2026): the starboard
-  // engine's lever and START. Only on such a boat; its lever reads as the port one's until moved.
+  // engine's lever and START. Only on such a boat; its lever reads upright (0) until it's moved
+  // (owner, 29 Oct 2026: it read as the port one's, so the first move of the port lever worked both).
   'throttle.demand2': {
-    ...setting('lever2', [-1, 1], '-1..1', 'Twin engines worked separately: the starboard engine\'s throttle / gear lever (throttle.demand is then the port engine\'s). Reads as the port lever until it is moved.', { hold: 'lever2', writer: 'module' }),
+    ...setting('lever2', [-1, 1], '-1..1', 'Twin engines worked separately: the starboard engine\'s throttle / gear lever (throttle.demand is then the port engine\'s). Upright (0) until it is moved.', { hold: 'lever2', writer: 'module' }),
     bind: {
-      get: (s) => (gearOf(s, 'diesel')?.split ? (s.controls.lever2 ?? s.controls.lever) : undefined),
+      get: (s) => (gearOf(s, 'diesel')?.split ? (s.controls.lever2 ?? 0) : undefined),
       set: (s, v) => {
         s.controls.lever2 = v as number;
       },

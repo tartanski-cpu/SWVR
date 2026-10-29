@@ -44,6 +44,8 @@ Not taken up from the research (24 Oct 2026): radar, side-scan sonar search, lif
 
 The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but make sure to keep a track of all these things that I've not tested, and I'll do a big round of testing." Everything below is on `next` (https://tartanski-cpu.github.io/SWVR/next/) and has passed the automatic tests and headless screenshots, but you haven't tried it yet. Tick each one off (or tell this chat what's wrong) as you go; this chat keeps the list up to date. Newest first. Each one's full write-up is in this log or in `PROGRESS.md` (named in brackets).
 
+- [ ] **The keys run straight through neutral** (this log). Desktop, at the helm of any boat: start her, hold W to full ahead, then hold S: the lever runs on through neutral to full astern without letting go. Same with the gamepad's LB, and the skiff's tiller keys.
+- [ ] **The twin lever control: independent from the first move, a smaller middle grip** (this log). In the catamaran (or any twin worked separately, the tug too): straight after starting, grab the port (left) knob and push it ahead: only it moves, only the port engine answers. Then the starboard. The yellow grip in the middle is shorter; grab it to move both.
 - [ ] **The masthead wind vane** (this log). On any boat (the harbour tug, the fleet, your own design): look up at the masthead light from the deck. The arrow should point into the wind; turn her and it swings round; steam ahead in a calm and it points dead ahead. Is it big enough to read, and does it look right?
 - [ ] **The tug's SYNC button** (this log). At the tug's helm, the blue SYNC on the port pedestal ahead of the red lever: press it (desktop: click), then move one lever's power: both go together; press again and they're separate. It's lit while synchronised.
 - [ ] **The tug's levers: the thumbstick only** (this log). VR: grab a lever's bar and move and twist your hand: nothing moves. Now the thumbstick of that hand: sideways twists it, forward gives power.
@@ -75,6 +77,24 @@ The owner, 23 Oct 2026: "I don't have time to test ... push it out to next, but 
 (`PROGRESS.md` also has older entries marked "awaiting owner test" from before the areas were split; the main game chat looks after those.)
 
 ## Changes
+
+### The driving keys run straight through neutral (done; on next, in your test round)
+
+The owner, 29 Oct 2026: "when you use the keys it always stops at neutral, and then you have to press the key again to go into reverse ... people want the ability to go full forward, full reverse without it stopping at neutral."
+
+- Holding a throttle key now runs the lever from full ahead to full astern (and back) without a pause at neutral: W / S and ↑ / ↓ at the helm, the gamepad's RB / LB, the twin keys E / D and R / F, and the outboard tiller's keys. X still puts her in neutral at once.
+- The old stop is kept as a setting, off: `CONFIG.debugDriving.stopAtNeutral` (`src/config.ts`), should anyone want it back.
+- VR levers are unchanged (your hand already goes where it likes).
+- Tests: `tests/tiller.test.ts` now checks holding S from ahead runs on into astern, and (with the setting on) the old stop.
+- **Shared changes:** `src/app/App.ts` (the helm and twin keys), `src/controls/Tiller.ts`, `src/config.ts` (the new setting); noted in `docs/progress/game.md`.
+
+### Fix: the twin lever control's first move worked both engines; a smaller middle grip (done; on next, in your test round)
+
+Owner, 29 Oct 2026: "The first time you use it, if you grab the left-hand stick and move it forward, it moves both together. They should be fully independent, unless you're grabbing the middle ... make this yellow twin movement in the middle a little bit smaller, the grab area a little bit smaller."
+- **The cause:** the starboard lever had no value of its own until it was first moved, and until then it read as the port lever (by design, from when twin keys came in), so the port lever's first move ran both engines, and the starboard lever moved with it. Now, on a boat with the engines worked separately, an untouched starboard lever reads upright (neutral), and moving the port lever never touches it. The keys' and menus' throttle (W / S, the helpers) still works both levers, from the first press.
+- **The grip:** it now spans only the middle half of the gap between the knobs (`twinThrottle.grip.span` 0.5) and is a little slimmer (`radius` 0.016), and a hand has to be well on it to take it (`grabWeight` 1.6): anywhere near a knob, the knob (its own engine) wins.
+- Tests: `tests/twinEngines.test.ts` (the port lever's first move: the starboard engine stays in neutral, then works on its own; a hand a quarter and nearly half way from a knob to the grip takes the knob). All of `npm test` passes. Checked headless: the catamaran's twin control, the shorter grip between the knobs.
+- **Shared changes:** the old "starboard reads as port until moved" fallbacks, all on such boats only, now read upright: `src/vessel/vesselControl.ts` (and the keys' lever sets both from the first press), `src/vessel/physics/propulsion.ts` (start in neutral), `src/controls/instruments.ts` (the tug's dials), `src/app/App.ts` (the twin keys and the tug's on-screen dials). `docs/BUS_KEYS.md` regenerated.
 
 ### A masthead wind vane on every boat (done; on next, in your test round)
 

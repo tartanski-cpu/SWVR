@@ -39,8 +39,8 @@ export interface TwinThrottleConfig {
   engrave: string;
   /** Between the two levers (m). */
   spacing: number;
-  /** The grip between the knobs: its radius (m) and colour. */
-  grip: { radius: number; colour: number };
+  /** The grip between the knobs: its radius (m), colour, the share of the gap it spans, its grab weighting. */
+  grip: { radius: number; colour: number; span: number; grabWeight: number };
 }
 
 /**
@@ -65,12 +65,13 @@ export class TwinGrip extends Control {
     private readonly levers: [Lever, Lever],
     private readonly length: number,
     spacing: number,
-    grip: { radius: number; colour: number },
+    private readonly grip: { radius: number; colour: number; span: number; grabWeight: number },
     knobR = 0.03,
   ) {
     super('leverBoth', levers[0].channel);
-    // Filling the gap between the knobs, its rounded ends just into each.
-    this.half = spacing / 2 - knobR * 0.6;
+    // The middle `span` of the gap between the knobs (once its rounded ends ran just into each:
+    // too easily grabbed with a hand meant for one knob, owner, 29 Oct 2026).
+    this.half = Math.max(grip.radius, (spacing / 2 - knobR * 0.6) * grip.span);
     this.bar = new THREE.Mesh(new THREE.CapsuleGeometry(grip.radius, 2 * this.half - 2 * grip.radius, 4, 10).rotateZ(Math.PI / 2), this.material(grip.colour));
     this.bar.position.y = length;
     this.arm.position.y = 0.04; // the levers' pivot, over their quadrants
@@ -95,7 +96,8 @@ export class TwinGrip extends Control {
     const c = new THREE.Vector3(0, Math.cos(th) * this.length, Math.sin(th) * this.length);
     const d = p.sub(c);
     const x = clamp(d.x, -this.half, this.half);
-    return Math.hypot(d.x - x, d.y, d.z);
+    // (Weighted: the hand has to be well on it, so a hand near a knob takes that knob.)
+    return Math.hypot(d.x - x, d.y, d.z) * this.grip.grabWeight;
   }
 
   grabStart(p: Pointer): void {

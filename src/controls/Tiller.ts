@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CONFIG } from '../config';
 import { clamp } from '../core/math';
 import type { OutboardConfig } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -192,7 +193,7 @@ export class Tiller extends Control {
       // (Also when the gear would go straight from ahead to astern: closing the throttle snaps it
       // shut just short of neutral, so it never 'passes through' it.)
       const flips = this.gear !== 0 && (c > 0 ? 1 : c < 0 ? -1 : 0) === -this.gear;
-      if ((Math.sign(c) !== Math.sign(before) && before !== 0) || flips) {
+      if (CONFIG.debugDriving.stopAtNeutral && ((Math.sign(c) !== Math.sign(before) && before !== 0) || flips)) {
         c = 0;
         this.neutralLatched = true;
       }

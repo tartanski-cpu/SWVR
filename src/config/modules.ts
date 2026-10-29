@@ -128,9 +128,12 @@ export const MODULES_CONFIG = {
     /**
      * control.twin-throttle (modules/twinThrottle; owner, Oct 2026): a lever for each engine of
      * a twin worked separately (each as throttleLever above), `spacing` apart (m), and between
-     * their knobs a bright `grip` (`radius`, m; `colour`) that works both as one.
+     * their knobs a bright `grip` (`radius`, m; `colour`) that works both as one. The grip spans
+     * the middle `span` of the gap between the knobs (owner, 29 Oct 2026: "the grab area a little
+     * bit smaller in the middle"), and a hand counts as on it only when it's `grabWeight` times
+     * nearer it than the usual grab reach: near a knob, the knob (its own engine) wins.
      */
-    twinThrottle: { spacing: 0.16, grip: { radius: 0.019, colour: 0xffc21a } },
+    twinThrottle: { spacing: 0.16, grip: { radius: 0.016, colour: 0xffc21a, span: 0.5, grabWeight: 1.6 } },
 
     /**
      * console.standard (modules/console): the helm console's dash, pedestals and group
