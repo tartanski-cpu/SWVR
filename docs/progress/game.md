@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The planning chart in a paper chart's colours (29 Oct 2026)
+
+Owner: "I'd like the coloring of the charts to retain that original pale yellow and blue color like you have in the Admiralty chart in the UK."
+
+- **Admiralty colours** (`nav/landLayer.ts` `PAPER_CHART`; the land layer now takes a palette, the plotter's own picture keeping `SCREEN_CHART`): deep water white, the shallows pale blue, the foreshore a darker buff, the land pale yellow buff.
+- **Its inks** (`voyage/planChart.ts`): black lettering for harbours, towns and islands, sloping blue for the waters, the landmarks' rings and the scale bar and north in black, the route a chart's magenta, things to look at a darker teal, your boat amber with YOU in brown, the crew's blue. The pads' top line is pale with magenta lettering (`voyage/chartPad.ts`).
+- **Where:** everywhere the planning chart is: the desktop's full-screen chart (M), the board in the hand, the quay table and stand, the chart table's PLAN sheet, the plotter's PLAN mode. The plotter's own picture stays a dark screen.
+- **Checked headless:** the career chart close up; the Oban quay table.
+- **Not checked:** on the Quest; at night (the quay table is a lit screen, so it shows bright at night).
+
 ### Look at: on a landmark, off the route, called out in sight (29 Oct 2026)
 
 Owner, trying the planning chart: "the look function just did the same as waypoints"; then "go ahead with all three for Look" (snap to the landmark; not on the route; a call when it comes in sight).

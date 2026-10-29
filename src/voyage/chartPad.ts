@@ -196,9 +196,11 @@ export class ChartPad {
     // (Coast still being outlined: drawn again at the next chance.)
     if (this.painter.paint(g, this.W, this.chartH, world, v, ui, this.host.ownBoatId(), ptrOnChart)) this.shown = '';
     // The next point, along the chart's top (its scale bar is along its foot).
-    g.fillStyle = 'rgba(10, 24, 32, 0.8)';
+    g.fillStyle = 'rgba(250, 248, 236, 0.92)';
     g.fillRect(0, 0, this.W - 48 * ui, 26 * ui);
-    g.fillStyle = this.say ? '#ffd27a' : '#ffc0e4';
+    g.fillStyle = '#c9c2a6';
+    g.fillRect(0, 26 * ui, this.W - 48 * ui, Math.max(1, ui));
+    g.fillStyle = this.say ? '#8a4a00' : '#a0146a';
     g.font = `bold ${Math.round(13 * ui)}px system-ui, sans-serif`;
     g.textBaseline = 'middle';
     g.textAlign = 'left';

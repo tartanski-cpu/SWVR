@@ -19,7 +19,7 @@
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { boatOwnerName, playerBoats } from '../core/launch';
-import { LandLayer } from '../nav/landLayer';
+import { css, LandLayer, PAPER_CHART } from '../nav/landLayer';
 import { MARKS, PLACES, PORTS, WRECKS } from '../world/archipelago';
 import { REGIONS } from '../world/regions';
 import { lookSights, lookReach, lookTarget, nextPoint, pointLabel, type PlanKind } from './plan';
@@ -110,14 +110,21 @@ function niceDistance(m: number): number {
 }
 
 const PLACES_BY_RANK = [...PLACES].sort((a, b) => a.rank - b.rank);
-const ROUTE = '#e040a0';
+/**
+ * Its inks, on a paper chart's colours (owner, 29 Oct 2026: "the original pale yellow and blue
+ * like ... the Admiralty chart"; nav/landLayer.ts PAPER_CHART): black lettering, sloping blue
+ * for the waters, the route in magenta as a chart's own notes are.
+ */
+const INK = '#1e252a';
+const WATER_INK = '#1d5a8a';
+const ROUTE = '#c8167e';
 const DONE = '#8a8a8a';
 /** A thing to look at: teal, off the route's magenta. */
-const LOOK = '#18a89a';
+const LOOK = '#0f8a7e';
 
 /** Draws the planning chart. Each chart (a player's panel, a board) has its own: the land layer keeps its pictures. */
 export class PlanChartPainter {
-  private readonly land = new LandLayer();
+  private readonly land = new LandLayer(PAPER_CHART);
 
   /** The world view's built terrains, for the career map's sharp coast (as the chartplotter's). */
   setLandSource(source: (regionId: string) => Float32Array | null): void {
@@ -137,7 +144,7 @@ export class PlanChartPainter {
     const on = (px: number, py: number, m = 60 * ui) => px > -m && px < W + m && py > -m && py < H + m;
     const font = (px: number, style = '') => `${style}${Math.round(px * ui)}px system-ui, sans-serif`;
     g.save();
-    g.fillStyle = '#10303f';
+    g.fillStyle = css(PAPER_CHART.deep);
     g.fillRect(0, 0, W, H);
     g.imageSmoothingEnabled = true;
     const pending = this.land.draw(g, W, H, v.cx, v.cz, mpp);
@@ -182,7 +189,7 @@ export class PlanChartPainter {
     for (const p of PORTS) {
       const [px, py] = toPx(p.x, p.z);
       if (!on(px, py)) continue;
-      g.fillStyle = '#e8e2cc';
+      g.fillStyle = INK;
       g.beginPath();
       g.arc(px, py, 5 * ui, 0, Math.PI * 2);
       g.fill();
@@ -210,7 +217,7 @@ export class PlanChartPainter {
       if (labels.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
       labels.push(box);
       g.textAlign = 'center';
-      g.fillStyle = water ? '#8ec8e8' : isle ? '#e8e2cc' : '#c8c2ae';
+      g.fillStyle = water ? WATER_INK : isle ? INK : '#3a3a34';
       g.fillText(text, px, py);
       g.textAlign = 'left';
     }
@@ -222,8 +229,8 @@ export class PlanChartPainter {
       for (const s of lookSights()) {
         const [px, py] = toPx(s.x, s.z);
         if (!on(px, py)) continue;
-        g.strokeStyle = '#b8f0e8';
-        g.fillStyle = '#b8f0e8';
+        g.strokeStyle = INK;
+        g.fillStyle = INK;
         g.lineWidth = 1.5 * ui;
         g.beginPath();
         g.arc(px, py, 4.5 * ui, 0, Math.PI * 2);
@@ -288,12 +295,12 @@ export class PlanChartPainter {
         g.fillText(String(i + 1), px, py + 0.5);
         g.textAlign = 'left';
         if (p.name) {
-          g.fillStyle = grey ? '#c0c0c0' : look ? '#b8f0e8' : '#ffc0e4';
+          g.fillStyle = grey ? '#808080' : look ? LOOK : ROUTE;
           g.font = font(13, 'bold ');
           g.fillText(look ? `${p.name}${p.seen ? ' (seen)' : ''}` : p.name, px + 12 * ui, py + 14 * ui);
         }
         if (i === next) {
-          g.strokeStyle = '#ffffff';
+          g.strokeStyle = INK;
           g.lineWidth = 2.5 * ui;
           g.beginPath();
           g.arc(px, py, 15 * ui, 0, Math.PI * 2);
@@ -312,7 +319,7 @@ export class PlanChartPainter {
       g.save();
       g.translate(px, py);
       g.rotate(course);
-      g.fillStyle = mine ? '#ffd23a' : '#9fd0ff';
+      g.fillStyle = mine ? '#ffc21a' : '#4a90d8';
       g.strokeStyle = '#101010';
       g.lineWidth = 1.5 * ui;
       g.beginPath();
@@ -323,15 +330,15 @@ export class PlanChartPainter {
       g.fill();
       g.stroke();
       g.restore();
-      g.fillStyle = mine ? '#ffd23a' : '#9fd0ff';
+      g.fillStyle = mine ? '#a05800' : '#1d5a8a';
       g.font = font(12, 'bold ');
       g.fillText(mine ? 'YOU' : boatOwnerName(world, b).toUpperCase(), px + 11 * ui, py + 13 * ui);
     }
 
-    // Where you're pointing (VR): a small white cross.
+    // Where you're pointing (VR): a small dark cross.
     if (pointer) {
       const [px, py] = pointer;
-      g.strokeStyle = '#ffffff';
+      g.strokeStyle = INK;
       g.lineWidth = 2 * ui;
       g.beginPath();
       g.moveTo(px - 10 * ui, py);
@@ -346,8 +353,8 @@ export class PlanChartPainter {
     const bw = bar / mpp;
     const sx = 16 * ui;
     const sy = H - 18 * ui;
-    g.strokeStyle = '#e8e2cc';
-    g.fillStyle = '#e8e2cc';
+    g.strokeStyle = INK;
+    g.fillStyle = INK;
     g.lineWidth = 2 * ui;
     g.beginPath();
     g.moveTo(sx, sy - 6 * ui);

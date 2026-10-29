@@ -22,6 +22,27 @@ export const BANDS: [number, number, number][] = [
 ];
 export const css = ([r, g, b]: [number, number, number]) => `rgb(${r}, ${g}, ${b})`;
 
+/** A chart's colours: deep water, then each of CHART_LEVELS' bands (the shallows, the foreshore, the land). */
+export interface ChartPalette {
+  deep: [number, number, number];
+  bands: [number, number, number][];
+}
+/** The chartplotter's screen: dark water, sand, green land. */
+export const SCREEN_CHART: ChartPalette = { deep: DEEP, bands: BANDS };
+/**
+ * A paper chart's, in the manner of an Admiralty chart (owner, 29 Oct 2026: "the original pale
+ * yellow and blue"): deep water white, the shallows pale blue, the foreshore a darker buff, the
+ * land pale yellow buff. The planning chart's (voyage/planChart.ts).
+ */
+export const PAPER_CHART: ChartPalette = {
+  deep: [252, 252, 247],
+  bands: [
+    [176, 214, 238],
+    [226, 212, 150],
+    [245, 230, 170],
+  ],
+};
+
 
 /**
  * The chart's land, shallows and sea, for any view (moved out of the chartplotter, owner 28 Oct
@@ -35,6 +56,9 @@ export const css = ([r, g, b]: [number, number, number]) => `rgb(${r}, ${g}, ${b
  * (the boat's plotter, a player's planning chart) has its own.
  */
 export class LandLayer {
+  /** @param palette its colours (the plotter's screen, by default; the planning chart's paper) */
+  constructor(private readonly palette: ChartPalette = SCREEN_CHART) {}
+
   /** The land, shallows and sea of each region, sampled from the terrain once when first in view (regions). */
   private readonly lands = new Map<string, { canvas: HTMLCanvasElement; x0: number; z0: number; res: number }>();
   /** A coast map's mesh as outlines (chartLand.ts), square by square, and their canvas paths once drawn; kept while the mesh is loaded. */
@@ -103,7 +127,8 @@ export class LandLayer {
       for (let i = 0; i < cw; i++) {
         const h = groundHeight(x0 + (i + 0.5) * res, z0 + (j + 0.5) * res);
         // Deep water, shallows (< 6 m), beach, land.
-        const [r, gg, b] = h > CHART_LEVELS[2] ? BANDS[2] : h > CHART_LEVELS[1] ? BANDS[1] : h > CHART_LEVELS[0] ? BANDS[0] : DEEP;
+        const P = this.palette;
+        const [r, gg, b] = h > CHART_LEVELS[2] ? P.bands[2] : h > CHART_LEVELS[1] ? P.bands[1] : h > CHART_LEVELS[0] ? P.bands[0] : P.deep;
         const k = (j * cw + i) * 4;
         img.data[k] = r;
         img.data[k + 1] = gg;
@@ -182,10 +207,10 @@ export class LandLayer {
     g.save();
     // In world metres from here on.
     g.setTransform(1 / mpp, 0, 0, 1 / mpp, W / 2 - sx / mpp, H / 2 - sz / mpp);
-    g.fillStyle = css(DEEP);
+    g.fillStyle = css(this.palette.deep);
     for (const s of ready) g.fillRect(s.cell.x0, s.cell.z0, s.cell.size, s.cell.size);
     CHART_LEVELS.forEach((_, l) => {
-      g.fillStyle = css(BANDS[l]);
+      g.fillStyle = css(this.palette.bands[l]);
       for (const s of ready) g.fill(s.paths[s.k]![l]);
     });
     g.restore();
