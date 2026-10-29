@@ -380,9 +380,13 @@ class CoastKit {
     for (const l of region.lamps) square(l.x, l.z).lamps.push(l);
     for (const b of region.berths) square(b.x, b.z).berths.push(b);
     for (const y of region.yards ?? []) square(y.crane.x, y.crane.z).yards!.push(y);
+    // A light on a post goes with its square (its light is drawn apart, seen from afar; the
+    // post is a few metres of pole: owner, Oct 2026, Ålesund at 35 fps on the Quest, its 200
+    // lights' posts 11,000 triangles drawn everywhere).
+    for (const l of region.lights) if (l.tower !== 'lighthouse') square(l.x, l.z).lights.push(l);
     // The lighthouses and landmarks (seen from afar): now, one mesh, always drawn.
     const far: THREE.BufferGeometry[] = [];
-    for (const _ of structureParts({ ...region, ...structuredClone(empty), lights: region.lights, landmarks: region.landmarks } as RegionDef, () => far, [])) void _;
+    for (const _ of structureParts({ ...region, ...structuredClone(empty), lights: region.lights.filter((l) => l.tower === 'lighthouse'), landmarks: region.landmarks } as RegionDef, () => far, [])) void _;
     if (far.length) this.add(far, null);
   }
 

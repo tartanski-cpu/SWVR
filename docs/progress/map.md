@@ -10,6 +10,24 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Ålesund on the Quest: fewer draw calls and triangles (29 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "Has Ålesund had all optimisation passes? I get 35 FPS and between 210 and 300 draw calls."
+
+Measured first (headless, as the Quest draws it, one eye: the headset draws both, so about twice these). The processor isn't the limit (the game's own code is a small share of a frame); the drawing is. At the start, 176 draw calls and 273,000 triangles: the sea 104,000, Ålesund's buildings 48,000, the harbour kit 36,000, the ground 1-6 km out 23,000 in 39 pieces, the near ground 20,000, the lateral beacons drawn as buoys 17,500, the lighthouses and light posts 13,700.
+
+- **The ground ring merged** (`coastView.ts` `mergeMid`; `regions.coastCoarseWedges` 8): the ground from 1 to 6 km out was a mesh (and a draw call) per 2 km chunk, 10-18 a view. Now the chunks are merged into 8 slices round the viewer, so those behind are still left out: at most 8 calls, about 3 in view. Merged again only when the chunks in the ring change (every couple of km). Every coast map.
+- **Coarser on the Quest** (`regions.coastQuest.coastCoarseCell` / `coastCoarseOverlap` 125, from 90 m): the ring's mountains a little plainer, about half the triangles. Seen headless: the Storfjorden's and the town's hills read as before, no gaps.
+- **Beacons aren't buoys** (`package.ts`): after the isolated-danger beacons, the lateral ones too (98 here): a beacon is a pole on its rock, and every mark is drawn everywhere. Only buoys are marks now (53 here). Sunnmøre's package run again; the other maps on their next run.
+- **Light posts near only** (`worldView.ts` CoastKit): the lights and landmarks were one mesh always drawn; a light on a post now goes in its harbour-kit square, drawn within its reach. The light itself is drawn apart and still seen from afar; only the lighthouses stay in the always-drawn mesh (Ålesund's 13,700 → 1,100 triangles).
+- **Result** (one eye): the start facing the boat 176 → 163 draw calls, 273,000 → 204,000 triangles; facing the town 77 → 68, 238,000 → 185,000; off the town 84 → 77, 243,000 → 190,000; the Storfjorden 106 → 92, 207,000 → 179,000.
+- **What's left, not the map's:** the sea surface, 104,000 triangles a view (more than half of what's left; `CONFIG.ocean.mesh`, the main game chat's), and your own boat: looking at her wheelhouse, some 80 of the draw calls are her fittings and controls, each its own. Those two are where the next big gain is.
+- **Tests:** `tests/coastViewBudget.test.ts` (the ring drawn in at most 8 slices, the chunks kept as before, none both near and far). `npm run test:map`, the typecheck and all of `npm test` pass.
+- **Not checked:** the frame rate on the Quest itself.
+- **Shared changes:** `src/world/view/worldView.ts` (light posts into the kit's squares, a few lines).
+
 ### Ålesund and Sunnmøre: West Norway's fjords (28 Oct 2026)
 
 **Owner approved; merged into `next`.**
