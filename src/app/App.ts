@@ -86,7 +86,7 @@ import { SurfListener } from '../world/surf';
 import { REGIONS, regionAt, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
-import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthNear } from '../voyage/plan';
+import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthNear, wholeView } from '../voyage/plan';
 import { planFaceAspect, PlanTable, planTableSize, planTableSpot, type PlanTableForm, type PlanTableSpot } from '../voyage/planTable';
 import { ChartPad, PadFaces, type PadFace } from '../voyage/chartPad';
 import { PlanChartPanel } from '../ui/planChartPanel';
@@ -6215,7 +6215,23 @@ export class App {
     // The quay's planning chart (the table's and the stand's), and the Shipyard signs beside
     // it, or at the spot ashore where neither fits (placed with the table: updatePlan).
     const t = CONFIG.voyage.plan.table;
-    this.quayPad = new ChartPad(this.planPadHost(), { px: t.px, aspect: planFaceAspect(), toolbarShare: t.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in', 'layers'], redrawS: t.redrawS });
+    // One view for everyone at the board (the plan's `view`): anyone's zoom and drag moves everyone's.
+    this.quayPad = new ChartPad(this.planPadHost(), {
+      px: t.px,
+      aspect: planFaceAspect(),
+      toolbarShare: t.toolbarShare,
+      keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in', 'layers'],
+      redrawS: t.redrawS,
+      shared: {
+        // (Never moved yet, the plan's whole-map start: none, so the first to look opens it round their boat.)
+        get: () => {
+          const v = this.world.plan?.view;
+          const w = wholeView();
+          return v && !(v.cx === w.cx && v.cz === w.cz && v.span === w.span) ? v : null;
+        },
+        set: (v) => this.sendPlan('view', [v.cx, v.cz, v.span]),
+      },
+    });
     this.quayPad.setLandSource((id) => this.worldView.terrainPositions(id));
     this.scene.add(this.planAnchor);
     this.shipyardDoor = ShipyardDoor.shipyard(this.menuHost());

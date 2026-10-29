@@ -17,8 +17,11 @@
  *                  ("Toward Castle in sight, on the port bow, 0.8 nm") and it's seen
  *   remove         the point nearest (x, z) within r
  *   undo / clear   the last point off / every point off
- *   zoom / out / whole   the table's view (shared: one table, one chart on it): zoomed in
- *                  on (x, z), out, or the whole map
+ *   view           the quay board's view (shared: one board, one chart on it; owner, 29 Oct
+ *                  2026, "synchronized for all the players"): its centre (x, z) and the sea
+ *                  across it (r, m)
+ *   zoom / out / whole   the old table's steps of that view: zoomed in on (x, z), out, or the
+ *                  whole map
  *   goto           the player put ashore by the table at the harbour nearest them
  *
  * The table stands at the harbour you're at (owner, 29 Oct 2026: "it appears at whichever
@@ -229,6 +232,14 @@ export function applyPlanIntent(world: WorldState, intent: Intent): void {
       plan.view = wholeView();
       changed(plan);
       return;
+    case 'view': {
+      // The quay's board moved by someone (voyage/chartPad.ts shared): everyone's board shows it.
+      if (!at || !Number.isFinite(r) || r <= 0) return;
+      const span = Math.max(CONFIG.voyage.plan.chart.minSpan, Math.min(1e6, r));
+      plan.view = { cx: x, cz: z, span };
+      changed(plan);
+      return;
+    }
     case 'goto': {
       const p = world.players[intent.playerId];
       const at = playerAt(world, intent.playerId);

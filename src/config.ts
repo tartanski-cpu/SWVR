@@ -3131,6 +3131,10 @@ export const CONFIG = {
         dragPx: 5,
         board: { width: 0.8, px: 1024, toolbarShare: 0.13, redrawS: 0.08, ahead: 0.65, below: 0.3, grab: 0.1, reach: 2.5 },
         startSpan: 6000,
+        // The quay board's shared view (voyage/chartPad.ts shared): a move goes out at most every
+        // `shareEveryMs`; a page shows the shared view once it's left it alone `shareHoldMs`.
+        shareEveryMs: 120,
+        shareHoldMs: 700,
         leaf: { px: 1280, redrawS: 0.1, toolbarShare: 0.13, reach: 1.6 },
         plotter: { px: 768, redrawS: 0.15, toolbarShare: 0.16, reach: 1.6 },
       },

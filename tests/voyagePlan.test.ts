@@ -115,6 +115,13 @@ describe('the voyage plan', () => {
     expect(v.z0).toBeGreaterThanOrEqual(b.z0 - 1e-6);
     for (let i = 0; i < 20; i++) plan('out');
     expect(world.plan!.view.span).toBeCloseTo(whole.span, 3);
+    // The quay board's shared view, set outright (anyone's zoom or drag); nonsense ignored, too close kept to the closest.
+    plan('view', 1200, -800, 4000);
+    expect(world.plan!.view).toEqual({ cx: 1200, cz: -800, span: 4000 });
+    plan('view', 1200, -800, -5);
+    expect(world.plan!.view.span).toBe(4000);
+    plan('view', 0, 0, 10);
+    expect(world.plan!.view.span).toBe(CONFIG.voyage.plan.chart.minSpan);
   });
 
   it("a point is reached when any player's boat comes within its reach; the next comes up, with a note; the last ends it", () => {

@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The quay's planning board: one view for everyone (29 Oct 2026)
+
+Owner: "is the big planning board synchronized for all the players in multiplayer? It should be, not the personal VR one, but just that big planning board."
+
+- **One view** (`voyage/chartPad.ts` `shared`; App's quay pad): the board shows the plan's `view` (voyage/plan.ts, the old table's shared view, kept). A zoom or drag shows at once on your board and goes out as the `plan` intent `view` (centre and span), at most every `chart.shareEveryMs` (120 ms); everyone's board takes the shared view once nobody at it here has moved it for `chart.shareHoldMs` (700 ms), so your own drag never fights the others'. The host applies it (span no closer than `chart.minSpan`) and saves it with the plan, as before. Never moved yet, the first to look at it opens it round their boat.
+- **Still each player's own:** the VR chart board and the desktop's M chart (the owner: "not the personal VR one"; the M chart taken as personal too, to be confirmed). The tool in hand and LAYERS stay each player's.
+- **Tests:** tests/chartPad.test.ts: one player's drag and the other's zoom show on both boards; tests/voyagePlan.test.ts: the `view` intent.
+- **Not checked:** in a real two-player game (crewcheck) or on the Quest.
+
 ### Stuck at the top of the stairs: fixed (29 Oct 2026)
 
 Owner: "I still get blocked at the top of the stairs ... I walk up the stairs and I get stuck before the platform and I cannot get past it", "any boat that's got the transverse stairs, they all have the same problem at the top of the stairs".
