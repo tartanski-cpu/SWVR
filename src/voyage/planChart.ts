@@ -22,7 +22,7 @@ import { boatOwnerName, playerBoats } from '../core/launch';
 import { LandLayer } from '../nav/landLayer';
 import { MARKS, PLACES, PORTS, WRECKS } from '../world/archipelago';
 import { REGIONS } from '../world/regions';
-import { nextPoint, pointLabel, type PlanKind } from './plan';
+import { lookSights, lookReach, lookTarget, nextPoint, pointLabel, type PlanKind } from './plan';
 
 /** What a press on the chart does: put a point of a kind, or take the nearest off. */
 export type ChartTool = PlanKind | 'remove';
@@ -90,9 +90,17 @@ export function centreChartOn(v: ChartView, W: number, H: number, x: number, z: 
   return clampChartView({ cx: x, cz: z, span }, W / H);
 }
 
-/** The plan intent a press with `tool` at (x, z) makes, the chart showing `span` m across. */
-export function toolIntent(tool: ChartTool, x: number, z: number, span: number): { ref: string; args: number[] } {
-  return tool === 'remove' ? { ref: 'remove', args: [x, z, span * C().removeShare] } : { ref: `add:${tool}`, args: [x, z] };
+/** What a Look press says where there's nothing to look at near it. */
+export const NOTHING_TO_LOOK_AT = 'Nothing to look at there: press on a landmark (a castle, tower, hill, wreck or light: the small marks named on the chart)';
+
+/**
+ * The plan intent a press with `tool` at (x, z) makes, the chart showing `span` m across;
+ * null for a Look with nothing to look at near it (NOTHING_TO_LOOK_AT: the host would put none).
+ */
+export function toolIntent(tool: ChartTool, x: number, z: number, span: number): { ref: string; args: number[] } | null {
+  if (tool === 'remove') return { ref: 'remove', args: [x, z, span * C().removeShare] };
+  if (tool === 'look') return lookTarget(x, z, lookReach(span)) ? { ref: 'add:look', args: [x, z, lookReach(span)] } : null;
+  return { ref: `add:${tool}`, args: [x, z] };
 }
 
 /** A tidy length for the scale bar (m): 1, 2 or 5 times a power of ten, at most `m`. */
@@ -104,6 +112,8 @@ function niceDistance(m: number): number {
 const PLACES_BY_RANK = [...PLACES].sort((a, b) => a.rank - b.rank);
 const ROUTE = '#e040a0';
 const DONE = '#8a8a8a';
+/** A thing to look at: teal, off the route's magenta. */
+const LOOK = '#18a89a';
 
 /** Draws the planning chart. Each chart (a player's panel, a board) has its own: the land layer keeps its pictures. */
 export class PlanChartPainter {
@@ -205,16 +215,50 @@ export class PlanChartPainter {
       g.textAlign = 'left';
     }
 
-    // The route: joined up (legs done dashed grey), each point numbered and marked by its kind, the next ringed.
+    // The landmarks there are to look at (a Look press goes onto one): a small ring with a dot,
+    // named closer in (CONFIG.voyage.plan.chart.sightNamesSpan), keeping clear of the other names.
+    const C2 = CONFIG.voyage.plan.chart;
+    if (span <= C2.sightsSpan) {
+      for (const s of lookSights()) {
+        const [px, py] = toPx(s.x, s.z);
+        if (!on(px, py)) continue;
+        g.strokeStyle = '#b8f0e8';
+        g.fillStyle = '#b8f0e8';
+        g.lineWidth = 1.5 * ui;
+        g.beginPath();
+        g.arc(px, py, 4.5 * ui, 0, Math.PI * 2);
+        g.stroke();
+        g.beginPath();
+        g.arc(px, py, 1.5 * ui, 0, Math.PI * 2);
+        g.fill();
+        // (Named by its Look point instead, when it's one.)
+        if (span > C2.sightNamesSpan || world.plan?.points.some((p) => p.kind === 'look' && Math.hypot(p.x - s.x, p.z - s.z) < 2)) continue;
+        g.font = font(11, 'italic ');
+        const w = g.measureText(s.name).width;
+        const box: [number, number, number, number] = [px + 7 * ui, py - 7 * ui, px + 7 * ui + w, py + 7 * ui];
+        if (labels.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+        labels.push(box);
+        g.fillText(s.name, px + 7 * ui, py);
+      }
+    }
+
+    // The route (waypoints and stops): joined up (legs done dashed grey), each point numbered
+    // and marked by its kind, the next ringed. Things to look at aren't on it: each a teal
+    // diamond on its landmark, with its number and name (grey once seen).
     const plan = world.plan;
     if (plan?.points.length) {
       const pts = plan.points;
+      const route = pts.map((p, i) => ({ p, i })).filter((r) => r.p.kind !== 'look');
+      const next = nextPoint(world)?.i ?? pts.length;
       g.lineWidth = 3 * ui;
-      for (let i = 1; i < pts.length; i++) {
-        const [ax, ay] = toPx(pts[i - 1].x, pts[i - 1].z);
-        const [bx, by] = toPx(pts[i].x, pts[i].z);
-        g.strokeStyle = i <= plan.next ? DONE : ROUTE;
-        g.setLineDash(i <= plan.next ? [8 * ui, 8 * ui] : []);
+      for (let k = 1; k < route.length; k++) {
+        const a = route[k - 1].p;
+        const b = route[k];
+        const [ax, ay] = toPx(a.x, a.z);
+        const [bx, by] = toPx(b.p.x, b.p.z);
+        const done = b.i < plan.next;
+        g.strokeStyle = done ? DONE : ROUTE;
+        g.setLineDash(done ? [8 * ui, 8 * ui] : []);
         g.beginPath();
         g.moveTo(ax, ay);
         g.lineTo(bx, by);
@@ -225,10 +269,12 @@ export class PlanChartPainter {
         const [px, py] = toPx(p.x, p.z);
         if (!on(px, py)) return;
         const r = 8 * ui;
-        g.fillStyle = i < plan.next ? DONE : ROUTE;
+        const look = p.kind === 'look';
+        const grey = look ? !!p.seen : i < plan.next;
+        g.fillStyle = grey ? DONE : look ? LOOK : ROUTE;
         g.beginPath();
         if (p.kind === 'stop') g.rect(px - r, py - r, 2 * r, 2 * r);
-        else if (p.kind === 'look') {
+        else if (look) {
           g.moveTo(px, py - r * 1.25);
           g.lineTo(px + r * 1.25, py);
           g.lineTo(px, py + r * 1.25);
@@ -242,11 +288,11 @@ export class PlanChartPainter {
         g.fillText(String(i + 1), px, py + 0.5);
         g.textAlign = 'left';
         if (p.name) {
-          g.fillStyle = i < plan.next ? '#c0c0c0' : '#ffc0e4';
+          g.fillStyle = grey ? '#c0c0c0' : look ? '#b8f0e8' : '#ffc0e4';
           g.font = font(13, 'bold ');
-          g.fillText(p.name, px + 12 * ui, py + 14 * ui);
+          g.fillText(look ? `${p.name}${p.seen ? ' (seen)' : ''}` : p.name, px + 12 * ui, py + 14 * ui);
         }
-        if (i === plan.next) {
+        if (i === next) {
           g.strokeStyle = '#ffffff';
           g.lineWidth = 2.5 * ui;
           g.beginPath();
@@ -333,7 +379,7 @@ export class PlanChartPainter {
 export function nextLine(world: WorldState, ownBoatId: string): string {
   const n = nextPoint(world);
   if (!world.plan?.points.length) return 'No plan yet: pick Waypoint, Stop or Look at, and press on the chart.';
-  if (!n) return 'The plan is done: every point reached.';
+  if (!n) return world.plan.points.some((p) => p.kind !== 'look') ? 'The route is done: every point reached.' : 'No route yet: only things to look at (seen on the way). Put waypoints or stops.';
   const b = world.vessels[ownBoatId];
   const far = b ? ` · ${(Math.hypot(n.p.x - b.position[0], n.p.z - b.position[2]) / 1852).toFixed(1)} nm` : '';
   return `Next: ${pointLabel(n.p, n.i)}${far}`;

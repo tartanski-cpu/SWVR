@@ -8,7 +8,7 @@
  */
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
-import { centreChartOn, chartToWorld, nextLine, panChart, PlanChartPainter, toolIntent, wholeChartView, zoomChartAt, type ChartTool, type ChartView } from '../voyage/planChart';
+import { centreChartOn, chartToWorld, nextLine, NOTHING_TO_LOOK_AT, panChart, PlanChartPainter, toolIntent, wholeChartView, zoomChartAt, type ChartTool, type ChartView } from '../voyage/planChart';
 
 export interface PlanChartHost {
   world(): WorldState;
@@ -21,7 +21,7 @@ export interface PlanChartHost {
 const TOOLS: { tool: ChartTool; text: string; tip: string }[] = [
   { tool: 'way', text: 'Waypoint', tip: 'Click on the chart to put a waypoint there' },
   { tool: 'stop', text: 'Stop', tip: 'Click to put a stop there (it takes the nearest harbour’s name)' },
-  { tool: 'look', text: 'Look at', tip: 'Click on something to look at (a castle, a monument, a hill, a wreck, a light)' },
+  { tool: 'look', text: 'Look at', tip: 'Click on a landmark to look at on the way (a castle, a tower, a hill, a wreck, a light: the small marks on the chart); not steered for, but the crew are told when it comes in sight' },
   { tool: 'remove', text: 'Remove', tip: 'Click by a point to take it off' },
 ];
 
@@ -115,7 +115,9 @@ export class PlanChartPanel {
       const v = this.v();
       const [x, z] = chartToWorld(v, this.canvas.width, this.canvas.height, px, py);
       const it = toolIntent(this.tool, x, z, v.span);
-      this.host.send(it.ref, it.args);
+      if (it) this.host.send(it.ref, it.args);
+      else this.say = { text: NOTHING_TO_LOOK_AT, until: performance.now() + 4000 };
+      this.shown = '';
     });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('keydown', (e) => {
@@ -167,14 +169,18 @@ export class PlanChartPanel {
     // (Your boat and the crew's move: their positions to a few pixels, so it redraws as they do.)
     const mpp = v.span / this.canvas.width;
     const boats = Object.values(world.vessels).map((b) => `${Math.round(b.position[0] / mpp / 3)},${Math.round(b.position[2] / mpp / 3)}`).join(';');
-    const key = `${v.cx.toFixed(1)} ${v.cz.toFixed(1)} ${v.span.toFixed(1)} ${this.canvas.width} ${world.plan?.seq ?? -1} ${boats}`;
+    if (this.say && performance.now() > this.say.until) this.say = null;
+    const key = `${v.cx.toFixed(1)} ${v.cz.toFixed(1)} ${v.span.toFixed(1)} ${this.canvas.width} ${world.plan?.seq ?? -1} ${boats} ${!!this.say}`;
     if (this.clearArmed && performance.now() > this.clearArmed) this.disarmClear();
     if (key === this.shown) return;
     this.shown = key;
     // (Coast still being outlined: drawn again next frame.)
     if (this.painter.paint(this.g, this.canvas.width, this.canvas.height, world, v, devicePixelRatio, own)) this.shown = '';
-    this.foot.textContent = `${nextLine(world, own)}     ·     Wheel: zoom   ·   Drag: move the chart   ·   Click: ${TOOLS.find((t) => t.tool === this.tool)!.text.toLowerCase()}`;
+    this.foot.textContent = this.say ? this.say.text : `${nextLine(world, own)}     ·     Wheel: zoom   ·   Drag: move the chart   ·   Click: ${TOOLS.find((t) => t.tool === this.tool)!.text.toLowerCase()}`;
   }
+
+  /** A word along the foot for a few seconds (a Look press with nothing to look at). */
+  private say: { text: string; until: number } | null = null;
 
   private v(): ChartView {
     return (this.view ??= wholeChartView(this.aspect()));

@@ -3,7 +3,7 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import type { HandFrame } from '../controls/InteractionSystem';
 import type { Handedness } from '../player/xrInput';
-import { centreChartOn, chartToWorld, nextLine, panChart, PlanChartPainter, toolIntent, wholeChartView, zoomChartAt, type ChartTool, type ChartView } from './planChart';
+import { centreChartOn, chartToWorld, nextLine, NOTHING_TO_LOOK_AT, panChart, PlanChartPainter, toolIntent, wholeChartView, zoomChartAt, type ChartTool, type ChartView } from './planChart';
 
 /**
  * A planning chart on a surface (owner, 28-29 Oct 2026: the planning chart "in your hands, on
@@ -51,7 +51,7 @@ const KEY_TEXT: Record<PadKey, string> = { way: 'WAY', stop: 'STOP', look: 'LOOK
 const KEY_HOVER: Record<PadKey, string> = {
   way: 'Waypoint: press the chart to put one',
   stop: 'Stop: press the chart to put one (it takes the nearest harbour’s name)',
-  look: 'Look at: press on something (a castle, a hill, a wreck, a light)',
+  look: 'Look at: press on a landmark (a castle, a tower, a hill, a wreck, a light): seen on the way, not steered for',
   remove: 'Remove: press by a point to take it off',
   undo: 'Undo: the last point off',
   clear: 'Clear the plan (press twice)',
@@ -61,7 +61,7 @@ const KEY_HOVER: Record<PadKey, string> = {
   in: 'Zoom in',
   close: 'Put the chart away',
 };
-const TOOL_WORDS: Record<ChartTool, string> = { way: 'a waypoint', stop: 'a stop', look: 'a thing to look at', remove: 'take a point off' };
+const TOOL_WORDS: Record<ChartTool, string> = { way: 'a waypoint', stop: 'a stop', look: 'a landmark to look at', remove: 'take a point off' };
 
 export class ChartPad {
   readonly canvas = document.createElement('canvas');
@@ -79,6 +79,8 @@ export class ChartPad {
   private press: { px: number; py: number; moved: boolean } | null = null;
   private wasDown = false;
   private clearArmed = 0;
+  /** Until when (ms) the top line says a Look press found nothing to look at; 0 not. */
+  private say = 0;
   private shown = '';
   private since = Infinity;
 
@@ -150,7 +152,8 @@ export class ChartPad {
           const v = this.v();
           const [x, z] = chartToWorld(v, this.W, this.chartH, p.px, p.py);
           const it = toolIntent(this.tool, x, z, v.span);
-          this.host.send(it.ref, it.args);
+          if (it) this.host.send(it.ref, it.args);
+          else this.say = performance.now() + 4000;
         }
         this.shown = '';
       }
@@ -177,12 +180,13 @@ export class ChartPad {
   update(dt: number): void {
     this.since += dt;
     if (this.clearArmed && performance.now() > this.clearArmed) this.clearArmed = 0;
+    if (this.say && performance.now() > this.say) this.say = 0;
     const world = this.host.world();
     const v = this.v();
     const mpp = v.span / this.W;
     const boats = Object.values(world.vessels).map((b) => `${Math.round(b.position[0] / mpp / 4)},${Math.round(b.position[2] / mpp / 4)}`).join(';');
     const ptr = this.pointer ? `${Math.round(this.pointer[0] / 4)},${Math.round(this.pointer[1] / 4)}` : '-';
-    const key = `${v.cx.toFixed(1)} ${v.cz.toFixed(1)} ${v.span.toFixed(1)} ${world.plan?.seq ?? -1} ${boats} ${ptr} ${this.tool} ${this.clearArmed > 0}`;
+    const key = `${v.cx.toFixed(1)} ${v.cz.toFixed(1)} ${v.span.toFixed(1)} ${world.plan?.seq ?? -1} ${boats} ${ptr} ${this.tool} ${this.clearArmed > 0} ${this.say > 0}`;
     if (key === this.shown || this.since < this.opts.redrawS) return;
     this.shown = key;
     this.since = 0;
@@ -194,11 +198,11 @@ export class ChartPad {
     // The next point, along the chart's top (its scale bar is along its foot).
     g.fillStyle = 'rgba(10, 24, 32, 0.8)';
     g.fillRect(0, 0, this.W - 48 * ui, 26 * ui);
-    g.fillStyle = '#ffc0e4';
+    g.fillStyle = this.say ? '#ffd27a' : '#ffc0e4';
     g.font = `bold ${Math.round(13 * ui)}px system-ui, sans-serif`;
     g.textBaseline = 'middle';
     g.textAlign = 'left';
-    g.fillText(nextLine(world, this.host.ownBoatId()), 10 * ui, 13 * ui, this.W - 64 * ui);
+    g.fillText(this.say ? NOTHING_TO_LOOK_AT : nextLine(world, this.host.ownBoatId()), 10 * ui, 13 * ui, this.W - 64 * ui);
     // The keys.
     const kh = this.H - this.chartH;
     const kw = this.W / this.keys.length;

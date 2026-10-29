@@ -3899,8 +3899,8 @@ export class App {
       planLine: () => {
         const n = nextPoint(this.world);
         const v = this.world.vessels[this.testVesselId];
-        if (!this.world.plan?.points.length) return MODE === 'voyage' ? 'No plan yet: open the chart (M), or the table on the start quay' : 'No plan yet: open the chart (M) to plan one';
-        if (!n) return 'Plan done: every point reached';
+        if (!this.world.plan?.points.length) return MODE === 'voyage' ? 'No plan yet: open the chart (M), or the table on the quay' : 'No plan yet: open the chart (M) to plan one';
+        if (!n) return this.world.plan.points.some((p) => p.kind !== 'look') ? 'Route done: every point reached' : 'No route yet: only things to look at (seen on the way)';
         const d = v ? Math.hypot(n.p.x - v.position[0], n.p.z - v.position[2]) / 1852 : 0;
         return `Next: ${pointLabel(n.p, n.i)}, ${d.toFixed(1)} nm`;
       },

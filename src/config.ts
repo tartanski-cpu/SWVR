@@ -3034,12 +3034,14 @@ export const CONFIG = {
      * chartplotter then shows the route and steers for its next point.
      *   maxPoints   points in a plan at most
      *   reach       how near any player's boat must come to a point (m) for it to count as
-     *               reached and the next to come up: a waypoint, a stop (in the harbour),
-     *               a thing to look at (seen from the water)
+     *               reached and the next to come up: a waypoint, a stop (in the harbour);
+     *               for a thing to look at (not on the route), how near is in sight: the
+     *               crew are told where it is
      *   nameStopM   a stop takes the name of the nearest harbour within this (m), else
-     *               "off" the nearest town; `nameLookM` a thing to look at takes the name of
-     *               the nearest castle, monument, tower, hill, wreck or light within it,
-     *               else the nearest town
+     *               "off" the nearest town
+     *   nameLookM, lookShare  a Look press goes onto the nearest castle, monument, tower,
+     *               hill, wreck or light within `lookShare` of the chart's width (200 m at
+     *               least, `nameLookM` at most); none there, no point
      *   removeShare Remove takes the point nearest the press within this share of the
      *               chart's width
      *   minSpan     the old shared table view (the `zoom` intent) zoomed in as far as it
@@ -3057,10 +3059,11 @@ export const CONFIG = {
      */
     plan: {
       maxPoints: 30,
-      reach: { way: 150, stop: 300, look: 900 },
+      reach: { way: 150, stop: 300, look: 2000 },
       nameStopM: 1500,
       nameLookM: 2500,
       removeShare: 0.05,
+      lookShare: 0.06,
       minSpan: 1500,
       table: {
         width: 2.4,
@@ -3081,6 +3084,8 @@ export const CONFIG = {
        * (player/chartBoard.ts).
        *   minSpan         as close in as it goes (m across)
        *   portNamesSpan   ports named this close in and closer (m across); dots further out
+       *   sightsSpan, sightNamesSpan  the landmarks a Look press can take (castles, towers,
+       *                   hills, wrecks, lights) marked this close in, named closer still
        *   wheelStep       a mouse wheel notch zooms by this
        *   stickZoomPerS   VR: the right thumbstick held over the board zooms by this a second
        *   dragPx          a press that moves less than this (px) is a press on the chart, not a drag
@@ -3099,6 +3104,8 @@ export const CONFIG = {
       chart: {
         minSpan: 300,
         portNamesSpan: 20000,
+        sightsSpan: 30000,
+        sightNamesSpan: 9000,
         wheelStep: 1.2,
         stickZoomPerS: 3,
         dragPx: 5,

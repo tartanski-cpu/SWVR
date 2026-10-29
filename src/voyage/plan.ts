@@ -7,9 +7,14 @@
  * the host decides: everyone works the planning table on the quay (voyage/planTable.ts),
  * which sends the env intent `plan` (ref: what to do, args: where on the chart):
  *
- *   add:way / add:stop / add:look  a point at (x, z): a waypoint, a stop, a thing to look at;
- *                  a stop takes the nearest harbour's name, a look the nearest named castle,
- *                  monument, tower, hill, wreck or light (else the nearest town)
+ *   add:way / add:stop  a point of the route at (x, z): a waypoint, or a stop (it takes the
+ *                  nearest harbour's name)
+ *   add:look       a thing to look at on the way (owner, 29 Oct 2026: "all three for Look"):
+ *                  the named castle, monument, tower, hill, wreck or light nearest (x, z)
+ *                  within r (else none is put), put on it with its name. Not part of the
+ *                  route: nothing steers for it; when any boat comes within sight of it
+ *                  (CONFIG.voyage.plan.reach.look), the crew are told where it is from her
+ *                  ("Toward Castle in sight, on the port bow, 0.8 nm") and it's seen
  *   remove         the point nearest (x, z) within r
  *   undo / clear   the last point off / every point off
  *   zoom / out / whole   the table's view (shared: one table, one chart on it): zoomed in
@@ -20,15 +25,16 @@
  * harbour the players are at, not only where Go was used"): each page puts it at the harbour
  * nearest its player (tableBerthNear), and Go to the table lands you by the one nearest you.
  *
- * Afloat, the plan's next point is every boat's: the chartplotter draws the route and steers
- * for it (nav/chartPlotter.ts), and when any player's boat comes within its reach
- * (CONFIG.voyage.plan.reach) it's reached: a note to everyone, and the next one comes up.
+ * Afloat, the route's next point (a waypoint or a stop; things to look at aren't on it) is every
+ * boat's: the chartplotter draws the route and steers for it (nav/chartPlotter.ts), and when
+ * any player's boat comes within its reach (CONFIG.voyage.plan.reach) it's reached: a note to
+ * everyone, and the next one comes up.
  * The host saves the plan for each map in the browser (savePlanText / parsePlan).
  */
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
-import { playerBoats } from '../core/launch';
+import { boatOwnerName, playerBoats } from '../core/launch';
 import { sheetById } from '../nav/chartSheets';
 import { placeAshore } from '../player/playerControl';
 import { FARMS, PORTS } from '../world/archipelago';
@@ -43,6 +49,8 @@ export interface PlanPoint {
   kind: PlanKind;
   /** What it is: a harbour's or a landmark's name, or none (a plain waypoint). */
   name: string;
+  /** A thing to look at, seen: a boat came within sight of it. */
+  seen?: boolean;
 }
 
 /** The table's view: its centre and the sea across it (m); the depth is that over the table's aspect. */
@@ -95,6 +103,12 @@ function clampView(v: PlanView): PlanView {
 }
 
 /** Everything on the map with a name worth looking at, and where. */
+/** The things there are to look at (named castles, monuments, towers, hills, wrecks, lights), for a Look press and the planning chart's marks. */
+export function lookSights(): readonly { name: string; x: number; z: number }[] {
+  return (sightList ??= sights());
+}
+let sightList: { name: string; x: number; z: number }[] | null = null;
+
 function sights(): { name: string; x: number; z: number }[] {
   const out: { name: string; x: number; z: number }[] = [];
   for (const r of REGIONS) {
@@ -118,18 +132,23 @@ function nearest<T extends { x: number; z: number }>(list: readonly T[], x: numb
 
 const places = () => REGIONS.flatMap((r) => r.places ?? []);
 
-/** A new point's name: a stop by its harbour, a look by its landmark (else off the nearest town); a waypoint has none. */
+/** A new point's name: a stop by its harbour (else off the nearest town); a waypoint has none. */
 export function pointName(kind: PlanKind, x: number, z: number): string {
   if (kind === 'way') return '';
-  if (kind === 'stop') {
-    const port = nearest(PORTS, x, z, C().nameStopM);
-    if (port) return port.name.replace(' (anchorage)', '');
-  } else {
-    const sight = nearest(sights(), x, z, C().nameLookM);
-    if (sight) return sight.name;
-  }
+  const port = nearest(PORTS, x, z, C().nameStopM);
+  if (port) return port.name.replace(' (anchorage)', '');
   const town = nearest(places(), x, z, Infinity);
   return town ? `off ${town.name}` : '';
+}
+
+/** The thing to look at a press at (x, z) takes: the named castle, monument, tower, hill, wreck or light nearest it within `within` m (at most `nameLookM`), or none. */
+export function lookTarget(x: number, z: number, within = C().nameLookM): { name: string; x: number; z: number } | undefined {
+  return nearest(lookSights(), x, z, Math.min(within, C().nameLookM));
+}
+
+/** How far a Look press reaches for its landmark on a chart `span` m across (CONFIG.voyage.plan.lookShare of it, 200 m at least). */
+export function lookReach(span: number): number {
+  return Math.min(C().nameLookM, Math.max(200, span * C().lookShare));
 }
 
 /** "Stop 2: Rothesay", "Look 3: Toward Castle", "Waypoint 4". */
@@ -141,8 +160,11 @@ export function pointLabel(p: PlanPoint, i: number): string {
 /** The next point to make for, and its number, or null (no plan, or it's done). */
 export function nextPoint(world: WorldState): { p: PlanPoint; i: number } | null {
   const plan = world.plan;
-  if (!plan || plan.next >= plan.points.length) return null;
-  return { p: plan.points[plan.next], i: plan.next };
+  if (!plan) return null;
+  // (Things to look at aren't on the route: passed over.)
+  let i = plan.next;
+  while (i < plan.points.length && plan.points[i].kind === 'look') i++;
+  return i < plan.points.length ? { p: plan.points[i], i } : null;
 }
 
 function changed(plan: VoyagePlan): void {
@@ -159,7 +181,12 @@ export function applyPlanIntent(world: WorldState, intent: Intent): void {
   if (action.startsWith('add:')) {
     const kind = action.slice(4) as PlanKind;
     if (!at || !['way', 'stop', 'look'].includes(kind) || plan.points.length >= C().maxPoints) return;
-    plan.points.push({ x: Math.round(x), z: Math.round(z), kind, name: pointName(kind, x, z) });
+    if (kind === 'look') {
+      // On the landmark, with its name; nothing to look at near the press: none put.
+      const sight = lookTarget(x, z, Number.isFinite(r) ? r : undefined);
+      if (!sight) return;
+      plan.points.push({ x: Math.round(sight.x), z: Math.round(sight.z), kind, name: sight.name });
+    } else plan.points.push({ x: Math.round(x), z: Math.round(z), kind, name: pointName(kind, x, z) });
     changed(plan);
     return;
   }
@@ -251,20 +278,47 @@ export function isPlanIntent(control: string): boolean {
 }
 
 /**
- * One tick: the next point reached when any player's boat comes within its reach. Then a
- * note for everyone (the pages show it once), and the next point comes up.
+ * One tick: a thing to look at come within sight of any player's boat (seen, and the crew told
+ * where it is from her), or else the route's next point reached when any player's boat comes
+ * within its reach (the next one comes up). A note for everyone (the pages show it once).
  */
 export function stepPlan(world: WorldState): void {
   const plan = world.plan;
-  const n = nextPoint(world);
-  if (!plan || !n) return;
-  const reach = C().reach[n.p.kind];
+  if (!plan) return;
   const boats = playerBoats(world);
-  if (!boats.some((v) => Math.hypot(v.position[0] - n.p.x, v.position[2] - n.p.z) <= reach)) return;
-  plan.next += 1;
+  const within = (x: number, z: number, r: number) => boats.find((v) => Math.hypot(v.position[0] - x, v.position[2] - z) <= r);
+  for (let i = 0; i < plan.points.length; i++) {
+    const p = plan.points[i];
+    if (p.kind !== 'look' || p.seen) continue;
+    const b = within(p.x, p.z, C().reach.look);
+    if (!b) continue;
+    p.seen = true;
+    const from = boats.length > 1 ? ` from ${boatOwnerName(world, b)}'s boat` : '';
+    const nm = Math.hypot(p.x - b.position[0], p.z - b.position[2]) / 1852;
+    plan.note = { text: `${pointLabel(p, i)} in sight${from}: ${sightWords(b, p.x, p.z)}, ${nm.toFixed(1)} nm.`, t: world.time };
+    plan.seq += 1;
+    return;
+  }
+  const n = nextPoint(world);
+  if (!n || !within(n.p.x, n.p.z, C().reach[n.p.kind])) return;
+  plan.next = n.i + 1;
   const after = nextPoint(world);
-  plan.note = { text: `${pointLabel(n.p, n.i)} reached. ${after ? `Next: ${pointLabel(after.p, after.i)}` : 'That was the last point of the plan: voyage done.'}`, t: world.time };
+  plan.note = { text: `${pointLabel(n.p, n.i)} reached. ${after ? `Next: ${pointLabel(after.p, after.i)}` : 'That was the last point of the route: voyage done.'}`, t: world.time };
   plan.seq += 1;
+}
+
+/** Where (x, z) is from a boat, as you'd say it aboard: "dead ahead", "on the port bow", "abeam to starboard", "on the starboard quarter", "astern". */
+export function sightWords(b: { position: readonly number[]; orientation: readonly number[] }, x: number, z: number): string {
+  // Her course and the bearing, both as a compass's (0 north, -z; 90 east, +x).
+  const [qx, qy, qz, qw] = b.orientation;
+  const course = Math.atan2(-(2 * (qx * qz + qw * qy)), 1 - 2 * (qx * qx + qy * qy));
+  const bearing = Math.atan2(x - b.position[0], -(z - b.position[2]));
+  let rel = (((bearing - course) * 180) / Math.PI) % 360;
+  if (rel > 180) rel -= 360;
+  if (rel <= -180) rel += 360;
+  const side = rel > 0 ? 'starboard' : 'port';
+  const a = Math.abs(rel);
+  return a < 12 ? 'dead ahead' : a < 60 ? `on the ${side} bow` : a < 120 ? `abeam to ${side}` : a < 165 ? `on the ${side} quarter` : 'astern';
 }
 
 /** The plan for saving (the host's, per map): its points, how far along, the table's view. */
@@ -282,7 +336,7 @@ export function parsePlan(raw: string | null): VoyagePlan | null {
     for (const p of o.points as PlanPoint[]) {
       if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.z) || !['way', 'stop', 'look'].includes(p.kind)) continue;
       if (plan.points.length >= C().maxPoints) break;
-      plan.points.push({ x: p.x, z: p.z, kind: p.kind, name: typeof p.name === 'string' ? p.name.slice(0, 60) : '' });
+      plan.points.push({ x: p.x, z: p.z, kind: p.kind, name: typeof p.name === 'string' ? p.name.slice(0, 60) : '', ...(p.kind === 'look' && p.seen === true ? { seen: true } : {}) });
     }
     plan.next = Number.isFinite(o.next) ? Math.max(0, Math.min(plan.points.length, Math.floor(o.next as number))) : 0;
     const v = o.view;

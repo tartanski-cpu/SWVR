@@ -10,7 +10,8 @@ import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { createPlayerState } from '../src/player/playerState';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { createPlan, nextPoint, parsePlan, planAspect, pointLabel, savePlanText, tableBerthNear, viewBounds, wholeView } from '../src/voyage/plan';
+import { createPlan, lookSights, nextPoint, parsePlan, planAspect, pointLabel, savePlanText, sightWords, tableBerthNear, viewBounds, wholeView } from '../src/voyage/plan';
+import { toolIntent } from '../src/voyage/planChart';
 import { BERTHS } from '../src/world/archipelago';
 import { FARMS, PORTS } from '../src/world/archipelago';
 import { quaySpot, startBerthId } from '../src/world/startSpot';
@@ -40,6 +41,44 @@ describe('the voyage plan', () => {
     plan('add:way');
     plan('add:anchor', 0, 0);
     expect(world.plan!.points).toHaveLength(3);
+  });
+
+  it('a look goes onto its landmark (none near the press, none put); it is not on the route, and is called out when a boat comes within sight', () => {
+    const { world, vesselId, plan } = game();
+    const wreck = lookSights().find((s) => s.name === 'Margaret Ann')!;
+    // (Out of sight of it while planning: she starts a kilometre or so from it.)
+    placeVessel(world.vessels[vesselId], 8000, 0, -8000, 0);
+    plan('add:way', 2000, -3000);
+    plan('add:look', wreck.x + 120, wreck.z - 80, 300);
+    plan('add:look', 2000, -3000, 50); // open water: nothing to look at
+    plan('add:stop', 4000, -3000);
+    const p = world.plan!.points;
+    expect(p.map((o) => o.kind)).toEqual(['way', 'look', 'stop']);
+    expect([p[1].x, p[1].z]).toEqual([Math.round(wreck.x), Math.round(wreck.z)]);
+    expect(toolIntent('look', 2000, -3000, 1000)).toBeNull();
+    expect(toolIntent('look', wreck.x + 30, wreck.z, 1000)!.ref).toBe('add:look');
+    // The route passes over it: the next after the waypoint is the stop.
+    const home = world.vessels[vesselId];
+    placeVessel(home, 2000, 0, -3000, 0);
+    stepWorld(world, [], 1 / 20);
+    expect(nextPoint(world)!.i).toBe(2);
+    expect(world.plan!.note!.text).toMatch(/Next: Stop 3/);
+    // Within sight of it, heading north with it to the north-west: called out, and seen once.
+    placeVessel(home, wreck.x + 600, 0, wreck.z + 600, 0);
+    stepWorld(world, [], 1 / 20);
+    expect(p[1].seen).toBe(true);
+    expect(world.plan!.note!.text).toMatch(/^Look 2: Margaret Ann in sight: on the port bow, 0\.5 nm\.$/);
+    const t = world.plan!.note!.t;
+    stepWorld(world, [], 1 / 20);
+    expect(world.plan!.note!.t).toBe(t);
+    expect(parsePlan(savePlanText(world.plan!))!.points[1].seen).toBe(true);
+    // Where it is from her, as you'd say it aboard.
+    const at = (deg: number) => ({ position: [0, 0, 0], orientation: [0, Math.sin((-deg * Math.PI) / 360), 0, Math.cos((-deg * Math.PI) / 360)] });
+    expect(sightWords(at(0), 0, -1000)).toBe('dead ahead');
+    expect(sightWords(at(0), 1000, 0)).toBe('abeam to starboard');
+    expect(sightWords(at(90), 0, -1000)).toBe('abeam to port');
+    expect(sightWords(at(0), -700, 700)).toBe('on the port quarter');
+    expect(sightWords(at(0), 0, 1000)).toBe('astern');
   });
 
   it('remove the nearest within reach, undo the last, clear; at most maxPoints', () => {

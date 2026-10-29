@@ -52,12 +52,12 @@ describe('the planning chart', () => {
   it('plans in the career too: points added from the chart, and taken off', () => {
     const { world } = createWorld(new IdFactory(), 'workboat');
     const send = (ref: string, args?: number[]) => stepWorld(world, [{ playerId: 'p', targetId: ENVIRONMENT_ID, control: 'plan', value: 1, ref, ...(args ? { args } : {}) } as Intent], 1 / 60);
-    const add = toolIntent('way', 1500, -800, 8000);
+    const add = toolIntent('way', 1500, -800, 8000)!;
     send(add.ref, add.args);
-    const stop = toolIntent('stop', 3000, 400, 8000);
+    const stop = toolIntent('stop', 3000, 400, 8000)!;
     send(stop.ref, stop.args);
     expect(world.plan?.points.map((p) => p.kind)).toEqual(['way', 'stop']);
-    const del = toolIntent('remove', 1510, -790, 8000);
+    const del = toolIntent('remove', 1510, -790, 8000)!;
     send(del.ref, del.args);
     expect(world.plan?.points.map((p) => p.kind)).toEqual(['stop']);
   });

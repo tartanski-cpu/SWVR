@@ -883,16 +883,19 @@ export class ChartPlotter {
       g.fillText(boatOwnerName(world, b).toUpperCase(), px + 10, py + 14);
     }
 
-    // The voyage plan: the route joined up (legs done dashed grey), each point numbered, the next ringed.
+    // The voyage plan: the route (waypoints and stops) joined up (legs done dashed grey), each
+    // point numbered, the next ringed; things to look at off it, teal diamonds (grey once seen).
     const plan = world.plan;
     if (plan?.points.length) {
       const pts = plan.points;
+      const route = pts.map((p, i) => ({ p, i })).filter((r) => r.p.kind !== 'look');
       g.lineWidth = 3;
-      for (let i = 1; i < pts.length; i++) {
-        const [ax, ay] = toPx(pts[i - 1].x, pts[i - 1].z);
-        const [bx, by] = toPx(pts[i].x, pts[i].z);
-        g.strokeStyle = i <= plan.next ? '#8a8a8a' : '#e040a0';
-        g.setLineDash(i <= plan.next ? [8, 8] : []);
+      for (let k = 1; k < route.length; k++) {
+        const [ax, ay] = toPx(route[k - 1].p.x, route[k - 1].p.z);
+        const [bx, by] = toPx(route[k].p.x, route[k].p.z);
+        const done = route[k].i < plan.next;
+        g.strokeStyle = done ? '#8a8a8a' : '#e040a0';
+        g.setLineDash(done ? [8, 8] : []);
         g.beginPath();
         g.moveTo(ax, ay);
         g.lineTo(bx, by);
@@ -902,10 +905,11 @@ export class ChartPlotter {
       g.font = 'bold 14px system-ui, sans-serif';
       pts.forEach((p, i) => {
         const [px, py] = toPx(p.x, p.z);
-        g.fillStyle = i < plan.next ? '#8a8a8a' : '#e040a0';
+        const look = p.kind === 'look';
+        g.fillStyle = (look ? p.seen : i < plan.next) ? '#8a8a8a' : look ? '#18a89a' : '#e040a0';
         g.beginPath();
         if (p.kind === 'stop') g.rect(px - 7, py - 7, 14, 14);
-        else if (p.kind === 'look') {
+        else if (look) {
           g.moveTo(px, py - 9);
           g.lineTo(px + 9, py);
           g.lineTo(px, py + 9);
@@ -913,14 +917,14 @@ export class ChartPlotter {
           g.closePath();
         } else g.arc(px, py, 6, 0, Math.PI * 2);
         g.fill();
-        if (i === plan.next) {
+        if (i === planNext?.i) {
           g.strokeStyle = '#ffd23a';
           g.lineWidth = 3;
           g.beginPath();
           g.arc(px, py, 14, 0, Math.PI * 2);
           g.stroke();
         }
-        g.fillStyle = '#ffe0f0';
+        g.fillStyle = look ? '#b8f0e8' : '#ffe0f0';
         g.fillText(`${i + 1}${p.name ? ` ${p.name.toUpperCase()}` : ''}`, px + 11, py - 9);
       });
     }

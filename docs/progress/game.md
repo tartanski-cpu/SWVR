@@ -10,6 +10,20 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Look at: on a landmark, off the route, called out in sight (29 Oct 2026)
+
+Owner, trying the planning chart: "the look function just did the same as waypoints"; then "go ahead with all three for Look" (snap to the landmark; not on the route; a call when it comes in sight).
+
+- **On its landmark** (`voyage/plan.ts` `lookTarget`, `lookReach`): a Look press goes onto the nearest named castle, monument, tower, hill, wreck or light within `lookShare` (0.06) of the chart's width (200 m at least, `nameLookM` 2500 m at most), and takes its name. Nothing there: no point, and the chart says so for a few seconds (`planChart.ts` `NOTHING_TO_LOOK_AT`; `toolIntent` returns null; the desktop panel's foot, the pads' top line). The host checks again (the `add:look` intent carries the reach).
+- **Off the route:** `nextPoint` passes over things to look at, so the chartplotter never steers for one and reaching the route's points ignores them. The planning chart and the plotter join only the waypoints and stops; a look is a teal diamond on its own, grey with "(seen)" once seen.
+- **Called out in sight** (`stepPlan`, `sightWords`): when any player's boat comes within `reach.look` (now 2000 m, was 900) of an unseen one, it's seen, and everyone gets a note of where it is from her: "Look 2: Margaret Ann in sight: on the port bow, 0.5 nm" (dead ahead, bow, abeam, quarter, astern; "from Bosun's boat" with more than one boat). One a tick. `seen` is saved with the plan.
+- **The landmarks on the chart:** small pale rings closer in than `chart.sightsSpan` (30 km), named closer than `chart.sightNamesSpan` (9 km), so you can see what there is to look at (`lookSights`, cached).
+- **Wording:** a plan with only things to look at says "No route yet" rather than "done".
+- **Config:** `CONFIG.voyage.plan.lookShare`, `reach.look` 2000, `chart.sightsSpan`, `chart.sightNamesSpan`.
+- **Tests:** tests/voyagePlan.test.ts: a look goes onto the wreck (and none in open water), the route passes over it, it's called out on the port bow at 0.5 nm once, `seen` saved; `sightWords` ahead, abeam, quarter, astern. tests/planChart.test.ts: `toolIntent` may now be null.
+- **Checked headless:** the workboat's leaf with a waypoint, a look on the Margaret Ann and a stop (the route 1 to 3 past it; the callout on screen); the chart close up.
+- **Not checked:** on the Quest.
+
 ### The planning chart on the quay and on the boat: steps 2 and 3 (29 Oct 2026)
 
 Owner: "go ahead with steps 2 and 3" of the planning chart plan: the quay table made reliable (at whichever harbour the players are at, a smaller stand where there's no room, never taking the Shipyard sign down with it, each player's own zoom and pan), the drop-leaf chart table showing the planning chart on its leaf, and a PLAN button on the chartplotter ("drag on it to look away from your boat, tap to add a point").
