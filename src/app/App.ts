@@ -1819,7 +1819,7 @@ export class App {
     let dc = 0;
     if (k.actionPressed('couplingDown')) dc = -0.1;
     if (k.actionPressed('couplingUp')) dc = 0.1;
-    if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
+    if (dc !== 0) this.setCoupling(this.couplingSetting() + dc);
     // (The left stick's click, while that hand holds a control that takes its stick, is the control's: the tug's levers' sync.)
     if ((k.actionPressed('board') && !cam) || (this.xrInput.wasPressed('left', XR_BUTTON.stick) && !this.interaction?.holding('left')?.stickSteerable)) this.toggleBoard();
     if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
@@ -3047,7 +3047,7 @@ export class App {
       setPlotYourself: (on) => {
         (CONFIG.rescue as { plotYourself: boolean }).plotYourself = on;
       },
-      coupling: () => this.decoupler.coupling,
+      coupling: () => this.couplingSetting(),
       setCoupling: (v) => this.setCoupling(Math.round(v * 10) / 10),
       smoothWalk: () => userSettings.smoothWalk,
       setSmoothWalk: (on) => {
@@ -4574,13 +4574,25 @@ export class App {
     return 'Playing alone';
   }
 
+  /**
+   * The motion coupling you've set (VR's, or the desktop's): what 9 / 0 and the menu step from.
+   * Not the coupling in use this moment, which on the desktop rides rigid at the controls
+   * (CONFIG.comfort.desktopRigidAtControls): stepping from that, 9 only ever got to 90 %
+   * (owner, 29 Oct 2026: "I can only put it down to 90 with the keys").
+   */
+  private couplingSetting(): number {
+    return this.renderer.xr.isPresenting ? userSettings.motionCoupling : userSettings.desktopCoupling;
+  }
+
   private setCoupling(value: number): void {
     // Keep full precision: the stick adds tiny amounts per frame (rounding here used to
     // swallow them, so holding X + stick did nothing). Round only for display.
     const c = Math.min(1, Math.max(0, value));
     this.decoupler.coupling = c;
     const xr = this.renderer.xr.isPresenting;
-    this.overlay.notify(`${xr ? '' : 'Desktop '}Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
+    // (On the desktop it's held rigid in the wheelhouse and at the controls, so they keep still to click: said, or the change seems to do nothing.)
+    const rigidHere = !xr && CONFIG.comfort.desktopRigidAtControls && this.deskRigid > 0.5;
+    this.overlay.notify(`${xr ? '' : 'Desktop '}Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)${rigidHere ? '. Rigid here in the wheelhouse, at the controls: it takes effect out on deck' : ''}`, rigidHere ? 4 : 2);
     if (xr) userSettings.motionCoupling = c;
     else userSettings.desktopCoupling = c;
     saveUserSettings();

@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Motion coupling: 9 / 0 and the menu step from your setting (29 Oct 2026)
+
+Owner: "The motion coupling setting seems to be broken. I can only put it down to 90 with the keys. Doesn't seem to make any difference."
+
+- **The cause** (`app/App.ts`): on the desktop the view rides rigid in the wheelhouse and with the reticle on a control (`CONFIG.comfort.desktopRigidAtControls`, so the console holds still to click), and 9 / 0 and the menu's −10 % / +10 % stepped from that moment's coupling (100 % there), not from your setting: each 9 set it to 90 % again. The menu showed the moment's figure too.
+- **Now** (`couplingSetting`): they step from, and the menu shows, your setting (VR's in VR, the desktop's on the desktop). Set it in the wheelhouse and the note says it's rigid there and takes effect out on deck.
+- **Not changed:** the desktop's rigid view at the controls (by design, Oct 2026); in VR the setting applies everywhere.
+- **Tests:** tests/comfort*.test.ts (the filter, unchanged) pass; the stepping isn't covered by a test (it's in the App).
+- **Not checked:** on the Quest, or by eye in the headless browser.
+
 ### The quay's planning board: one view for everyone (29 Oct 2026)
 
 Owner: "is the big planning board synchronized for all the players in multiplayer? It should be, not the personal VR one, but just that big planning board."
