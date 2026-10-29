@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Buildings streamed on the Clyde, Turku and Hamburg (29 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner: "Turn on building streaming for Clyde, Turku and Hamburg" (and: "Ålesund is now better at 55 fps on Quest", from 35).
+
+- **Streamed** (`streamBuildings: true` in `clyde.yaml`, `turku.yaml`, `hamburg.yaml`; their package stage run again): each map's buildings now come one file per chunk as the boat comes near, as on the Saronic and Sunnmøre. What you download before the map starts: the Clyde 1.49 → 0.24 MB, Turku 2.50 → 0.67 MB (most of what's left is its 3,276 cottage jetties), Hamburg 2.39 → 0.32 MB. The towns at each start, measured headless, the same as before to within a building.
+- **Picked up on the way** (fixes since these maps were last packaged): only buoys are drawn as marks, not beacons (the Clyde 81 → 72, Turku 516 → 514, Hamburg 27 → 21); each port's lamp mast 8 m along the quay from its cargo stack; pier headings kept to 0.1°; Hamburg's ports' middles a little different (their berths the same). Turku's two dry docks are now drawn as graving docks (the Hamburg work): Perno's under the half-built cruise ship, as before with its walls, and the repair yard's at the head of its bay. Every berth id the same on all three.
+- **Tests:** `npm run test:map`, the typecheck and all of `npm test` pass. Seen headless: Perno and the repair yard's dock; the towns at the three starts.
+- **Not checked:** on the Quest.
+- **Shared changes:** none.
+
 ### Ålesund on the Quest: fewer draw calls and triangles (29 Oct 2026)
 
 **Owner approved; merged into `next`.**

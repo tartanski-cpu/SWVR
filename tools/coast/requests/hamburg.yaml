@@ -70,3 +70,5 @@ containerTerminals:
 # The Elbe's own water (owner: "make it muddy brown"): turbid, a dark olive-brown body with the
 # light scattered in it khaki, in place of the sea's blue.
 water: { deep: '#2e2c1c', scatter: '#6e6234' }
+# Its buildings streamed in (owner, Oct 2026), as the Saronic's: one file per chunk, fetched as the boat comes near.
+streamBuildings: true

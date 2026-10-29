@@ -30,3 +30,5 @@ yardShips:
   - { berth: perno-shipyard-cargo, stage: 0.88, length: 300 }
 # The yard's name along the gantry cranes' girders (owner).
 gantrySign: MEYER TURKU
+# Its buildings streamed in (owner, Oct 2026), as the Saronic's: one file per chunk, fetched as the boat comes near.
+streamBuildings: true

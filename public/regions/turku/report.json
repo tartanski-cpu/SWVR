@@ -9,8 +9,8 @@
   "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
   "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
   "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
+  "ferry 180: Martinsilta => Pikisaari => Kansanpuisto => Martinsilta: 100 % over land: left out",
   "overlapping piers at janessaari-pier (2908, -10335): decks 3.5 m and 2.4 m over 44 m²",
-  "overlapping piers at janessaari-pier (3207, -10315): decks 3.5 m and 2.4 m over 40 m²",
   "overlapping piers at satama-pier (5281, -11384): decks 3.5 m and 2.4 m over 124 m²",
   "overlapping piers at student-village-pier (10364, -15077): decks 2.4 m and 0.5 m over 40 m²",
   "pargas-snackviken: no berth with room for a boat (best blocked at 10 points): not a port",
@@ -1751,7 +1751,7 @@
   "berths": 90,
   "blocks": 3276,
   "buildings": 8357,
-  "marks": 516,
+  "marks": 514,
   "lights": 53,
   "slipways": 6,
   "fishingGrounds": 1,
@@ -1760,6 +1760,6 @@
    "Varisvuori",
    "Rajakari Fl(1)RWG.4s"
   ],
-  "bytes": 2563411
+  "bytes": 687271
  }
 }
