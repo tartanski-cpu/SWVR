@@ -35,6 +35,7 @@ import { isPowered } from '../vessel/electrics';
 import { cargoDestination, nearestPort, portById } from '../rescue/rescue';
 import { jetOn } from '../fire/fire';
 import { farmName, isFeed } from '../aqua/farmService';
+import { MUSSEL_SITES } from '../aqua/mussels';
 import { towFast } from '../tow/tow';
 import { TUTORIAL } from '../career/tutorial';
 import { answerFogSignal } from '../traffic/traffic';
@@ -356,7 +357,18 @@ function stepFishingDuty(world: WorldState, d: DutiesState, v: VesselState | und
 /** A fish farm's call (aqua/farmService.ts): the first one going, feed or a harvest run. */
 function stepFarmDuty(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
   const entry = Object.entries(world.aqua?.sites ?? {}).find(([, s]) => s.call);
-  if (!entry) return syncJob(d, 'farm', null, '', [], world.time);
+  if (!entry) {
+    // A mussel harvest (aqua/mussels.ts), when no fish farm is calling.
+    const m = MUSSEL_SITES.find((s) => world.aqua?.mussels?.[s.key]?.call);
+    const call = m && world.aqua!.mussels![m.key].call!;
+    if (!m || !call) return syncJob(d, 'farm', null, '', [], world.time);
+    const base = portById(m.farm.base ?? '')?.name ?? '';
+    syncJob(d, 'farm', `${m.key}:mussels:${call.at}`, `Mussels: ${m.farm.name}`, [
+      { text: `Lift the ${call.bags.length} bags of mussels off the lines (alongside a line; by hand or crane)`, done: call.bags.every((id) => !world.cargo[id] || !('ground' in world.cargo[id].at)) },
+      { text: `Land them at ${base}'s goods stack (${call.landed} of ${call.bags.length})`, done: call.landed >= call.bags.length },
+    ], world.time);
+    return;
+  }
   const [id, site] = entry;
   const call = site.call!;
   const name = farmName(id);
@@ -368,6 +380,18 @@ function stepFarmDuty(world: WorldState, d: DutiesState, v: VesselState | undefi
       { text: `Hold her alongside each cage ring a few seconds, barely moving: ${done} of ${n} checked (crew aboard checks quicker)`, done: done === n },
       { text: call.hole?.found ? `Mend the hole at cage ${call.hole.ring + 1}: a net patch from the barge (Crates), set on the ring by the red flag` : 'Mend any torn net you find', done: !call.hole || call.hole.mended },
       ...(call.mort ? [{ text: `Lift the bag of morts off cage ${call.mort.ring + 1} and set it down on the barge`, done: call.mort.landed }] : []),
+    ], world.time);
+    return;
+  }
+  if (call.kind === 'crew') {
+    const hands = call.hands ?? [];
+    const base = portById(call.base ?? '')?.name ?? '';
+    const waiting = hands.filter((h) => h.going === 'out');
+    const home = hands.filter((h) => h.going === 'back');
+    syncJob(d, 'farm', `${id}:crew:${call.at}`, `Fish farm: crew change for ${name}`, [
+      { text: `Pick up the day shift on the ${base} quay: lie alongside, stopped (${waiting.filter((h) => h.phase !== 'quay').length} of ${waiting.length} aboard)`, done: waiting.every((h) => h.phase !== 'quay') },
+      { text: `At ${name}'s feed barge: put them off and take the night shift aboard (${home.filter((h) => h.phase !== 'barge').length} of ${home.length})`, done: waiting.every((h) => h.phase === 'barge') && home.every((h) => h.phase !== 'barge') },
+      { text: `Land the night shift on the ${base} quay`, done: home.every((h) => h.phase === 'home') },
     ], world.time);
     return;
   }

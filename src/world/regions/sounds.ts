@@ -251,7 +251,12 @@ export const SOUNDS: RegionDef = {
   ],
   // Tarsk salmon farm (owner, 29 Oct 2026: fish farm service): three pairs of cages in 25-38 m off
   // Tarsk's east shore, north of the loch mouth and clear of the channel in; worked from its feed barge.
-  farms: [{ name: 'Tarsk salmon farm', x: 960, z: -4170, yawDeg: 0, rows: 2, cols: 3, spacing: 32, ringRadius: 12, port: 'tarskfarm' }],
+  farms: [
+    { name: 'Tarsk salmon farm', x: 960, z: -4170, yawDeg: 0, rows: 2, cols: 3, spacing: 32, ringRadius: 12, port: 'tarskfarm' },
+    // Tarsk mussel lines (fish farm service, step 3): two 110 m long-lines along the loch's north
+    // side in 8-9 m, clear of the channel up to the quay; their mussels landed at Loch Tarsk.
+    { name: 'Tarsk mussel lines', kind: 'lines', x: 690, z: -4050, yawDeg: 90, rows: 2, cols: 1, spacing: 10, ringRadius: 0, lineLength: 110, base: 'tarsk' },
+  ],
   portFloods: [
     { portId: 'tarsk', x: 605, y: 11, z: -3935 },
     { portId: 'garbh', x: -470, y: 10, z: -2182 },

@@ -29,10 +29,25 @@ const BAND = 0xe8ece8;
 const BOOT = 0x1a1a1a;
 const HAT = 0xf4f4f0;
 
-interface Figure {
+export interface Figure {
   root: THREE.Group;
   standing: THREE.Mesh;
   sitting: THREE.Mesh;
+}
+
+/**
+ * A technician's figure (standing and sitting, one shown at a time), their own face in a white
+ * hard hat: the wind farm's here, and a fish farm's crew change (aqua/farmCrewView.ts).
+ */
+export function technicianFigure(id: string, mat: THREE.Material): Figure {
+  const base = decodeLook(lookFromId(id));
+  const look: Look = { ...base, outfit: { ...base.outfit, hat: 'hardhat', hatColor: HAT } };
+  const root = new THREE.Group();
+  root.name = `technician:${id}`;
+  const standing = new THREE.Mesh(bodyGeometry(look, false), mat);
+  const sitting = new THREE.Mesh(bodyGeometry(look, true), mat);
+  root.add(standing, sitting);
+  return { root, standing, sitting };
 }
 
 /** A technician's body, feet at the origin, facing -z; `sit`: on a seat 0.45 m up, thighs forward. */
@@ -72,14 +87,7 @@ export class TransferView {
     let f = this.figures.get(t.id);
     if (f) return f;
     // Their own face, in a white hard hat (the avatars' own).
-    const base = decodeLook(lookFromId(t.id));
-    const look: Look = { ...base, outfit: { ...base.outfit, hat: 'hardhat', hatColor: HAT } };
-    const root = new THREE.Group();
-    root.name = `technician:${t.id}`;
-    const standing = new THREE.Mesh(bodyGeometry(look, false), this.mat);
-    const sitting = new THREE.Mesh(bodyGeometry(look, true), this.mat);
-    root.add(standing, sitting);
-    f = { root, standing, sitting };
+    f = technicianFigure(t.id, this.mat);
     this.figures.set(t.id, f);
     return f;
   }

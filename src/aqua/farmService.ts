@@ -26,13 +26,15 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { countContract, earn, money, portName } from '../career/career';
 import { checkLine, raiseCheck, stepCheck } from './netCheck';
+import { crewLine, raiseCrew, stepCrew, type FarmHand } from './farmCrew';
+import { createMussels, MUSSEL_SITES, musselLine, stepMussels, type MusselSite } from './mussels';
 import { sayRadio } from '../rescue/rescue';
 import { FARMS, PORTS, type PortDef } from '../world/archipelago';
 import type { FarmDef } from '../world/defs';
 import type { CargoItem } from '../cargo/cargo';
 
 export interface FarmCall {
-  kind: 'feed' | 'harvest' | 'check';
+  kind: 'feed' | 'harvest' | 'check' | 'crew';
   /** When it was made (world time, s). */
   at: number;
   /** Harvest: the harbour the salmon goes to, how many boxes, how many landed so far, and when it's due (world time). */
@@ -50,6 +52,10 @@ export interface FarmCall {
   mort?: { ring: number; id: string; landed: boolean };
   /** Feed: some feed has come in since the call (so the silo filling is someone's work). */
   fed?: boolean;
+  /** Crew change (aqua/farmCrew.ts): the shore base harbour, the hands going out and home, when the next may step on or off. */
+  base?: string;
+  hands?: FarmHand[];
+  nextStep?: number;
 }
 
 export interface FarmSite {
@@ -69,6 +75,8 @@ export interface FarmSite {
   harvestAt: number;
   /** When the next net check is called (world time). */
   checkAt: number;
+  /** When the next crew change is called (world time). */
+  crewAt: number;
 }
 
 export interface AquaState {
@@ -76,6 +84,8 @@ export interface AquaState {
   spawn: boolean;
   /** Each farm by its feed barge's port id. */
   sites: Record<string, FarmSite>;
+  /** The mussel farms (aqua/mussels.ts), by key. */
+  mussels?: Record<string, MusselSite>;
 }
 
 /** The farms with a feed barge in this world: each one and its barge's port. */
@@ -109,9 +119,10 @@ export function createAqua(spawn: boolean): AquaState {
       lastCallAt: -1e9,
       harvestAt: a.harvest.first + hashOf(port.id + 'h') * a.harvest.every[0],
       checkAt: a.check.first + hashOf(port.id + 'c') * a.check.every[0],
+      crewAt: a.crew.first + hashOf(port.id + 'w') * a.crew.every[0],
     };
   }
-  return { spawn, sites };
+  return { spawn, sites, mussels: createMussels() };
 }
 
 /** The feed in a farm's silo now (kg): its level when last topped up, less what the fish have eaten since. */
@@ -152,6 +163,8 @@ export function raiseFarmCall(world: WorldState, portId: string, kind: FarmCall[
   const name = farmName(portId);
   if (kind === 'check') {
     if (!raiseCheck(world, portId, site)) return null;
+  } else if (kind === 'crew') {
+    if (!raiseCrew(world, portId, site)) return null;
   } else if (kind === 'feed') {
     site.call = { kind, at: world.time };
     const kg = feedNow(world, site);
@@ -172,6 +185,7 @@ export function stepAqua(world: WorldState, dt: number): void {
   const aq = world.aqua;
   if (!aq) return;
   const a = CONFIG.aqua;
+  stepMussels(world, aq.spawn);
   for (const [id, site] of Object.entries(aq.sites)) {
     const feed = feedNow(world, site);
     if (feed <= 0 && !site.hungry) {
@@ -180,6 +194,7 @@ export function stepAqua(world: WorldState, dt: number): void {
     }
     const call = site.call;
     if (call?.kind === 'check') stepCheck(world, id, site, dt);
+    if (call?.kind === 'crew') stepCrew(world, id, site);
     if (call?.kind === 'feed' && feed >= a.fullAt * a.siloKg) {
       site.call = null;
       sayRadio(world, 'info', `${farmName(id)}: that's the silo full. Thanks, skipper.`);
@@ -198,6 +213,9 @@ export function stepAqua(world: WorldState, dt: number): void {
     } else if (world.time >= site.checkAt) {
       raiseFarmCall(world, id, 'check');
       site.checkAt = world.time + a.check.every[0] + hashOf(`${id}c${Math.round(world.time)}`) * (a.check.every[1] - a.check.every[0]);
+    } else if (world.time >= site.crewAt) {
+      raiseFarmCall(world, id, 'crew');
+      site.crewAt = world.time + a.crew.every[0] + hashOf(`${id}w${Math.round(world.time)}`) * (a.crew.every[1] - a.crew.every[0]);
     }
   }
 }
@@ -283,6 +301,13 @@ export function feedBagKind(): number {
 
 /** The cargo screen's farm line at a harbour: a farm's silo and calls there, or a call this harbour can serve; '' if none. */
 export function farmLine(world: WorldState, port: PortDef): string {
+  // A mussel farm's harvest landed here (aqua/mussels.ts).
+  const mussels = MUSSEL_SITES.filter((s) => s.farm.base === port.id).map((s) => musselLine(world, s.key)).find(Boolean);
+  const line = farmLineOf(world, port);
+  return [line, mussels].filter(Boolean).join('  ·  ');
+}
+
+function farmLineOf(world: WorldState, port: PortDef): string {
   const site = world.aqua?.sites[port.id];
   if (site) {
     const call = site.call;
@@ -292,6 +317,7 @@ export function farmLine(world: WorldState, port: PortDef): string {
       return `${silo}  ·  Harvest: ${call.landed ?? 0}/${call.boxes} boxes to ${portName(call.to)}, ${left} min (Crates)`;
     }
     if (call?.kind === 'check') return `${silo}  ·  ${checkLine(call)}`;
+    if (call?.kind === 'crew') return `${silo}  ·  ${crewLine(call)}`;
     return call?.kind === 'feed' ? `${silo}  ·  calling for feed` : silo;
   }
   const farm = feedCallNear(world, port);

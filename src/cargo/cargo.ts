@@ -46,6 +46,7 @@ import { isPot, potLost, shootPot } from '../potting/potting';
 import { applyOrderIntent } from './order';
 import { feedDelivered, freshFactor, harvestLanded } from '../aqua/farmService';
 import { isNetPatch, mortLanded, patchNet } from '../aqua/netCheck';
+import { musselsLanded } from '../aqua/mussels';
 import { bottomOf, isStackedUp, restingOn, setOnTop, stackTopNear, stackWithRoom } from './stack';
 import { berthWithId } from '../world/berths';
 import type { BerthDef } from '../world/defs';
@@ -378,7 +379,7 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: str
   if (delivered) world.deliveries += 1;
   // Feed for a fish farm, set down on its barge: into the silo, paid by the kilo (aqua/farmService.ts).
   // ...and its bag of morts off a cage (aqua/netCheck.ts).
-  if (delivered && at && (feedDelivered(world, item, at) || mortLanded(world, item, at))) return;
+  if (delivered && at && (feedDelivered(world, item, at) || mortLanded(world, item, at) || musselsLanded(world, item, at))) return;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
   if (delivered && item.salvage) earn(world, 'salvage', { base: item.salvage.value, port: at, text: `Salvage sold at ${portName(at)}: ${item.salvage.name}` });
@@ -1043,5 +1044,6 @@ export function cargoLabel(item: CargoItem): string {
   if (item.salvage) return `Salvage: ${item.salvage.name} ${item.mass} kg (sells in any port)`;
   if (isNetPatch(item)) return `Net patch ${item.mass} kg: set it on the cage ring by the red flag`;
   if (k.name === 'Mort bag') return `Bag of morts ${item.mass} kg → ${to}'s barge (two hands)`;
+  if (k.name === 'Mussel bag') return `Bag of mussels ${item.mass} kg → ${to}`;
   return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}${craneOnly(item) ? ` (${CONFIG.cargo.crane.note})` : anchorageOnly(item.to) ? ` (${CONFIG.cargo.anchorageNote})` : ''}`;
 }

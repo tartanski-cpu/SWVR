@@ -161,7 +161,7 @@ function rand(s: TransferState): number {
  * placed and turned on the Furniture step: owner, Oct 2026, rows of them "like a bus" in a
  * crew boat), each as it faces; else her rescue seats on deck, else where you board her.
  */
-function seatFor(v: VesselState, taken: number): { at: Vec3; yaw: number } {
+export function seatFor(v: VesselState, taken: number): { at: Vec3; yaw: number } {
   const recipe = RECIPES[v.defId];
   const seats = recipe ? flattenMounts(recipe, LIBRARY.hulls, LIBRARY.modules).mounted.filter((m) => m.def.id === 'furniture.piece' && (m.config as { kind?: string }).kind === 'seat') : [];
   if (taken < seats.length) {

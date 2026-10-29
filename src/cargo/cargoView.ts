@@ -309,8 +309,8 @@ export class CargoView {
       const fishBox = c.from === 'trawl';
       const pot = kind.shape === 'pot';
       const drum = kind.shape === 'drum';
-      // (Sacks, and a fish farm's big feed bags, net patches and mort bags: woven.)
-      const sack = kind.name === 'Sack' || kind.name === 'Feed bag' || kind.name === 'Net patch' || kind.name === 'Mort bag';
+      // (Sacks, and a fish farm's big feed bags, net patches, mort bags and mussel bags: woven.)
+      const sack = kind.name === 'Sack' || kind.name === 'Feed bag' || kind.name === 'Net patch' || kind.name === 'Mort bag' || kind.name === 'Mussel bag';
       const im = pot ? this.pots : fishBox ? fishMesh : drum ? this.drums : sack ? this.sacks : this.boxes;
       const i = pot ? np++ : fishBox ? nf++ : drum ? nd++ : sack ? nk++ : nb++;
       if (i >= MAX) continue;

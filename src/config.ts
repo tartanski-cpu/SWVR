@@ -1388,6 +1388,8 @@ export const CONFIG = {
       // A fish farm's net check (aqua/netCheck.ts): a roll of net and twine to mend a torn net, and a bag of dead fish off a cage (two hands).
       { name: 'Net patch', mass: 15, size: [0.6, 0.3, 0.45] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Mort bag', mass: 70, size: [0.75, 0.55, 0.75] as [number, number, number], shape: 'box' as const, slots: 2 },
+      // A bag of mussels off a long-line (aqua/mussels.ts): one hand.
+      { name: 'Mussel bag', mass: 40, size: [0.5, 0.45, 0.55] as [number, number, number], shape: 'box' as const, slots: 1 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,
@@ -2560,6 +2562,21 @@ export const CONFIG = {
       mortPay: 120,
       bonus: 250,
     },
+    /**
+     * The crew change (aqua/farmCrew.ts; step 3): called every `every` s (between), the first
+     * after about `first`; due in `dueS`. `people` of the day shift wait on the farm's shore
+     * base quay (its nearest harbour) and as many of the night shift on the barge; a boat lying
+     * stopped at either takes them on or lets them off, one every `boardS` s. Pays `trip` and
+     * `perPerson` each when everyone's where they're going.
+     */
+    crew: { every: [2400, 3600] as [number, number], first: 1200, dueS: 3600, people: [2, 3] as [number, number], boardS: 2.5, perPerson: 60, trip: 200 },
+    /**
+     * Mussel lines (aqua/mussels.ts; step 3): a harvest every `every` s (between), the first
+     * after about `first`, due in `dueS`: `bags` bags of mussels hung along the lines (every
+     * `bagSpacing` m, on the floats at `lineTop` m), to lift aboard (one hand, or the crane) and
+     * land at the lines' harbour: `perBag` each, `bonus` for the lot.
+     */
+    mussels: { every: [2400, 3600] as [number, number], first: 1500, dueS: 3600, bags: [6, 10] as [number, number], bagSpacing: 9, lineTop: 0.3, perBag: 45, bonus: 300 },
   },
 
   potting: {

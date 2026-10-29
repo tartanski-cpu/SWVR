@@ -10,6 +10,24 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fish farm service, step 3: crew changes and the Tarsk mussel lines (29 Oct 2026)
+
+Owner: "carry on with farm step 3".
+- **The crew change** (`aqua/farmCrew.ts`, `CONFIG.aqua.crew`): a fourth farm call, every 40-60 min (first after about 20), due in an hour.
+  - `people` 2-3 of the day shift wait on the farm's **shore base** quay (`farmBase`: the sheltered harbour nearest its barge, Loch Tarsk for the Tarsk farm), and as many of the night shift on the barge.
+  - A boat **stopped at either** (the quick jobs' `quickPort`: within the berth, barely moving) lets one off or takes one aboard every `boardS` 2.5 s: at the base the day shift boards and the night shift goes home; at the barge the day shift steps off and the night shift boards. Either way round. Seats: the wind farm's `seatFor` (now exported).
+  - Done: `trip` £200 + `perPerson` £60 each, and a job toward a farm service contract. Past due they find another boat.
+  - **Drawn** (`aqua/farmCrewView.ts`): the wind farm's technician figures (`technicianFigure`, split out of transferView.ts), standing in a row along the berth on the quay or the barge, or seated aboard in her frame.
+- **The Tarsk mussel lines** (`src/world/regions/sounds.ts`, the Map area's: two 110 m long-lines along Loch Tarsk's north side, z -4050 and -4040, x 690-800, in 8-9 m, clear of the channel to the quay; `FarmDef.base` 'tarsk', new: the harbour whose buyer takes them) and their harvest (`aqua/mussels.ts`, `CONFIG.aqua.mussels`):
+  - Every 40-60 min (first after about 25): `bags` 6-10 **Mussel bags** (new kind, 40 kg, one hand, drawn woven) hung on the lines (`bagPlaces`, every `bagSpacing` 9 m), bound for Loch Tarsk, from `mussels` (not a port: nothing restocks or counts them).
+  - Lifted aboard (by hand or the crane) and landed at Loch Tarsk (`musselsLanded`, in retire beside the feed and the morts): `perBag` £45; all in, `bonus` £300. Past due (an hour) the rest go.
+  - On the duty board when no fish farm is calling; on Loch Tarsk's cargo screen's farm line.
+- **Tests:** tests/farmStep3.test.ts (6): the shore base and where the people stand; the whole crew change round, paid and counted toward a contract; past due; the lines in water and their bag places on solid line; a harvest lifted and landed, paid by the bag and the bonus; past due, the bags go.
+- **Checked headless:** the day shift on the Loch Tarsk quay, two seated aboard the gillnetter after lying alongside; the mussel lines with ten bags on them.
+- **Not checked:** on the Quest; a whole crew change driven under power in the game (the tests place her).
+- **Changes in another area's files:** `src/world/regions/sounds.ts` (the mussel lines). **Shared changes:** `src/world/defs.ts` (`FarmDef.base`); `src/transfer/transfer.ts` and `transferView.ts` export `seatFor` and `technicianFigure`.
+- **Still to come for the farms (if wanted):** the coast maps' farms in Voyage (they have no barges yet).
+
 ### The career's World tab: passages to each region's harbour, for the time and the fuel (29 Oct 2026)
 
 Owner: "the career map's now quite big ... a world tab, so not under debug, and you can teleport to the sheltered harbor with the pier in any one of the regions, and it only costs you time and the fuel to do that" (Voyage's Go is free, in its ports list).

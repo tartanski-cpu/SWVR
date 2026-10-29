@@ -524,6 +524,8 @@ export interface FarmDef {
   corners?: [number, number][];
   /** Its feed barge: the port (PortDef id) the farm is worked from (fish farm service: aqua/farmService.ts). */
   port?: string;
+  /** Mussel lines: the harbour (PortDef id) whose buyer takes their mussels (aqua/mussels.ts). */
+  base?: string;
 }
 
 /**
