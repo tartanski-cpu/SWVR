@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { CONFIG } from '../src/config';
 import { CargoHands, type CargoHandsContext } from '../src/cargo/cargoHands';
 import { GROUND, isHeavy, type CargoItem } from '../src/cargo/cargo';
 import type { HandFrame } from '../src/controls/InteractionSystem';
@@ -10,6 +11,15 @@ import { createWorld } from '../src/core/world';
 import { HostSession } from '../src/net/hostSession';
 import { ClientSession } from '../src/net/clientSession';
 import { LoopbackHost } from '../src/net/transport';
+
+// These tests carry, stow and pot with the ports kept stocked and the pot pallet filled: the
+// old way, kept as CONFIG.cargo.onDemand off. Goods on order (the game's way now): cargoOrder.test.ts.
+beforeAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = false;
+});
+afterAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = true;
+});
 
 function setup() {
   const { world, localPlayerId, vesselId } = createWorld(new IdFactory());

@@ -197,7 +197,8 @@ export function createWorld(
   }
   // Each tender starts in her cradle on the ship's deck.
   tenders.forEach((t, k) => stowTender(world, t, vesselId, k));
-  stockPorts(world);
+  // (Goods on order, CONFIG.cargo.onDemand: the quays start empty; cargo/order.ts.)
+  if (!CONFIG.cargo.onDemand) stockPorts(world);
   if (opts.voyage) world.voyage = true;
   return { world, localPlayerId, vesselId };
 }

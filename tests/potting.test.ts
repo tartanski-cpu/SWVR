@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/config';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
@@ -12,6 +12,15 @@ import { createWeather } from '../src/environment/weather';
 import { POTTING_GROUNDS } from '../src/world/archipelago';
 import { groundHeight } from '../src/world/terrain';
 import { standingHeight } from '../src/world/geography';
+
+// These tests carry, stow and pot with the ports kept stocked and the pot pallet filled: the
+// old way, kept as CONFIG.cargo.onDemand off. Goods on order (the game's way now): cargoOrder.test.ts.
+beforeAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = false;
+});
+afterAll(() => {
+  (CONFIG.cargo as { onDemand: boolean }).onDemand = true;
+});
 
 const DT = 1 / 60;
 
@@ -34,7 +43,7 @@ describe('potting, milestone 1: pots as cargo, shooting them', () => {
     expect(world.potting).toBeUndefined();
     expect(pots()).toHaveLength(0);
     send('pottingOn');
-    expect(pots()).toHaveLength(CONFIG.potting.pots);
+    expect(pots()).toHaveLength(CONFIG.potting.palletPots);
     for (const p of pots()) {
       expect('ground' in p.at).toBe(true);
       if (!('ground' in p.at)) continue;
@@ -46,10 +55,10 @@ describe('potting, milestone 1: pots as cargo, shooting them', () => {
     }
     // Switching on twice doesn't double them.
     send('pottingOn');
-    expect(pots()).toHaveLength(CONFIG.potting.pots);
+    expect(pots()).toHaveLength(CONFIG.potting.palletPots);
     // Trade cargo never spawns as pots.
     for (let i = 0; i < 30; i++) spawnCargo(world);
-    expect(pots()).toHaveLength(CONFIG.potting.pots);
+    expect(pots()).toHaveLength(CONFIG.potting.palletPots);
   });
 
   it('carried aboard, stowed and lashed like cargo; over the side on a ground, it is shot and its buoy pops up', () => {
@@ -77,7 +86,7 @@ describe('potting, milestone 1: pots as cargo, shooting them', () => {
     run(CONFIG.potting.sinkTime + 0.1);
     expect(buoyUp(world, shot[0])).toBe(true);
     // Still five pots: four on the pallet, one in the water.
-    expect(potsOwned(world)).toBe(CONFIG.potting.pots);
+    expect(potsOwned(world)).toBe(CONFIG.potting.palletPots);
   });
 
   it('let go where there is no water to fish (dried out), or lost overboard: a lost pot, replaced on the pallet', () => {
@@ -93,7 +102,7 @@ describe('potting, milestone 1: pots as cargo, shooting them', () => {
     send('cargoPlace', 1, pot.id, GROUND, [x, 0, z, 0]);
     expect(world.potting!.shot).toHaveLength(0);
     expect(world.potting!.lost).toBe(1);
-    expect(potsOwned(world)).toBe(CONFIG.potting.pots); // replaced on the pallet
+    expect(potsOwned(world)).toBe(CONFIG.potting.palletPots); // replaced on the pallet
   });
 
   it('the grounds are rocky ground in fishable water', () => {

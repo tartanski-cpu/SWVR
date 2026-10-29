@@ -58,8 +58,8 @@ export const TUTORIAL: Step[] = [
     done: (_w, v) => v.engine.phase === 'running',
   },
   {
-    text: 'Load a crate: carry one from the quay onto the deck (or menu Cargo, Load)',
-    say: 'Lovely. You are lying at the cargo berth, and there is cargo waiting on the quay. Carry a crate aboard, or use the Cargo page of the menu. The colour says where it is going.',
+    text: 'Load a crate: order one at the CARGO screen on the quay, then carry it onto the deck (or menu Cargo, Load)',
+    say: 'Lovely. You are lying at the cargo berth. Walk up to the cargo screen on the quay and order a crate, or a full load, then carry it aboard, or use the Cargo page of the menu. The colour says where it is going.',
     done: (w, v) => aboard(w, v.id).length > 0 || Object.values(w.players).some((p) => p.aboardVesselId === v.id && carriedBy(w, p.id).length > 0),
   },
   {
