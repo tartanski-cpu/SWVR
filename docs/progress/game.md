@@ -10,6 +10,23 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Square wire pots that stack on the quay and on deck (29 Oct 2026)
+
+Owner (with a photo of wire lobster traps stacked on a quay): "I'd like the fishing pots to stack on the deck and quayside; they could be square if that helps."
+- **Stacking** (`cargo/stack.ts`, `CONFIG.cargo.stacking`: kinds ['Pot'], `high` 3, `reach` 0.45 m):
+  - An item set down on another of its kind rests on it: `at.on` (deck or ground) is that item's id, its base on the other's top, square with it.
+  - **Placed** within `reach` of a stack with room (by hand, `cargoPlace`, on deck or ashore), it goes on top; quick stowing (`stowOnDeck`: Load pots) fills the stacks aboard first; pots ordered at the cargo screen stand in stacks on the quay.
+  - **Taken:** only the top one (`takeBlocker` with the world: "Take the one on top first"); a deck crane lifts only the top one; Shoot one shoots the top of a stack; Load pots takes the tops first.
+  - **Riding** (`followStacks`, each tick after the cranes): what's stacked rides on what's under it (place, yaw, sliding speed, lashing); deck sliding and bumping act on the bottom item only. Lashing any pot in a stack straps its bottom, so the stack as one.
+  - **Falling:** if what an item stands on goes (over the rail, shot, sent back, onto another boat), it drops to the deck or the ground where it is.
+  - The cargo screen's room count allows for stacking (a new stack leaves room for two more on it), so a full load of pots fills her stacks.
+  - Stacked pots sit higher, so their weight raises her centre of gravity (the payload is by position, as before).
+- **The pot** (`cargoView.ts potGeometry`): a square wire trap, original: green coated mesh on a frame, orange rope along the top edges, two dark runners, a mesh divider (kitchen and parlour), two net funnels in from the sides, a door with a bungee on top; its line coiled on one end and its buoy tied beside it, below the top, so the top is flat to stack on. Same size and weight as before (0.75 × 0.42 × 0.5 m, 24 kg). About 1,000 triangles a pot, one instanced draw for every pot. A lashed stack gets one set of straps over its whole height.
+- **Tests:** tests/potStack.test.ts (6): ordered on the quay in stacks three high, square on each other; only the top one comes off; loaded aboard in stacks; set down by hand over a stack, on top; a stack rides and is lashed as one, and drops when its bottom pot goes; Shoot one takes the top.
+- **Checked headless:** seven pots ordered at Calder Haven (stacks of three, three and one), and loaded onto the gillnetter's aft deck (two stacks of three and one), lashed.
+- **Not checked:** on the Quest (picking the top pot off a stack by hand, setting one on top), and stacks sliding in a seaway.
+- **Shared changes:** `src/core/simulation.ts` (followStacks each tick).
+
 ### The cargo screen: crates, crane lifts and pots ordered on the quay, sized to her (29 Oct 2026)
 
 Owner: "it doesn't make sense to have the cargo crates on the side of the quay all the time. So I'd like another set of buttons or mini screen, which allows you to spawn cargo and lobster pots ... it tells you how many slots of cargo your ship has, which is docked at it. And it allows you to spawn individually or the maximum amount, and the same with lobster pots."

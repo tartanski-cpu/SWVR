@@ -48,6 +48,7 @@ import {
   type CargoItem,
 } from './cargo';
 import { deckSpot } from './deck';
+import { isStackable, isStackedUp, levelOf, restingOn, setOnTop } from './stack';
 import { cranesOf } from './craneHook';
 
 /** What's on order: hand cargo (crates, sacks, drums), crane lifts, lobster pots. */
@@ -63,29 +64,45 @@ interface Room {
   slots: number;
   discs: { x: number; z: number; r: number }[];
   at: [number, number];
+  /** Places left on top of the stacks of each stacking kind aboard (kind index -> how many: cargo/stack.ts). */
+  onStacks: Map<number, number>;
 }
 
 function roomOf(world: WorldState, v: VesselState): Room {
   const c = VESSEL_DEFS[v.defId].cargo;
   const on = aboard(world, v.id);
+  const onStacks = new Map<number, number>();
+  // Each stack's room on top: its height left (counted at its top item).
+  for (const o of on) if (isStackable(o) && !restingOn(world, o)) onStacks.set(o.kind, (onStacks.get(o.kind) ?? 0) + Math.max(0, CONFIG.cargo.stacking.high - levelOf(world, o)));
   return {
     defId: v.defId,
     mass: c.maxPayloadKg - on.reduce((m, o) => m + o.mass, 0),
     slots: c.slots > 0 ? c.slots - on.reduce((n, o) => n + kindOf(o).slots, 0) : Infinity,
-    discs: on.filter((o) => 'vessel' in o.at).map(deckDisc),
+    discs: on.filter((o) => 'vessel' in o.at && !isStackedUp(o)).map(deckDisc),
     at: quickDeckPoint(v),
+    onStacks,
   };
 }
 
-/** An item of this kind goes aboard in the dry run (taking its room), or doesn't (nothing taken). */
+/** An item of this kind goes aboard in the dry run (taking its room), or doesn't (nothing taken). A stacking kind goes on a stack with room first, as stowing does. */
 function take(room: Room, kind: number): boolean {
   const k = CONFIG.cargo.kinds[kind];
   if (k.mass > room.mass || k.slots > room.slots) return false;
+  const stacks = CONFIG.cargo.stacking.kinds.includes(k.name);
+  const onTop = room.onStacks.get(kind) ?? 0;
+  if (stacks && onTop > 0) {
+    room.onStacks.set(kind, onTop - 1);
+    room.mass -= k.mass;
+    room.slots -= k.slots;
+    return true;
+  }
   const spot = deckSpot(room.defId, { hx: k.size[0] / 2, hz: k.size[2] / 2 }, room.at[0], room.at[1], room.discs);
   if (!spot) return false;
   room.mass -= k.mass;
   room.slots -= k.slots;
   room.discs.push({ x: spot.x, z: spot.z, r: Math.max(k.size[0], k.size[2]) / 2 });
+  // A new stack: room on it for more.
+  if (stacks) room.onStacks.set(kind, onTop + CONFIG.cargo.stacking.high - 1);
   return true;
 }
 
@@ -221,7 +238,11 @@ function makeOne(world: WorldState, port: PortDef, what: OrderWhat, plain = fals
     const p = (world.potting ??= { seq: 0, shot: [], lost: 0 });
     const kind = potKind();
     const id = `pot-${++p.seq}`;
-    const item: CargoItem = { id, kind, mass: cfg.kinds[kind].mass, from: 'pots', to: 'none', at: { ground: freeStackSpot(world, port), yaw: (port.cargo.stackYawDeg * Math.PI) / 180 } };
+    const item: CargoItem = { id, kind, mass: cfg.kinds[kind].mass, from: 'pots', to: 'none', at: { ground: [0, 0, 0], yaw: (port.cargo.stackYawDeg * Math.PI) / 180 } };
+    // Stacked on the quay (cargo/stack.ts): on a stack of pots waiting here with room, else a new one in the row.
+    const top = waitingHere(world, port, 'pots').find((c) => !restingOn(world, c) && levelOf(world, c) < cfg.stacking.high);
+    if (top) setOnTop(item, top);
+    else item.at = { ground: freeStackSpot(world, port), yaw: (port.cargo.stackYawDeg * Math.PI) / 180 };
     world.cargo[id] = item;
     return item;
   }

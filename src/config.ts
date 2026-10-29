@@ -1301,6 +1301,12 @@ export const CONFIG = {
      *             run of loading, too much for every frame)
      */
     terminal: { beforeRow: 1.7, minGround: 0.3, clearOfLamp: 1.6, maxOrder: 24, countTo: 40, fillMisses: 8, width: 1.25, up: 1.35, range: 14, reach: 4, post: 0x3a4650, drawRange: 120, refreshS: 0.4 },
+    /**
+     * Stacking (owner, 29 Oct 2026: "the fishing pots to stack on the deck and quayside";
+     * cargo/stack.ts): these kinds stack, up to `high` of them; set down within `reach` (m)
+     * of a stack with room, an item goes on top, square with it.
+     */
+    stacking: { kinds: ['Pot'] as readonly string[], high: 3, reach: 0.45 },
     /** Goods waiting ashore are drawn only this near you (m: cargo/cargoView.ts). */
     drawRange: 400,
     stackRow: 6,

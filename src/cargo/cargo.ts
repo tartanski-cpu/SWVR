@@ -44,15 +44,16 @@ import { safeLoadAt } from '../modules/deckCrane';
 import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
 import { applyOrderIntent } from './order';
+import { bottomOf, isStackedUp, restingOn, setOnTop, stackTopNear, stackWithRoom } from './stack';
 import { berthWithId } from '../world/berths';
 import type { BerthDef } from '../world/defs';
 import { isProjectBuoy, isProjectItem, layProjectBuoy, projectItemLost, projectItemName } from '../career/projects';
 
 export type CargoAt =
-  /** Ashore (world frame): `pos` is the middle of its base. */
-  | { ground: Vec3; yaw: number }
-  /** On a vessel's deck (vessel axes): base centre, yaw, sliding velocity (x, z) and lashing. */
-  | { vessel: EntityId; pos: Vec3; yaw: number; vel: [number, number]; lashed: boolean }
+  /** Ashore (world frame): `pos` is the middle of its base. `on`: the item it's stacked on (cargo/stack.ts). */
+  | { ground: Vec3; yaw: number; on?: EntityId }
+  /** On a vessel's deck (vessel axes): base centre, yaw, sliding velocity (x, z) and lashing; `on`: the item it's stacked on. */
+  | { vessel: EntityId; pos: Vec3; yaw: number; vel: [number, number]; lashed: boolean; on?: EntityId }
   /** In a player's hands. */
   | { carriedBy: EntityId }
   /** On a vessel's deck crane's hook (`crane`: its path on her), hanging under it. */
@@ -429,9 +430,10 @@ export function placeBlocker(world: WorldState, v: VesselState, item: CargoItem)
   return null;
 }
 
-/** Why a player can't pick an item up, or null. */
-export function takeBlocker(item: CargoItem): string | null {
+/** Why a player can't pick an item up, or null. `world`: to see what's stacked on it (only the top of a stack comes off). */
+export function takeBlocker(item: CargoItem, world?: WorldState): string | null {
   if ('carriedBy' in item.at) return 'Someone has it';
+  if (world && restingOn(world, item)) return 'Take the one on top first';
   if ('hook' in item.at) return 'It\'s on the crane hook';
   if ('vessel' in item.at && item.at.lashed) return 'Lashed down: undo the lashing first';
   if (craneOnly(item)) return `${kindOf(item).name}, ${item.mass} kg: too heavy to carry. Lift it with a deck crane`;
@@ -469,13 +471,19 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
   const v = world.vessels[intent.targetId];
   switch (intent.control) {
     case 'cargoTake':
-      if (!takeBlocker(item)) item.at = { carriedBy: intent.playerId };
+      if (!takeBlocker(item, world)) item.at = { carriedBy: intent.playerId };
       break;
     case 'cargoPlace': {
       if (!('carriedBy' in item.at) || item.at.carriedBy !== intent.playerId) break;
       const [x = 0, y = 0, z = 0, yaw = 0] = intent.args ?? [];
       if (v) {
         if (placeBlocker(world, v, item)) break; // full: you keep holding it
+        // Over a stack of its kind with room (a pot on the pots): on top of it (cargo/stack.ts).
+        const top = stackTopNear(world, item, { vessel: v.id }, x, z);
+        if (top) {
+          setOnTop(item, top);
+          break;
+        }
         const others = aboard(world, v.id).map(deckDisc);
         const spot = onOpenDeck(v.defId, footprint(item), x, z) && !others.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + 0.2)
           ? { x, z, y: 0 }
@@ -494,25 +502,31 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
         retire(world, item, false); // into the sea
         break;
       }
-      landAshore(world, item, x, g, z, yaw);
+      // Over a stack of its kind ashore: on top of it (then sold or delivered as anywhere there).
+      const top = stackTopNear(world, item, 'ground', x, z);
+      if (top && 'ground' in top.at) landAshore(world, item, top.at.ground[0], top.at.ground[1] + kindOf(top).size[1], top.at.ground[2], top.at.yaw, top.id);
+      else landAshore(world, item, x, g, z, yaw);
       break;
     }
-    case 'cargoLash':
-      if (v && 'vessel' in item.at && item.at.vessel === v.id) {
-        if (intent.value > 0.5 && canLash(v, item)) {
-          item.at.lashed = true;
-          item.at.vel = [0, 0];
+    case 'cargoLash': {
+      // A stack is strapped as one: by its bottom item (the rest ride on it: cargo/stack.ts).
+      const base = bottomOf(world, item);
+      if (v && 'vessel' in base.at && base.at.vessel === v.id) {
+        if (intent.value > 0.5 && canLash(v, base)) {
+          base.at.lashed = true;
+          base.at.vel = [0, 0];
         } else if (intent.value <= 0.5) {
-          item.at.lashed = false;
+          base.at.lashed = false;
         }
       }
       break;
+    }
   }
 }
 
 /** Set an item down ashore (by hand or by a deck crane): a pot's catch sold, or cargo delivered. */
-function landAshore(world: WorldState, item: CargoItem, x: number, g: number, z: number, yaw: number): void {
-  item.at = { ground: [x, g, z], yaw };
+function landAshore(world: WorldState, item: CargoItem, x: number, g: number, z: number, yaw: number, on?: string): void {
+  item.at = on ? { ground: [x, g, z], yaw, on } : { ground: [x, g, z], yaw };
   const port = portAtPoint(x, z);
   // A pot set down on a harbour quay (by a goods stack, or back by the pot pallet): the
   // fish buyer takes its catch (the bycatch is thrown away) and the pot stays there,
@@ -536,6 +550,8 @@ function onWorld(v: VesselState, local: THREE.Vector3): THREE.Vector3 {
 
 /** Where an item's lifting point (the middle of its top) is in the world, or null if it can't be lifted (in hands, on a hook, lashed). */
 function liftPoint(world: WorldState, c: CargoItem): THREE.Vector3 | null {
+  // Only the top of a stack can be lifted.
+  if (restingOn(world, c)) return null;
   const h = kindOf(c).size[1];
   if ('ground' in c.at) return new THREE.Vector3(c.at.ground[0], c.at.ground[1] + h, c.at.ground[2]);
   if ('vessel' in c.at && !c.at.lashed) {
@@ -753,6 +769,12 @@ export function quickUnloadable(world: WorldState, v: VesselState): CargoItem[] 
  */
 export function stowOnDeck(world: WorldState, v: VesselState, item: CargoItem, x: number, z: number): boolean {
   if (placeBlocker(world, v, item)) return false;
+  // A pot: on a stack of pots aboard with room first (cargo/stack.ts), else on the deck.
+  const top = stackWithRoom(world, item, v.id, x, z);
+  if (top) {
+    setOnTop(item, top);
+    return true;
+  }
   const spot = deckSpot(v.defId, footprint(item), x, z, aboard(world, v.id).filter((o) => o.id !== item.id).map(deckDisc));
   if (!spot) return false;
   item.at = { vessel: v.id, pos: [spot.x, deckHeight(v.defId, spot.z), spot.z], yaw: 0, vel: [0, 0], lashed: false };
@@ -865,7 +887,8 @@ export function stepDeckCargo(world: WorldState, v: VesselState, before: Map<Ent
   for (const c of items) {
     const at = c.at as Extract<CargoAt, { vessel: string }>;
     const v0 = before.get(c.id);
-    if (at.lashed || !v0) continue;
+    // (What's stacked on another rides on it: cargo/stack.ts followStacks.)
+    if (at.lashed || !v0 || at.on) continue;
     pointVelocity(v, at.pos, vp);
     // Apparent gravity in vessel axes: g_app = g − a_P, clipped against contact spikes.
     gApp.copy(vp).sub(v0).divideScalar(dt).negate();
@@ -922,7 +945,7 @@ export function stepDeckCargo(world: WorldState, v: VesselState, before: Map<Ent
   }
   // Crates bump each other: push overlapping discs apart (lashed ones don't move) and
   // share their closing speed (perfectly inelastic along the line between them).
-  const loose = aboard(world, v.id);
+  const loose = aboard(world, v.id).filter((c) => !isStackedUp(c));
   for (let i = 0; i < loose.length; i++) {
     for (let j = i + 1; j < loose.length; j++) {
       const a = loose[i].at as Extract<CargoAt, { vessel: string }>;

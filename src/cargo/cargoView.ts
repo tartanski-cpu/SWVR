@@ -7,6 +7,7 @@ import { hasUpgrade } from '../career/career';
 import { hookOnBoat } from './craneHook';
 import { TickSmoother } from '../mechanisms/tickSmoother';
 import { bootGeometry, crabGeometry, floorSlot, lobsterGeometry, smallFishGeometry, starfishGeometry } from '../potting/catchGeometry';
+import { levelOf } from './stack';
 import { isProjectItem } from '../career/projects';
 
 /** A hooked load's drawn position jumps (m), not followed: a reset, a fresh snapshot. A lift's step onto the hook (CONFIG.modules.deckCrane.hookReach, 0.6 m) is followed. */
@@ -65,47 +66,78 @@ export function fishBoxGeometry(size: readonly number[], ice: boolean): THREE.Bu
 }
 
 /**
- * A lobster / crab pot (creel), built at its real size (m), origin at the middle of its
- * base: a rectangular base frame, a half-round body of netting over hoops, a rope bridle,
- * the line coiled on top and the marker buoy (with its little flag) tied on. The netting is
- * drawn as an open lattice of cords (owner: you should see the crabs inside), with a solid
- * dark floor. Unrigged (`rigged` false): no coil or buoy on top (a pot coming up on its
- * line, its buoy already aboard).
+ * A lobster / crab pot, built at its real size (m), origin at the middle of its base (owner,
+ * 29 Oct 2026: "the fishing pots to stack ... they could be square"): a square wire trap,
+ * green plastic-coated mesh on a stout frame, orange rope laced along its top edges, two dark
+ * runners under it, a mesh divider across its middle (the kitchen and the parlour), two net
+ * funnels in from its sides and a door on top. Its top is flat, so pots stack. The mesh is an
+ * open lattice of wires (you see the crabs inside) over a solid dark floor. Rigged: its line
+ * coiled on one end and its marker buoy tied beside it, below the top (unrigged, `rigged`
+ * false: a pot coming up on its line, its buoy already aboard).
  */
 export function potGeometry(size: readonly number[], rigged = true): THREE.BufferGeometry {
-  const [L, , W] = size;
-  const frame = 0x3a4a3e;
-  const hoop = 0x8a9a7a;
-  const net = 0x24342c;
-  const rope = 0xe0b440;
-  const r = W / 2 - 0.02;
-  const body = L - 0.06;
-  const parts = [
-    // Base frame: two long rails and two ends (weighted bars), and the floor.
-    ...[-1, 1].map((s) => part(new THREE.BoxGeometry(L, 0.035, 0.035).translate(0, 0.018, s * (W / 2 - 0.018)), frame)),
-    ...[-1, 1].map((s) => part(new THREE.BoxGeometry(0.035, 0.035, W).translate(s * (L / 2 - 0.018), 0.018, 0), frame)),
-    part(new THREE.BoxGeometry(L - 0.04, 0.01, W - 0.04).translate(0, 0.012, 0), net),
-    // Hoops over it: three stout ones, and lighter cords of netting between.
-    ...[-0.3, 0, 0.3].map((f) => part(new THREE.TorusGeometry(r + 0.008, 0.009, 4, 12, Math.PI).rotateY(Math.PI / 2).translate(f * L, 0.035, 0), hoop)),
-    ...[-0.46, -0.15, 0.15, 0.46].map((f) => part(new THREE.TorusGeometry(r, 0.004, 3, 10, Math.PI).rotateY(Math.PI / 2).translate(f * body, 0.035, 0), net)),
-    // Cords along the pot, round the half-round.
-    ...[1, 2, 3, 4, 5, 6].map((k) => {
-      const a = (k * Math.PI) / 7;
-      return part(new THREE.BoxGeometry(body, 0.006, 0.006).translate(0, 0.035 + Math.sin(a) * r, Math.cos(a) * r), net);
-    }),
-    // The ends: a few cords up each.
-    ...[-1, 1].flatMap((s) => [-0.5, 0, 0.5].map((f) => part(new THREE.BoxGeometry(0.006, r * Math.sqrt(1 - f * f), 0.006).translate(s * body / 2, 0.035 + (r * Math.sqrt(1 - f * f)) / 2, f * r), net))),
-    // The entrance eye on top (a ring in the netting).
-    part(new THREE.TorusGeometry(0.06, 0.012, 4, 10).rotateX(Math.PI / 2).translate(0, 0.035 + r + 0.005, 0), hoop),
-    // Bridle: two ropes from the ends up to a point above the middle.
-    ...[-1, 1].map((s) => part(new THREE.CylinderGeometry(0.006, 0.006, Math.hypot(L / 2, 0.08), 4).rotateZ(s * (Math.PI / 2 - Math.atan2(0.08, L / 2))).translate(s * L / 4, 0.035 + r + 0.04, 0), rope)),
-  ];
+  const [L, H, W] = size;
+  const wire = 0x1f7a66;
+  const frame = 0x165a4c;
+  const rope = 0xf06a20;
+  const runner = 0x1c1e20;
+  const net = 0x22332c;
+  const pitch = 0.09; // mesh spacing (m)
+  const t = 0.005; // a wire's thickness
+  const parts: THREE.BufferGeometry[] = [];
+  const bar = (sx: number, sy: number, sz: number, x: number, y: number, z: number, c: number) => parts.push(part(new THREE.BoxGeometry(sx, sy, sz).translate(x, y, z), c));
+  /** Positions across a span (m), one every `pitch`, not at its edges. */
+  const across = (span: number) => {
+    const n = Math.max(1, Math.round(span / pitch));
+    return Array.from({ length: n - 1 }, (_, i) => -span / 2 + ((i + 1) * span) / n);
+  };
+  const y0 = 0.03; // the mesh starts on the runners
+  const h = H - y0;
+  const ym = y0 + h / 2;
+  // The frame: its twelve edges.
+  const f = 0.014;
+  for (const sy of [y0, H - f / 2]) for (const sz of [-1, 1]) bar(L, f, f, 0, sy, sz * (W / 2 - f / 2), frame);
+  for (const sy of [y0, H - f / 2]) for (const sx of [-1, 1]) bar(f, f, W, sx * (L / 2 - f / 2), sy, 0, frame);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) bar(f, h, f, sx * (L / 2 - f / 2), ym, sz * (W / 2 - f / 2), frame);
+  // The mesh: the top, the two long sides and the two ends.
+  for (const z of across(W)) bar(L, t, t, 0, H - t, z, wire);
+  for (const x of across(L)) bar(t, t, W, x, H - t, 0, wire);
+  for (const sz of [-1, 1]) {
+    for (const x of across(L)) bar(t, h, t, x, ym, sz * W / 2, wire);
+    for (const y of across(h)) bar(L, t, t, 0, y0 + h / 2 + y, sz * W / 2, wire);
+  }
+  for (const sx of [-1, 1]) {
+    for (const z of across(W)) bar(t, h, t, sx * L / 2, ym, z, wire);
+    for (const y of across(h)) bar(t, t, W, sx * L / 2, y0 + h / 2 + y, 0, wire);
+  }
+  // The floor (solid, dark: the catch sits on it) and the runners under it, along each side.
+  bar(L - 0.02, 0.01, W - 0.02, 0, 0.018, 0, net);
+  for (const sz of [-1, 1]) bar(L, 0.03, 0.05, 0, 0.015, sz * (W / 2 - 0.03), runner);
+  // Orange rope laced along the top edges.
+  for (const sz of [-1, 1]) bar(L + 0.01, 0.012, 0.012, 0, H - 0.004, sz * (W / 2), rope);
+  for (const sx of [-1, 1]) bar(0.012, 0.012, W + 0.01, sx * (L / 2), H - 0.004, 0, rope);
+  // The divider across its middle (kitchen forward, parlour aft): a frame and a few wires.
+  const xd = L * 0.08;
+  for (const sz of [-1, 1]) bar(f * 0.7, h, f * 0.7, xd, ym, sz * (W / 2 - 0.02), frame);
+  bar(f * 0.7, f * 0.7, W - 0.02, xd, H - 0.02, 0, frame);
+  for (const z of across(W)) bar(t, h, t, xd, ym, z, wire);
+  // The two funnels (heads) in from the sides into the kitchen, and the door on the kitchen's top.
+  for (const sz of [-1, 1]) {
+    parts.push(part(new THREE.ConeGeometry(0.06, 0.13, 6, 1, true).rotateX((sz * Math.PI) / 2).translate(-L * 0.2, y0 + h * 0.42, sz * (W / 2 - 0.065)), 0x4a7a68));
+  }
+  const dx = -L * 0.2;
+  for (const sz of [-1, 1]) bar(0.22, 0.012, 0.01, dx, H + 0.002, sz * 0.1, frame);
+  for (const sx of [-1, 1]) bar(0.01, 0.012, 0.2, dx + sx * 0.11, H + 0.002, 0, frame);
+  // A yellow bungee holding the door shut.
+  bar(0.008, 0.008, 0.16, dx + 0.13, H + 0.006, 0, 0xe8c020);
   if (rigged) {
-    // The line coiled on top, and the buoy with its pole.
+    // The line coiled and hung on its parlour end, and the buoy with its pole tied beside it,
+    // below the top so a pot stacks on it.
+    const xe = L / 2 + 0.03;
     parts.push(
-      part(new THREE.TorusGeometry(0.09, 0.022, 5, 12).rotateX(Math.PI / 2).translate(-L * 0.18, 0.035 + r + 0.03, 0.02), rope),
-      part(new THREE.SphereGeometry(0.075, 10, 7).translate(L * 0.22, 0.035 + r + 0.07, 0.0), 0xf26a1a),
-      part(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 4).rotateZ(-1.1).translate(L * 0.22 + 0.1, 0.035 + r + 0.12, 0), 0x2a2e33),
+      part(new THREE.TorusGeometry(0.1, 0.022, 5, 12).rotateY(Math.PI / 2).translate(xe, y0 + h * 0.5, -W * 0.12), 0xe0b440),
+      part(new THREE.SphereGeometry(0.07, 10, 7).translate(xe + 0.05, 0.08, W * 0.26), 0xf26a1a),
+      part(new THREE.CylinderGeometry(0.006, 0.006, 0.26, 4).rotateZ(-0.35).translate(xe + 0.08, 0.2, W * 0.26), 0x2a2e33),
     );
   }
   return mergeParts(parts);
@@ -152,6 +184,7 @@ export class CargoView {
   private readonly up = new THREE.Vector3(0, 1, 0);
   private readonly a = new THREE.Vector3();
   private readonly b = new THREE.Vector3();
+  private readonly base = new THREE.Vector3();
 
   constructor() {
     // Unit shapes (1 m) standing on their base. A box is a crate, each face painted as one
@@ -229,6 +262,9 @@ export class CargoView {
     const iced = hasUpgrade(world, 'ice');
     const fishMesh = iced ? this.icedBoxes : this.fishBoxes;
     const hooked = new Set<string>();
+    // Items something is stacked on (their straps are drawn over the stack's top: cargo/stack.ts).
+    const supporting = new Set<string>();
+    for (const c of Object.values(world.cargo)) if ('vessel' in c.at && c.at.on) supporting.add(c.at.on);
     for (const c of Object.values(world.cargo)) {
       const kind = kindOf(c);
       const [sx, sy, sz] = kind.size;
@@ -299,16 +335,20 @@ export class CargoView {
       }
 
       // Lashed (where it stands on open deck: no D-rings): two bands round it, each tied down
-      // to the deck either side, as a ratchet strap is.
-      if (root && 'vessel' in c.at && c.at.lashed && ns + 6 <= MAX * 6) {
+      // to the deck either side, as a ratchet strap is. A stack (cargo/stack.ts) is strapped
+      // as one: the bands over its top item, down its whole height.
+      if (root && 'vessel' in c.at && c.at.lashed && !supporting.has(c.id) && ns + 6 <= MAX * 6) {
+        const below = c.at.on ? levelOf(world, c) - 1 : 0;
+        const base = this.base.copy(this.up).multiplyScalar(-below * sy).applyQuaternion(this.q).add(this.p);
+        const tall = sy * (below + 1);
         for (const off of [-0.25, 0.25]) {
-          this.a.set(0, -0.01, off * sz).applyQuaternion(this.q).add(this.p);
-          this.m.compose(this.a, this.q, this.scale.set(sx + 0.03, sy + 0.025, 0.05));
+          this.a.set(0, -0.01, off * sz).applyQuaternion(this.q).add(base);
+          this.m.compose(this.a, this.q, this.scale.set(sx + 0.03, tall + 0.025, 0.05));
           this.straps.setMatrixAt(ns++, this.m);
           for (const side of [-1, 1]) {
             // From its top edge on that side out and down to the deck beside it.
-            this.a.set(side * (sx / 2 + 0.22), 0, off * sz).applyQuaternion(this.q).add(this.p);
-            this.b.set(side * (sx / 2), sy, off * sz).applyQuaternion(this.q).add(this.p);
+            this.a.set(side * (sx / 2 + 0.22), 0, off * sz).applyQuaternion(this.q).add(base);
+            this.b.set(side * (sx / 2), tall, off * sz).applyQuaternion(this.q).add(base);
             const span = this.b.clone().sub(this.a);
             this.qYaw.setFromUnitVectors(this.up, span.clone().normalize());
             this.m.compose(this.a, this.qYaw, this.scale.set(0.05, span.length(), 0.012));

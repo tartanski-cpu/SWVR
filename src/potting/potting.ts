@@ -9,6 +9,7 @@ import { homeVessel, type WorldState } from '../core/world';
 import * as THREE from 'three';
 import { aboard, deckHeightAt, footprint, portAtPoint, quickDeckPoint, quickPort, stowOnDeck, type CargoItem, type PotContents } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
+import { restingOn } from '../cargo/stack';
 import { deckSpot } from '../cargo/deck';
 import { hullPlan } from '../vessel/layout';
 import { placeVessel } from '../vessel/vesselControl';
@@ -452,7 +453,10 @@ export function quickPalletPots(world: WorldState, v: VesselState): CargoItem[] 
   // The pallet's harbour: the port nearest it.
   const home = [...PORTS].sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
   const near = (g: number[]) => (port.id === home?.id && Math.hypot(g[0] - x, g[2] - z) < CONFIG.cargo.deliveryRadius) || portAtPoint(g[0], g[2])?.id === port.id;
-  return Object.values(world.cargo).filter((c) => isPot(c) && 'ground' in c.at && near(c.at.ground));
+  // Tops of the stacks first, as you'd take them.
+  return Object.values(world.cargo)
+    .filter((c) => isPot(c) && 'ground' in c.at && near(c.at.ground))
+    .sort((a, b) => (b.at as { ground: number[] }).ground[1] - (a.at as { ground: number[] }).ground[1]);
 }
 
 /** The buoy nearest the vessel within `quickHaulRange` (up, not being hauled), or null. */
@@ -481,7 +485,8 @@ function applyQuickPotting(world: WorldState, v: VesselState, intent: Intent): v
       break;
     }
     case 'potQuickShoot': {
-      const c = aboard(world, v.id).find(isPot);
+      // The top of a stack (nothing resting on it).
+      const c = aboard(world, v.id).find((p) => isPot(p) && !restingOn(world, p));
       if (!c || !('vessel' in c.at)) break;
       const plan = hullPlan(VESSEL_DEFS[v.defId]);
       const z = c.at.pos[2];

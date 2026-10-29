@@ -330,7 +330,7 @@ export class CargoHands {
         continue;
       }
       if (!f.gripPressed) continue;
-      const why = takeBlocker(c);
+      const why = takeBlocker(c, ctx.world);
       if (why) {
         ctx.notify(why);
         ctx.pulse(h, 0.8, 60);
@@ -389,7 +389,7 @@ export class CargoHands {
     if (!ray) return false;
     const c = this.itemOnRay(ctx, ray, DESK_REACH);
     if (!c) return false;
-    const why = takeBlocker(c);
+    const why = takeBlocker(c, ctx.world);
     if (why) {
       ctx.notify(why);
       return true;
