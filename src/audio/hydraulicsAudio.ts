@@ -3,7 +3,7 @@ import { noiseBuffer } from './engineAudio';
 
 /**
  * The deck machinery's sounds, synthesised (no audio files): the tender crane, the tow
- * winch and the trawl's net drum. All three are hydraulic, so they share a character, each
+ * winch, the trawl's net drum and the line hauler. All three are hydraulic, so they share a character, each
  * with its own pitch and weight:
  *
  *   pump whine   the hydraulic motor's gear whine: a triangle tone with a band-passed
@@ -35,6 +35,8 @@ const VOICES = {
   crane: { whine: 520, rumble: 58, level: 0.9 },
   winch: { whine: 380, rumble: 44, level: 1.0 },
   trawl: { whine: 330, rumble: 38, level: 1.0 },
+  /** The line hauler (owner, 29 Oct 2026: longlining): a small motor at the rail, lighter than the winch. */
+  hauler: { whine: 460, rumble: 50, level: 0.75 },
   /** A foiling boat's foils raised or lowered (the foiling ferry's, owner 28 Oct 2026: retractable): a quieter, higher pump. */
   foils: { whine: 610, rumble: 52, level: 0.6 },
 } as const;
@@ -170,6 +172,7 @@ export class HydraulicsAudio {
       winch: new Voice(ctx, this.noise, this.muffle, VOICES.winch),
       trawl: new Voice(ctx, this.noise, this.muffle, VOICES.trawl),
       foils: new Voice(ctx, this.noise, this.muffle, VOICES.foils),
+      hauler: new Voice(ctx, this.noise, this.muffle, VOICES.hauler),
     };
   }
 

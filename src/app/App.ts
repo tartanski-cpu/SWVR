@@ -2912,6 +2912,7 @@ export class App {
     const ownWinches = !!gearOf(v, 'trawlWinches');
     if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun && !ownWinches ? (netIn ? 1 : -1) : 0;
     const af = aFrameOf(v);
+    const hl = gearOf(v, 'lineHauler');
     const deploy = v.foil?.deploy;
     const foilsMoving = deploy !== undefined && this.lastDeploy !== undefined && Math.abs(deploy - this.lastDeploy) > 1e-5;
     this.lastDeploy = deploy;
@@ -2920,6 +2921,8 @@ export class App {
         crane: { run: craneRun, load: tp === 'hoisting' ? 0.7 : 0.5, distance: cr ? dist(cr.column[0], cr.shoulderY, cr.column[1]) : 1e9 },
         winch: { run: winchRun, load: line ? Math.min(1, line.tension / CONFIG.tow.winch.pullN) : 0, stalled, distance: tw ? dist(0, 1.2, tw.lead[2]) : 1e9 },
         trawl: { run: trawlRun, load: f?.net === 'hauling' || f?.net === 'lifting' || (c.netIn ?? 0) > 0.5 ? 0.7 : 0.3, distance: af ? dist(0, af.top - 0.3, af.headZ) : 1e9 },
+        // The line hauler: turning (a line coming in, or spinning free with its valve open), or held with its valve open (a fish at the roller, or off the line).
+        hauler: { run: v.hauler?.run ? Math.min(1, v.hauler.run / CONFIG.longline.hauler.fast) : 0, load: v.hauler?.line ? 0.6 : 0.2, stalled: hyd && !!v.hauler?.held, distance: hl ? dist(hl.sheave[0], hl.sheave[1], hl.sheave[2]) : 1e9 },
         // A foiling boat's foils going up or down (her state's `foil.deploy` moving), under her middle.
         foils: { run: foilsMoving ? 1 : 0, load: 0.5, distance: v.foil ? dist(0, -0.5, 0) : 1e9 },
       },

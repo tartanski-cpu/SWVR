@@ -25,7 +25,7 @@ export interface GearGroup {
 export const GEAR_GROUPS: GearGroup[] = [
   { name: 'Rescue and firefighting', items: ['skiff', 'skiff2', 'lifeRing', 'searchlight', 'fireMonitor'] },
   { name: 'Towing', items: ['towWinch', 'sternRoller'] },
-  { name: 'Fishing', items: ['aFrame', 'netDrum', 'trawlWinches', 'rodRack'] },
+  { name: 'Fishing', items: ['aFrame', 'netDrum', 'trawlWinches', 'lineHauler', 'rodRack'] },
   { name: 'Cargo', items: ['deckCrane'] },
   { name: 'Diving', items: ['diveFrame'] },
   { name: 'Her fittings', items: ['anchor', 'sideDoor'] },
@@ -44,6 +44,7 @@ export const GEAR_ABOUT: Record<string, string> = {
   aFrame: 'An A-frame over the transom with a trawl net and its winch.',
   netDrum: 'The net wound on a big hydraulic drum forward of the A-frame: it comes off as you shoot and winds back on as you haul. Needs the A-frame.',
   trawlWinches: 'A pair of winches at the deck edges for the trawl warps, leading aft to the A-frame\'s blocks: she needs no tow winch to trawl. Needs the A-frame.',
+  lineHauler: 'A powered sheave at her starboard rail for longlining: the line comes aboard over its roller and round the sheave at the speed set on its valve, stopping by itself with each fish at the rail. Stands against the bulwark at the forward end of the aft deck.',
   deckCrane: 'A small crane for lifting cargo on and off her deck.',
   diveFrame: 'A heavy A-frame over the transom and a three-person work submersible on her cradle forward of it: hoist her into the docking head, swing her out over the stern and lower her into the sea. Only for a big boat (about 50 t or more, with some 8 m of clear deck aft): she is 10 t. Takes her transom: no trawl A-frame or stern roller with it.',
   anchor: 'An anchor and its windlass, to hold her in one place. Every boat should have one.',
@@ -109,6 +110,8 @@ export const GEAR_ICONS: Record<string, string> = {
   netDrum: svg('<circle cx="12" cy="10" r="7"/><circle cx="12" cy="10" r="4.5"/><circle cx="12" cy="10" r="1.5"/><path d="M8 17l-2 4h12l-2-4M19 10h3"/>'),
   // Two winch drums at the deck edges, their warps leading aft to a block.
   trawlWinches: svg('<circle cx="5" cy="15" r="2.5"/><circle cx="19" cy="15" r="2.5"/><path d="M5 12.5L11 4M19 12.5L13 4M10 4h4M2.5 20h5M16.5 20h5"/>'),
+  // A sheave on its post, the line in over a roller on the rail (right), falling into a bin (left).
+  lineHauler: svg('<circle cx="10" cy="8" r="4.5"/><circle cx="10" cy="8" r="1.2"/><path d="M10 12.5V21M7 21h6M14.5 7h4.5l2 3.5M21 10.5V21M5.5 8.5L3.5 17h4"/>'),
   aFrame: svg('<path d="M5 21L12 3l7 18M8.2 13h7.6M12 3v7M9.5 10h5l-1 8.5h-3zM10 13h4M10.4 15.8h3.2M11 10l-.5 8.5M13 10l.5 8.5"/>'),
   // The A-frame over the stern, the sub hanging under it at the waterline.
   diveFrame: svg('<path d="M4 21L9 3h6l5 18M9 3h6M12 3v4.5M7 12.5h10a3 3 0 0 1-3 3.5h-4a3 3 0 0 1-3-3.5zM10.5 10.5h3v2M2 19.5h4M18 19.5h4"/>'),

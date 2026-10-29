@@ -228,6 +228,32 @@ export const MODULES_CONFIG = {
      * A-frame; `turns` of the drum to pay the warp right out. Colours: drums and frames.
      */
     netDrum: { length: 1.3, flange: 0.5, core: 0.18, fullRadius: 0.44, axleHeight: 0.62, stand: 0.12, turnsPerNet: 5, colours: { frame: 0x2f6aa8, net: 0x2e5a3a, flange: 0x2f6aa8, motor: 0x30343a } },
+    /**
+     * deck.line-hauler (modules/lineHauler; owner, 29 Oct 2026: "go ahead with the line hauler"):
+     * a powered sheave at her starboard rail for hauling a longline (fishing/longline.ts). A
+     * steel post on deck `postIn` in from her side (radius `postR`); a davit arm from it out
+     * over the bulwark to a roller `rollerOut` outboard of her side and `rollerUp` over the rail
+     * (where the line comes aboard: its lead); on the post's top the sheave (`sheaveR` in
+     * radius, `sheaveW` wide), its axle fore and aft `sheaveUp` over the rail, its hydraulic
+     * motor forward of it. The line goes over the sheave's top and falls inboard into a bin on
+     * deck `binIn` inboard of the post (`bin`: its width, height and length). Its valve, a
+     * three-way knob (STOP / SLOW / FAST), on a bracket `valveAft` aft of the post, `valveY`
+     * over the deck. Colours: the post and arm, the sheave, the motor, the bin, the line.
+     */
+    lineHauler: {
+      postIn: 0.42,
+      postR: 0.06,
+      rollerOut: 0.14,
+      rollerUp: 0.1,
+      sheaveR: 0.2,
+      sheaveW: 0.09,
+      sheaveUp: 0.3,
+      binIn: 0.36,
+      bin: [0.44, 0.3, 0.5] as [number, number, number],
+      valveY: 1.0,
+      valveAft: 0.34,
+      colours: { frame: 0xd8d4c8, sheave: 0x30343a, motor: 0x2f6aa8, bin: 0x2a4a6a, line: 0xd8c070 },
+    },
     trawlWinches: { drumRadius: 0.12, drumWidth: 0.3, flange: 0.22, fullRadius: 0.2, axleHeight: 0.38, base: { width: 0.55, length: 0.5 }, turns: 30, colours: { frame: 0x2f6aa8, warp: 0x22262a, motor: 0x30343a } },
 
     /**

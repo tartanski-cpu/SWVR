@@ -778,6 +778,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // The trawl deck gear (step 2 toward a trawler), with the A-frame.
   if (p.netDrumAt) recipe.modules.push({ socket: 'netDrum', module: 'deck.net-drum' });
   if (p.trawlWinchesAt) recipe.modules.push({ socket: 'trawlWinches', module: 'deck.trawl-winches', config: { ...p.trawlWinchesAt } });
+  // The line hauler at her starboard rail (longlining).
+  if (p.lineHaulerAt) recipe.modules.push({ socket: 'lineHauler', module: 'deck.line-hauler' });
   if (ring) recipe.modules.push({ socket: 'lifeRing', module: 'rescue.life-ring-station', config: { stow: ring.stow, cleat: ring.cleat } }, { socket: 'boatHook', module: 'rescue.boat-hook-rack', config: { stow: ring.hook } });
   if (rodRack) recipe.modules.push({ socket: 'rodRack', module: 'deck.rod-rack', config: rodRack });
   if (sideDoor)
@@ -800,7 +802,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     const named = boats.length > 1 ? { consoleLabel: same ? `${word} CRANE ${k + 1}` : `${word} CRANE`, name: `${b.rescue ? 'Rescue boat' : 'Skiff'} crane${same ? ` ${k + 1}` : ''}` } : {};
     recipe.modules.push({ socket: b.socket, module: 'deck.tender-crane', config: { ...(b.rescue ? CONFIG.vessels.rib.crane : {}), consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))], ...named } });
   });
-  if (craneAt || winchAt || skiffAt || aFrame || p.diveFrame) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
+  if (craneAt || winchAt || skiffAt || aFrame || p.diveFrame || p.lineHaulerAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
   if (pushFender) recipe.modules.push({ socket: 'pushFender', module: 'hull.push-fender', config: pushFender });
   if (bowFender) recipe.modules.push({ socket: 'bowFender', module: 'hull.bow-fender', config: bowFender });

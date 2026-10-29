@@ -27,7 +27,7 @@ export interface Equipment {
   id: string;
   name: string;
   /** How a pin places it (see above). */
-  how: 'grid' | 'transom' | 'side' | 'wall' | 'anchor' | 'skiff' | 'rack';
+  how: 'grid' | 'transom' | 'side' | 'wall' | 'anchor' | 'skiff' | 'rack' | 'rail';
   /** The design choice that fits it, and (on the grid) where it's placed by hand. */
   field: keyof ShipDesign;
   key?: PlaceKey;
@@ -48,6 +48,7 @@ export const EQUIPMENT: Equipment[] = [
   { id: 'netDrum', name: 'Net drum (with the A-frame)', how: 'transom', field: 'netDrum' },
   { id: 'trawlWinches', name: 'Trawl winches (with the A-frame)', how: 'transom', field: 'trawlWinches' },
   { id: 'diveFrame', name: 'Dive A-frame and submersible', how: 'transom', field: 'diveFrame' },
+  { id: 'lineHauler', name: 'Line hauler', how: 'rail', field: 'lineHauler' },
   { id: 'rodRack', name: 'Fishing rods and bucket', how: 'rack', field: 'rodRack' },
   { id: 'lifeRing', name: 'Life ring and boat hook', how: 'side', field: 'lifeRing' },
   { id: 'sideDoor', name: 'Side door (port wall)', how: 'wall', field: 'sideDoor' },
@@ -104,6 +105,7 @@ export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox |
     return { patch: { [eq.field]: (fore ? 1 : 3) + (x < 0 ? 1 : 0) } as Partial<ShipDesign>, words: `on the ${fore ? 'foredeck' : 'aft deck'}, its crane to ${x < 0 ? 'port' : 'starboard'}` };
   }
   if (eq.how === 'wall') return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: "in the wheelhouse's port wall" };
+  if (eq.how === 'rail') return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: 'at her starboard rail, at the forward end of the aft deck' };
   if (eq.how === 'rack') {
     // The rack on the wall nearest the pin: the aft wall (port or starboard of the door) when
     // the pin is aft of the house or near its aft end, else that side's wall.

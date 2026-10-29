@@ -134,7 +134,7 @@ export const SHIPYARD_CONFIG = {
       fuelDensity: 0.84,
       crewKg: 170,
       storesKg: 150,
-      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, rescueBoat: 2_100, anchor: 150, rodRack: 12, netDrum: 380, trawlWinches: 520 },
+      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, rescueBoat: 2_100, anchor: 150, rodRack: 12, netDrum: 380, trawlWinches: 520, lineHauler: 90 },
     },
     engineHatch: { endRoom: 0.1, sideRoom: 0.2, minLength: 0.8, maxLength: 1.8, minWidth: 0.6, helmRoom: 0.1, deckMargin: 0.35, soleClear: 0.08 },
     /**
@@ -499,6 +499,14 @@ export const SHIPYARD_CONFIG = {
       netDrum: { gap: 0.35, search: 2.5 },
       trawlWinches: { gap: 0.3, edge: 0.15, search: 2.5 },
       /**
+       * The line hauler's place (owner, 29 Oct 2026; modules/lineHauler): against her
+       * starboard bulwark at the forward end of the aft deck, `fromHouse` m aft of the house
+       * (where the skipper sees it from the helm), moved aft in 10 cm steps until it stands
+       * clear (at most `search` m). Its plan, in from her side: the post, the bin inboard of
+       * it, and room to stand at it (`room` m aft of it).
+       */
+      lineHauler: { fromHouse: 0.4, search: 4, room: 0.45 },
+      /**
        * A tug (the tug hull; owner, Oct 2026: "move the towline position to midships on the
        * tugs"; "tugs should always have the wheelhouse forward"). Her tow point is a towing
        * hook on a pedestal on the centreline near amidships, not the stern roller: a line
@@ -535,7 +543,7 @@ export const SHIPYARD_CONFIG = {
        * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
        */
       midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000, diveFrame: 260_000 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rescueBoat: 78_000, rodRack: 700, netDrum: 16_000, trawlWinches: 22_000, diveFrame: 260_000, lineHauler: 6_500 },
     },
     /**
      * The dive A-frame and its sub (design.diveFrame; parts/diveFrame.ts; modules/diveFrame):

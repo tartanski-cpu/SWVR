@@ -8,6 +8,8 @@ import type { RescueHands } from '../rescue/rescueHands';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { hullPlan } from '../vessel/layout';
 import { groundHeight } from '../world/terrain';
+import { gearOf } from '../boats/sims';
+import { hydraulicsOn } from '../vessel/electrics';
 import { FISH_HANG, haulSummary, nextStretch, offTheLine, sizeWord, type LineFish, type Longline } from './longline';
 
 /**
@@ -135,6 +137,29 @@ export class LonglineHands {
       ctx.notify(d.parted ? `The line's parted! Haul the rest from its other buoy. This end: ${haulSummary(d.fish)}` : `Line aboard: ${haulSummary(d.fish)}`, 7);
     }
     this.told = mine.length;
+    this.haulerNotes(ctx);
+  }
+
+  /** Her line hauler: brought in at the roller and the line round it, why it isn't turning (now and then). */
+  private haulerNotes(ctx: LonglineHandsContext): void {
+    const v = ctx.world.vessels[ctx.vesselId];
+    const h = v?.hauler;
+    if (!v || !h?.line) return;
+    const line = this.linesAboard(ctx).find((l) => l.line.haul?.hauler)?.line;
+    if (!line || line.haul?.fish) return;
+    if ((v.controls.haulerValve ?? 0) > 0 && !hydraulicsOn(v)) {
+      if (performance.now() - this.offToldAt > 6000) {
+        this.offToldAt = performance.now();
+        ctx.notify('No pressure for the hauler: the engine running, and DECK HYD on the breaker panel');
+      }
+    } else if (h.held) this.offLine(ctx, line);
+  }
+
+  /** What to say once the dan buoy's aboard: round her hauler if she has one, else hand over hand. */
+  private aboardWords(ctx: LonglineHandsContext, desk: boolean): string {
+    const v = ctx.world.vessels[ctx.vesselId];
+    if (v && gearOf(v, 'lineHauler')) return 'Dan buoy aboard: the line\'s round the hauler. Set its valve to SLOW or FAST, and keep her up along the line';
+    return desk ? 'Dan buoy aboard: click the line to haul it in. Keep her up along it' : 'Dan buoy aboard: haul the line in, hand over hand. Keep her up along it';
   }
 
   /** Off the line (the haul won't come): said now and then while you try. */
@@ -206,7 +231,7 @@ export class LonglineHands {
         if (Math.hypot(f.grip.x - at.x, f.grip.z - at.z) < 1.0 && above > -0.5 && above < 2.8 && f.gripPressed) {
           ctx.push('llAboard', myHook.id, 1);
           ctx.pulse(h, 0.6, 60);
-          ctx.notify('Dan buoy aboard: haul the line in, hand over hand. Keep her up along it');
+          ctx.notify(this.aboardWords(ctx, false));
           used[h] = true;
           continue;
         }
@@ -224,6 +249,11 @@ export class LonglineHands {
       if (near && !this.hoverWas[h]) ctx.pulse(h, 0.25, 20);
       this.hoverWas[h] = !!near;
       if (near) this.lineHover = true;
+      if (near && f.gripPressed && near.line.haul?.hauler) {
+        ctx.notify('The line\'s round the hauler: its valve hauls it (aft of its post)');
+        used[h] = true;
+        continue;
+      }
       if (near && f.gripPressed) {
         if (near.line.haul?.fish) ctx.notify('A fish on the hook: take it off first');
         this.hold = { hand: h, line: near.line.id, last: f.grip.clone(), acc: 0 };
@@ -269,7 +299,7 @@ export class LonglineHands {
     if (fish) return `${fish.line.haul!.fish!.species} ${fish.line.haul!.fish!.kg.toFixed(1)} kg on the hook\nclick to take it off`;
     if (this.lineOnRay(ctx, ray)) {
       this.lineHover = true;
-      return 'longline\nclick to haul it in';
+      return this.lineOnRay(ctx, ray)?.line.haul?.hauler ? 'longline, round the hauler\nits valve hauls it' : 'longline\nclick to haul it in';
     }
     return null;
   }
@@ -283,7 +313,7 @@ export class LonglineHands {
         if (b && this.hullDistance(ctx, b[0], b[1]) <= CONFIG.longline.liftRange) {
           ctx.push('llAboard', hooked.id, 1);
           ctx.stowHook();
-          ctx.notify('Dan buoy aboard: click the line to haul it in. Keep her up along it');
+          ctx.notify(this.aboardWords(ctx, true));
         } else ctx.notify('Bring the dan buoy alongside first');
         return true;
       }
@@ -303,6 +333,7 @@ export class LonglineHands {
     const l = this.lineOnRay(ctx, ray);
     if (l) {
       if (l.line.haul?.fish) ctx.notify('A fish on the hook: take it off first');
+      else if (l.line.haul?.hauler) ctx.notify('The line\'s round the hauler: click its valve (aft of its post) for SLOW or FAST');
       else if (!this.offLine(ctx, l.line)) ctx.push('llHaul', l.line.id, CONFIG.longline.deskPull);
       return true;
     }

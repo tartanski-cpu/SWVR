@@ -286,6 +286,14 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `aFrame.luff` | 0..1 | read only | legacy |  | How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts). |
 
+## hauler
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `hauler.valve` | step, 0 to 2, whole | player sets | module |  | Line hauler's valve: 0 STOP, 1 SLOW, 2 FAST (CONFIG.longline.hauler; fishing/longline.ts hauls at that speed on the deck hydraulics). |
+| `hauler.run` | m/s | read only | legacy |  | How fast the line hauler's sheave turns, as line (fishing/longline.ts): what its sheave shows. |
+| `hauler.line` | on / off | read only | legacy |  | A longline led round the line hauler (fishing/longline.ts): drawn over its sheave into its bin. |
+
 ## dive
 
 | Key | Values | Use | Written by | Old names | What it is |

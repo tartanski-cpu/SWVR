@@ -940,6 +940,10 @@ export const CONFIG = {
       // one without designing a new boat. The beginner boat's design with one (modules/bowFender;
       // the Shipyard's price, CONFIG.shipyard.bowFenderPrice). The old workboat can't take it.
       { id: 'bowFender', name: 'Bow fender', price: 6000, minRep: 0, fit: [], design: { bowFender: 1 }, boats: ['starterBoat'], desc: 'A thick rubber block on her bow, for crew transfer: push her against a wind turbine\'s boat landing and hold her there with the throttle while the technicians step across. It grips, so she doesn\'t slide' },
+      // Owner, 29 Oct 2026: the line hauler, for longlining (modules/lineHauler). The beginner
+      // boat's design with one at her starboard rail (the Shipyard's price, CONFIG.shipyard
+      // .deckGear.price.lineHauler); the old workboat can't take it.
+      { id: 'lineHauler', name: 'Line hauler', price: 1500, minRep: 0, fit: [], design: { lineHauler: 1 }, boats: ['starterBoat'], desc: 'A powered sheave at her starboard rail for longlining: the line comes in over its roller at the speed you set on its valve (SLOW or FAST), stopping by itself with each fish at the rail. Runs on her deck hydraulics' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
       { id: 'ais', name: 'AIS receiver', price: 900, minRep: 0, desc: 'Passing ships on the plotter, by name and course, in any visibility' },
       { id: 'bigTank', name: 'Bigger fuel tank', price: 1400, minRep: 5, desc: 'Her fuel tank enlarged by 60 %: further between fills' },
@@ -2647,6 +2651,16 @@ export const CONFIG = {
       { name: 'Mackerel', w: 0, kg: [0.25, 0.8] as [number, number], minKg: 0.25, price: 1.8, color: 0x3a8a8a },
     ],
     /** A fishing ground's own species (FishingGroundDef.species) as the longline's: its trawl fish where the line takes them, else what a line takes there instead. */
+    /**
+     * The line hauler (modules/lineHauler; owner, 29 Oct 2026): with one fitted, a dan buoy
+     * brought aboard leads its line over the hauler's roller and round its sheave, and the
+     * hauler hauls it at the speed its valve is set to: `slow` or `fast` (m/s: about 1 and 2
+     * knots; hand hauling is a pull at a time). It runs on the deck hydraulics (engine
+     * running, DECK HYD on). It stops by itself with a fish at the roller, or when she's too
+     * far off the line for it to come (as it won't come by hand), and goes on by itself when
+     * it can: the fish taken off, or her brought up along the line.
+     */
+    hauler: { slow: 0.5, fast: 1.0 },
     groundSpecies: { cod: 'Cod', haddock: 'Haddock', whiting: 'Whiting', halibut: 'Halibut', salmon: 'Pollack', mackerel: 'Mackerel' } as Record<string, string>,
   },
 

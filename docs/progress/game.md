@@ -10,6 +10,46 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Longlining, step 2: the line hauler (29 Oct 2026)
+
+Owner: "go ahead with the line hauler". A powered sheave at the starboard rail, so a 300 m line isn't all hauled by hand; built as a module and a Shipyard choice, the way the trawl deck gear was, and fitted to the beginner boat by the yard, as the bow fender is.
+- **The module** (`src/modules/lineHauler/`, `deck.line-hauler`, `CONFIG.modules.lineHauler`): a post on deck against the starboard bulwark; a davit arm out over the rail to a roller (the line's lead); the sheave on the post's top, its axle fore and aft, its motor forward of it; a bin on deck inboard of it for the line; and its **valve**, a three-way knob (STOP / SLOW / FAST, the foiling ferry's `Selector3`) on a bracket aft of the post. Static parts merged with her others; the sheave (turning with `hauler.run`) and the line round it (shown with `hauler.line`) are its two moving parts. It needs deck hydraulics, and provides gear `lineHauler` (its roller, sheave, bin and valve).
+- **The hauling** (`fishing/longline.ts`, `CONFIG.longline.hauler` `slow` 0.5, `fast` 1.0 m/s):
+  - A dan buoy brought aboard a boat with a hauler leads its line over the roller (the lead) and round the sheave (`haul.hauler`).
+  - The valve's speed (0 at STOP or without hydraulic pressure) brings up a hook every `hookSpacingM`.
+  - It's held with a fish at the roller, and while she's further off the line than the depth + `leadSlackM` (it won't come, as by hand). It goes on by itself once it can. Parting is as before.
+  - Its progress is kept as a speed since a time (`haul.drive`), rewritten only when the speed changes or a hook comes up, so the line isn't sent to the crew every tick.
+  - By hand: nothing, while it's round the hauler.
+  - Each boat's hauler (`VesselState.hauler`: how fast it turns, a line round it, held) is set when it changes. Spinning free with its valve open and no line.
+- **The hands** (`longlineHands.ts`): the dan buoy aboard says the line's round the hauler and to set its valve. A grip or click on the line says its valve hauls it. The crew say why it isn't turning: no pressure (engine and DECK HYD), or off the line.
+- **The sound**: a `hauler` voice in the deck hydraulics (`audio/hydraulicsAudio.ts`), a lighter whine than the winch. Turning with the line, the relief valve's hiss while it's held with its valve open.
+- **The Shipyard** (`design.lineHauler`, not in the short code: a boat with one travels as a link or file):
+  - Placed against her starboard bulwark at the forward end of the aft deck (`CONFIG.shipyard.deckGear.lineHauler`: `fromHouse` 0.4 m aft of the house, moved aft until clear, at most `search` 4 m, with `room` to stand). Placed before the fender basket.
+  - In her recipe with a hydraulic pump. Deck gear → Fishing, "fitted" (pin how `rail`), with its icon and line.
+  - 90 kg; £6,500 (`weights.gear.lineHauler`, `deckGear.price.lineHauler`).
+- **The yard** (`CONFIG.career.upgrades` 'lineHauler', £1,500, rep 0): the beginner boat's design with one. Sold at Calder Haven. The old workboat can't take it.
+- **Tests:** tests/lineHauler.test.ts (4):
+  - the Shipyard places it, with a pump;
+  - the yard sells and fits it (not on the old workboat), its roller over her starboard rail;
+  - a dan buoy aboard leads round it, by hand nothing, STOP nothing, SLOW hauls the whole line, held at each fish till taken off, the tub back on deck;
+  - FAST twice as quick, no pressure no turning, off the line held, spinning free without a line.
+
+  Also updated: the add-on lists (starterWorkboat), the gear menu and pin lists, the fields not in the code (designDoc), the bus key table (docs/BUS_KEYS.md). The hauler's keys exist only on a boat with one, so the golden runs are unchanged.
+- **Checked headless:** bought at the Calder yard in a fresh career (the game restarts in her refitted); the hauler at her starboard rail; at sea with a line round it, a haddock held at the roller, the line over the sheave into the bin, the valve on SLOW.
+- **Not checked:** on the Quest (the valve's size and reach, hauling with the other hand free); the sound by ear; a whole line hauled in the game under power (the test does it).
+- **Shared changes:**
+  - `src/vessel/vesselState.ts` (`controls.haulerValve`, `hauler`);
+  - `src/modular/busKeys.ts` (`hauler.valve`, `hauler.run`, `hauler.line`, only on a boat with one);
+  - `src/modular/module.ts` (gear kind `lineHauler`);
+  - `src/modular/recipe.ts` (its words);
+  - `src/boats/library.ts` (the module registered);
+  - `docs/BUS_KEYS.md` (regenerated).
+- **Changes in another area's files:**
+  - the Modular builder's `src/modules/lineHauler/` (new) and `src/config/modules.ts` (`lineHauler`);
+  - the Shipyard's `design.ts`, `gearMenu.ts`, `pinGear.ts`, `parts/deckGear.ts`, `parts/engineRoom.ts` (the pump's socket), `parts/recipe.ts`, `parts/weights.ts`, and `src/config/shipyard.ts`;
+  - the Map's `src/world/regions/home.ts` (Calder Haven's yard sells it).
+- **Still to come (if wanted):** the hauler for the pots too (the same sheave hauls a pot line); bait and baiting tubs; snagging on rough ground.
+
 ### Longlining, step 1: shoot, soak, haul by hand, and a catch you can read (29 Oct 2026)
 
 Owner: "go ahead with longlining", and earlier "I'd like a variety of fish and fish sizes coming up so you know how good your catch is". Everything works alone; with crew one drives and one hauls.

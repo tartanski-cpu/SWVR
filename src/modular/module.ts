@@ -129,7 +129,9 @@ export type GearKind =
   | 'fishHold'
   // The trawl deck gear (owner, Oct 2026)
   | 'netDrum'
-  | 'trawlWinches';
+  | 'trawlWinches'
+  // Longlining (owner, 29 Oct 2026)
+  | 'lineHauler';
 
 /** What the world's systems need to know about each kind of gear (the boat's axes, m). */
 export interface GearFacts {
@@ -179,6 +181,11 @@ export interface GearFacts {
   fishHold: { slots: [number, number, number][]; hatch: { centre: [number, number, number]; x0: number; x1: number; z0: number; z1: number } };
   /** The net drum: where the net leads off it (the top of a full roll, her axes). */
   netDrum: { lead: [number, number, number] };
+  /**
+   * The line hauler (modules/lineHauler): its roller over the rail, where a longline comes
+   * aboard (its lead); its sheave's middle; its bin on deck, where the line falls; its valve.
+   */
+  lineHauler: { roller: [number, number, number]; sheave: [number, number, number]; bin: [number, number, number]; valve: [number, number, number] };
   /** The trawl winches: where the starboard warp leaves its drum (port is -x). */
   trawlWinches: { lead: [number, number, number] };
   /** The boat hook: in its clips at (x, y), from z0 to z1. */

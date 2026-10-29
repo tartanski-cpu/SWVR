@@ -35,6 +35,8 @@ import type { Vec3 } from '../core/math';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { aboard, deckHeightAt, footprint, type CargoItem } from '../cargo/cargo';
+import { gearOf } from '../boats/sims';
+import { hydraulicsOn } from '../vessel/electrics';
 import { deckSpot } from '../cargo/deck';
 import { holdsHook } from '../rescue/recovery';
 import { fromHull, leadFor, outsideHull, toWorldPt } from '../potting/potting';
@@ -71,8 +73,12 @@ export interface Longline {
    *   hooked  its buoy at `end` on someone's boat hook (`by`)
    *   line    that buoy's aboard `vessel`: the line leads in at `lead` (vessel axes); `fish`:
    *           a fish at the rail, waiting to be taken off
+   *   `hauler`: led round her line hauler (its roller the lead), which hauls it: `drive`, how
+   *           fast it's coming (`u`, m/s) since `t0` (world time), and how far into the gap to
+   *           the next hook it was then (`m0`, m). Rewritten only when the speed changes or a
+   *           hook comes up, not every tick (so the line isn't sent to the crew every tick).
    */
-  haul?: { by: string; phase: 'hooked' | 'line'; end: 0 | 1; vessel?: string; lead?: Vec3; fish?: LineFish | null; landed?: LineFish[] };
+  haul?: { by: string; phase: 'hooked' | 'line'; end: 0 | 1; vessel?: string; lead?: Vec3; fish?: LineFish | null; landed?: LineFish[]; hauler?: boolean; drive?: { u: number; t0: number; m0: number } };
 }
 
 /** A line being shot: from where its first buoy went in, paid out as she goes. */
@@ -276,10 +282,13 @@ function finishShooting(world: WorldState, sh: Shooting, v: VesselState | undefi
   return line;
 }
 
-/** Each tick (host): lines paying out as their boats steam; lines aboard parting if she's driven off them. */
+/** Each tick (host): lines paying out as their boats steam; lines aboard parting if she's driven off them, or hauled by a hauler; the haulers turning. */
 export function stepLongline(world: WorldState, dt: number): void {
   const s = world.longline;
-  if (!s) return;
+  if (!s) {
+    stepHaulers(world);
+    return;
+  }
   const c = CONFIG.longline;
   for (const sh of [...s.shooting]) {
     const v = world.vessels[sh.vessel];
@@ -310,6 +319,59 @@ export function stepLongline(world: WorldState, dt: number): void {
     }
     const off = offTheLine(line, v);
     if (off > depthAt(line) + c.partM) part(world, line, v);
+    else if (h.hauler) hauler(world, line, v);
+  }
+  stepHaulers(world);
+}
+
+/** How fast her line hauler hauls with its valve where it is (m/s): 0 at STOP, or without hydraulic pressure. */
+function haulerSpeed(v: VesselState): number {
+  const valve = Math.round(v.controls.haulerValve ?? 0);
+  if (!valve || !hydraulicsOn(v)) return 0;
+  return valve >= 2 ? CONFIG.longline.hauler.fast : CONFIG.longline.hauler.slow;
+}
+
+/**
+ * A line round her hauler: it comes in at the valve's speed, a hook at the roller every
+ * `hookSpacingM`; held (turning no more) with a fish at the roller, or while she's too far off
+ * the line for it to come; going on by itself once it can.
+ */
+function hauler(world: WorldState, line: Longline, v: VesselState): void {
+  const c = CONFIG.longline;
+  const h = line.haul!;
+  const want = haulerSpeed(v);
+  const held = !!h.fish || offTheLine(line, v) > depthAt(line) + c.leadSlackM;
+  const u = held ? 0 : want;
+  const d = (h.drive ??= { u: 0, t0: world.time, m0: 0 });
+  let m = d.m0 + d.u * (world.time - d.t0);
+  let changed = u !== d.u;
+  if (m >= c.hookSpacingM) {
+    // The next hook at the roller (a fish on it holds the hauler from now).
+    m -= c.hookSpacingM;
+    changed = true;
+    if (line.hookFrom <= line.hookTo) nextHook(world, line, h);
+    if (line.hookFrom > line.hookTo && !h.fish) {
+      lineAboard(world, line, v);
+      return;
+    }
+  }
+  if (changed) h.drive = { u: h.fish ? 0 : u, t0: world.time, m0: m };
+}
+
+/**
+ * Each boat with a line hauler: how fast its sheave turns, whether a line's round it, and
+ * whether it's held (for its drawing and its sound: VesselState.hauler). Without a line it
+ * spins free at the valve's speed. Written only when it changes.
+ */
+function stepHaulers(world: WorldState): void {
+  for (const v of Object.values(world.vessels)) {
+    if (!gearOf(v, 'lineHauler')) continue;
+    const line = world.longline?.lines.find((l) => l.haul?.phase === 'line' && l.haul.hauler && l.haul.vessel === v.id);
+    const want = haulerSpeed(v);
+    const run = line ? (line.haul!.drive?.u ?? 0) : want;
+    const now = { run, line: !!line, held: !!line && want > 0 && run === 0 };
+    const was = v.hauler;
+    if (!was || was.run !== now.run || was.line !== now.line || was.held !== now.held) v.hauler = now;
   }
 }
 
@@ -380,6 +442,14 @@ function deckNear(world: WorldState, v: VesselState, kind: number, lead: Vec3): 
   return spot ? { vessel: v.id, pos: [spot.x, deckHeightAt(v.defId, spot.z), spot.z], yaw: 0, vel: [0, 0], lashed: false } : null;
 }
 
+/** The next hook up from the end being hauled; a fish on it stops the line at the rail (true: one came). */
+function nextHook(world: WorldState, line: Longline, h: NonNullable<Longline['haul']>): boolean {
+  const i = h.end === 0 ? line.hookFrom++ : line.hookTo--;
+  const fish = fishOnHook(world, line, i);
+  if (fish) h.fish = fish;
+  return !!fish;
+}
+
 /**
  * The line's last hook in from the end being hauled: it's all aboard, coiled back into its tub on
  * her deck by the lead, to shoot again (no room on deck: in by the lead all the same, on top of
@@ -431,25 +501,23 @@ export function applyLonglineIntent(world: WorldState, intent: Intent): void {
       const h = line.haul;
       const b = h ? line.buoys[h.end] : null;
       if (!h || !v || h.phase !== 'hooked' || !b || fromHull(v, b[0], b[1]) > c.liftRange) break;
-      line.haul = { by: who, phase: 'line', end: h.end, vessel: v.id, lead: leadFor(v, b[0], b[1]), fish: null, landed: [] };
+      // With a line hauler, led over its roller and round its sheave; else in over her gunwale there.
+      const hl = gearOf(v, 'lineHauler');
+      line.haul = hl
+        ? { by: who, phase: 'line', end: h.end, vessel: v.id, lead: [...hl.roller], fish: null, landed: [], hauler: true }
+        : { by: who, phase: 'line', end: h.end, vessel: v.id, lead: leadFor(v, b[0], b[1]), fish: null, landed: [] };
       break;
     }
     case 'llHaul': {
       const h = line.haul;
       const hv = world.vessels[h?.vessel ?? ''];
-      if (!h || h.phase !== 'line' || !hv || h.fish || !(intent.value > 0)) break;
+      // (Round the hauler, the hauler hauls it.)
+      if (!h || h.phase !== 'line' || !hv || h.fish || h.hauler || !(intent.value > 0)) break;
       // Off the line: it won't come (bring her up along it).
       if (offTheLine(line, hv) > depthAt(line) + c.leadSlackM) break;
       // The next hook comes up (the line between hooks is a stroke or so: the pull brings the next).
       const pulls = Math.max(1, Math.round(Math.min(c.maxPull, intent.value) / c.hookSpacingM));
-      for (let n = 0; n < pulls && line.hookFrom <= line.hookTo; n++) {
-        const i = h.end === 0 ? line.hookFrom++ : line.hookTo--;
-        const fish = fishOnHook(world, line, i);
-        if (fish) {
-          h.fish = fish;
-          break;
-        }
-      }
+      for (let n = 0; n < pulls && line.hookFrom <= line.hookTo; n++) if (nextHook(world, line, h)) break;
       if (line.hookFrom > line.hookTo && !h.fish) lineAboard(world, line, hv);
       break;
     }

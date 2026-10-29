@@ -449,6 +449,28 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   /** Where a deck piece is, in words: "Foredeck, port", "Aft deck, centreline". */
   const deckWords = (p: V3) => `${p[2] < front ? 'Foredeck' : p[2] > aft ? 'Aft deck' : 'Side deck'}, ${Math.abs(p[0]) < 0.2 ? 'centreline' : p[0] < 0 ? 'port' : 'starboard'}`;
 
+  // The line hauler (owner, 29 Oct 2026: longlining; modules/lineHauler), before the fender
+  // basket: against her starboard bulwark at the forward end of the aft deck, where the
+  // skipper sees it from the helm, moved aft until it stands clear. Its plan: from the
+  // bulwark in past its post and the bin inboard of it, and room to stand aft of it.
+  const lhc = CONFIG.modules.lineHauler;
+  let lineHaulerAt: V3 | null = null;
+  if (d.lineHauler) {
+    const half = Math.max(lhc.bin[2] / 2, lhc.postR + 0.15) + 0.05;
+    for (let z = aftEnd + dg.lineHauler.fromHouse + half; z < aftEnd + dg.lineHauler.fromHouse + half + dg.lineHauler.search; z += 0.1) {
+      const post = q.halfBeam(z) - lhc.postIn;
+      const [z0, z1] = [z - half, z + lhc.valveAft + dg.lineHauler.room];
+      // (Inside her side all along it: she narrows toward her ends.)
+      const rect: Rect = { x0: post - lhc.binIn - lhc.bin[0] / 2 - 0.05, x1: Math.min(q.halfBeam(z0), q.halfBeam(z1), q.halfBeam(z)) - 0.16, z0, z1 };
+      if (post - lhc.binIn - lhc.bin[0] / 2 > 0.2 && standsOnDeck([rect])) {
+        lineHaulerAt = [r2(post), r2(q.deckY(z)), r2(z)];
+        taken.push(rect);
+        break;
+      }
+    }
+    if (!lineHaulerAt) warnings.push('There\'s no room at her starboard rail on the aft deck for the line hauler: left off.');
+  }
+
   // The fender basket (owner: the crew's fenders): on deck against the bulwark, aft to
   // starboard where the starting workboat's is, else the next clear spot (port, then just
   // aft of the house, then the foredeck). The fenders hang over the side at three stations
@@ -552,10 +574,11 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     ...(basketAt ? [{ id: 'fenders', type: 'deck.fitting' as const, transform: { position: [basketAt[0], q.deckY(basketAt[1]), basketAt[1]] as V3 }, label: `${deckWords([basketAt[0], 0, basketAt[1]])}: the fender basket` }] : []),
     // The deck hydraulics' pump on the engine's power take-off, for the crane and the winch.
     ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
+    ...(lineHaulerAt ? [{ id: 'lineHauler', type: 'deck.equipment' as const, transform: { position: lineHaulerAt }, label: 'Aft deck, against the starboard bulwark: the line hauler' }] : []),
     ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
     ...(skiff2At ? [{ id: 'tenderCrane2', type: 'deck.equipment' as const, transform: { position: skiff2At }, label: 'The second ship\'s boat\'s crane column (her cradle forward of it)' }] : []),
   ];
-  return { bowStaple, towHook, deckSockets, diveFrame, aFrame, netDrumAt: aFrame ? netDrumAt : null, trawlWinchesAt: aFrame ? trawlWinchesAt : null, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, placeWhy, r2, skiffAt, skiff2At, sternRoller, taken, weighed, winchAt, winchFace };
+  return { bowStaple, towHook, deckSockets, diveFrame, aFrame, lineHaulerAt, netDrumAt: aFrame ? netDrumAt : null, trawlWinchesAt: aFrame ? trawlWinchesAt : null, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, placeWhy, r2, skiffAt, skiff2At, sternRoller, taken, weighed, winchAt, winchFace };
 }
 export type DeckGearPart = ReturnType<typeof deckGearPart>;
 

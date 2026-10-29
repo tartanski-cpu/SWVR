@@ -240,6 +240,11 @@ function foilKey(spec: BusKeySpec): BusKeySpec {
   const get = spec.bind.get;
   return { ...spec, bind: { ...spec.bind, get: (s) => (VESSEL_DEFS[s.defId]?.foils ? get(s) : undefined) } };
 }
+/** A line hauler's key (modules/lineHauler): there only on a boat with one. */
+function haulerKey(spec: BusKeySpec): BusKeySpec {
+  const get = spec.bind.get;
+  return { ...spec, bind: { ...spec.bind, get: (s) => (gearOf(s, 'lineHauler') ? get(s) : undefined) } };
+}
 function aziKey(spec: BusKeySpec): BusKeySpec {
   const get = spec.bind.get;
   return { ...spec, bind: { ...spec.bind, get: (s) => (gearOf(s, 'diesel')?.azimuth ? get(s) : undefined) } };
@@ -472,6 +477,10 @@ export const BUS_KEYS = {
   'trawl.warpOut': state('number', (s) => s.trawlGear?.warp ?? 0, "How far the trawl's warps are paid out, 0 (in) .. 1 (fishing): what the trawl winches' drums show (fishing.ts).", { unit: '0..1' }),
   'trawl.netOnDrum': state('number', (s) => s.trawlGear?.net ?? 1, 'How much of the trawl net is wound on its drum, 0 .. 1 (all of it, stowed): what the net drum shows (fishing.ts).', { unit: '0..1' }),
   'aFrame.luff': state('number', (s) => s.aFrameLuff ?? 0, 'How far the A-frame has swung inboard on its rams: 0 raked aft over the stern, 1 in over the deck (fishing/codend.ts).', { unit: '0..1' }),
+  // The line hauler (modules/lineHauler; fishing/longline.ts): its valve, and its sheave.
+  'hauler.valve': haulerKey(setting('haulerValve', [0, 2], 'step', "Line hauler's valve: 0 STOP, 1 SLOW, 2 FAST (CONFIG.longline.hauler; fishing/longline.ts hauls at that speed on the deck hydraulics).", { integer: true, writer: 'module' })),
+  'hauler.run': haulerKey(state('number', (s) => s.hauler?.run ?? 0, "How fast the line hauler's sheave turns, as line (fishing/longline.ts): what its sheave shows.", { unit: 'm/s' })),
+  'hauler.line': haulerKey(state('boolean', (s) => !!s.hauler?.line, 'A longline led round the line hauler (fishing/longline.ts): drawn over its sheave into its bin.')),
   // The dive A-frame (modules/diveFrame): its stand's hold-to-run buttons.
   'dive.frameOut': diveKey(control('diveOut', 'Dive A-frame FRAME OUT button held: swings the sub out over the stern (only with her up in the docking head).', { writer: 'module' })),
   'dive.frameIn': diveKey(control('diveIn', 'Dive A-frame FRAME IN button held: swings the sub in over her cradle (only with her up in the docking head).', { writer: 'module' })),

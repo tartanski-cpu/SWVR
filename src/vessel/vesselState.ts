@@ -34,6 +34,8 @@ export interface VesselControls {
   foilMode?: number;
   /** Her ride height: 0 low, 1 normal (or unset), 2 high (CONFIG.foils.rideSteps). */
   foilRide?: number;
+  /** Her line hauler's valve (modules/lineHauler): 0 STOP (or unset), 1 SLOW, 2 FAST (CONFIG.longline.hauler). */
+  haulerValve?: number;
   /** Helm (wheel) position, -1 (hard to port) .. +1 (hard to starboard). */
   helm: number;
   /** Navigation lights switch, 0 off / 1 on. */
@@ -297,6 +299,13 @@ export interface VesselState {
   trawlGear?: { warp: number; net: number };
   /** How far her A-frame has swung inboard on its rams (0 raked aft over the stern, 1 in over the deck; fishing/codend.ts). Absent: 0. */
   aFrameLuff?: number;
+  /**
+   * Her line hauler (fishing/longline.ts; modules/lineHauler): how fast its sheave turns (`run`,
+   * m/s of line), whether a longline is led round it (`line`), and whether it's held up with
+   * its valve open (`held`: a fish at the roller, or she's too far off the line for it to come).
+   * Set when it changes, not every tick. Absent: still, empty.
+   */
+  hauler?: { run: number; line: boolean; held: boolean };
   /**
    * The design token her type was built from (multi-boat M1: a `boat:` type, boats/library.ts):
    * travels with her in every snapshot, so any page can build her type. Unset on the fixed types.

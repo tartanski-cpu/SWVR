@@ -454,6 +454,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   | Fenders | £600 | — | Fenders along her sides and a basket of spares: knocks alongside land on them, not her hull, and you can hang one between her and the quay by hand (the beginner boat; the workboat has hers) |
   | Life ring | £400 | — | A life ring and a boat hook on the wheelhouse aft wall: the rescue calls come once she has it (the beginner boat; the workboat has hers) |
   | Bow fender | £6,000 | — | A thick rubber block on her bow, for crew transfer to the wind farm: push her against a turbine's boat landing and hold her there with the throttle while the technicians step across; it grips, so she doesn't slide (the beginner boat, at Calder; a Shipyard boat gets one in the Shipyard) |
+  | Line hauler | £1,500 | — | A powered sheave at her starboard rail for longlining: the line comes in at the speed set on its valve, stopping with each fish at the rail (the beginner boat, at Calder; a Shipyard boat gets one in the Shipyard, Deck gear → Fishing) |
   | Radar | £2,400 | 20 | Debris and floating crates show on the chartplotter within 1.5 nm |
   | AIS receiver | £900 | — | Passing ships on the chartplotter, by name and course, in any visibility (without it, none) |
   | Bigger fuel tank | £1,400 | 5 | Her fuel tank 60 % bigger (the workboat: 900 L to 1,440 L): further between fills |
@@ -616,6 +617,12 @@ A line of baited hooks on the bottom, a dan buoy at each end, hauled by hand: ev
 7. **The catch:** each fish stops at the rail, swinging on its hook, and the crew call it out: "**Cod, 4.2 kg: a good one**". Species come from the ground's mix (cod, haddock, whiting, ling, hake, pollack, conger eel, thornback ray, dogfish, and once in a long while a **halibut**), and each fish is **undersize, small, fair, good or big** for its kind. Most are small; the big ones are rare. **Take it off** (**VR:** grip the fish; **desktop:** click it): it goes into a **fish box** on deck (25 kg to a box, a new box when that's full), or, if it's under the smallest size for its kind, back over the side. The line won't come while a fish is on.
 8. **Line aboard:** the far buoy comes in, the line goes back into its tub on deck, and you get the haul's tally ("Line aboard: 23 fish, 41.6 kg: 9 haddock (best 2.1 kg), 5 cod (best 6.3 kg)…"). Shoot the tub again, or take it home.
 9. **Sell the catch:** land the fish boxes at any harbour's goods stack (or menu → Cargo → **Unload**): paid **by the kilo, by species** (halibut and cod best, dogfish next to nothing), better with the ice machine.
+
+**The line hauler** (new): a powered sheave at her starboard rail, so you're not hauling 300 m by hand. The Calder Haven boatyard fits it to the beginner boat (**Line hauler**, £1,500); in the Shipyard it's under Deck gear → Fishing. It stands against the starboard bulwark just aft of the wheelhouse: a post with a sheave on top, a short arm out over the rail to a roller, a blue bin on deck for the line, and its **valve**, a three-way knob on a bracket aft of the post: **STOP**, **SLOW** (about 1 knot of line) and **FAST** (about 2).
+- Bring a dan buoy aboard as before, anywhere along her side: the crew lead its line forward over the hauler's roller and round the sheave.
+- Set the valve to **SLOW** or **FAST** (**VR:** press the knob; **desktop:** click it, each press steps it on). The line comes in, falling into the bin, and **stops by itself with each fish at the roller**: take it off and it goes on. The line won't come by hand while it's round the hauler.
+- It runs on her **deck hydraulics**: the engine running and **DECK HYD** on the breaker panel. Without them the crew tell you why it isn't turning.
+- **Keep her up along the line**, starboard side to it: if she falls too far off, the hauler stops (it strains, with the relief valve's hiss) until you bring her up again; drive off it and the line parts, as by hand. Alone: stop her over the line, haul until it holds, take the fish, go to the helm and move her up, and again. With a crew: one at the helm, one at the hauler.
 
 ### Wildlife
 
