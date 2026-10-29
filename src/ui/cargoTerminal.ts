@@ -5,6 +5,7 @@ import type { WorldState } from '../core/world';
 import { cargoBerth } from '../cargo/cargo';
 import { boatAtPort, capacityOf, hasCrane, orderBlocker, ORDER_WHAT, roomFor, terminalSpot, waitingHere, type OrderWhat } from '../cargo/order';
 import { potsOwned } from '../potting/potting';
+import { linesInPlay } from '../fishing/longline';
 import { farmLine } from '../aqua/farmService';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
@@ -20,6 +21,8 @@ interface Facts {
   waiting: Record<OrderWhat, number>;
   crane: boolean;
   pots: number;
+  /** Longlines in play (tubs, shooting, in the water: fishing/longline.ts). */
+  lines: number;
 }
 
 /** What the cargo screen needs from the game. */
@@ -92,6 +95,7 @@ export class CargoTerminal {
       waiting: per((w) => waitingHere(world, p, w).length),
       crane: !!boat && hasCrane(boat),
       pots: potsOwned(world),
+      lines: linesInPlay(world),
     };
     this.knownAt = now;
     return this.known;
@@ -142,6 +146,7 @@ export class CargoTerminal {
       sortRow('crates', 'Crates'),
       sortRow('crane', 'Crane lifts'),
       sortRow('pots', 'Lobster pots'),
+      sortRow('tubs', 'Line tubs'),
       {
         label: '',
         buttons: [
@@ -178,25 +183,25 @@ export class CargoTerminal {
     const f = this.facts();
     if (!f) return '';
     if (what === 'crane' && !cargoBerth(f.port)) return 'no cargo quay here';
-    const yours = `${f.pots} of ${CONFIG.potting.pots} yours`;
-    if (!f.boat) return what === 'pots' ? yours : 'no boat to fill';
+    const yours = what === 'pots' ? `${f.pots} of ${CONFIG.potting.pots} yours` : what === 'tubs' ? `${f.lines} of ${CONFIG.longline.maxLines} lines out` : '';
+    if (!f.boat) return yours || 'no boat to fill';
     if (what === 'crane' && !f.crane) return 'she has no deck crane';
     const n = f.room[what];
-    const more = what !== 'pots' && n >= CONFIG.cargo.terminal.countTo ? `${n}+` : `${n}`;
-    return `room for ${more} more${what === 'pots' ? `  (${yours})` : ''}`;
+    const more = what !== 'pots' && what !== 'tubs' && n >= CONFIG.cargo.terminal.countTo ? `${n}+` : `${n}`;
+    return `room for ${more} more${yours ? `  (${yours})` : ''}`;
   }
 
   private waitingCount(): number {
     const f = this.facts();
-    return f ? f.waiting.crates + f.waiting.crane + f.waiting.pots : 0;
+    return f ? f.waiting.crates + f.waiting.crane + f.waiting.pots + f.waiting.tubs : 0;
   }
 
   private waitingText(): string {
     const f = this.facts();
     if (!f) return '';
-    const { crates, crane, pots } = f.waiting;
-    if (!crates && !crane && !pots) return 'Nothing waiting on the quay';
-    const parts = [crates && `${crates} crate${crates > 1 ? 's' : ''}`, crane && `${crane} crane lift${crane > 1 ? 's' : ''}`, pots && `${pots} pot${pots > 1 ? 's' : ''}`].filter(Boolean);
+    const { crates, crane, pots, tubs } = f.waiting;
+    if (!crates && !crane && !pots && !tubs) return 'Nothing waiting on the quay';
+    const parts = [crates && `${crates} crate${crates > 1 ? 's' : ''}`, crane && `${crane} crane lift${crane > 1 ? 's' : ''}`, pots && `${pots} pot${pots > 1 ? 's' : ''}`, tubs && `${tubs} line tub${tubs > 1 ? 's' : ''}`].filter(Boolean);
     return `On the quay: ${parts.join(', ')}`;
   }
 
@@ -204,7 +209,7 @@ export class CargoTerminal {
     const f = this.facts();
     if (!f) return;
     this.h.send('cargoOrder', f.boat?.id ?? this.h.ownBoatId(), n, f.port.id, [ORDER_WHAT.indexOf(what)]);
-    const name = what === 'crates' ? 'crate' : what === 'crane' ? 'crane lift' : 'pot';
+    const name = what === 'crates' ? 'crate' : what === 'crane' ? 'crane lift' : what === 'tubs' ? 'line tub' : 'pot';
     const where = what === 'crane' ? ' edge: lift it aboard with her crane' : ', by this screen';
     this.h.notify(n === 1 ? `A ${name} on the quay${where}` : `A full load of ${name}s on the quay${where}`);
     // Read afresh once the host has made them.

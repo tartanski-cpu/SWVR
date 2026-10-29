@@ -1388,6 +1388,8 @@ export const CONFIG = {
       // A fish farm's net check (aqua/netCheck.ts): a roll of net and twine to mend a torn net, and a bag of dead fish off a cage (two hands).
       { name: 'Net patch', mass: 15, size: [0.6, 0.3, 0.45] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Mort bag', mass: 70, size: [0.75, 0.55, 0.75] as [number, number, number], shape: 'box' as const, slots: 2 },
+      // A tub of baited longline, coiled, its dan buoys and anchors on top (fishing/longline.ts): one hand.
+      { name: 'Line tub', mass: 32, size: [0.6, 0.45, 0.6] as [number, number, number], shape: 'drum' as const, slots: 2 },
       // A bag of mussels off a long-line (aqua/mussels.ts): one hand.
       { name: 'Mussel bag', mass: 40, size: [0.5, 0.45, 0.55] as [number, number, number], shape: 'box' as const, slots: 1 },
     ],
@@ -2577,6 +2579,75 @@ export const CONFIG = {
      * land at the lines' harbour: `perBag` each, `bonus` for the lot.
      */
     mussels: { every: [2400, 3600] as [number, number], first: 1500, dueS: 3600, bags: [6, 10] as [number, number], bagSpacing: 9, lineTop: 0.3, perBag: 45, bonus: 300 },
+  },
+
+  /**
+   * Longlining (owner, 29 Oct 2026: "go ahead with longlining ... I'd like a variety of fish and
+   * fish sizes coming up so you know how good your catch is"; fishing/longline.ts).
+   *   line        a tub's baited line: up to `lengthM` of groundline, a hook every `hookSpacingM`;
+   *               `maxLines` in play (tubs, lines shooting and in the water) at once
+   *   shooting    a tub let go over the side while she's under way: its first dan buoy goes in
+   *               there, and the line pays out as she steams (the distance her stern goes). It's
+   *               all out at `lengthM`; stopped (under `stopSpeed` m/s) for `stopS` s, the end
+   *               buoy goes in where she is (a shorter line; under `minM` it's lost)
+   *   quality     how well it was shot: straight (end to end over its length, squared) and at
+   *               a good speed (`goodSpeed` m/s between: slower, the hooks pile up; faster, the
+   *               snoods tangle), down to `worstSpeedFactor`
+   *   soak        it fishes `soakReady` s after it's shot (half as well before), best at `soakBest`
+   *   hauling     hook a dan buoy with the boat hook, bring it aboard (within `liftRange` m of
+   *               the hull), and haul hand over hand (each stroke's reach x `pullScale`; desktop
+   *               `deskPull` m a click, at most `maxPull` m a go). Keep her along the line: with
+   *               the line's next stretch more than the depth plus `leadSlackM` off, it won't
+   *               come; more than the depth plus `partM`, it parts (haul the rest from its other
+   *               end). A dan buoy towed by the hook stays within the depth plus `danScopeM` of
+   *               its anchor
+   *   fish        each hook that comes up has a fish on it at `hookRate` x the ground's richness
+   *               x the soak x the quality (off any ground x `offGround`), drawn from the species
+   *               table by the ground's own fish (`groundBoost` x its weight). Taken off (VR:
+   *               grip it; desktop: click), it goes in a fish box on deck (`boxKg` of fish a box)
+   *               unless it's under its species' `minKg`: then it goes back
+   *   species     each: its weight in the mix (`w`), its size range (kg: most are small, a few
+   *               are big: `sizeSkew`), its smallest to keep (`minKg`), its price (£/kg) and colour
+   */
+  longline: {
+    lengthM: 300,
+    hookSpacingM: 6,
+    maxLines: 4,
+    stopSpeed: 0.5,
+    stopS: 30,
+    minM: 40,
+    goodSpeed: [1.5, 4] as [number, number],
+    worstSpeedFactor: 0.55,
+    soakReady: 900,
+    soakBest: 1800,
+    liftRange: 2.5,
+    hookReach: 1.0,
+    pullScale: 8,
+    deskPull: 6,
+    maxPull: 8,
+    leadSlackM: 14,
+    partM: 40,
+    danScopeM: 12,
+    hookRate: 0.32,
+    offGround: 0.25,
+    groundBoost: 4,
+    boxKg: 25,
+    sizeSkew: 2.2,
+    species: [
+      { name: 'Cod', w: 2, kg: [0.6, 14] as [number, number], minKg: 1, price: 3.2, color: 0x7a7448 },
+      { name: 'Haddock', w: 3, kg: [0.3, 3.5] as [number, number], minKg: 0.5, price: 2.6, color: 0x8a9098 },
+      { name: 'Whiting', w: 3, kg: [0.15, 1.6] as [number, number], minKg: 0.3, price: 1.6, color: 0xb8bcc2 },
+      { name: 'Ling', w: 1, kg: [1.5, 20] as [number, number], minKg: 2.5, price: 2.4, color: 0x6c6a4a },
+      { name: 'Hake', w: 1, kg: [0.5, 7] as [number, number], minKg: 0.7, price: 3, color: 0x9aa2ac },
+      { name: 'Pollack', w: 1, kg: [0.6, 8] as [number, number], minKg: 1, price: 2.8, color: 0x8c7c42 },
+      { name: 'Halibut', w: 0.15, kg: [4, 60] as [number, number], minKg: 8, price: 9, color: 0x5c5248 },
+      { name: 'Conger eel', w: 0.6, kg: [2, 25] as [number, number], minKg: 2, price: 1.2, color: 0x3c3c3a },
+      { name: 'Thornback ray', w: 1, kg: [1, 8] as [number, number], minKg: 1.5, price: 2, color: 0xa08a68 },
+      { name: 'Dogfish', w: 2.5, kg: [0.5, 3] as [number, number], minKg: 0, price: 0.4, color: 0x8a7462 },
+      { name: 'Mackerel', w: 0, kg: [0.25, 0.8] as [number, number], minKg: 0.25, price: 1.8, color: 0x3a8a8a },
+    ],
+    /** A fishing ground's own species (FishingGroundDef.species) as the longline's: its trawl fish where the line takes them, else what a line takes there instead. */
+    groundSpecies: { cod: 'Cod', haddock: 'Haddock', whiting: 'Whiting', halibut: 'Halibut', salmon: 'Pollack', mackerel: 'Mackerel' } as Record<string, string>,
   },
 
   potting: {

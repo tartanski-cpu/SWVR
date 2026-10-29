@@ -29,6 +29,7 @@ import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
 import { createTransferState, type TransferState } from '../transfer/transfer';
 import { createAqua, type AquaState } from '../aqua/farmService';
+import type { LonglineState } from '../fishing/longline';
 import type { TvState } from '../modules/furniture/tvState';
 import { startBerthFor } from '../world/startSpot';
 import type { BerthDef } from '../world/defs';
@@ -93,6 +94,8 @@ export interface WorldState {
   potting?: PottingState;
   /** Crew transfer to the wind farm: the job, the technicians, boats on the landings (transfer/transfer.ts). */
   transfer?: TransferState;
+  /** Longlining: lines shooting, soaking and being hauled (fishing/longline.ts). Absent until a line's shot. */
+  longline?: LonglineState;
   /** Fish farm service: each salmon farm's silo and calls (aqua/farmService.ts). */
   aqua?: AquaState;
   /** Who is showing a browser tab on which TV (modules/furniture/tvState.ts); made at the first. */

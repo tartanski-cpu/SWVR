@@ -27,6 +27,7 @@
  *   tow         a tow job: answer the call, make fast, bring her into a harbour.
  *   fire        a fire job: answer the call, pump on, put it out with the monitor.
  *   farm        a fish farm's call (aqua/farmService.ts): feed for its barge, or a harvest run.
+ *   longline    her longlines in the water (fishing/longline.ts): soaking, then to haul.
  */
 import { CONFIG } from '../config';
 import { homeVessel, type WorldState } from '../core/world';
@@ -56,7 +57,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'farm' | 'damage' | 'wear' | 'tutorial';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'farm' | 'longline' | 'damage' | 'wear' | 'tutorial';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -408,6 +409,23 @@ function stepFarmDuty(world: WorldState, d: DutiesState, v: VesselState | undefi
   ], world.time);
 }
 
+/** Longlining: while she has lines shooting or in the water, what they want next. */
+function stepLonglineDuty(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
+  const s = world.longline;
+  const mine = s && v ? s.lines.filter((l) => l.owner === v.id) : [];
+  const shooting = !!s && !!v && s.shooting.some((x) => x.vessel === v.id);
+  if (!mine.length && !shooting) return syncJob(d, 'longline', null, '', [], world.time);
+  const ready = mine.filter((l) => world.time - l.shotAt >= CONFIG.longline.soakReady);
+  const soonest = Math.min(...mine.map((l) => l.shotAt + CONFIG.longline.soakReady - world.time));
+  const hauling = mine.some((l) => l.haul?.phase === 'line');
+  syncJob(d, 'longline', 'longline', `Longline: ${mine.length} ${mine.length === 1 ? 'line' : 'lines'} in the water`, [
+    { text: shooting ? 'Shooting: steam on steady, 3 to 8 knots, in a straight line' : 'Shot: let it soak on the bottom', done: !shooting },
+    { text: ready.length ? `${ready.length} ready to haul` : `Ready in ${Math.max(1, Math.ceil(soonest / 60))} min`, done: ready.length > 0 },
+    { text: 'Hook a dan buoy, bring it aboard, haul hand over hand along the line; take each fish off', done: hauling },
+    { text: 'Land the fish boxes at any harbour', done: false },
+  ], world.time);
+}
+
 /** Log salvage (a side mission): while there are logs on the beaches. */
 function stepSalvageDuty(world: WorldState, d: DutiesState): void {
   const logs = world.salvage?.logs ?? [];
@@ -487,6 +505,7 @@ export function stepDuties(world: WorldState): void {
   stepFishingDuty(world, d, v);
   stepSalvageDuty(world, d);
   stepFarmDuty(world, d, v);
+  stepLonglineDuty(world, d, v);
   stepTutorialDuty(world, d);
   stepDamageDuties(world, d, v);
 

@@ -319,7 +319,7 @@ export function catchFor(world: WorldState, pot: ShotPot): PotContents {
 }
 
 /** The gunwale point (vessel axes) nearest a world point: where a line comes aboard. */
-function leadFor(v: VesselState, x: number, z: number): [number, number, number] {
+export function leadFor(v: VesselState, x: number, z: number): [number, number, number] {
   const def = VESSEL_DEFS[v.defId];
   const plan = hullPlan(def);
   const q = new THREE.Quaternion().fromArray(v.orientation).invert();
@@ -330,12 +330,12 @@ function leadFor(v: VesselState, x: number, z: number): [number, number, number]
 }
 
 /** A vessel-axes point in the world. */
-function toWorldPt(v: VesselState, p: readonly number[]): THREE.Vector3 {
+export function toWorldPt(v: VesselState, p: readonly number[]): THREE.Vector3 {
   return new THREE.Vector3(p[0], p[1], p[2]).applyQuaternion(new THREE.Quaternion().fromArray(v.orientation)).add(new THREE.Vector3().fromArray(v.position));
 }
 
 /** How far a world point is from the hull's side (m, 0 alongside). */
-function fromHull(v: VesselState, x: number, z: number): number {
+export function fromHull(v: VesselState, x: number, z: number): number {
   const plan = hullPlan(VESSEL_DEFS[v.defId]);
   const q = new THREE.Quaternion().fromArray(v.orientation).invert();
   const l = new THREE.Vector3(x - v.position[0], 0, z - v.position[2]).applyQuaternion(q);
@@ -347,7 +347,7 @@ function fromHull(v: VesselState, x: number, z: number): number {
  * A buoy moved from (x0, z0) to (x, z) beside a vessel: kept outside her hull, on the side
  * it started (0.25 m off the plating, about half the float and a fender's width).
  */
-function outsideHull(v: VesselState, x0: number, z0: number, x: number, z: number): [number, number] {
+export function outsideHull(v: VesselState, x0: number, z0: number, x: number, z: number): [number, number] {
   const plan = hullPlan(VESSEL_DEFS[v.defId]);
   const q = new THREE.Quaternion().fromArray(v.orientation);
   const qi = q.clone().invert();

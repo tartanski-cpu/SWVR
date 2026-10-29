@@ -128,6 +128,8 @@ import { SoundBoard } from './soundBoard';
 import { TouchControls, wantsTouchControls } from '../ui/touchControls';
 import { TowlineView } from '../tow/towlineView';
 import { PotView } from '../potting/potView';
+import { LonglineView } from '../fishing/longlineView';
+import { LonglineHands, type LonglineHandsContext } from '../fishing/longlineHands';
 import { PotHands, type PotHandsContext } from '../potting/potHands';
 import { FuelView } from '../fuel/fuelView';
 import { FuelHands, type FuelHandsContext } from '../fuel/fuelHands';
@@ -630,6 +632,9 @@ export class App {
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
   private readonly potView = new PotView();
+  /** Longlines: dan buoys, the line shooting and over the rail, the fish on the hook (fishing/longlineView.ts). */
+  private readonly longlineView = new LonglineView();
+  private readonly longlineHands = new LonglineHands();
   private readonly potHands = new PotHands();
   /** The fuel pumps' hoses and the boats' fillers (fuel/): refuelling by hand. */
   private readonly fuelView = new FuelView();
@@ -997,7 +1002,7 @@ export class App {
     this.binoculars = new Binoculars(this.camera);
     this.mountOnHomeBoat();
     this.scene.add(this.handGearView.root, this.camPreview.screen, this.rodView.root, this.lineGunView.root);
-    this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
+    this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.longlineView.root, this.fuelView.root);
     this.setupBridge();
     // After the career is back (setupBridge), so the dive's pay goes into it.
     if (diveBack) this.landDive(diveBack);
@@ -1416,6 +1421,7 @@ export class App {
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
     this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness, this.vesselRoots);
+    this.longlineView.update(this.world, this.renderWaves, this.focus, this.vesselRoots);
     const struck = this.propStrikeView.update(this.world, this.renderWaves, dt, this.focus, darkness);
     if (struck) {
       const d = struck.distanceTo(this.focus);
@@ -5612,6 +5618,10 @@ export class App {
         const onPots = this.potHands.updateXR(this.potCtx(), this.hands, this.busyHands, this.frameDt);
         for (const h of ['left', 'right'] as const) if (onPots[h] || this.potHands.busy(h)) this.busyHands[h] = true;
       }
+      if (this.world.longline) {
+        const onLine = this.longlineHands.updateXR(this.longlineCtx(), this.hands, this.busyHands, this.frameDt);
+        for (const h of ['left', 'right'] as const) if (onLine[h] || this.longlineHands.busy(h)) this.busyHands[h] = true;
+      }
       // The fuel pump's nozzle and buttons.
       const onFuel = this.fuelHands.updateXR(this.fuelCtx(), this.hands, this.busyHands, this.frameDt);
       for (const h of ['left', 'right'] as const) if (onFuel[h] || this.fuelHands.busy(h)) this.busyHands[h] = true;
@@ -5663,7 +5673,7 @@ export class App {
         // Pot work (the buoy on the hook, the line) before the rescue gear's own label.
         // The fuel nozzle (carried in front of us while held) and the pump's buttons.
         const fuel = free && !board && !this.rescueHands.deskBusy ? this.fuelHands.label(this.fuelCtx(), ray, this.frameDt) : null;
-        const pots = free && !board && !fuel && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null;
+        const pots = (free && !board && !fuel && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null) ?? (free && !board && !fuel && this.world.longline ? this.longlineHands.updateDesktop(this.longlineCtx(), ray, this.frameDt) : null);
         const gear = free && !board && !fuel ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
         const step = free && !board && !fuel && !pots && !gear ? this.gangway.updateDesktop(ray) : null;
         const fender = free && !board && !fuel && !pots && !gear && !step ? this.fenderHands.updateDesktop(this.fenderCtx(), ray) : null;
@@ -5675,6 +5685,7 @@ export class App {
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.fuelHands.click(this.fuelCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.world.potting && this.potHands.desktopClick(this.potCtx(), ray)) return true;
+        if (!this.cargoHands.carrying && this.world.longline && this.longlineHands.desktopClick(this.longlineCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
         if (!this.cargoHands.carrying && this.gangway.desktopClick(this.gangwayCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.fenderHands.desktopClick(this.fenderCtx(), ray)) return true;
@@ -5779,6 +5790,21 @@ export class App {
         const [x, y, z] = CONFIG.fuelHose.desk.hand;
         return out.set(x, y, -z).applyMatrix4(this.camera.matrixWorld);
       },
+    };
+  }
+
+  private longlineCtx(): LonglineHandsContext {
+    return {
+      world: this.world,
+      playerId: this.localPlayerId,
+      vesselId: this.testVesselId,
+      vesselRoot: this.vesselRoots.get(this.testVesselId),
+      waves: this.renderWaves,
+      rescue: this.rescueHands,
+      push: (control, ref, value, args) => this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value, ref, args }),
+      notify: (text, s) => this.overlay.notify(text, s ?? 2.5),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      stowHook: () => this.rescueHands.stowHook(this.rescueCtx()),
     };
   }
 

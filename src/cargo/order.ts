@@ -51,10 +51,11 @@ import { deckSpot } from './deck';
 import { isStackable, isStackedUp, levelOf, restingOn, setOnTop } from './stack';
 import { cranesOf } from './craneHook';
 import { feedBagKind, feedCallNear, feedKindAt, markHarvest } from '../aqua/farmService';
+import { isTub, linesInPlay } from '../fishing/longline';
 
 /** What's on order: hand cargo (crates, sacks, drums), crane lifts, lobster pots. */
-export type OrderWhat = 'crates' | 'crane' | 'pots';
-export const ORDER_WHAT: readonly OrderWhat[] = ['crates', 'crane', 'pots'];
+export type OrderWhat = 'crates' | 'crane' | 'pots' | 'tubs';
+export const ORDER_WHAT: readonly OrderWhat[] = ['crates', 'crane', 'pots', 'tubs'];
 
 // ── Her room: payload, slots and open deck, as a dry run ──
 
@@ -110,6 +111,7 @@ function take(room: Room, kind: number): boolean {
 /** Goods waiting on this port's quay of a sort (ordered, not yet aboard): trade cargo bound elsewhere, crane lifts, or empty pots. */
 export function waitingHere(world: WorldState, port: PortDef, what: OrderWhat): CargoItem[] {
   if (what === 'pots') return Object.values(world.cargo).filter((c) => isPot(c) && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
+  if (what === 'tubs') return Object.values(world.cargo).filter((c) => isTub(c) && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
   return waitingAt(world, port, what === 'crane').filter((c) => c.to !== port.id);
 }
 
@@ -135,6 +137,7 @@ function allGoAboard(world: WorldState, v: VesselState, port: PortDef): boolean 
 function shownKind(what: OrderWhat): number {
   const kinds = CONFIG.cargo.kinds;
   if (what === 'pots') return potKind();
+  if (what === 'tubs') return kinds.findIndex((k) => k.name === 'Line tub');
   if (what === 'crane') {
     const names = CONFIG.cargo.crane.kinds;
     return kinds.reduce((best, k, i) => (names.includes(k.name) && (best < 0 || k.mass > kinds[best].mass) ? i : best), -1);
@@ -157,7 +160,7 @@ export function roomFor(world: WorldState, v: VesselState, port: PortDef, what: 
   const room = roomAfterWaiting(world, v, port);
   const kind = shownKind(what);
   let n = 0;
-  const most = what === 'pots' ? Math.max(0, CONFIG.potting.pots - potsOwned(world)) : CONFIG.cargo.terminal.countTo;
+  const most = what === 'pots' ? Math.max(0, CONFIG.potting.pots - potsOwned(world)) : what === 'tubs' ? Math.max(0, CONFIG.longline.maxLines - linesInPlay(world)) : CONFIG.cargo.terminal.countTo;
   while (n < most && kind >= 0 && take(room, kind)) n++;
   return n;
 }
@@ -249,6 +252,15 @@ function makeOne(world: WorldState, port: PortDef, what: OrderWhat, plain = fals
     world.cargo[id] = item;
     return item;
   }
+  // A tub of baited longline (fishing/longline.ts), up to the lines in play.
+  if (what === 'tubs') {
+    if (linesInPlay(world) >= CONFIG.longline.maxLines) return null;
+    const kind = cfg.kinds.findIndex((k) => k.name === 'Line tub');
+    const id = `cargo-${++world.cargoSeq}`;
+    const item: CargoItem = { id, kind, mass: cfg.kinds[kind].mass, from: 'tubs', to: 'none', at: { ground: freeStackSpot(world, port), yaw: 0 } };
+    world.cargo[id] = item;
+    return item;
+  }
   // Hand cargo: no more than one order's worth waiting on the quay (`terminal.maxOrder`).
   if (waitingHere(world, port, 'crates').length >= cfg.terminal.maxOrder) return null;
   // At a farm's barge, crates are its salmon, bound for its harvest run's harbour (on ice from now);
@@ -280,6 +292,7 @@ export function orderBlocker(world: WorldState, port: PortDef, what: OrderWhat):
   if (what === 'crane' && !cargoBerth(port)) return 'No cargo quay here';
   if (what === 'crane' && PORTS.filter((p) => cargoBerth(p)).length < 2) return 'No other cargo quay to send it to';
   if (what === 'pots' && potsOwned(world) >= CONFIG.potting.pots) return `All ${CONFIG.potting.pots} pots are out`;
+  if (what === 'tubs' && linesInPlay(world) >= CONFIG.longline.maxLines) return `All ${CONFIG.longline.maxLines} lines are out`;
   if (what === 'crates' && waitingHere(world, port, 'crates').length >= CONFIG.cargo.terminal.maxOrder) return 'The quay is full';
   if (what === 'crates' && PORTS.length < 2) return 'No other harbour to send it to';
   return null;
@@ -323,7 +336,7 @@ export function returnGoods(world: WorldState, port: PortDef): number {
   let n = 0;
   for (const c of Object.values(world.cargo)) {
     if (!('ground' in c.at) || isProjectItem(c) || portAtPoint(c.at.ground[0], c.at.ground[2])?.id !== port.id) continue;
-    const ours = isPot(c) || (c.from === port.id && c.to !== port.id && !c.salvage);
+    const ours = isPot(c) || isTub(c) || (c.from === port.id && c.to !== port.id && !c.salvage);
     if (!ours) continue;
     delete world.cargo[c.id];
     n++;

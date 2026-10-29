@@ -47,6 +47,7 @@ import { applyOrderIntent } from './order';
 import { feedDelivered, freshFactor, harvestLanded } from '../aqua/farmService';
 import { isNetPatch, mortLanded, patchNet } from '../aqua/netCheck';
 import { musselsLanded } from '../aqua/mussels';
+import { isTub, longlineBoxValue, startShooting, type LineFish } from '../fishing/longline';
 import { bottomOf, isStackedUp, restingOn, setOnTop, stackTopNear, stackWithRoom } from './stack';
 import { berthWithId } from '../world/berths';
 import type { BerthDef } from '../world/defs';
@@ -78,6 +79,8 @@ export interface CargoItem {
   salvage?: { name: string; value: number };
   /** A fish farm's box of salmon (aqua/farmService.ts): on ice, fresh until this world time (s); later it fetches less. */
   bestBy?: number;
+  /** A box of longline fish (fishing/longline.ts): each fish in it, its species and weight. */
+  fish?: LineFish[];
 }
 
 /** What's in a hauled pot (potting/potting.ts catchFor). */
@@ -199,7 +202,7 @@ function potQuayAt(x: number, z: number): PortDef | null {
 function waitingCounts(world: WorldState, crane: boolean): Map<string, number> {
   const m = new Map<string, number>();
   for (const c of Object.values(world.cargo)) {
-    if (c.from === 'pots' || isProjectItem(c) || craneOnly(c) !== crane || !('ground' in c.at)) continue;
+    if (c.from === 'pots' || c.from === 'tubs' || isProjectItem(c) || craneOnly(c) !== crane || !('ground' in c.at)) continue;
     const p = portAtPoint(c.at.ground[0], c.at.ground[2]);
     if (p) m.set(p.id, (m.get(p.id) ?? 0) + 1);
   }
@@ -214,7 +217,7 @@ function groundNear(world: WorldState, x: number, z: number, r: number): Vec3[] 
 }
 
 export function waitingAt(world: WorldState, port: PortDef, crane = false): CargoItem[] {
-  return Object.values(world.cargo).filter((c) => c.from !== 'pots' && !isProjectItem(c) && craneOnly(c) === crane && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
+  return Object.values(world.cargo).filter((c) => c.from !== 'pots' && c.from !== 'tubs' && !isProjectItem(c) && craneOnly(c) === crane && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
 }
 
 export function aboard(world: WorldState, vesselId: EntityId): CargoItem[] {
@@ -382,7 +385,12 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: str
   if (delivered && at && (feedDelivered(world, item, at) || mortLanded(world, item, at) || musselsLanded(world, item, at))) return;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
-  if (delivered && item.salvage) earn(world, 'salvage', { base: item.salvage.value, port: at, text: `Salvage sold at ${portName(at)}: ${item.salvage.name}` });
+  // A box of longline fish (fishing/longline.ts): by the kilo, by species (on ice, the ice machine's better price).
+  if (delivered && item.from === 'line') {
+    const ice = hasUpgrade(world, 'ice') ? CONFIG.career.pay.iceFactor : 1;
+    const kg = (item.fish ?? []).reduce((m, f) => m + f.kg, 0);
+    earn(world, 'fish', { port: at, base: longlineBoxValue(item) * ice, text: `Longline fish landed at ${portName(at)}: ${kg.toFixed(1)} kg` });
+  } else if (delivered && item.salvage) earn(world, 'salvage', { base: item.salvage.value, port: at, text: `Salvage sold at ${portName(at)}: ${item.salvage.name}` });
   else if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
   else if (delivered && item.to === 'any') earn(world, 'crate', { port: at, text: `Lost cargo brought in to ${portName(at)}` });
   else if (delivered) {
@@ -511,6 +519,8 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
       // A net patch set down by a torn net on a fish farm's cage: mended (aqua/netCheck.ts).
       if (patchNet(world, item, x, z)) break;
       const g = standingHeight(x, z);
+      // A line tub let go over the side from a boat: its longline starts shooting (fishing/longline.ts).
+      if (isTub(item) && g < -0.3 && startShooting(world, item, x, z, world.vessels[world.players[intent.playerId]?.aboardVesselId ?? ''])) break;
       if (isPot(item) && g < -0.3) {
         shootPot(world, item, x, z); // a pot over the side: shot, its buoy pops up
         break;
@@ -713,7 +723,7 @@ function setDown(world: WorldState, v: VesselState, item: CargoItem, hook: THREE
   // A project's mark buoy: laid if it's at its spot, else it stays on the hook (career/projects.ts).
   if (isProjectItem(item)) return layProjectBuoy(world, item, w.x, w.z);
   if (isPot(item)) shootPot(world, item, w.x, w.z);
-  else retire(world, item, false);
+  else if (!(isTub(item) && startShooting(world, item, w.x, w.z, v))) retire(world, item, false);
   return true;
 }
 
@@ -769,9 +779,14 @@ export function quickLoadable(world: WorldState, v: VesselState): CargoItem[] {
   const port = quickPort(v);
   if (!port) return [];
   // (Oldest first, by number: cargo-9 before cargo-10, so goods ordered later go on last.)
-  return waitingAt(world, port)
-    .filter((c) => c.to !== port.id)
-    .sort(byNumber);
+  // Then the line tubs ordered here (fishing/longline.ts).
+  const tubs = Object.values(world.cargo).filter((c) => c.from === 'tubs' && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
+  return [
+    ...waitingAt(world, port)
+      .filter((c) => c.to !== port.id)
+      .sort(byNumber),
+    ...tubs.sort(byNumber),
+  ];
 }
 
 /** Items aboard that would be landed here (bound for this port, or any harbour), and pots with a catch to sell. */

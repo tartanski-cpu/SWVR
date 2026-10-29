@@ -45,6 +45,7 @@ import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/sal
 import { applyTimberSell, stepTimberLogs } from '../voyage/timber';
 import { applyTransferIntent, isTransferIntent, stepTransfer } from '../transfer/transfer';
 import { stepAqua } from '../aqua/farmService';
+import { applyLonglineIntent, isLonglineIntent, stepLongline } from '../fishing/longline';
 import { applyPassage } from '../career/passage';
 import { applyTvIntent, isTvIntent, stepTv } from '../modules/furniture/tvState';
 import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
@@ -128,6 +129,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applySalvageIntent(world, intent.playerId, intent.control);
     } else if (isPottingIntent(intent.control)) {
       applyPottingIntent(world, intent);
+    } else if (isLonglineIntent(intent.control)) {
+      applyLonglineIntent(world, intent);
     } else if (isFuelIntent(intent.control)) {
       applyFuelIntent(world, intent);
     } else if (isSlipIntent(intent.control)) {
@@ -273,6 +276,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepTimberLogs(world, dt);
   stepTransfer(world, dt);
   stepAqua(world, dt);
+  stepLongline(world, dt);
   stepTv(world);
   stepFishing(world, dt);
   stepHold(world);
