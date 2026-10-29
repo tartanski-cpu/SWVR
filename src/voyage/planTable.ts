@@ -1,11 +1,12 @@
 /**
- * The voyage planning table (owner, Oct 2026): a big chart table on the quay that the crew
- * gather round to plan the voyage on together; made reliable (owner, 29 Oct 2026, "step 2"):
+ * The voyage planning board (owner, Oct 2026: a big chart table on the quay that the crew
+ * gather round to plan the voyage on together; made reliable, 29 Oct 2026, "step 2"; then
+ * stood upright, "in a vertical frame, like a big TV, not horizontal"):
  *
  *   where     at the harbour you're at (the one nearest you: each page's own), on level
  *             ground clear of the buildings, a few metres back from where you step ashore
- *             (planTableSpot). Where a table won't fit (a narrow quay, a pontoon), a chart
- *             stand instead: a sloping chart on a post, a third of the room.
+ *             (planTableSpot). Where it won't fit (a narrow quay, a pontoon), a chart stand
+ *             instead: a sloping chart on a post, less than half as wide.
  *   the chart the planning chart (voyage/chartPad.ts): the land drawn sharp at any zoom, the
  *             crew's plan, every player's boat, and the keys along its near edge. Its view is
  *             each player's own (owner: "own view each"), as on the chart board in the hand;
@@ -15,8 +16,7 @@
  *             puts a point or presses a key, held and moved drags the chart, the thumbstick
  *             zooms. Desktop: the reticle on it, click, drag, and the mouse wheel to zoom.
  *
- * You stand at its near side and read it the right way up from there: its north is the
- * table's far edge, whichever way the quay runs, as a chart on a real table.
+ * It faces the way you come up from the water, north at its top.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../config';
@@ -46,8 +46,7 @@ export function planTableSize(form: PlanTableForm): { width: number; depth: numb
 
 /** Its chart face's width over its depth (the pad's canvas is drawn to it: the table's and the stand's are the same). */
 export function planFaceAspect(): number {
-  const t = CONFIG.voyage.plan.table;
-  return (t.width - 0.06) / (t.depth - 0.06);
+  return CONFIG.voyage.plan.table.aspect;
 }
 
 export class PlanTable {
@@ -76,27 +75,36 @@ export class PlanTable {
     const mat = new THREE.MeshBasicMaterial({ map: pad.texture, toneMapped: false, color: 0xe8e8e8 });
     let face: THREE.Mesh;
     if (form === 'table') {
-      // (In the table's frame: -z its far edge (the chart's north), +x to the right as you stand at it.)
-      const W = t.width;
-      const D = t.depth;
-      const H = t.height;
-      this.halfWidth = W / 2;
-      const frame = new THREE.Mesh(
+      // The big board (owner, 29 Oct 2026: "in a vertical frame, like a big TV, not horizontal.
+      // It's going to be easier to use"): the chart `face` m across standing upright on two
+      // posts with feet, its foot `bottom` m up, leaning back `tiltDeg`, facing you as you walk
+      // up (in its frame: +z toward you, +x to your right).
+      const fw = t.face;
+      const fh = fw / planFaceAspect();
+      const tilt = (t.tiltDeg * Math.PI) / 180;
+      const midY = t.bottom + (Math.cos(tilt) * fh) / 2;
+      this.halfWidth = fw / 2 + 0.06;
+      const STEEL = 0x2b3034;
+      const board = new THREE.Group();
+      board.position.set(0, midY, 0);
+      board.rotation.x = -tilt; // its top back, away from you
+      const bezel = new THREE.Mesh(mergeParts([box(fw + 0.12, fh + 0.12, 0.08, 0, 0, -0.042, STEEL)]), flatVertexColorMaterial());
+      face = new THREE.Mesh(new THREE.PlaneGeometry(fw, fh).translate(0, 0, 0.0005), mat);
+      board.add(bezel, face);
+      const postX = fw / 2 - 0.3;
+      const postTop = midY + 0.1;
+      const legs = new THREE.Mesh(
         mergeParts([
-          box(W + 0.08, 0.06, D + 0.08, 0, H - 0.03, 0, WOOD),
-          // A raised rim round the chart, so nothing slides off on the quay.
-          box(W + 0.08, 0.025, 0.04, 0, H + 0.0125, -D / 2 - 0.02, DARK),
-          box(W + 0.08, 0.025, 0.04, 0, H + 0.0125, D / 2 + 0.02, DARK),
-          box(0.04, 0.025, D + 0.08, -W / 2 - 0.02, H + 0.0125, 0, DARK),
-          box(0.04, 0.025, D + 0.08, W / 2 + 0.02, H + 0.0125, 0, DARK),
-          ...[-1, 1].flatMap((sx) => [-1, 1].map((sz) => box(0.09, H - 0.06, 0.09, sx * (W / 2 - 0.1), (H - 0.06) / 2, sz * (D / 2 - 0.1), DARK))),
-          box(W - 0.2, 0.05, 0.05, 0, 0.25, 0, DARK), // a stretcher between the legs
+          ...[-1, 1].flatMap((sx) => [
+            box(0.1, postTop, 0.1, sx * postX, postTop / 2, -0.16, STEEL), // a post behind the board
+            box(0.14, 0.05, t.depth, sx * postX, 0.025, 0, STEEL), // its foot, fore and aft
+          ]),
+          box(2 * postX, 0.06, 0.06, 0, 0.35, -0.16, STEEL), // a rail between the posts
         ]),
         flatVertexColorMaterial(),
       );
-      frame.name = 'planTableFrame';
-      face = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.06, D - 0.06).rotateX(-Math.PI / 2).translate(0, H + 0.002, 0), mat);
-      this.root.add(frame, face);
+      legs.name = 'planBoardStand';
+      this.root.add(legs, board);
     } else {
       // The stand: a sloping chart (`stand.face` across, its depth to keep the table's shape)
       // on a post from a broad foot, its near edge at `stand.height`, tilted up toward you by

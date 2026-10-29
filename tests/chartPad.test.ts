@@ -4,6 +4,7 @@
  * hand all work it the same way: press and let go puts a point or presses a key, held and
  * moved drags the chart, zoom keeps the spot pointed at; its view is this page's own.
  */
+import * as THREE from 'three';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { IdFactory } from '../src/core/ids';
 import { createWorld } from '../src/core/world';
@@ -15,10 +16,12 @@ import { BERTHS } from '../src/world/archipelago';
 
 // The pad draws on a canvas: a stand-in page whose 2D context takes any call.
 let ChartPad: typeof Pad;
+let ChartBoard: typeof import('../src/player/chartBoard').ChartBoard;
 beforeAll(async () => {
   const anything: unknown = new Proxy(function () {}, { get: (_t, k) => (k === Symbol.toPrimitive ? () => 0 : anything), apply: () => anything, set: () => true });
   vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => anything, style: {} }) });
   ChartPad = (await import('../src/voyage/chartPad')).ChartPad;
+  ChartBoard = (await import('../src/player/chartBoard')).ChartBoard;
 });
 
 function pad() {
@@ -101,12 +104,51 @@ describe("the quay's planning table", () => {
   it('stands at every harbour of the career world (none on a feed barge); the stand needs less room than the table', () => {
     const t = planTableSize('table');
     const s = planTableSize('stand');
-    expect(s.width * s.depth).toBeLessThan((t.width * t.depth) / 3);
+    expect(s.width * s.depth).toBeLessThan(t.width * t.depth);
+    expect(s.width).toBeLessThan(t.width);
     for (const p of PORTS) {
       const b = tableBerthNear(p.x, p.z);
       expect(b, p.id).toBeTruthy();
       expect(FARMS.some((f) => f.port === BERTHS.find((x) => x.id === b)!.portId)).toBe(false);
       expect(planTableSpot(b, t) ?? planTableSpot(b, s), p.id).toBeTruthy();
     }
+  });
+});
+
+describe('the chart board in VR', () => {
+  it('comes up in front of you on the boat, stays with her, and is carried by a grip on its frame and left where you let go', () => {
+    const { world, vesselId } = createWorld(new IdFactory(), 'pilotBoat');
+    const scene = new THREE.Scene();
+    const boat = new THREE.Group();
+    boat.position.set(100, 0, 50);
+    scene.add(boat);
+    scene.updateMatrixWorld(true);
+    const board = new ChartBoard({ world: () => world, ownBoatId: () => vesselId, send: () => {} }, () => boat);
+    scene.add(board.root);
+    const head = new THREE.Vector3(101, 1.7, 50);
+    board.takeOut(head, new THREE.Vector3(0, 0, -1));
+    expect(board.isOut).toBe(true);
+    expect(board.root.parent).toBe(boat);
+    const at = board.root.getWorldPosition(new THREE.Vector3());
+    expect(at.z).toBeLessThan(head.z - 0.4);
+    // She moves on: it goes with her.
+    boat.position.x += 10;
+    scene.updateMatrixWorld(true);
+    expect(board.root.getWorldPosition(new THREE.Vector3()).x).toBeCloseTo(at.x + 10, 5);
+    // A grip on its frame takes it; the hand moves a metre to starboard; let go and it stays there, on her.
+    const before = board.root.getWorldPosition(new THREE.Vector3());
+    const hand = (grip: THREE.Vector3, down: boolean, pressed: boolean) => ({ tracked: true, grip, ray: new THREE.Ray(), quat: new THREE.Quaternion(), gripDown: down, gripPressed: pressed, triggerDown: false, triggerPressed: false });
+    const idle = { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false };
+    const edge = board.root.localToWorld(new THREE.Vector3(0.42, 0, 0));
+    const used = board.updateXR({ right: hand(edge, true, true), left: idle }, 1 / 60, () => {});
+    expect(used.right).toBe(true);
+    board.updateXR({ right: hand(edge.clone().add(new THREE.Vector3(1, 0, 0)), true, false), left: idle }, 1 / 60, () => {});
+    board.updateXR({ right: hand(edge.clone().add(new THREE.Vector3(1, 0, 0)), false, false), left: idle }, 1 / 60, () => {});
+    expect(board.root.parent).toBe(boat);
+    expect(board.root.getWorldPosition(new THREE.Vector3()).x).toBeCloseTo(before.x + 1, 5);
+    // A grip well away from it doesn't take it.
+    expect(board.updateXR({ right: hand(new THREE.Vector3(0, 0, 0), true, true), left: idle }, 1 / 60, () => {}).right).toBe(false);
+    board.toggle(head, new THREE.Vector3(0, 0, -1));
+    expect(board.isOut).toBe(false);
   });
 });

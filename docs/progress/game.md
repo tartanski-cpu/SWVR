@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The quay's chart board stands upright; the VR chart board stands in the world (29 Oct 2026)
+
+Owner, testing the maps: "The main planning board ... should appear in a vertical frame, like a big TV, not horizontal. It's going to be easier to use"; and the VR board "shouldn't be stuck to your hand. It should be an object that appears in the world and stays in relation to the boat ... you should be able to grab it and move it around so you can ... put it somewhere inside the boat and it stays there".
+
+- **The quay's board** (`voyage/planTable.ts`, the 'table' form): the planning chart upright, `table.face` 2.2 m across at `table.aspect` 1.5 (1.47 m tall), its foot `table.bottom` 0.75 m up, leaning back `table.tiltDeg` 8°, in a dark bezel on two posts with feet (footprint `table.width` 2.4 × `table.depth` 0.9 m, found as before by `planTableSpot`). It faces the way you come up from the water, north at its top. Two draw calls (the stand, the board) plus its face. The stand fallback is unchanged. `table.height` went.
+- **The VR chart board** (`player/chartBoard.ts`, rewritten): Open the chart puts it `board.ahead` 0.65 m in front of you and `board.below` 0.3 m under your eyes, facing you, attached to the boat you're aboard (her drawn root; else the world), so it goes with her. A grip within `board.grab` 0.1 m of its frame takes it (either hand; that hand is busy, so no grab-walking with it); let go and it's attached to the boat you're aboard there. Its face is now worked as the other planning charts are (`PadFaces`: either hand's pointer, the trigger, the right stick zooms), from up to `board.reach` 2.5 m; it has the LAYERS key. Bigger: `board.width` 0.6 → 0.8 m. `board.offset` went. If the boat it was on goes, it's put away.
+- **Tests:** tests/chartPad.test.ts: the board comes up in front of you on the boat, goes with her, a grip on its frame carries it a metre and it stays there on her, a grip away from it doesn't take it; the stand narrower than the board.
+- **Checked headless:** the Oban board from in front and from above (on the quay by the CARGO screen and a lamp post), the chart board standing in the world.
+- **Not checked:** on the Quest (grabbing and pointing in the headset).
+
 ### Potting always on, quicker soak (29 Oct 2026)
 
 Owner, asking why potting needed switching on: "remove the switch, potting always on"; and "reduce the soaking time for lobster pots for a minimum of 8 minutes, the maximum of 20".

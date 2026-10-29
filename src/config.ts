@@ -3048,7 +3048,9 @@ export const CONFIG = {
      *   minSpan     the old shared table view (the `zoom` intent) zoomed in as far as it
      *               goes: this much sea across (m)
      *   table       (owner, 29 Oct 2026: "step 2"; voyage/planTable.ts) at the harbour you're
-     *               at: its top (m: width along the quay, depth, height), how far behind the
+     *               at: a big upright board, "like a big TV" (owner): its footprint (m: width
+     *               along the quay, depth), its chart `face` m across and `aspect` (width over
+     *               height), its foot `bottom` m up, leaning back `tiltDeg`; how far behind the
      *               spot ashore it stands at least (m); worked from up to `reach` m away; its
      *               chart drawn `px` pixels across (sharper costs more to draw), at most every
      *               `redrawS` s, the bottom `toolbarShare` the keys. `harbourHoldM`: another
@@ -3068,8 +3070,11 @@ export const CONFIG = {
       minSpan: 1500,
       table: {
         width: 2.4,
-        depth: 1.6,
-        height: 0.9,
+        depth: 0.9,
+        face: 2.2,
+        aspect: 1.5,
+        bottom: 0.75,
+        tiltDeg: 8,
         back: 3.2,
         reach: 3,
         px: 1536,
@@ -3095,9 +3100,11 @@ export const CONFIG = {
        *   dragPx          a press that moves less than this (px) is a press on the chart, not a drag
        *   startSpan       first opened, it shows this much sea across (m) round your boat
        *   board           VR: the board's width (m) and its picture's (px, its height 3/4 of that,
-       *                   the bottom `toolbarShare` the tool keys); where it sits from the left
-       *                   hand (m, in the hand's own axes: right, up, back), turned to face you;
-       *                   a redraw at most every `redrawS` s
+       *                   the bottom `toolbarShare` the tool keys); a redraw at most every
+       *                   `redrawS` s. Taken out, it comes up `ahead` m in front of you and
+       *                   `below` m under your eyes, facing you, and stays there (owner, 29 Oct
+       *                   2026: "an object that appears in the world"); a hand's grip within
+       *                   `grab` m of its frame takes hold of it; pointed at from up to `reach` m
        *   leaf            the chart table's PLAN sheet (owner, "step 3": the planning chart on
        *                   the drop leaf; vessel/view/chartTable.ts): its picture (px across), a
        *                   redraw at most every `redrawS` s, the keys' share; worked from up to
@@ -3114,7 +3121,7 @@ export const CONFIG = {
         wheelStep: 1.2,
         stickZoomPerS: 3,
         dragPx: 5,
-        board: { width: 0.6, px: 1024, toolbarShare: 0.14, offset: [0.03, 0.05, -0.16] as [number, number, number], redrawS: 0.08 },
+        board: { width: 0.8, px: 1024, toolbarShare: 0.13, redrawS: 0.08, ahead: 0.65, below: 0.3, grab: 0.1, reach: 2.5 },
         startSpan: 6000,
         leaf: { px: 1280, redrawS: 0.1, toolbarShare: 0.13, reach: 1.6 },
         plotter: { px: 768, redrawS: 0.15, toolbarShare: 0.16, reach: 1.6 },

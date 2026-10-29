@@ -554,7 +554,11 @@ export class App {
   private readonly padFaces = new PadFaces();
   /** The planning chart, each player's own view (voyage/planChart.ts): full-screen on the desktop (M), on a board in the left hand in VR. */
   private readonly planPanel = new PlanChartPanel({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) });
-  private readonly chartBoard = new ChartBoard({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) });
+  private readonly chartBoard = new ChartBoard({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) }, () => {
+    // It stays with the boat you're aboard (her drawn root), else where it is in the world.
+    const on = this.world.players[this.localPlayerId]?.aboardVesselId;
+    return (on && this.vesselRoots.get(on)) || this.scene;
+  });
   /** Voyage mode: the sign into the Shipyard beside the planning table (ui/shipyardDoor.ts). */
   private shipyardDoor: ShipyardDoor | null = null;
   /** Voyage mode: the Your boats board on the planning table's other side. */
@@ -3901,7 +3905,7 @@ export class App {
       goPlanTable: () => this.pushEnvIntent('plan', 1, 'goto'),
       openPlanChart: () => {
         this.menu.close();
-        if (this.renderer.xr.isPresenting) this.chartBoard.toggle();
+        if (this.renderer.xr.isPresenting) this.chartBoard.toggle(this.camera.getWorldPosition(new THREE.Vector3()), this.camera.getWorldDirection(new THREE.Vector3()));
         else this.planPanel.show();
       },
       timberLine: () => this.timberLine(),
@@ -5598,8 +5602,8 @@ export class App {
         this.hands.right.triggerPressed = false;
         this.hands.right.trigger = 0;
       }
-      // The chart board (voyage/planChart.ts): the left hand holds it, the right hand's pointer works it.
-      const onBoard = this.chartBoard.updateXR(this.hands, this.camera.getWorldPosition(this.tmpV), this.frameDt, (h, i, ms) => this.xrInput.pulse(h, i, ms));
+      // The chart board (player/chartBoard.ts): a hand gripping its frame moves it (pointing at it is PadFaces' below).
+      const onBoard = this.chartBoard.updateXR(this.hands, this.frameDt, (h, i, ms) => this.xrInput.pulse(h, i, ms));
       // The planning charts on things (the quay table, the chart table's PLAN sheet, the plotter's
       // PLAN mode): a hand's ray on one works it with its trigger (and the right stick's forward
       // and back zoom); its grip and the left stick stay free (grab-walking, walking up to it).
@@ -6207,6 +6211,7 @@ export class App {
     }
     this.planSaved = this.world.plan?.seq ?? -1;
     this.scene.add(this.chartBoard.root);
+    this.padFaces.faces.push(this.chartBoard.face);
     if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
     // The quay's planning chart (the table's and the stand's), and the Shipyard signs beside
     // it, or at the spot ashore where neither fits (placed with the table: updatePlan).
