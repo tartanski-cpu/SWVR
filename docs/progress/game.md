@@ -10,6 +10,38 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The career's World tab: passages to each region's harbour, for the time and the fuel (29 Oct 2026)
+
+Owner: "the career map's now quite big ... a world tab, so not under debug, and you can teleport to the sheltered harbor with the pier in any one of the regions, and it only costs you time and the fuel to do that" (Voyage's Go is free, in its ports list).
+- **The World tab** (`ui/mainMenu.ts`, career only; Voyage keeps its Go): her cruise, then each region's harbour (`PASSAGE_PORTS`: the region's port of kind `harbour`: Calder Haven, Loch Tarsk, Kvassvik, Ashby Cannery) with how far, how long and how much fuel, and **Go** (or why not).
+- **The passage** (`career/passage.ts`, `CONFIG.passage`):
+  - **Her cruise:** measured on her, `lever` 0.75 ahead in calm water until steady (`seaTrials.measureCruise`, new: a fraction of a second; kept per boat type, measured just after it's first asked for so the menu isn't held up). The starter gillnetter: 7.3 kn, 18 L/h.
+  - **Distance:** the straight line to the harbour's cargo berth times `routeFactor` 1.3 (the water's way round the headlands). **Time** at her cruise; **fuel** at her cruise burn for that long.
+  - **Made** (`passageToPort`, host only; args the time and fuel from the host's menu): the fuel comes out of her tank, the game's clock and the time played go on by the passage (the tick count, so contracts, pots' soak, farm silos and salmon freshness all feel it), and she's put at the harbour as Go puts her (cargo berth, neutral, lines off; you aboard with her).
+  - **Not:** where she is already (within `hereM` 400 m), with a tow fast, without the fuel; a crew-mate's menu says Host only.
+- **Tests:** tests/passage.test.ts (5): one harbour a region; her cruise measured; the plan's distance, time and fuel; made, the clocks go on, the fuel's burnt, she lies at Loch Tarsk's berth in neutral; refused without the fuel, with a tow fast, where she is. The menu test's host gains the passage calls.
+- **Checked headless:** the World tab in a new career (Calder Haven "she's here"; Loch Tarsk 3.2 nm, 27 min, 8 L; Kvassvik 7.2 nm, 59 min, 18 L; Ashby 6.8 nm, 56 min, 17 L), and Go to Loch Tarsk: 8 L burnt, the clock 10:30 to 10:57, her at the cargo berth with me aboard.
+- **Not checked:** on the Quest; a boat with an electric outboard (its battery isn't charged for the passage; no career boat has one).
+- **Shared changes:** `src/core/simulation.ts` (the passage intent beside Go's), `src/vessel/seaTrials.ts` (`measureCruise`).
+
+### Fish farm service, milestone 2: net checks, torn nets, morts, the farm service contract (29 Oct 2026)
+
+Owner: "carry on with farm step 2".
+- **The net check** (`aqua/netCheck.ts`, `CONFIG.aqua.check`): a third farm call (after feed and harvest), every `every` 30-50 min (first after about 15), due in `dueS` 40 min.
+  - **Checking:** a boat with someone aboard, her hull within `reachM` 3.5 m of a ring's float and moving under `maxSpeed` 0.8 m/s, holds there `holdS` 8 s: the ring's checked (`payPerRing` £40). Each crew-mate aboard after the first adds `crewRate` 0.5 to the pace.
+  - **A torn net** (`holeChance` 60 %) on one ring, found when it's checked (VHF). While it's open, Crates at the barge's cargo screen are **Net patches** (new kind, 15 kg, bound nowhere so quick loading takes them); one set down (by hand, `cargoPlace`, or a crane, `setDown`) within `patchReachM` 2.5 m of its flag mends it (`patchNet`, `mendPay` £250) and is used up.
+  - **Morts** (`mortChance` 60 %): a **Mort bag** (new kind, 70 kg, two hands) on one ring's walkway from the call; landed on the barge (by hand, crane or Unload) it pays `mortPay` £120 (`mortLanded`, in cargo.ts retire beside the feed).
+  - **Done** (every ring, the hole, the morts): `bonus` £250. Past due, the call goes, and an unlanded bag with it.
+  - **Where on a ring** (`ringPoint`): on its outer float pipe (`onRingOut` 0.8 m beyond its radius: worldView.ts draws the pipe at the radius and the outer one 0.9 m out), on the diagonal facing away from the farm's middle. A boat stops against a ring at its collision square (world/farms.ts, 0.8 of the radius each side), whose corners reach past the outer pipe on the diagonals, so there the bag and the flag are within arm's reach of her gunwale, and over solid ring (set down there, things stay).
+- **The flags** (`aqua/aquaView.ts`): a 2.6 m pole and a big flag on each ring while a check is going: yellow to check, green checked, red at a found torn net. One instanced mesh for every flag (one draw call), only within 900 m.
+- **The farm service contract:** a fourth contract kind, `farm` (`CONFIG.career.contracts.kinds.farm`: 1-3 calls, £300 each, 45 min each), offered only at a farm's feed barge (and only that there). A call seen through counts (`countContract`, split out of `earn`): a feed call filled by someone's feed, a harvest landed fresh, a net check done.
+- **The duty board** shows the check (rings checked of all, the hole once found, the morts); a job duty's step words now follow the world (`syncJob`), so counts go up as you work.
+- **The cargo screen's** farm line at the barge: "Net check: 2/6 cages · hole at cage 4 (Crates are net patches) · morts on cage 5".
+- **Tests:** tests/netCheck.test.ts (6): a ring's bag and flag on its outer pipe over solid ring; held alongside, a ring's checked and paid, a second crew-mate checks quicker; a hole found, a patch from the barge set by its flag mends it; the morts landed and the last ring held: the check done, paid, and a farm contract completed; not done in time, the call and its morts go; the barge offers only farm contracts.
+- **Checked headless:** a net check at the Tarsk farm from the air and close up: the yellow, green and red flags, a bag of morts on a ring's walkway, the gillnetter alongside.
+- **Not checked:** on the Quest (reaching the bag from her gunwale, setting the patch down by the flag); bringing her alongside a ring under power in the game (the tests place her).
+- **Next (step 3):** technicians to and from the barge, mussel lines, and the coast maps' farms in Voyage.
+
 ### Fish farm service, milestone 1: the Tarsk salmon farm, feed runs and harvest runs (29 Oct 2026)
 
 Owner: "go ahead with fish farm service first, everything should be possible single player but better with crew" (step 1 of the fishing plan; longlining next, with "a variety of fish and fish sizes coming up so you know how good your catch is").

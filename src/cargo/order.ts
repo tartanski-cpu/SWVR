@@ -254,6 +254,15 @@ function makeOne(world: WorldState, port: PortDef, what: OrderWhat, plain = fals
   // At a farm's barge, crates are its salmon, bound for its harvest run's harbour (on ice from now);
   // at a harbour that makes feed, with a farm calling for it, they're feed for the farm.
   const site = world.aqua?.sites[port.id];
+  // A torn net found on a net check (aqua/netCheck.ts): crates at the barge are net patches.
+  const hole = site?.call?.kind === 'check' ? site.call.hole : undefined;
+  if (hole?.found && !hole.mended) {
+    const kind = cfg.kinds.findIndex((k) => k.name === 'Net patch');
+    const id = `cargo-${++world.cargoSeq}`;
+    const item: CargoItem = { id, kind, mass: cfg.kinds[kind].mass, from: port.id, to: 'none', at: { ground: freeStackSpot(world, port), yaw: (port.cargo.stackYawDeg * Math.PI) / 180 } };
+    world.cargo[id] = item;
+    return item;
+  }
   if (site?.call?.kind === 'harvest') {
     const item = makeCargoAt(world, port, site.call.to);
     markHarvest(world, item);

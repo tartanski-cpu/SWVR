@@ -283,7 +283,10 @@ function syncJob(d: DutiesState, kind: Duty['kind'], key: string | null, title: 
   }
   duty.title = title;
   steps.forEach((st, i) => {
-    if (duty!.steps[i]) duty!.steps[i].done ||= st.done;
+    if (!duty!.steps[i]) return;
+    duty!.steps[i].done ||= st.done;
+    // Its words kept up too (a count going up, a hole found: the farm's net check).
+    duty!.steps[i].text = st.text;
   });
 }
 
@@ -358,6 +361,16 @@ function stepFarmDuty(world: WorldState, d: DutiesState, v: VesselState | undefi
   const call = site.call!;
   const name = farmName(id);
   const aboardHer = (f: (c: (typeof world.cargo)[string]) => boolean) => !!v && Object.values(world.cargo).some((c) => 'vessel' in c.at && c.at.vessel === v.id && f(c));
+  if (call.kind === 'check') {
+    const n = call.checked?.length ?? 0;
+    const done = call.checked?.filter(Boolean).length ?? 0;
+    syncJob(d, 'farm', `${id}:check:${call.at}`, `Fish farm: net check at ${name}`, [
+      { text: `Hold her alongside each cage ring a few seconds, barely moving: ${done} of ${n} checked (crew aboard checks quicker)`, done: done === n },
+      { text: call.hole?.found ? `Mend the hole at cage ${call.hole.ring + 1}: a net patch from the barge (Crates), set on the ring by the red flag` : 'Mend any torn net you find', done: !call.hole || call.hole.mended },
+      ...(call.mort ? [{ text: `Lift the bag of morts off cage ${call.mort.ring + 1} and set it down on the barge`, done: call.mort.landed }] : []),
+    ], world.time);
+    return;
+  }
   if (call.kind === 'feed') {
     syncJob(d, 'farm', `${id}:feed:${call.at}`, `Fish farm: feed for ${name}`, [
       { text: 'Fetch feed: at the feed pier Crates are feed sacks for it; at a cargo quay Crane lifts are 500 kg feed bags', done: aboardHer((c) => isFeed(c) && c.to === id) },
