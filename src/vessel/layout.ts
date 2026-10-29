@@ -122,6 +122,14 @@ function stairRamp(stair: readonly FloorPatch[], deckY: (z: number) => number): 
   };
 }
 
+/** A deckhouse stair's landing as floor: all of it (it joins the slope's head on one side), clear of gear standing on it. */
+function stairLanding(landing: FloorPatch, gear: readonly GearFootprint[], r: number): Surface {
+  return {
+    height: () => landing.y,
+    contains: (x, z) => x >= landing.x0 && x <= landing.x1 && z >= landing.z0 && z <= landing.z1 && !onGear(gear, x, z, r, landing.y),
+  };
+}
+
 /** A boat with no wheelhouse (the skiff): just its deck, inside the gunwale. */
 function openDeckWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const st = def.hull.stations;
@@ -394,8 +402,10 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       : []),
     // A stair across the deckhouse's aft face: walked as one slope under its treads, from her deck
     // at its foot up to its landing (owner, Oct 2026: steps "hard to walk up ... it can just be a
-    // ramp"). Drawn as steps all the same.
-    ...(stairSlope ? [stairSlope] : []),
+    // ramp"). Drawn as steps all the same. Its landing is floor too, right up to the slope's
+    // head: the top's walked part stops short of it, and the gap between them held you at the
+    // head of the stair (owner, 29 Oct 2026: "I get stuck before the platform").
+    ...(stairSlope ? [stairSlope, stairLanding(dh!.walk!.stair![0], gear, r)] : []),
     // Other floors (the companionway's treads, the fore cabin's sole), a little short of
     // their edges each way so you don't stand half off them.
     ...(layout.extraFloors ?? []).map(

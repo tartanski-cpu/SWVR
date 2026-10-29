@@ -13,6 +13,8 @@ import { deckAtHeight, onDeck, type Box, type CrewLayout, type DeckName } from '
 
 /** How close to a wall or a piece your body goes (m). */
 const BODY = 0.15;
+/** How far the stair's slope runs on, level, past its head onto the main floor (m). */
+const HEAD_OVER = 0.15;
 
 export function crewWalkArea(l: CrewLayout): WalkArea {
   const M = l.decks.main!;
@@ -20,11 +22,14 @@ export function crewWalkArea(l: CrewLayout): WalkArea {
   const deckOf = (n: DeckName) => (n === 'main' ? M : L!);
   const inWell = (x: number, z: number, m = 0) => !!l.well && x > l.well.x0 - m && x < l.well.x1 + m && z > l.well.z0 - m && z < l.well.z1 + m;
   // The stair's slope: its height at z, within its walls (its width and the gap to them), from
-  // its head (the main floor) to a tread beyond its foot (the lower floor).
+  // its head (the main floor) to a tread beyond its foot (the lower floor). It runs on level a
+  // little past its head (HEAD_OVER) onto the main floor, so the step off it lands on floor:
+  // the main deck keeps clear of the well's edge, and without the overlap the head of the stair
+  // was a strip you couldn't step into (owner, 29 Oct 2026: "I get stuck before the platform").
   const S = l.plan.stair;
   const half = S ? S.width / 2 + 0.05 : 0;
   const rampAt = (x: number, z: number): number | null => {
-    if (!S || Math.abs(x - S.x) > half || z > S.zTop || z < S.zFoot - S.tread) return null;
+    if (!S || Math.abs(x - S.x) > half || z > S.zTop + HEAD_OVER || z < S.zFoot - S.tread) return null;
     return Math.max(S.foot, S.top - ((S.zTop - z) * S.rise) / S.tread);
   };
   // On the lower deck the stair stands in its trunk: the space under it is closed.

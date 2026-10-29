@@ -120,4 +120,34 @@ describe('the crew area', () => {
     // Nor through the stair's side walls from the stair.
     expect(crewWalkArea(l).walkable(0.75, (S.zFoot + S.zTop) / 2, (M.floor + L.floor) / 2)).toBe(false);
   });
+
+  it('walked as the game walks you (small steps, half a step where a whole one is stopped, your height easing onto the floor): up the stair onto the main deck, and down again', () => {
+    const l = crewLayout(crewAreaFor(tug)!);
+    const w = crewWalkArea(l);
+    const S = l.plan.stair!;
+    const M = l.plan.main;
+    const L = l.plan.lower!;
+    // As player/locomotion.ts: a step of 1.4 m/s at 60 fps (tryMove), the floor eased onto (floorSmoothing 0.12 s).
+    const walk = (x: number, z: number, y: number, dz: number, until: (z: number) => boolean) => {
+      for (let i = 0; i < 2000 && !until(z); i++) {
+        if (w.walkable(x, z + dz, y)) z += dz;
+        else if (w.walkable(x, z + dz / 2, y)) z += dz / 2;
+        else return { z, y, stuck: true };
+        const floors = w.floorsAt(x, z).filter((f) => f <= y + STEP_HEIGHT);
+        if (floors.length) y += (Math.max(...floors) - y) * Math.min(1, 1 / 60 / 0.12);
+      }
+      return { z, y, stuck: false };
+    };
+    const step = 1.4 / 60;
+    for (const x of [S.x - 0.3, S.x, S.x + 0.3]) {
+      // Up: from the lower deck forward of the stair's foot to a metre onto the main deck aft of its head.
+      const up = walk(x, S.zFoot - S.tread - 0.4, L.floor, step, (z) => z > S.zTop + 1);
+      expect(up.stuck, `stuck going up at x ${x.toFixed(2)}, z ${up.z.toFixed(2)} (head at ${S.zTop.toFixed(2)})`).toBe(false);
+      expect(Math.abs(up.y - M.floor)).toBeLessThan(0.02);
+      // Down again.
+      const down = walk(x, S.zTop + 1, M.floor, -step, (z) => z < S.zFoot - S.tread - 0.4);
+      expect(down.stuck, `stuck going down at x ${x.toFixed(2)}, z ${down.z.toFixed(2)}`).toBe(false);
+      expect(Math.abs(down.y - L.floor)).toBeLessThan(0.02);
+    }
+  });
 });

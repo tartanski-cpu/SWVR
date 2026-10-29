@@ -10,6 +10,16 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Stuck at the top of the stairs: fixed (29 Oct 2026)
+
+Owner: "I still get blocked at the top of the stairs ... I walk up the stairs and I get stuck before the platform and I cannot get past it", "any boat that's got the transverse stairs, they all have the same problem at the top of the stairs".
+
+- **The transverse stair** (a deckhouse's stair across its aft face, the harbour tug's and any Shipyard deckhouse run on aft of the wheelhouse; `vessel/layout.ts`): its slope ended at the landing's edge, but the landing was floor only from 15 cm in (the Shipyard's `extraFloors` are trimmed by half the body's radius each side), and the deckhouse top's walked part stops short of it too. The step off the slope's head landed on nothing, so you were held there. The landing is now a floor of its own, all of it, from the slope's head (`stairLanding`), clear of gear on it.
+- **The crew area's stair** (`app/engineRoom/crew/walk.ts`): the same kind of gap at its head. The slope ended at the stair's head, and the main deck keeps 5 cm clear of the stair well's edge, so going up you were held 1 cm short. The slope now runs on level 15 cm past its head onto the main floor (`HEAD_OVER`).
+- **Why the tests missed it:** they checked each floor where it is, not the step from one to the next. New tests walk as the game walks you (player/locomotion.ts: small steps, half a step where a whole one is stopped, your height easing onto the floor): tests/deckhouseStair.test.ts (up the tug's stair, across the landing, on, and back down; every hull type with a deckhouse run aft, 1.5 and 3 m), tests/crewArea.test.ts (up the crew stair onto the main deck and down, at three places across it). Both fail without the fixes, where you were held.
+- **Not checked:** on the Quest. The raised foredeck's ladders and the cabin stairs weren't reported and aren't changed.
+- **Shared changes:** `src/vessel/layout.ts` (the stair landing as floor).
+
 ### The quay's chart board stands upright; the VR chart board stands in the world (29 Oct 2026)
 
 Owner, testing the maps: "The main planning board ... should appear in a vertical frame, like a big TV, not horizontal. It's going to be easier to use"; and the VR board "shouldn't be stuck to your hand. It should be an object that appears in the world and stays in relation to the boat ... you should be able to grab it and move it around so you can ... put it somewhere inside the boat and it stays there".
