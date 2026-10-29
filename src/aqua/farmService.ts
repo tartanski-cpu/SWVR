@@ -24,14 +24,15 @@
  */
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
-import { earn, money, portName } from '../career/career';
+import { countContract, earn, money, portName } from '../career/career';
+import { checkLine, raiseCheck, stepCheck } from './netCheck';
 import { sayRadio } from '../rescue/rescue';
 import { FARMS, PORTS, type PortDef } from '../world/archipelago';
 import type { FarmDef } from '../world/defs';
 import type { CargoItem } from '../cargo/cargo';
 
 export interface FarmCall {
-  kind: 'feed' | 'harvest';
+  kind: 'feed' | 'harvest' | 'check';
   /** When it was made (world time, s). */
   at: number;
   /** Harvest: the harbour the salmon goes to, how many boxes, how many landed so far, and when it's due (world time). */
@@ -39,6 +40,16 @@ export interface FarmCall {
   boxes?: number;
   landed?: number;
   due?: number;
+  /** Net check (aqua/netCheck.ts): each ring checked yet, by ring; the ring a boat's holding at and for how long (s, crew-weighted). */
+  checked?: boolean[];
+  holdRing?: number;
+  hold?: number;
+  /** A torn net: its ring, whether it's been found (that ring checked) and mended. */
+  hole?: { ring: number; found: boolean; mended: boolean };
+  /** A bag of dead fish on a ring's walkway: its ring, its cargo item, whether it's landed on the barge. */
+  mort?: { ring: number; id: string; landed: boolean };
+  /** Feed: some feed has come in since the call (so the silo filling is someone's work). */
+  fed?: boolean;
 }
 
 export interface FarmSite {
@@ -56,6 +67,8 @@ export interface FarmSite {
   lastCallAt: number;
   /** When the next harvest call comes (world time). */
   harvestAt: number;
+  /** When the next net check is called (world time). */
+  checkAt: number;
 }
 
 export interface AquaState {
@@ -88,7 +101,15 @@ export function createAqua(spawn: boolean): AquaState {
   const sites: Record<string, FarmSite> = {};
   for (const { port } of FARM_SITES) {
     const fill = a.startFill[0] + (a.startFill[1] - a.startFill[0]) * hashOf(port.id);
-    sites[port.id] = { feedKg: a.siloKg * fill, feedAt: 0, hungry: false, call: null, lastCallAt: -1e9, harvestAt: a.harvest.first + hashOf(port.id + 'h') * a.harvest.every[0] };
+    sites[port.id] = {
+      feedKg: a.siloKg * fill,
+      feedAt: 0,
+      hungry: false,
+      call: null,
+      lastCallAt: -1e9,
+      harvestAt: a.harvest.first + hashOf(port.id + 'h') * a.harvest.every[0],
+      checkAt: a.check.first + hashOf(port.id + 'c') * a.check.every[0],
+    };
   }
   return { spawn, sites };
 }
@@ -129,7 +150,9 @@ export function raiseFarmCall(world: WorldState, portId: string, kind: FarmCall[
   if (!site) return null;
   const a = CONFIG.aqua;
   const name = farmName(portId);
-  if (kind === 'feed') {
+  if (kind === 'check') {
+    if (!raiseCheck(world, portId, site)) return null;
+  } else if (kind === 'feed') {
     site.call = { kind, at: world.time };
     const kg = feedNow(world, site);
     sayRadio(world, 'info', `${name}, calling any workboat: the feed's down to ${tonnes(kg)} on the barge. We'll take up to ${tonnes(a.siloKg - kg)}: sacks from the feed pier, or big bags by crane from any cargo quay.`);
@@ -144,8 +167,8 @@ export function raiseFarmCall(world: WorldState, portId: string, kind: FarmCall[
   return site.call;
 }
 
-/** Each tick (host): the fish eat, and the farms call for feed and harvest runs. */
-export function stepAqua(world: WorldState): void {
+/** Each tick (host): the fish eat, the net checks go on, and the farms call for feed, harvest runs and net checks. */
+export function stepAqua(world: WorldState, dt: number): void {
   const aq = world.aqua;
   if (!aq) return;
   const a = CONFIG.aqua;
@@ -156,9 +179,12 @@ export function stepAqua(world: WorldState): void {
       if (aq.spawn) sayRadio(world, 'info', `${farmName(id)}: the silo's empty and the fish are hungry. Feed's wanted on the barge, urgently.`);
     }
     const call = site.call;
+    if (call?.kind === 'check') stepCheck(world, id, site, dt);
     if (call?.kind === 'feed' && feed >= a.fullAt * a.siloKg) {
       site.call = null;
       sayRadio(world, 'info', `${farmName(id)}: that's the silo full. Thanks, skipper.`);
+      // Filled by someone's feed (not a test's hand): a job toward a farm service contract.
+      if (call.fed) countContract(world, 'farm', id);
     } else if (call?.kind === 'harvest' && call.due !== undefined && world.time > call.due + a.harvest.freshS) {
       // Long past (it's all stale by now): the run's over, landed or not.
       site.call = null;
@@ -169,6 +195,9 @@ export function stepAqua(world: WorldState): void {
     else if (world.time >= site.harvestAt) {
       raiseFarmCall(world, id, 'harvest');
       site.harvestAt = world.time + a.harvest.every[0] + hashOf(`${id}${Math.round(world.time)}`) * (a.harvest.every[1] - a.harvest.every[0]);
+    } else if (world.time >= site.checkAt) {
+      raiseFarmCall(world, id, 'check');
+      site.checkAt = world.time + a.check.every[0] + hashOf(`${id}c${Math.round(world.time)}`) * (a.check.every[1] - a.check.every[0]);
     }
   }
 }
@@ -192,6 +221,7 @@ export function feedDelivered(world: WorldState, item: CargoItem, portId: string
   const kg = Math.max(0, Math.min(item.mass, a.siloKg - now));
   setFeed(world, site, now + kg);
   site.hungry = false;
+  if (site.call?.kind === 'feed' && kg > 0) site.call.fed = true;
   if (kg > 0) earn(world, 'farm', { port: portId, base: kg * a.feedPerKg * factor, text: `Feed to ${farmName(portId)}: ${Math.round(kg)} kg${factor > 1 ? ' (the fish were hungry)' : ''}` });
   return true;
 }
@@ -219,6 +249,7 @@ export function harvestLanded(world: WorldState, item: CargoItem, at: string): v
     const onTime = call.due === undefined || world.time <= call.due;
     site.call = null;
     if (onTime) {
+      countContract(world, 'farm', item.from);
       earn(world, 'farm', { port: item.from, base: CONFIG.aqua.harvest.bonus, text: `Harvest run for ${farmName(item.from)}: all landed fresh` });
       sayRadio(world, 'info', `${farmName(item.from)}: the buyer's got all ${call.boxes} boxes, fresh. ${money(CONFIG.aqua.harvest.bonus)} bonus to your account.`);
     }
@@ -260,6 +291,7 @@ export function farmLine(world: WorldState, port: PortDef): string {
       const left = Math.max(0, Math.round(((call.due ?? world.time) - world.time) / 60));
       return `${silo}  ·  Harvest: ${call.landed ?? 0}/${call.boxes} boxes to ${portName(call.to)}, ${left} min (Crates)`;
     }
+    if (call?.kind === 'check') return `${silo}  ·  ${checkLine(call)}`;
     return call?.kind === 'feed' ? `${silo}  ·  calling for feed` : silo;
   }
   const farm = feedCallNear(world, port);

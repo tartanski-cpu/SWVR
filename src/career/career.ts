@@ -30,7 +30,7 @@
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
-import { anchorageOnly, PORTS, type PortDef } from '../world/archipelago';
+import { anchorageOnly, FARMS, PORTS, type PortDef } from '../world/archipelago';
 import { fuelBerthAt } from '../world/geography';
 import type { VesselState } from '../vessel/vesselState';
 import { sayRadio } from '../rescue/rescue';
@@ -42,7 +42,7 @@ import { gearOf, hasModule } from '../boats/sims';
 import { applyProjectIntent, projectDef, type ProjectProgress } from './projects';
 
 export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod' | 'transfer' | 'salvage' | 'dive' | 'farm';
-export type ContractKind = 'cargo' | 'fish' | 'logs';
+export type ContractKind = 'cargo' | 'fish' | 'logs' | 'farm';
 
 export interface LedgerEntry {
   /** Ship's clock "HH:MM", what for, and the amount (+ earned, - spent). */
@@ -271,15 +271,24 @@ export function earn(world: WorldState, kind: JobKind, o: EarnOpts): void {
   // The contract: the right kind of work, at its port.
   const k = c.active;
   const counts = k && k.port === o.port && ((k.kind === 'cargo' && kind === 'cargo') || (k.kind === 'fish' && kind === 'fish') || (k.kind === 'logs' && kind === 'log'));
-  if (k && counts) {
-    k.done += 1;
-    if (k.done >= k.count) {
-      c.active = null;
-      c.contractsDone += 1;
-      post(world, c, `Contract done: ${contractText(k)}`, k.bonus);
-      addRep(c, k.port, CONFIG.career.rep.contract);
-      sayRadio(world, 'info', `${portName(k.port)} harbour office: contract complete, skipper. ${money(k.bonus)} bonus paid to your account.`);
-    }
+  if (k && counts) countContract(world, k.kind, k.port);
+}
+
+/**
+ * One piece of work toward the running contract, if it's that kind at that port: a delivery
+ * (earn, above), or a fish farm's call seen through (aqua/farmService.ts, a 'farm' contract).
+ */
+export function countContract(world: WorldState, kind: ContractKind, port: string): void {
+  const c = world.career;
+  const k = c?.active;
+  if (!c || !k || k.kind !== kind || k.port !== port) return;
+  k.done += 1;
+  if (k.done >= k.count) {
+    c.active = null;
+    c.contractsDone += 1;
+    post(world, c, `Contract done: ${contractText(k)}`, k.bonus);
+    addRep(c, k.port, CONFIG.career.rep.contract);
+    sayRadio(world, 'info', `${portName(k.port)} harbour office: contract complete, skipper. ${money(k.bonus)} bonus paid to your account.`);
   }
 }
 
@@ -341,6 +350,7 @@ export function contractText(k: Contract): string {
   const where = portName(k.port) + (anchorageOnly(k.port) ? ` (${CONFIG.cargo.anchorageNote})` : '');
   if (k.kind === 'cargo') return `deliver ${k.count} cargo to ${where}`;
   if (k.kind === 'fish') return `land ${k.count} boxes of fish at ${where}`;
+  if (k.kind === 'farm') return `see ${k.count} of ${portName(k.port).replace(' (feed barge)', '')}'s calls through (feed, harvest, net checks)`;
   return `sell ${k.count} salvage ${k.count === 1 ? 'log' : 'logs'} at ${where}`;
 }
 
@@ -350,7 +360,8 @@ function refreshOffers(world: WorldState, c: CareerState): void {
   c.offers = [];
   for (const p of PORTS) {
     for (let i = 0; i < cfg.perPort; i++) {
-      const kinds: ContractKind[] = ['cargo', 'fish', 'logs'];
+      // A fish farm's feed barge offers its service contract (aqua/farmService.ts); every other office the usual.
+      const kinds: ContractKind[] = FARMS.some((f) => f.port === p.id) ? ['farm'] : ['cargo', 'fish', 'logs'];
       const kind = kinds[Math.floor(hash(c) * kinds.length)];
       const k = cfg.kinds[kind];
       const tier = Math.floor(hash(c) * k.counts.length);

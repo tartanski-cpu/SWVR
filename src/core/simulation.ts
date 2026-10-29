@@ -270,7 +270,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepSalvage(world, dt);
   stepTimberLogs(world, dt);
   stepTransfer(world, dt);
-  stepAqua(world);
+  stepAqua(world, dt);
   stepTv(world);
   stepFishing(world, dt);
   stepHold(world);

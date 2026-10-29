@@ -910,6 +910,9 @@ export const CONFIG = {
         cargo: { counts: [4, 8, 12], bonusPer: 90, secondsPer: 480 },
         fish: { counts: [4, 8, 12], bonusPer: 35, secondsPer: 240 },
         logs: { counts: [1, 2, 3], bonusPer: 160, secondsPer: 720 },
+        // A fish farm's service contract, offered at its feed barge only (aqua/farmService.ts):
+        // so many of its calls seen through (a feed call filled, a harvest landed fresh, a net check done).
+        farm: { counts: [1, 2, 3], bonusPer: 300, secondsPer: 2700 },
       },
     },
     /** The bigger fuel tank upgrade: her tank's size times this. */
@@ -1382,6 +1385,9 @@ export const CONFIG = {
       { name: 'Salvage', mass: 40, size: [0.8, 0.55, 0.7] as [number, number, number], shape: 'box' as const, slots: 2 },
       // A big bag of salmon feed (aqua/farmService.ts): a woven bulk bag with lifting loops, lifted by a deck crane.
       { name: 'Feed bag', mass: 500, size: [0.95, 1.05, 0.95] as [number, number, number], shape: 'box' as const, slots: 4 },
+      // A fish farm's net check (aqua/netCheck.ts): a roll of net and twine to mend a torn net, and a bag of dead fish off a cage (two hands).
+      { name: 'Net patch', mass: 15, size: [0.6, 0.3, 0.45] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Mort bag', mass: 70, size: [0.75, 0.55, 0.75] as [number, number, number], shape: 'box' as const, slots: 2 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,
@@ -2510,6 +2516,42 @@ export const CONFIG = {
     harvest: { every: [1500, 2400] as [number, number], first: 600, boxes: [6, 10] as [number, number], to: ['tarsk', 'calder', 'kvassvik'] as readonly string[], freshS: 1500, staleFactor: 0.3, bonus: 400 },
     callGapS: 240,
     serveRangeM: 6000,
+    /**
+     * The net check (aqua/netCheck.ts; milestone 2): called every `every` s (between), the first
+     * after about `first`; done by `dueS` or the farm's crew see to it.
+     *   reachM, maxSpeed  a ring is being checked while a boat with someone aboard has her hull
+     *                     within this (m) of its float, moving under this (m/s)
+     *   holdS             held there this long (s), it's checked; each crew-mate aboard after
+     *                     the first adds `crewRate` to the pace (two aboard: 1.5 times as quick)
+     *   holeChance        a torn net on one ring (found when it's checked): a net patch set
+     *                     down within `patchReachM` (m) of its flag mends it
+     *   mortChance        a bag of dead fish on one ring's walkway, to land on the barge
+     *   onRingOut         where on a ring the flags and the bag are: on its outer float pipe, this
+     *                     far (m) beyond its radius, on the diagonal facing away from the farm's
+     *                     middle, where a boat stopped against the ring (its collision square's
+     *                     corner: world/farms.ts) has it within arm's reach; `ringTop` the
+     *                     height they stand at (m: the ring's float)
+     *   pay               `payPerRing` each ring, `mendPay` the net mended, `mortPay` the
+     *                     morts landed, `bonus` the whole check done
+     */
+    check: {
+      every: [1800, 3000] as [number, number],
+      first: 900,
+      dueS: 2400,
+      reachM: 3.5,
+      maxSpeed: 0.8,
+      holdS: 8,
+      crewRate: 0.5,
+      holeChance: 0.6,
+      patchReachM: 2.5,
+      mortChance: 0.6,
+      onRingOut: 0.8,
+      ringTop: 0.35,
+      payPerRing: 40,
+      mendPay: 250,
+      mortPay: 120,
+      bonus: 250,
+    },
   },
 
   potting: {

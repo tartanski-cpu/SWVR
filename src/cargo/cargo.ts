@@ -45,6 +45,7 @@ import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
 import { applyOrderIntent } from './order';
 import { feedDelivered, freshFactor, harvestLanded } from '../aqua/farmService';
+import { isNetPatch, mortLanded, patchNet } from '../aqua/netCheck';
 import { bottomOf, isStackedUp, restingOn, setOnTop, stackTopNear, stackWithRoom } from './stack';
 import { berthWithId } from '../world/berths';
 import type { BerthDef } from '../world/defs';
@@ -376,7 +377,8 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: str
   delete world.cargo[item.id];
   if (delivered) world.deliveries += 1;
   // Feed for a fish farm, set down on its barge: into the silo, paid by the kilo (aqua/farmService.ts).
-  if (delivered && at && feedDelivered(world, item, at)) return;
+  // ...and its bag of morts off a cage (aqua/netCheck.ts).
+  if (delivered && at && (feedDelivered(world, item, at) || mortLanded(world, item, at))) return;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
   if (delivered && item.salvage) earn(world, 'salvage', { base: item.salvage.value, port: at, text: `Salvage sold at ${portName(at)}: ${item.salvage.name}` });
@@ -505,6 +507,8 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
         item.at = { vessel: v.id, pos: [spot.x, deckY, spot.z], yaw, vel: [0, 0], lashed: false };
         break;
       }
+      // A net patch set down by a torn net on a fish farm's cage: mended (aqua/netCheck.ts).
+      if (patchNet(world, item, x, z)) break;
       const g = standingHeight(x, z);
       if (isPot(item) && g < -0.3) {
         shootPot(world, item, x, z); // a pot over the side: shot, its buoy pops up
@@ -694,8 +698,9 @@ function setDown(world: WorldState, v: VesselState, item: CargoItem, hook: THREE
     item.at = { vessel: v.id, pos: [spot.x, deckY, spot.z], yaw: 0, vel: [0, 0], lashed: false };
     return true;
   }
-  // Over the side: the quay or shore, or the sea.
+  // Over the side: the quay or shore, or the sea. (A net patch by a torn net on a farm's cage: mended.)
   const w = onWorld(v, base);
+  if (patchNet(world, item, w.x, w.z)) return true;
   const g = standingHeight(w.x, w.z);
   if (g > -0.3) {
     const gap = w.y - g;
@@ -1036,5 +1041,7 @@ export function cargoLabel(item: CargoItem): string {
   if (isProjectItem(item)) return `${projectItemName(item)}, ${item.mass} kg: take it out and lie alongside her (on your chartplotter)`;
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
   if (item.salvage) return `Salvage: ${item.salvage.name} ${item.mass} kg (sells in any port)`;
+  if (isNetPatch(item)) return `Net patch ${item.mass} kg: set it on the cage ring by the red flag`;
+  if (k.name === 'Mort bag') return `Bag of morts ${item.mass} kg → ${to}'s barge (two hands)`;
   return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}${craneOnly(item) ? ` (${CONFIG.cargo.crane.note})` : anchorageOnly(item.to) ? ` (${CONFIG.cargo.anchorageNote})` : ''}`;
 }
