@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### At the helm, A / D steer (29 Oct 2026)
+
+Owner: "if you pressed F on the keyboard to drive the vessel, even if you don't have a controller ... you can then use the WASD keys to steer and throttle. And when you're not connected to the helm, then you can use that to walk."
+
+- **A / D steer at the helm** (`app/App.ts` handleDebugDriving): with F's helm taken, A and D turn the wheel as ← → do (W / S were the throttle there already; walking is off at the helm). Off the helm, WASD walk as before; the arrow keys still steer from anywhere. Not while a clicked control is being key-steered or the crane's remote is in hand. The azimuth tug's helm keys are unchanged (WASD is her port drive there).
+- **The hint at the helm** says so: "A D or ← →: steer · W S or ↑ ↓: throttle".
+- **Also looked at** (owner: "grabbing the wheel, the player still moves around with the WASD"): holding the mouse on the wheel stopped walking and W worked the throttle in a headless check on the pilot boat, the small tug, the fishing boat, the landing craft and a single and a twin gillnetter. A click-to-hold wheel was tried and taken back at the owner's word (keep the control scheme).
+- **Not checked:** by hand on the desktop.
+
 ### Motion coupling: 9 / 0 and the menu step from your setting (29 Oct 2026)
 
 Owner: "The motion coupling setting seems to be broken. I can only put it down to 90 with the keys. Doesn't seem to make any difference."

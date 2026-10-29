@@ -1861,7 +1861,11 @@ export class App {
     const onWheel = this.interaction?.desktopHeld instanceof Wheel;
     const ws = (this.atHelm || onWheel) && !this.craneRemote && !this.interaction?.steering ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
     const leverIn = clamp((k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + ws + (pad ? padLever(pad) : 0), -1, 1);
-    const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
+    // At the helm (F), A and D steer too (owner, 29 Oct 2026: "if you pressed F on the keyboard to
+    // drive the vessel ... you can then use the WASD keys to steer and throttle. And when you're
+    // not connected to the helm, then you can use that to walk"). The arrow keys steer from anywhere.
+    const ad = this.atHelm && !this.craneRemote && !this.interaction?.steering ? (k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0) : 0;
+    const helmIn = clamp((k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0) + ad, -1, 1);
 
     let lever = this.signedLever(v);
     if (leverIn === 0) this.neutralLatched = false;
@@ -5113,7 +5117,7 @@ export class App {
         : this.atHelm
         ? ctl
           ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · Y: camera view · A: leave\nD-pad: anchor up ↑ / down ↓, horn ←, wipers → · left stick click: searchlight · right stick click: laser · X: fire pump'
-          : 'At the helm · ← →: steer · ↑ ↓: throttle · X: neutral · F: leave (or plug in a game controller)'
+          : 'At the helm · A D or ← →: steer · W S or ↑ ↓: throttle · X: neutral · F: leave (or plug in a game controller)'
         : near
           ? ctl
             ? 'Press A (or F) to take the helm'
