@@ -18,7 +18,7 @@ import type { Handedness } from './xrInput';
  *              on a key along its foot, that key
  *     trigger, held and dragged: the chart moves with the pointer
  *     thumbstick forward / back: zoom in / out about where you're pointing
- *   keys     WAY STOP LOOK DEL | UNDO CLEAR | BOAT ALL | − + | ✕
+ *   keys     WAY STOP LOOK DEL | UNDO CLEAR | BOAT ALL | − + | LAYERS | ✕
  *
  * One mesh and one canvas (a chart pad: voyage/chartPad.ts, as the quay table's and the boat's
  * are), redrawn only when what's on it changes (at most every `board.redrawS`), and only while
@@ -40,7 +40,7 @@ export class ChartBoard {
       px: b.px,
       aspect: 4 / 3,
       toolbarShare: b.toolbarShare,
-      keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in', 'close'],
+      keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in', 'layers', 'close'],
       redrawS: b.redrawS,
       onClose: () => this.putAway(),
     });

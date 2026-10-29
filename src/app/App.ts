@@ -4688,7 +4688,7 @@ export class App {
     const land = (id: string) => this.worldView.terrainPositions(id);
     const table = this.chartTable;
     if (table) {
-      const pad = new ChartPad(this.planPadHost(), { px: c.leaf.px, aspect: table.planAspect, toolbarShare: c.leaf.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in'], redrawS: c.leaf.redrawS });
+      const pad = new ChartPad(this.planPadHost(), { px: c.leaf.px, aspect: table.planAspect, toolbarShare: c.leaf.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in', 'layers'], redrawS: c.leaf.redrawS });
       pad.setLandSource(land);
       table.setPlanChart(pad.texture);
       this.leafPad = pad;
@@ -6217,7 +6217,7 @@ export class App {
     // The quay's planning chart (the table's and the stand's), and the Shipyard signs beside
     // it, or at the spot ashore where neither fits (placed with the table: updatePlan).
     const t = CONFIG.voyage.plan.table;
-    this.quayPad = new ChartPad(this.planPadHost(), { px: t.px, aspect: planFaceAspect(), toolbarShare: t.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in'], redrawS: t.redrawS });
+    this.quayPad = new ChartPad(this.planPadHost(), { px: t.px, aspect: planFaceAspect(), toolbarShare: t.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in', 'layers'], redrawS: t.redrawS });
     this.quayPad.setLandSource((id) => this.worldView.terrainPositions(id));
     this.scene.add(this.planAnchor);
     this.shipyardDoor = ShipyardDoor.shipyard(this.menuHost());

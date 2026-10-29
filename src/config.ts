@@ -3086,6 +3086,9 @@ export const CONFIG = {
        *   portNamesSpan   ports named this close in and closer (m across); dots further out
        *   sightsSpan, sightNamesSpan  the landmarks a Look press can take (castles, towers,
        *                   hills, wrecks, lights) marked this close in, named closer still
+       *   layerNamesSpan  the working layers (fishing grounds, pot grounds, dive wrecks: the
+       *                   LAYERS key) named this close in, where the name keeps clear of the
+       *                   others; their rings at any zoom
        *   wheelStep       a mouse wheel notch zooms by this
        *   stickZoomPerS   VR: the right thumbstick held over the board zooms by this a second
        *   dragPx          a press that moves less than this (px) is a press on the chart, not a drag
@@ -3106,6 +3109,7 @@ export const CONFIG = {
         portNamesSpan: 20000,
         sightsSpan: 30000,
         sightNamesSpan: 9000,
+        layerNamesSpan: 12000,
         wheelStep: 1.2,
         stickZoomPerS: 3,
         dragPx: 5,

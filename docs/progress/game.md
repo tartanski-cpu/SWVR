@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The planning chart's layers; the stern trawler's fuel tanks (29 Oct 2026)
+
+Owner: "they don't show the fishing areas or the lobster pot areas or the wrecks. It'd be good to have a button that turns those layers on and off, or maybe it's a level of detail." And: "the main big trawler ... the fuel tank seems to be small. It's only got 52 nautical miles range."
+
+- **The working layers** (`voyage/planChart.ts`, `paint(..., layers)`): the fishing grounds (dashed green rings, "(fish)"), the pot grounds (hatched orange, "(pots)", always, not only with potting on as on the plotter) and the dive wrecks (dashed blue, "Wreck, 40 m", or her found name), as the chartplotter shows them. Their rings at any zoom; their names closer in than `chart.layerNamesSpan` (12 km) and only where they keep clear of the names already on (a level of detail of their own).
+- **On and off:** a **LAYERS** key on the pads (`chartPad.ts`: the board, the quay table and stand, the chart table's PLAN sheet; lit while on) and a **Layers: on/off** button on the desktop chart (`ui/planChartPanel.ts`). On to start with; each chart's own. Not on the plotter's PLAN screen (its keys are few; its own picture shows these already).
+- **The stern trawler's tanks** (`shipyard/parts/engineRoom.ts`, `catalog.ts` `fuelAtM`, `CONFIG.shipyard.sternTrawler.fuelL` 18000): a fishing vessel's, 18,000 L at 20 m growing as the cube of her length (9,200 L at 16 m, about 29,000 at 23.5 m), instead of the small boats' litre a kW (850 L with the 750 kW engine: the 52 nm). Half her tanks weigh in as before (about 7.5 t more at 20 m: 140 t). The dive ship, on her hull, gets them too.
+- **Her price:** the Shipyard prices her at £250,000 to £600,000 as she's built (£596,000 as she comes). A career purchase is the refit's difference from the boat you have (`app/shipyardTrip.ts` `refitCost`), so from one trawler to another it can be small: that's likely the £45,000. Not changed.
+- **Tests:** the Shipyard's and the trawler's (480) pass with the bigger tanks.
+- **Checked headless:** the chart round Calder at 14 km (rings only) and 6 km (named, clear of each other).
+- **Not checked:** on the Quest; her range on the Shipyard page (worked out from your 52 nm on 850 L: about 1,100 nm flat out).
+- **Changes in another area's files:** `src/shipyard/parts/engineRoom.ts`, `src/shipyard/parts/catalog.ts`, `src/config/shipyard.ts` (the trawler's tanks).
+
 ### The planning chart in a paper chart's colours (29 Oct 2026)
 
 Owner: "I'd like the coloring of the charts to retain that original pale yellow and blue color like you have in the Admiralty chart in the UK."

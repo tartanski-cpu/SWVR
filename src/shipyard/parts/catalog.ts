@@ -151,6 +151,8 @@ export interface DesignHull {
   ballastAboveKeel?: number;
   /** Her fuel tanks (litres), where her type sets them (a ship's, the harbour tug's); else about a litre a kW. */
   fuelL?: number;
+  /** The length (m) `fuelL` is for, where it grows with her length (as her hull's volume, the cube): the stern trawler's. Unset: fixed. */
+  fuelAtM?: number;
   /**
    * Her size range grows beyond the usual (owner, Oct 2026: the landing craft's layout
    * "can actually extend to fairly big... proportionally in all directions"): the length
@@ -684,6 +686,9 @@ export const DESIGN_HULLS: DesignHull[] = [
     material: 'steel',
     scantlings: CONFIG.shipyard.sternTrawler.scantlings,
     ballastKg: CONFIG.shipyard.sternTrawler.ballastKg,
+    // A fishing vessel's tanks for trips of days (owner, 29 Oct 2026: "only 52 nautical miles range").
+    fuelL: CONFIG.shipyard.sternTrawler.fuelL,
+    fuelAtM: 20,
     form: (L, B, D, bow, sheer, forecastle) => ({ kind: 'lofted', design: scaledStudy(study('sternTrawler'), L, B, D, bow, false, sheer, forecastle) }),
     // Her whaleback: a raised foredeck as the fishing boat's and the tug's, her wheelhouse standing on it.
     raisedForedeck: true,

@@ -19,12 +19,13 @@ import { centreChartOn, chartToWorld, nextLine, NOTHING_TO_LOOK_AT, panChart, Pl
  *              nearest off); on a key, that key
  *     held and moved: the chart moves with it (the spot pressed stays under it)
  *     zoom (a thumbstick, the mouse wheel): in or out about where it falls
- *   the keys      any of WAY STOP LOOK DEL | UNDO CLEAR | BOAT ALL | − + | ✕
+ *   the keys      any of WAY STOP LOOK DEL | UNDO CLEAR | BOAT ALL | − + | LAYERS (the fishing
+ *                 grounds, pot grounds and dive wrecks on or off) | ✕
  *
  * Its view is this page's alone, so nothing about it is sent; a point put on it is the
  * `plan` intent, everyone's. Redrawn only when what's on it changes, at most every `redrawS`.
  */
-export type PadKey = ChartTool | 'undo' | 'clear' | 'boat' | 'all' | 'out' | 'in' | 'close';
+export type PadKey = ChartTool | 'undo' | 'clear' | 'boat' | 'all' | 'out' | 'in' | 'layers' | 'close';
 
 export interface ChartPadHost {
   world(): WorldState;
@@ -47,7 +48,7 @@ export interface ChartPadOptions {
   onClose?: () => void;
 }
 
-const KEY_TEXT: Record<PadKey, string> = { way: 'WAY', stop: 'STOP', look: 'LOOK', remove: 'DEL', undo: 'UNDO', clear: 'CLEAR', boat: 'BOAT', all: 'ALL', out: '−', in: '+', close: '✕' };
+const KEY_TEXT: Record<PadKey, string> = { way: 'WAY', stop: 'STOP', look: 'LOOK', remove: 'DEL', undo: 'UNDO', clear: 'CLEAR', boat: 'BOAT', all: 'ALL', out: '−', in: '+', layers: 'LAYERS', close: '✕' };
 const KEY_HOVER: Record<PadKey, string> = {
   way: 'Waypoint: press the chart to put one',
   stop: 'Stop: press the chart to put one (it takes the nearest harbour’s name)',
@@ -59,6 +60,7 @@ const KEY_HOVER: Record<PadKey, string> = {
   all: 'The whole map',
   out: 'Zoom out',
   in: 'Zoom in',
+  layers: 'Layers: the fishing grounds, the pot grounds and the dive wrecks, on or off',
   close: 'Put the chart away',
 };
 const TOOL_WORDS: Record<ChartTool, string> = { way: 'a waypoint', stop: 'a stop', look: 'a landmark to look at', remove: 'take a point off' };
@@ -79,6 +81,8 @@ export class ChartPad {
   private press: { px: number; py: number; moved: boolean } | null = null;
   private wasDown = false;
   private clearArmed = 0;
+  /** The working layers on (LAYERS). */
+  private layers = true;
   /** Until when (ms) the top line says a Look press found nothing to look at; 0 not. */
   private say = 0;
   private shown = '';
@@ -186,7 +190,7 @@ export class ChartPad {
     const mpp = v.span / this.W;
     const boats = Object.values(world.vessels).map((b) => `${Math.round(b.position[0] / mpp / 4)},${Math.round(b.position[2] / mpp / 4)}`).join(';');
     const ptr = this.pointer ? `${Math.round(this.pointer[0] / 4)},${Math.round(this.pointer[1] / 4)}` : '-';
-    const key = `${v.cx.toFixed(1)} ${v.cz.toFixed(1)} ${v.span.toFixed(1)} ${world.plan?.seq ?? -1} ${boats} ${ptr} ${this.tool} ${this.clearArmed > 0} ${this.say > 0}`;
+    const key = `${v.cx.toFixed(1)} ${v.cz.toFixed(1)} ${v.span.toFixed(1)} ${world.plan?.seq ?? -1} ${boats} ${ptr} ${this.tool} ${this.clearArmed > 0} ${this.say > 0} ${this.layers}`;
     if (key === this.shown || this.since < this.opts.redrawS) return;
     this.shown = key;
     this.since = 0;
@@ -194,7 +198,7 @@ export class ChartPad {
     const ui = this.W / 600;
     const ptrOnChart = this.pointer && this.pointer[1] < this.chartH ? this.pointer : null;
     // (Coast still being outlined: drawn again at the next chance.)
-    if (this.painter.paint(g, this.W, this.chartH, world, v, ui, this.host.ownBoatId(), ptrOnChart)) this.shown = '';
+    if (this.painter.paint(g, this.W, this.chartH, world, v, ui, this.host.ownBoatId(), ptrOnChart, this.layers)) this.shown = '';
     // The next point, along the chart's top (its scale bar is along its foot).
     g.fillStyle = 'rgba(250, 248, 236, 0.92)';
     g.fillRect(0, 0, this.W - 48 * ui, 26 * ui);
@@ -213,7 +217,7 @@ export class ChartPad {
     g.fillRect(0, this.chartH, this.W, kh);
     this.keys.forEach((k, i) => {
       const x = i * kw;
-      const lit = k === this.tool || (k === 'clear' && this.clearArmed > 0);
+      const lit = k === this.tool || (k === 'clear' && this.clearArmed > 0) || (k === 'layers' && this.layers);
       const hover = this.pointer && this.pointer[1] >= this.chartH && Math.floor(this.pointer[0] / kw) === i;
       g.fillStyle = lit ? (k === 'clear' ? '#8a2020' : '#b0186a') : hover ? '#24485a' : '#14303c';
       g.fillRect(x + inset, this.chartH + inset, kw - 2 * inset, kh - 2 * inset);
@@ -262,6 +266,9 @@ export class ChartPad {
         return;
       case 'in':
         this.zoomBy(1.6);
+        return;
+      case 'layers':
+        this.layers = !this.layers;
         return;
       case 'close':
         this.opts.onClose?.();

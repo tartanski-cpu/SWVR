@@ -242,8 +242,9 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const rudderArea = Math.round(0.07 * h.lwl * Math.max(0.3, draughtAft) * n * 100) / 100;
   // Her installed power (the outboards': each one's, times their count).
   const powerKw = nOb ? obc.engine.powerKw * nOb : kw * n;
-  // (A ship's tanks, where her type sets them: the harbour tug's, DesignHull.fuelL.)
-  const tankL = base.fuelL ?? Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
+  // (A ship's tanks, where her type sets them: the harbour tug's, DesignHull.fuelL; the stern
+  // trawler's growing with her length, fuelAtM.)
+  const tankL = base.fuelL ? (base.fuelAtM ? Math.round((base.fuelL * (lengthM / base.fuelAtM) ** 3) / 100) * 100 : base.fuelL) : Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
   return { electric, zDriveSet, batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };

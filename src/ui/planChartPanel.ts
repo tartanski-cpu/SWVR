@@ -75,6 +75,13 @@ export class PlanChartPanel {
     button('Whole map', 'Show the whole map', () => this.whole());
     button('−', 'Zoom out', () => this.zoomCentre(1 / CONFIG.voyage.plan.chart.wheelStep ** 2));
     button('+', 'Zoom in', () => this.zoomCentre(CONFIG.voyage.plan.chart.wheelStep ** 2));
+    gap();
+    const layers = button('Layers: on', 'The fishing grounds, the pot grounds and the dive wrecks on the chart (named as you zoom in): on or off', () => {
+      this.layers = !this.layers;
+      layers.textContent = `Layers: ${this.layers ? 'on' : 'off'}`;
+      layers.style.background = this.layers ? '#14303c' : '#2a2f33';
+      this.shown = '';
+    });
     const close = button('Close (M)', 'Close the chart (M or Esc)', () => this.close());
     close.style.marginLeft = 'auto';
     this.foot.style.cssText = 'position:absolute;left:0;right:0;bottom:0;min-height:18px;padding:7px 12px;background:rgba(10,24,32,0.88);border-top:1px solid #2c4a58;';
@@ -175,10 +182,12 @@ export class PlanChartPanel {
     if (key === this.shown) return;
     this.shown = key;
     // (Coast still being outlined: drawn again next frame.)
-    if (this.painter.paint(this.g, this.canvas.width, this.canvas.height, world, v, devicePixelRatio, own)) this.shown = '';
+    if (this.painter.paint(this.g, this.canvas.width, this.canvas.height, world, v, devicePixelRatio, own, null, this.layers)) this.shown = '';
     this.foot.textContent = this.say ? this.say.text : `${nextLine(world, own)}     ·     Wheel: zoom   ·   Drag: move the chart   ·   Click: ${TOOLS.find((t) => t.tool === this.tool)!.text.toLowerCase()}`;
   }
 
+  /** The working layers on (the Layers button: fishing grounds, pot grounds, dive wrecks). */
+  private layers = true;
   /** A word along the foot for a few seconds (a Look press with nothing to look at). */
   private say: { text: string; until: number } | null = null;
 

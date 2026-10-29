@@ -20,7 +20,10 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { boatOwnerName, playerBoats } from '../core/launch';
 import { css, LandLayer, PAPER_CHART } from '../nav/landLayer';
-import { MARKS, PLACES, PORTS, WRECKS } from '../world/archipelago';
+import { FISHING_GROUNDS, MARKS, PLACES, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+import { siteWorld, sitesOn } from '../dive/diveSites';
+import { foundNames } from '../dive/diveReturn';
+import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { REGIONS } from '../world/regions';
 import { lookSights, lookReach, lookTarget, nextPoint, pointLabel, type PlanKind } from './plan';
 
@@ -110,6 +113,8 @@ function niceDistance(m: number): number {
 }
 
 const PLACES_BY_RANK = [...PLACES].sort((a, b) => a.rank - b.rank);
+/** The dive sites on this page's map (the career's, or the Voyage map's), as the chartplotter's. */
+const DIVE_SITES_HERE = sitesOn(MODE === 'career' ? 'career' : VOYAGE_MAP_ID);
 /**
  * Its inks, on a paper chart's colours (owner, 29 Oct 2026: "the original pale yellow and blue
  * like ... the Admiralty chart"; nav/landLayer.ts PAPER_CHART): black lettering, sloping blue
@@ -136,9 +141,11 @@ export class PlanChartPainter {
    *                  more on a bigger canvas)
    * @param ownBoatId your boat (drawn yellow), or ''
    * @param pointer   where you're pointing on it (VR), drawn as a small cross; or null
+   * @param layers    the working layers drawn (the LAYERS key: the fishing grounds, the pot
+   *                  grounds and the dive wrecks, named closer in than CONFIG.voyage.plan.chart.layerNamesSpan)
    * @returns whether some of the coast in view is still being outlined: draw it again
    */
-  paint(g: CanvasRenderingContext2D, W: number, H: number, world: WorldState, v: ChartView, ui: number, ownBoatId: string, pointer: [number, number] | null = null): boolean {
+  paint(g: CanvasRenderingContext2D, W: number, H: number, world: WorldState, v: ChartView, ui: number, ownBoatId: string, pointer: [number, number] | null = null, layers = true): boolean {
     const mpp = v.span / W;
     const toPx = (x: number, z: number): [number, number] => [W / 2 + (x - v.cx) / mpp, H / 2 + (z - v.cz) / mpp];
     const on = (px: number, py: number, m = 60 * ui) => px > -m && px < W + m && py > -m && py < H + m;
@@ -220,6 +227,61 @@ export class PlanChartPainter {
       g.fillStyle = water ? WATER_INK : isle ? INK : '#3a3a34';
       g.fillText(text, px, py);
       g.textAlign = 'left';
+    }
+
+    // The working layers (owner, 29 Oct 2026: "they don't show the fishing areas or the lobster
+    // pot areas or the wrecks ... a button that turns those layers on and off, or maybe it's a
+    // level of detail"): their rings at any zoom, their names closer in. Fishing grounds dashed
+    // green, pot grounds hatched orange, dive wrecks dashed blue (the wreck's name once found).
+    if (layers) {
+      const named = span <= CONFIG.voyage.plan.chart.layerNamesSpan;
+      const ring = (x: number, z: number, r: number, colour: string, dash: number[], hatch: boolean, label: string) => {
+        const [cx, cy] = toPx(x, z);
+        const rad = Math.max(r / mpp, 6 * ui);
+        if (cx + rad < 0 || cx - rad > W || cy + rad < 0 || cy - rad > H) return;
+        if (hatch) {
+          g.save();
+          g.beginPath();
+          g.arc(cx, cy, rad, 0, Math.PI * 2);
+          g.clip();
+          g.strokeStyle = colour;
+          g.globalAlpha = 0.35;
+          g.lineWidth = 1 * ui;
+          for (let d = -2 * rad; d <= 2 * rad; d += 8 * ui) {
+            g.beginPath();
+            g.moveTo(cx + d - rad, cy + rad);
+            g.lineTo(cx + d + rad, cy - rad);
+            g.stroke();
+          }
+          g.restore();
+        }
+        g.strokeStyle = colour;
+        g.lineWidth = 2 * ui;
+        g.setLineDash(dash.map((n) => n * ui));
+        g.beginPath();
+        g.arc(cx, cy, rad, 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
+        if (!named) return;
+        // (Named only where it keeps clear of the names already on: a level of detail of its own.)
+        g.font = font(12, 'bold ');
+        const w = g.measureText(label).width;
+        const y = cy - rad - 8 * ui;
+        const box: [number, number, number, number] = [cx - w / 2 - 2, y - 8 * ui, cx + w / 2 + 2, y + 8 * ui];
+        if (labels.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) return;
+        labels.push(box);
+        g.fillStyle = colour;
+        g.textAlign = 'center';
+        g.fillText(label, cx, y);
+        g.textAlign = 'left';
+      };
+      for (const fg of FISHING_GROUNDS) ring(fg.x, fg.z, fg.radius, '#1f7a4a', [7, 5], false, `${fg.name} (fish)`);
+      for (const pg of POTTING_GROUNDS) ring(pg.x, pg.z, pg.radius, '#c0601a', [], true, `${pg.name.split(',')[0]} (pots)`);
+      const found = foundNames();
+      for (const site of DIVE_SITES_HERE) {
+        const at = siteWorld(site);
+        if (at) ring(at.x, at.z, CONFIG.dive.radius, '#2a5ea8', [4, 3], false, found[site.id] ? `${found[site.id]} (wreck, ${site.depthM} m)` : `Wreck, ${site.depthM} m`);
+      }
     }
 
     // The landmarks there are to look at (a Look press goes onto one): a small ring with a dot,
