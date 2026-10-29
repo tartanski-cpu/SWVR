@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Ålesund on the Quest: fewer draw calls and triangles (29 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "Has Ålesund had all optimisation passes? I get 35 FPS and between 210 and 300 draw calls."
 
 Measured first (headless, as the Quest draws it, one eye: the headset draws both, so about twice these). The processor isn't the limit (the game's own code is a small share of a frame); the drawing is. At the start, 176 draw calls and 273,000 triangles: the sea 104,000, Ålesund's buildings 48,000, the harbour kit 36,000, the ground 1-6 km out 23,000 in 39 pieces, the near ground 20,000, the lateral beacons drawn as buoys 17,500, the lighthouses and light posts 13,700.
