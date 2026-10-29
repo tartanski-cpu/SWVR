@@ -219,8 +219,6 @@ function fakeHost() {
     probes: () => state.probes,
     toggleProbes: () => calls.push('probes'),
     debugMenu: () => state.debugMenu,
-    potting: () => false,
-    setPotting: () => {},
     potsAboard: () => {},
     toPottingGround: () => {},
     potsReady: () => {},

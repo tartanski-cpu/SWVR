@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Potting always on, quicker soak (29 Oct 2026)
+
+Owner, asking why potting needed switching on: "remove the switch, potting always on"; and "reduce the soaking time for lobster pots for a minimum of 8 minutes, the maximum of 20".
+
+- **Quicker soak** (`CONFIG.potting.soakReady` 1200 → 480 s, `soakBest` 2400 → 1200 s): a pot's ready to haul after 8 minutes of play (its flag goes green), and fishes better until 20.
+
+- **Always on** (`app/App.ts`): the host's page (or a lone player's) sends `pottingOn` at the start of every game, as it did with the setting on; crew get it with the world. The pot grounds on the chartplotter and the local potters' VHF tips now come for everyone.
+- **The setting is gone:** Settings → Game → Potting (`ui/mainMenu.ts`, `MenuHost.potting`/`setPotting`), `userSettings.potting` (an old saved value is ignored). Comments in `potting/potting.ts` updated.
+- **Still to come** (unchanged): keeping pots between sessions (pots left out are lost when the game ends), and the propeller rule.
+- **Tests:** tests/menu.test.ts's host without the two entries; the full suite.
+- **Not checked:** on the Quest.
+
 ### The planning chart's layers; the stern trawler's fuel tanks (29 Oct 2026)
 
 Owner: "they don't show the fishing areas or the lobster pot areas or the wrecks. It'd be good to have a button that turns those layers on and off, or maybe it's a level of detail." And: "the main big trawler ... the fuel tank seems to be small. It's only got 52 nautical miles range."

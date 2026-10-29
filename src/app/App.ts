@@ -1448,8 +1448,8 @@ export class App {
       this.sound.contact.thud(1, d);
       this.sound.water.splash(1, d);
     }
-    // Potting switched on in Settings: on in our game too, if it's ours (alone or hosting).
-    if (userSettings.potting && !this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
+    // Potting is always on (owner, 29 Oct 2026: "remove the switch, potting always on"): on in our game, if it's ours (alone or hosting).
+    if (!this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
     this.jetView.update(this.world, this.world.vessels[this.testVesselId], this.vesselRoots.get(this.testVesselId), renderTime);
     {
@@ -3367,12 +3367,6 @@ export class App {
       },
       probes: () => this.probes.mesh.visible,
       toggleProbes: () => this.probes.toggle(),
-      potting: () => userSettings.potting,
-      setPotting: (on) => {
-        userSettings.potting = on;
-        saveSettings();
-        this.overlay.notify(on ? 'Potting on: order pots at the CARGO screen on any harbour quay' : 'Potting off from your next game (pots already out stay out)', 4);
-      },
       potsAboard: () => {
         if (!this.world.potting) return this.overlay.notify('Switch potting on first (Settings → Game)', 3);
         this.pushVesselIntent('potDebugAboard', 1);

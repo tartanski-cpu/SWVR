@@ -2725,11 +2725,12 @@ export const CONFIG = {
     /**
      * Soak time (milestone 2). Measured in time played (world time, s), not the game's
      * clock: the time of day stands still unless you speed it up in the menu, so "a day"
-     * wouldn't pass. A pot is ready to haul after `soakReady` (20 min) and its catch keeps
-     * improving until `soakBest` (40 min); after that, no better.
+     * wouldn't pass. A pot is ready to haul after `soakReady` (8 min) and its catch keeps
+     * improving until `soakBest` (20 min); after that, no better (owner, 29 Oct 2026: "a
+     * minimum of 8 minutes, the maximum of 20"; was 20 and 40).
      */
-    soakReady: 1200,
-    soakBest: 2400,
+    soakReady: 480,
+    soakBest: 1200,
     /** The ready cue: flag green instead of red, and a little light blinking on it at night; only within this distance (m), so you still have to find your marks. */
     flagReady: 0x28c040,
     cueRange: 45,

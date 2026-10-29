@@ -286,9 +286,6 @@ export interface MenuHost {
   toggleHydroView(): void;
   probes(): boolean;
   toggleProbes(): void;
-  /** Lobster and crab potting is on (a per-browser setting while it's being built). */
-  potting(): boolean;
-  setPotting(on: boolean): void;
   /** Debug: the pallet's pots onto our aft deck; our boat to the nearest potting ground. */
   potsAboard(): void;
   toPottingGround(): void;
@@ -777,7 +774,6 @@ export function mainMenu(h: MenuHost): MainMenu {
             choice('Plot it yourself', true, () => h.plotYourself(), (v) => h.setPlotYourself(v)),
           ],
         },
-        { label: 'Potting (new, in progress)', buttons: [choice('Off', false, () => h.potting(), (v) => h.setPotting(v)), choice('On', true, () => h.potting(), (v) => h.setPotting(v))] },
         { label: 'Debug tab', buttons: [choice('Hidden', false, () => h.debugMenu(), (v) => h.setDebugMenu(v)), choice('Shown', true, () => h.debugMenu(), (v) => h.setDebugMenu(v))] },
         // Credits: the open data a region made from real maps is built from (its licence asks for them).
         ...REGIONS.filter((r) => r.coast).flatMap((r) => [{ heading: `Credits: ${r.name}` }, ...creditLines(r.coast!.pkg.credits).map((t) => ({ heading: t }))]),

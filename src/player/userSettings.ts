@@ -28,11 +28,6 @@ export interface UserSettings {
   /** The menu's Debug tab (test and cheat tools) is shown. Off for players. */
   debugMenu: boolean;
   /**
-   * Lobster and crab potting is switched on (potting/potting.ts; being built in milestones,
-   * so off unless you turn it on). Hosting or alone, it's switched on in your game.
-   */
-  potting: boolean;
-  /**
    * Voice with the crew (net/voice.ts) and the handheld VHF: off unless you turn it on (Menu >
    * Crew). Off, the microphone isn't asked for, nobody's voice is played, and you've no radio.
    */
@@ -64,7 +59,6 @@ function load(): UserSettings {
     treeDetail: 'auto',
     hookAutoExtend: true,
     debugMenu: false,
-    potting: false,
     voiceChat: false,
   };
   try {
@@ -81,7 +75,6 @@ function load(): UserSettings {
       }
       if (typeof saved.hookAutoExtend === 'boolean') s.hookAutoExtend = saved.hookAutoExtend;
       if (typeof saved.debugMenu === 'boolean') s.debugMenu = saved.debugMenu;
-      if (typeof saved.potting === 'boolean') s.potting = saved.potting;
       if (typeof saved.voiceChat === 'boolean') s.voiceChat = saved.voiceChat;
       if (saved.treeDetail === 'auto' || saved.treeDetail === 'quest' || saved.treeDetail === 'desktop') s.treeDetail = saved.treeDetail;
       if (saved.rainQuality === 'high' || saved.rainQuality === 'low' || saved.rainQuality === 'off') s.rainQuality = saved.rainQuality;

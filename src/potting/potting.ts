@@ -35,7 +35,8 @@ import { sayRadio } from '../rescue/rescue';
  *   - Each boat's buoys have their own colour (`buoyColors`, by boat).
  *
  * All of it is plain JSON in WorldState.potting: host-authoritative and shared like the rest.
- * Off unless switched on (the `pottingOn` intent, from Settings → Game → Potting).
+ * Switched on in every game by its host (or a lone player) at the start (the `pottingOn` intent;
+ * owner, 29 Oct 2026: always on, no setting).
  */
 export interface ShotPot {
   id: string;
@@ -393,7 +394,7 @@ export function buoyUp(world: WorldState, pot: ShotPot): boolean {
 
 /**
  * Potting intents:
- *   pottingOn       switch potting on (Settings → Game → Potting, from the host's player)
+ *   pottingOn       switch potting on (the host's page sends it at the start of every game)
  *   potDebugAboard  debug: the pots on the pallet onto the aft deck of the target vessel
  *   potDebugGround  debug: the target vessel to the middle of the nearest potting ground
  *   potDebugReady   debug: every pot in the water soaked enough to haul (value 2: soaked its
