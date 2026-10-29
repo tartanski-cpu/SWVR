@@ -1,3 +1,4 @@
+import { PASSAGE_PORTS } from '../career/passage';
 import { BUSES } from '../audio/mixer';
 import { FLEET } from '../boats/fleet';
 import { CONFIG } from '../config';
@@ -222,6 +223,15 @@ export interface MenuHost {
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
   teleportToPort(i: number): void;
   /**
+   * The career's World tab (career/passage.ts): passages to each region's harbour (PASSAGE_PORTS,
+   * by index), for her cruise's time and fuel. Her cruise as measured; a harbour's line (how far,
+   * how long, how much fuel), its button (Go, or why not), and making the passage.
+   */
+  passageCruise(): string;
+  passageLine(i: number): string;
+  passageButton(i: number): string;
+  makePassage(i: number): void;
+  /**
    * The boat you're aboard as a favourite (Boat tab): a line about her (or what saving did),
    * whether she can be saved (a Shipyard design), and save her to this browser's favourites.
    */
@@ -445,6 +455,20 @@ export function mainMenu(h: MenuHost): MainMenu {
       })),
     },
     { label: 'Paper chart', buttons: [{ text: () => h.chartStatus(), weight: 1.6 }, { text: 'Clear marks', press: () => h.clearChart() }] },
+  ];
+
+  // The World tab (career): Go to each region's harbour, for the time and the fuel (career/passage.ts).
+  const world: MenuRow[] = [
+    { heading: 'Passages: the time and fuel as if she sailed' },
+    { label: '', buttons: [{ text: () => h.passageCruise(), weight: 3 }] },
+    ...PASSAGE_PORTS.map(({ port, region }, i): MenuRow => ({
+      label: region,
+      buttons: [
+        { text: () => `${port.name}: ${h.passageLine(i)}`, weight: 2.6 },
+        { text: () => h.passageButton(i), active: () => h.passageButton(i) === 'Go', press: () => h.makePassage(i) },
+      ],
+    })),
+    { heading: 'She arrives at the cargo berth: make fast' },
   ];
 
   const boat: MenuRow[] = [
@@ -1019,6 +1043,8 @@ export function mainMenu(h: MenuHost): MainMenu {
       { name: 'Boat', rows: boat },
       { name: 'Cargo', rows: cargo },
       { name: 'Office', sections: office, hidden: () => MODE === 'voyage' },
+      // The career's passages (owner, 29 Oct 2026: "a world tab, so not under debug"; Voyage's Go is in its ports list).
+      { name: 'World', rows: world, hidden: () => MODE === 'voyage' },
       { name: 'Crew', rows: crew },
       { name: 'Settings', sections: settings },
       { name: 'Debug', sections: debug, hidden: () => !h.debugMenu() },

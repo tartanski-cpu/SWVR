@@ -10,6 +10,20 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The career's World tab: passages to each region's harbour, for the time and the fuel (29 Oct 2026)
+
+Owner: "the career map's now quite big ... a world tab, so not under debug, and you can teleport to the sheltered harbor with the pier in any one of the regions, and it only costs you time and the fuel to do that" (Voyage's Go is free, in its ports list).
+- **The World tab** (`ui/mainMenu.ts`, career only; Voyage keeps its Go): her cruise, then each region's harbour (`PASSAGE_PORTS`: the region's port of kind `harbour`: Calder Haven, Loch Tarsk, Kvassvik, Ashby Cannery) with how far, how long and how much fuel, and **Go** (or why not).
+- **The passage** (`career/passage.ts`, `CONFIG.passage`):
+  - **Her cruise:** measured on her, `lever` 0.75 ahead in calm water until steady (`seaTrials.measureCruise`, new: a fraction of a second; kept per boat type, measured just after it's first asked for so the menu isn't held up). The starter gillnetter: 7.3 kn, 18 L/h.
+  - **Distance:** the straight line to the harbour's cargo berth times `routeFactor` 1.3 (the water's way round the headlands). **Time** at her cruise; **fuel** at her cruise burn for that long.
+  - **Made** (`passageToPort`, host only; args the time and fuel from the host's menu): the fuel comes out of her tank, the game's clock and the time played go on by the passage (the tick count, so contracts, pots' soak, farm silos and salmon freshness all feel it), and she's put at the harbour as Go puts her (cargo berth, neutral, lines off; you aboard with her).
+  - **Not:** where she is already (within `hereM` 400 m), with a tow fast, without the fuel; a crew-mate's menu says Host only.
+- **Tests:** tests/passage.test.ts (5): one harbour a region; her cruise measured; the plan's distance, time and fuel; made, the clocks go on, the fuel's burnt, she lies at Loch Tarsk's berth in neutral; refused without the fuel, with a tow fast, where she is. The menu test's host gains the passage calls.
+- **Checked headless:** the World tab in a new career (Calder Haven "she's here"; Loch Tarsk 3.2 nm, 27 min, 8 L; Kvassvik 7.2 nm, 59 min, 18 L; Ashby 6.8 nm, 56 min, 17 L), and Go to Loch Tarsk: 8 L burnt, the clock 10:30 to 10:57, her at the cargo berth with me aboard.
+- **Not checked:** on the Quest; a boat with an electric outboard (its battery isn't charged for the passage; no career boat has one).
+- **Shared changes:** `src/core/simulation.ts` (the passage intent beside Go's), `src/vessel/seaTrials.ts` (`measureCruise`).
+
 ### Fish farm service, milestone 2: net checks, torn nets, morts, the farm service contract (29 Oct 2026)
 
 Owner: "carry on with farm step 2".

@@ -2484,6 +2484,14 @@ export const CONFIG = {
    *   buoyColors each boat's buoy colour (by boat), flag colour while soaking
    */
   /**
+   * Passages (career/passage.ts; owner, 29 Oct 2026: the World tab's Go "only costs you time
+   * and the fuel"): at her cruise, `lever` ahead (measured on her), over the straight line to
+   * the harbour times `routeFactor` (the water's way round the headlands is longer). Within
+   * `hereM` (m) of its cargo berth she's there already.
+   */
+  passage: { lever: 0.75, routeFactor: 1.3, hereM: 400 },
+
+  /**
    * Fish farm service (owner, 29 Oct 2026: "go ahead with fish farm service first, everything
    * should be possible single player but better with crew"; aqua/farmService.ts). Each salmon
    * farm (FarmDef with a feed barge `port`) has a feed silo on its barge, which the fish eat

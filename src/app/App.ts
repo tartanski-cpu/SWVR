@@ -1,3 +1,5 @@
+import { PASSAGE_PORTS, passageBlocker, passageTime, planPassage, type Cruise } from '../career/passage';
+import { measureCruise } from '../vessel/seaTrials';
 import { busLive } from '../plant/plant';
 import { AZI_HELM_CODES, glanceYaw, pointAndPush, stepDriveKeys, type DriveAsk, type DriveKeys } from '../player/aziHelm';
 import { KEY_LEAN, wrapDeg } from '../modules/azimuthLevers/lever';
@@ -3228,6 +3230,47 @@ export class App {
         if (this.world.players[this.localPlayerId].aboardVesselId !== mine.id) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: mine.id });
         this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, make fast at the cleats` : `${port.name}: in the bay, let go the anchor`, 3);
       },
+      // The career's passages (World tab; career/passage.ts): your boat, at her measured cruise.
+      passageCruise: () => {
+        const v = this.world.vessels[this.testVesselId];
+        const c = v && this.cruiseOf(v.defId);
+        if (!v) return '';
+        if (!c) return 'Working out her cruising speed…';
+        return `Her cruise (three-quarter throttle): ${c.knots.toFixed(1)} kn, ${c.fuelLph.toFixed(0)} L/h  ·  ${Math.round(v.engine.fuelL)} L aboard`;
+      },
+      passageLine: (i) => {
+        const v = this.world.vessels[this.testVesselId];
+        const c = v && this.cruiseOf(v.defId);
+        const to = PASSAGE_PORTS[i];
+        if (!v || !c || !to) return '…';
+        const p = planPassage(v, to.port, c);
+        if (passageBlocker(this.world, v, to.port, p, c) === 'She’s here') return 'she’s here';
+        return `${p.nm.toFixed(1)} nm  ·  ${passageTime(p.seconds)}  ·  ${Math.ceil(p.litres)} L`;
+      },
+      passageButton: (i) => {
+        const v = this.world.vessels[this.testVesselId];
+        const c = v && this.cruiseOf(v.defId);
+        const to = PASSAGE_PORTS[i];
+        if (!v || !to) return '';
+        if (this.client) return 'Host only';
+        if (!c) return '…';
+        return passageBlocker(this.world, v, to.port, planPassage(v, to.port, c), c) ?? 'Go';
+      },
+      makePassage: (i) => {
+        const v = this.world.vessels[this.testVesselId];
+        const c = v && this.cruiseOf(v.defId);
+        const to = PASSAGE_PORTS[i];
+        if (!v || !to) return;
+        if (this.client) return this.overlay.notify('Only the host makes a passage: the time is everyone’s', 3);
+        if (!c) return this.overlay.notify('Still working out her cruising speed: a moment', 2);
+        const p = planPassage(v, to.port, c);
+        const why = passageBlocker(this.world, v, to.port, p, c);
+        if (why) return this.overlay.notify(why, 3);
+        this.intents.push({ playerId: this.localPlayerId, targetId: v.id, control: 'passageToPort', value: 1, ref: to.port.id, args: [p.seconds, p.litres] });
+        // Wherever you are: along with her, at the helm.
+        if (this.world.players[this.localPlayerId].aboardVesselId !== v.id) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: v.id });
+        this.overlay.notify(`Passage to ${to.port.name}: ${p.nm.toFixed(1)} nm, ${passageTime(p.seconds)}, ${Math.ceil(p.litres)} L of fuel. At the cargo berth: make fast at the cleats`, 5);
+      },
       homeBoat: () => {
         const defId = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
         return defId === 'workboat' && new URLSearchParams(location.search).get('fit') === 'all' ? 'workboat:all' : defId;
@@ -6368,6 +6411,29 @@ export class App {
     this.fade.style.opacity = '1';
     setTimeout(() => window.location.assign(diveUrl(ready.site, back.toString(), session)), CONFIG.modules.diveFrame.dive.fadeS * 1000);
   }
+
+  /**
+   * A boat type's cruise for the career's passages (career/passage.ts): measured on her once
+   * (seaTrials measureCruise, a fraction of a second), just after it's first asked for, so the
+   * menu isn't held up drawing; null until then.
+   */
+  private cruiseOf(defId: string): Cruise | null {
+    const c = this.cruises.get(defId);
+    if (c === undefined) {
+      this.cruises.set(defId, null);
+      setTimeout(() => {
+        try {
+          this.cruises.set(defId, measureCruise(defId, CONFIG.passage.lever));
+        } catch (e) {
+          console.warn(`Her cruise (${defId}): ${(e as Error).message}`);
+          this.cruises.set(defId, { knots: 0, fuelLph: 0 });
+        }
+      }, 30);
+      return null;
+    }
+    return c;
+  }
+  private readonly cruises = new Map<string, Cruise | null>();
 
   /** The world's fixed boards worked like the menu: the boatyards', the Shipyard signs (Voyage's one, the career's at every harbour) and the cargo screen. */
   private boardMenus(): WristMenu[] {

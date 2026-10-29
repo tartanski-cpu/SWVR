@@ -232,6 +232,18 @@ export function runMotionTrials(defId: string): MotionTrials {
   };
 }
 
+/**
+ * Her cruising speed and fuel burn, measured on her (calm water, `lever` ahead until her speed
+ * is steady): the career's passages (career/passage.ts). A fraction of a second's work;
+ * the caller keeps it per boat type.
+ */
+export function measureCruise(defId: string, lever: number): { knots: number; fuelLph: number } {
+  const t = new Trial(defId);
+  t.startEngine();
+  t.settle(lever, 90);
+  return { knots: t.speed * KN, fuelLph: t.v.engine.fuelFlowLph };
+}
+
 export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
   // ── Speed table and acceleration ──
   const speedTable: SeaTrialResults['speedTable'] = [];

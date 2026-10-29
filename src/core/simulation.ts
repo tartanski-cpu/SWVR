@@ -45,6 +45,7 @@ import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/sal
 import { applyTimberSell, stepTimberLogs } from '../voyage/timber';
 import { applyTransferIntent, isTransferIntent, stepTransfer } from '../transfer/transfer';
 import { stepAqua } from '../aqua/farmService';
+import { applyPassage } from '../career/passage';
 import { applyTvIntent, isTvIntent, stepTv } from '../modules/furniture/tvState';
 import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
 import { holdPayload, stepHold } from '../fishing/fishHold';
@@ -143,7 +144,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyLaunchIntent(world, intent);
     } else if (intent.control === 'timberSell') {
       applyTimberSell(world, intent.playerId, intent.ref);
-    } else if (intent.control === 'teleportToPort' && intent.ref && world.vessels[intent.targetId]) {
+    } else if ((intent.control === 'teleportToPort' || (intent.control === 'passageToPort' && applyPassage(world, intent, dt))) && intent.ref && world.vessels[intent.targetId]) {
+      // (A career passage, career/passage.ts: its time and fuel paid, she's put there as Go puts her.)
       // With several boats about (multi-boat M5): a free berth, else the bay.
       // One harbour that can't be placed mustn't stop the whole tick: then she lies as the
       // plain Go would put her.
@@ -153,7 +155,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       } catch (e) {
         console.warn(`Go to ${intent.ref}: ${(e as Error).message}`);
       }
-      if (!placed) applyVesselIntent(world.vessels[intent.targetId], intent);
+      if (!placed) applyVesselIntent(world.vessels[intent.targetId], { ...intent, control: 'teleportToPort' });
       // Settling into her new berth is no crash (CONFIG.wear.spawnGraceS).
       world.vessels[intent.targetId].settleUntil = world.time + CONFIG.wear.spawnGraceS;
       // The host's boat sent somewhere: the planning table goes with her (voyage/plan.ts).
