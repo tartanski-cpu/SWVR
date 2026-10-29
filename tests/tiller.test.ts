@@ -53,7 +53,27 @@ describe('outboard tiller (VR)', () => {
 });
 
 describe('outboard tiller (desktop)', () => {
-  it('holding S from ahead stops in neutral and stays there; let go and press again for astern (review, Oct 2026)', () => {
+  it('holding S from ahead runs straight through neutral into astern (owner, 29 Oct 2026: "full forward, full reverse without it stopping")', () => {
+    const { t, sent } = setup();
+    t.keySteer(0, 1);
+    for (let i = 0; i < 90; i++) t.tick(1 / 60); // ahead
+    expect(sent.obGear).toBe(1);
+    t.keySteer(0, -1);
+    for (let i = 0; i < 180; i++) t.tick(1 / 60); // held, 3 s
+    expect(sent.obGear).toBe(-1); // astern, without letting go
+    expect(sent['throttle.demand']).toBeGreaterThan(0.3);
+  });
+
+  it('with stopAtNeutral on (the old way, a setting): holding S from ahead stops in neutral; let go and press again for astern', () => {
+    const was = CONFIG.debugDriving.stopAtNeutral;
+    (CONFIG.debugDriving as { stopAtNeutral: boolean }).stopAtNeutral = true;
+    try {
+      oldWay();
+    } finally {
+      (CONFIG.debugDriving as { stopAtNeutral: boolean }).stopAtNeutral = was;
+    }
+  });
+  function oldWay(): void {
     const { t, sent } = setup();
     t.keySteer(0, 1);
     for (let i = 0; i < 90; i++) t.tick(1 / 60); // ahead
@@ -68,7 +88,7 @@ describe('outboard tiller (desktop)', () => {
     for (let i = 0; i < 60; i++) t.tick(1 / 60);
     expect(sent['throttle.demand']).toBeGreaterThan(0.2);
     expect(sent.obGear).toBe(-1); // astern now
-  });
+  }
 
   it("a click on the gear lever takes the whole outboard into keyboard steering (so WASD doesn't walk)", async () => {
     const { InteractionSystem } = await import('../src/controls/InteractionSystem');
