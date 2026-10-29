@@ -780,7 +780,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (p.trawlWinchesAt) recipe.modules.push({ socket: 'trawlWinches', module: 'deck.trawl-winches', config: { ...p.trawlWinchesAt } });
   // The line hauler at her starboard rail (longlining).
   if (p.lineHaulerAt) recipe.modules.push({ socket: 'lineHauler', module: 'deck.line-hauler' });
-  if (ring) recipe.modules.push({ socket: 'lifeRing', module: 'rescue.life-ring-station', config: { stow: ring.stow, cleat: ring.cleat } }, { socket: 'boatHook', module: 'rescue.boat-hook-rack', config: { stow: ring.hook } });
+  if (ring) recipe.modules.push({ socket: 'lifeRing', module: 'rescue.life-ring-station', config: { stow: ring.stow, cleat: ring.cleat } });
+  // (Every boat's boat hook, in its clips on her bulwark aft: deckGear.ts boatHookAt.)
+  recipe.modules.push({ socket: 'boatHook', module: 'rescue.boat-hook-rack', config: { stow: p.boatHookAt } });
   if (rodRack) recipe.modules.push({ socket: 'rodRack', module: 'deck.rod-rack', config: rodRack });
   if (sideDoor)
     recipe.modules.push(

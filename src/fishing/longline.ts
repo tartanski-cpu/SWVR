@@ -184,7 +184,7 @@ export function hookAt(i: number): number {
 }
 
 /** The fishing ground a line mostly lies on, if any. */
-function groundOf(line: Longline) {
+export function groundOf(line: Pick<Longline, 'track'>) {
   const L = trackLength(line.track);
   const [x, z] = alongTrack(line.track, L / 2);
   return FISHING_GROUNDS.find((g) => Math.hypot(x - g.x, z - g.z) <= g.radius) ?? null;

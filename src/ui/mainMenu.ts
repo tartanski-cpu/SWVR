@@ -56,6 +56,9 @@ export interface MenuHost {
   oilLow(): void;
   coupling(): number;
   setCoupling(value: number): void;
+  /** Desktop: the field of view (degrees). */
+  fov(): number;
+  setFov(deg: number): void;
   smoothWalk(): boolean;
   setSmoothWalk(on: boolean): void;
   /** The boat hook telescopes out to what you point it at. */
@@ -727,6 +730,14 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: '−10 %', press: () => h.setCoupling(h.coupling() - 0.1) },
             { text: () => `${Math.round(h.coupling() * 100)} %`, weight: 1.2 },
             { text: '+10 %', press: () => h.setCoupling(h.coupling() + 0.1) },
+          ],
+        },
+        {
+          label: 'Field of view (desktop)',
+          buttons: [
+            { text: '−5°', press: () => h.setFov(h.fov() - CONFIG.render.fovSetting.step) },
+            { text: () => `${Math.round(h.fov())}°`, weight: 1.2 },
+            { text: '+5°', press: () => h.setFov(h.fov() + CONFIG.render.fovSetting.step) },
           ],
         },
         { label: 'Stick walking', buttons: [choice('On', true, () => h.smoothWalk(), (v) => h.setSmoothWalk(v)), choice('Off', false, () => h.smoothWalk(), (v) => h.setSmoothWalk(v))] },

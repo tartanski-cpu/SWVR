@@ -610,6 +610,11 @@ export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
     : null;
+  // The boat hook's clips on her bulwark aft (owner, 29 Oct 2026: "the trawler doesn't have a boat
+  // hook, so I couldn't retrieve the line"): every boat has one, for dan buoys, pot buoys, crates and
+  // pushing off; beside the life ring if she has it, else to port (the line hauler's to starboard).
+  const hookSide = ringSide || -1;
+  const boatHookAt: [number, number, number, number] = ring?.hook ?? [r2(hookSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)];
   // The rod rack (owner, Oct 2026; design.rodRack: 1 aft wall port, 2 aft wall starboard, 3
   // port wall, 4 starboard wall): CONFIG.rod.perRack rods standing upright in cups on the deck
   // against the wall, spaced along it, the bucket on deck at the end of the row. A side wall
@@ -644,13 +649,9 @@ export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   // The places on the house outside (P4b): the life ring and the boat-hook clips, the rod rack.
   const houseGearSockets: Socket[] = [
     ...(rodRack ? [{ id: 'rodRack', type: 'deck.fitting' as const, transform: { position: rodRack.rods[0] }, label: `Wheelhouse ${rodRack.yawDeg ? (rodRack.side < 0 ? 'port' : 'starboard') : 'aft'} wall${rodRack.yawDeg ? '' : rodRack.side < 0 ? ', port of the door' : ', starboard of the door'}: the fishing rods' rack, the bucket beside it` }] : []),
-    ...(ring
-      ? [
-          { id: 'lifeRing', type: 'deck.fitting' as const, transform: { position: ring.stow }, label: `Wheelhouse aft wall, ${ringSide < 0 ? 'port' : 'starboard'}: the life ring (its line on that quarter's cleat)` },
-          { id: 'boatHook', type: 'deck.fitting' as const, transform: { position: [ring.hook[0], ring.hook[1], ring.hook[2]] as V3 }, label: `${ringSide < 0 ? 'Port' : 'Starboard'} bulwark, aft: the boat-hook clips` },
-        ]
-      : []),
+    ...(ring ? [{ id: 'lifeRing', type: 'deck.fitting' as const, transform: { position: ring.stow }, label: `Wheelhouse aft wall, ${ringSide < 0 ? 'port' : 'starboard'}: the life ring (its line on that quarter's cleat)` }] : []),
+    { id: 'boatHook', type: 'deck.fitting' as const, transform: { position: [boatHookAt[0], boatHookAt[1], boatHookAt[2]] as V3 }, label: `${hookSide < 0 ? 'Port' : 'Starboard'} bulwark, aft: the boat-hook clips` },
   ];
-  return { houseGearSockets, ring, ringSide, rodRack };
+  return { houseGearSockets, ring, ringSide, rodRack, boatHookAt };
 }
 export type HouseGearPart = ReturnType<typeof houseGearPart>;

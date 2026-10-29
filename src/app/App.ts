@@ -915,7 +915,7 @@ export class App {
     this.gpuTimer = new GpuTimer(this.renderer.getContext() as WebGL2RenderingContext);
 
     this.camera = new THREE.PerspectiveCamera(
-      CONFIG.render.fovDeg,
+      userSettings.desktopFov,
       window.innerWidth / window.innerHeight,
       CONFIG.render.near,
       CONFIG.render.far,
@@ -3052,6 +3052,8 @@ export class App {
         (CONFIG.rescue as { plotYourself: boolean }).plotYourself = on;
       },
       coupling: () => this.couplingSetting(),
+      fov: () => userSettings.desktopFov,
+      setFov: (deg) => this.setFov(deg),
       setCoupling: (v) => this.setCoupling(Math.round(v * 10) / 10),
       smoothWalk: () => userSettings.smoothWalk,
       setSmoothWalk: (on) => {
@@ -4588,6 +4590,25 @@ export class App {
     return this.renderer.xr.isPresenting ? userSettings.motionCoupling : userSettings.desktopCoupling;
   }
 
+  /**
+   * Desktop: the field of view set (Menu > Settings > Comfort; CONFIG.render.fovSetting), saved
+   * in this browser. In at once, unless something has the lens (the binoculars, the helm's
+   * outside view, the camera mode): then it's what they give back. VR's is the headset's.
+   */
+  private setFov(deg: number): void {
+    const f = CONFIG.render.fovSetting;
+    const v = Math.min(f.max, Math.max(f.min, Math.round(deg)));
+    userSettings.desktopFov = v;
+    saveUserSettings();
+    if (this.camMode.on) this.camOldFov = v;
+    else if (this.helmFovBase !== null) this.helmFovBase = v;
+    else if (!this.binoculars.looking && !this.renderer.xr.isPresenting) {
+      this.camera.fov = v;
+      this.camera.updateProjectionMatrix();
+    }
+    this.overlay.notify(`Field of view ${v}°${this.renderer.xr.isPresenting ? ' (on the desktop: in VR the headset sets it)' : ''}`, 2);
+  }
+
   private setCoupling(value: number): void {
     // Keep full precision: the stick adds tiny amounts per frame (rounding here used to
     // swallow them, so holding X + stick did nothing). Round only for display.
@@ -5309,7 +5330,7 @@ export class App {
       if (p.avatar) p.avatar.camera = false;
       document.body.classList.remove('camera-clean');
       this.rig.root.add(this.camera);
-      this.camera.fov = this.camOldFov || CONFIG.render.fovDeg;
+      this.camera.fov = this.camOldFov || userSettings.desktopFov;
       this.camera.updateProjectionMatrix();
       this.desktop.resetPose();
       p.mode = 'walk';

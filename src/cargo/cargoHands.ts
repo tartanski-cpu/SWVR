@@ -13,6 +13,7 @@
  * it down; Q on an item on deck lashes / releases it.
  */
 import * as THREE from 'three';
+import { isTub } from '../fishing/longline';
 import type { HandFrame } from '../controls/InteractionSystem';
 import type { WorldState } from '../core/world';
 import type { Handedness } from '../player/xrInput';
@@ -265,7 +266,8 @@ export class CargoHands {
     else if (isPot(c)) {
       const ground = groundAt(pos.x, pos.z);
       ctx.notify(groundHeight(pos.x, pos.z) > -1 ? 'Pot lost: no water to fish there' : ground ? `Pot away on ${ground.name}: its buoy will pop up` : 'Pot away (not on a potting ground: it will catch little)');
-    } else ctx.notify(`${kindOf(c).name} lost in the sea`);
+    // (A line tub let go over the side of a boat starts its line shooting: fishing/longlineHands.ts says so.)
+    } else if (!isTub(c) || !ctx.world.players[ctx.playerId]?.aboardVesselId) ctx.notify(`${kindOf(c).name} lost in the sea`);
   }
 
   /** Is this world point over a hull's deck (where a set-down lands on that deck)? */

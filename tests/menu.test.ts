@@ -29,7 +29,7 @@ function fakeHost() {
   ]);
   const yard = new ShipyardCodes(() => ({ getItem: () => saved, setItem: () => {} }));
   const cam = { on: false, fov: 60, speed: 1, smooth: true, rideBoat: true, clean: true, zoom: (n: number) => (cam.fov += n * 2) };
-  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
+  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, fov: 70, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
   const host: MenuHost = {
     passageCruise: () => '',
     passageLine: () => '',
@@ -78,6 +78,8 @@ function fakeHost() {
     setWeatherFast: () => {},
     coupling: () => state.coupling,
     setCoupling: (v) => (state.coupling = v),
+    fov: () => state.fov,
+    setFov: (d) => (state.fov = d),
     smoothWalk: () => state.smooth,
     setSmoothWalk: (on) => (state.smooth = on),
     snapTurnDeg: () => state.snap,
@@ -307,6 +309,17 @@ describe('main menu contents', () => {
     expect(findButton(rows, 'Board boat (at the helm)')).toBeTruthy();
     state.aboard = true;
     expect(findButton(rows, 'Leave boat (to the quay)')).toBeTruthy();
+  });
+
+  it('the desktop field of view steps by 5° (Settings > Comfort)', () => {
+    const { host, state } = fakeHost();
+    const rows = mainMenu(host);
+    findButton(rows, '+5°').press!();
+    expect(state.fov).toBe(75);
+    findButton(rows, '−5°').press!();
+    findButton(rows, '−5°').press!();
+    expect(state.fov).toBe(65);
+    expect(findButton(rows, '65°')).toBeTruthy();
   });
 
   it('formats time of day, wrapping at midnight', () => {

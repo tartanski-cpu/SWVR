@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Desktop field of view; longline messages; a boat hook on every boat (29 Oct 2026)
+
+Owner: "The desktop players want a field of vision settings slider." And: "If you drop the reel in the water in a fishing ground, it says you've lost the reel ... It should say line set ... it should allow you to set it anywhere. You just don't get any fish ... So it should never say that message. And then I noticed that the trawler doesn't have a boat hook, so I couldn't retrieve the line."
+
+- **Field of view (desktop)** (menu Settings → Comfort, −5° / +5°): 50° to 110°, 70° to start (`CONFIG.render.fovSetting` {min, max, step}; `userSettings.desktopFov`, remembered on the device). It sets the camera at once, and the helm's and the camera mode's own views go back to it when you leave them. In VR the headset sets the view, so the row does nothing there (the note says so).
+- **Longline messages** (`fishing/longlineHands.ts` announceSetting): a tub let go over the side under way now says **"Line going out over the stern: keep her straight, 3 to 8 knots..."**, then once the far buoy is in **"Line set: 300 m, 50 hooks, on Calder Bank"** (or **"off any fishing ground (it will catch little)"**), and **"Line lost"** only if she stopped before `CONFIG.longline.minM` m were out. The line could always be set anywhere; the wrong message came from the cargo hands (`cargo/cargoHands.ts`), which took any crate gone into the sea for a lost crate: a tub let go from aboard a boat no longer says "lost in the sea". `fishing/longline.ts` exports `groundOf` for the ground's name.
+- **A boat hook on every Shipyard boat** (`shipyard/parts/deckGear.ts`, `recipe.ts`): it used to come only with the life ring (the stern trawler as she comes has none). Now every design has the boat-hook rack: beside the life ring if she has one, else in clips on her port bulwark aft. The ring (and with it the rescue calls) stays a choice of its own; the Life ring upgrade's text says so.
+- **Tests:** tests/boatHookEveryBoat.test.ts (new: every hull type, with and without the ring, has a hook on the right side; the ring only where chosen or built in), tests/menu.test.ts (the field of view steps by 5°), and all of `npm test`.
+- **Checked:** in the headless browser the camera's field of view went 70° → 100° from the menu. **Not checked:** the longline messages and the trawler's hook by eye, or anything on the Quest.
+- **Changes in another area's files:** `src/shipyard/parts/deckGear.ts` and `src/shipyard/parts/recipe.ts` (Shipyard: the boat hook on every design; small).
+
 ### At the helm, A / D steer (29 Oct 2026)
 
 Owner: "if you pressed F on the keyboard to drive the vessel, even if you don't have a controller ... you can then use the WASD keys to steer and throttle. And when you're not connected to the helm, then you can use that to walk."
