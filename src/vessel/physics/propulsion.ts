@@ -97,7 +97,7 @@ export function toggleEngine(s: VesselState, def: EngineSpec & { split?: boolean
   const e = s.engine;
   // (Twin engines worked separately: both together, each from its own lever.)
   const both = def.split ? [e, (e.stbd ??= starboardEngine(e))] : [e];
-  const levers = [s.controls.lever, s.controls.lever2 ?? s.controls.lever];
+  const levers = [s.controls.lever, s.controls.lever2 ?? 0];
   if (e.phase === 'off') {
     if (!isPowered(s)) return; // no 12 V: the starter doesn't turn
     if (def.engine.startOnlyInNeutral && leverDemand(def, s.controls.lever).gear !== 0) return;

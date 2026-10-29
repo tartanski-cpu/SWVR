@@ -100,11 +100,29 @@ describe('twin engines worked separately', { timeout: 120000 }, () => {
     s.send('lever', 0.6);
     const h1 = compassHeading(s.v);
     s.run(20);
-    expect(s.v.controls.lever2).toBeUndefined(); // (never moved apart: it follows)
+    expect(s.v.controls.lever2).toBe(0.6); // (the keys' lever sets both, from the first press)
     expect(Math.abs(((compassHeading(s.v) - h1 + 540) % 360) - 180)).toBeLessThan(3);
     // (Split, she went a fraction as far: astern thrust is weaker than ahead, so she creeps ahead as she turns.)
     expect(split).toBeLessThan(0.5 * Math.hypot(s.v.position[0], s.v.position[2]));
     expect(s.v.engine.stbd!.rpm).toBeCloseTo(s.v.engine.rpm, 0);
+  });
+
+  it('the first move of the port lever works the port engine alone (owner, 29 Oct 2026: it moved both the first time)', () => {
+    const t = boat(cat());
+    t.keyOn();
+    t.start('ignition.start');
+    t.start('ignition.start2');
+    expect(t.v.controls.lever2).toBeUndefined(); // (never touched)
+    t.send('throttle.demand', 0.6);
+    t.run(6);
+    expect(t.v.engine.gear).toBe(1);
+    expect(t.v.engine.stbd!.gear).toBe(0);
+    expect(t.v.engine.stbd!.rpm).toBeLessThan(t.v.engine.rpm);
+    // And then the starboard on its own.
+    t.send('throttle.demand2', -0.4);
+    t.run(4);
+    expect(t.v.engine.stbd!.gear).toBe(-1);
+    expect(t.v.engine.gear).toBe(1);
   });
 
   it('AUTO START (the quick start) starts both; the key off stops both', () => {
@@ -148,6 +166,13 @@ describe('the twin lever control', () => {
     expect(grip.distanceTo(mid)).toBeLessThan(stbd.distanceTo(mid));
     const knob = port.grabPoint(new THREE.Vector3());
     expect(port.distanceTo(knob)).toBeLessThan(grip.distanceTo(knob));
+    // A hand a little inboard of a knob, toward the grip, still takes that knob (owner, 29 Oct 2026:
+    // the grip's grab area was too big); only a hand well in the middle takes the grip.
+    const gap = mid.clone().sub(knob);
+    for (const f of [0.25, 0.45]) {
+      const at = knob.clone().addScaledVector(gap, f);
+      expect(port.distanceTo(at)).toBeLessThan(grip.distanceTo(at));
+    }
     // The grip: both to halfway between them, then both together.
     grip.grabStart({ position: mid.clone() });
     expect(sent['throttle.demand2']).toBeCloseTo(sent['throttle.demand'], 6);

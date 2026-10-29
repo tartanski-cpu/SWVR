@@ -12,7 +12,7 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `throttle.demand` | -1..1 | player sets; held: lever | module | `lever` | Throttle / gear lever: -1 full astern, 0 neutral, +1 full ahead. On an outboard boat, the twist-grip throttle 0..1 in the selected gear. |
-| `throttle.demand2` | -1..1 | player sets; held: lever2 | module |  | Twin engines worked separately: the starboard engine's throttle / gear lever (throttle.demand is then the port engine's). Reads as the port lever until it is moved. |
+| `throttle.demand2` | -1..1 | player sets; held: lever2 | module |  | Twin engines worked separately: the starboard engine's throttle / gear lever (throttle.demand is then the port engine's). Upright (0) until it is moved. |
 
 ## ignition
 

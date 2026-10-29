@@ -101,8 +101,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     }
     case 'lever':
       s.controls.lever = clamp(intent.value, -1, 1);
-      // (Twin engines worked separately: the keys, the menus and the helpers work both levers.)
-      if (s.controls.lever2 !== undefined) s.controls.lever2 = s.controls.lever;
+      // (Twin engines worked separately: the keys, the menus and the helpers work both levers;
+      // from the first press, as the starboard lever has its own value once it has one.)
+      if (s.controls.lever2 !== undefined || gearOf(s, 'diesel')?.split) s.controls.lever2 = s.controls.lever;
       break;
     case 'helm':
       s.controls.helm = clamp(intent.value, -1, 1);
@@ -234,7 +235,7 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
         s.controls.aziSync = 0;
         break;
       }
-      const power = v === 2 ? (s.controls.lever2 ?? s.controls.lever) : s.controls.lever;
+      const power = v === 2 ? (s.controls.lever2 ?? 0) : s.controls.lever;
       s.controls.aziSync = 1;
       applyBusIntent(s, 'throttle.demand', power, intent.playerId);
       applyBusIntent(s, 'throttle.demand2', power, intent.playerId);

@@ -1882,7 +1882,7 @@ export class App {
     // Twin engines worked separately, holding the wheel (owner, Oct 2026): E / D the port lever,
     // R / F the starboard one, each at the keys' rate and stopping at neutral on the way through.
     if (this.twinLeverKeys()) {
-      const levers = [v.controls.lever, v.controls.lever2 ?? v.controls.lever];
+      const levers = [v.controls.lever, v.controls.lever2 ?? 0];
       (['throttle.demand', 'throttle.demand2'] as const).forEach((key, i) => {
         const input = (k.action(i ? 'stbdAhead' : 'portAhead') ? 1 : 0) - (k.action(i ? 'stbdAstern' : 'portAstern') ? 1 : 0);
         if (input === 0) {
@@ -1930,7 +1930,7 @@ export class App {
     const transit = (c.aziTransit ?? 0) > 0.5;
     const cur: DriveAsk[] = [
       { angle: c.aziAngle ?? 0, power: Math.max(0, c.lever) },
-      { angle: c.aziAngle2 ?? 0, power: Math.max(0, c.lever2 ?? c.lever) },
+      { angle: c.aziAngle2 ?? 0, power: Math.max(0, c.lever2 ?? 0) },
     ];
     const send = (i: number, ask: DriveAsk) => {
       const s = i ? '2' : '';
@@ -5090,7 +5090,7 @@ export class App {
       azi
         ? [
             { deg: ((azi.engine.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle ?? 0, power: Math.max(0, azi.controls.lever), sync: !!azi.controls.aziSync },
-            { deg: ((azi.engine.stbd?.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle2 ?? 0, power: Math.max(0, azi.controls.lever2 ?? azi.controls.lever), sync: !!azi.controls.aziSync },
+            { deg: ((azi.engine.stbd?.azimuth ?? 0) * 180) / Math.PI, askDeg: azi.controls.aziAngle2 ?? 0, power: Math.max(0, azi.controls.lever2 ?? 0), sync: !!azi.controls.aziSync },
           ]
         : null,
     );
