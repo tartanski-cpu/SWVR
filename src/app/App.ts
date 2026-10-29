@@ -161,7 +161,7 @@ import { RodView } from '../fishing/rodView';
 import { LineGun } from '../tow/lineGun';
 import { FenderHands, type FenderHandsContext } from '../player/fenderHands';
 import { Gangway, type GangwayContext } from '../player/gangway';
-import { BelowDecks, roomFor } from './engineRoom';
+import { BelowDecks, crewAreaFor, crewLayoutFor, inCrewArea, roomFor } from './engineRoom';
 import type { FendersApi } from '../modules/fenders';
 import { LineGunView } from '../tow/lineGunView';
 import { lineLength, lineOf, nearestTowTarget, sternLocal, towAlertT, towName, towPoint, towStatus, towTargets, winchStalled } from '../tow/tow';
@@ -1335,7 +1335,7 @@ export class App {
       // In the wheelhouse the engine's quieter (more so with the door shut); full on deck.
       const ws = CONFIG.wheelhouseSound;
       // Below in her engine room: right beside them, louder and with their clatter (CONFIG.engineRoom.sound).
-      const below = this.belowDecks.boatId === this.testVesselId;
+      const below = this.belowDecks.boatId === this.testVesselId && this.belowDecks.space === 'engine';
       const house = below ? [CONFIG.engineRoom.sound.level, 20000] : this.insideHouse ? (this.closed > 0 ? [ws.engineShut, ws.engineShutLp] : [ws.engineInside, ws.engineInsideLp]) : [1, 20000];
       this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1], below ? 1 : 0);
       const v = this.world.vessels[this.testVesselId];
@@ -2384,7 +2384,7 @@ export class App {
       // In an engine room the ladder is the only way out (owner, 27 Oct 2026: a jump took you
       // out of it and back on deck): no jumping below.
       if (this.belowDecks.boatId) {
-        this.overlay.notify('In the engine room: climb up at the ladder', 2);
+        this.overlay.notify(this.belowDecks.wayOut, 2);
         return false;
       }
       const headL = frame.worldToLocal(this.tmpV.copy(this.headW));
@@ -2752,7 +2752,7 @@ export class App {
 
   private toggleBoard(): void {
     // (Not from an engine room: the ladder is the only way out of it.)
-    if (this.belowDecks.boatId) return this.overlay.notify('In the engine room: climb up at the ladder', 2);
+    if (this.belowDecks.boatId) return this.overlay.notify(this.belowDecks.wayOut, 2);
     const aboard = this.world.players[this.localPlayerId].aboardVesselId;
     this.intents.push({
       playerId: this.localPlayerId,
@@ -5837,10 +5837,11 @@ export class App {
     if (this.interaction) keep.push(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
     const id = this.belowDecks.boatId;
     const v = id ? this.world.vessels[id] : undefined;
-    const plan = v ? roomFor(v.defId) : null;
-    if (plan)
-      for (const p of Object.values(this.world.players))
-        if (p.id !== this.localPlayerId && p.aboardVesselId === id && p.position[1] < plan.deckhead) keep.push(...this.avatars.partsOf(p.id));
+    // Any crew-mate in the same space: below her deckhead in the engine room, on a deck of her crew area.
+    const plan = v && this.belowDecks.space === 'engine' ? roomFor(v.defId) : null;
+    const crew = v && this.belowDecks.space === 'crew' ? crewLayoutFor(v.defId) : null;
+    for (const p of Object.values(this.world.players))
+      if (p.id !== this.localPlayerId && p.aboardVesselId === id && ((plan && p.position[1] < plan.deckhead) || (crew && inCrewArea(crew, p.position)))) keep.push(...this.avatars.partsOf(p.id));
     return keep;
   }
 
@@ -5859,6 +5860,13 @@ export class App {
       below: () => this.belowDecks.boatId,
       goBelow: (id) => void this.belowDecks.goBelow(id),
       goUp: () => this.belowDecks.goUp(),
+      crew: (id) => {
+        const v = this.world.vessels[id];
+        const c = v ? crewAreaFor(v.defId) : null;
+        return c ? { door: c.door, floor: c.main.floor } : null;
+      },
+      space: () => this.belowDecks.space,
+      goInside: (id) => void this.belowDecks.goInside(id),
     };
   }
 
@@ -5989,7 +5997,9 @@ export class App {
     const az = this.windV.z - (v?.linearVelocity[2] ?? 0);
     // In any of her houses (P2a): the sound inside, out of the weather.
     const inside = !!v && v.id === this.testVesselId && housesOf(this.testDef.layout).some((wh) => Math.abs(p.position[0] - houseX(wh)) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3);
-    this.insideHouse = inside;
+    // In her crew area (app/engineRoom/crew/): inside, its weathertight door shut.
+    const inCrew = this.belowDecks.space === 'crew';
+    this.insideHouse = inside || inCrew;
     // How shut-in the wheelhouse is: the aft door decides.
     const home = this.homeView;
     if (home) {
@@ -5999,13 +6009,14 @@ export class App {
       // Shut in only with both doors shut (the port side door, if she has one, too).
       this.closed = home.door?.shut && (home.sideDoor?.shut ?? true) ? 1 : 0;
     }
-    this.sound.wind.update(Math.hypot(ax, az), inside, dt, this.closed);
+    if (inCrew) this.closed = 1;
+    this.sound.wind.update(Math.hypot(ax, az), inside || inCrew, dt, this.closed);
     // A tidal race's roar: its strength where you are, or fading in from outside it.
-    this.sound.race.update(raceRoarLevel(this.focus.x, this.focus.z), inside, this.closed);
+    this.sound.race.update(raceRoarLevel(this.focus.x, this.focus.z), inside || inCrew, this.closed);
     // Surf on the shore near you (a look round every `CONFIG.surf.every` s, a few bearings a
     // frame); heard only with the engine of the boat you're aboard stopped (ashore, always).
     const surf = this.surf.step(this.focus.x, this.focus.z, this.world.environment.waves, this.renderWaves, dt);
-    this.sound.surf.update(surf, v?.engine.phase === 'running', inside, this.closed, this.focus);
+    this.sound.surf.update(surf, v?.engine.phase === 'running', inside || inCrew, this.closed, this.focus);
   }
 
   /**
@@ -6650,7 +6661,7 @@ export class App {
       compressor: !!p.compressor && busLive(p) && p.airBar < CONFIG.plant.airMaxBar - 0.01,
       airFull: p.airBar / CONFIG.plant.airMaxBar,
       airStart,
-      where: this.belowDecks.boatId === v.id ? 'below' : 'deck',
+      where: this.belowDecks.boatId === v.id && this.belowDecks.space === 'engine' ? 'below' : 'deck',
     });
   }
 

@@ -716,6 +716,46 @@ export const CONFIG = {
    * its depth.
    */
   /**
+   * The crew area you go into (src/app/engineRoom/crew/; owner, 29 Oct 2026: "a detailed
+   * interior for the big tug's crew area, same treatment as the engine room, and it loads as
+   * a separate space"; "two decks, if you can make it work"). Where one fits (crew/plan.ts),
+   * worked out from her own deckhouse and hull, so it follows the Shipyard's house:
+   *   main    inside her deckhouse: at least `minLength` x `minWidth` inside its walls
+   *           (`wall` thick), with `minHeadroom` from its level floor (her highest deck in
+   *           the house: the deck has sheer) to its deckhead, `deckheadDrop` under the house's
+   *           top (the deck over it and its lining). A boat at least `minLoaM` long.
+   *   lower   below her main deck, forward of her engine room (with one): its deckhead
+   *           `deckDrop` under her lowest deck over it, `headroom` of standing room, `lining`
+   *           in from her plating, kept `forepeakShare` of her length clear of the stem (the
+   *           forepeak and chain locker), at least `minLength` long and `minHalf` wide each
+   *           side of her centreline (two cabins and a corridor across).
+   *   stair   down from the main deck to the lower: `width` wide, steps of at most `maxRise`,
+   *           treads `tread` (a ship's stair: steeper, `minTread`, where there's less room).
+   *   door    the weathertight door in the deckhouse's aft face: `width` x `height`, `sill`
+   *           over the deck outside; the stair down to its side of the outside stair.
+   *   rooms   the main deck's lobby (`lobby` m deep at the aft end, at most); the lower
+   *           deck's cross corridor (`corridor` wide) at the stair's foot.
+   */
+  crewArea: {
+    minLoaM: 20,
+    main: { minLength: 4.5, minWidth: 4, minHeadroom: 2.0, deckheadDrop: 0.25, wall: 0.08 },
+    lower: { deckDrop: 0.3, headroom: 2.0, lining: 0.12, forepeakShare: 0.12, minLength: 4.5, minHalf: 2.8 },
+    stair: { width: 0.9, maxRise: 0.22, tread: 0.27, minTread: 0.2 },
+    door: { width: 0.75, height: 1.85, sill: 0.3 },
+    rooms: { lobby: 2.2, corridor: 1.0 },
+    /**
+     * Its look (crew/view.ts): warm and clean, unlike the engine room. Colours of the linings,
+     * the floors (the lobby's rubber matting, the rooms' vinyl, the cabins' carpet), the
+     * joinery, the upholstery. Lit by a soft fill (`hemi`, `ambient`) and `lamps` lamps of
+     * `lamp` strength (`lampRange`, `lampDecay`) at the ceiling lights nearest you, on the deck
+     * you're on (moved, not added: the Quest pays for three lights, not one a room).
+     */
+    look: {
+      colours: { lining: 0xe4dfd2, deckhead: 0xeeece4, lobbyFloor: 0x3d4346, vinyl: 0x8c8473, carpet: 0x4d5d72, wetFloor: 0xb9bdb8, wood: 0xa67c4e, darkWood: 0x6e4f33, upholstery: 0x2f4d78, mattress: 0x3d5a80, steel: 0xc3c7c9, white: 0xf0efea, trim: 0x5a4a3a },
+      lights: { hemi: 0.85, ambient: 0.3, lamp: 2.6, lampRange: 6, lampDecay: 1.5, lamps: 3 },
+    },
+  },
+  /**
    * The engine room you go down into (src/app/engineRoom/; owner, 27 Oct 2026: a detailed
    * engine room drawn only while you're below, in the same page; the harbour tug and the stern
    * trawler first). Where one fits (plan.ts): a boat at least `minLoaM` long whose hull under
@@ -1881,8 +1921,9 @@ export const CONFIG = {
    *   aboardRange shown over a moored boat when you're ashore within this of her (m)
    *   hatchRange  "Go below" (a boat with an engine room, her hatch open) within this of the hatch (m)
    *   ladderRange "Climb up" below, within this of the ladder's foot (m)
+   *   doorRange   "Go inside" / "Go outside" (a boat with a crew area) within this of its door (m)
    */
-  gangway: { up: 1.6, ashoreUp: 0.8, edgeIn: 0.6, radius: 0.35, reach: 25, aboardRange: 14, hatchRange: 3, ladderRange: 2.5 },
+  gangway: { up: 1.6, ashoreUp: 0.8, edgeIn: 0.6, radius: 0.35, reach: 25, aboardRange: 14, hatchRange: 3, ladderRange: 2.5, doorRange: 2.2 },
 
   contacts: {
     /** The values below are for a boat of this mass (the workboat); lighter ones scale them down. */

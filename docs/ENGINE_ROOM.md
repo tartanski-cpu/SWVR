@@ -55,6 +55,28 @@ Missed steps block her start and say why. Quick start does it all.
 
 Part 2 (27 Oct 2026): a START-UP page on the control room's middle screen ticking the steps off from her state (the next one marked), a checklist card on the wall by the control room door, and the machinery's sounds (the generator running up, the fans, the compressor, the starting air's blast; `audio/plantAudio.ts`).
 
+## The harbour tug's crew area (29 Oct 2026, first draft)
+
+The owner: "a detailed interior for the big tug's crew area, same treatment as the engine room, and it loads as a separate space"; "two decks, if you can make it work". Built on the same system, now spaces rather than one room (`BelowDecks`: the engine room, `'engine'`, and the crew area, `'crew'`, one at a time; their drawings kept per boat and space).
+
+- **Where it fits** (`src/app/engineRoom/crew/plan.ts`, `CONFIG.crewArea`), from her own deckhouse, hull and engine room, so it follows the Shipyard's house:
+  - **main deck** inside the deckhouse's walls, a level floor at her highest deck under the house (the deck has sheer), at least 4.5 x 4 m with 2 m headroom;
+  - **lower deck** forward of the engine room's forward bulkhead and back from her forepeak, with 2 m headroom under her lowest deck over it and room for two cabins and a corridor;
+  - **a stair** between them on her centreline, as steep as a ship's stair may be to fit.
+  The harbour tug: main deck 8.5 x 6.6 m, lower deck 6.8 x 7.4 m, a 12-step stair. No other boat has one today.
+- **Its layout** (`crew/layout.ts`), plain boxes in her axes for the drawing and the walking:
+  - main deck: the lobby aft, the messroom to port, the galley to starboard, the stair between them;
+  - lower deck: the corridor across her at the stair's foot; the master's and the crew's cabins aft of it; the washroom and the laundry and store forward of it.
+- **Walking** (`crew/walk.ts`): both floors (they overlap in plan: which one is by your height), the stair's treads (a hole in the main floor over them), walls and furniture solid.
+- **Its drawing** (`crew/view.ts`), only while you're inside, its code its own download:
+  - one merged painted mesh: painted-render linings, cladded deckheads, vinyl, carpet and matting, wood joinery, woven upholstery;
+  - one unlit mesh: daylight in the windows, portholes, the ceiling lights, the mirror;
+  - one canvas: the door plates, the harbour chart, the muster list;
+  - a soft fill and three lamps, moved to the ceiling lights nearest you on your deck.
+  4–6 draw calls and about 9,000 triangles inside, against about 70 and 450,000 on her deck (headless). The bunks are BerthRest: lie down to rest.
+- **In and out** (`player/gangway.ts`): "Go inside" on her deck aft of the door, "Go outside" by it inside. You come out on deck aft of the door.
+- **Not yet:** the view out of the windows (they show daylight); doors you open and shut (they stand open); a way between the lower deck and the engine room; the bridge reached from inside.
+
 ## For the Shipyard chat (its files: `src/shipyard/`)
 
 - Show the engine room in the Shipyard: the space from `engineRoomPlan`, in the cutaway or the Engine step, with a line like "Engine room 7.5 × 8.8 m, 2.5 m headroom" or "No engine room: hatch access only".

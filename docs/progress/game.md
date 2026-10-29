@@ -10,6 +10,53 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The harbour tug's crew area, first draft: two decks, loaded as its own space (29 Oct 2026)
+
+Owner, on the modular-builder chat's handover (below): "You can do the first draft of the interior. I think two decks, if you can make it work." It works: both decks.
+- **The go-below system, now spaces** (`src/app/engineRoom/index.ts`):
+  - `BelowDecks` holds one space at a time: `'engine'` (the engine room, as before) or `'crew'` (new). Each boat's drawings are kept per space (`boat:space`), each its own download.
+  - `space` and `wayOut` are exposed: the guard texts are now generic ("Inside: go out by the door aft").
+  - `crewAreaFor`, `crewLayoutFor` and `inCrewArea` are cached per type, like `roomFor`.
+  - `goInside(boatId)` goes in; `goUp()` comes out of either space (from the crew area, on deck a step aft of the door).
+- **Where it fits** (`crew/plan.ts`, `CONFIG.crewArea`):
+  - **Main deck**: inside her deckhouse's walls (`main.wall`), its floor level at her highest deck under the house, its deckhead `deckheadDrop` under the house's top. At least `minLength` 4.5 × `minWidth` 4 m with `minHeadroom` 2 m; a boat at least `minLoaM` 20 m.
+  - **Lower deck**: forward of the engine room's forward bulkhead, `forepeakShare` of her length back from her stem (moved aft until her hull's `minHalf` wide at the sole). Its deckhead `deckDrop` under her lowest deck over it, `headroom` 2 m, `lining` in from her plating.
+  - **The stair**: on her centreline, its head at the aft end of the two decks' overlap; steps of at most `maxRise`, treads `tread` (down to `minTread`, a ship's stair).
+  - **The door**: in the house's aft face, on the side away from the outside stair up to its top.
+  - The harbour tug: main deck 8.5 × 6.6 m with 2.15 m headroom; lower deck 6.8 × 7.4 m with 2 m; 12 steps of 0.22 m. The stern trawler (no deckhouse) and the fleet have none.
+- **The layout** (`crew/layout.ts`; our own arrangement, fitted to her house):
+  - **Main deck**:
+    - the **lobby** aft: boot rack, oilskins on their hooks, the lifejacket locker, a fire extinguisher by the door, the muster list;
+    - doorways forward into the **messroom** to port: a U-settee round a fixed table with a fiddle rail, mugs and the paper, the TV, a harbour chart;
+    - the **galley** to starboard: worktops along her side and forward, the cooker with its fiddle rail, hood and kettle, the sink, a tall fridge, lockers over the windows;
+    - the **stair** between them.
+  - **Lower deck**:
+    - a corridor across her at the stair's foot;
+    - aft of it the **master's cabin** (bunk, desk with laptop and lamp, chair, wardrobe) and the **crew cabin** (two-high bunks with a ladder, two lockers, a seat);
+    - forward of it the **washroom** (shower, WC, basin and mirror) and the **laundry and store** (washer and dryer, shelves of stores, a mop and bucket).
+  - Doorways with frames and open doors, name plates beside them. Windows along the main deck's sides and front; portholes on the lower deck.
+- **Walking** (`crew/walk.ts`): the floors overlap in plan (the cabins are under the messroom): which one by your height. The stair's treads are floors a step apart, and the main floor has a hole over them. Partitions and furniture are solid; in VR a head leaned into them fades the view.
+- **The drawing** (`crew/view.ts`, `CONFIG.crewArea.look`): one merged painted mesh (render linings, perforated cladding overhead, matting, vinyl and carpet underfoot, wood joinery, woven upholstery), one unlit mesh (windows' daylight, portholes, ceiling lights, mirror), one canvas (the plates, an original harbour chart, the muster list in her name). A soft fill and three lamps moved to the ceiling lights nearest you on your deck. The berths are the furniture's `BerthRest`: lie down to rest.
+- **In and out** (`player/gangway.ts`, `CONFIG.gangway.doorRange` 2.2 m): "Go inside" on her deck aft of the door (not from the side deck or the house top), "Go outside" by it inside.
+- **App:**
+  - a crew-mate inside with you stays drawn (`inCrewArea`);
+  - the wind, race and surf sounds are muffled as in a shut wheelhouse;
+  - the engine is heard as from inside her house, not as in the engine room;
+  - the jump and board keys say the way out.
+- **Tests:** tests/crewArea.test.ts (4):
+  - the tug has both decks, inside her house and forward of her engine room, the door clear of the outside stair; no other boat has one;
+  - the stair joins the decks a step at a time;
+  - every room has its things, nothing in a wall or another thing;
+  - walking in at the door, through every doorway, down every tread; walls solid, under the stair closed.
+- **Checked headless** (the tug on the Oban map):
+  - "Go inside" shows on deck by the door;
+  - every room shot;
+  - walked with W held from the lobby through the corridor, down the stair and onto the lower deck's corridor (about 3 s);
+  - "Go outside" puts you on deck;
+  - 4–6 draw calls and about 9,000 triangles inside, against 70 and 450,000 on her deck.
+- **Not checked:** on the Quest (frame rate inside, the stair in VR, lying in a bunk); a crew-mate inside in multiplayer.
+- **Not yet:** the view out of the windows (they show daylight); doors you open and shut; a door from the lower deck into the engine room; going up to the bridge from inside.
+
 ### Longlining, step 2: the line hauler (29 Oct 2026)
 
 Owner: "go ahead with the line hauler". A powered sheave at the starboard rail, so a 300 m line isn't all hauled by hand; built as a module and a Shipyard choice, the way the trawl deck gear was, and fitted to the beginner boat by the yard, as the bow fender is.
@@ -138,7 +185,7 @@ Owner: "go ahead with fish farm service first, everything should be possible sin
 - **Changes in another area's files:** the Map area's `src/world/regions/sounds.ts` (the farm, barge, port, berth, lamp, flood) and `fjord.ts` (the Kvass farm's `port`). **Shared changes:** `src/world/defs.ts` (`FarmDef.port`), `src/core/world.ts` and `src/core/simulation.ts` (the farm state and its step).
 - **Next (milestone 2):** cage checks (nose onto a ring, a crew-mate on the walkway: a torn net to mend, a bag of dead fish to lift), technicians to and from the barge, mussel lines, a farm service contract.
 
-### (From the modular-builder chat) HANDOVER, not built: the harbour tug's crew area, a detailed interior loaded as its own space
+### (From the modular-builder chat) HANDOVER: the harbour tug's crew area, a detailed interior loaded as its own space (first draft built 29 Oct 2026: see above)
 
 The owner, 29 Oct 2026: "I'd like a detailed interior for the big tug's crew area, same treatment as the engine room, and it loads as a separate space", then, on who builds it: "Hand it all to main chat" (this chat owns the go-below system, `src/app/engineRoom/`, `src/player/gangway.ts`). Not started anywhere.
 

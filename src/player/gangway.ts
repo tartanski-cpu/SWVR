@@ -28,7 +28,9 @@ import type { Handedness } from './xrInput';
  *
  * And on a boat with an engine room (app/engineRoom/; owner, 27 Oct 2026), with her engine
  * hatch open and you by it, one over the hatch, "Go below"; below, one at the ladder's head,
- * "Climb up". Those move you yourself (App), not by the board intent.
+ * "Climb up". On a boat with a crew area (app/engineRoom/crew/; owner, 29 Oct 2026), on her deck
+ * by its door in the deckhouse's aft face, "Go inside"; inside, by the door, "Go outside".
+ * Those move you yourself (App), not by the board intent.
  *
  * Point at it and press: VR, a free hand's trigger (its ray on the ring); desktop, a click
  * with the reticle on it. It sends the same `board` intent as the board key (the host puts
@@ -47,17 +49,22 @@ export interface GangwayContext {
   pulse: (h: Handedness, intensity: number, ms: number) => void;
   /** Her engine room, if she has one (app/engineRoom/plan.ts): the hatch and the ladder, in her axes. */
   room?: (boatId: string) => { hatch: { x0: number; x1: number; z0: number; z1: number; y: number }; ladder: { x: number; z: number; foot: number; head: number } } | null;
-  /** The boat whose engine room we're in, or null. */
+  /** The boat whose engine room (or crew area) we're in, or null. */
   below?: () => string | null;
   goBelow?: (boatId: string) => void;
   goUp?: () => void;
+  /** Her crew area, if she has one (app/engineRoom/crew/plan.ts): its door, in her axes. */
+  crew?: (boatId: string) => { door: { x: number; z: number; deck: number }; floor: number } | null;
+  /** Which space we're in ('engine' below, 'crew' inside), or null. */
+  space?: () => 'engine' | 'crew' | null;
+  goInside?: (boatId: string) => void;
 }
 
 /** Ashore, aboard, or (crew transfer) across from a boat on a turbine's landing onto its platform: `turbine` "farm:turbine". */
-type Target = { kind: 'ashore' | 'aboard' | 'across' | 'below' | 'up'; boatId: string; turbine?: string };
+type Target = { kind: 'ashore' | 'aboard' | 'across' | 'below' | 'up' | 'inside' | 'outside'; boatId: string; turbine?: string };
 
 /** The words on the mark for each. */
-const WORDS: Record<Target['kind'], string> = { ashore: 'Step ashore', aboard: 'Step aboard', across: 'Step across', below: 'Go below', up: 'Climb up' };
+const WORDS: Record<Target['kind'], string> = { ashore: 'Step ashore', aboard: 'Step aboard', across: 'Step across', below: 'Go below', up: 'Climb up', inside: 'Go inside', outside: 'Go outside' };
 
 const AMBER = 0xf0b030;
 
@@ -108,8 +115,12 @@ export class Gangway {
   private find(ctx: GangwayContext): Target | null {
     const p = ctx.world.players[ctx.playerId];
     if (!p || p.mode !== 'walk') return null;
-    // Below: the way up, from near the ladder's foot.
+    // Below: the way up, from near the ladder's foot. Inside: the way out, from near the door.
     const below = ctx.below?.();
+    if (below && ctx.space?.() === 'crew') {
+      const c = ctx.crew?.(below);
+      return c && Math.hypot(p.position[0] - c.door.x, p.position[2] - c.door.z) < CONFIG.gangway.doorRange ? { kind: 'outside', boatId: below } : null;
+    }
     if (below) {
       const r = ctx.room?.(below);
       return r && Math.hypot(p.position[0] - r.ladder.x, p.position[2] - r.ladder.z) < CONFIG.gangway.ladderRange ? { kind: 'up', boatId: below } : null;
@@ -123,6 +134,9 @@ export class Gangway {
         const hz = (r.hatch.z0 + r.hatch.z1) / 2;
         if (Math.hypot(p.position[0] - hx, p.position[2] - hz) < CONFIG.gangway.hatchRange) return { kind: 'below', boatId: v.id };
       }
+      // On her deck by the crew area's door (not up on the house's top): the way in.
+      const c = v ? ctx.crew?.(v.id) : null;
+      if (v && c && Math.abs(p.position[1] - c.door.deck) < 0.8 && p.position[2] > c.door.z && Math.hypot(p.position[0] - c.door.x, p.position[2] - c.door.z) < CONFIG.gangway.doorRange) return { kind: 'inside', boatId: v.id };
     }
     if (p.aboardVesselId) {
       const v = ctx.world.vessels[p.aboardVesselId];
@@ -153,6 +167,16 @@ export class Gangway {
     const v = ctx.world.vessels[t.boatId];
     if (!v) return false;
     const up = CONFIG.gangway.up;
+    if (t.kind === 'inside' || t.kind === 'outside') {
+      // At the door: outside, over the deck aft of it; inside, in the lobby by it.
+      const root = ctx.boatRoot(v.id);
+      const c = ctx.crew?.(v.id);
+      if (!root || !c) return false;
+      if (t.kind === 'inside') root.localToWorld(this.at.set(c.door.x, c.door.deck + 1.3, c.door.z + 0.6));
+      else root.localToWorld(this.at.set(c.door.x, c.floor + 1.3, c.door.z - 0.5));
+      this.root.position.copy(this.at);
+      return true;
+    }
     if (t.kind === 'below' || t.kind === 'up') {
       // Over the open hatch; below, up the ladder toward it (under the deckhead).
       const root = ctx.boatRoot(v.id);
@@ -233,7 +257,8 @@ export class Gangway {
     if (!this.target || now - this.lastPress < 500) return;
     this.lastPress = now;
     if (this.target.kind === 'below') ctx.goBelow?.(this.target.boatId);
-    else if (this.target.kind === 'up') ctx.goUp?.();
+    else if (this.target.kind === 'inside') ctx.goInside?.(this.target.boatId);
+    else if (this.target.kind === 'up' || this.target.kind === 'outside') ctx.goUp?.();
     else if (this.target.kind === 'ashore') ctx.board();
     else if (this.target.kind === 'across') ctx.board(`turbine:${this.target.turbine}`);
     else ctx.board(this.target.boatId);
