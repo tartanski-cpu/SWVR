@@ -257,7 +257,7 @@
   "berths": 137,
   "blocks": 645,
   "buildings": 9400,
-  "marks": 27,
+  "marks": 21,
   "lights": 116,
   "slipways": 2,
   "fishingGrounds": 0,
@@ -265,7 +265,7 @@
   "landmarks": [
    "Blankenese IsoW.4s"
   ],
-  "bytes": 2449808
+  "bytes": 324646
  },
  "landmarkCellsLowered": 295
 }

@@ -1253,7 +1253,7 @@
   "berths": 86,
   "blocks": 308,
   "buildings": 5540,
-  "marks": 81,
+  "marks": 72,
   "lights": 44,
   "slipways": 13,
   "fishingGrounds": 3,
@@ -1262,7 +1262,7 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1528966
+  "bytes": 241877
  },
  "houses": {
   "byType": {
