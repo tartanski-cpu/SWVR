@@ -127,7 +127,8 @@ describe('the economy', () => {
       // Nobody lists whisky as a need: it goes to a port that takes anything (home's).
       expect(['calder', 'brannock', 'selkie']).toContain(i.to);
     }
-    for (const i of items.filter((x) => kind(x) === 'Feed sack')) expect(i.to).toBe('tarsk');
+    // (Feed sacks to Loch Tarsk, or to the Tarsk salmon farm's barge: fish farm service.)
+    for (const i of items.filter((x) => kind(x) === 'Feed sack')) expect(['tarsk', 'tarskfarm']).toContain(i.to);
     // Building materials are wanted at Loch Tarsk and, since the Fjord, at Kvassvik.
     for (const i of items.filter((x) => kind(x) === 'Building materials')) expect(['tarsk', 'kvassvik']).toContain(i.to);
     for (const i of items.filter((i) => i.from === 'garbh')) expect(kind(i)).toBe('Feed sack');

@@ -606,6 +606,14 @@ No timers on screen: the chart marks, the buoy flags and your memory are all you
 
 Gulls wheel over the boat by day, gliding and now and then flapping, and calling. Under way in open, deep water, a pod of dolphins sometimes comes up from astern and rides off the bow for a minute or so, each one blowing as it surfaces. They keep up to about 9 knots: go faster and they drop back astern (slow down and they may come up again). They're decoration: worked out from the time and the boat's position, so the whole crew sees the same animals.
 
+### Fish farm service (new)
+
+Salmon farms need a workboat. The **Tarsk salmon farm** lies off Tarsk's east shore in the Sounds, north of the Loch Tarsk mouth: six cage rings and its **feed barge**, a steel barge with a house and a feed silo, with a berth along its west face and a CARGO screen on its deck. (The **Kvass fish farm** in the Fjord works the same way.) Everything can be done alone; it goes quicker with a crew.
+
+- **Feed runs:** the fish eat the silo down all the time. When it's low the farm calls on the VHF ("the feed's down to 1.1 t on the barge"), and it goes on the duty board. While it calls, the CARGO screens make feed for it: at **Garbh Pier** (the feed pier) **Crates** are 45 kg feed sacks bound for the farm (by hand: many trips, a job for a crew); at any harbour with a cargo quay (Loch Tarsk, Calder Haven) **Crane lifts** are 500 kg **feed bags** for it (one person and a deck crane). The screen's top line says so. Set the feed down on the barge (carry the sacks onto its deck, lower the bags onto it with the crane, or menu → Cargo → **Unload** alongside), and it goes into the silo and is paid by the kilo, more if the silo had run dry. The call ends when the silo's nearly full again. The barge's screen shows its silo.
+- **Harvest runs:** now and then the farm calls for a harvest: so many boxes of salmon on ice to a harbour (usually Loch Tarsk). At the barge's CARGO screen, **Crates** are then those boxes, bound there: order them (**Full load**), load them and run them in. They keep fresh about 25 minutes; after that each box pays less. Land the whole run in time for a **bonus**.
+- Feed and harvest pay go in the ledger as farm work.
+
 ## Off the boat, and cargo by hand
 
 - **Walking ashore:** jump (A / Space) from the deck onto a quay or pier when you're alongside, and back aboard the same way. You keep the boat's own speed when you jump, so jumping off a moving boat is a bad idea. Quays you hit just below the top you clamber onto. Beaches you can wade out from.

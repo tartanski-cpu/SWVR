@@ -50,6 +50,7 @@ import {
 import { deckSpot } from './deck';
 import { isStackable, isStackedUp, levelOf, restingOn, setOnTop } from './stack';
 import { cranesOf } from './craneHook';
+import { feedBagKind, feedCallNear, feedKindAt, markHarvest } from '../aqua/farmService';
 
 /** What's on order: hand cargo (crates, sacks, drums), crane lifts, lobster pots. */
 export type OrderWhat = 'crates' | 'crane' | 'pots';
@@ -232,7 +233,9 @@ function contractPort(world: WorldState): string | undefined {
  */
 function makeOne(world: WorldState, port: PortDef, what: OrderWhat, plain = false): CargoItem | null {
   const cfg = CONFIG.cargo;
-  if (what === 'crane') return makeCraneCargoAt(world, port, contractPort(world));
+  // A fish farm calling for feed (aqua/farmService.ts): crane lifts from a cargo quay are feed bags for it.
+  const feedFor = feedCallNear(world, port);
+  if (what === 'crane') return feedFor ? makeCraneCargoAt(world, port, feedFor, feedBagKind()) : makeCraneCargoAt(world, port, contractPort(world));
   if (what === 'pots') {
     if (potsOwned(world) >= CONFIG.potting.pots) return null;
     const p = (world.potting ??= { seq: 0, shot: [], lost: 0 });
@@ -248,7 +251,19 @@ function makeOne(world: WorldState, port: PortDef, what: OrderWhat, plain = fals
   }
   // Hand cargo: no more than one order's worth waiting on the quay (`terminal.maxOrder`).
   if (waitingHere(world, port, 'crates').length >= cfg.terminal.maxOrder) return null;
-  return makeCargoAt(world, port, contractPort(world), plain ? shownKind('crates') : undefined);
+  // At a farm's barge, crates are its salmon, bound for its harvest run's harbour (on ice from now);
+  // at a harbour that makes feed, with a farm calling for it, they're feed for the farm.
+  const site = world.aqua?.sites[port.id];
+  if (site?.call?.kind === 'harvest') {
+    const item = makeCargoAt(world, port, site.call.to);
+    markHarvest(world, item);
+    return item;
+  }
+  const feed = feedFor ? feedKindAt(port) : null;
+  if (feedFor && feed !== null) return makeCargoAt(world, port, feedFor, feed);
+  const item = makeCargoAt(world, port, contractPort(world), plain ? shownKind('crates') : undefined);
+  markHarvest(world, item);
+  return item;
 }
 
 /** Why a sort can't be ordered at this port at all, or null. */

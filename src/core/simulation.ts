@@ -44,6 +44,7 @@ import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow'
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { applyTimberSell, stepTimberLogs } from '../voyage/timber';
 import { applyTransferIntent, isTransferIntent, stepTransfer } from '../transfer/transfer';
+import { stepAqua } from '../aqua/farmService';
 import { applyTvIntent, isTvIntent, stepTv } from '../modules/furniture/tvState';
 import { codendPayload, stepFishing, trawlForces } from '../fishing/fishing';
 import { holdPayload, stepHold } from '../fishing/fishHold';
@@ -269,6 +270,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepSalvage(world, dt);
   stepTimberLogs(world, dt);
   stepTransfer(world, dt);
+  stepAqua(world);
   stepTv(world);
   stepFishing(world, dt);
   stepHold(world);

@@ -112,6 +112,10 @@ export const SOUNDS: RegionDef = {
     // Garbh Pier: 110 m out to the south-west from the island's point, then a 44 m T-head.
     { kind: 'pier', x: -420, z: -2230, halfLength: 55, halfWidth: 3, yawDeg: 45, top: 2.4, fendered: false },
     { kind: 'pier', x: -470, z: -2180, halfLength: 22, halfWidth: 5, yawDeg: 135, top: 2.4, fendered: true },
+    // Tarsk salmon farm's feed barge (owner, 29 Oct 2026: fish farm service): moored off
+    // Tarsk's east shore north of the loch mouth, 24 m north-south, the cages east of it; drawn
+    // with its house at the north end and its feed silo at the south (worldView.ts).
+    { kind: 'barge', x: 925, z: -4202, halfLength: 12, halfWidth: 5, yawDeg: 0, top: 1.6, fendered: true },
   ],
   buildings: [
     // Loch Tarsk: the yard shed, the office, two cottages.
@@ -207,6 +211,18 @@ export const SOUNDS: RegionDef = {
       bottom: 'sand',
       economy: { needs: ['Sack', 'Crate'] },
     },
+    {
+      id: 'tarskfarm',
+      name: 'Tarsk salmon farm (feed barge)',
+      kind: 'pier',
+      x: 925,
+      z: -4202,
+      clearRadius: 40,
+      // Alongside the barge's west face, out of the farm; the goods on its open deck between
+      // its house (north end) and its silo (south end: the barge as drawn, worldView.ts).
+      cargo: { berth: { x: 917.5, z: -4202, radius: 14 }, stackX: 921.8, stackZ: -4198.2, stackYawDeg: 0, color: 0xd86890 },
+      economy: { repairs: false, products: ['Salmon box'], needs: ['Feed sack'] },
+    },
   ],
   berths: [
     // Loch Tarsk quay, north face at z = -3958: the boat lies east-west, the quay to the south.
@@ -214,6 +230,8 @@ export const SOUNDS: RegionDef = {
     { id: 'tarsk-cargo', portId: 'tarsk', name: 'Loch Tarsk quay (cargo)', x: 625, z: -3960.5, headingDeg: 90, shoreX: 0, shoreZ: 1, shoreDist: 2.5, deckY: 1.8 },
     // Garbh Pier T-head, seaward (SW) face; the T-head runs 135°/315°.
     { id: 'garbh-cargo', portId: 'garbh', name: 'Garbh Pier T-head (cargo)', x: -475.3, z: -2174.7, headingDeg: 135, shoreX: S2, shoreZ: -S2, shoreDist: 2.5, deckY: 2.4 },
+    // Tarsk salmon farm's feed barge, west face at x = 920: the boat lies north-south, the barge to the east.
+    { id: 'tarskfarm-cargo', portId: 'tarskfarm', name: 'Feed barge (cargo)', x: 917.5, z: -4202, headingDeg: 0, shoreX: 1, shoreZ: 0, shoreDist: 2.5, deckY: 1.6 },
   ],
   slipways: [
     // Loch Tarsk: the yard's slip, east of the quay, down into the loch (northward). Its top
@@ -229,11 +247,16 @@ export const SOUNDS: RegionDef = {
     { x: -400, z: -2250, y: 7 },
     { x: -455, z: -2195, y: 7 },
     { x: 420, z: -3918, y: 4.5 },
+    { x: 921, z: -4213, y: 6 },
   ],
+  // Tarsk salmon farm (owner, 29 Oct 2026: fish farm service): three pairs of cages in 25-38 m off
+  // Tarsk's east shore, north of the loch mouth and clear of the channel in; worked from its feed barge.
+  farms: [{ name: 'Tarsk salmon farm', x: 960, z: -4170, yawDeg: 0, rows: 2, cols: 3, spacing: 32, ringRadius: 12, port: 'tarskfarm' }],
   portFloods: [
     { portId: 'tarsk', x: 605, y: 11, z: -3935 },
     { portId: 'garbh', x: -470, y: 10, z: -2182 },
     { portId: 'camas', x: 410, y: 6, z: -3915 },
+    { portId: 'tarskfarm', x: 926, y: 8, z: -4202 },
   ],
   pottingGrounds: [
     { id: 'garbh-north', name: 'Eilean Garbh, north shore', x: -150, z: -2812, radius: 45, quality: 0.8 },

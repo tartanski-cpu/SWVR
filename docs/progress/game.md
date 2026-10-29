@@ -10,6 +10,26 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fish farm service, milestone 1: the Tarsk salmon farm, feed runs and harvest runs (29 Oct 2026)
+
+Owner: "go ahead with fish farm service first, everything should be possible single player but better with crew" (step 1 of the fishing plan; longlining next, with "a variety of fish and fish sizes coming up so you know how good your catch is").
+- **A farm near home** (`src/world/regions/sounds.ts`: home stays as it is, the regions brief): the **Tarsk salmon farm**, six cage rings (2 × 3, 32 m apart, 12 m rings) in 25-38 m off Tarsk's east shore north of the loch mouth, clear of the channel in (depths checked); its **feed barge** (a 24 × 10 m `barge` block, drawn with its house and silo), port `tarskfarm` (cargo berth on the barge's west face, the goods row on its open deck between house and silo, products Salmon box, needs Feed sack), a lamp and a floodlight. `FarmDef.port` (`src/world/defs.ts`) links a farm to its barge; the Kvass farm gets `port: 'kvassfarm'`.
+- **The farm service** (`aqua/farmService.ts`, `CONFIG.aqua`; WorldState.aqua, stepped by the host; on in the game like the transfers, `createAqua(spawn)`, raised by hand in tests):
+  - **The silo:** `siloKg` 3 t, the fish eat `eatKgPerS` 1 kg/s (3 t in about 50 min); a new game's farms start `startFill` 45-75 % full. Empty: hungry (told on the VHF once), and feed then pays `hungryFactor` 1.5.
+  - **Feed call** under `callBelow` 40 %: on the VHF and the duty board. While it's on, the cargo screens make feed for the nearest calling farm: **Crates** at a harbour that makes feed (Garbh's Feed sacks, Ytterbrygga's Feed pellets) are feed bound for it; **Crane lifts** at any cargo quay are (within `serveRangeM` 6 km of the farm) **Feed bags** (a new crane-only kind, 500 kg, never made at random: `cargo.crane.orderOnly`; drawn as a woven sack) bound for it. Set down on the barge (by hand, crane or Unload), feed goes in the silo and pays `feedPerKg` £0.90 a kilo it takes (nothing for what a full silo can't). The call ends over `fullAt` 90 %.
+  - **Harvest call** every `harvest.every` 25-40 min (first after about 10): `boxes` 6-10 boxes to a harbour (`harvest.to`, the nearest mostly). Crates at the barge are then Salmon boxes bound there, marked `bestBy` (`freshS` 25 min on ice); a box later pays less, to `staleFactor` 30 % at twice that (`freshFactor`, `EarnOpts.factor`). The whole run landed in time pays `bonus` £400.
+  - Pay is a new job kind `farm` (career.ts; `rep.farm` 1).
+  - The silo is kept as a level and the time it was set (`feedNow`, `setFeed`), not ticked down, so the farm state only changes when something happens: it isn't in every crew snapshot.
+- **The cargo screen** gains a farm line: at a barge, its silo and the harvest run; elsewhere, a call this harbour can serve ("Tarsk salmon farm wants feed: Crates are feed sacks, Crane lifts are feed bags").
+- **The duty board:** a farm duty for the first call going (fetch the feed / set it on the barge; order the salmon / land it while fresh).
+- No Shipyard sign or boats board on a feed barge (`careerShipyardSpots`).
+- **Tests updated** for the barge and the bag: the port list (regions), the Shipyard signs (not on a barge), Feed sacks bound for Loch Tarsk or the farm (sounds), heavy kinds (cargo).
+- **Tests:** tests/farmService.test.ts (5): the farm's cages in deep water and a berth by the barge; the silo eats down, calls only in the game, on the VHF and the duty board; a feed call's sacks (Garbh) and bag (Loch Tarsk's crane) bound for the farm, landed, fill the silo and pay by the kilo; the call ends, an empty silo pays more; a harvest run's boxes bound for its harbour, a stale one pays less, the bonus for the run.
+- **Checked headless:** the farm and barge from the air and alongside (the gillnetter at its berth); the barge's screen with a harvest call and four boxes ordered.
+- **Not checked:** on the Quest; lifting a feed bag onto the barge with a deck crane in the game (the tests land it with Unload); walking the barge deck in VR.
+- **Changes in another area's files:** the Map area's `src/world/regions/sounds.ts` (the farm, barge, port, berth, lamp, flood) and `fjord.ts` (the Kvass farm's `port`). **Shared changes:** `src/world/defs.ts` (`FarmDef.port`), `src/core/world.ts` and `src/core/simulation.ts` (the farm state and its step).
+- **Next (milestone 2):** cage checks (nose onto a ring, a crew-mate on the walkway: a torn net to mend, a bag of dead fish to lift), technicians to and from the barge, mussel lines, a farm service contract.
+
 ### Square wire pots that stack on the quay and on deck (29 Oct 2026)
 
 Owner (with a photo of wire lobster traps stacked on a quay): "I'd like the fishing pots to stack on the deck and quayside; they could be square if that helps."

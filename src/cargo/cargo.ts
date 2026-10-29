@@ -44,6 +44,7 @@ import { safeLoadAt } from '../modules/deckCrane';
 import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
 import { applyOrderIntent } from './order';
+import { feedDelivered, freshFactor, harvestLanded } from '../aqua/farmService';
 import { bottomOf, isStackedUp, restingOn, setOnTop, stackTopNear, stackWithRoom } from './stack';
 import { berthWithId } from '../world/berths';
 import type { BerthDef } from '../world/defs';
@@ -73,6 +74,8 @@ export interface CargoItem {
   species?: string;
   /** A salvage crate from a dive (dive/diveReturn.ts): what's in it and what it fetches (£). */
   salvage?: { name: string; value: number };
+  /** A fish farm's box of salmon (aqua/farmService.ts): on ice, fresh until this world time (s); later it fetches less. */
+  bestBy?: number;
 }
 
 /** What's in a hauled pot (potting/potting.ts catchFor). */
@@ -101,7 +104,8 @@ export function kindOf(item: CargoItem) {
 
 /** Crane cargo (CONFIG.cargo.crane): too heavy to carry, lifted only by a deck crane's hook. */
 export function craneOnly(item: CargoItem): boolean {
-  return isProjectBuoy(item) || CONFIG.cargo.crane.kinds.includes(kindOf(item)?.name ?? '');
+  const name = kindOf(item)?.name ?? '';
+  return isProjectBuoy(item) || CONFIG.cargo.crane.kinds.includes(name) || CONFIG.cargo.crane.orderOnly.includes(name);
 }
 
 /** A port's cargo berth (its quay, for crane cargo), or null (an anchorage, a beach). */
@@ -295,9 +299,10 @@ export function spawnCraneCargo(world: WorldState, tally?: Map<string, number>):
 /**
  * One crane cargo item waiting at a port with a cargo quay, in the first free place along its
  * quay edge, bound for another cargo quay (`prefer`: that one, if it has one). Null with no
- * cargo quay here, none elsewhere, or no room on the quay edge.
+ * cargo quay here, none elsewhere, or no room on the quay edge. `kindAsked`: that kind (a
+ * fish farm's feed bag) instead of one of the crane kinds at random.
  */
-export function makeCraneCargoAt(world: WorldState, from: PortDef, prefer?: string): CargoItem | null {
+export function makeCraneCargoAt(world: WorldState, from: PortDef, prefer?: string, kindAsked?: number): CargoItem | null {
   const cfg = CONFIG.cargo;
   const c = cfg.crane;
   const b = cargoBerth(from);
@@ -306,7 +311,7 @@ export function makeCraneCargoAt(world: WorldState, from: PortDef, prefer?: stri
   if (!b || !others.length || !c.kinds.length || !pos) return null;
   const n = ++world.cargoSeq;
   const to = others.find((p) => p.id === prefer) ?? others[Math.floor(hash01(n + 0.5) * others.length)];
-  const kind = cfg.kinds.findIndex((k) => k.name === c.kinds[Math.floor(hash01(n + 0.25) * c.kinds.length)]);
+  const kind = kindAsked ?? cfg.kinds.findIndex((k) => k.name === c.kinds[Math.floor(hash01(n + 0.25) * c.kinds.length)]);
   if (kind < 0) return null;
   const item: CargoItem = { id: `cargo-${n}`, kind, mass: cfg.kinds[kind].mass, from: from.id, to: to.id, at: { ground: pos, yaw: (b.headingDeg * Math.PI) / 180 } };
   world.cargo[item.id] = item;
@@ -370,12 +375,19 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: str
   if (isProjectItem(item)) return projectItemLost(world, item);
   delete world.cargo[item.id];
   if (delivered) world.deliveries += 1;
+  // Feed for a fish farm, set down on its barge: into the silo, paid by the kilo (aqua/farmService.ts).
+  if (delivered && at && feedDelivered(world, item, at)) return;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
   if (delivered && item.salvage) earn(world, 'salvage', { base: item.salvage.value, port: at, text: `Salvage sold at ${portName(at)}: ${item.salvage.name}` });
   else if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
   else if (delivered && item.to === 'any') earn(world, 'crate', { port: at, text: `Lost cargo brought in to ${portName(at)}` });
-  else if (delivered) earn(world, 'cargo', { port: item.to, from: item.from, what: kindOf(item)?.name, text: `Cargo ${portName(item.from)} → ${portName(item.to)}` });
+  else if (delivered) {
+    // A farm's salmon fetches less once it's past its best (aqua/farmService.ts); its harvest run counts it.
+    const fresh = freshFactor(world, item);
+    earn(world, 'cargo', { port: item.to, from: item.from, what: kindOf(item)?.name, factor: fresh, text: `Cargo ${portName(item.from)} → ${portName(item.to)}${fresh < 1 ? ` (past its best: ${Math.round(fresh * 100)} %)` : ''}` });
+    harvestLanded(world, item, item.to);
+  }
   else {
     world.lost = (world.lost ?? 0) + 1;
     cargoLost(world, item.from);

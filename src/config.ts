@@ -901,7 +901,7 @@ export const CONFIG = {
     /** Danger money: rescues, tows and fires in a squall or a sea over `stormHs` m pay this much more. */
     stormBonus: 0.5,
     stormHs: 1.8,
-    rep: { transfer: 4, cargo: 2, fish: 1, log: 3, debris: 1, tow: 6, rescue: 10, fire: 8, contract: 8, contractFail: -6, lostCargo: -3, max: 100 },
+    rep: { transfer: 4, cargo: 2, fish: 1, log: 3, debris: 1, tow: 6, rescue: 10, fire: 8, farm: 1, contract: 8, contractFail: -6, lostCargo: -3, max: 100 },
     contracts: {
       perPort: 2,
       refresh: 600,
@@ -1327,6 +1327,8 @@ export const CONFIG = {
       edgeIn: 1.1,
       spacing: 2.4,
       payFactor: 3,
+      /** Crane only too, but never made at random: ordered for a job (a fish farm's feed bags: aqua/farmService.ts). */
+      orderOnly: ['Feed bag'] as readonly string[],
       note: 'crane only: lift it with a deck crane',
     },
     /** Counts as anchored in a port's bay only nearly stopped (m/s). */
@@ -1365,8 +1367,9 @@ export const CONFIG = {
       { name: 'Groceries', mass: 30, size: [0.55, 0.4, 0.45] as [number, number, number], shape: 'box' as const, slots: 1 },
       /**
        * A lobster / crab pot (potting/potting.ts): not trade cargo (never spawned at the
-       * ports' goods stacks), but carried, stowed and lashed the same way. A creel: a
-       * boxy frame with netting, its line coiled on top and the marker buoy tied to it.
+       * ports' goods stacks), but carried, stowed and lashed the same way. A square wire
+       * trap, its line coiled on one end and its marker buoy tied beside it; pots stack
+       * (`stacking` above).
        */
       { name: 'Pot', mass: 24, size: [0.75, 0.42, 0.5] as [number, number, number], shape: 'pot' as const, slots: 2 },
       // Crane cargo (`crane` above): too heavy to carry, lifted by a deck crane.
@@ -1377,6 +1380,8 @@ export const CONFIG = {
       { name: 'Mark buoy', mass: 420, size: [1.1, 1.5, 1.1] as [number, number, number], shape: 'drum' as const, slots: 4 },
       // A salvage crate from a dive (dive/diveReturn.ts): its own mass (the find's), from 40 kg.
       { name: 'Salvage', mass: 40, size: [0.8, 0.55, 0.7] as [number, number, number], shape: 'box' as const, slots: 2 },
+      // A big bag of salmon feed (aqua/farmService.ts): a woven bulk bag with lifting loops, lifted by a deck crane.
+      { name: 'Feed bag', mass: 500, size: [0.95, 1.05, 0.95] as [number, number, number], shape: 'box' as const, slots: 4 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
     tradeKinds: 13,
@@ -2472,6 +2477,41 @@ export const CONFIG = {
    *              pops up (s)
    *   buoyColors each boat's buoy colour (by boat), flag colour while soaking
    */
+  /**
+   * Fish farm service (owner, 29 Oct 2026: "go ahead with fish farm service first, everything
+   * should be possible single player but better with crew"; aqua/farmService.ts). Each salmon
+   * farm (FarmDef with a feed barge `port`) has a feed silo on its barge, which the fish eat
+   * down; it calls on the VHF for feed, and now and then for a harvest run.
+   *   siloKg        a silo full (kg); a new game's farms start `startFill` full (by farm)
+   *   eatKgPerS     the fish eat this much (kg per s of play: 3 t in about 50 min)
+   *   callBelow     under this share of the silo the farm calls for feed; the call ends when
+   *                 the silo's back over `fullAt`
+   *   feedKinds     what counts as feed set down on the barge: hand sacks (40-45 kg: many trips,
+   *                 a job for a crew) or a big bag lifted by a deck crane (500 kg: one hand)
+   *   feedPerKg     feed pays by the kilo (a 45 kg sack about £40, a bag £450); `hungryFactor`
+   *                 more while the silo's empty
+   *   harvest       every `every` s (between) a farm calls for a harvest run: `boxes` boxes of
+   *                 salmon, ordered at the barge's cargo screen, to a harbour (`to`: one of
+   *                 these, the nearest first); a box keeps `freshS` s on ice, then pays less,
+   *                 down to `staleFactor` at twice that; the run done in time pays `bonus`
+   *   callGapS      a farm's calls come at least this far apart (s)
+   *   serveRangeM   a harbour's cargo screen makes feed for a calling farm within this (m: Garbh
+   *                 Pier serves the Tarsk farm, 2.3 km off; not the Kvass farm, 9 km)
+   */
+  aqua: {
+    siloKg: 3000,
+    startFill: [0.45, 0.75] as [number, number],
+    eatKgPerS: 1,
+    callBelow: 0.4,
+    fullAt: 0.9,
+    feedKinds: ['Feed sack', 'Feed pellets', 'Feed bag'] as readonly string[],
+    feedPerKg: 0.9,
+    hungryFactor: 1.5,
+    harvest: { every: [1500, 2400] as [number, number], first: 600, boxes: [6, 10] as [number, number], to: ['tarsk', 'calder', 'kvassvik'] as readonly string[], freshS: 1500, staleFactor: 0.3, bonus: 400 },
+    callGapS: 240,
+    serveRangeM: 6000,
+  },
+
   potting: {
     // Just aft of a boat at the Calder Haven cargo berth, 4 m in from the quay edge (owner: it was 25 m forward of her).
     pallet: { x: 716, z: 670.5, yawDeg: 90 },

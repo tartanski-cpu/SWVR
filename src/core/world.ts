@@ -28,6 +28,7 @@ import { createFishingState, type FishingState } from '../fishing/fishing';
 import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
 import { createTransferState, type TransferState } from '../transfer/transfer';
+import { createAqua, type AquaState } from '../aqua/farmService';
 import type { TvState } from '../modules/furniture/tvState';
 import { startBerthFor } from '../world/startSpot';
 import type { BerthDef } from '../world/defs';
@@ -92,6 +93,8 @@ export interface WorldState {
   potting?: PottingState;
   /** Crew transfer to the wind farm: the job, the technicians, boats on the landings (transfer/transfer.ts). */
   transfer?: TransferState;
+  /** Fish farm service: each salmon farm's silo and calls (aqua/farmService.ts). */
+  aqua?: AquaState;
   /** Who is showing a browser tab on which TV (modules/furniture/tvState.ts); made at the first. */
   tv?: TvState;
   /** The fuel pumps' hoses: where each nozzle is (fuel/fuelHose.ts). Made when first used. */
@@ -182,6 +185,8 @@ export function createWorld(
     salvage: createSalvageState(!!opts.logs),
     // Crew transfer jobs: called by themselves in the game (with the logs), raised by hand in tests.
     transfer: createTransferState(!!opts.logs && !opts.voyage),
+    // Fish farm service: the farms call by themselves in the game (with the logs), raised by hand in tests.
+    aqua: createAqua(!!opts.logs && !opts.voyage),
     fishing: createFishingState(),
     career: createCareer(),
   };

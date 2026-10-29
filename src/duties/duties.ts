@@ -26,6 +26,7 @@
  *   rescue      a distress call (answer it), the search and recovery, landing survivors.
  *   tow         a tow job: answer the call, make fast, bring her into a harbour.
  *   fire        a fire job: answer the call, pump on, put it out with the monitor.
+ *   farm        a fish farm's call (aqua/farmService.ts): feed for its barge, or a harvest run.
  */
 import { CONFIG } from '../config';
 import { homeVessel, type WorldState } from '../core/world';
@@ -33,6 +34,7 @@ import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
 import { cargoDestination, nearestPort, portById } from '../rescue/rescue';
 import { jetOn } from '../fire/fire';
+import { farmName, isFeed } from '../aqua/farmService';
 import { towFast } from '../tow/tow';
 import { TUTORIAL } from '../career/tutorial';
 import { answerFogSignal } from '../traffic/traffic';
@@ -53,7 +55,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'damage' | 'wear' | 'tutorial';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'farm' | 'damage' | 'wear' | 'tutorial';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -348,6 +350,27 @@ function stepFishingDuty(world: WorldState, d: DutiesState, v: VesselState | und
   ], world.time);
 }
 
+/** A fish farm's call (aqua/farmService.ts): the first one going, feed or a harvest run. */
+function stepFarmDuty(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
+  const entry = Object.entries(world.aqua?.sites ?? {}).find(([, s]) => s.call);
+  if (!entry) return syncJob(d, 'farm', null, '', [], world.time);
+  const [id, site] = entry;
+  const call = site.call!;
+  const name = farmName(id);
+  const aboardHer = (f: (c: (typeof world.cargo)[string]) => boolean) => !!v && Object.values(world.cargo).some((c) => 'vessel' in c.at && c.at.vessel === v.id && f(c));
+  if (call.kind === 'feed') {
+    syncJob(d, 'farm', `${id}:feed:${call.at}`, `Fish farm: feed for ${name}`, [
+      { text: 'Fetch feed: at the feed pier Crates are feed sacks for it; at a cargo quay Crane lifts are 500 kg feed bags', done: aboardHer((c) => isFeed(c) && c.to === id) },
+      { text: `Set it down on ${name}'s feed barge (by hand, by crane, or menu Cargo, Unload)`, done: false },
+    ], world.time);
+    return;
+  }
+  syncJob(d, 'farm', `${id}:harvest:${call.at}`, `Fish farm: ${call.boxes} boxes of salmon to ${portById(call.to ?? '')?.name ?? ''}`, [
+    { text: `Order them as Crates at ${name}'s cargo screen, on the feed barge`, done: aboardHer((c) => c.from === id) },
+    { text: `Land them at ${portById(call.to ?? '')?.name ?? ''} while they're fresh (${call.landed ?? 0} of ${call.boxes} landed)`, done: false },
+  ], world.time);
+}
+
 /** Log salvage (a side mission): while there are logs on the beaches. */
 function stepSalvageDuty(world: WorldState, d: DutiesState): void {
   const logs = world.salvage?.logs ?? [];
@@ -426,6 +449,7 @@ export function stepDuties(world: WorldState): void {
   stepFireDuty(world, d, v);
   stepFishingDuty(world, d, v);
   stepSalvageDuty(world, d);
+  stepFarmDuty(world, d, v);
   stepTutorialDuty(world, d);
   stepDamageDuties(world, d, v);
 

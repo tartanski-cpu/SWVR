@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { planTableSpot } from '../voyage/planTable';
+import { farmAt } from '../aqua/farmService';
 import { PORTS } from '../world/archipelago';
 import { REGIONS } from '../world/regions';
 import { PER_PAGE } from '../shipyard/takeHer';
@@ -121,12 +122,14 @@ export class ShipyardDoor {
  * Where the career's signs stand: one at each harbour of the world, on the quay behind its
  * cargo berth (or its first), found as Voyage's planning table finds its spot (planTableSpot:
  * on level ground clear of the buildings, a little back from the water). A harbour with no
- * berth, or no room, gets none.
+ * berth, or no room, gets none, nor does a fish farm's feed barge.
  */
 export function careerShipyardSpots(): SignSpot[] {
   const berths = REGIONS.flatMap((r) => r.berths);
   const spots: SignSpot[] = [];
   for (const p of PORTS) {
+    // (Not on a fish farm's feed barge: aqua/farmService.ts.)
+    if (farmAt(p.id)) continue;
     const own = berths.filter((b) => b.portId === p.id);
     const b = own.find((x) => x.id.endsWith('-cargo')) ?? own[0];
     const at = b ? planTableSpot(b.id) : null;

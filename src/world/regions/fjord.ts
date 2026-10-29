@@ -296,7 +296,7 @@ export const FJORD: RegionDef = {
     { x: 6550, z: -7986, toX: 6717, toZ: -7875, width: 8 },
   ],
   // The farm: two rows of three cage rings along the fjord's south-east wall, off the village.
-  farms: [{ name: 'Kvass fish farm', x: 6760, z: -7380, yawDeg: 225, rows: 2, cols: 3, spacing: 32, ringRadius: 12 }],
+  farms: [{ name: 'Kvass fish farm', x: 6760, z: -7380, yawDeg: 225, rows: 2, cols: 3, spacing: 32, ringRadius: 12, port: 'kvassfarm' }],
   gusts: [
     // Down Trangfjorden from the north: the gut funnels it.
     { id: 'trang', name: 'Trangfjorden', x: 5240, z: -7200, r: 380, fromDeg: 355, peakMs: 20 },

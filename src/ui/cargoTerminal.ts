@@ -5,6 +5,7 @@ import type { WorldState } from '../core/world';
 import { cargoBerth } from '../cargo/cargo';
 import { boatAtPort, capacityOf, hasCrane, orderBlocker, ORDER_WHAT, roomFor, terminalSpot, waitingHere, type OrderWhat } from '../cargo/order';
 import { potsOwned } from '../potting/potting';
+import { farmLine } from '../aqua/farmService';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import type { MenuButton, MenuRow } from './menuPanel';
@@ -136,6 +137,8 @@ export class CargoTerminal {
     return [
       { label: '', buttons: [{ text: () => `CARGO  ·  ${this.at?.port.name.replace(' (anchorage)', '') ?? ''}`, weight: 3 }] },
       { label: '', buttons: [{ text: () => this.boatText(), weight: 3 }] },
+      // A fish farm's line (aqua/farmService.ts): its silo and calls at its barge; a call this harbour can serve elsewhere.
+      { label: '', buttons: [{ text: () => (this.at ? farmLine(this.h.world(), this.at.port) : '') || 'No fish farm is calling', weight: 3 }] },
       sortRow('crates', 'Crates'),
       sortRow('crane', 'Crane lifts'),
       sortRow('pots', 'Lobster pots'),

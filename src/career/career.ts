@@ -41,7 +41,7 @@ import type { TutorialState } from './tutorial';
 import { gearOf, hasModule } from '../boats/sims';
 import { applyProjectIntent, projectDef, type ProjectProgress } from './projects';
 
-export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod' | 'transfer' | 'salvage' | 'dive';
+export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod' | 'transfer' | 'salvage' | 'dive' | 'farm';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
 
 export interface LedgerEntry {
@@ -217,7 +217,8 @@ function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
       return Math.round((o.kg ?? 0) * CONFIG.rod.pricePerKg);
     case 'salvage':
     case 'dive':
-      // A dive's (dive/diveReturn.ts): always its own price, given as `base`.
+    case 'farm':
+      // A dive's (dive/diveReturn.ts), a fish farm's feed and harvest bonus (aqua/farmService.ts): always its own price, given as `base`.
       return 0;
   }
 }
@@ -236,6 +237,8 @@ export interface EarnOpts {
   crab?: number;
   /** What it pays before the port's factors, if not the kind's usual (`CONFIG.career.pay`): the timber camp's logs. */
   base?: number;
+  /** Times this (a farm's salmon past its best: aqua/farmService.ts freshFactor). */
+  factor?: number;
   /** The ledger line. */
   text: string;
 }
@@ -254,6 +257,7 @@ const REP_GAIN: Record<JobKind, () => number> = {
   transfer: () => CONFIG.career.rep.transfer,
   salvage: () => CONFIG.career.rep.debris,
   dive: () => 0,
+  farm: () => CONFIG.career.rep.farm,
 };
 
 /** A job done: pay it, raise the port's reputation, count it toward the contract. */
@@ -261,7 +265,7 @@ export function earn(world: WorldState, kind: JobKind, o: EarnOpts): void {
   const c = (world.career ??= createCareer());
   // Danger money: rescues, tows and fires in heavy weather pay more (phase 2).
   const storm = (kind === 'rescue' || kind === 'tow' || kind === 'fire') && heavyWeather(world);
-  const amount = Math.round(basePay(world, kind, o) * payFactor(c, o.port) * buyerFactor(o.port, kind) * (storm ? 1 + CONFIG.career.stormBonus : 1));
+  const amount = Math.round(basePay(world, kind, o) * (o.factor ?? 1) * payFactor(c, o.port) * buyerFactor(o.port, kind) * (storm ? 1 + CONFIG.career.stormBonus : 1));
   post(world, c, storm ? `${o.text} (heavy weather)` : o.text, amount);
   addRep(c, o.port, REP_GAIN[kind]());
   // The contract: the right kind of work, at its port.

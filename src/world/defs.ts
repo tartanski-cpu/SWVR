@@ -522,6 +522,8 @@ export interface FarmDef {
   lineLength?: number;
   /** The lease's corners, each with a yellow special mark (a coast map's: its light is in the region's lights). */
   corners?: [number, number][];
+  /** Its feed barge: the port (PortDef id) the farm is worked from (fish farm service: aqua/farmService.ts). */
+  port?: string;
 }
 
 /**
