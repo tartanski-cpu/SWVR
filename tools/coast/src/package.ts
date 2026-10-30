@@ -78,9 +78,20 @@ const T = {
   /** Port colours for cargo bound there (the game's palette style). */
   colours: [0x3f7fd0, 0xd06a2f, 0x2f9a5a, 0xc8a030, 0x9a3fb0, 0x30a8b8, 0xb83040, 0x7a8a30, 0x606870],
   /** Fishing grounds: depth range by species (m), radius (m), kept this far from harbours and each other (m). */
-  grounds: { mackerel: [15, 60], haddock: [30, 120], cod: [20, 80], pollack: [10, 40] } as Record<string, [number, number]>,
+  grounds: { mackerel: [15, 60], haddock: [30, 120], cod: [20, 80], pollack: [10, 40], herring: [10, 60], coalfish: [25, 150] } as Record<string, [number, number]>,
   groundRadius: 350,
   groundClear: 900,
+  /** ...one ground a species per this much of its water (km²), at most groundMax; grounds at least groundApart (m) apart, within groundReach (m) of a harbour; the candidates every groundStep (m); named after a place within groundNameReach (m). */
+  groundArea: 25,
+  groundMax: 8,
+  groundApart: 2500,
+  groundReach: 12000,
+  groundStep: 200,
+  groundNameReach: 5000,
+  /** Potting grounds kept: within potReach (m) of a harbour, potApart (m) apart (a request's pottingApart instead), at most potMax a map (spaced wider until so). */
+  potReach: 8000,
+  potApart: 250,
+  potMax: 150,
   /** Potting grounds: rocky water this deep (m) round the skerries and points. */
   potDepth: [6, 25] as [number, number],
 };
@@ -900,28 +911,65 @@ const places = ((F?.names ?? []) as { name: string; kind: string; x: number; z: 
 // Whirls (the game's `knocks`) only where the request gives them: a real race needn't have whirlpools (owner, Oct 2026: the Falls of Lora don't).
 const currents = (nav.currents as { id: string; name: string; x: number; z: number; length: number; width: number; setDeg: number; peakKn: number; periodH: number; whirls?: number }[]).map((c) => ({ id: c.id, name: c.name, x: c.x, z: c.z, length: c.length, width: c.width, setDeg: c.setDeg, peakKn: c.peakKn, periodH: c.periodH, phaseH: 0, waveFactor: 1.6, knocks: c.whirls ?? 0 }));
 
-// Fishing grounds: open water of the species' depth, clear of harbours and each other.
-const fishingGrounds: object[] = [];
-const taken: [number, number][] = (ports as { x: number; z: number }[]).map((p) => [p.x, p.z]);
+// Fishing grounds (owner, Oct 2026: "I'd like to have some fishing areas on all the maps"):
+// open water of each species' depth, as many as the map has water for (one per `groundArea`
+// km² of it, up to `groundMax` a species), the best first: the depth nearest the species' own,
+// within a day's run of a harbour (`groundReach`), at least `groundApart` from each other and
+// `groundClear` from harbours. Each named after the nearest named place ("Cod ground off Hareid").
+const fishingGrounds: { name: string; x: number; z: number; radius: number; richness: number; species: string }[] = [];
+const portXZ = (ports as { x: number; z: number }[]).map((p) => [p.x, p.z] as [number, number]);
+const placeNamed = places.filter((p) => p.name && p.kind !== 'locality');
+const usedNames = new Set<string>();
+const groundName = (sp: string, x: number, z: number) => {
+  const fish = `${sp[0].toUpperCase()}${sp.slice(1)} ground`;
+  // The better-known places first (towns, villages, islands, bays, straits: rank 1-2), then any
+  // (an islet, a hamlet), the nearest within groundNameReach whose name isn't taken yet.
+  for (const most of [2, 3, 4]) {
+    const near = placeNamed
+      .filter((p) => p.rank <= most && !usedNames.has(`${fish} off ${p.name}`))
+      .map((p) => ({ name: p.name, d: Math.hypot(p.x - x, p.z - z) }))
+      .filter((p) => p.d < T.groundNameReach)
+      .sort((a, b) => a.d - b.d)[0];
+    if (near) {
+      usedNames.add(`${fish} off ${near.name}`);
+      return `${fish} off ${near.name}`;
+    }
+  }
+  // Farther out: which way from the nearest well-known place ("Cod ground west of Godøya").
+  const far = placeNamed.filter((p) => p.rank <= 2).map((p) => ({ p, d: Math.hypot(p.x - x, p.z - z) })).sort((a, b) => a.d - b.d)[0];
+  if (!far) return fish;
+  const deg = ((Math.atan2(x - far.p.x, -(z - far.p.z)) * 180) / Math.PI + 360) % 360;
+  const way = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'][Math.round(deg / 45) % 8];
+  return `${fish} ${way} of ${far.p.name}`;
+};
 for (const sp of req.fish ?? []) {
   const range = T.grounds[sp];
-  if (!range) continue;
-  let best: { x: number; z: number; score: number } | null = null;
-  for (let z = box.z0 + 600; z < box.z1 - 600; z += 150)
-    for (let x = box.x0 + 600; x < box.x1 - 600; x += 150) {
-      const d = -hAt(x, z);
-      if (d < range[0] || d > range[1] || taken.some(([tx, tz]) => Math.hypot(tx - x, tz - z) < T.groundClear)) continue;
-      // Room: open water all round the ground.
-      if ([0, 1, 2, 3, 4, 5].some((k) => isLand(x + Math.cos((k * Math.PI) / 3) * T.groundRadius, z + Math.sin((k * Math.PI) / 3) * T.groundRadius))) continue;
-      const score = -Math.abs(d - (range[0] + range[1]) / 2);
-      if (!best || score > best.score) best = { x, z, score };
-    }
-  if (!best) {
-    if (!['lobster', 'crab', 'prawn'].includes(sp)) warnings.push(`no fishing ground found for ${sp}`);
+  if (!range) {
+    if (!['lobster', 'crab', 'prawn'].includes(sp)) warnings.push(`no depth range for ${sp}: no fishing grounds`);
     continue;
   }
-  taken.push([best.x, best.z]);
-  fishingGrounds.push({ name: `${sp[0].toUpperCase()}${sp.slice(1)} ground`, x: best.x, z: best.z, radius: T.groundRadius, richness: 1.1, species: sp });
+  const cands: { x: number; z: number; score: number }[] = [];
+  const step = T.groundStep;
+  for (let z = box.z0 + 600; z < box.z1 - 600; z += step)
+    for (let x = box.x0 + 600; x < box.x1 - 600; x += step) {
+      const d = -hAt(x, z);
+      if (d < range[0] || d > range[1]) continue;
+      const toPort = Math.min(...portXZ.map(([px, pz]) => Math.hypot(px - x, pz - z)));
+      if (toPort < T.groundClear || toPort > T.groundReach) continue;
+      // Room: open water all round the ground.
+      if ([0, 1, 2, 3, 4, 5].some((k) => isLand(x + Math.cos((k * Math.PI) / 3) * T.groundRadius, z + Math.sin((k * Math.PI) / 3) * T.groundRadius))) continue;
+      cands.push({ x, z, score: -Math.abs(d - (range[0] + range[1]) / 2) });
+    }
+  const want = Math.max(1, Math.min(T.groundMax, Math.round((cands.length * step * step) / 1e6 / T.groundArea)));
+  cands.sort((a, b) => b.score - a.score);
+  let n = 0;
+  for (const c of cands) {
+    if (n >= want) break;
+    if (fishingGrounds.some((g) => Math.hypot(g.x - c.x, g.z - c.z) < T.groundApart)) continue;
+    fishingGrounds.push({ name: groundName(sp, c.x, c.z), x: r1(c.x), z: r1(c.z), radius: T.groundRadius, richness: 1.1, species: sp });
+    n++;
+  }
+  if (!n) warnings.push(`no fishing ground found for ${sp}`);
 }
 // Potting grounds: round the skerries, in rocky water of the right depth.
 const potAll = (nav.hazards as { name: string; kind: string; x: number; z: number }[])
@@ -937,12 +985,30 @@ const potAll = (nav.hazards as { name: string; kind: string; x: number; z: numbe
         break;
       }
     }
-    return { id: `${req.id}-pots-${i + 1}`, name: hz.name ? `${hz.name}` : `Skerry ${i + 1}`, x: at.x, z: at.z, radius: 60, quality: 0.8 };
+    // A rock with no name of its own: after the nearest named place ("Rocks off Kråka"), not "Skerry 589".
+    const near = hz.name ? null : placeNamed.map((p) => ({ name: p.name, d: Math.hypot(p.x - hz.x, p.z - hz.z) })).filter((p) => p.d < T.groundNameReach).sort((a, b) => a.d - b.d)[0];
+    return { id: `${req.id}-pots-${i + 1}`, name: hz.name ? `${hz.name}` : near ? `Rocks off ${near.name}` : `Skerry ${i + 1}`, x: at.x, z: at.z, radius: 60, quality: 0.8 };
   });
-// Thinned to `pottingApart` m where the request asks (in the order the chart lists them); none
-// where it lists no fish at all (a river port: Hamburg).
-const pottingGrounds: typeof potAll = [];
-if ((req.fish ?? []).length) for (const g of potAll) if (!req.pottingApart || pottingGrounds.every((o) => Math.hypot(o.x - g.x, o.z - g.z) >= req.pottingApart!)) pottingGrounds.push(g);
+// Kept where creel boats would set them (owner, Oct 2026: Sunnmøre's 2,746 were too many):
+// within `potReach` of a harbour, named rocks first, then the nearer a harbour the sooner; not
+// two within `pottingApart` (the request's, else `potApart`) of each other; and on a map with
+// more than `potMax` of them, the spacing widened until it has no more (spread evenly, not
+// crowded round one harbour). None where the request lists no fish at all (a river port: Hamburg).
+let pottingGrounds: typeof potAll = [];
+if ((req.fish ?? []).length) {
+  const toPort = (g: { x: number; z: number }) => Math.min(...portXZ.map(([px, pz]) => Math.hypot(px - g.x, pz - g.z)));
+  const named = (g: (typeof potAll)[number]) => (/^(Skerry \d+|Rocks off .*)$/.test(g.name) ? 1 : 0);
+  const ranked = potAll
+    .map((g) => ({ g, d: toPort(g) }))
+    .filter((o) => o.d < T.potReach)
+    .sort((a, b) => named(a.g) - named(b.g) || a.d - b.d)
+    .map((o) => o.g);
+  for (let apart = req.pottingApart ?? T.potApart; ; apart *= 1.25) {
+    pottingGrounds = [];
+    for (const g of ranked) if (pottingGrounds.every((o) => Math.hypot(o.x - g.x, o.z - g.z) >= apart)) pottingGrounds.push(g);
+    if (pottingGrounds.length <= T.potMax) break;
+  }
+}
 
 // Landmarks: the highest named summit; the tallest lighthouse.
 const peaks = Object.entries(osm.nodeTags as Record<string, Record<string, string>>)

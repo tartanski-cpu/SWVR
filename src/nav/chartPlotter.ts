@@ -628,7 +628,8 @@ export class ChartPlotter {
       g.fillText(r.slack ? `${z.name}: slack` : `${z.name}: ${r.kn.toFixed(1)} kn`, cx + hw + 6, cy);
     }
 
-    // Fishing grounds: dashed teal rings with their names.
+    // Fishing grounds: dashed teal rings with their names (named close in only: CONFIG.chartPlotter.groundLabelsWithin).
+    const labelGrounds = span <= CONFIG.chartPlotter.groundLabelsWithin;
     g.lineWidth = 2;
     for (const fg of FISHING_GROUNDS) {
       const [cx, cy] = toPx(fg.x, fg.z);
@@ -641,7 +642,7 @@ export class ChartPlotter {
       g.stroke();
       g.setLineDash([]);
       g.fillStyle = '#7fe8d8';
-      g.fillText(`${fg.name} (fish)`, cx - 60, cy);
+      if (labelGrounds) g.fillText(`${fg.name} (fish)`, cx - 60, cy);
     }
     // Potting grounds (when potting's on): hatched rings, orange, with their names.
     if (world.potting) {
@@ -668,7 +669,7 @@ export class ChartPlotter {
         g.arc(cx, cy, rad, 0, Math.PI * 2);
         g.stroke();
         g.fillStyle = '#f2b070';
-        g.fillText(`${pg.name.split(',')[0]} (pots)`, cx - 50, cy - rad - 4);
+        if (labelGrounds) g.fillText(`${pg.name.split(',')[0]} (pots)`, cx - 50, cy - rad - 4);
       }
       // Casual mode / debug: the pots themselves, small orange dots.
       if (this.showPots) {

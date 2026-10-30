@@ -2134,12 +2134,12 @@
   "marks": 1,
   "lights": 50,
   "slipways": 2,
-  "fishingGrounds": 1,
-  "pottingGrounds": 194,
+  "fishingGrounds": 8,
+  "pottingGrounds": 120,
   "landmarks": [
    "Koni",
    "Akra Dana FlWR.5s"
   ],
-  "bytes": 306688
+  "bytes": 301566
  }
 }
