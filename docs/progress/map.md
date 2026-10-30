@@ -10,6 +10,18 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The planning chart sharp wherever you look (30 Oct 2026)
+
+**Owner approved; merged into `next`.**
+
+Owner, at the chart table: "it only seems to load one area in with detail when I scroll around. Other parts of the map are kind of low resolution."
+
+- **Why:** the chart's coast is cut from the detailed ground (nav/chartLand.ts), which on a big map is only loaded within 1.5 km of you and the boats (world/coastStream.ts); everywhere else the chart had only the coarse 50 m grid, blurred.
+- **Now** (`coastStream.ts` `viewChart`; `regions.coastChartSpan` 8000, `coastChartHold` 20): a planning chart zoomed in to 8 km across or closer asks for the 2 km chunks it shows; they're fetched after those round the boats, and kept while it's looked at (and 20 s after). It says when some are still to come, and the chart (the desktop panel, the chart table, the plotter's PLAN mode) draws again until they're in. Zoomed out wider, the coarse picture is as sharp as the chart can show anyway. The far chunks aren't drawn in the world (only the ground within `coastFineDistance` is) and go again once the chart moves on.
+- **Tests:** `tests/coastStreamChart.test.ts` (Sunnmøre: a chart over Ørsta, 30 km from the boat, fetches the chunks under it when zoomed in, none when zoomed out). `npm run test:map`, the typecheck and all of `npm test` pass. Seen headless: Ørsta on the planning chart, blurred, then sharp 10 s later.
+- **Not checked:** on the Quest (memory with many chunks in: a chart zoomed in shows at most about 25).
+- **Shared changes:** `src/voyage/planChart.ts` (asks the streamer for its view, two lines).
+
 ### Fishing grounds on every map, fewer potting grounds on Sunnmøre (30 Oct 2026)
 
 **Owner approved; merged into `next`.**

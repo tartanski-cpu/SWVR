@@ -87,6 +87,9 @@ export const MAP_CONFIG = {
     coastLoadDistance: 1500,
     coastUnloadDistance: 2600,
     coastLoadsAtOnce: 4,
+    /** A chart zoomed in to this many m across or closer (the planning chart) fetches the detailed ground it shows, kept while it's looked at and this many s after (coastStream viewChart). */
+    coastChartSpan: 8000,
+    coastChartHold: 20,
   },
 
   /**
