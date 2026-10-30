@@ -1,8 +1,19 @@
-# Workboat World Training: release notes, 30 Oct 2026 (milestones 1 and 2)
+# Workboat World Training: release notes, 30 Oct 2026 (milestones 1 to 3)
 
 The published page: https://claude.ai/artifact/1YCyusD75iMebk1vM7DK5w (with the development screenshots and two things to try). Try it: https://tartanski-cpu.github.io/SWVR/preview/training/training.html
 
 The third way to play has started. A small walled harbour built for practising boat handling, and five exercises modelled on the RYA Powerboat Scheme and the German SBF. The instructor talks you through each over the VHF, the steps tick off on the duty board, and each attempt ends passed or try again, with the reason and the numbers. It is practice, not a course: nothing here is a certificate.
+
+## Both courses, the Examiner's Run, and four new pieces of seamanship (Courses, M3)
+
+The owner: "Build it all, including missing mechanics."
+
+- **Harbour practice:** H1 Start her up (cold and dark, in order), H2 Fuel her up (engine off), H3 Lines and fenders (in the order called), H7 Hold off the mark (90 s), H9 Alongside wind on (drifting on in neutral a fault), H11 Anchor in sand / mud / weed (way off, head to wind, the scope chosen: 3:1 at least, 5:1 in weed), H12 Horn and lights (one, two, three short blasts before each manoeuvre, after sunset), H13 Low-speed slalom, H14 Springing off, H15 Pick up the mooring, and H5T / H6T in the skiff with her tiller.
+- **Rescue practice:** R1 and R2 Man overboard into wind and drifting down (out of gear in 3 s, stern away, recovered with the ring or hook; in gear by the swimmer fails), R1T in the skiff, R3 a tow and R4 a fire (both need the pilot boat: a towing post, a fire monitor), R5 Fog (a prolonged blast every two minutes), R6 an engine overheating, R7 an expanding-square search in fog.
+- **The Examiner's Run:** six manoeuvres, random order; R1, H8, H10 compulsory (each by its second attempt), two of H5, H6, H12; a prop strike or a hard knock ends it.
+- **Badges:** gold with no faults, silver with a few, bronze; the best kept by each exercise; nothing in the Career.
+- **New for every boat (Boat tab):** springs fore and aft (they hold with the lines let go: springing off), mooring buoys (picked up from the bow), the anchor's scope (chosen, veered, hove in; short of 3:1 she drags), a kill cord on the skiff and the RIB (stops the motor away from the helm; required in Training).
+- Limits: the springs and the pennant aren't drawn yet; in the anchor model 5:1 and 7:1 hold about alike.
 
 ## The speed log turns blue going astern (Helm)
 
