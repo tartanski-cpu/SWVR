@@ -1,6 +1,6 @@
 # Training mode: a plan
 
-The owner's brief (Oct 2026): a third way to play, **Training**, "small harbour maps with session recording and review", a placeholder tile on the front page until now. The owner asked (30 Oct 2026) for a plan built from the **RYA Powerboat Scheme** and the **German Sportbootführerschein (SBF)**. This is that plan: what the two schemes ask of a trainee, what the game can already judge, the course the game would teach, the harbour it needs, how a session is recorded and reviewed, and the order to build it in. Nothing in it is built.
+The owner's brief (Oct 2026): a third way to play, **Training**, "small harbour maps with session recording and review", a placeholder tile on the front page until now. The owner asked (30 Oct 2026) for a plan built from the **RYA Powerboat Scheme** and the **German Sportbootführerschein (SBF)**. This is that plan: what the two schemes ask of a trainee, what the game can already judge, the course the game would teach, the harbour it needs, how a session is recorded and reviewed, and the order to build it in. **Milestone 1 is built** (30 Oct 2026: the training harbour and five harbour exercises; `docs/progress/training.md`); the rest is the plan.
 
 How it was made: the two syllabi were researched from their primary sources (the RYA's own course pages and centre transcriptions of the G20 logbook; the SpFV with its Anlagen 3, 4 and 5, the ELWIS scoring key and question catalogues, the DMYV/DSV examiner guideline) and checked a second time; the game was audited topic by topic against them; two plans were drafted from opposite ends (course first, engine first) and a critic merged them. Sources are listed at the end.
 
@@ -33,7 +33,7 @@ The audit (every topic checked in the code) in short. **Modelled and usable as i
 
 **Missing, so either left out or asked for:** picking up a mooring buoy; springs and slip lines; alongside (hip) towing; the kill cord; trim tabs and power trim; a hand-bearing compass (no way to take a bearing by eye); magnetic variation (headings are true); tide height (no rise and fall); safe-water marks and sector lights; manoeuvring sound signals (the horn exists, nothing counts short blasts); COLREG give-way behaviour by other boats; knots; the player's own lifejacket; any recording, replay or scoring of a session.
 
-**One finding that decides the training boat.** The career's beginner boat is a stern drive, built on the outboard module: a steerable leg and no prop walk, which is right for a stern drive. Every Shipyard-built boat, the fishing boat included, has prop walk set to zero in the Shipyard's propeller block (`config/modules.ts`); only the old workboat, now hidden behind the fleet, has it. "Stopping on course" and "turning in a confined space" are lessons in prop walk, so they need a shaft-and-rudder boat that has it: either the old workboat, or the fishing boat once the Shipyard's shaft propellers get a prop-walk number (one tunable in the modules area, a small shared change; question 2 below).
+**One finding that decides the training boat** (corrected while building M1). "Stopping on course" and "turning in a confined space" are lessons in prop walk, so they need a shaft-and-rudder boat that has it. The audit said every Shipyard-built boat had prop walk set to zero; it was wrong. The zero in `config/modules.ts` is the outboard module's own, used only by the RIB. Every Shipyard boat is built from the landing craft's recipe (`boats/landingCraft.json`), whose shaft propeller walks: `propWalkAhead` 0.03, `propWalkAstern` 0.12, right-handed, the old workboat's figures. So the fishing boat already walks her stern to port going astern, and no change was needed. Measured in M1: a crash stop from 4.8 kn with the wheel amidships swings her 18° off her heading; stopped with the walk corrected, 7°. Twin-screw boats have none (counter-rotating). The career's beginner boat is a stern drive (the outboard module, no walk), right for a stern drive.
 
 ## 3. The course
 
@@ -107,6 +107,8 @@ Harbour and Rescue practice on a **shaft-and-rudder boat with prop walk**, fitte
 
 ## 4. The training harbour: one data file
 
+**As built in M1** (`src/world/regions/training.ts`): Harbour Head with the harbour cut into its north shore, 6 m of water throughout (a bank under the whole harbour keeps the breakwater's rubble out of it); a breakwater with a 56 m entrance facing north, Fl R 4s and Fl G 4s on its heads and a lateral pair outside; a 260 m fendered quay with Berth A (fuel), B (the start) and C; the slot (two short jetties 25 m apart, about 6 m clear at each end of the fishing boat); the dock (two quay walls 30 m apart, 32 m long, open to the north); the stopping lane between four yellow special marks (280 by 30 m); an office and a shed. The anchorages, the slalom line, the wreck and its cardinals, the leading lights, the beacons, the current and the fog bank come with the milestones that use them.
+
 A region is a data file, never code of its own (the standing rule), so the pen is `src/world/regions/training.ts`, about 1.5 by 1.5 km, and one line in `regions/index.ts`. The exercises above say exactly what it needs:
 
 - **Water:** a sheltered inner pen (a `shelter` circle, so it is calm whatever the weather), a dredged turning basin walled with fendered quay (a `cut` and `blocks`), one open stretch outside the breakwater for MOB, the slalom and the rough-day entry, one `fogBank` outside, one small `currents` zone across the outer channel (1.5 kn at peak, slack by phase).
@@ -119,6 +121,8 @@ A region is a data file, never code of its own (the standing rule), so the pen i
 A later "real harbour" exercise (P2) reuses Oban or Tayvallich as they are; the pen is never a coast package (a package cannot be trimmed to one basin without a pipeline run, and brings the town and the harbour boats).
 
 ## 5. How it works inside
+
+**As built in M1:** `training.html` sets `TRAINING` in `src/mode.ts`; `MODE` stays `'voyage'` there, so the page is a Voyage in every respect (no career, no saves, the career-save guard in `careerSession.ts` already holds) and the map id is `training`, which `world/regions/index.ts` answers with the training harbour alone (it is not on the Voyage map list). Crew joining a training host are sent to `training.html`. The rest of this section is the plan as written.
 
 **A page and a flag, not a fork.** `training.html` (a copy of `voyage.html`, title only) picks the mode through `src/mode.ts` as Voyage does, with `?exercise=` as Voyage has `?map=`; Vite's page list and the front-page tile; `regions/index.ts` returns the pen; the start berth from the pen. The world is created with the voyage flag (no money, no wear, no career) plus `world.training` for what differs. **First of all,** `careerSession.ts` must skip restore and save for training as it does for voyage: every address shares one browser storage, and a training page left as career would load and overwrite the owner's career slots. The two-way `MODE === 'voyage'` tests (about 54 in ten files) are each looked at; crew joining a training host are sent to the right page (`samePageAsHost`, `build.mode`).
 
@@ -157,6 +161,8 @@ A later "real harbour" exercise (P2) reuses Oban or Tayvallich as they are; the 
 Each milestone ends as every change set does: VR and desktop test steps, the area log, the README, typecheck and all tests, headless screenshots, and a frame-cost reading against the home world before anything goes to the Quest.
 
 ## 9. Questions for the owner
+
+**Answered (owner, 30 Oct 2026):** 1, its own area (`src/training/`, `training.html`, `src/config/training.ts`, `docs/progress/training.md`, `preview/training`); 2, the fishing boat (she turned out to have prop walk already: section 2); 8, "passed / try again" first, the total underneath; 10, English only. The others are still open.
 
 1. **Area.** Training as its own area (`src/training/`, `training.html`, `src/config/training.ts`, `docs/progress/training.md`, branch `preview/training`), or main-game work on `next`? The mode wiring touches shared files (`src/mode.ts`, `index.html`, `vite.config.ts`, `App.ts`) either way.
 2. **The training boat.** Prop walk is only on the old workboat; the Shipyard's shaft propellers have none. Recommended: give the Shipyard's shaft propeller block a prop-walk number (one tunable in `src/config/modules.ts`, the modules area; a small shared change that also makes every Shipyard shaft boat handle like one) and train on the fishing boat; or train on the old workboat, unchanged. The beginner boat is a stern drive, right for berthing lessons, wrong for the prop-walk ones.

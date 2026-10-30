@@ -243,6 +243,8 @@ export function stepTraffic(world: WorldState, dt: number): void {
   const [bx, , bz] = v.position;
   const away = !inHarbour(bx, bz);
   // Keep maxShips ships about (anywhere their track is in deep water); debris out of harbour.
+  // None in Training: the harbour is for practising in (docs/TRAINING.md section 4).
+  if (world.training) return;
   if (world.time >= t.nextShipAt) {
     t.nextShipAt = world.time + between(hash01(t.seq + 0.9), c.every);
     if (t.ships.length < c.maxShips) spawnShip(world, t, v);

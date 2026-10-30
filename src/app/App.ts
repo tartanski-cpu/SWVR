@@ -84,7 +84,8 @@ import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS, SKYLINE, SKYLINE_STYLE, WIND_F
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { SurfListener } from '../world/surf';
 import { REGIONS, regionAt, regionById } from '../world/regions';
-import { MODE, VOYAGE_MAP_ID } from '../mode';
+import { MODE, TRAINING, TRAINING_MAP_ID, VOYAGE_MAP_ID } from '../mode';
+import { createTraining } from '../training/training';
 import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
 import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthNear, wholeView } from '../voyage/plan';
 import { planFaceAspect, PlanTable, planTableSize, planTableSpot, type PlanTableForm, type PlanTableSpot } from '../voyage/planTable';
@@ -922,7 +923,7 @@ export class App {
     );
 
     // Voyage mode starts in its own boat (CONFIG.voyage.boat), fitted out in full; no career kit.
-    const boat = startBoat() ?? (MODE === 'voyage' ? CONFIG.voyage.boat : CONFIG.career.boat);
+    const boat = startBoat() ?? (TRAINING ? CONFIG.training.boat : MODE === 'voyage' ? CONFIG.voyage.boat : CONFIG.career.boat);
     // The career's boat kitted out as the career has her (any other boat as she is).
     const without = KIT_BOATS.includes(boat) && MODE !== 'voyage' ? startFit() : [];
     useWorkboatFit(socketsWithout(boat === 'workboat' ? without : []));
@@ -937,6 +938,11 @@ export class App {
     if (VOYAGE_MAP_ID) this.world.build.map = VOYAGE_MAP_ID;
     this.world.build.mode = MODE;
     this.world.build.site = SITE;
+    // Training mode: the exercise engine's state (training/training.ts), and no calls while you practise.
+    if (TRAINING) {
+      this.world.training = createTraining();
+      this.world.quietCalls = true;
+    }
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
@@ -1097,8 +1103,8 @@ export class App {
     const modules = recipe ? assembleView(recipe, def, LIBRARY) : null;
     if (modules?.modules.length) {
       const boat = new BoatView(vessel.id, def, modules, vessel.id === this.testVesselId);
-      // Voyage: no career, so no duty board on any boat (world.voyage).
-      if (MODE === 'voyage' && boat.dutyBoard) boat.dutyBoard.root.visible = false;
+      // Voyage: no career, so no duty board on any boat (world.voyage); Training keeps it for the exercise's steps.
+      if (MODE === 'voyage' && !TRAINING && boat.dutyBoard) boat.dutyBoard.root.visible = false;
       view.root.add(boat.root);
       this.boats.set(vessel.id, boat);
       // A boat that came after the start (multi-boat M2): her controls work from now.
@@ -2968,6 +2974,14 @@ export class App {
       timeOfDay: () => env().timeOfDay,
       shiftTime: (h) => this.pushEnvIntent('timeOfDayDelta', h),
       quietCalls: () => !!this.world.quietCalls,
+      training: () => this.world.training ?? null,
+      trainingSend: (control, ref) => {
+        const home = this.world.vessels[this.world.homeVesselId ?? ''];
+        if (!home) return;
+        this.intents.push({ playerId: this.localPlayerId, targetId: home.id, control, value: 1, ...(ref ? { ref } : {}) });
+        // An exercise starts with you aboard her, at the helm, wherever you were (as Go does).
+        if (control !== 'trainingAbort' && this.world.players[this.localPlayerId]?.aboardVesselId !== home.id) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: home.id });
+      },
       setQuietCalls: (on) => this.pushEnvIntent('quietCalls', on ? 1 : 0),
       timeScale: () => env().timeScale,
       setTimeScale: (v) => this.pushEnvIntent('timeScale', v),
@@ -4318,10 +4332,12 @@ export class App {
     // and reloading couldn't fix it): to theirs.
     const site = world.build?.site && world.build.site !== SITE ? world.build.site : null;
     if (mode === MODE && map === VOYAGE_MAP_ID && !site) return true;
-    const url = new URL((site ?? SITE) + (mode === 'voyage' ? 'voyage.html' : 'career.html'), location.origin);
-    if (map) url.searchParams.set('map', map);
+    // (The training harbour is its own page: training.html, the map implied.)
+    const training = map === TRAINING_MAP_ID;
+    const url = new URL((site ?? SITE) + (training ? 'training.html' : mode === 'voyage' ? 'voyage.html' : 'career.html'), location.origin);
+    if (map && !training) url.searchParams.set('map', map);
     url.searchParams.set('join', this.joinCode);
-    const where = site ? `playing at ${location.origin}${site}` : map ? `in Voyage: ${voyageMap(map)?.name ?? map}` : 'in their career';
+    const where = site ? `playing at ${location.origin}${site}` : training ? 'in Training' : map ? `in Voyage: ${voyageMap(map)?.name ?? map}` : 'in their career';
     this.reloadToJoin(url, `The host is ${where}: loading it and joining`);
     return false;
   }
@@ -4696,8 +4712,8 @@ export class App {
     this.chartBoard.setLandSource((id) => this.worldView.terrainPositions(id));
     this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
     this.dutyBoard = home.dutyBoard;
-    // Voyage: no career, no duty board (world.voyage).
-    if (MODE === 'voyage' && this.dutyBoard) this.dutyBoard.root.visible = false;
+    // Voyage: no career, no duty board (world.voyage); Training keeps it for the exercise's steps.
+    if (MODE === 'voyage' && !TRAINING && this.dutyBoard) this.dutyBoard.root.visible = false;
     this.chartTools?.root.removeFromParent();
     this.chartTools = null;
     this.chartTable = home.chartTable;
@@ -6219,7 +6235,8 @@ export class App {
    * address says `?start` (the map's start berth again, the place forgotten).
    */
   private restoreVoyagePlace(): void {
-    if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
+    // (Training starts at the harbour's berth every time: each exercise places her itself.)
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || TRAINING) return;
     if (START_PARAMS.has('start')) {
       forgetPlace(VOYAGE_MAP_ID);
       return;
@@ -6370,7 +6387,7 @@ export class App {
 
   /** Voyage mode: remember where we are on this map, every few seconds and as the page closes (alone or hosting). */
   private rememberVoyagePlace(dt: number): void {
-    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || !this.savesHere()) return;
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || TRAINING || !this.savesHere()) return;
     this.rememberT += dt;
     if (this.rememberT < CONFIG.voyage.rememberEveryS) return;
     this.rememberT = 0;

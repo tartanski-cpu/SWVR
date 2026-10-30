@@ -47,12 +47,13 @@ The owner runs a separate chat for each area, so their agents can work side by s
 | **Modular builder**: new modules | `src/modules/`, `src/modular/`, `src/mechanisms/` | `src/config/modules.ts` | `docs/progress/modules.md` | /SWVR/preview/modules/ (`preview/modules`) |
 | **Map** | `tools/coast/`, `coast.html`, `public/regions/`, `src/world/regions/`, `src/world/coast*.ts`, `src/world/maps.ts`, `src/world/view/coastView.ts` | `src/config/map.ts` | `docs/progress/map.md` | /SWVR/preview/map/ (`preview/map`) |
 | **Hull modifications** | `src/hulls/`, `hulls.html` | none | `docs/progress/hulls.md` | /SWVR/preview/hulls/ (`preview/hulls`) |
+| **Training** (owner, 30 Oct 2026) | `src/training/`, `training.html`, `src/world/regions/training.ts` (the training harbour: a region is always a data file in that folder, so this one file of the map area's folder is Training's) | `src/config/training.ts` | `docs/progress/training.md` | /SWVR/preview/training/ (`preview/training`) |
 
 - **Stay in your area's files.** Everything else is **shared**: `src/core/`, `src/vessel/`, `src/boats/`, the rest of `src/world/`, `src/config/vessels.ts`, `package.json`, the workflows, `CLAUDE.md`, `PROGRESS.md`, `README.md`. Change a shared file only when your work needs it, keep that change small, and say so in your log under a **Shared changes** line, so the other chats know what moved under them. A bigger change to shared code (the simulation, vessel physics, multiplayer) is the main game chat's, or the owner's call.
 - **Your settings go in your area's settings file.** `src/config.ts` joins them all into one `CONFIG`, read as ever (`CONFIG.shipyard...`).
 - **Your log, not PROGRESS.md.** Write each change set at the top of your area's `docs/progress/<area>.md`. `PROGRESS.md` keeps the shared decisions, the roadmap and the history up to 23 Oct 2026; update it only for a decision that affects every area.
 - **Your own preview address.** An area chat (not the main game) pushes its milestones to `preview/<area>` (`git push origin HEAD:preview/<area>`; the branch is made on the first push). It's published at https://tartanski-cpu.github.io/SWVR/preview/<area>/, with the area's name in the menu header and the tab. Tests run on every push to a preview branch (`.github/workflows/check.yml`); check that run, then the address's `build.json`, before telling the owner it's live. The main game chat keeps using `next`.
-- **While working, run your area's tests** (`npm run test:shipyard`, `test:modules`, `test:map`; the hull study: typecheck, then `test:shipyard`) and the typecheck. Before work moves on, run all of `npm test`.
+- **While working, run your area's tests** (`npm run test:shipyard`, `test:modules`, `test:map`, `test:training`; the hull study: typecheck, then `test:shipyard`) and the typecheck. Before work moves on, run all of `npm test`.
 - **Keep up with `next`:** merge `origin/next` into your branch at the start of each change set. With each area in its own files it merges cleanly; a conflict means a shared file, so look at what the other chat did before settling it.
 - **When the owner says an area's milestone is good,** merge it into `next` (merge `origin/next` in first, run all of `npm test`, push to `next`), and it goes on to the game from there as before.
 - **All addresses share one browser storage** (same site): career saves and settings are shared with the game, as for `next` (see below).
@@ -64,13 +65,13 @@ npm install
 npm run dev         # HTTPS dev server (self-signed; the Quest can join over the LAN)
 npm run typecheck
 npm test            # vitest, all tests
-npm run test:shipyard / test:modules / test:map   # one area's tests (see "Working in areas")
+npm run test:shipyard / test:modules / test:map / test:training   # one area's tests (see "Working in areas")
 npm run trials      # sea-trials report (speed, turning, stopping)
 npm run crewcheck   # two-browser multiplayer check (needs npm run dev running): join, crew list, launch, tow, leave
 npm run build
 ```
 
-Headless browser checks: Chromium is pre-installed for Playwright. Launch it with `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader` and ignore HTTPS errors. `https://localhost:5173/` is the landing page (career / voyage / training); the game pages are `career.html` (the career game, with all the `?design=` / `?game=` parameters) and `voyage.html?map=<id>` (a coast map on its own, `src/mode.ts`, `src/world/maps.ts`). The app is exposed as `window.app` for scripting.
+Headless browser checks: Chromium is pre-installed for Playwright. Launch it with `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader` and ignore HTTPS errors. `https://localhost:5173/` is the landing page (career / voyage / training); the game pages are `career.html` (the career game, with all the `?design=` / `?game=` parameters) `voyage.html?map=<id>` (a coast map on its own, `src/mode.ts`, `src/world/maps.ts`) and `training.html` (Training: a Voyage on the training harbour, `src/training/`). The app is exposed as `window.app` for scripting.
 
 ## How the code is organised
 
@@ -90,7 +91,7 @@ Headless browser checks: Chromium is pre-installed for Playwright. Launch it wit
 - `PROGRESS.md`: the shared decisions, the roadmap and known issues, and every change set up to 23 Oct 2026. **The source of truth for where things stand**, with the areas' logs since then.
 - `docs/progress/<area>.md`: each area's change sets from 23 Oct 2026 (game, shipyard, modules, map, hulls).
 - `README.md`: for players. Controls, features, how to play.
-- `docs/MULTIPLAYER.md`, `docs/TESTING_NEW_BOATS.md`: topic guides. `docs/TRAINING.md`: the plan for Training mode (not built).
+- `docs/MULTIPLAYER.md`, `docs/TESTING_NEW_BOATS.md`: topic guides. `docs/TRAINING.md`: the plan for Training mode (milestone 1 built: `docs/progress/training.md`).
 - `ideas.md`: the owner's feature ideas list. It may lag behind; `PROGRESS.md` wins.
 - **Release notes** (owner, 26 Oct 2026: "release notes like this form from now on"): a published page in the form of https://claude.ai/artifact/88WruzhXWjxsseUUCnEehX (Wreck ROV's): a masthead with play links, an "at a glance" grid, a dated log of entries (a rail with the part of the work, its days and its trade; a heading, a short summary, bullets, captioned development screenshots), then Try it, Known limits and Coming next. **Always** (owner, 26 Oct 2026): an artifact, never only a file or a chat message; with development screenshots (new ones for each change set, taken in headless Chromium); and interactive (at least: filter the entries by part of the work, screenshots open large, and something that lets the reader try a number or a before-and-after, where the notes have one). The latest is https://claude.ai/artifact/KrMAcPXRf47XEgd87APdnC. Keep the same notes as text in `docs/RELEASE_NOTES_<date>.md`.
 

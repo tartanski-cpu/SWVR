@@ -55,6 +55,7 @@ import { stepRodSale } from '../fishing/rod';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
 import { stepProjects } from '../career/projects';
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
+import { applyTrainingIntent, isTrainingIntent, stepTraining } from '../training/training';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import { homeVessel, type WorldState } from './world';
@@ -122,6 +123,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyPlanIntent(world, intent);
     } else if (isTutorialIntent(intent.control)) {
       applyTutorialIntent(world, intent);
+    } else if (isTrainingIntent(intent.control)) {
+      applyTrainingIntent(world, intent);
     } else if (isCareerIntent(intent.control)) {
       applyCareerIntent(world, intent);
     } else if (isSalvageIntent(intent.control)) {
@@ -280,6 +283,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepCareer(world);
   stepProjects(world, dt);
   stepTutorial(world);
+  stepTraining(world);
   world.tick += 1;
   world.time = world.tick * dt;
 }

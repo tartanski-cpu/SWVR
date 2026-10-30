@@ -4,14 +4,15 @@ import { FLEET } from '../boats/fleet';
 import { CONFIG } from '../config';
 import { PORTS } from '../world/archipelago';
 import { REGIONS } from '../world/regions';
-import { MODE, VOYAGE_MAP_ID } from '../mode';
+import { MODE, TRAINING, VOYAGE_MAP_ID } from '../mode';
+import { trainingPage, type TrainingMenuHost } from '../training/trainingMenu';
 import { voyageMap } from '../world/maps';
 import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
 import { ALPHABET } from '../shipyard/design';
 import { groupCode, PER_PAGE, type ShipyardCodes } from '../shipyard/takeHer';
 
 /** What the menu can read and change. Implemented by the App; keeps the menu UI-only. */
-export interface MenuHost {
+export interface MenuHost extends TrainingMenuHost {
   timeOfDay(): number;
   shiftTime(hours: number): void;
   /** Game hours per real second. */
@@ -389,7 +390,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     active: () => get() === value,
     press: () => set(value),
   });
-  const title = MODE === 'voyage' ? `Voyage: ${voyageMap(VOYAGE_MAP_ID)?.name ?? VOYAGE_MAP_ID}` : 'Workboat World';
+  const title = TRAINING ? 'Training' : MODE === 'voyage' ? `Voyage: ${voyageMap(VOYAGE_MAP_ID)?.name ?? VOYAGE_MAP_ID}` : 'Workboat World';
   const header: MenuRow[] = [{ label: '', buttons: [{ text: `${title}  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
 
   // ---------------------------------------------------------------------------------
@@ -1110,6 +1111,8 @@ export function mainMenu(h: MenuHost): MainMenu {
   return {
     header,
     pages: [
+      // Training mode's exercises first (training/trainingMenu.ts).
+      ...(TRAINING ? [trainingPage(h)] : []),
       { name: 'Voyage', sections: [{ name: 'Plan', rows: voyagePlan }, { name: 'Job', rows: voyageJob }, { name: 'Weather', rows: voyageWeather }] },
       { name: 'Boat', sections: [{ name: 'Deck', rows: deck }, { name: 'FM radio', rows: fmRadio }] },
       { name: 'Cargo', rows: cargo },

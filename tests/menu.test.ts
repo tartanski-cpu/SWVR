@@ -31,6 +31,8 @@ function fakeHost() {
   const cam = { on: false, fov: 60, speed: 1, smooth: true, rideBoat: true, clean: true, zoom: (n: number) => (cam.fov += n * 2) };
   const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, fov: 70, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
   const host: MenuHost = {
+    training: () => null,
+    trainingSend: (c) => calls.push(c),
     passageCruise: () => '',
     passageLine: () => '',
     passageButton: () => 'Go',

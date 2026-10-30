@@ -2,6 +2,7 @@ import { VESSELS_CONFIG } from './config/vessels';
 import { SHIPYARD_CONFIG } from './config/shipyard';
 import { MODULES_CONFIG } from './config/modules';
 import { MAP_CONFIG } from './config/map';
+import { TRAINING_CONFIG } from './config/training';
 /**
  * Every tunable number in the game lives here, grouped by module.
  * Units are SI (metres, seconds, kilograms, radians) unless the name says otherwise.
@@ -3761,6 +3762,7 @@ export const CONFIG = {
   ...SHIPYARD_CONFIG,
   ...MODULES_CONFIG,
   ...MAP_CONFIG,
+  ...TRAINING_CONFIG,
 };
 
 export type Config = typeof CONFIG;

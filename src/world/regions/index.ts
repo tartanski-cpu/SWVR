@@ -14,7 +14,8 @@ import { NARROWS } from './narrows';
 
 import { OBAN } from './oban';
 import { TAYVALLICH } from './tayvallich';
-import { MODE, VOYAGE_MAP_ID } from '../../mode';
+import { MODE, TRAINING, VOYAGE_MAP_ID } from '../../mode';
+import { TRAINING as TRAINING_HARBOUR } from './training';
 import { mapRegion, voyageMap } from '../maps';
 
 /**
@@ -24,7 +25,8 @@ import { mapRegion, voyageMap } from '../maps';
  * (world/maps.ts), nothing else.
  */
 export const COAST_REGIONS: Record<string, RegionDef> = { oban: OBAN, tayvallich: TAYVALLICH };
-export const REGIONS: readonly RegionDef[] = MODE === 'voyage' ? [mapRegion((voyageMap(VOYAGE_MAP_ID) ?? voyageMap('oban'))!)] : [HOME, SOUNDS, FJORD, NARROWS];
+// Training mode (mode.ts TRAINING): the training harbour alone (regions/training.ts; docs/TRAINING.md).
+export const REGIONS: readonly RegionDef[] = TRAINING ? [TRAINING_HARBOUR] : MODE === 'voyage' ? [mapRegion((voyageMap(VOYAGE_MAP_ID) ?? voyageMap('oban'))!)] : [HOME, SOUNDS, FJORD, NARROWS];
 
 export function regionById(id: string): RegionDef | undefined {
   return REGIONS.find((r) => r.id === id);
