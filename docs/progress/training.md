@@ -12,7 +12,7 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### M1: the training harbour and five harbour exercises (30 Oct 2026)
 
-**On `preview/training` for the owner to try.**
+**On `preview/training` for the owner to try.** Release notes: https://claude.ai/artifact/1YCyusD75iMebk1vM7DK5w (text: `docs/RELEASE_NOTES_2026-10-30_training.md`).
 
 Owner, 30 Oct 2026, on the plan's questions: Training is its own area; the training boat is the fishing boat (with prop walk); the verdict is "passed / try again" first, the total underneath; English only.
 
