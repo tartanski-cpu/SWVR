@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### Fishing grounds on every map, fewer potting grounds on Sunnmøre (30 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner: "Can it be that I can't see fishing areas on the voyage maps, only lobster potting areas?"; then: "I think there's maybe too many potting grounds on Sunnmøre ... I'd like to have some fishing areas on all the maps. Hamburg can have none because it's an industrial harbour ... make a realistic guess about where those pots would be and the grounds would be."
 
 - **Why:** the pipeline placed one fishing ground per species (350 m across) at the single best depth on the whole map, so a map had 1-3; and lobster is potting, not a ground. Potting grounds went round every charted rock (Sunnmøre 2,746).
