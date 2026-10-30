@@ -86,6 +86,7 @@ import { SurfListener } from '../world/surf';
 import { REGIONS, regionAt, regionById } from '../world/regions';
 import { MODE, TRAINING, TRAINING_MAP_ID, VOYAGE_MAP_ID } from '../mode';
 import { createTraining } from '../training/training';
+import { TrainingRuns } from '../training/trainingRuns';
 import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
 import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthNear, wholeView } from '../voyage/plan';
 import { planFaceAspect, PlanTable, planTableSize, planTableSpot, type PlanTableForm, type PlanTableSpot } from '../voyage/planTable';
@@ -553,6 +554,8 @@ export class App {
    * chart table's PLAN sheet, the plotter's PLAN mode; a hand's ray or the reticle works them.
    */
   private readonly padFaces = new PadFaces();
+  /** Training mode: the runs recorded on this page and their chart review (training/trainingRuns.ts); null elsewhere. */
+  private trainingRuns: TrainingRuns | null = null;
   /** The planning chart, each player's own view (voyage/planChart.ts): full-screen on the desktop (M), on a board in the left hand in VR. */
   private readonly planPanel = new PlanChartPanel({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) });
   private readonly chartBoard = new ChartBoard({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) }, () => {
@@ -960,6 +963,15 @@ export class App {
 
     this.rig = new PlayerRig(this.localPlayerId, this.camera);
     this.scene.add(this.rig.carrier);
+    if (TRAINING) {
+      this.trainingRuns = new TrainingRuns({
+        world: () => this.world,
+        inXR: () => this.renderer.xr.isPresenting,
+        camera: () => this.camera,
+        carrier: () => this.rig.carrier,
+        notify: (text, s) => this.overlay.notify(text, s ?? 4),
+      });
+    }
     this.placePanelOnRig();
     this.camera.add(this.comfortOverlay.mesh);
     // VR messages: a word-wrapped card low in the view, and a buzz on the left hand (debug/overlay.ts).
@@ -1147,6 +1159,7 @@ export class App {
 
     // 2. Simulation: fixed steps here (alone or hosting), or the host's snapshots (client).
     const renderTime = this.stepSimulation(dt);
+    this.trainingRuns?.update(dt);
     const t1 = performance.now();
 
     // 3. Views, in this order: each reads what the one before posed.
@@ -1255,6 +1268,8 @@ export class App {
           if (s) view.snapshot(s);
         }
         stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+        // Training: each attempt recorded as it goes (training/recording.ts).
+        this.trainingRuns?.afterTick(this.world);
       }
       this.syncVesselViews();
       // Rendering runs one tick behind the simulation and interpolates between the previous
@@ -2975,6 +2990,7 @@ export class App {
       shiftTime: (h) => this.pushEnvIntent('timeOfDayDelta', h),
       quietCalls: () => !!this.world.quietCalls,
       training: () => this.world.training ?? null,
+      trainingRuns: () => this.trainingRuns,
       trainingSend: (control, ref) => {
         const home = this.world.vessels[this.world.homeVesselId ?? ''];
         if (!home) return;
@@ -4095,7 +4111,10 @@ export class App {
     const ticks = Math.floor(this.hiddenAcc);
     this.hiddenAcc -= ticks;
     for (const i of this.host.takeIntents()) this.intents.push(i);
-    for (let k = 0; k < ticks; k++) stepWorld(this.world, k === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+    for (let k = 0; k < ticks; k++) {
+      stepWorld(this.world, k === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+      this.trainingRuns?.afterTick(this.world);
+    }
     this.host.tick(since);
   }
   /** The heartbeat's notice given (the host gone quiet), so it's said once. */
@@ -4709,6 +4728,7 @@ export class App {
     this.searchlight = home.api<SearchlightApi>('deck.searchlight');
     home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
     this.planPanel.setLandSource((id) => this.worldView.terrainPositions(id));
+    this.trainingRuns?.panel.setLandSource((id) => this.worldView.terrainPositions(id));
     this.chartBoard.setLandSource((id) => this.worldView.terrainPositions(id));
     this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
     this.dutyBoard = home.dutyBoard;

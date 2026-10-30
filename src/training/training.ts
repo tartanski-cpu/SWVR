@@ -45,6 +45,8 @@ export interface TrainingResult {
 export interface TrainingState {
   /** The exercise running (exercises.ts id), or null between exercises. */
   id: string | null;
+  /** Who started it (a player id): the trainee, whose place the recording keeps. */
+  by?: string;
   /** Which attempt this is (1 or 2: CONFIG.training.attempts). */
   attempt: number;
   /** The step being worked on (index into its steps). */
@@ -96,16 +98,16 @@ export function applyTrainingIntent(world: WorldState, intent: Intent): void {
   if (!t || !v) return;
   switch (intent.control) {
     case 'trainingStart':
-      if (intent.ref && exerciseById(intent.ref)) begin(world, t, v, intent.ref, 1);
+      if (intent.ref && exerciseById(intent.ref)) begin(world, t, v, intent.ref, 1, intent.playerId);
       break;
     case 'trainingRetry': {
       const r = t.result;
       if (!r || t.id) break;
-      begin(world, t, v, r.id, !r.passed && r.attempt < CONFIG.training.attempts ? r.attempt + 1 : 1);
+      begin(world, t, v, r.id, !r.passed && r.attempt < CONFIG.training.attempts ? r.attempt + 1 : 1, intent.playerId);
       break;
     }
     case 'trainingRestart':
-      if (t.id) begin(world, t, v, t.id, t.attempt);
+      if (t.id) begin(world, t, v, t.id, t.attempt, intent.playerId);
       break;
     case 'trainingAbort':
       if (t.id) {
@@ -119,12 +121,12 @@ export function applyTrainingIntent(world: WorldState, intent: Intent): void {
 }
 
 /** An attempt from the beginning: the boat in place, the wind set, the first step to come. */
-function begin(world: WorldState, t: TrainingState, v: VesselState, id: string, attempt: number): void {
+function begin(world: WorldState, t: TrainingState, v: VesselState, id: string, attempt: number, by: string): void {
   const ex = exerciseById(id)!;
   // Nothing else calls while you practise.
   world.quietCalls = true;
   ex.setup(world, v);
-  Object.assign(t, { id, attempt, step: 0, said: false, startedAt: world.time, stepAt: world.time, faults: [], lastFault: {}, data: {}, result: null, queue: [], quietUntil: 0 });
+  Object.assign(t, { id, by, attempt, step: 0, said: false, startedAt: world.time, stepAt: world.time, faults: [], lastFault: {}, data: {}, result: null, queue: [], quietUntil: 0 });
   t.seq += 1;
   voice(world, t, `${ex.code} ${ex.name}, attempt ${attempt} of ${CONFIG.training.attempts}. ${ex.brief}`);
 }

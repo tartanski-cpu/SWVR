@@ -10,6 +10,27 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### M2: every attempt recorded, and reviewed on the chart (30 Oct 2026)
+
+**On `preview/training` for the owner to try.** Owner, 30 Oct 2026: "continue as you can with some of the existing boats" (the Shipyard training boats later); the fishing boat stays the training boat, and M2 doesn't depend on the boat.
+
+- **The recording** (`src/training/recording.ts`): each attempt, from its start to its verdict (or Stop, or Start again: those end it with no verdict), recorded by the page that runs the world (alone or hosting). Three streams, as the plan has them: **samples** 10 a second, one fixed row of 33 numbers (her position, orientation, motion, lever, helm, rudder, thrust, revs, gear, engine, lights, horn, fenders, lines, anchor, the knock, and the trainee's place: enough for the rendered replay later without changing the form); **keyframes**, the whole world as JSON every 30 s; **events** on the attempt's clock: start, each step done, faults with their weight, touches (over 0.25 kn), lines ashore and let go, the horn, the instructor's lines, the verdict. Samples, not the controls replayed: the physics changes from build to build, so a replay of inputs would drift. `LAYOUT` 1 marks the form. A 49 s H5 run: 65 KB of samples, two keyframes of 6.5 KB, 38 KB as a file.
+- **Kept in this browser** (`src/training/runStore.ts`): IndexedDB `swvr.training`, never localStorage (small, and the career saves are there); the last 40 runs, the oldest dropped. If the browser won't store it, the run is kept for the session.
+- **The Training tab's Runs section** (`trainingMenu.ts`): the runs newest first (the exercise, the attempt, the verdict, the time, how long), each with **Review** and **Save** (a `.json.gz` file); **Load a recording from a file** on the desktop. "Recording this attempt" while one is.
+- **The review** (`src/training/review.ts`, `reviewPanel.ts`): the run on the harbour's chart (the planning chart's own painter for the land, the shallows and the marks, with the quays, jetties and dock walls drawn on it), the track coloured by speed (blue at rest to red at 6 kn), pins at the events (blue steps, red faults with their weight, a cross for the one that failed it, orange touches, purple lines), the other attempt at the same exercise (within the hour) wide and grey underneath, the boat to scale where she was, a time bar with the events as ticks, and that moment's numbers: speed, heading, lever, rudder, revs, distance off the nearest quay face, lines; the event just passed. Worked from the Runs section: back and on 10 s, previous and next event, Play / Pause at ×1, ×4 or ×10. On the desktop it shows in a box at the bottom left (click or drag along its time bar; click the chart to play or pause); in VR as one panel 1.3 m in front of you, carried with you.
+- **A change from the plan:** the plan put the track on the paper chart and the chartplotter. The review has its own picture instead: it keeps the Training area out of the chart code (the main game's), shows the quay that the chart leaves out, and costs one draw call only while open.
+- **Config keys** (`CONFIG.training`): `record` (`hz`, `keyframeS`, `touchKn`, `touchGapS`, `keepRuns`, `menuRows`), `review` (`playRates`, `fastKn`).
+- **Tests:** `tests/trainingRecording.test.ts` (4): an H5 attempt driven to a pass is recorded with 10 samples a second, a keyframe each 30 s, its steps and verdict; Start again and Stop end a run with no verdict and the next attempt is its own; a run to a gzipped file and back unchanged, a file that isn't one or is from a newer build turned away; the review's numbers, the events either side of a moment, the chart framed on the track, the distance off the quay at Berth B (2.5 m). `npm run test:training` (11), the typecheck and all of `npm test` pass.
+- **Seen headless:** two H5 attempts (a crash stop, then the walk corrected) recorded and listed; attempt 2 reviewed with attempt 1 grey beside it, the boat at the call; a failed H6 reviewed in the dock with its touch and its fail pin; the Runs section; a run saved as a file and loaded back; the runs still listed after a reload. No page errors.
+- **Not checked:** the VR panel (no headset here); on the Quest.
+- **Shared changes:** `src/app/App.ts` (the runs controller on the training page: fed after each tick, alone or hosting, updated each frame, the land for its chart; the menu host's `trainingRuns`); `tests/menu.test.ts` (that member). `src/training/training.ts` keeps who started the attempt (`by`).
+
+**Try it**
+
+- *Desktop:* on the training page, run **H5** twice (the second with **Second attempt**). Menu (**O**), **Training**, **Runs**: both are listed. **Review** the second: the chart opens at the bottom left with the first grey under it. **Next event** to the call; **Play**; drag along the time bar. **Save** one, then **Load a recording from a file** and pick it.
+- *VR:* run an exercise, then on the wrist menu **Training → Runs → Review**: the review hangs in front of you; work it from the menu (**Play**, **Next event**, **+10 s**), and **Close** it there.
+
+
 ### M1: the training harbour and five harbour exercises (30 Oct 2026)
 
 **On `preview/training` for the owner to try.** Release notes: https://claude.ai/artifact/1YCyusD75iMebk1vM7DK5w (text: `docs/RELEASE_NOTES_2026-10-30_training.md`).

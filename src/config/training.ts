@@ -43,6 +43,19 @@ export const TRAINING_CONFIG = {
     voicePauseS: 1,
     /** The weight of each fault (3 fails the run); the total sits under the verdict. */
     weights: { speed: 1, knock: 2, fail: 3 },
+    /**
+     * The recording (training/recording.ts; docs/TRAINING.md section 6): a sample `hz` times a
+     * second (her pose, motion, controls, machinery, the trainee), the whole world every
+     * `keyframeS` s, a touch noted as an event over `touchKn` (at most every `touchGapS` s).
+     * The page keeps the last `keepRuns` runs (runStore.ts), listed `menuRows` at a time in
+     * the Training tab's Runs.
+     */
+    record: { hz: 10, keyframeS: 30, touchKn: 0.25, touchGapS: 1, keepRuns: 40, menuRows: 5 },
+    /**
+     * The review (training/review.ts): played back `playRates` times real time (the button
+     * steps through them), the track coloured from slow to `fastKn` and over.
+     */
+    review: { playRates: [1, 4, 10], fastKn: 6 },
 
     /**
      * H5, stop on course (SBF "kursgerechtes Aufstoppen"; RYA L2 taking way off): down the lane
