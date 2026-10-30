@@ -10,6 +10,17 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The menu tidied: shorter pages, sections, rows that close up (30 Oct 2026)
+
+Owner: "The menu is a bit of a mess, especially in VR. It's very long. There are too many buttons... tidy it up and organize it in a better way. I don't want to lose any of the functionality."
+
+- **The cause of "very long":** the panel was as tall as its tallest page (Debug > World, 1558 px for 640 wide) whatever tab you were on: on the wrist a 0.58 m board, mostly empty. Now (`ui/menuPanel.ts`) the board is drawn only as deep as the page shown, the quad's top stays put on the wrist, and below the page the quad is clear and takes no pointing (a ray there reaches the bridge controls behind). The desktop's flat menu (O) hangs from the top of the window, cut to the page shown, one scale for every page so nothing moves under the mouse as you switch tabs.
+- **Rows that close up:** a row (or heading) can carry `when`; while it says no, the row is left out and the page closes up (the rows above stay put). Used for the empty cargo slots, the ledger, the job offers, the project lines, the crew-mates who aren't there, the Shipyard favourites, "Back to your own game", "Stop waiting", the join keypad (only while alone), "Last time:" boats, the page turner, the live-weather credit, the sea-here line. The layout is worked out again only when the pattern of shown rows changes; a scrolling list keeps its place across that.
+- **Sections** (`ui/mainMenu.ts`), so no page is more than about ten rows: Voyage = Plan / Job / Weather (the clock with the weather); Boat = Deck (this boat, SOS, tow, docking, anchor, skiff, fuel) / FM radio (stations two to a row); Crew = Game (status with one Host / Stop hosting / Leave button, the keypad) / Aboard (crew, your name, voices) / Your boat (Voyage) / Camera; Settings = Comfort / Sound / Game / Credits (the credits were under Game); Debug = Hands / World (VR fly, time, move, board) / Weather (the sliders, short seas, tidal races, gusts) / Boat / Missions / Views. Cargo, Office, World as they were, with their empty rows closing up. The regions and the fleet two or three to a row instead of four or six squashed. The page tabs are drawn as tabs (flat, the one shown underlined), not as a row of buttons. Long headings are squeezed to fit rather than cut.
+- **Nothing taken out:** every button and readout is still there; the tab names are the same (the App's "typing a game code on the Crew tab" still holds). Tallest page now 1032 px (Debug > World with every port row); most pages 400 to 700 px, i.e. 0.15 to 0.26 m on the wrist.
+- **Tests:** tests/menu.test.ts (+3: a row closes up and opens again with the rows below moving; the panel drawn only as deep as the page and a ray below it meeting nothing; the tabs and the Crew sections, the keypad only alone); two older tests now point at Voyage > Plan's button.
+- **Checked:** headless screenshots of every tab and section, career and Voyage (Oban): see the pictures in the scratchpad; typecheck and `npm test`. **Not checked:** on the Quest (the poke and ray on a shorter panel; the perf panel beside the menu still sits by the quad's top-right corner, as before).
+
 ### Training mode: the plan (30 Oct 2026)
 
 Owner: "Take a look at the RYA power boat syllabus and the German Sportbootführerschein and come up with a plan to build out the Training module."
