@@ -115,6 +115,46 @@ describe("the quay's planning table", () => {
   });
 });
 
+describe("the quay board's shared view", () => {
+  it("one player's drag and zoom go out, and the other player's board shows them once it's left alone; the points stay everyone's", async () => {
+    const { CONFIG } = await import('../src/config');
+    const c = CONFIG.voyage.plan.chart;
+    const keep = [c.shareEveryMs, c.shareHoldMs];
+    c.shareEveryMs = 0;
+    c.shareHoldMs = 0;
+    try {
+      const { world, vesselId } = createWorld(new IdFactory(), 'pilotBoat');
+      // The plan's view as the host keeps it (the `view` intent applied).
+      let shared: { cx: number; cz: number; span: number } | null = null;
+      const sent: number[][] = [];
+      const host = { world: () => world, ownBoatId: () => vesselId, send: () => {} };
+      const opts = (who: string) => ({ px: 1000, aspect: 1.5, toolbarShare: 0.1, keys: ['way' as const], redrawS: 0, shared: { get: () => shared, set: (v: { cx: number; cz: number; span: number }) => { sent.push([v.cx, v.cz, v.span]); shared = { ...v }; void who; } } });
+      const a = new ChartPad(host, opts('a'));
+      const b = new ChartPad(host, opts('b'));
+      // A drags: the spot under the pointer stays, and the view goes out.
+      a.input([500, 300], true);
+      a.input([600, 350], true);
+      a.input([600, 350], false);
+      a.update(0);
+      expect(sent.length).toBeGreaterThan(0);
+      // B, untouched, shows A's view: the same spot under the same pixel.
+      const pa = a.worldAt([300, 200]);
+      const pb = b.worldAt([300, 200]);
+      expect(pb[0]).toBeCloseTo(pa[0], 3);
+      expect(pb[1]).toBeCloseTo(pa[1], 3);
+      // B zooms: A follows.
+      b.input([400, 300], false, 2);
+      b.update(0);
+      const qa = a.worldAt([100, 100]);
+      const qb = b.worldAt([100, 100]);
+      expect(qa[0]).toBeCloseTo(qb[0], 3);
+      expect(qa[1]).toBeCloseTo(qb[1], 3);
+    } finally {
+      [c.shareEveryMs, c.shareHoldMs] = keep;
+    }
+  });
+});
+
 describe('the chart board in VR', () => {
   it('comes up in front of you on the boat, stays with her, and is carried by a grip on its frame and left where you let go', () => {
     const { world, vesselId } = createWorld(new IdFactory(), 'pilotBoat');

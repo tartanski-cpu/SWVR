@@ -28,6 +28,8 @@ export class WristMenu {
   private hover: MenuButton | null = null;
   /** The flat desktop menu (owner): the panel's canvas as a page element, centred, mouse-driven. */
   private flat: HTMLDivElement | null = null;
+  /** The frame round the canvas on the page, cut to the page shown. */
+  private flatFrame: HTMLDivElement | null = null;
   private flatOpen = false;
 
   /**
@@ -65,17 +67,23 @@ export class WristMenu {
 
   /**
    * Desktop: the menu flat on the screen (owner request: easier to use than floating in
-   * the 3D view). The same canvas the panel draws, shown as a page element in the middle of
-   * the window, as tall as fits; the mouse hovers and clicks it directly. The mouse must be
-   * free: the caller releases the pointer lock. Closed by `close()` (O again).
+   * the 3D view). The same canvas the panel draws, shown as a page element near the top of
+   * the window, as tall as fits, cut off below the page shown (the canvas is as tall as the
+   * tallest page; the frame hangs from the top, so the tabs stay put as pages change
+   * height); the mouse hovers and clicks it directly. The mouse must be free: the caller
+   * releases the pointer lock. Closed by `close()` (O again).
    */
   openFlat(): void {
     if (!this.flat && typeof document !== 'undefined') {
       const d = document.createElement('div');
-      d.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:100;background:rgba(0,0,0,0.25);cursor:default;';
+      d.style.cssText = 'position:fixed;inset:0;display:none;align-items:flex-start;justify-content:center;padding-top:4vh;box-sizing:border-box;z-index:100;background:rgba(0,0,0,0.25);cursor:default;';
       const c = this.panel.element;
-      c.style.cssText = 'display:block;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.5);cursor:pointer;';
-      d.appendChild(c);
+      c.style.cssText = 'display:block;cursor:pointer;';
+      const frame = document.createElement('div');
+      frame.style.cssText = 'overflow:hidden;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.5);';
+      frame.appendChild(c);
+      d.appendChild(frame);
+      this.flatFrame = frame;
       const at = (e: MouseEvent) => {
         const r = c.getBoundingClientRect();
         const s = this.panel.pixelSize;
@@ -117,7 +125,11 @@ export class WristMenu {
     this.panel.refresh(true);
   }
 
-  /** The flat menu as tall as the window allows (its own pixels at most), keeping its shape. */
+  /**
+   * The flat menu as tall as the window allows for the tallest page (its own pixels at
+   * most), keeping its shape: one scale for every page, so nothing moves under the mouse as
+   * you switch tabs; the frame cut off below the page shown.
+   */
   private fitFlat(): void {
     if (!this.flat) return;
     const s = this.panel.pixelSize;
@@ -125,6 +137,10 @@ export class WristMenu {
     const c = this.panel.element;
     c.style.width = `${Math.round(s.w * scale)}px`;
     c.style.height = `${Math.round(s.h * scale)}px`;
+    if (this.flatFrame) {
+      this.flatFrame.style.width = `${Math.round(s.w * scale)}px`;
+      this.flatFrame.style.height = `${Math.round(this.panel.shownPixelHeight * scale)}px`;
+    }
   }
 
   /** Wear the menu on a (left) controller grip. */
@@ -158,6 +174,7 @@ export class WristMenu {
   /** Once per frame: redraw if what it shows changed (e.g. time flowing, state from the sim). */
   refresh(): void {
     if (this.isOpen) this.panel.refresh();
+    if (this.flatOpen) this.fitFlat();
   }
 
   close(): void {

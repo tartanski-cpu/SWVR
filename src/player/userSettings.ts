@@ -9,6 +9,8 @@ export interface UserSettings {
   /** 0..1, see CONFIG.comfort.motionCoupling (VR) and desktopMotionCoupling (desktop). */
   motionCoupling: number;
   desktopCoupling: number;
+  /** Desktop: the camera's field of view (vertical degrees; CONFIG.render.fovSetting). */
+  desktopFov: number;
   /** Left-stick smooth walking (grab-the-world is always on). */
   smoothWalk: boolean;
   /** Right-stick snap-turn angle (degrees). */
@@ -52,6 +54,7 @@ function load(): UserSettings {
   const s: UserSettings = {
     motionCoupling: CONFIG.comfort.motionCoupling,
     desktopCoupling: CONFIG.comfort.desktopMotionCoupling,
+    desktopFov: CONFIG.render.fovDeg,
     smoothWalk: CONFIG.locomotion.smoothEnabled,
     snapTurnDeg: CONFIG.locomotion.snapTurnDeg,
     playerName: PLAYER_NAMES[Math.floor(Math.random() * PLAYER_NAMES.length)],
@@ -67,6 +70,7 @@ function load(): UserSettings {
       const saved = JSON.parse(raw) as Partial<UserSettings>;
       if (typeof saved.motionCoupling === 'number' && Number.isFinite(saved.motionCoupling)) s.motionCoupling = saved.motionCoupling;
       if (typeof saved.desktopCoupling === 'number' && Number.isFinite(saved.desktopCoupling)) s.desktopCoupling = saved.desktopCoupling;
+      if (typeof saved.desktopFov === 'number' && Number.isFinite(saved.desktopFov)) s.desktopFov = Math.min(CONFIG.render.fovSetting.max, Math.max(CONFIG.render.fovSetting.min, saved.desktopFov));
       if (typeof saved.smoothWalk === 'boolean') s.smoothWalk = saved.smoothWalk;
       if (typeof saved.snapTurnDeg === 'number' && saved.snapTurnDeg > 0) s.snapTurnDeg = saved.snapTurnDeg;
       if (typeof saved.playerName === 'string' && saved.playerName) {

@@ -10,7 +10,7 @@ import { hullPlan } from '../vessel/layout';
 import { groundHeight } from '../world/terrain';
 import { gearOf } from '../boats/sims';
 import { hydraulicsOn } from '../vessel/electrics';
-import { FISH_HANG, haulSummary, nextStretch, offTheLine, sizeWord, type LineFish, type Longline } from './longline';
+import { FISH_HANG, groundOf, haulSummary, nextStretch, offTheLine, sizeWord, type LineFish, type Longline } from './longline';
 
 /**
  * Working a longline by hand (fishing/longline.ts), as the pots are worked (potting/potHands.ts).
@@ -61,6 +61,9 @@ export class LonglineHands {
   /** The fish we last called out, by line (so each is called once); the hauls we've told of. */
   private called = new Map<string, LineFish | null>();
   private told = -1;
+  /** Our lines in the water and shooting, as last seen (to tell each one set, or lost, once): null until first seen. */
+  private seenLines: Set<string> | null = null;
+  private seenShooting = new Set<string>();
   private offToldAt = 0;
   private readonly tmp = new THREE.Vector3();
   private readonly tmp2 = new THREE.Vector3();
@@ -116,8 +119,36 @@ export class LonglineHands {
     return Math.hypot(Math.max(0, Math.abs(l.x) - plan.halfBeam(lz)), l.z - lz);
   }
 
+  /**
+   * Each line of ours told once (owner, 29 Oct 2026: let go over the side "it says you've lost
+   * the reel in the water ... It should say line set"): shooting, set (its length and ground,
+   * or that it's off any ground and will catch little), or lost (stopped too soon).
+   */
+  private announceSetting(ctx: LonglineHandsContext): void {
+    const s = ctx.world.longline;
+    const lines = (s?.lines ?? []).filter((l) => l.owner === ctx.vesselId);
+    const shooting = (s?.shooting ?? []).filter((x) => x.vessel === ctx.vesselId);
+    // (Lines already out when we came are history: not told.)
+    if (!this.seenLines) this.seenLines = new Set(lines.map((l) => l.id));
+    for (const sh of shooting) {
+      if (this.seenShooting.has(sh.line)) continue;
+      ctx.notify('Line going out over the stern: keep her straight, 3 to 8 knots, until the far buoy goes in (stop to end it short)', 5);
+    }
+    for (const l of lines) {
+      if (this.seenLines.has(l.id)) continue;
+      const g = groundOf(l);
+      const m = Math.round(Math.min(l.hooks * CONFIG.longline.hookSpacingM, CONFIG.longline.lengthM));
+      ctx.notify(`Line set: ${m} m, ${l.hooks} hooks, ${g ? `on ${g.name}` : 'off any fishing ground (it will catch little)'}. Let it soak about ${Math.round(CONFIG.longline.soakReady / 60)} minutes`, 6);
+    }
+    // A shooting gone with no line of its id: stopped too soon, lost.
+    for (const id of this.seenShooting) if (!shooting.some((x) => x.line === id) && !lines.some((l) => l.id === id)) ctx.notify(`Line lost: she stopped before ${CONFIG.longline.minM} m were out`, 5);
+    this.seenLines = new Set(lines.map((l) => l.id));
+    this.seenShooting = new Set(shooting.map((x) => x.line));
+  }
+
   /** Call out each new fish at the rail, and each haul's end, once. */
   private announce(ctx: LonglineHandsContext): void {
+    this.announceSetting(ctx);
     for (const l of this.linesAboard(ctx)) {
       const f = l.line.haul?.fish ?? null;
       const was = this.called.get(l.line.id);

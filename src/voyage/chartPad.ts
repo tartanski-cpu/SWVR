@@ -46,6 +46,14 @@ export interface ChartPadOptions {
   redrawS: number;
   /** ✕: put it away (the board's). */
   onClose?: () => void;
+  /**
+   * One view for everyone (the quay's board, owner, 29 Oct 2026: "the big planning board ...
+   * synchronized for all the players"): `get` the shared view (the plan's, voyage/plan.ts
+   * `view`), `set` sends a new one (the `plan` intent `view`). Its own moves show at once and
+   * go out a few times a second; when nobody here is moving it, it shows the shared one.
+   * Unset: this page's own view.
+   */
+  shared?: { get(): ChartView | null; set(v: ChartView): void };
 }
 
 const KEY_TEXT: Record<PadKey, string> = { way: 'WAY', stop: 'STOP', look: 'LOOK', remove: 'DEL', undo: 'UNDO', clear: 'CLEAR', boat: 'BOAT', all: 'ALL', out: '−', in: '+', layers: 'LAYERS', close: '✕' };
@@ -76,6 +84,10 @@ export class ChartPad {
   private readonly painter = new PlanChartPainter();
   private readonly keys: PadKey[];
   private view: ChartView | null = null;
+  /** Shared (opts.shared): when this page last moved it, last sent it, and whether a move is still to go out (ms). */
+  private movedAt = -Infinity;
+  private sentAt = -Infinity;
+  private unsent = false;
   private tool: ChartTool = 'way';
   private pointer: [number, number] | null = null;
   private press: { px: number; py: number; moved: boolean } | null = null;
@@ -113,13 +125,13 @@ export class ChartPad {
   centreOnBoat(span?: number): void {
     const b = this.host.world().vessels[this.host.ownBoatId()];
     const whole = wholeChartView(this.W / this.chartH);
-    this.view = b ? centreChartOn(this.view ?? whole, this.W, this.chartH, b.position[0], b.position[2], span ?? this.view?.span ?? CONFIG.voyage.plan.chart.startSpan) : whole;
+    this.setView(b ? centreChartOn(this.view ?? whole, this.W, this.chartH, b.position[0], b.position[2], span ?? this.view?.span ?? CONFIG.voyage.plan.chart.startSpan) : whole);
     this.shown = '';
   }
 
   /** Zoomed by `factor` (> 1 in) about the chart's middle (a − or + key, or a button beside it). */
   zoomBy(factor: number): void {
-    this.view = zoomChartAt(this.v(), this.W, this.chartH, this.W / 2, this.chartH / 2, factor);
+    this.setView(zoomChartAt(this.v(), this.W, this.chartH, this.W / 2, this.chartH / 2, factor));
   }
 
   /**
@@ -141,7 +153,7 @@ export class ChartPad {
       const dy = at[1] - p.py;
       if (p.moved || Math.hypot(dx, dy) >= CONFIG.voyage.plan.chart.dragPx * 2 * (this.W / 1024)) {
         p.moved = true;
-        this.view = panChart(this.v(), this.W, this.chartH, dx, dy);
+        this.setView(panChart(this.v(), this.W, this.chartH, dx, dy));
         p.px = at[0];
         p.py = at[1];
       }
@@ -162,7 +174,7 @@ export class ChartPad {
         this.shown = '';
       }
     }
-    if (at && at[1] < this.chartH && zoom !== 1) this.view = zoomChartAt(this.v(), this.W, this.chartH, at[0], at[1], zoom);
+    if (at && at[1] < this.chartH && zoom !== 1) this.setView(zoomChartAt(this.v(), this.W, this.chartH, at[0], at[1], zoom));
     return acted;
   }
 
@@ -183,6 +195,7 @@ export class ChartPad {
   /** Each frame it can be seen: drawn again if what's on it changed. */
   update(dt: number): void {
     this.since += dt;
+    this.flush();
     if (this.clearArmed && performance.now() > this.clearArmed) this.clearArmed = 0;
     if (this.say && performance.now() > this.say) this.say = 0;
     const world = this.host.world();
@@ -259,7 +272,7 @@ export class ChartPad {
         this.centreOnBoat();
         return;
       case 'all':
-        this.view = wholeChartView(this.W / this.chartH);
+        this.setView(wholeChartView(this.W / this.chartH));
         return;
       case 'out':
         this.zoomBy(1 / 1.6);
@@ -277,8 +290,32 @@ export class ChartPad {
   }
 
   private v(): ChartView {
+    // Shared, and nobody here moving it: the shared view (as the others left it).
+    const sh = this.opts.shared;
+    if (sh && !this.press && !this.unsent && performance.now() - this.movedAt > CONFIG.voyage.plan.chart.shareHoldMs) {
+      const s = sh.get();
+      if (s) this.view = { cx: s.cx, cz: s.cz, span: s.span };
+    }
     if (!this.view) this.centreOnBoat();
     return this.view!;
+  }
+
+  /** A new view from here: shown at once; shared, sent on (at most every `shareEveryMs`). */
+  private setView(v: ChartView): void {
+    this.view = v;
+    if (!this.opts.shared) return;
+    this.movedAt = performance.now();
+    this.unsent = true;
+    this.flush();
+  }
+
+  /** Shared: the latest move sent, if it's been long enough since the last. */
+  private flush(): void {
+    const sh = this.opts.shared;
+    if (!sh || !this.unsent || !this.view || performance.now() - this.sentAt < CONFIG.voyage.plan.chart.shareEveryMs) return;
+    sh.set(this.view);
+    this.sentAt = performance.now();
+    this.unsent = false;
   }
 }
 

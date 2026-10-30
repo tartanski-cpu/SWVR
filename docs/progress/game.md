@@ -10,6 +10,74 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The menu: no duplicates across the tabs (30 Oct 2026)
+
+Owner: "have a look through the menus, just to make sure there's no duplicate functionality across them."
+
+- **Found and settled** (`ui/mainMenu.ts`): the contract (text and Abandon) was on Voyage > Job and Office > Jobs: now Voyage > Job only (career; Voyage mode has no contracts, so no row). The project's two-line summary was on Office > Jobs beside the full Projects page: now beside the contract on Voyage > Job, so "what I'm doing now" is one place; Office > Jobs is the job board and the first voyage (the boatyard note a heading at its foot). The balance was on Office > Jobs and Office > Career: Career only. The time of day was on Voyage (±1 h) and Debug > World (±10′): one row on Voyage > Weather with both steps. Move to a port was on Debug > World in both modes while Voyage mode has Go on every port: Debug's list is the career's only now (its region row reads "Move to" in Voyage). The recording camera's "Field of view" shared its name with Settings' field of view: it is "Zoom".
+- **A gap found on the way:** Crew > Your boat (Voyage) told you to type a code in Office > Your boats, which is hidden in Voyage mode. Its Code row has a **Type** button now that opens the same keypad there (the rows show only while typing).
+- **Tests:** tests/menu.test.ts (+1: each of those is in one place).
+- **Checked:** typecheck, `npm test`, headless screenshots of the changed pages in both modes. **Not checked:** the Quest.
+
+### The menu tidied: shorter pages, sections, rows that close up (30 Oct 2026)
+
+Owner: "The menu is a bit of a mess, especially in VR. It's very long. There are too many buttons... tidy it up and organize it in a better way. I don't want to lose any of the functionality."
+
+- **The cause of "very long":** the panel was as tall as its tallest page (Debug > World, 1558 px for 640 wide) whatever tab you were on: on the wrist a 0.58 m board, mostly empty. Now (`ui/menuPanel.ts`) the board is drawn only as deep as the page shown, the quad's top stays put on the wrist, and below the page the quad is clear and takes no pointing (a ray there reaches the bridge controls behind). The desktop's flat menu (O) hangs from the top of the window, cut to the page shown, one scale for every page so nothing moves under the mouse as you switch tabs.
+- **Rows that close up:** a row (or heading) can carry `when`; while it says no, the row is left out and the page closes up (the rows above stay put). Used for the empty cargo slots, the ledger, the job offers, the project lines, the crew-mates who aren't there, the Shipyard favourites, "Back to your own game", "Stop waiting", the join keypad (only while alone), "Last time:" boats, the page turner, the live-weather credit, the sea-here line. The layout is worked out again only when the pattern of shown rows changes; a scrolling list keeps its place across that.
+- **Sections** (`ui/mainMenu.ts`), so no page is more than about ten rows: Voyage = Plan / Job / Weather (the clock with the weather); Boat = Deck (this boat, SOS, tow, docking, anchor, skiff, fuel) / FM radio (stations two to a row); Crew = Game (status with one Host / Stop hosting / Leave button, the keypad) / Aboard (crew, your name, voices) / Your boat (Voyage) / Camera; Settings = Comfort / Sound / Game / Credits (the credits were under Game); Debug = Hands / World (VR fly, time, move, board) / Weather (the sliders, short seas, tidal races, gusts) / Boat / Missions / Views. Cargo, Office, World as they were, with their empty rows closing up. The regions and the fleet two or three to a row instead of four or six squashed. The page tabs are drawn as tabs (flat, the one shown underlined), not as a row of buttons. Long headings are squeezed to fit rather than cut.
+- **Nothing taken out:** every button and readout is still there; the tab names are the same (the App's "typing a game code on the Crew tab" still holds). Tallest page now 1032 px (Debug > World with every port row); most pages 400 to 700 px, i.e. 0.15 to 0.26 m on the wrist.
+- **Tests:** tests/menu.test.ts (+3: a row closes up and opens again with the rows below moving; the panel drawn only as deep as the page and a ray below it meeting nothing; the tabs and the Crew sections, the keypad only alone); two older tests now point at Voyage > Plan's button.
+- **Checked:** headless screenshots of every tab and section, career and Voyage (Oban): see the pictures in the scratchpad; typecheck and `npm test`. **Not checked:** on the Quest (the poke and ray on a shorter panel; the perf panel beside the menu still sits by the quad's top-right corner, as before).
+
+### Training mode: the plan (30 Oct 2026)
+
+Owner: "Take a look at the RYA power boat syllabus and the German Sportbootführerschein and come up with a plan to build out the Training module."
+
+- **`docs/TRAINING.md`** (new): what the two schemes ask of a trainee (researched from the RYA's course pages and centre transcriptions of the G20, and from the SpFV, its Anlagen, the ELWIS scoring key and question catalogues and the DMYV/DSV examiner guideline, checked twice); what the game already judges and what it lacks; four practice courses of exercises (Harbour, Rescue, Coast, Passage) and an Examiner's Run in the SBF's form, each exercise tied to a syllabus item and to the game's state; the training harbour as one region data file; the exercise engine on the first-voyage tutorial's pattern; recording as sampled state (host-side, IndexedDB) with a chart review first and a rendered replay only if wanted; the instructor in multiplayer; seven milestones; thirteen questions for the owner; what is flagged as unwise.
+- **A finding that matters:** prop walk is only on the old workboat; every Shipyard-built boat has it set to zero (`config/modules.ts` propeller block), and the beginner boat is a stern drive. The prop-walk lessons need a shaft boat that has it (question 2 of the plan).
+- **Nothing built.** No code changed.
+- **Shared changes:** `CLAUDE.md` Docs list gains `docs/TRAINING.md`.
+
+### Desktop field of view; longline messages; a boat hook on every boat (29 Oct 2026)
+
+Owner: "The desktop players want a field of vision settings slider." And: "If you drop the reel in the water in a fishing ground, it says you've lost the reel ... It should say line set ... it should allow you to set it anywhere. You just don't get any fish ... So it should never say that message. And then I noticed that the trawler doesn't have a boat hook, so I couldn't retrieve the line."
+
+- **Field of view (desktop)** (menu Settings → Comfort, −5° / +5°): 50° to 110°, 70° to start (`CONFIG.render.fovSetting` {min, max, step}; `userSettings.desktopFov`, remembered on the device). It sets the camera at once, and the helm's and the camera mode's own views go back to it when you leave them. In VR the headset sets the view, so the row does nothing there (the note says so).
+- **Longline messages** (`fishing/longlineHands.ts` announceSetting): a tub let go over the side under way now says **"Line going out over the stern: keep her straight, 3 to 8 knots..."**, then once the far buoy is in **"Line set: 300 m, 50 hooks, on Calder Bank"** (or **"off any fishing ground (it will catch little)"**), and **"Line lost"** only if she stopped before `CONFIG.longline.minM` m were out. The line could always be set anywhere; the wrong message came from the cargo hands (`cargo/cargoHands.ts`), which took any crate gone into the sea for a lost crate: a tub let go from aboard a boat no longer says "lost in the sea". `fishing/longline.ts` exports `groundOf` for the ground's name.
+- **A boat hook on every Shipyard boat** (`shipyard/parts/deckGear.ts`, `recipe.ts`): it used to come only with the life ring (the stern trawler as she comes has none). Now every design has the boat-hook rack: beside the life ring if she has one, else in clips on her port bulwark aft. The ring (and with it the rescue calls) stays a choice of its own; the Life ring upgrade's text says so.
+- **Tests:** tests/boatHookEveryBoat.test.ts (new: every hull type, with and without the ring, has a hook on the right side; the ring only where chosen or built in), tests/menu.test.ts (the field of view steps by 5°), and all of `npm test`.
+- **Checked:** in the headless browser the camera's field of view went 70° → 100° from the menu. **Not checked:** the longline messages and the trawler's hook by eye, or anything on the Quest.
+- **Changes in another area's files:** `src/shipyard/parts/deckGear.ts` and `src/shipyard/parts/recipe.ts` (Shipyard: the boat hook on every design; small).
+
+### At the helm, A / D steer (29 Oct 2026)
+
+Owner: "if you pressed F on the keyboard to drive the vessel, even if you don't have a controller ... you can then use the WASD keys to steer and throttle. And when you're not connected to the helm, then you can use that to walk."
+
+- **A / D steer at the helm** (`app/App.ts` handleDebugDriving): with F's helm taken, A and D turn the wheel as ← → do (W / S were the throttle there already; walking is off at the helm). Off the helm, WASD walk as before; the arrow keys still steer from anywhere. Not while a clicked control is being key-steered or the crane's remote is in hand. The azimuth tug's helm keys are unchanged (WASD is her port drive there).
+- **The hint at the helm** says so: "A D or ← →: steer · W S or ↑ ↓: throttle".
+- **Also looked at** (owner: "grabbing the wheel, the player still moves around with the WASD"): holding the mouse on the wheel stopped walking and W worked the throttle in a headless check on the pilot boat, the small tug, the fishing boat, the landing craft and a single and a twin gillnetter. A click-to-hold wheel was tried and taken back at the owner's word (keep the control scheme).
+- **Not checked:** by hand on the desktop.
+
+### Motion coupling: 9 / 0 and the menu step from your setting (29 Oct 2026)
+
+Owner: "The motion coupling setting seems to be broken. I can only put it down to 90 with the keys. Doesn't seem to make any difference."
+
+- **The cause** (`app/App.ts`): on the desktop the view rides rigid in the wheelhouse and with the reticle on a control (`CONFIG.comfort.desktopRigidAtControls`, so the console holds still to click), and 9 / 0 and the menu's −10 % / +10 % stepped from that moment's coupling (100 % there), not from your setting: each 9 set it to 90 % again. The menu showed the moment's figure too.
+- **Now** (`couplingSetting`): they step from, and the menu shows, your setting (VR's in VR, the desktop's on the desktop). Set it in the wheelhouse and the note says it's rigid there and takes effect out on deck.
+- **Not changed:** the desktop's rigid view at the controls (by design, Oct 2026); in VR the setting applies everywhere.
+- **Tests:** tests/comfort*.test.ts (the filter, unchanged) pass; the stepping isn't covered by a test (it's in the App).
+- **Not checked:** on the Quest, or by eye in the headless browser.
+
+### The quay's planning board: one view for everyone (29 Oct 2026)
+
+Owner: "is the big planning board synchronized for all the players in multiplayer? It should be, not the personal VR one, but just that big planning board."
+
+- **One view** (`voyage/chartPad.ts` `shared`; App's quay pad): the board shows the plan's `view` (voyage/plan.ts, the old table's shared view, kept). A zoom or drag shows at once on your board and goes out as the `plan` intent `view` (centre and span), at most every `chart.shareEveryMs` (120 ms); everyone's board takes the shared view once nobody at it here has moved it for `chart.shareHoldMs` (700 ms), so your own drag never fights the others'. The host applies it (span no closer than `chart.minSpan`) and saves it with the plan, as before. Never moved yet, the first to look at it opens it round their boat.
+- **Still each player's own:** the VR chart board and the desktop's M chart (the owner: "not the personal VR one"; the M chart taken as personal too, to be confirmed). The tool in hand and LAYERS stay each player's.
+- **Tests:** tests/chartPad.test.ts: one player's drag and the other's zoom show on both boards; tests/voyagePlan.test.ts: the `view` intent.
+- **Not checked:** in a real two-player game (crewcheck) or on the Quest.
+
 ### Stuck at the top of the stairs: fixed (29 Oct 2026)
 
 Owner: "I still get blocked at the top of the stairs ... I walk up the stairs and I get stuck before the platform and I cannot get past it", "any boat that's got the transverse stairs, they all have the same problem at the top of the stairs".

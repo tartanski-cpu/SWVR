@@ -56,6 +56,9 @@ export interface MenuHost {
   oilLow(): void;
   coupling(): number;
   setCoupling(value: number): void;
+  /** Desktop: the field of view (degrees). */
+  fov(): number;
+  setFov(deg: number): void;
   smoothWalk(): boolean;
   setSmoothWalk(on: boolean): void;
   /** The boat hook telescopes out to what you point it at. */
@@ -390,10 +393,17 @@ export function mainMenu(h: MenuHost): MainMenu {
   const header: MenuRow[] = [{ label: '', buttons: [{ text: `${title}  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
 
   // ---------------------------------------------------------------------------------
-  // The menu is laid out for playing: Voyage, Boat, Cargo, Office and Crew are the game;
-  // Settings are yours (this browser); Debug holds the test and cheat tools and is hidden
-  // until switched on in Settings > Game.
+  // The menu is laid out for playing: Voyage, Boat, Cargo, Office, World and Crew are the
+  // game; Settings are yours (this browser); Debug holds the test and cheat tools and is
+  // hidden until switched on in Settings > Game. Tidied (owner, 30 Oct 2026: "very long,
+  // especially in VR; too many buttons"): every tab with more than a dozen rows is split
+  // into sections, a row with nothing to show (`when`) closes up, and the panel is drawn
+  // only as deep as the page shown (menuPanel.ts). Nothing was taken out.
   // ---------------------------------------------------------------------------------
+
+  /** A row shown only while its text has something to say. */
+  const whenText = (t: () => string | null) => () => !!t();
+  const solo = () => h.netRole() === 'solo';
 
   /** The weather line split in two (it's too long for one row): conditions, then the outlook. */
   const weatherPart = (i: number) => () => {
@@ -401,35 +411,16 @@ export function mainMenu(h: MenuHost): MainMenu {
     return i === 0 ? parts.slice(0, 2).join(' · ') : parts.slice(2).join(' · ');
   };
 
-  const voyage: MenuRow[] = [
+  // ----- Voyage: the plan and the ports; the job; the weather and the clock -----
+  const voyagePlan: MenuRow[] = [
     // The crew's plan (voyage/plan.ts), from the planning table at the harbour you're at (voyage/planTable.ts) or any planning chart.
     // (And the planning chart, each player's own view, in Voyage and the career: voyage/planChart.ts.)
     { heading: 'Voyage plan' },
     { label: '', buttons: [{ text: () => h.planLine(), weight: 2.6 }, { text: 'Open the chart', press: () => h.openPlanChart() }, ...(MODE === 'voyage' ? [{ text: 'Go to the table', press: () => h.goPlanTable() }] : [])] },
     // The timber run: where it stands; at the merchant's quay, sell the logs.
     ...(MODE === 'voyage'
-      ? ([{ label: 'Timber', buttons: [{ text: () => h.timberLine(), weight: 2.4 }, { text: () => h.timberButton(0), press: () => h.timberPress(0) }, { text: () => h.timberButton(1), press: () => h.timberPress(1) }] }] as MenuRow[])
+      ? ([{ label: 'Timber', when: whenText(() => h.timberLine()), buttons: [{ text: () => h.timberLine(), weight: 2.4 }, { text: () => h.timberButton(0), press: () => h.timberPress(0) }, { text: () => h.timberButton(1), press: () => h.timberPress(1) }] }] as MenuRow[])
       : []),
-    { heading: 'Job' },
-    { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
-    { label: '', buttons: [{ text: () => h.runStatus() }] },
-    { label: 'Done', buttons: [{ text: () => `${h.rescues()} missions · ${h.towsDelivered()} tows · ${h.cargoStatus().delivered} cargo` }] },
-    // Owner request: a way to stop the VHF calling you out (rescues, tows, fires).
-    { label: 'Emergency calls', buttons: [choice('On', false, () => h.quietCalls(), (v) => h.setQuietCalls(v)), choice('Off (quiet)', true, () => h.quietCalls(), (v) => h.setQuietCalls(v))] },
-    { heading: 'Weather' },
-    { label: '', buttons: [{ text: weatherPart(0) }] },
-    { label: '', buttons: [{ text: weatherPart(1) }] },
-    // Voyage: the real weather at the map, as fetched at the start, with its source's credit.
-    ...(MODE === 'voyage' ? ([{ label: '', buttons: [{ text: () => h.liveWeatherLine() || "The game's own weather (no live weather fetched)" }] }, { label: '', buttons: [{ text: () => h.liveWeatherCredit() }] }] as MenuRow[]) : []),
-    {
-      label: 'Time of day',
-      buttons: [
-        { text: '−1 h', press: () => h.shiftTime(-1) },
-        { text: () => formatHours(h.timeOfDay()), weight: 1.3 },
-        { text: '+1 h', press: () => h.shiftTime(1) },
-      ],
-    },
-    { label: 'Time flow', buttons: TIME_FLOW.map(([label, rate]) => choice(label, rate, () => h.timeScale(), (v) => h.setTimeScale(v))) },
     { heading: 'Ports (bearing, range)' },
     // A scrolling list: a coast map has dozens of ports (the Clyde 59), which would make the
     // panel too tall to read in VR.
@@ -453,6 +444,47 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
     { label: 'Paper chart', buttons: [{ text: () => h.chartStatus(), weight: 1.6 }, { text: 'Clear marks', press: () => h.clearChart() }] },
   ];
+  // The job you're on, in one place (owner, 30 Oct 2026: no duplicates): the contract and the
+  // project's state were on Office > Jobs too; they live here now, the office keeps its job board.
+  const voyageJob: MenuRow[] = [
+    { heading: 'Job' },
+    ...(MODE === 'voyage'
+      ? []
+      : ([
+          { label: 'Contract', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+          { label: 'Project', buttons: [{ text: () => h.projectSummary(0) || 'None under way (Office > Projects)', weight: 3 }] },
+          { label: '', when: whenText(() => h.projectSummary(1)), buttons: [{ text: () => h.projectSummary(1), weight: 3 }] },
+        ] as MenuRow[])),
+    { label: '', buttons: [{ text: () => h.runStatus() }] },
+    { label: 'Done', buttons: [{ text: () => `${h.rescues()} missions · ${h.towsDelivered()} tows · ${h.cargoStatus().delivered} cargo` }] },
+    // Owner request: a way to stop the VHF calling you out (rescues, tows, fires).
+    { label: 'Emergency calls', buttons: [choice('On', false, () => h.quietCalls(), (v) => h.setQuietCalls(v)), choice('Off (quiet)', true, () => h.quietCalls(), (v) => h.setQuietCalls(v))] },
+  ];
+  const voyageWeather: MenuRow[] = [
+    { heading: 'Weather' },
+    { label: '', buttons: [{ text: weatherPart(0) }] },
+    { label: '', buttons: [{ text: weatherPart(1) }] },
+    // Voyage: the real weather at the map, as fetched at the start, with its source's credit.
+    ...(MODE === 'voyage'
+      ? ([
+          { label: '', buttons: [{ text: () => h.liveWeatherLine() || "The game's own weather (no live weather fetched)" }] },
+          { label: '', when: whenText(() => h.liveWeatherCredit()), buttons: [{ text: () => h.liveWeatherCredit() }] },
+        ] as MenuRow[])
+      : []),
+    { heading: 'Clock' },
+    // Both steps here (the ±10′ were on Debug > World as a second time-of-day row).
+    {
+      label: 'Time of day',
+      buttons: [
+        { text: '−1 h', press: () => h.shiftTime(-1) },
+        { text: '−10′', press: () => h.shiftTime(-10 / 60) },
+        { text: () => formatHours(h.timeOfDay()), weight: 1.3 },
+        { text: '+10′', press: () => h.shiftTime(10 / 60) },
+        { text: '+1 h', press: () => h.shiftTime(1) },
+      ],
+    },
+    { label: 'Time flow', buttons: TIME_FLOW.map(([label, rate]) => choice(label, rate, () => h.timeScale(), (v) => h.setTimeScale(v))) },
+  ];
 
   // The World tab (career): Go to each region's harbour, for the time and the fuel (career/passage.ts).
   const world: MenuRow[] = [
@@ -468,9 +500,10 @@ export function mainMenu(h: MenuHost): MainMenu {
     { heading: 'She arrives at the cargo berth: make fast' },
   ];
 
-  const boat: MenuRow[] = [
+  // ----- Boat: the deck (and the skiff and the fuel); the FM radio -----
+  const deck: MenuRow[] = [
     // The boat you're aboard, into this browser's favourites (from VR, without the Shipyard).
-    { label: 'Favourite', buttons: [{ text: () => h.boatFavourite(), weight: 2.4 }, { text: () => (h.canSaveBoat() ? 'Save her' : ''), press: () => h.saveBoatFavourite() }] },
+    { label: 'This boat', buttons: [{ text: () => h.boatFavourite(), weight: 2.4 }, { text: () => (h.canSaveBoat() ? 'Save her' : ''), press: () => h.saveBoatFavourite() }] },
     { heading: 'Deck' },
     {
       label: 'SOS',
@@ -494,18 +527,17 @@ export function mainMenu(h: MenuHost): MainMenu {
       ],
     },
     { label: 'Anchor', buttons: [{ text: () => h.anchorStatus() }] },
-    { heading: 'Skiff' },
+    { heading: 'Skiff and fuel' },
     {
-      label: '',
+      label: 'Skiff',
       buttons: [
         { text: 'Board', press: () => h.boardSkiff() },
         { text: () => h.craneAction(), press: () => h.crane(), weight: 1.6 },
         { text: () => `${Math.round(h.skiffBattery() * 100)} %`, weight: 0.6 },
       ],
     },
-    { heading: 'Fuel' },
     {
-      label: '',
+      label: 'Fuel',
       buttons: [
         { text: () => `${h.fuel().litres.toFixed(0)} / ${h.fuel().tank} L`, weight: 1.1 },
         {
@@ -516,11 +548,14 @@ export function mainMenu(h: MenuHost): MainMenu {
         },
       ],
     },
-    { heading: 'FM radio (overhead panel)' },
+  ];
+  const fmRadio: MenuRow[] = [
+    { heading: 'FM radio (the overhead set)' },
     { label: 'Power', buttons: [choice('On', true, () => h.fmOn(), (v) => h.setFmOn(v)), choice('Off', false, () => h.fmOn(), (v) => h.setFmOn(v))] },
-    ...[0, 3].map((from) => ({
+    // Two stations to a row: their names were squashed three to a row.
+    ...[0, 2, 4].map((from) => ({
       label: from === 0 ? 'Station' : '',
-      buttons: CONFIG.fmRadio.stations.slice(from, from + 3).map((st, k) => ({
+      buttons: CONFIG.fmRadio.stations.slice(from, from + 2).map((st, k) => ({
         text: st.name,
         active: () => h.fmOn() && h.fmStation() === from + k,
         press: () => h.setFmStation(from + k),
@@ -528,12 +563,15 @@ export function mainMenu(h: MenuHost): MainMenu {
     })),
   ];
 
+  // ----- Cargo -----
   const aboardRow = (i: number): MenuRow => ({
     label: '',
+    when: () => i === 0 || h.cargoAboard(i) !== null,
     buttons: [{ text: () => h.cargoAboard(i) ?? (i === 0 ? 'Deck empty' : '') }],
   });
   const skiffRow = (i: number): MenuRow => ({
     label: '',
+    when: () => i === 0 || h.skiffCargo(i) !== null,
     buttons: [{ text: () => h.skiffCargo(i) ?? (i === 0 ? 'Empty: two crates or one drum' : '') }],
   });
   const cargo: MenuRow[] = [
@@ -545,19 +583,24 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => `Delivered ${h.cargoStatus().delivered}`, weight: 1.3 },
       ],
     },
-    { label: '', buttons: [{ text: 'Carry and lash by hand, or in one click:', weight: 2.4 }, { text: 'Lift crates', press: () => h.quickJob('lift') }] },
+    { heading: 'In one click (or carry and lash by hand)' },
     {
-      label: '',
+      label: 'Crates',
       buttons: [
         { text: 'Load', press: () => h.quickJob('load') },
         { text: 'Unload', press: () => h.quickJob('unload') },
+        { text: 'Lift crates', press: () => h.quickJob('lift') },
+      ],
+    },
+    {
+      label: 'Lashings',
+      buttons: [
         { text: 'Lash all', press: () => h.quickJob('lash') },
         { text: 'Release all', press: () => h.quickJob('release') },
       ],
     },
-    { heading: 'Pots' },
     {
-      label: '',
+      label: 'Pots',
       buttons: [
         { text: 'Load pots', press: () => h.quickJob('potLoad') },
         { text: 'Shoot one', press: () => h.quickJob('potShoot') },
@@ -571,24 +614,19 @@ export function mainMenu(h: MenuHost): MainMenu {
     ...[0, 1].map(skiffRow),
   ];
 
+  // ----- Office (the career) -----
   const office: MenuSection[] = [
     {
       name: 'Jobs',
       rows: [
-        { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
-        { label: '', buttons: [{ text: 'Add-ons, upgrades, repairs: the boatyard on the Calder Haven quay', weight: 3 }] },
-        { heading: 'Contract' },
-        { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
-        // The construction project under way, alongside the contract (owner: what's next, and
-        // what else is on); each job's state is on the Projects page.
-        { heading: 'Project' },
-        { label: '', buttons: [{ text: () => h.projectSummary(0) || 'None under way (see the Projects page)', weight: 3 }] },
-        { label: '', buttons: [{ text: () => h.projectSummary(1), weight: 3 }] },
+        // The job board where she lies. (The contract on, the project's state and the balance
+        // are on Voyage > Job and Office > Career: once each.)
         { heading: 'Job board' },
         { label: '', buttons: [{ text: () => h.officeName() }] },
         ...[0, 1].map(
           (i): MenuRow => ({
             label: '',
+            when: () => i === 0 || !!h.offerText(i),
             buttons: [
               { text: () => h.offerText(i), weight: 3 },
               { text: () => (h.offerText(i) ? h.offerBlocker(i) || 'Accept' : ''), active: () => !!h.offerText(i) && !h.offerBlocker(i), press: () => h.acceptOffer(i) },
@@ -603,6 +641,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: () => (h.tutorialText().endsWith('done') ? 'Again' : 'Skip'), press: () => (h.tutorialText().endsWith('done') ? h.tutorialRestart() : h.tutorialSkip()) },
           ],
         },
+        { heading: 'Add-ons, upgrades and repairs: the boatyard on the Calder Haven quay' },
       ],
     },
     {
@@ -613,7 +652,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         { heading: 'Construction project' },
         { label: '', buttons: [{ text: () => h.projectTitle(), weight: 3 }, { text: () => h.projectAction(), active: () => h.projectAction() === 'Take it on', press: () => h.projectAccept(), weight: 1.1 }] },
         { heading: 'This stage' },
-        ...[0, 1, 2, 3, 4].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.projectLine(i), weight: 3 }] })),
+        ...[0, 1, 2, 3, 4].map((i): MenuRow => ({ label: '', when: () => i === 0 || !!h.projectLine(i), buttons: [{ text: () => h.projectLine(i), weight: 3 }] })),
         { label: '', buttons: [{ text: 'Survey lines and buoy spots are on the chartplotter, in magenta. Buoys: lift them off the quay with a deck crane, lower them into the sea at their spot.', weight: 3 }] },
       ],
     },
@@ -627,7 +666,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
         { label: 'Reputation', buttons: [{ text: () => h.reputation(), weight: 2 }] },
         { heading: 'Ledger' },
-        ...[0, 1, 2, 3, 4, 5].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.ledgerLine(i) }] })),
+        ...[0, 1, 2, 3, 4, 5].map((i): MenuRow => ({ label: '', when: () => i === 0 || !!h.ledgerLine(i), buttons: [{ text: () => h.ledgerLine(i) || (i === 0 ? 'Nothing yet' : '') }] })),
         { heading: 'Saved in this browser' },
         { label: 'Slot', buttons: [1, 2, 3].map((n) => ({ text: () => h.slotText(n), active: () => h.careerSlot() === n, press: () => h.switchSlot(n) })) },
         { label: '', buttons: [{ text: () => h.newCareerText(), press: () => h.newCareer() }] },
@@ -635,11 +674,12 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
   ];
 
-  const solo = () => h.netRole() === 'solo';
-  const digit = (d: string) => ({ text: () => (solo() ? d : ''), press: () => h.typeDigit(d) });
+  // ----- Crew (multiplayer): the game; who's aboard and the voices; your boat; the camera -----
+  const digit = (d: string) => ({ text: d, press: () => h.typeDigit(d) });
   // Who's aboard, one row each: their name, and Mute for a crew-mate's voice.
   const member = (i: number): MenuRow => ({
     label: '',
+    when: () => !!h.crewMember(i),
     buttons: [
       { text: () => { const m = h.crewMember(i); return m ? `${m.name}${m.you ? ' (you)' : ''}${m.host ? ' · host' : ''}${m.voiceOff ? ' · voice off' : ''}` : ''; }, weight: 2.4 },
       { text: () => { const m = h.crewMember(i); return !m || m.you ? '' : m.muted ? 'Muted' : 'Mute'; }, active: () => !!h.crewMember(i)?.muted, press: () => h.toggleCrewMute(i) },
@@ -647,43 +687,49 @@ export function mainMenu(h: MenuHost): MainMenu {
   });
   // In the order you need them (owner, Oct 2026): host or join first; then who's in the game,
   // their voices and yours; then your boat; the recording camera last.
-  const crew: MenuRow[] = [
-    { heading: 'Crew (multiplayer)' },
-    { label: '', buttons: [{ text: () => h.netStatus() }] },
+  const crewGame: MenuRow[] = [
+    { heading: 'Your game' },
     {
       label: '',
       buttons: [
-        { text: () => (solo() ? 'Host a game' : ''), press: () => h.hostGame() },
-        { text: () => (solo() ? '' : h.netRole() === 'host' ? 'Stop hosting' : 'Leave game'), press: () => h.leaveGame() },
+        { text: () => h.netStatus(), weight: 2.2 },
+        // One button for the state you're in: host, or leave what you're in.
+        { text: () => (solo() ? 'Host a game' : h.netRole() === 'host' ? 'Stop hosting' : 'Leave game'), press: () => (solo() ? h.hostGame() : h.leaveGame()), weight: 1.3 },
       ],
     },
     // Still in a friend's world with nobody else (multiplayer study #11): the way home.
-    { label: '', buttons: [{ text: () => (solo() && h.borrowed() ? 'Back to your own game' : ''), press: () => h.leaveGame() }] },
+    { label: '', when: () => solo() && h.borrowed(), buttons: [{ text: 'Back to your own game', press: () => h.leaveGame() }] },
     // A join that's waiting (a game link, the host away, Try her together): give up (study #23).
-    { label: '', buttons: [{ text: () => (h.waiting() ? 'Stop waiting' : ''), press: () => h.stopWaiting() }] },
+    { label: '', when: () => h.waiting(), buttons: [{ text: 'Stop waiting', press: () => h.stopWaiting() }] },
+    // The keypad, only while there's a game to join (alone).
+    { heading: 'Or join a game by its code', when: solo },
     {
-      label: 'Or join: code',
+      label: 'Code',
+      when: solo,
       buttons: [
-        { text: () => (solo() ? (h.joinCode() + '_____').slice(0, 5).split('').join(' ') : ''), weight: 1.6 },
-        { text: () => (solo() ? 'Join' : ''), active: () => h.joinCode().length === 5, press: () => h.joinGame() },
+        { text: () => (h.joinCode() + '_____').slice(0, 5).split('').join(' '), weight: 1.6 },
+        { text: 'Join', active: () => h.joinCode().length === 5, press: () => h.joinGame() },
       ],
     },
-    { label: '', buttons: ['1', '2', '3', '4', '5'].map(digit) },
-    { label: '', buttons: ['6', '7', '8', '9', '0'].map(digit) },
-    { label: '', buttons: [{ text: () => (solo() ? '⌫' : ''), press: () => h.backspace() }] },
+    { label: '', when: solo, buttons: ['1', '2', '3', '4', '5'].map(digit) },
+    { label: '', when: solo, buttons: [...['6', '7', '8', '9', '0'].map(digit), { text: '⌫', press: () => h.backspace() }] },
+  ];
+  const crewAboard: MenuRow[] = [
     { heading: 'Aboard' },
     ...Array.from({ length: 4 }, (_, i) => member(i)),
-    { label: '', buttons: [{ text: () => (h.crewMember(4) ? h.crewList() : '') }] },
+    { label: '', when: () => !!h.crewMember(4), buttons: [{ text: () => h.crewList() }] },
     { label: 'Your name', buttons: [{ text: () => h.playerName(), weight: 1.6 }, { text: 'Change', press: () => h.nextPlayerName() }] },
+    { heading: 'Voices' },
     { label: 'Voice chat', buttons: [choice('On', true, () => h.voiceChat(), (v) => h.setVoiceChat(v)), choice('Off', false, () => h.voiceChat(), (v) => h.setVoiceChat(v))] },
-    { label: 'Voice', buttons: [{ text: () => h.voiceStatus(), weight: 2 }] },
+    { label: 'Voice', when: whenText(() => h.voiceStatus()), buttons: [{ text: () => h.voiceStatus(), weight: 2 }] },
     { label: 'Microphone', buttons: [choice('On', false, () => h.micMuted(), (v) => h.setMicMuted(v)), choice('Muted', true, () => h.micMuted(), (v) => h.setMicMuted(v))] },
-    ...(MODE === 'voyage' ? yourBoat(h) : []),
+  ];
+  const crewCamera: MenuRow[] = [
     { heading: 'Camera (for recording)' },
     { label: '', buttons: [{ text: () => h.cameraNote() }] },
     { label: 'Be the camera', buttons: [choice('On', true, () => h.camera().on, (v) => h.setCamera(v)), choice('Off', false, () => h.camera().on, (v) => h.setCamera(v))] },
     {
-      label: 'Field of view',
+      label: 'Zoom',
       buttons: [
         { text: '−', press: () => h.camera().zoom(-2.5) },
         { text: () => `${Math.round(h.camera().fov)}°`, weight: 1.2 },
@@ -716,7 +762,20 @@ export function mainMenu(h: MenuHost): MainMenu {
       ),
     },
   ];
+  const crew: MenuSection[] = [
+    { name: 'Game', rows: crewGame },
+    { name: 'Aboard', rows: crewAboard },
+    ...(MODE === 'voyage' ? [{ name: 'Your boat', rows: yourBoat(h) }] : []),
+    { name: 'Camera', rows: crewCamera },
+  ];
 
+  // ----- Settings (this browser's) -----
+  // Credits: the open data a region made from real maps is built from (its licence asks for
+  // them), and Voyage's live weather (world/coastWeather.ts): its source asks to be credited.
+  const credits: MenuRow[] = [
+    ...REGIONS.filter((r) => r.coast).flatMap((r) => [{ heading: `${r.name}` }, ...creditLines(r.coast!.pkg.credits).map((t) => ({ heading: t }))]),
+    ...(MODE === 'voyage' ? [{ heading: 'Live weather' }, { heading: CONFIG.liveWeather.credit }] : []),
+  ];
   const settings: MenuSection[] = [
     {
       name: 'Comfort',
@@ -727,6 +786,14 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: '−10 %', press: () => h.setCoupling(h.coupling() - 0.1) },
             { text: () => `${Math.round(h.coupling() * 100)} %`, weight: 1.2 },
             { text: '+10 %', press: () => h.setCoupling(h.coupling() + 0.1) },
+          ],
+        },
+        {
+          label: 'Field of view (desktop)',
+          buttons: [
+            { text: '−5°', press: () => h.setFov(h.fov() - CONFIG.render.fovSetting.step) },
+            { text: () => `${Math.round(h.fov())}°`, weight: 1.2 },
+            { text: '+5°', press: () => h.setFov(h.fov() + CONFIG.render.fovSetting.step) },
           ],
         },
         { label: 'Stick walking', buttons: [choice('On', true, () => h.smoothWalk(), (v) => h.setSmoothWalk(v)), choice('Off', false, () => h.smoothWalk(), (v) => h.setSmoothWalk(v))] },
@@ -775,14 +842,12 @@ export function mainMenu(h: MenuHost): MainMenu {
           ],
         },
         { label: 'Debug tab', buttons: [choice('Hidden', false, () => h.debugMenu(), (v) => h.setDebugMenu(v)), choice('Shown', true, () => h.debugMenu(), (v) => h.setDebugMenu(v))] },
-        // Credits: the open data a region made from real maps is built from (its licence asks for them).
-        ...REGIONS.filter((r) => r.coast).flatMap((r) => [{ heading: `Credits: ${r.name}` }, ...creditLines(r.coast!.pkg.credits).map((t) => ({ heading: t }))]),
-        // Voyage's live weather (world/coastWeather.ts): its source asks to be credited.
-        ...(MODE === 'voyage' ? [{ heading: CONFIG.liveWeather.credit }] : []),
       ],
     },
+    ...(credits.length ? [{ name: 'Credits', rows: credits }] : []),
   ];
 
+  // ----- Debug (hidden until Settings > Game says so) -----
   const turnRow = (label: string, axis: 'pitchDeg' | 'rollDeg' | 'yawDeg'): MenuRow => ({
     label,
     buttons: [
@@ -801,7 +866,8 @@ export function mainMenu(h: MenuHost): MainMenu {
         turnRow('Yaw (about green Y)', 'yawDeg'),
         { label: '', buttons: [{ text: 'Back to 90 / 0 / 0', press: () => h.turnHands('pitchDeg', null) }] },
         { label: 'Controller axes', buttons: [choice('Shown', true, () => h.handAxes(), (v) => h.setHandAxes(v)), choice('Hidden', false, () => h.handAxes(), (v) => h.setHandAxes(v))] },
-        { heading: 'Red X: out of the back of your right hand · Green Y: back along your arm · Blue Z: down the handle' },
+        { heading: 'Red X: out of the back of your right hand' },
+        { heading: 'Green Y: back along your arm · Blue Z: down the handle' },
       ],
     },
     {
@@ -811,20 +877,34 @@ export function mainMenu(h: MenuHost): MainMenu {
           label: 'VR fly',
           buttons: [choice('On', true, () => h.vrFly(), (v) => h.setVrFly(v)), choice('Off', false, () => h.vrFly(), (v) => h.setVrFly(v))],
         },
-        { heading: 'VR fly: left stick flies where you look · one trigger fast · both triggers very fast' },
+        { heading: 'Left stick: fly where you look · triggers: faster' },
+        // (The time of day is on Voyage > Weather, with the ±10′ steps.)
+        // Move to a port: in the career only; in Voyage every port has Go on the Voyage tab.
+        { heading: 'Move: to port', when: () => MODE !== 'voyage' },
+        // Two to a row, in a scrolling list (a coast map brings dozens of harbours, and long names).
         {
-          label: 'Time of day',
-          buttons: [
-            { text: '−10′', press: () => h.shiftTime(-10 / 60) },
-            { text: () => formatHours(h.timeOfDay()), weight: 1.3 },
-            { text: '+10′', press: () => h.shiftTime(10 / 60) },
-          ],
+          when: () => MODE !== 'voyage',
+          show: CONFIG.menu.portRows,
+          scroll: Array.from({ length: Math.ceil(PORTS.length / 2) }, (_, row) => ({
+            label: '',
+            buttons: PORTS.slice(row * 2, row * 2 + 2).map((_, k) => ({ text: () => h.ports()[row * 2 + k]?.name ?? '', press: () => h.teleportToPort(row * 2 + k) })),
+          })),
         },
+        // The regions, two to a row as well (four names in one row were squashed).
+        ...Array.from({ length: Math.ceil(REGIONS.length / 2) }, (_, row): MenuRow => ({
+          label: row === 0 ? (MODE === 'voyage' ? 'Move to' : 'To region') : '',
+          buttons: REGIONS.slice(row * 2, row * 2 + 2).map((r) => ({ text: r.name, press: () => h.teleportToRegion(r.id) })),
+        })),
+        { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to the quay)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
+      ],
+    },
+    {
+      name: 'Weather',
+      rows: [
         // Weather by hand (owner, Oct 2026: off live weather, to test big waves and strong
         // winds; "a wind slider, rain slider and wave height slider"). Each row of stops is a
         // slider: press a stop (it and those below it light); the readout above says where it is.
         // Pressing any of them makes the weather manual; Live / Game's own gives it back.
-        { heading: 'Weather' },
         {
           label: '',
           buttons: [
@@ -865,24 +945,13 @@ export function mainMenu(h: MenuHost): MainMenu {
         // Short, steep seas in enclosed water, long ones in the open (docs/FETCH_SEAS.md): off
         // to compare with the sea as it was, the long waves everywhere.
         { label: 'Short seas', buttons: [choice('By fetch', true, () => h.shortSeas(), (v) => h.setShortSeas(v)), choice('Off (as before)', false, () => h.shortSeas(), (v) => h.setShortSeas(v))] },
-        { label: '', buttons: [{ text: () => h.seaHereText(), weight: 3 }] },
+        { label: '', when: whenText(() => h.seaHereText()), buttons: [{ text: () => h.seaHereText(), weight: 3 }] },
         { heading: 'Tidal races' },
         // The flood runs with a race's set, the ebb against it. Overfalls (steep seas) come where
         // the sea runs against the flow: in Sruth Tarsk and the Falls of Lora, on the ebb.
         { label: 'Running', buttons: [choice('By the clock', 0, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Flood', 1, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Ebb', 3, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Slack', 2, () => h.raceOverride(), (v) => h.setRaceOverride(v))] },
         { heading: 'Katabatic gusts' },
         { label: '', buttons: [{ text: 'Gust now (nearest zone)', press: () => h.gustNow() }, { text: () => h.gustStatus(), weight: 1.6 }] },
-        { heading: 'Move: to port' },
-        // Two to a row, in a scrolling list (a coast map brings dozens of harbours, and long names).
-        {
-          show: CONFIG.menu.portRows,
-          scroll: Array.from({ length: Math.ceil(PORTS.length / 2) }, (_, row) => ({
-            label: '',
-            buttons: PORTS.slice(row * 2, row * 2 + 2).map((_, k) => ({ text: () => h.ports()[row * 2 + k]?.name ?? '', press: () => h.teleportToPort(row * 2 + k) })),
-          })),
-        },
-        { label: 'To region', buttons: REGIONS.map((r) => ({ text: r.name, press: () => h.teleportToRegion(r.id) })) },
-        { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to the quay)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
       ],
     },
     {
@@ -899,7 +968,8 @@ export function mainMenu(h: MenuHost): MainMenu {
           // Multi-boat M2: another boat afloat beside yours, to walk across to and take her helm
           // (Voyage mode only: the owner, Oct 2026: multi-boat is Voyage's to begin with).
           label: 'Second boat',
-          buttons: FLEET.map((f) => ({ text: () => (MODE === 'voyage' ? f.name : ''), press: () => MODE === 'voyage' && h.spawnBoat(f.id) })),
+          when: () => MODE === 'voyage',
+          buttons: FLEET.map((f) => ({ text: f.name, press: () => h.spawnBoat(f.id) })),
         },
         {
           label: 'Hull',
@@ -1022,6 +1092,11 @@ export function mainMenu(h: MenuHost): MainMenu {
           buttons: [
             { text: 'Perf panel', active: () => h.debugPanel(), press: () => h.toggleDebugPanel() },
             { text: 'Buoyancy', active: () => h.hydroView(), press: () => h.toggleHydroView() },
+          ],
+        },
+        {
+          label: '',
+          buttons: [
             { text: 'Wave probes', active: () => h.probes(), press: () => h.toggleProbes() },
             { text: 'Region map', active: () => h.regionMap(), press: () => h.toggleRegionMap() },
           ],
@@ -1035,13 +1110,13 @@ export function mainMenu(h: MenuHost): MainMenu {
   return {
     header,
     pages: [
-      { name: 'Voyage', rows: voyage },
-      { name: 'Boat', rows: boat },
+      { name: 'Voyage', sections: [{ name: 'Plan', rows: voyagePlan }, { name: 'Job', rows: voyageJob }, { name: 'Weather', rows: voyageWeather }] },
+      { name: 'Boat', sections: [{ name: 'Deck', rows: deck }, { name: 'FM radio', rows: fmRadio }] },
       { name: 'Cargo', rows: cargo },
       { name: 'Office', sections: office, hidden: () => MODE === 'voyage' },
       // The career's passages (owner, 29 Oct 2026: "a world tab, so not under debug"; Voyage's Go is in its ports list).
       { name: 'World', rows: world, hidden: () => MODE === 'voyage' },
-      { name: 'Crew', rows: crew },
+      { name: 'Crew', sections: crew },
       { name: 'Settings', sections: settings },
       { name: 'Debug', sections: debug, hidden: () => !h.debugMenu() },
     ],
@@ -1055,8 +1130,12 @@ export function mainMenu(h: MenuHost): MainMenu {
  */
 function yourBoat(h: MenuHost): MenuRow[] {
   const c = () => h.shipyardCodes();
+  // Type opens the keypad here (the Office tab, which has one, is hidden in Voyage).
+  let typing = false;
+  const key = (ch: string) => ({ text: ch, press: () => c().type(ch) });
   const fav = (i: number): MenuRow => ({
     label: '',
+    when: () => i === 0 || !!c().favouriteAt(i),
     buttons: [
       // Her name only (owner: the figures made the line too long to read here).
       { text: () => c().favouriteAt(i)?.name ?? (i === 0 ? 'None saved in this browser' : ''), weight: 2.6 },
@@ -1066,18 +1145,26 @@ function yourBoat(h: MenuHost): MenuRow[] {
   return [
     { heading: 'Your boat' },
     { label: '', buttons: [{ text: () => h.myBoat(), weight: 2.6 }, { text: () => (h.canHandBack() ? 'Hand her back' : ''), press: () => h.withdrawBoat() }] },
-    { label: '', buttons: [{ text: () => (h.lastBoat() ? `Last time: ${h.lastBoat()}` : ''), weight: 2.6 }, { text: () => (h.lastBoat() ? 'Launch again' : ''), press: () => h.launchLast() }] },
-    { label: 'Launch', buttons: FLEET.map((f) => ({ text: f.name, press: () => h.launchBoat(f.id) })) },
+    { label: '', when: () => !!h.lastBoat(), buttons: [{ text: () => `Last time: ${h.lastBoat()}`, weight: 2.6 }, { text: 'Launch again', press: () => h.launchLast() }] },
+    // The fleet, three to a row (six names in one row were squashed).
+    ...Array.from({ length: Math.ceil(FLEET.length / 3) }, (_, row): MenuRow => ({
+      label: row === 0 ? 'Launch' : '',
+      buttons: FLEET.slice(row * 3, row * 3 + 3).map((f) => ({ text: f.name, press: () => h.launchBoat(f.id) })),
+    })),
     { heading: 'Or a Shipyard favourite' },
     ...Array.from({ length: PER_PAGE }, (_, i) => fav(i)),
     {
       label: 'Code',
       buttons: [
-        { text: () => groupCode(c().code) || '_ (type it in Office > Your boats, or Paste)', weight: 3.2 },
+        { text: () => groupCode(c().code) || '_', weight: 2.4 },
+        { text: 'Type', active: () => typing, press: () => (typing = !typing) },
         { text: 'Paste', press: () => h.pasteCode() },
         { text: () => (c().check().ok ? 'Launch' : ''), active: () => c().check().ok, press: () => c().check().ok && h.launchBoat(c().code) },
       ],
     },
+    { label: '', when: () => typing, buttons: [{ text: () => c().check().text }] },
+    ...[0, 8, 16, 24].map((from): MenuRow => ({ label: '', when: () => typing, buttons: ALPHABET.slice(from, from + 8).split('').map(key) })),
+    { label: '', when: () => typing, buttons: [{ text: '⌫', press: () => c().backspace() }, { text: 'Clear', press: () => c().clear() }] },
   ];
 }
 
@@ -1090,6 +1177,7 @@ function yourBoats(h: MenuHost): MenuRow[] {
   const c = () => h.shipyardCodes();
   const fav = (i: number): MenuRow => ({
     label: '',
+    when: () => i === 0 || !!c().favouriteAt(i),
     buttons: [
       { text: () => c().favouriteAt(i)?.name ?? (i === 0 ? 'None saved: in the Shipyard, or Boat > Save her' : ''), weight: 3.2 },
       { text: () => (c().favouriteAt(i) ? h.takeLabel(c().favouriteAt(i)!.code) : ''), press: () => c().favouriteAt(i) && h.takeDesign(c().favouriteAt(i)!.code) },
@@ -1108,6 +1196,7 @@ function yourBoats(h: MenuHost): MenuRow[] {
     ...Array.from({ length: PER_PAGE }, (_, i) => fav(i)),
     {
       label: '',
+      when: () => c().pages() > 1,
       buttons: [
         { text: '◀', press: () => c().turn(-1) },
         { text: () => `Page ${c().page + 1} of ${c().pages()}`, weight: 2 },

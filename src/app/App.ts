@@ -86,7 +86,7 @@ import { SurfListener } from '../world/surf';
 import { REGIONS, regionAt, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
-import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthNear } from '../voyage/plan';
+import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthNear, wholeView } from '../voyage/plan';
 import { planFaceAspect, PlanTable, planTableSize, planTableSpot, type PlanTableForm, type PlanTableSpot } from '../voyage/planTable';
 import { ChartPad, PadFaces, type PadFace } from '../voyage/chartPad';
 import { PlanChartPanel } from '../ui/planChartPanel';
@@ -915,7 +915,7 @@ export class App {
     this.gpuTimer = new GpuTimer(this.renderer.getContext() as WebGL2RenderingContext);
 
     this.camera = new THREE.PerspectiveCamera(
-      CONFIG.render.fovDeg,
+      userSettings.desktopFov,
       window.innerWidth / window.innerHeight,
       CONFIG.render.near,
       CONFIG.render.far,
@@ -1819,7 +1819,7 @@ export class App {
     let dc = 0;
     if (k.actionPressed('couplingDown')) dc = -0.1;
     if (k.actionPressed('couplingUp')) dc = 0.1;
-    if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
+    if (dc !== 0) this.setCoupling(this.couplingSetting() + dc);
     // (The left stick's click, while that hand holds a control that takes its stick, is the control's: the tug's levers' sync.)
     if ((k.actionPressed('board') && !cam) || (this.xrInput.wasPressed('left', XR_BUTTON.stick) && !this.interaction?.holding('left')?.stickSteerable)) this.toggleBoard();
     if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
@@ -1861,7 +1861,11 @@ export class App {
     const onWheel = this.interaction?.desktopHeld instanceof Wheel;
     const ws = (this.atHelm || onWheel) && !this.craneRemote && !this.interaction?.steering ? (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0) : 0;
     const leverIn = clamp((k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + ws + (pad ? padLever(pad) : 0), -1, 1);
-    const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
+    // At the helm (F), A and D steer too (owner, 29 Oct 2026: "if you pressed F on the keyboard to
+    // drive the vessel ... you can then use the WASD keys to steer and throttle. And when you're
+    // not connected to the helm, then you can use that to walk"). The arrow keys steer from anywhere.
+    const ad = this.atHelm && !this.craneRemote && !this.interaction?.steering ? (k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0) : 0;
+    const helmIn = clamp((k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0) + ad, -1, 1);
 
     let lever = this.signedLever(v);
     if (leverIn === 0) this.neutralLatched = false;
@@ -3047,7 +3051,9 @@ export class App {
       setPlotYourself: (on) => {
         (CONFIG.rescue as { plotYourself: boolean }).plotYourself = on;
       },
-      coupling: () => this.decoupler.coupling,
+      coupling: () => this.couplingSetting(),
+      fov: () => userSettings.desktopFov,
+      setFov: (deg) => this.setFov(deg),
       setCoupling: (v) => this.setCoupling(Math.round(v * 10) / 10),
       smoothWalk: () => userSettings.smoothWalk,
       setSmoothWalk: (on) => {
@@ -4574,13 +4580,44 @@ export class App {
     return 'Playing alone';
   }
 
+  /**
+   * The motion coupling you've set (VR's, or the desktop's): what 9 / 0 and the menu step from.
+   * Not the coupling in use this moment, which on the desktop rides rigid at the controls
+   * (CONFIG.comfort.desktopRigidAtControls): stepping from that, 9 only ever got to 90 %
+   * (owner, 29 Oct 2026: "I can only put it down to 90 with the keys").
+   */
+  private couplingSetting(): number {
+    return this.renderer.xr.isPresenting ? userSettings.motionCoupling : userSettings.desktopCoupling;
+  }
+
+  /**
+   * Desktop: the field of view set (Menu > Settings > Comfort; CONFIG.render.fovSetting), saved
+   * in this browser. In at once, unless something has the lens (the binoculars, the helm's
+   * outside view, the camera mode): then it's what they give back. VR's is the headset's.
+   */
+  private setFov(deg: number): void {
+    const f = CONFIG.render.fovSetting;
+    const v = Math.min(f.max, Math.max(f.min, Math.round(deg)));
+    userSettings.desktopFov = v;
+    saveUserSettings();
+    if (this.camMode.on) this.camOldFov = v;
+    else if (this.helmFovBase !== null) this.helmFovBase = v;
+    else if (!this.binoculars.looking && !this.renderer.xr.isPresenting) {
+      this.camera.fov = v;
+      this.camera.updateProjectionMatrix();
+    }
+    this.overlay.notify(`Field of view ${v}°${this.renderer.xr.isPresenting ? ' (on the desktop: in VR the headset sets it)' : ''}`, 2);
+  }
+
   private setCoupling(value: number): void {
     // Keep full precision: the stick adds tiny amounts per frame (rounding here used to
     // swallow them, so holding X + stick did nothing). Round only for display.
     const c = Math.min(1, Math.max(0, value));
     this.decoupler.coupling = c;
     const xr = this.renderer.xr.isPresenting;
-    this.overlay.notify(`${xr ? '' : 'Desktop '}Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
+    // (On the desktop it's held rigid in the wheelhouse and at the controls, so they keep still to click: said, or the change seems to do nothing.)
+    const rigidHere = !xr && CONFIG.comfort.desktopRigidAtControls && this.deskRigid > 0.5;
+    this.overlay.notify(`${xr ? '' : 'Desktop '}Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)${rigidHere ? '. Rigid here in the wheelhouse, at the controls: it takes effect out on deck' : ''}`, rigidHere ? 4 : 2);
     if (xr) userSettings.motionCoupling = c;
     else userSettings.desktopCoupling = c;
     saveUserSettings();
@@ -5101,7 +5138,7 @@ export class App {
         : this.atHelm
         ? ctl
           ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · Y: camera view · A: leave\nD-pad: anchor up ↑ / down ↓, horn ←, wipers → · left stick click: searchlight · right stick click: laser · X: fire pump'
-          : 'At the helm · ← →: steer · ↑ ↓: throttle · X: neutral · F: leave (or plug in a game controller)'
+          : 'At the helm · A D or ← →: steer · W S or ↑ ↓: throttle · X: neutral · F: leave (or plug in a game controller)'
         : near
           ? ctl
             ? 'Press A (or F) to take the helm'
@@ -5293,7 +5330,7 @@ export class App {
       if (p.avatar) p.avatar.camera = false;
       document.body.classList.remove('camera-clean');
       this.rig.root.add(this.camera);
-      this.camera.fov = this.camOldFov || CONFIG.render.fovDeg;
+      this.camera.fov = this.camOldFov || userSettings.desktopFov;
       this.camera.updateProjectionMatrix();
       this.desktop.resetPose();
       p.mode = 'walk';
@@ -6215,7 +6252,23 @@ export class App {
     // The quay's planning chart (the table's and the stand's), and the Shipyard signs beside
     // it, or at the spot ashore where neither fits (placed with the table: updatePlan).
     const t = CONFIG.voyage.plan.table;
-    this.quayPad = new ChartPad(this.planPadHost(), { px: t.px, aspect: planFaceAspect(), toolbarShare: t.toolbarShare, keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in', 'layers'], redrawS: t.redrawS });
+    // One view for everyone at the board (the plan's `view`): anyone's zoom and drag moves everyone's.
+    this.quayPad = new ChartPad(this.planPadHost(), {
+      px: t.px,
+      aspect: planFaceAspect(),
+      toolbarShare: t.toolbarShare,
+      keys: ['way', 'stop', 'look', 'remove', 'undo', 'clear', 'boat', 'all', 'out', 'in', 'layers'],
+      redrawS: t.redrawS,
+      shared: {
+        // (Never moved yet, the plan's whole-map start: none, so the first to look opens it round their boat.)
+        get: () => {
+          const v = this.world.plan?.view;
+          const w = wholeView();
+          return v && !(v.cx === w.cx && v.cz === w.cz && v.span === w.span) ? v : null;
+        },
+        set: (v) => this.sendPlan('view', [v.cx, v.cz, v.span]),
+      },
+    });
     this.quayPad.setLandSource((id) => this.worldView.terrainPositions(id));
     this.scene.add(this.planAnchor);
     this.shipyardDoor = ShipyardDoor.shipyard(this.menuHost());

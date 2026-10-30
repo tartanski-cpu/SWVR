@@ -29,7 +29,7 @@ function fakeHost() {
   ]);
   const yard = new ShipyardCodes(() => ({ getItem: () => saved, setItem: () => {} }));
   const cam = { on: false, fov: 60, speed: 1, smooth: true, rideBoat: true, clean: true, zoom: (n: number) => (cam.fov += n * 2) };
-  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
+  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, fov: 70, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
   const host: MenuHost = {
     passageCruise: () => '',
     passageLine: () => '',
@@ -78,6 +78,8 @@ function fakeHost() {
     setWeatherFast: () => {},
     coupling: () => state.coupling,
     setCoupling: (v) => (state.coupling = v),
+    fov: () => state.fov,
+    setFov: (d) => (state.fov = d),
     smoothWalk: () => state.smooth,
     setSmoothWalk: (on) => (state.smooth = on),
     snapTurnDeg: () => state.snap,
@@ -309,6 +311,17 @@ describe('main menu contents', () => {
     expect(findButton(rows, 'Leave boat (to the quay)')).toBeTruthy();
   });
 
+  it('the desktop field of view steps by 5° (Settings > Comfort)', () => {
+    const { host, state } = fakeHost();
+    const rows = mainMenu(host);
+    findButton(rows, '+5°').press!();
+    expect(state.fov).toBe(75);
+    findButton(rows, '−5°').press!();
+    findButton(rows, '−5°').press!();
+    expect(state.fov).toBe(65);
+    expect(findButton(rows, '65°')).toBeTruthy();
+  });
+
   it('formats time of day, wrapping at midnight', () => {
     expect(formatHours(10.5)).toBe('10:30');
     expect(formatHours(23.9999)).toBe('00:00');
@@ -463,10 +476,10 @@ describe('menu tabs', () => {
     const def = mainMenu(host);
     const menu = new WristMenu(def);
     expect(menu.panel.localCentreOf(findButton(def, 'Drop 4 m'))).toBeNull(); // on Debug > Boat
-    expect(menu.panel.localCentreOf(findButton(def, '+1 h'))).not.toBeNull(); // first page
+    expect(menu.panel.localCentreOf(findButton(def, 'Open the chart'))).not.toBeNull(); // first page (Voyage > Plan)
     menu.panel.showPage('Debug', 'Boat');
     expect(menu.panel.localCentreOf(findButton(def, 'Drop 4 m'))).not.toBeNull();
-    expect(menu.panel.localCentreOf(findButton(def, '+1 h'))).toBeNull();
+    expect(menu.panel.localCentreOf(findButton(def, 'Open the chart'))).toBeNull();
     expect(calls).toEqual([]);
   });
 });
@@ -483,7 +496,7 @@ describe('menu sections and the Debug tab', () => {
     expect(() => findButton(def, 'Debug')).toThrow(); // tab buttons belong to the panel, not the menu def
     menu.panel.showPage('Debug', 'Boat');
     expect(tab('Drop 4 m')).toBe(false);
-    expect(tab('+1 h')).toBe(true);
+    expect(tab('Open the chart')).toBe(true);
     // Settings > Game: show it.
     menu.panel.showPage('Settings', 'Game');
     expect(tab('High')).toBe(true);
@@ -502,6 +515,74 @@ describe('menu sections and the Debug tab', () => {
     const def = mainMenu(host);
     expect(findButton(def, 'Clear · wind SW 4 (7 m/s)', 'Voyage')).toBeTruthy();
     expect(findButton(def, 'vis good · Hs 1.2 m · next Fog in 12 min', 'Voyage')).toBeTruthy();
+  });
+});
+
+describe('a tidy menu (owner, 30 Oct 2026: "very long, especially in VR")', () => {
+  it('a row with nothing to show closes up, and the rows below move up; it opens again when there is', async () => {
+    const { MenuPanel } = await import('../src/ui/menuPanel');
+    let aboard = false;
+    const rows = [
+      { label: '', buttons: [{ text: 'Top', press: () => {} }] },
+      { label: '', when: () => aboard, buttons: [{ text: 'Mate', press: () => {} }] },
+      { label: '', buttons: [{ text: 'Bottom', press: () => {} }] },
+    ];
+    const p = new MenuPanel([], [{ name: 'A', rows }], 0.24);
+    const y = (i: number) => p.localCentreOf(rows[i].buttons[0])?.y ?? null;
+    expect(y(1)).toBeNull();
+    const closedUp = y(2)!;
+    aboard = true;
+    expect(y(1)).not.toBeNull();
+    expect(y(2)).toBeLessThan(closedUp); // a row lower on the panel: y runs up
+    expect(y(0)).toBeCloseTo(p.localCentreOf(rows[0].buttons[0])!.y, 9); // the row above stays put
+    aboard = false;
+    expect(y(2)).toBeCloseTo(closedUp, 9);
+  });
+
+  it('the panel is drawn only as deep as the page shown; below that a ray meets nothing', async () => {
+    const { MenuPanel } = await import('../src/ui/menuPanel');
+    const row = (t: string) => ({ label: '', buttons: [{ text: t, press: () => {} }] });
+    const p = new MenuPanel([], [{ name: 'Short', rows: [row('One')] }, { name: 'Long', rows: Array.from({ length: 12 }, (_, i) => row(`Row ${i}`)) }], 0.24);
+    p.mesh.updateMatrixWorld(true);
+    const full = p.pixelSize.h;
+    const shortH = p.shownPixelHeight;
+    expect(shortH).toBeLessThan(full / 2);
+    p.showPage('Long');
+    expect(p.shownPixelHeight).toBe(full);
+    p.showPage('Short');
+    // A ray at the quad's foot (where the long page's last row would be): nothing to point at.
+    const foot = new THREE.Ray(new THREE.Vector3(0, -p.height / 2 + 0.01, 1), new THREE.Vector3(0, 0, -1));
+    expect(p.hitRay(foot, 5)).toBeNull();
+    const head = new THREE.Ray(new THREE.Vector3(0, p.height / 2 - 0.01, 1), new THREE.Vector3(0, 0, -1));
+    expect(p.hitRay(head, 5)).not.toBeNull();
+  });
+
+  it('the tabs hold the whole game: every page has sections or rows, and the crew keypad is only there alone', () => {
+    const { host } = fakeHost();
+    const def = mainMenu(host);
+    expect(def.pages.map((p) => p.name)).toEqual(['Voyage', 'Boat', 'Cargo', 'Office', 'World', 'Crew', 'Settings', 'Debug']);
+    const crew = def.pages.find((p) => p.name === 'Crew')!.sections!.map((s) => s.name);
+    expect(crew).toEqual(['Game', 'Aboard', 'Camera']); // Your boat joins in Voyage mode
+    const keypad = def.pages.find((p) => p.name === 'Crew')!.sections![0].rows.find((r) => 'buttons' in r && r.buttons.some((b) => label(b) === '7'))!;
+    expect('when' in keypad && keypad.when!()).toBe(true);
+  });
+});
+
+describe('no duplicates across the tabs (owner, 30 Oct 2026)', () => {
+  it('the balance, the contract, the clock and the project summary are each in one place; the camera zoom is not "field of view"', () => {
+    const { host } = fakeHost();
+    const def = mainMenu(host);
+    const rows = def.pages.flatMap((p) => [...(p.rows ?? []), ...(p.sections ?? []).flatMap((s) => s.rows)]);
+    const labelled = (l: string) => rows.filter((r) => 'label' in r && r.label === l).length;
+    const buttons = (t: string) => rows.filter((r) => 'buttons' in r && r.buttons.some((b) => label(b) === t)).length;
+    expect(labelled('Balance')).toBe(1);
+    expect(labelled('Contract')).toBe(1);
+    expect(labelled('Project')).toBe(2); // the summary on Voyage > Job, and Debug > Missions' Stage done
+    expect(buttons('+1 h')).toBe(1);
+    expect(buttons('−10′')).toBe(1);
+    expect(labelled('Field of view')).toBe(0);
+    expect(labelled('Field of view (desktop)')).toBe(1);
+    expect(labelled('Zoom')).toBe(1);
   });
 });
 

@@ -20,16 +20,22 @@ export interface MenuButton {
   tab?: boolean;
 }
 
-export type ButtonRow = { label: string; buttons: MenuButton[] };
+/**
+ * A row of buttons after its label. `when` (any row kind): the row is only laid out while
+ * this says so (owner, Oct 2026: the menu was "very long"; a row with nothing to show, an
+ * empty cargo slot, a crew-mate who isn't there, left a blank line). The page closes up
+ * when it changes; the rows above stay where they were.
+ */
+export type ButtonRow = { label: string; buttons: MenuButton[]; when?: () => boolean };
 
 /**
  * A scrolling list: `show` of its rows at a time in a fixed space, with ▲ / ▼ at the side
  * (a page at a time) and a bar showing where you are; on desktop the mouse wheel scrolls it
  * too. For long lists (a coast map's dozens of ports), so the panel stays a sensible size.
  */
-export type ScrollRows = { scroll: ButtonRow[]; show: number };
+export type ScrollRows = { scroll: ButtonRow[]; show: number; when?: () => boolean };
 
-export type MenuRow = { heading: string } | ButtonRow | ScrollRows;
+export type MenuRow = { heading: string; when?: () => boolean } | ButtonRow | ScrollRows;
 
 /** A section of a tab: its own rows, picked from a second, smaller tab bar. */
 export interface MenuSection {
@@ -58,7 +64,8 @@ interface Placed {
 interface Scroll {
   rows: { label: string; placed: Placed[] }[];
   show: number;
-  offset: number;
+  /** Where it's scrolled to: kept with the list's definition, so a page laid out again keeps its place. */
+  state: { offset: number };
   /** Top of its first slot (px). */
   y: number;
   /** Its ▲ and ▼ (only when there are more rows than slots). */
@@ -70,9 +77,11 @@ interface Layout {
   headings: { text: string; y: number }[];
   labels: { text: string; y: number }[];
   scrolls: Scroll[];
+  /** Below its last row (px). */
+  bottom: number;
 }
 
-const blankLayout = (): Layout => ({ placed: [], headings: [], labels: [], scrolls: [] });
+const blankLayout = (): Layout => ({ placed: [], headings: [], labels: [], scrolls: [], bottom: 0 });
 
 const W = 640;
 const PAD = 14;
@@ -99,8 +108,11 @@ const COLORS = {
 
 /**
  * Layout: `header` rows (always shown), a tab bar of the pages not hidden, a section bar
- * when the page has sections, then the current page's (or section's) rows. The quad is as
- * tall as the tallest page, so it doesn't change size when you switch tabs.
+ * when the page has sections, then the current page's (or section's) rows. The quad (and
+ * the canvas) is as tall as the tallest page with every row shown, so the menu's top stays
+ * put on the wrist whatever tab you're on; but only the page shown is drawn, down to its
+ * own last row (owner, Oct 2026: "very long, especially in VR"), and below that the quad is
+ * clear and takes no pointing.
  */
 export class MenuPanel {
   readonly mesh: THREE.Mesh;
@@ -111,8 +123,12 @@ export class MenuPanel {
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
   private readonly fixed: Layout = blankLayout();
-  /** Per page: one layout per section (or one for a page of plain rows), and its section bar. */
-  private readonly layouts: { content: Layout[]; bar: Layout | null }[] = [];
+  /** Per page: its section bar (none for a page of plain rows) and where its rows start (px). */
+  private readonly bars: { bar: Layout | null; top: number }[] = [];
+  /** A page's (or section's) rows as laid out, by page, section and which of its rows are shown now. */
+  private readonly laid = new Map<string, Layout>();
+  /** Each scrolling list's place, kept across layouts. */
+  private readonly scrolled = new Map<ScrollRows, { offset: number }>();
   private readonly pages: MenuPage[];
   private page = 0;
   /** The section shown on each page (remembered when you switch tabs and back). */
@@ -128,7 +144,7 @@ export class MenuPanel {
   constructor(header: MenuRow[], pages: MenuPage[], widthM: number) {
     this.pages = pages;
     this.section = pages.map(() => 0);
-    const y = this.layoutRows(header, PAD, this.fixed);
+    const y = this.layoutRows(header, PAD, this.fixed, true);
     this.tabsY = y;
     const top = y + (pages.length > 1 ? ROW_H : 0);
     let bottom = top;
@@ -139,17 +155,13 @@ export class MenuPanel {
           label: '',
           buttons: p.sections.map((sec, k) => ({ text: sec.name, tab: true, active: () => this.section[i] === k, press: () => (this.section[i] = k) })),
         };
-        const y0 = this.layoutRows([sectionRow], top, bar);
-        const content = p.sections.map((sec) => {
-          const l: Layout = blankLayout();
-          bottom = Math.max(bottom, this.layoutRows(sec.rows, y0 + 6, l));
-          return l;
-        });
-        this.layouts.push({ content, bar });
+        const y0 = this.layoutRows([sectionRow], top, bar, true);
+        this.bars.push({ bar, top: y0 + 6 });
+        // The tallest a section can be: every row shown.
+        for (const sec of p.sections) bottom = Math.max(bottom, this.layoutRows(sec.rows, y0 + 6, blankLayout(), true));
       } else {
-        const l: Layout = blankLayout();
-        bottom = Math.max(bottom, this.layoutRows(p.rows ?? [], top + 6, l));
-        this.layouts.push({ content: [l], bar: null });
+        this.bars.push({ bar: null, top: top + 6 });
+        bottom = Math.max(bottom, this.layoutRows(p.rows ?? [], top + 6, blankLayout(), true));
       }
     });
     const H = Math.ceil(bottom + PAD);
@@ -181,14 +193,17 @@ export class MenuPanel {
     if (key !== this.tabsKey) {
       this.tabsKey = key;
       this.tabs = blankLayout();
-      this.layoutRows([{ label: '', buttons: shown.map((i) => ({ text: this.pages[i].name, active: () => this.page === i, press: () => (this.page = i) })) }], this.tabsY, this.tabs);
+      // Drawn as tabs (flat, the one shown underlined), not as a row of buttons: they're where you are, not things to do.
+      this.layoutRows([{ label: '', buttons: shown.map((i) => ({ text: this.pages[i].name, tab: true, active: () => this.page === i, press: () => (this.page = i) })) }], this.tabsY, this.tabs);
     }
     if (!shown.includes(this.page)) this.page = shown[0] ?? 0;
     return this.tabs;
   }
 
-  private layoutRows(rows: MenuRow[], y: number, out: Layout): number {
+  /** Lay rows out from `y` down; `all`: every row, whatever its `when` says. Returns the bottom (px). */
+  private layoutRows(rows: MenuRow[], y: number, out: Layout, all = false): number {
     for (const row of rows) {
+      if (!all && row.when && !row.when()) continue;
       if ('heading' in row) {
         out.headings.push({ text: row.heading, y });
         y += HEAD_H;
@@ -202,7 +217,22 @@ export class MenuPanel {
       out.placed.push(...placeButtons(row, y, W - PAD));
       y += ROW_H;
     }
+    out.bottom = y;
     return y;
+  }
+
+  /** The rows of a page or section as shown now: laid out once per pattern of rows shown. */
+  private contentLayout(i: number, k: number): Layout {
+    const p = this.pages[i];
+    const rows = p.sections ? (p.sections[k] ?? p.sections[0]).rows : (p.rows ?? []);
+    const key = `${i}.${k}.${rows.map((r) => (r.when ? (r.when() ? 1 : 0) : 1)).join('')}`;
+    let l = this.laid.get(key);
+    if (!l) {
+      l = blankLayout();
+      this.layoutRows(rows, this.bars[i].top, l);
+      this.laid.set(key, l);
+    }
+    return l;
   }
 
   /** A scrolling list: `show` slots, its rows narrowed for the side column when they don't all fit. */
@@ -210,14 +240,17 @@ export class MenuPanel {
     const show = Math.max(1, Math.min(row.show, row.scroll.length));
     const scrolls = row.scroll.length > show;
     const right = W - PAD - (scrolls ? SCROLL_W + GAP : 0);
-    const sc: Scroll = { rows: row.scroll.map((r) => ({ label: r.label, placed: placeButtons(r, 0, right) })), show, offset: 0, y, arrows: [] };
+    let state = this.scrolled.get(row);
+    if (!state) this.scrolled.set(row, (state = { offset: 0 }));
+    const st = state;
+    const sc: Scroll = { rows: row.scroll.map((r) => ({ label: r.label, placed: placeButtons(r, 0, right) })), show, state: st, y, arrows: [] };
     if (scrolls) {
       const step = Math.max(1, show - 1);
       const x = W - PAD - SCROLL_W;
       const h = ROW_H - 8;
       sc.arrows.push(
-        { btn: { text: '▲', press: () => (sc.offset = Math.max(0, sc.offset - step)) }, x, y: y + 4, w: SCROLL_W, h },
-        { btn: { text: '▼', press: () => (sc.offset = Math.min(sc.rows.length - show, sc.offset + step)) }, x, y: y + (show - 1) * ROW_H + 4, w: SCROLL_W, h },
+        { btn: { text: '▲', press: () => (st.offset = Math.max(0, st.offset - step)) }, x, y: y + 4, w: SCROLL_W, h },
+        { btn: { text: '▼', press: () => (st.offset = Math.min(sc.rows.length - show, st.offset + step)) }, x, y: y + (show - 1) * ROW_H + 4, w: SCROLL_W, h },
       );
     }
     out.scrolls.push(sc);
@@ -229,11 +262,16 @@ export class MenuPanel {
     for (const l of this.current())
       for (const sc of l.scrolls) {
         if (py < sc.y || py > sc.y + sc.show * ROW_H || sc.rows.length <= sc.show) continue;
-        sc.offset = Math.max(0, Math.min(sc.rows.length - sc.show, sc.offset + rows));
+        sc.state.offset = Math.max(0, Math.min(sc.rows.length - sc.show, sc.state.offset + rows));
         this.refresh();
         return true;
       }
     return false;
+  }
+
+  /** How much of the canvas the page shown now takes (px): the panel is drawn down to here. */
+  get shownPixelHeight(): number {
+    return Math.min(this.canvas.height, Math.ceil(Math.max(...this.current().map((l) => l.bottom)) + PAD));
   }
 
   /** The tab shown now (its name). */
@@ -266,10 +304,10 @@ export class MenuPanel {
   /** What's on screen now: header, tab bar, section bar, content. */
   private current(): Layout[] {
     const tabs = this.tabBar();
-    const l = this.layouts[this.page];
+    const b = this.bars[this.page];
     const out = [this.fixed, tabs];
-    if (l?.bar) out.push(l.bar);
-    if (l) out.push(l.content[this.section[this.page]] ?? l.content[0]);
+    if (b?.bar) out.push(b.bar);
+    if (b) out.push(this.contentLayout(this.page, this.section[this.page]));
     return out;
   }
 
@@ -283,7 +321,10 @@ export class MenuPanel {
     this.raycaster.far = far;
     const hit = this.raycaster.intersectObject(this.mesh, false)[0];
     if (!hit?.uv) return null;
-    return { btn: this.buttonAt(hit.uv.x * W, (1 - hit.uv.y) * this.canvas.height), point: hit.point, distance: hit.distance };
+    const py = (1 - hit.uv.y) * this.canvas.height;
+    // Below the page shown the quad is clear: nothing there to point at.
+    if (py > this.shownPixelHeight) return null;
+    return { btn: this.buttonAt(hit.uv.x * W, py), point: hit.point, distance: hit.distance };
   }
 
   /**
@@ -296,6 +337,7 @@ export class MenuPanel {
     if (Math.abs(x) > this.width / 2 || Math.abs(y) > this.height / 2 || z > reach || z < -reach) return null;
     const px = (x / this.width + 0.5) * W;
     const py = (0.5 - y / this.height) * this.canvas.height;
+    if (py > this.shownPixelHeight) return null;
     return { btn: this.buttonAt(px, py), depth: z };
   }
 
@@ -305,7 +347,7 @@ export class MenuPanel {
 
   /** Redraw if anything shown changed (cheap check; call every frame while visible). */
   refresh(force = false): void {
-    const sig = `${this.page}.${this.section[this.page]}.${this.current().flatMap((l) => l.scrolls.map((sc) => sc.offset)).join(',')}#` + this.visible().map((p) => `${text(p.btn)}|${p.btn.active?.() ? 1 : 0}|${p.btn === this.hover ? 1 : 0}`).join(';');
+    const sig = `${this.page}.${this.section[this.page]}.${this.shownPixelHeight}.${this.current().flatMap((l) => l.scrolls.map((sc) => sc.state.offset)).join(',')}#` + this.visible().map((p) => `${text(p.btn)}|${p.btn.active?.() ? 1 : 0}|${p.btn === this.hover ? 1 : 0}`).join(';');
     if (!force && sig === this.signature) return;
     this.signature = sig;
     this.draw();
@@ -340,8 +382,9 @@ export class MenuPanel {
   private draw(): void {
     const { g, canvas } = this;
     g.clearRect(0, 0, canvas.width, canvas.height);
+    // The board only as deep as this page: the rest of the canvas stays clear.
     g.fillStyle = COLORS.bg;
-    roundRect(g, 2, 2, canvas.width - 4, canvas.height - 4, 18);
+    roundRect(g, 2, 2, canvas.width - 4, this.shownPixelHeight - 4, 18);
     g.fill();
     g.strokeStyle = COLORS.border;
     g.lineWidth = 3;
@@ -362,13 +405,13 @@ export class MenuPanel {
         g.fill();
         if (len > 0) {
           g.fillStyle = COLORS.border;
-          const t0 = top + (len * sc.offset) / sc.rows.length;
+          const t0 = top + (len * sc.state.offset) / sc.rows.length;
           roundRect(g, x, t0, 10, Math.max(8, (len * sc.show) / sc.rows.length), 5);
           g.fill();
         }
       }
     // The section bar sits on a darker strip, so it reads as part of the tab above it.
-    const bar = this.layouts[this.page]?.bar;
+    const bar = this.bars[this.page]?.bar;
     if (bar?.placed.length) {
       const y = bar.placed[0].y - 4;
       g.fillStyle = COLORS.tab;
@@ -378,7 +421,8 @@ export class MenuPanel {
     g.textAlign = 'left';
     g.font = 'bold 24px system-ui, sans-serif';
     g.fillStyle = COLORS.heading;
-    for (const h of headings) g.fillText(h.text.toUpperCase(), PAD + 4, h.y + HEAD_H / 2 + 4);
+    // A heading that would run off the edge is squeezed to fit, not cut.
+    for (const h of headings) g.fillText(h.text.toUpperCase(), PAD + 4, h.y + HEAD_H / 2 + 4, W - 2 * PAD - 8);
     g.font = '23px system-ui, sans-serif';
     g.fillStyle = COLORS.label;
     for (const l of labels) if (l.text) g.fillText(l.text, PAD + 4, l.y + ROW_H / 2, LABEL_W - PAD - 10);
@@ -431,7 +475,8 @@ function placeButtons(row: ButtonRow, y: number, right: number): Placed[] {
 
 /** The rows of a scrolling list in view now, each moved down to its slot. */
 function shownRows(sc: Scroll): { label: string; placed: Placed[] }[] {
-  return sc.rows.slice(sc.offset, sc.offset + sc.show).map((r, i) => ({ label: r.label, placed: r.placed.map((p) => ({ ...p, y: p.y + sc.y + i * ROW_H })) }));
+  const { offset } = sc.state;
+  return sc.rows.slice(offset, offset + sc.show).map((r, i) => ({ label: r.label, placed: r.placed.map((p) => ({ ...p, y: p.y + sc.y + i * ROW_H })) }));
 }
 
 function text(b: MenuButton): string {

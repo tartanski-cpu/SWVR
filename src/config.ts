@@ -178,6 +178,13 @@ export const CONFIG = {
     antialias: true,
     maxPixelRatio: 2,
     fovDeg: 70,
+    /**
+     * Desktop: the field of view a player may set (owner, 29 Oct 2026: "The desktop players want
+     * a field of vision settings slider"; Menu > Settings > Comfort, `fovDeg` until set): from
+     * `min` to `max` degrees (vertical, as three.js counts it: 70 shows about 103 across a
+     * 16:9 screen) in steps of `step`. VR's is the headset's own.
+     */
+    fovSetting: { min: 50, max: 110, step: 5 },
     near: 0.05,
     /**
      * Far plane (m): out to the clearest day's horizon (environment.hazeFar), so a region's
@@ -975,7 +982,7 @@ export const CONFIG = {
       // Owner, Oct 2026: the beginner boat comes without these, and the yard sells them. (`fit` empty:
       // the old workboat has hers already and keeps them.)
       { id: 'fenders', name: 'Fenders', price: 600, minRep: 0, fit: [], design: { guard: 1 }, desc: 'Fenders along her sides and a basket of spares: knocks alongside land on them, not her hull, and you can hang one between her and the quay by hand' },
-      { id: 'lifeRing', name: 'Life ring', price: 400, minRep: 0, fit: [], design: { lifeRing: 1 }, desc: 'A life ring and a boat hook on the wheelhouse aft wall: the rescue calls come once she has it' },
+      { id: 'lifeRing', name: 'Life ring', price: 400, minRep: 0, fit: [], design: { lifeRing: 1 }, desc: 'A life ring on the wheelhouse aft wall, the boat hook moving beside it: the rescue calls come once she has it' },
       // Owner, Oct 2026: crew transfer to the wind farm wants a bow fender, and a quick way to
       // one without designing a new boat. The beginner boat's design with one (modules/bowFender;
       // the Shipyard's price, CONFIG.shipyard.bowFenderPrice). The old workboat can't take it.
@@ -3133,6 +3140,10 @@ export const CONFIG = {
         dragPx: 5,
         board: { width: 0.8, px: 1024, toolbarShare: 0.13, redrawS: 0.08, ahead: 0.65, below: 0.3, grab: 0.1, reach: 2.5 },
         startSpan: 6000,
+        // The quay board's shared view (voyage/chartPad.ts shared): a move goes out at most every
+        // `shareEveryMs`; a page shows the shared view once it's left it alone `shareHoldMs`.
+        shareEveryMs: 120,
+        shareHoldMs: 700,
         leaf: { px: 1280, redrawS: 0.1, toolbarShare: 0.13, reach: 1.6 },
         plotter: { px: 768, redrawS: 0.15, toolbarShare: 0.16, reach: 1.6 },
       },
