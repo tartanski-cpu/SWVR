@@ -12,6 +12,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ### The planning chart sharp wherever you look (30 Oct 2026)
 
+**Owner approved; merged into `next`.**
+
 Owner, at the chart table: "it only seems to load one area in with detail when I scroll around. Other parts of the map are kind of low resolution."
 
 - **Why:** the chart's coast is cut from the detailed ground (nav/chartLand.ts), which on a big map is only loaded within 1.5 km of you and the boats (world/coastStream.ts); everywhere else the chart had only the coarse 50 m grid, blurred.
