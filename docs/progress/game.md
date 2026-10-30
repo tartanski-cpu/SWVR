@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Training mode: the plan (30 Oct 2026)
+
+Owner: "Take a look at the RYA power boat syllabus and the German Sportbootführerschein and come up with a plan to build out the Training module."
+
+- **`docs/TRAINING.md`** (new): what the two schemes ask of a trainee (researched from the RYA's course pages and centre transcriptions of the G20, and from the SpFV, its Anlagen, the ELWIS scoring key and question catalogues and the DMYV/DSV examiner guideline, checked twice); what the game already judges and what it lacks; four practice courses of exercises (Harbour, Rescue, Coast, Passage) and an Examiner's Run in the SBF's form, each exercise tied to a syllabus item and to the game's state; the training harbour as one region data file; the exercise engine on the first-voyage tutorial's pattern; recording as sampled state (host-side, IndexedDB) with a chart review first and a rendered replay only if wanted; the instructor in multiplayer; seven milestones; thirteen questions for the owner; what is flagged as unwise.
+- **A finding that matters:** prop walk is only on the old workboat; every Shipyard-built boat has it set to zero (`config/modules.ts` propeller block), and the beginner boat is a stern drive. The prop-walk lessons need a shaft boat that has it (question 2 of the plan).
+- **Nothing built.** No code changed.
+- **Shared changes:** `CLAUDE.md` Docs list gains `docs/TRAINING.md`.
+
 ### Desktop field of view; longline messages; a boat hook on every boat (29 Oct 2026)
 
 Owner: "The desktop players want a field of vision settings slider." And: "If you drop the reel in the water in a fishing ground, it says you've lost the reel ... It should say line set ... it should allow you to set it anywhere. You just don't get any fish ... So it should never say that message. And then I noticed that the trawler doesn't have a boat hook, so I couldn't retrieve the line."
