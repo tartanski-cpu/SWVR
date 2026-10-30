@@ -296,6 +296,23 @@ export function logKnots(s: VesselState): number {
   return Math.hypot(s.linearVelocity[0] - c.x, s.linearVelocity[2] - c.z) * 1.943844;
 }
 
+/**
+ * Her way through the water along her own heading (kn): + ahead, - astern (sternway). The
+ * log reads speed alone; this says which way, for the log's ASTERN colour.
+ */
+export function aheadLogKnots(s: VesselState): number {
+  const c = { x: 0, z: 0 };
+  addCurrent(s.position[0], s.position[2], c);
+  const h = (headingDeg(s) * Math.PI) / 180;
+  // Her bow points along (sin h, -cos h) in world x, z (+x east, -z north).
+  return ((s.linearVelocity[0] - c.x) * Math.sin(h) - (s.linearVelocity[2] - c.z) * Math.cos(h)) * 1.943844;
+}
+
+/** Going astern through the water (more than CONFIG.interaction.asternKn of sternway). */
+export function goingAstern(s: VesselState): boolean {
+  return aheadLogKnots(s) < -CONFIG.interaction.asternKn;
+}
+
 export function headingDeg(s: VesselState): number {
   const q = new THREE.Quaternion().fromArray(s.orientation);
   const f = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
@@ -317,8 +334,12 @@ const paintSpeed: Painter = (g, s, def) => {
   title(g, 'SPEED  LOG');
   text(g, 'DEPTH', 316, 16);
   const kn = logKnots(s);
+  // Going astern: the figure, its bar and ASTERN in their own colour (CONFIG.interaction.asternColour).
+  const astern = goingAstern(s);
+  const col = astern ? CONFIG.interaction.asternColour : AMBER;
+  if (astern) text(g, 'ASTERN', 150, 16, col);
   g.textAlign = 'right';
-  big(g, kn.toFixed(1), 228, 92, 84);
+  big(g, kn.toFixed(1), 228, 92, 84, col);
   g.textAlign = 'left';
   big(g, 'kn', 236, 108, 28, DIM);
   // Echo sounder: water under the keel, red under 2 m.
@@ -333,7 +354,7 @@ const paintSpeed: Painter = (g, s, def) => {
   // 0-15 kn bar.
   g.fillStyle = '#1f2a24';
   g.fillRect(24, 210, 464, 16);
-  g.fillStyle = AMBER;
+  g.fillStyle = col;
   g.fillRect(24, 210, Math.min(464, (kn / 15) * 464), 16);
 };
 
@@ -1128,7 +1149,7 @@ const paintDialRpm: Painter = (g, s) => {
   dial(g, { min: 0, max, value: s.engine.rpm, ticks: max / 500, label: 'RPM', units: 'x100', red: rated, fig: (v) => String(Math.round(v / 100)) });
 };
 /** The speed log: knots, 0 to 30. */
-const paintDialSpeed: Painter = (g, s) => dial(g, { min: 0, max: 30, value: logKnots(s), ticks: 6, label: 'LOG', units: 'kn' });
+const paintDialSpeed: Painter = (g, s) => dial(g, { min: 0, max: 30, value: logKnots(s), ticks: 6, label: 'LOG', units: 'kn', ...(goingAstern(s) ? { note: 'ASTERN', noteColour: CONFIG.interaction.asternColour } : {}) });
 /** The depth gauge: the water under her keel, 0 to 50 m (red under 2 m: a mark, as on an old sounder). */
 const paintDialDepth: Painter = (g, s, def) => dial(g, { min: 0, max: 50, value: depthUnderKeel(s, def), ticks: 5, label: 'DEPTH', units: 'm', note: depthUnderKeel(s, def) < 2 ? 'SHALLOW' : undefined, noteColour: RED });
 /** Coolant temperature, 40 to 120 C, red from her alarm. */

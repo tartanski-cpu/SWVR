@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The speed log turns blue going astern (30 Oct 2026)
+
+Owner: "It's quite hard to tell if you're going forward or backwards on a computer. It would be good if the speed instrument changed color when you start going backwards."
+
+- **The SPEED LOG screen** (and the touchscreens' SPEED page): with more than 0.15 kn of sternway through the water, the figure, its bar and the word ASTERN (by the title) show in blue instead of amber. A little under that counts as stopped, so it doesn't flicker at rest. Boats with a round **LOG dial** show ASTERN beside it (its needle can't go below 0).
+- Her way along her heading through the water (`aheadLogKnots`: the velocity less the tide, onto her bow's direction), so a sideways drift is neither.
+- **Config keys:** `CONFIG.interaction.asternKn` (0.15), `asternColour` (`#5cc8ff`).
+- **Tests:** `tests/logAstern.test.ts`: ahead and astern on four headings, a crawl astern under the threshold and a sideways drift not counted. All of `npm test` and the typecheck pass. Seen headless: the console going ahead (amber 2.6 kn) and astern (blue 4.0 kn, ASTERN).
+- **Every boat, every mode:** it's the game's instrument, so it shows on `next` and the live game once Training's work is merged there.
+- **Shared changes:** `src/controls/instruments.ts` (`aheadLogKnots`, `goingAstern`; the speed screen's and the log dial's colour), `src/config.ts` (the two keys), `README.md`.
+
+**Try it:** on the training page start **H5**, take the helm (F), and pull the lever back: as she gathers sternway the log turns blue and says ASTERN; ahead it's amber again. In VR, the same on the console's left screen.
+
 ### M2: every attempt recorded, and reviewed on the chart (30 Oct 2026)
 
 **On `preview/training` for the owner to try.** Owner, 30 Oct 2026: "continue as you can with some of the existing boats" (the Shipyard training boats later); the fishing boat stays the training boat, and M2 doesn't depend on the boat.

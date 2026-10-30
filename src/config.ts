@@ -2867,6 +2867,15 @@ export const CONFIG = {
     pendingMs: 800,
     /** Displays redraw rate (Hz). */
     displayHz: 10,
+    /**
+     * The speed log going astern (owner, 30 Oct 2026: "quite hard to tell if you're going
+     * forward or backwards on a computer"): once she makes more than `asternKn` sternway
+     * through the water, the log's figure, its bar and the word ASTERN show in `asternColour`
+     * (the round log dial: ASTERN beside it). A little under it counts as stopped, so the
+     * colour doesn't flicker at rest.
+     */
+    asternKn: 0.15,
+    asternColour: '#5cc8ff',
   },
 
   /** The in-game menu (Y in VR, O on desktop). */
