@@ -1713,6 +1713,8 @@ export const CONFIG = {
      * choosing it for you (what matters now in view: 700 m to 5 km).
      */
     ranges: [250, 500, 1000, 2000, 4000, 8000, 16000, 32000],
+    /** The fishing and potting grounds' names shown only at this range across or closer (m); farther out, just their rings (owner, Oct 2026: a big coast map's names piled up). */
+    groundLabelsWithin: 8000,
   },
   /**
    * Pencil marks on the paper chart (chart/marks.ts). Strokes are stored in world metres

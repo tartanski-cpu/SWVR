@@ -239,13 +239,13 @@
   "marks": 0,
   "lights": 15,
   "slipways": 0,
-  "fishingGrounds": 1,
-  "pottingGrounds": 43,
+  "fishingGrounds": 5,
+  "pottingGrounds": 26,
   "landmarks": [
    "Pyrgos",
    "Nisis Dhidhimi FlW.6s"
   ],
-  "bytes": 523503
+  "bytes": 522900
  },
  "houses": {
   "byType": {

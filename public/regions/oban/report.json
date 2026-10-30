@@ -166,12 +166,12 @@
   "lights": 11,
   "slipways": 5,
   "fishingGrounds": 2,
-  "pottingGrounds": 8,
+  "pottingGrounds": 7,
   "landmarks": [
    "Càrn Breugach",
    "Dunollie Fl(2)GWR.6s"
   ],
-  "bytes": 226401
+  "bytes": 226618
  },
  "houses": {
   "byType": {

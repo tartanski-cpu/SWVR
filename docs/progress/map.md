@@ -10,6 +10,19 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### Fishing grounds on every map, fewer potting grounds on Sunnmøre (30 Oct 2026)
+
+Owner: "Can it be that I can't see fishing areas on the voyage maps, only lobster potting areas?"; then: "I think there's maybe too many potting grounds on Sunnmøre ... I'd like to have some fishing areas on all the maps. Hamburg can have none because it's an industrial harbour ... make a realistic guess about where those pots would be and the grounds would be."
+
+- **Why:** the pipeline placed one fishing ground per species (350 m across) at the single best depth on the whole map, so a map had 1-3; and lobster is potting, not a ground. Potting grounds went round every charted rock (Sunnmøre 2,746).
+- **Fishing grounds** (`package.ts`; `grounds` per species' depth, `groundArea` 25, `groundMax` 8, `groundApart` 2500, `groundReach` 12000, `groundStep` 200, `groundNameReach` 5000): open water of each species' depth, one per 25 km² of it (at most 8 a species), the depth nearest the species' own first, within 12 km of a harbour (a day's run), 2.5 km apart and 900 m clear of harbours. Each named after the nearest well-known place ("Cod ground off Alnes", "Mackerel ground off Hydra Strait"), never twice; farther out by its bearing ("Cod ground north-west of Grasøya"). Herring (10-60 m) and coalfish (25-150 m) now have depths, so Turku's herring grounds appear. Now: Oban 2, Tayvallich 2, Syros 5, the Saronic 8, Turku 11, the Clyde 24, Sunnmøre 40 (cod, coalfish, haddock, mackerel, herring: `sunnmore.yaml`'s fish, with crab for its pots); Hamburg none, as asked.
+- **Potting grounds** (`potReach` 8000, `potApart` 250, `potMax` 150): kept where creel boats would set them: within 8 km of a harbour, named rocks first, then those nearest a harbour, never two within 250 m (a request's `pottingApart` instead: Turku's 1,200), and on a map with more than 150 the spacing widened until it has 150 or fewer, evenly spread. Sunnmøre 2,746 → 118, the Saronic 194 → 120, Turku 215 → 133, Syros 43 → 26, the Clyde 24 → 15 (pairs on the same rocks merged), Oban 7, Tayvallich 5. A rock with no name is called after the nearest place ("Rocks off Kosta"), not "Skerry 589".
+- **On the chartplotter** (`nav/chartPlotter.ts`; `CONFIG.chartPlotter.groundLabelsWithin` 8000): the grounds' names only at 8 km across or closer; farther out, just their rings (Sunnmøre's names piled on each other).
+- **All maps' packages run again** for it: only their grounds changed, and on Oban, Syros and Tayvallich, last run before them, the lamp mast moved off the cargo stack and the pier headings to 0.1° too. Every berth the same.
+- **Tests:** `tests/coastGrounds.test.ts` (every Voyage map but Hamburg at least 2 fishing grounds, each named once, 2.5 km apart, within 12 km of a harbour; potting grounds 1-150; Hamburg none). `npm run test:map`, the typecheck and all of `npm test` pass. Seen headless: Sunnmøre's chartplotter at 4 and 16 km.
+- **Not checked:** fishing on them in the game (the trawl and the line use them as before), and on the Quest.
+- **Shared changes:** `src/nav/chartPlotter.ts` (the names by range, two lines), `src/config.ts` (`chartPlotter.groundLabelsWithin`).
+
 ### Buildings streamed on the Clyde, Turku and Hamburg (29 Oct 2026)
 
 **Owner approved; merged into `next`.**

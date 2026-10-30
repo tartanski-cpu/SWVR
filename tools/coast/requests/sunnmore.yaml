@@ -16,7 +16,7 @@ spine:
   pier.exposed: auto
   anchorage: auto
 weatherProfile: west-norwegian
-fish: [cod, mackerel]
+fish: [cod, coalfish, haddock, mackerel, herring, crab]
 goods: [building-materials, groceries, feed]
 # The ferry lines across the fjords, and the coastal express: only the named ones, each once.
 ferriesNamed: true
