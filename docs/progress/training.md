@@ -10,9 +10,11 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+**30 Oct 2026, owner: "Push to next".** M3 merged into `next` (`origin/next` had nothing new). All of `npm test` (1,958) and the typecheck pass.
+
 ### M3: Harbour practice complete, Rescue practice, the Examiner's Run, and the missing mechanics (30 Oct 2026)
 
-**On `preview/training` for the owner to try.** Owner, 30 Oct 2026: "Build it all, including missing mechanics" (springs, the mooring buoy, a chosen anchor scope, the kill cord: plan questions 3 to 7 all yes); badges mean nothing in the Career (the safe default, question 11); the existing boats for now ("continue as you can with some of the existing boats").
+**On `next`.** Owner, 30 Oct 2026: "Build it all, including missing mechanics" (springs, the mooring buoy, a chosen anchor scope, the kill cord: plan questions 3 to 7 all yes); badges mean nothing in the Career (the safe default, question 11); the existing boats for now ("continue as you can with some of the existing boats").
 
 **The mechanics** (shared code, each small, each its own test in `tests/seamanship.test.ts`):
 - **Springs** (`vessel/physics/mooring.ts` `toggleSpring`; the Boat tab's Springs row, Fore / Aft): a rope from her bow cleat aft to the berth's aft bollard (fore spring), or the stern cleat forward (aft spring). It pulls only stretched past its length, as stiff as the lines, and stays fast with the bow and stern lines let go, so she can motor ahead against it: tested, she swings her stern out 20°+ with her bow held. `CONFIG.docking.springSlack`.
