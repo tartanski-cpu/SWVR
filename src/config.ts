@@ -586,7 +586,24 @@ export const CONFIG = {
     breakDist: 8,
     /** Lines come taut over this long when docking (s). */
     warpTime: 4,
+    /**
+     * Springs and mooring buoys (owner, 30 Oct 2026, for Training; vessel/physics/mooring.ts):
+     * a spring made fast with `springSlack` m of slack; a mooring buoy picked up from her bow
+     * cleat within `buoyReach` m of it, under `buoyMaxSpeed` (m/s, ~1.5 kn), on a pennant
+     * `buoyPennant` m long. Both are ropes: they pull only stretched, as stiff as the lines.
+     */
+    springSlack: 0.3,
+    buoyReach: 3,
+    buoyMaxSpeed: 0.8,
+    buoyPennant: 4,
   },
+
+  /**
+   * The kill cord (vessel/killCord.ts; owner, 30 Oct 2026): fitted to these boats (the small
+   * open ones, steered from a tiller or a console); clipped on, it stops her motor when its
+   * wearer is more than `reachM` (m) from her helm.
+   */
+  killCord: { boats: ['skiff', 'rib'] as readonly string[], reachM: 1.5 },
 
   /**
    * Towing missions (tow/tow.ts). Out of harbour with nothing else on, every so often a
@@ -2071,6 +2088,13 @@ export const CONFIG = {
   /** Anchoring: the anchor's holding power by the bottom (PortDef.bottom; sand elsewhere). */
   anchoring: {
     bottomHolding: { sand: 1, mud: 0.8, weed: 0.55, rock: 0.4 } as Record<'sand' | 'mud' | 'weed' | 'rock', number>,
+    /**
+     * With a scope chosen (the menu's Scope; owner, 30 Oct 2026, for Training: "the trainee
+     * chooses 3:1 against 5:1 and sees it drag"), the anchor's holding builds with the chain's
+     * length over the bow's height above the bottom until this ratio (physics/anchor.ts);
+     * unchosen, it is full from 3:1 as before.
+     */
+    chosenFullScope: 5,
   },
 
   /** Player movement aboard and ashore. */

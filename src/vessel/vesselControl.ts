@@ -5,7 +5,8 @@ import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
 import { CONFIG } from '../config';
 import { toggleEngine } from './physics/propulsion';
-import { toggleCleat, toggleDock } from './physics/mooring';
+import { toggleBuoy, toggleCleat, toggleDock, toggleSpring } from './physics/mooring';
+import { applyKillCordIntent } from './killCord';
 import { gearOf } from '../boats/sims';
 import { VESSEL_DEFS } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
@@ -208,6 +209,11 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'anchor':
       s.controls.anchor = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'anchorScope':
+      // The scope to anchor at, chain over depth (2 to 10; 0: the windlass's own): physics/anchor.ts.
+      if (intent.value > 0) s.anchor.scope = clamp(intent.value, 2, 10);
+      else delete s.anchor.scope;
+      break;
     case 'key':
       // Ignition key 1 on / 0 off.
       s.engine.key = intent.value > 0.5 ? 1 : 0;
@@ -349,6 +355,17 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       // A cleat (value 0-3: fwd port, fwd stbd, aft port, aft stbd): make that end's line
       // fast to the nearest bollard, or cast it off.
       toggleCleat(s, Math.round(intent.value));
+      break;
+    case 'killCord':
+      applyKillCordIntent(s, intent);
+      break;
+    case 'spring':
+      // A spring (value 1 fore, 2 aft; 0 off): physics/mooring.ts toggleSpring.
+      toggleSpring(s, intent.value === 1 ? 'fore' : intent.value === 2 ? 'aft' : null);
+      break;
+    case 'buoy':
+      // Make fast to the mooring buoy under her bow, or slip it.
+      toggleBuoy(s);
       break;
     case 'refuel':
       // Start (1) or stop (0) taking fuel; stepRefuelling checks the berth each tick.

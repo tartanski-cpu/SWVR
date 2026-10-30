@@ -14,12 +14,21 @@
  *             part.
  * A cleat with its line fast casts that end off; with neither end fast she's free. The menu's
  * Dock / Cast off does both ends at once (toggleDock).
+ *
+ * Two ropes besides (owner, 30 Oct 2026, for Training): a spring (toggleSpring: from the bow
+ * cleat aft to the berth's aft bollard, or the stern cleat forward to its forward one) and a
+ * mooring buoy's pennant (a forward cleat close by a `mooring` mark: toggleCleat). A rope pulls
+ * only when stretched past its length, along itself, stiff and damped as the lines are and
+ * capped at `holdForce`; it parts past `breakDist` of stretch. Both act whatever the phase,
+ * so she can lie to a buoy free of any berth, or motor ahead against a spring with her bow and
+ * stern lines let go (springing off).
  */
 import { berthTaken } from '../../world/harbourBoats';
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import type { BerthDef } from '../../world/archipelago';
 import { berthsNear, berthWithId } from '../../world/berths';
+import { MARKS } from '../../world/archipelago';
 import { gearOf } from '../../boats/sims';
 import { VESSEL_DEFS } from '../vesselDef';
 import type { VesselState } from '../vesselState';
@@ -79,6 +88,12 @@ export function toggleCleat(s: VesselState, cleat: number): boolean {
   const m = s.mooring;
   const end = cleat < 2 ? 'bow' : 'stern';
   const side = cleat % 2 === 0 ? -1 : 1;
+  // A forward cleat to a mooring buoy: slip it, or (free, no berth in reach, the buoy close under the bow) make fast to it.
+  if (end === 'bow' && m.buoy) {
+    delete m.buoy;
+    return true;
+  }
+  if (end === 'bow' && m.phase === 'free' && !berthInRange(s) && toggleBuoy(s)) return true;
   if (m[end]) {
     m[end] = 0;
     if (!m.bow && !m.stern) castOff(m);
@@ -112,6 +127,95 @@ export function toggleDock(s: VesselState): void {
   m.bow = side;
   m.stern = side;
   m.phase = 'docking';
+}
+
+/** Her bow or stern cleat's place in the world (x, z), near enough for a rope's end. */
+function cleatAt(s: VesselState, end: 'bow' | 'stern'): { x: number; z: number } {
+  const c = gearOf(s, end === 'bow' ? 'bowCleat' : 'sternCleat');
+  const bow = bowDirection(s);
+  // Vessel z runs aft: the cleat is -z along the bow.
+  const along = -(c?.z ?? 0);
+  return { x: s.position[0] + bow.x * along, z: s.position[2] + bow.z * along };
+}
+
+/** The mooring buoy within reach of her bow cleat (CONFIG.docking.buoyReach), slow enough to pick up, or null. */
+export function buoyInReach(s: VesselState): { id: string; x: number; z: number } | null {
+  const c = CONFIG.docking;
+  if (Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) > c.buoyMaxSpeed) return null;
+  const at = cleatAt(s, 'bow');
+  let best: { id: string; x: number; z: number } | null = null;
+  let bestD = c.buoyReach;
+  for (const mk of MARKS) {
+    if (mk.kind !== 'mooring') continue;
+    const d = Math.hypot(mk.x - at.x, mk.z - at.z);
+    if (d < bestD) {
+      bestD = d;
+      best = { id: mk.name, x: mk.x, z: mk.z };
+    }
+  }
+  return best;
+}
+
+/** Make fast to the mooring buoy in reach, or slip the one she's on. Returns false when there's none in reach. */
+export function toggleBuoy(s: VesselState): boolean {
+  const m = s.mooring;
+  if (m.buoy) {
+    delete m.buoy;
+    return true;
+  }
+  if (!gearOf(s, 'bowCleat')) return false;
+  const b = buoyInReach(s);
+  if (!b) return false;
+  m.buoy = { id: b.id, x: b.x, z: b.z, length: CONFIG.docking.buoyPennant };
+  return true;
+}
+
+/**
+ * Put a spring on (`fore`: bow cleat aft to the berth's aft bollard; `aft`: stern cleat forward
+ * to its forward one), or take it off (`end` null, or the one she has). Needs a berth: the one
+ * she's alongside or in reach of. Returns false when there's none.
+ */
+export function toggleSpring(s: VesselState, end: 'fore' | 'aft' | null): boolean {
+  const m = s.mooring;
+  if (!end || m.spring?.end === end) {
+    delete m.spring;
+    return true;
+  }
+  if (!gearOf(s, 'bowCleat') || !gearOf(s, 'sternCleat')) return false;
+  const inRange = m.phase === 'free' ? berthInRange(s) : null;
+  const b = m.phase !== 'free' ? berthById(m.berthId) : inRange?.berth;
+  if (!b) return false;
+  const reversed = m.phase !== 'free' ? m.reversed : inRange!.reversed;
+  const a = berthAxis(b, reversed);
+  const half = b.bollardHalf ?? 6;
+  // The bollard on the quay's edge: aft of her middle for a fore spring, forward for an aft one.
+  const k = end === 'fore' ? -half : half;
+  const bx = b.x + b.shoreX * b.shoreDist + a.x * k;
+  const bz = b.z + b.shoreZ * b.shoreDist + a.z * k;
+  const c = cleatAt(s, end === 'fore' ? 'bow' : 'stern');
+  m.spring = { end, x: bx, z: bz, length: Math.hypot(bx - c.x, bz - c.z) + CONFIG.docking.springSlack };
+  return true;
+}
+
+/**
+ * A rope from the point `p` (velocity `v`) to (ax, az), `length` long: the horizontal pull on
+ * the boat at `p` when it's stretched (stiff and damped as a line, capped), added to `out`.
+ * Returns how far it's stretched (m; 0 slack).
+ */
+function rope(p: V, v: V, ax: number, az: number, length: number, k: number, damp: number, cap: number, out: V): number {
+  const dx = ax - p.x;
+  const dz = az - p.z;
+  const d = Math.hypot(dx, dz);
+  const stretch = d - length;
+  if (stretch <= 0 || d < 1e-6) return 0;
+  const ux = dx / d;
+  const uz = dz / d;
+  // Pulling her toward the end, and damping her moving away from it along the rope.
+  const away = -(v.x * ux + v.z * uz);
+  const f = Math.min(cap, Math.max(0, k * stretch + damp * Math.max(0, away)));
+  out.x += f * ux;
+  out.z += f * uz;
+  return stretch;
 }
 
 /** Which side of the boat faces a berth's quay: -1 port, +1 starboard. */
@@ -162,13 +266,30 @@ export function stepMooring(s: VesselState, cleats: { bow: number; stern: number
   const m = s.mooring;
   outBow.x = outBow.y = outBow.z = 0;
   outStern.x = outStern.y = outStern.z = 0;
+  // The spring and the buoy's pennant, whatever the phase (added to the lines' pulls at the end).
+  const ropes = { x: 0, y: 0, z: 0 };
+  const sternRope = { x: 0, y: 0, z: 0 };
+  const lightR = Math.min(1, (cleats.massKg ?? c.lightBoatKg) / c.lightBoatKg);
+  if (m.buoy && rope(bow, bowVel, m.buoy.x, m.buoy.z, m.buoy.length, c.stiffness * lightR, c.damping * lightR, c.holdForce * lightR, ropes) > c.breakDist) delete m.buoy;
+  if (m.spring) {
+    const fore = m.spring.end === 'fore';
+    if (rope(fore ? bow : stern, fore ? bowVel : sternVel, m.spring.x, m.spring.z, m.spring.length, c.stiffness * lightR, c.damping * lightR, c.holdForce * lightR, fore ? ropes : sternRope) > c.breakDist) delete m.spring;
+  }
+  const addRopes = () => {
+    outBow.x += ropes.x;
+    outBow.z += ropes.z;
+    outStern.x += sternRope.x;
+    outStern.z += sternRope.z;
+  };
   if (m.phase === 'free') {
     m.berthId = berthInRange(s)?.berth.id ?? null;
+    addRopes();
     return;
   }
   const b = berthById(m.berthId);
   if (!b) {
     castOff(m);
+    addRopes();
     return;
   }
   // Alongside with no ends recorded (a state from before the lines went to cleats, or one
@@ -212,10 +333,12 @@ export function stepMooring(s: VesselState, cleats: { bow: number; stern: number
     // Lines parted.
     castOff(m);
     outBow.x = outBow.z = outStern.x = outStern.z = 0;
+    addRopes();
     return;
   }
   const speed = Math.hypot(s.linearVelocity[0], s.linearVelocity[2]);
   // Moored once both ends are fast and she has settled; with one end only she stays 'docking'.
   if (docking && m.bow && m.stern && ((worst < 0.3 && speed < 0.3) || m.t > 25)) m.phase = 'moored';
   else if (!docking && !(m.bow && m.stern)) m.phase = 'docking';
+  addRopes();
 }

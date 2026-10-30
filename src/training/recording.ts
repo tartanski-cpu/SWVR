@@ -18,7 +18,8 @@
  * read old ones. Plain data and pure functions: no DOM, no Three.js.
  */
 import { CONFIG } from '../config';
-import { homeVessel, type WorldState } from '../core/world';
+import type { WorldState } from '../core/world';
+import { trainingBoat } from './training';
 import { EXERCISES, exerciseById, heading, KN } from './exercises';
 import type { TrainingResult } from './training';
 
@@ -136,7 +137,7 @@ export class Recorder {
   private begin(world: WorldState): void {
     const t = world.training!;
     const ex = exerciseById(t.id!)!;
-    const v = homeVessel(world);
+    const v = trainingBoat(world);
     const wall = this.now();
     this.b = {
       header: {
@@ -173,7 +174,7 @@ export class Recorder {
 
   private event(world: WorldState, kind: RunEvent['kind'], text: string, weight?: number): void {
     const b = this.b!;
-    const v = homeVessel(world);
+    const v = trainingBoat(world);
     b.events.push({ t: round(world.time - b.startedAt), kind, text, ...(weight !== undefined ? { weight } : {}), x: round(v?.position[0] ?? 0), z: round(v?.position[2] ?? 0) });
   }
 
@@ -181,7 +182,7 @@ export class Recorder {
   private changes(world: WorldState): void {
     const b = this.b!;
     const t = world.training!;
-    const v = homeVessel(world);
+    const v = trainingBoat(world);
     const cfg = CONFIG.training.record;
     if (t.step > b.step) {
       const ex = exerciseById(b.header.exercise);
@@ -217,7 +218,7 @@ export class Recorder {
   private record(world: WorldState): void {
     const b = this.b!;
     const t = world.training!;
-    const v = homeVessel(world);
+    const v = trainingBoat(world);
     const at = world.time - b.startedAt;
     const cfg = CONFIG.training.record;
     // A sample row, `hz` a second.

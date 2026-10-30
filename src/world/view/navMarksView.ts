@@ -62,6 +62,13 @@ const SHAPES: Record<MarkKind, () => THREE.BufferGeometry> = {
       part(new THREE.CylinderGeometry(0.2, 0.2, 0.36, 10).translate(0, 2.0, 0), RED),
       part(new THREE.CylinderGeometry(0.09, 0.11, 0.2, 8).translate(0, 2.45, 0), 0x3a3e42),
     ]),
+  // A mooring buoy: a round orange pick-up buoy with a white band and a ring on top for the hook.
+  mooring: () =>
+    mergeParts([
+      part(new THREE.SphereGeometry(0.45, 10, 6).translate(0, 0.15, 0), 0xe8661c, 'worn'),
+      part(new THREE.CylinderGeometry(0.46, 0.46, 0.12, 10).translate(0, 0.2, 0), 0xf0f0ea),
+      part(new THREE.TorusGeometry(0.12, 0.03, 4, 8).translate(0, 0.72, 0), 0x6a6e72),
+    ]),
   // Starboard hand: a green cone, cone topmark.
   stbd: () =>
     mergeParts([
@@ -73,7 +80,7 @@ const SHAPES: Record<MarkKind, () => THREE.BufferGeometry> = {
     ]),
 };
 /** The lamp's height above the waterline, per shape. */
-const LAMP_Y: Record<MarkKind, number> = { N: 4.0, S: 4.0, E: 4.0, W: 4.0, isolated: 4.0, port: 2.65, stbd: 2.95, special: 4.0 };
+const LAMP_Y: Record<MarkKind, number> = { N: 4.0, S: 4.0, E: 4.0, W: 4.0, isolated: 4.0, port: 2.65, stbd: 2.95, special: 4.0, mooring: 0.6 };
 const LAMP_COLOR = { white: 0xfff4d8, red: 0xff3020, green: 0x30ff60, yellow: 0xffd040 };
 
 export class NavMarksView {

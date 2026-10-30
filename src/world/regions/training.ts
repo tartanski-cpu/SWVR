@@ -88,6 +88,14 @@ export const TRAINING: RegionDef = {
     { name: 'Lane SW', kind: 'special', x: -140, z: 70 },
     { name: 'Lane NE', kind: 'special', x: 140, z: 40 },
     { name: 'Lane SE', kind: 'special', x: 140, z: 70 },
+    // The low-speed slalom (H13): six yellow marks in a line east-west, 50 m apart.
+    ...[-125, -75, -25, 25, 75, 125].map((x, i) => ({ name: `Slalom ${i + 1}`, kind: 'special' as const, x, z: 120 })),
+    // Holding off (H7): one yellow mark in open water inside the breakwater.
+    { name: 'Hold-off mark', kind: 'special', x: 100, z: -10 },
+    // Picking up a mooring (H15): an orange pick-up buoy.
+    { name: 'The mooring', kind: 'mooring', x: -100, z: -10 },
+    // Search and recover (R7): the datum, outside, where the casualty was last seen.
+    { name: 'Datum', kind: 'special', x: 0, z: -420 },
   ],
   wrecks: [],
   lights: [
@@ -107,6 +115,17 @@ export const TRAINING: RegionDef = {
       cargo: { berth: { x: 10, z: ALONG, radius: 14 }, stackX: 10, stackZ: FACE + 6, stackYawDeg: 90, color: 0xd0a02f },
       economy: { repairs: false },
     },
+    // Anchoring (H11): three anchorages outside the breakwater, each its own bottom (CONFIG.anchoring.bottomHolding).
+    ...([['sand', -250, -230], ['mud', 0, -290], ['weed', 250, -230]] as const).map(([bottom, x, z]) => ({
+      id: `training-${bottom}`,
+      name: `The ${bottom} anchorage`,
+      kind: 'anchorage' as const,
+      x,
+      z,
+      clearRadius: 0,
+      bottom,
+      cargo: { anchorage: { x, z, radius: 50 }, stackX: -100, stackZ: FACE + 8, stackYawDeg: 90, color: 0x8a8a8a },
+    })),
   ],
   berths: [
     // Along the quay face, lying east-west; the quay to the south of her.

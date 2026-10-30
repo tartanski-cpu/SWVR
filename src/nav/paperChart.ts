@@ -485,6 +485,17 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
 
 /** A buoy's chart symbol at (x, y) px: body in its colours, topmark, magenta flare, and the light's character. */
 function drawMark(g: CanvasRenderingContext2D, kind: MarkKind, x: number, y: number, u: number, text: (t: string, x: number, y: number) => void): void {
+  if (kind === 'mooring') {
+    // A mooring buoy: the chart's small buoy on its position circle, unlit.
+    g.fillStyle = '#e8661c';
+    g.strokeStyle = INK;
+    g.lineWidth = 1.2 * u;
+    g.beginPath();
+    g.arc(x, y - 5 * u, 4 * u, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    return;
+  }
   const Y = '#d8b018';
   const B = INK;
   const R = '#b8281c';

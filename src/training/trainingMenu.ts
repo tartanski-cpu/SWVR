@@ -6,22 +6,31 @@
  */
 import type { ButtonRow, MenuPage, MenuRow } from '../ui/menuPanel';
 import { CONFIG } from '../config';
-import { EXERCISES } from './exercises';
+import { EXAM, EXERCISES } from './exercises';
 import type { TrainingState } from './training';
 import { clock } from './review';
-import type { TrainingRunsApi } from './trainingRuns';
+import { badgeFor, type TrainingRunsApi } from './trainingRuns';
 
 export interface TrainingMenuHost {
   /** The world's training state (WorldState.training), or null before the host has made it. */
   training(): TrainingState | null;
   /** Send a training intent (training.ts applyTrainingIntent): to start one, `ref` is its id. */
-  trainingSend(control: 'trainingStart' | 'trainingRetry' | 'trainingRestart' | 'trainingAbort', ref?: string): void;
+  trainingSend(control: 'trainingStart' | 'trainingRetry' | 'trainingRestart' | 'trainingAbort' | 'trainingExam', ref?: string): void;
   /** The runs recorded and kept on this page, and their review (trainingRuns.ts); null outside Training. */
   trainingRuns(): TrainingRunsApi | null;
+  /** The training boat (her vessel type) and the choice of it: the page starts again in her. */
+  trainingBoat(): string;
+  setTrainingBoat(id: string): void;
 }
 
+/** The boats the trainee can choose (the fishing boat the course's own; the pilot boat for the fire exercise's monitor). */
+const BOATS: [string, string][] = [
+  ['fishingBoat', 'Fishing boat'],
+  ['pilotBoat', 'Pilot boat'],
+];
+
 /** The card's lines: up to this many numbers, and faults. */
-const NUMBER_ROWS = 4;
+const NUMBER_ROWS = 6;
 const FAULT_ROWS = 4;
 
 export function trainingPage(h: TrainingMenuHost): MenuPage {
@@ -32,10 +41,24 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
   /** The next attempt's button: the second after a first "try again", else the same exercise again. */
   const retryText = () => (result() && !result()!.passed && result()!.attempt < CONFIG.training.attempts ? 'Second attempt' : 'Do it again');
 
-  const exercises: MenuRow[] = [
-    { heading: 'Harbour practice' },
-    { label: '', buttons: [{ text: 'Practice modelled on the RYA and SBF schemes: not a course, no certificate' }] },
-    { label: 'Now', buttons: [{ text: () => (ex() ? `${ex()!.code} ${ex()!.name}, attempt ${t()!.attempt} of ${CONFIG.training.attempts}` : 'Pick an exercise below'), weight: 3 }] },
+  const R = () => h.trainingRuns();
+  const badge = (id: string) => R()?.badge(id) ?? null;
+  const BADGE: Record<string, string> = { gold: '★ gold', silver: '★ silver', bronze: '★ bronze' };
+  /** What's running, Start again and Stop, and the last verdict: at the top of each course's list. */
+  const now: MenuRow[] = [
+    {
+      label: 'Now',
+      buttons: [
+        {
+          text: () => {
+            const e = t()?.exam;
+            if (ex()) return `${ex()!.code} ${ex()!.name}, ${e ? `Examiner's Run ${e.i + 1} of ${e.items.length}` : `attempt ${t()!.attempt} of ${CONFIG.training.attempts}`}`;
+            return 'Pick an exercise';
+          },
+          weight: 3,
+        },
+      ],
+    },
     {
       label: '',
       when: running,
@@ -44,15 +67,6 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
         { text: 'Stop', press: () => h.trainingSend('trainingAbort') },
       ],
     },
-    ...EXERCISES.map(
-      (e): MenuRow => ({
-        label: e.code,
-        buttons: [
-          { text: () => `${e.name}${t()?.passed.includes(e.id) ? '  ✓ passed' : ''}`, weight: 2.4 },
-          { text: 'Start', active: () => t()?.id === e.id, press: () => h.trainingSend('trainingStart', e.id) },
-        ],
-      }),
-    ),
     // The last verdict in short, with the next attempt (the whole card: the Result section).
     {
       label: 'Last',
@@ -62,7 +76,60 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
         { text: retryText, press: () => h.trainingSend('trainingRetry') },
       ],
     },
-    { label: '', when: () => !running(), buttons: [{ text: () => EXERCISES.find((e) => e.id === result()?.id)?.practises ?? 'Each one is a few minutes afloat. The steps come over the VHF and on the duty board in the wheelhouse.' }] },
+  ];
+  const exerciseRow = (e: (typeof EXERCISES)[number]): ButtonRow => ({
+    label: e.code,
+    buttons: [
+      { text: () => `${e.name}${badge(e.id) ? `  ${BADGE[badge(e.id)!]}` : t()?.passed.includes(e.id) ? '  ✓ passed' : ''}`, weight: 2.4 },
+      { text: 'Start', active: () => t()?.id === e.id, press: () => h.trainingSend('trainingStart', e.id) },
+    ],
+  });
+  /** A course's badge: its worst exercise's, once every one of them has one. */
+  const courseBadge = (course: 'harbour' | 'rescue') => {
+    const order = ['gold', 'silver', 'bronze'];
+    const all = EXERCISES.filter((e) => e.course === course).map((e) => badge(e.id));
+    if (all.some((b) => !b)) return null;
+    return all.reduce((w, b) => (order.indexOf(b!) > order.indexOf(w!) ? b : w), 'gold');
+  };
+  const course = (which: 'harbour' | 'rescue', title: string): MenuRow[] => [
+    { heading: title },
+    { label: '', buttons: [{ text: () => (courseBadge(which) ? `Course badge: ${BADGE[courseBadge(which)!]}` : 'Practice modelled on the RYA and SBF schemes: not a course, no certificate'), weight: 3 }] },
+    ...now,
+    { show: CONFIG.training.menuRows, scroll: EXERCISES.filter((e) => e.course === which).map(exerciseRow) },
+    { label: '', when: () => !running(), buttons: [{ text: () => EXERCISES.find((e) => e.id === result()?.id)?.practises ?? 'Each one is a few minutes afloat. The steps come over the VHF and on the duty board in the wheelhouse.', weight: 3 }] },
+    ...(which === 'harbour'
+      ? ([
+          {
+            label: 'Boat',
+            buttons: BOATS.map(([id, name]) => ({ text: name, active: () => h.trainingBoat() === id, press: () => h.setTrainingBoat(id) })),
+          },
+        ] as MenuRow[])
+      : []),
+  ];
+  const exam: MenuRow[] = [
+    { heading: "Examiner's Run" },
+    { label: '', buttons: [{ text: `The SBF practical's form: ${EXAM.compulsory.length + EXAM.other.length} manoeuvres in a random order, one after another`, weight: 3 }] },
+    { label: '', buttons: [{ text: `Compulsory, each by the second attempt: ${EXAM.compulsory.map((id) => EXERCISES.find((e) => e.id === id)?.code).join(', ')}`, weight: 3 }] },
+    { label: '', buttons: [{ text: `And ${EXAM.otherToPass} of ${EXAM.other.map((id) => EXERCISES.find((e) => e.id === id)?.code).join(', ')}. A prop strike or a hard knock ends it`, weight: 3 }] },
+    { label: '', when: () => !t()?.exam, buttons: [{ text: () => (badge('exam') ? `Passed: ${BADGE[badge('exam')!]}` : ''), weight: 2 }, { text: 'Start the run', press: () => h.trainingSend('trainingExam') }] },
+    { label: '', when: () => !!t()?.exam, buttons: [{ text: () => `Item ${(t()?.exam?.i ?? 0) + 1} of ${t()?.exam?.items.length ?? 0}`, weight: 2 }, { text: 'Stop', press: () => h.trainingSend('trainingAbort') }] },
+    ...Array.from({ length: EXAM.compulsory.length + EXAM.other.length }, (_, i): MenuRow => ({
+      label: '',
+      when: () => !!t()?.exam,
+      buttons: [
+        {
+          text: () => {
+            const it = t()?.exam?.items[i];
+            if (!it) return '';
+            const e = EXERCISES.find((x) => x.id === it.id);
+            const state = it.passed === null ? (t()!.exam!.i === i ? 'now' : '') : it.passed ? 'passed' : 'not passed';
+            return `${it.compulsory ? '* ' : ''}${e?.code} ${e?.name}  ${state}`;
+          },
+          weight: 3,
+          active: () => t()?.exam?.items[i]?.passed === true,
+        },
+      ],
+    })),
   ];
 
   const card: MenuRow[] = [
@@ -77,6 +144,7 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
       ],
     },
     { label: 'Why', when: () => !!result(), buttons: [{ text: () => result()!.reason, weight: 3 }] },
+    { label: 'Badge', when: () => !!result()?.passed, buttons: [{ text: () => BADGE[badgeFor(result()!.total)], weight: 3 }] },
     ...Array.from({ length: NUMBER_ROWS }, (_, i): MenuRow => ({
       label: '',
       when: () => !!result()?.numbers[i],
@@ -108,7 +176,6 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
   ];
 
   // The runs: the review's controls while one is open, then the list (newest first), each to review or save.
-  const R = () => h.trainingRuns();
   const reviewing = () => !!R()?.reviewing();
   const listRow = (i: number): ButtonRow => {
     const head = () => R()?.list()[i];
@@ -155,5 +222,14 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
     { label: '', when: () => !!R()?.note(), buttons: [{ text: () => R()?.note() ?? '', weight: 3 }] },
   ];
 
-  return { name: 'Training', sections: [{ name: 'Exercises', rows: exercises }, { name: 'Result', rows: card }, { name: 'Runs', rows: runs }] };
+  return {
+    name: 'Training',
+    sections: [
+      { name: 'Harbour', rows: course('harbour', 'Harbour practice') },
+      { name: 'Rescue', rows: course('rescue', 'Rescue practice') },
+      { name: 'Exam', rows: exam },
+      { name: 'Result', rows: card },
+      { name: 'Runs', rows: runs },
+    ],
+  };
 }

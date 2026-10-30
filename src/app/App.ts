@@ -107,7 +107,8 @@ import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, hookNote, kind
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
-import { berthById } from '../vessel/physics/mooring';
+import { berthById, buoyInReach } from '../vessel/physics/mooring';
+import { killCordLine } from '../vessel/killCord';
 import { XRControllers } from '../player/xrControllers';
 import { HandGestures } from '../player/handGesture';
 import { OwnHands } from '../player/ownHands';
@@ -2982,6 +2983,8 @@ export class App {
   private menuHost(): MenuHost {
     const env = () => this.world.environment;
     const boat = () => this.world.vessels[this.testVesselId];
+    // The boat you're aboard (the skiff, a training RIB), else your own.
+    const myBoat = () => this.world.vessels[this.world.players[this.localPlayerId]?.aboardVesselId ?? ''] ?? boat();
     const saveSettings = () => saveUserSettings();
     return {
       shipyardStatus: () => this.shipyardBlocker() ?? '',
@@ -2994,9 +2997,17 @@ export class App {
       trainingSend: (control, ref) => {
         const home = this.world.vessels[this.world.homeVesselId ?? ''];
         if (!home) return;
+        // (The exercise puts you aboard its boat, at the helm: training/training.ts.)
         this.intents.push({ playerId: this.localPlayerId, targetId: home.id, control, value: 1, ...(ref ? { ref } : {}) });
-        // An exercise starts with you aboard her, at the helm, wherever you were (as Go does).
-        if (control !== 'trainingAbort' && this.world.players[this.localPlayerId]?.aboardVesselId !== home.id) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: home.id });
+      },
+      trainingBoat: () => this.world.vessels[this.world.homeVesselId ?? '']?.defId ?? CONFIG.training.boat,
+      setTrainingBoat: (id) => {
+        if (id === this.world.vessels[this.world.homeVesselId ?? '']?.defId) return;
+        // The page starts again in her (the training boat is the page's: ?boat=).
+        const url = new URL(location.href);
+        if (id === CONFIG.training.boat) url.searchParams.delete('boat');
+        else url.searchParams.set('boat', id);
+        location.assign(url.toString());
       },
       setQuietCalls: (on) => this.pushEnvIntent('quietCalls', on ? 1 : 0),
       timeScale: () => env().timeScale,
@@ -3187,6 +3198,31 @@ export class App {
         if (b) return { text: `In range: ${b.name} (click the cleats fore and aft, or menu Dock)`, ready: true, docked: false };
         return { text: 'No berth in range (come slowly alongside a yellow-marked berth)', ready: false, docked: false };
       },
+      anchorScope: () => myBoat().anchor.scope ?? 0,
+      setAnchorScope: (r) => this.pushIntentTo(myBoat().id, 'anchorScope', r),
+      spring: () => {
+        const m = myBoat().mooring;
+        const on = m.spring?.end ?? null;
+        if (on) return { on, text: `${on === 'fore' ? 'Fore' : 'Aft'} spring fast` };
+        return { on, text: m.phase !== 'free' || m.berthId ? 'None (alongside: put one on)' : 'None (alongside a berth only)' };
+      },
+      toggleSpring: (end) => {
+        const m = myBoat().mooring;
+        if (m.spring?.end !== end && m.phase === 'free' && !m.berthId) this.overlay.notify('A spring needs a berth: come alongside first');
+        else this.pushIntentTo(myBoat().id, 'spring', m.spring?.end === end ? 0 : end === 'fore' ? 1 : 2);
+      },
+      buoyStatus: () => {
+        const v = myBoat();
+        if (v.mooring.buoy) return { text: `Fast to ${v.mooring.buoy.id}`, fast: true, ready: true };
+        const b = buoyInReach(v);
+        return b ? { text: `${b.id} under the bow: pick it up`, fast: false, ready: true } : { text: 'No buoy in reach', fast: false, ready: false };
+      },
+      toggleBuoy: () => this.pushIntentTo(myBoat().id, 'buoy', 1),
+      killCord: () => {
+        const text = killCordLine(myBoat(), this.localPlayerId);
+        return text === null ? null : { text, on: myBoat().killCord?.by === this.localPlayerId };
+      },
+      toggleKillCord: () => this.pushIntentTo(myBoat().id, 'killCord', myBoat().killCord?.by === this.localPlayerId ? 0 : 1),
       toggleDock: () => {
         if (boat().slip) return this.pushVesselIntent('slipLeave', 1);
         const m = boat().mooring;

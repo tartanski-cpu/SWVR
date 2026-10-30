@@ -552,7 +552,8 @@ export function stepVessel(
       toWorld(sternCleat.x ?? 0, sternCleat.lineY, sternCleat.z, lineStern);
       pointVelocity(lineStern, lineSternV);
       stepMooring(state, { bow: bowCleat.z, stern: sternCleat.z, inshore: bowCleat.inshore, massKg: def.mass }, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
-      if (state.mooring.phase !== 'free') {
+      // (Free with a spring or a buoy's pennant fast: those still pull.)
+      if (state.mooring.phase !== 'free' || state.mooring.spring || state.mooring.buoy) {
         addForceAt(cf.set(fBow.x, 0, fBow.z), lineBow);
         addForceAt(cf.set(fStern.x, 0, fStern.z), lineStern);
       }

@@ -2,149 +2,31 @@
  * Training mode's exercises (docs/TRAINING.md section 3): each puts the boat in place in the
  * training harbour (world/regions/training.ts), sets the wind, then has its steps, its own
  * faults (`watch`, every tick) and its test at the end (`verdict`), with the numbers the card
- * shows. The limits are CONFIG.training's. Milestone 1 has five of Course 1 (Harbour practice).
+ * shows. The limits are CONFIG.training's. Here Milestone 1's five of Course 1 (Harbour
+ * practice); the rest of it is harbourCourse.ts, Course 2 (Rescue practice) rescueCourse.ts.
  *
  * Each brief says which syllabus item it practises; the game is practice modelled on the RYA
  * Powerboat Scheme and the SBF, never a course or a certificate.
  *
  * World axes: +X east, -Z north; a heading is degrees true, 0 north, clockwise.
  */
-import { CONFIG } from '../config';
-import { moorAtBerth, type WorldState } from '../core/world';
-import { setManualWeather } from '../environment/weather';
-import { seaScaleFor } from '../world/coastWeather';
+import { moorAtBerth } from '../core/world';
 import { berthWithId } from '../world/berths';
-import { quickStart } from '../vessel/autopilot';
-import { placeVessel } from '../vessel/vesselControl';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
-import type { TrainingState } from './training';
+import { aheadKn, cfg, DOCK, FACE, fmt, heading, inLane, KN, LANE, lengthOf, placeAt, placeFree, setWind, speedKn, stopped, turnFrom, type ExerciseDef } from './exerciseKit';
+import { HARBOUR_MORE } from './harbourCourse';
+import { RESCUE } from './rescueCourse';
 
-/** One knot in m/s. */
-export const KN = 1852 / 3600;
-
-export interface Ctx {
-  world: WorldState;
-  v: VesselState;
-  t: TrainingState;
-  /** The attempt's own measurements (TrainingState.data). */
-  d: Record<string, number>;
-}
-
-export interface StepDef {
-  /** The duty board's line. */
-  text: string;
-  /** What the instructor says over the VHF as it comes up. */
-  say: string;
-  /** As it comes up (after its words go out): a measurement to start, the boat to put back. */
-  enter?(c: Ctx): void;
-  done(c: Ctx): boolean;
-}
-
-export interface ExerciseDef {
-  id: string;
-  /** Its number in the plan's course tables (H for Harbour practice). */
-  code: string;
-  name: string;
-  /** The syllabus items it practises (shown on the Training tab). */
-  practises: string;
-  /** The first words over the VHF. */
-  brief: string;
-  /** Its speed limit (kn) where it isn't the harbour's (CONFIG.training.harbourKn). */
-  capKn?: number;
-  /** Time allowed for the attempt (s). */
-  limitS: number;
-  setup(world: WorldState, v: VesselState): void;
-  steps: StepDef[];
-  /** Every tick while it runs: measurements, and a fault of its own if there is one. */
-  watch?(c: Ctx): { kind: string; weight: number; text: string } | null;
-  verdict(c: Ctx): { passed: boolean; reason: string };
-  /** The numbers on the card. */
-  numbers(c: Ctx): [string, string][];
-}
-
-// ── The harbour's places (world/regions/training.ts) ──
-
-/** The quay face's line (z): boats alongside lie 2.5 m north of it. */
-const FACE = 200;
-/** The stopping lane between the four yellow marks (H5). */
-const LANE = { x0: -140, x1: 140, z0: 40, z1: 70 };
-/** The dock (H6): inside its walls, and its mouth's line. */
-const DOCK = { x0: 62.5, x1: 92.5, mouth: 168 };
-
-// ── Measures ──
-
-/** Her speed over the ground (kn). */
-export function speedKn(v: VesselState): number {
-  return Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / KN;
-}
-
-/** Her heading (deg true). */
-export function heading(v: VesselState): number {
-  const [qx, qy, qz, qw] = v.orientation;
-  return ((Math.atan2(-(2 * (qx * qz + qw * qy)), 1 - 2 * (qx * qx + qy * qy)) * 180) / Math.PI + 360) % 360;
-}
-
-/** The smallest turn from heading `b` to `a` (deg, -180..180). */
-export function turnFrom(a: number, b: number): number {
-  return ((((a - b) % 360) + 540) % 360) - 180;
-}
-
-/** Her speed along her own heading (kn; negative going astern). */
-function aheadKn(v: VesselState): number {
-  const h = (heading(v) * Math.PI) / 180;
-  return (v.linearVelocity[0] * Math.sin(h) - v.linearVelocity[2] * Math.cos(h)) / KN;
-}
-
-const lengthOf = (v: VesselState) => VESSEL_DEFS[v.defId]?.hull.params.length ?? 10;
-const inLane = (v: VesselState) => v.position[0] >= LANE.x0 && v.position[0] <= LANE.x1 && v.position[2] >= LANE.z0 && v.position[2] <= LANE.z1;
-const stopped = (v: VesselState) => speedKn(v) < CONFIG.training.stoppedKn;
-const fmt = (n: number | undefined, unit: string, dp = 1) => (n === undefined || !Number.isFinite(n) ? 'not reached' : `${n.toFixed(dp)}${unit === '°' ? '' : ' '}${unit}`);
-
-// ── Setting up ──
-
-/** Afloat and free at (x, z), stopped, heading `hdg`, the lever in neutral and the wheel amidships. */
-function placeFree(v: VesselState, x: number, z: number, hdg: number): void {
-  placeVessel(v, x, 0, z, hdg);
-  v.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
-  ready(v);
-}
-
-/** Alongside a named berth, moored, lines fast. */
-function placeAt(v: VesselState, berthId: string): void {
-  const b = berthWithId(berthId);
-  if (b) moorAtBerth(v, b);
-  ready(v);
-}
-
-/** Anchor up, the controls at rest, the master on and the engine started (it catches in a second or two). */
-function ready(v: VesselState): void {
-  v.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };
-  v.controls.anchor = 0;
-  v.controls.lever = 0;
-  if (v.controls.lever2 !== undefined) v.controls.lever2 = 0;
-  v.controls.helm = 0;
-  v.controls.autopilot = 0;
-  v.refuelling = false;
-  quickStart(v);
-}
-
-/** The wind for the exercise (kn, from deg), a flat sea in the harbour, a clear sky; daylight. */
-function setWind(world: WorldState, kn: number, from: number): void {
-  const env = world.environment;
-  const hs = 0.1;
-  setManualWeather(env, { wind: kn * KN, windFrom: from, rain: 0, hs }, world.time, seaScaleFor(hs));
-  if (env.timeOfDay < 8 || env.timeOfDay > 18) env.timeOfDay = 11;
-}
+export { KN, speedKn, heading, turnFrom, type Ctx, type ExerciseDef, type StepDef } from './exerciseKit';
 
 // ── The exercises ──
 
-const cfg = () => CONFIG.training;
 
 /** H4: first cast-off. */
 const H4: ExerciseDef = {
   id: 'castOff',
   code: 'H4',
+  course: 'harbour',
   name: 'First cast-off',
   practises: 'RYA Level 1: steer and control speed; leaving and coming alongside',
   brief: 'You are alongside Berth B, engine running, fenders out. Take her out to the middle of the harbour and back alongside, under four knots all the way.',
@@ -192,6 +74,7 @@ const H4: ExerciseDef = {
 const H5: ExerciseDef = {
   id: 'stopOnCourse',
   code: 'H5',
+  course: 'harbour',
   name: 'Stop on course',
   practises: 'SBF: stopping on course (kursgerechtes Aufstoppen); RYA Level 2: taking way off',
   brief: 'You are at the west end of the stopping lane, heading east. Run down the lane at four knots; when I call stop her, take all the way off her and keep her on her heading. Going astern, her stern walks to port: be ready for it.',
@@ -254,6 +137,7 @@ const H5: ExerciseDef = {
 const H6: ExerciseDef = {
   id: 'turnInDock',
   code: 'H6',
+  course: 'harbour',
   name: 'Turn in the dock',
   practises: 'RYA Level 2: turning in a confined area, the wind on the bow; SBF: turning in a confined space (Wenden auf engem Raum)',
   brief: 'You are in the dock, bow in, three of her lengths between the walls, with a breeze from the west. Turn her round to head out north, with the helm hard over and short bursts ahead and astern, and take her out. Under three knots, and stay in the dock until she is round.',
@@ -299,6 +183,7 @@ const H8_BERTH = 'training-b';
 const H8: ExerciseDef = {
   id: 'alongsideWindOff',
   code: 'H8',
+  course: 'harbour',
   name: 'Alongside, wind off',
   practises: 'RYA Level 2: coming alongside, speed and angle of approach; SBF: coming alongside (Anlegen) with rudder and engine only, stopped at the berth out of gear',
   brief: `Bring her alongside Berth B, port side to, heading west. The wind is ${cfg().alongside.windKn} knots off the quay, so come in steeper than you think: 30 to 45 degrees, slow, a touch astern to take the way off, neutral before the first line goes ashore.`,
@@ -370,6 +255,7 @@ const clearOf = (v: VesselState) => FACE - 2.5 - cfg().leave.clearLengths * leng
 const H10: ExerciseDef = {
   id: 'leaveSlot',
   code: 'H10',
+  course: 'harbour',
   name: 'Leaving the slot',
   practises: 'RYA Level 2: leaving a berth ahead or astern; SBF: leaving the berth (Ablegen), traffic, space and wind',
   brief: 'You are in the slot, a jetty close ahead and another close astern. Leave her twice: first ahead, bow out, then astern, stern out, touching nothing either time, two of her lengths clear of the quay.',
@@ -430,8 +316,29 @@ const H10: ExerciseDef = {
   ],
 };
 
-/** Course 1's exercises in milestone 1, in the order the Training tab lists them. */
-export const EXERCISES: readonly ExerciseDef[] = [H4, H5, H6, H8, H10];
+/**
+ * The tiller versions (RYA's "tiller steering"; owner, 30 Oct 2026: the existing boats for
+ * now): H5 and H6 in the skiff, put in the water with you aboard. Her electric outboard on a
+ * tiller: no prop walk, a kill cord to clip on before the motor will run.
+ */
+const SKIFF_START = 'You are in the skiff: clip the kill cord on (Boat tab) and switch the motor on first. ';
+const H5T: ExerciseDef = { ...H5, id: 'stopOnCourseSkiff', code: 'H5T', name: 'Stop on course (tiller)', boat: 'skiff', practises: `${H5.practises}; RYA: tiller steering`, brief: SKIFF_START + H5.brief.replace(' Going astern, her stern walks to port: be ready for it.', '') };
+const H6T: ExerciseDef = { ...H6, id: 'turnInDockSkiff', code: 'H6T', name: 'Turn in the dock (tiller)', boat: 'skiff', practises: `${H6.practises}; RYA: tiller steering`, brief: SKIFF_START + H6.brief.replace('three of her lengths', 'many of her lengths') };
+
+/** Every exercise, in the order the Training tab lists them (by course, then number). */
+export const EXERCISES: readonly ExerciseDef[] = [...HARBOUR_MORE.filter((e) => ['H1', 'H2', 'H3'].includes(e.code)), H4, H5, H6, ...HARBOUR_MORE.filter((e) => e.code === 'H7'), H8, ...HARBOUR_MORE.filter((e) => e.code === 'H9'), H10, ...HARBOUR_MORE.filter((e) => !['H1', 'H2', 'H3', 'H7', 'H9'].includes(e.code)), H5T, H6T, ...RESCUE];
+
+/**
+ * The Examiner's Run (docs/TRAINING.md; the SBF practical's form): its compulsory manoeuvres
+ * (man overboard, coming alongside, leaving), the others (two of the three must pass), and the
+ * faults that end it there and then (a prop strike, a hard knock, gear engaged by a swimmer).
+ */
+export const EXAM = {
+  compulsory: ['mobIntoWind', 'alongsideWindOff', 'leaveSlot'],
+  other: ['stopOnCourse', 'turnInDock', 'hornSignals'],
+  otherToPass: 2,
+  enders: ['knock', 'strike', 'gearSwimmer'],
+};
 
 export function exerciseById(id: string): ExerciseDef | undefined {
   return EXERCISES.find((e) => e.id === id);

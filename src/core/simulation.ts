@@ -56,6 +56,7 @@ import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career'
 import { stepProjects } from '../career/projects';
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
 import { applyTrainingIntent, isTrainingIntent, stepTraining } from '../training/training';
+import { stepKillCord } from '../vessel/killCord';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import { homeVessel, type WorldState } from './world';
@@ -284,6 +285,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepProjects(world, dt);
   stepTutorial(world);
   stepTraining(world);
+  stepKillCord(world);
   world.tick += 1;
   world.time = world.tick * dt;
 }

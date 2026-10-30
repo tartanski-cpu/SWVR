@@ -38,6 +38,18 @@ export interface TrainingRunsApi {
   eventLine(): string;
   /** The last thing said about the runs (saved, a file that wouldn't load), or ''. */
   note(): string;
+  /** The best badge won at an exercise (its id; 'exam' the Examiner's Run) in this browser, or null. */
+  badge(id: string): Badge | null;
+}
+
+export type Badge = 'gold' | 'silver' | 'bronze';
+const BADGES_KEY = 'swvr.training.badges';
+const ORDER: Badge[] = ['gold', 'silver', 'bronze'];
+
+/** A pass's badge by its faults' weight (CONFIG.training.badges): none gold, a little silver, else bronze. */
+export function badgeFor(total: number): Badge {
+  const b = CONFIG.training.badges;
+  return total <= b.gold ? 'gold' : total <= b.silver ? 'silver' : 'bronze';
 }
 
 export interface TrainingRunsHost {
@@ -57,16 +69,45 @@ export class TrainingRuns implements TrainingRunsApi {
   private readonly mine = new Map<string, Run>();
   private headers: RunHeader[] = [];
   private said = '';
+  /** The best badge per exercise (this browser's, a few bytes in localStorage: they mean nothing in the Career). */
+  private badges: Record<string, Badge> = {};
+  private resultT = -1;
 
   constructor(private readonly host: TrainingRunsHost) {
     this.panel = new ReviewPanel(() => host.world());
     this.recorder = new Recorder((run) => this.keep(run, true));
     void this.refresh();
+    try {
+      this.badges = JSON.parse(localStorage.getItem(BADGES_KEY) ?? '{}') as Record<string, Badge>;
+    } catch {
+      this.badges = {};
+    }
   }
 
   /** After each simulation tick on this page (alone or hosting). */
   afterTick(world: WorldState): void {
     this.recorder.tick(world);
+    // A pass: its badge, kept if it's better than the one won before.
+    const r = world.training?.result;
+    if (r && r.t !== this.resultT) {
+      this.resultT = r.t;
+      if (r.passed) {
+        const b = badgeFor(r.total);
+        const had = this.badges[r.id];
+        if (!had || ORDER.indexOf(b) < ORDER.indexOf(had)) {
+          this.badges[r.id] = b;
+          try {
+            localStorage.setItem(BADGES_KEY, JSON.stringify(this.badges));
+          } catch {
+            // Storage blocked: this session's only.
+          }
+        }
+      }
+    }
+  }
+
+  badge(id: string): Badge | null {
+    return this.badges[id] ?? null;
   }
 
   /** Each frame. */

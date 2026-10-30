@@ -45,6 +45,7 @@ function setup() {
   world.training = m.training.createTraining();
   world.quietCalls = true;
   const v = world.vessels[vesselId];
+  const me = world.players[localPlayerId];
   const send = (control: string, ref?: string) => m.sim.stepWorld(world, [{ playerId: localPlayerId, targetId: v.id, control, value: 1, ...(ref ? { ref } : {}) }], DT);
   const run = (s: number, each?: () => void) => {
     for (let i = 0; i < s / DT; i++) {
@@ -52,7 +53,7 @@ function setup() {
       m.sim.stepWorld(world, [], DT);
     }
   };
-  return { world, v, send, run };
+  return { world, v, send, run, me };
 }
 
 describe('training mode', { timeout: 120000 }, () => {
@@ -80,15 +81,26 @@ describe('training mode', { timeout: 120000 }, () => {
     expect(m.terrain.groundHeight(0, 300)).toBeGreaterThan(0);
   });
 
-  it('every exercise places her free or alongside, with the engine started, and talks over the VHF', () => {
+  it('every exercise places her free or alongside, puts you aboard its boat, and talks over the VHF', () => {
     for (const e of m.ex.EXERCISES) {
-      const { world, v, send, run } = setup();
+      const { world, v, send, run, me } = setup();
       send('trainingStart', e.id);
+      // The fire needs a fire monitor: the fishing boat has none, so it's said and not started.
+      if (e.needs?.(v)) {
+        expect(world.training!.id, e.id).toBeNull();
+        expect(world.rescue!.radio!.text, e.id).toContain('needs');
+        continue;
+      }
       expect(world.training!.id).toBe(e.id);
       // The brief goes out at once; the first step's call waits until it has been said.
       expect(world.rescue!.radio!.text, e.id).toContain(e.name);
+      // Aboard her: the home boat, or the exercise's small boat.
+      const boat = m.training.trainingBoat(world)!;
+      expect(boat.defId, e.id).toBe(e.boat ?? 'fishingBoat');
+      expect(me.aboardVesselId, e.id).toBe(boat.id);
       run(4);
-      expect(v.engine.phase, e.id).toBe('running');
+      // Running, but for the cold start (H1) and the small boats (the trainee starts them, kill cord first).
+      if (e.code !== 'H1' && !e.boat) expect(v.engine.phase, e.id).toBe('running');
       expect(world.training!.said, e.id).toBe(false);
       // Its steps on the duty board.
       expect(world.duties!.items.some((d) => d.kind === 'training' && d.steps.length === e.steps.length), e.id).toBe(true);
