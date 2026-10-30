@@ -1,8 +1,18 @@
-# Workboat World Training: release notes, 30 Oct 2026 (milestone 1)
+# Workboat World Training: release notes, 30 Oct 2026 (milestones 1 and 2)
 
 The published page: https://claude.ai/artifact/1YCyusD75iMebk1vM7DK5w (with the development screenshots and two things to try). Try it: https://tartanski-cpu.github.io/SWVR/preview/training/training.html
 
 The third way to play has started. A small walled harbour built for practising boat handling, and five exercises modelled on the RYA Powerboat Scheme and the German SBF. The instructor talks you through each over the VHF, the steps tick off on the duty board, and each attempt ends passed or try again, with the reason and the numbers. It is practice, not a course: nothing here is a certificate.
+
+## Every attempt recorded, and reviewed on the chart (Review, M2)
+
+Each attempt is recorded as you go, kept in this browser, and opened from Training, then Runs.
+
+- **Recorded:** ten samples a second (position, heading, motion, lever, rudder, revs, gear, fenders, lines, the knock, and where you were), the whole world every 30 s, and the events: steps done, faults with their weight, touches, lines, the horn, the instructor's lines, the verdict. A minute is about 40 KB as a file.
+- **The review:** the run on the harbour's chart with the quays drawn; the track coloured by speed (blue at rest to red at 6 kn); pins at the steps (blue), faults (red, with the weight; a cross for the one that failed it), touches (orange), lines (purple); your other attempt grey underneath; the boat to scale where she was; a time bar with the events; that moment's numbers (speed, heading, lever, rudder, revs, distance off the quay, lines).
+- **Stepping through:** back and on 10 s, previous and next event, Play at ×1, ×4 or ×10. Desktop: at the bottom left, drag along its time bar. VR: a panel in front of you.
+- **Kept:** the last 40 runs in the browser's own store (not with the career saves). Save gives a file; Load a recording from a file (desktop) opens one.
+- Measured, H5 twice: a crash stop with the wheel amidships, her head 18° off (try again); the walk corrected, 7° in 7 m (passed). The notes page lets you scrub the two recorded tracks side by side.
 
 ## Five exercises, each a few minutes afloat (Drill)
 
@@ -47,9 +57,8 @@ The front page's Training card opens training.html: a Voyage on the training har
 
 - Not yet tried on the Quest.
 - H8 and H10 not yet driven to a pass by a person.
-- No recording or review yet; passes kept for the session only. English only.
+- The VR review panel not yet tried in a headset. Passes (the ticks) kept for the session only; runs are kept. A crew-mate's page records nothing. English only.
 
 ## Coming next
 
-- M2: recording each run and the review on the chart, attempt one beside attempt two.
 - M3: the rest of Harbour practice, the Rescue course and the Examiner's Run.
