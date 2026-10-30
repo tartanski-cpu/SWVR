@@ -10,6 +10,15 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The menu: no duplicates across the tabs (30 Oct 2026)
+
+Owner: "have a look through the menus, just to make sure there's no duplicate functionality across them."
+
+- **Found and settled** (`ui/mainMenu.ts`): the contract (text and Abandon) was on Voyage > Job and Office > Jobs: now Voyage > Job only (career; Voyage mode has no contracts, so no row). The project's two-line summary was on Office > Jobs beside the full Projects page: now beside the contract on Voyage > Job, so "what I'm doing now" is one place; Office > Jobs is the job board and the first voyage (the boatyard note a heading at its foot). The balance was on Office > Jobs and Office > Career: Career only. The time of day was on Voyage (±1 h) and Debug > World (±10′): one row on Voyage > Weather with both steps. Move to a port was on Debug > World in both modes while Voyage mode has Go on every port: Debug's list is the career's only now (its region row reads "Move to" in Voyage). The recording camera's "Field of view" shared its name with Settings' field of view: it is "Zoom".
+- **A gap found on the way:** Crew > Your boat (Voyage) told you to type a code in Office > Your boats, which is hidden in Voyage mode. Its Code row has a **Type** button now that opens the same keypad there (the rows show only while typing).
+- **Tests:** tests/menu.test.ts (+1: each of those is in one place).
+- **Checked:** typecheck, `npm test`, headless screenshots of the changed pages in both modes. **Not checked:** the Quest.
+
 ### The menu tidied: shorter pages, sections, rows that close up (30 Oct 2026)
 
 Owner: "The menu is a bit of a mess, especially in VR. It's very long. There are too many buttons... tidy it up and organize it in a better way. I don't want to lose any of the functionality."
