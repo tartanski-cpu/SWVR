@@ -4,6 +4,10 @@ The published page: https://claude.ai/artifact/1YCyusD75iMebk1vM7DK5w (with the 
 
 The third way to play has started. A small walled harbour built for practising boat handling, and five exercises modelled on the RYA Powerboat Scheme and the German SBF. The instructor talks you through each over the VHF, the steps tick off on the duty board, and each attempt ends passed or try again, with the reason and the numbers. It is practice, not a course: nothing here is a certificate.
 
+## The speed log turns blue going astern (Helm)
+
+The owner: "It's quite hard to tell if you're going forward or backwards on a computer." With more than 0.15 kn of sternway through the water, the SPEED LOG's figure and bar turn blue with ASTERN by the title (amber ahead). A crawl under that counts as stopped; drifting sideways is neither. A round LOG dial shows ASTERN beside it. Every boat has it.
+
 ## Every attempt recorded, and reviewed on the chart (Review, M2)
 
 Each attempt is recorded as you go, kept in this browser, and opened from Training, then Runs.
