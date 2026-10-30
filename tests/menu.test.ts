@@ -570,6 +570,24 @@ describe('a tidy menu (owner, 30 Oct 2026: "very long, especially in VR")', () =
   });
 });
 
+describe('no duplicates across the tabs (owner, 30 Oct 2026)', () => {
+  it('the balance, the contract, the clock and the project summary are each in one place; the camera zoom is not "field of view"', () => {
+    const { host } = fakeHost();
+    const def = mainMenu(host);
+    const rows = def.pages.flatMap((p) => [...(p.rows ?? []), ...(p.sections ?? []).flatMap((s) => s.rows)]);
+    const labelled = (l: string) => rows.filter((r) => 'label' in r && r.label === l).length;
+    const buttons = (t: string) => rows.filter((r) => 'buttons' in r && r.buttons.some((b) => label(b) === t)).length;
+    expect(labelled('Balance')).toBe(1);
+    expect(labelled('Contract')).toBe(1);
+    expect(labelled('Project')).toBe(2); // the summary on Voyage > Job, and Debug > Missions' Stage done
+    expect(buttons('+1 h')).toBe(1);
+    expect(buttons('−10′')).toBe(1);
+    expect(labelled('Field of view')).toBe(0);
+    expect(labelled('Field of view (desktop)')).toBe(1);
+    expect(labelled('Zoom')).toBe(1);
+  });
+});
+
 describe('menu placement', () => {
   it('floats upright in front of the viewer, whatever frame it is put in', async () => {
     const { placeInFront } = await import('../src/ui/placeInFront');

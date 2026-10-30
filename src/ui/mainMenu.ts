@@ -445,9 +445,17 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
     { label: 'Paper chart', buttons: [{ text: () => h.chartStatus(), weight: 1.6 }, { text: 'Clear marks', press: () => h.clearChart() }] },
   ];
+  // The job you're on, in one place (owner, 30 Oct 2026: no duplicates): the contract and the
+  // project's state were on Office > Jobs too; they live here now, the office keeps its job board.
   const voyageJob: MenuRow[] = [
     { heading: 'Job' },
-    { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+    ...(MODE === 'voyage'
+      ? []
+      : ([
+          { label: 'Contract', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+          { label: 'Project', buttons: [{ text: () => h.projectSummary(0) || 'None under way (Office > Projects)', weight: 3 }] },
+          { label: '', when: whenText(() => h.projectSummary(1)), buttons: [{ text: () => h.projectSummary(1), weight: 3 }] },
+        ] as MenuRow[])),
     { label: '', buttons: [{ text: () => h.runStatus() }] },
     { label: 'Done', buttons: [{ text: () => `${h.rescues()} missions · ${h.towsDelivered()} tows · ${h.cargoStatus().delivered} cargo` }] },
     // Owner request: a way to stop the VHF calling you out (rescues, tows, fires).
@@ -465,11 +473,14 @@ export function mainMenu(h: MenuHost): MainMenu {
         ] as MenuRow[])
       : []),
     { heading: 'Clock' },
+    // Both steps here (the ±10′ were on Debug > World as a second time-of-day row).
     {
       label: 'Time of day',
       buttons: [
         { text: '−1 h', press: () => h.shiftTime(-1) },
+        { text: '−10′', press: () => h.shiftTime(-10 / 60) },
         { text: () => formatHours(h.timeOfDay()), weight: 1.3 },
+        { text: '+10′', press: () => h.shiftTime(10 / 60) },
         { text: '+1 h', press: () => h.shiftTime(1) },
       ],
     },
@@ -609,15 +620,8 @@ export function mainMenu(h: MenuHost): MainMenu {
     {
       name: 'Jobs',
       rows: [
-        { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
-        { label: '', buttons: [{ text: 'Add-ons, upgrades, repairs: the boatyard on the Calder Haven quay', weight: 3 }] },
-        { heading: 'Contract' },
-        { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
-        // The construction project under way, alongside the contract (owner: what's next, and
-        // what else is on); each job's state is on the Projects page.
-        { heading: 'Project' },
-        { label: '', buttons: [{ text: () => h.projectSummary(0) || 'None under way (see the Projects page)', weight: 3 }] },
-        { label: '', when: whenText(() => h.projectSummary(1)), buttons: [{ text: () => h.projectSummary(1), weight: 3 }] },
+        // The job board where she lies. (The contract on, the project's state and the balance
+        // are on Voyage > Job and Office > Career: once each.)
         { heading: 'Job board' },
         { label: '', buttons: [{ text: () => h.officeName() }] },
         ...[0, 1].map(
@@ -638,6 +642,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: () => (h.tutorialText().endsWith('done') ? 'Again' : 'Skip'), press: () => (h.tutorialText().endsWith('done') ? h.tutorialRestart() : h.tutorialSkip()) },
           ],
         },
+        { heading: 'Add-ons, upgrades and repairs: the boatyard on the Calder Haven quay' },
       ],
     },
     {
@@ -725,7 +730,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     { label: '', buttons: [{ text: () => h.cameraNote() }] },
     { label: 'Be the camera', buttons: [choice('On', true, () => h.camera().on, (v) => h.setCamera(v)), choice('Off', false, () => h.camera().on, (v) => h.setCamera(v))] },
     {
-      label: 'Field of view',
+      label: 'Zoom',
       buttons: [
         { text: '−', press: () => h.camera().zoom(-2.5) },
         { text: () => `${Math.round(h.camera().fov)}°`, weight: 1.2 },
@@ -874,17 +879,12 @@ export function mainMenu(h: MenuHost): MainMenu {
           buttons: [choice('On', true, () => h.vrFly(), (v) => h.setVrFly(v)), choice('Off', false, () => h.vrFly(), (v) => h.setVrFly(v))],
         },
         { heading: 'Left stick: fly where you look · triggers: faster' },
-        {
-          label: 'Time of day',
-          buttons: [
-            { text: '−10′', press: () => h.shiftTime(-10 / 60) },
-            { text: () => formatHours(h.timeOfDay()), weight: 1.3 },
-            { text: '+10′', press: () => h.shiftTime(10 / 60) },
-          ],
-        },
-        { heading: 'Move: to port' },
+        // (The time of day is on Voyage > Weather, with the ±10′ steps.)
+        // Move to a port: in the career only; in Voyage every port has Go on the Voyage tab.
+        { heading: 'Move: to port', when: () => MODE !== 'voyage' },
         // Two to a row, in a scrolling list (a coast map brings dozens of harbours, and long names).
         {
+          when: () => MODE !== 'voyage',
           show: CONFIG.menu.portRows,
           scroll: Array.from({ length: Math.ceil(PORTS.length / 2) }, (_, row) => ({
             label: '',
@@ -893,7 +893,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         },
         // The regions, two to a row as well (four names in one row were squashed).
         ...Array.from({ length: Math.ceil(REGIONS.length / 2) }, (_, row): MenuRow => ({
-          label: row === 0 ? 'To region' : '',
+          label: row === 0 ? (MODE === 'voyage' ? 'Move to' : 'To region') : '',
           buttons: REGIONS.slice(row * 2, row * 2 + 2).map((r) => ({ text: r.name, press: () => h.teleportToRegion(r.id) })),
         })),
         { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to the quay)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
@@ -1133,6 +1133,9 @@ export function mainMenu(h: MenuHost): MainMenu {
  */
 function yourBoat(h: MenuHost): MenuRow[] {
   const c = () => h.shipyardCodes();
+  // Type opens the keypad here (the Office tab, which has one, is hidden in Voyage).
+  let typing = false;
+  const key = (ch: string) => ({ text: ch, press: () => c().type(ch) });
   const fav = (i: number): MenuRow => ({
     label: '',
     when: () => i === 0 || !!c().favouriteAt(i),
@@ -1156,11 +1159,15 @@ function yourBoat(h: MenuHost): MenuRow[] {
     {
       label: 'Code',
       buttons: [
-        { text: () => groupCode(c().code) || '_ (type it in Office > Your boats, or Paste)', weight: 3.2 },
+        { text: () => groupCode(c().code) || '_', weight: 2.4 },
+        { text: 'Type', active: () => typing, press: () => (typing = !typing) },
         { text: 'Paste', press: () => h.pasteCode() },
         { text: () => (c().check().ok ? 'Launch' : ''), active: () => c().check().ok, press: () => c().check().ok && h.launchBoat(c().code) },
       ],
     },
+    { label: '', when: () => typing, buttons: [{ text: () => c().check().text }] },
+    ...[0, 8, 16, 24].map((from): MenuRow => ({ label: '', when: () => typing, buttons: ALPHABET.slice(from, from + 8).split('').map(key) })),
+    { label: '', when: () => typing, buttons: [{ text: '⌫', press: () => c().backspace() }, { text: 'Clear', press: () => c().clear() }] },
   ];
 }
 
