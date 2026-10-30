@@ -10,6 +10,13 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### The front page's tiles: the owner's pictures (30 Oct 2026)
+
+Owner: "use these new images to replace the ones on the front page of the app for career mode, shipyard, voyage and training, in that order."
+
+- `index.html`: each tile's drawing (an inline SVG) is now a picture, `public/tiles/<mode>.webp` (career, voyage, shipyard, training; 1024 × 765, 70 to 170 KB each). They are 4:3 and the tiles show them 3:2 (`object-fit: cover`), so a little goes off the top and bottom. The alt texts say what each shows. The Training tile is still dimmed with its "later" tag until that mode is in.
+- **Checked:** headless screenshots of the front page at 1280 px and at phone width: the four pictures load, the tiles stay equal, no sideways scroll.
+
 ### The menu: no duplicates across the tabs (30 Oct 2026)
 
 Owner: "have a look through the menus, just to make sure there's no duplicate functionality across them."
