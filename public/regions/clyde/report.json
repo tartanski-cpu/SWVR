@@ -1256,13 +1256,13 @@
   "marks": 72,
   "lights": 44,
   "slipways": 13,
-  "fishingGrounds": 3,
-  "pottingGrounds": 24,
+  "fishingGrounds": 24,
+  "pottingGrounds": 15,
   "landmarks": [
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 241877
+  "bytes": 243359
  },
  "houses": {
   "byType": {

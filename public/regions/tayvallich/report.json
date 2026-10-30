@@ -224,11 +224,11 @@
   "lights": 0,
   "slipways": 1,
   "fishingGrounds": 2,
-  "pottingGrounds": 6,
+  "pottingGrounds": 5,
   "landmarks": [
    "Cruach Lusach"
   ],
-  "bytes": 38948
+  "bytes": 39006
  },
  "houses": {
   "byType": {

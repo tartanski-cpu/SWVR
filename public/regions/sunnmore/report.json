@@ -2726,12 +2726,12 @@
   "marks": 53,
   "lights": 201,
   "slipways": 1,
-  "fishingGrounds": 2,
-  "pottingGrounds": 2746,
+  "fishingGrounds": 40,
+  "pottingGrounds": 118,
   "landmarks": [
    "Råna",
    "Erkna Oc(3)RGW.10s"
   ],
-  "bytes": 785572
+  "bytes": 532576
  }
 }

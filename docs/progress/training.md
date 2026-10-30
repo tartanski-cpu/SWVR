@@ -10,6 +10,8 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+**30 Oct 2026, owner: "Push to next".** M1, M2 and the speed log astern merged into `next` (with `origin/next` merged in first: the front page's Training card keeps the owner's new tile picture and links to the training page). All of `npm test` passes.
+
 ### The speed log turns blue going astern (30 Oct 2026)
 
 Owner: "It's quite hard to tell if you're going forward or backwards on a computer. It would be good if the speed instrument changed color when you start going backwards."
