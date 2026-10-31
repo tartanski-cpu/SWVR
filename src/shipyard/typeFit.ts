@@ -144,13 +144,25 @@ export const TYPE_FACTS: TypeFacts[] = [
   {
     // The foiling ferry (a one-off: all fixed but her battery and house, so one fit; measured
     // 28 Oct 2026 on her pod, 200 kWh; her range is her battery's at 25 kn on her foils).
-    what: 'A one-off foiling electric ferry: 12 m of composite, a long passenger cabin, one electric pod with two propellers; she lifts onto her hydrofoils and flies quietly over the chop at 25 kn.',
+    what: 'A one-off foiling electric ferry: 12 m of composite, a long passenger cabin, an electric pod on each aft foil; she lifts onto her hydrofoils and flies quietly over the chop at 25 kn.',
     goodFor: [],
     crates: 0,
     pots: 0,
     maxCrates: 0,
     maxPots: 0,
     fits: [fit(7, 0, 30, 40, 1, 700_000)],
+  },
+  {
+    // The RIB (owner, 31 Oct 2026; RIB stop 1): as she comes, 6 m on one 150 hp outboard
+    // (engine 0 stands in for her outboards; measured in the Shipyard 31 Oct 2026). Stretched
+    // to 12 m on three or four V8 outboards she does 40-plus.
+    what: 'A RIB: a deep-V hull under inflatable tubes, an open console, 5 to 12 m; fast, handy and soft-riding, for reaching people in the water.',
+    goodFor: [],
+    crates: 5,
+    pots: 3,
+    maxCrates: 60,
+    maxPots: 39,
+    fits: [fit(0, 0, 24, 118, 0.6, 38_000)],
   },
 ];
 

@@ -131,14 +131,15 @@ function stairLanding(landing: FloorPatch, gear: readonly GearFootprint[], r: nu
 }
 
 /** A boat with no wheelhouse (the skiff): just its deck, inside the gunwale. */
-function openDeckWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
+function openDeckWalkArea(def: VesselDef, layout: LayoutConfig, gear: readonly GearFootprint[] = []): WalkArea {
   const st = def.hull.stations;
   const transom = st[0].z;
   const stem = st[st.length - 1].z;
   const deckHalfBeam = (z: number) => stationLerp(def, z, (i) => st[i].halfBeamDeck);
   const deckY = (z: number) => stationLerp(def, z, (i) => st[i].polygon[0][1]);
   const m = layout.deckEdgeMargin;
-  const on = (x: number, z: number) => z <= transom - m && z >= stem + 2 * m && Math.abs(x) <= deckHalfBeam(z) - m;
+  // (Clear of her gear standing on her deck: a RIB's console and leaning post, an engine box.)
+  const on = (x: number, z: number) => z <= transom - m && z >= stem + 2 * m && Math.abs(x) <= deckHalfBeam(z) - m && !onGear(gear, x, z, layout.bodyRadius, deckY(z));
   return {
     floorsAt: (x, z) => (on(x, z) ? [deckY(z)] : []),
     walkable: (x, z, y) => on(x, z) && Math.abs(deckY(z) - y) <= STEP_HEIGHT,
@@ -314,7 +315,8 @@ function houseWalk(
  *              kept clear of on deck and roof
  */
 export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: readonly GearFootprint[] = []): WalkArea {
-  if (!layout.wheelhouse || !layout.roof) return openDeckWalkArea(def, layout);
+  // (An open helm is walked as her deck: wheelhouse.open.)
+  if (!layout.wheelhouse || !layout.roof || layout.wheelhouse.open) return openDeckWalkArea(def, layout, gear);
   const wh = layout.wheelhouse;
   const r = layout.bodyRadius;
   const st = def.hull.stations;

@@ -96,7 +96,8 @@ export class InteriorDetail {
   update(viewer: THREE.Vector3 | null): void {
     const wh = this.def.layout.wheelhouse;
     const m = 1.2; // at the door, or leaning in at a window: show them
-    const near = !!viewer && Math.abs(viewer.x - houseX(wh)) < wh.halfWidth + m && viewer.z > wh.front - m && viewer.z < wh.aft + m && viewer.y > houseFloorLow(wh) - 1;
+    // (An open helm: in sight from anywhere on her; hidden only when nowhere near.)
+    const near = !!viewer && wh.open ? true : !!viewer && Math.abs(viewer.x - houseX(wh)) < wh.halfWidth + m && viewer.z > wh.front - m && viewer.z < wh.aft + m && viewer.y > houseFloorLow(wh) - 1;
     if (near === this.shown) return;
     this.shown = near;
     for (const o of this.small) o.visible = near;

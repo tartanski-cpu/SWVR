@@ -25,6 +25,7 @@ const type = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ..
 describe('the engine on a shaft: placed for her balance', () => {
   it('further aft than the shortest-shaft rule put it, toward where her weights balance, still fitting and clearing her bottom', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      if (DESIGN_HULLS[hull].open) continue; // (an open boat's inboard is on a stern drive: no shaft)
       const d = type(hull);
       const b = buildDesign(d);
       const s = b.shaft;

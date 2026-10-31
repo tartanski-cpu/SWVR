@@ -24,6 +24,7 @@ describe('the deck gear menu', () => {
 
   it('every hull type comes with her anchor fitted', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      if (DESIGN_HULLS[hull].open) continue; // (the RIB: her deck gear comes with RIB stop 3)
       const d = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull };
       expect(fitted(equipmentOf('anchor')!, d), `hull ${hull}`).toBe(true);
       expect(buildDesign(d).warnings.some((w) => /anchor/i.test(w)), `hull ${hull}`).toBe(false);

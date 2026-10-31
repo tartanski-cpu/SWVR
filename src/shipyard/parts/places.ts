@@ -10,6 +10,8 @@ import type { HullPart } from './hull';
 import type { HousePart, LayoutPart } from './house';
 import type { TrimPart } from './trim';
 import type { MachineryPart } from './engineRoom';
+import { HOUSE_PAINTS, LIVERIES } from './catalog';
+import { ribConsole } from './rib';
 
 /** The places inside and on the wheelhouse (vessel axes), as the landing craft's are from her cabin: the helm, the wall panels, what hangs under the roof, the floods, the cleats. */
 export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart) {
@@ -150,6 +152,28 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     { id: 'horn', type: 'roof.mount', transform: { position: [hx, roofTopAt(roofFront + 0.775), roofFront + 0.775] }, label: 'Cabin roof (nominal)' },
     { id: 'wipers', type: 'window.wiper', transform: { position: [hx, roofY - 0.2, front] }, label: 'Over the front windows (nominal)' },
   ];
-  return { wheelhouseSockets, at, bowCleat, cleat, floodLamps, helmAssist, midCleat, rampBow, sternCleat, wl };
+  // An open boat (the RIB's: DesignHull `open`): no wheelhouse. Her helm's places are on her
+  // console instead (parts/rib.ts ribConsole: the console from the helm box's front, the
+  // leaning post aft of it): the helm console on its top (the wheel on its aft face, as the
+  // crane RIB's), the breaker panel on its starboard side and the battery master on its port
+  // side (a RIB's switch panel and isolator), the navigation lights on a pole over the leaning
+  // post, the horn nominal on the console. Her tubes along her sides.
+  const ribHelm = p.base.open ? ribConsole(front, q.deckY, HOUSE_PAINTS[d.houseColour ?? 0]?.colour ?? LIVERIES[d.paint]?.livery.topsides) : null;
+  if (ribHelm) {
+    const mid = rnd((ribHelm.front + ribHelm.aft) / 2);
+    const deck = rnd(q.deckY(mid));
+    const hwC = ribHelm.halfWidth;
+    wheelhouseSockets.length = 0;
+    wheelhouseSockets.push(
+      { id: 'tubes', type: 'hull.side', transform: { position: [0, 0, 0] }, label: 'Her sides: the tubes' },
+      { id: 'ribConsole', type: 'deck.equipment', transform: { position: [0, deck, mid] }, label: 'The console and the leaning post aft of it' },
+      { id: 'helm', type: 'helm.console', transform: { position: [0, ribHelm.top, ribHelm.aft] }, capacity: { size: [2 * hwC + 0.3, 1.2, 1.0] }, label: 'The console\'s top, at its aft face' },
+      { id: 'breakerPanel', type: 'wall.panel', transform: { position: [rnd(hwC + 0.005), rnd(deck + 0.62), mid], rotationDeg: [0, 90, 0] }, label: 'The console\'s starboard side: the breakers' },
+      { id: 'batteryMaster', type: 'wall.panel', transform: { position: [rnd(-hwC - 0.005), rnd(deck + 0.5), mid], rotationDeg: [0, -90, 0] }, label: 'The console\'s port side: the battery master' },
+      { id: 'navLights', type: 'hull.light', transform: { position: [0, rnd(ribHelm.post.top + 0.42), rnd(ribHelm.post.aft + 0.04)] }, label: 'Over the leaning post: the navigation lights' },
+      { id: 'horn', type: 'roof.mount', transform: { position: [0, ribHelm.top, mid] }, label: 'The console (nominal)' },
+    );
+  }
+  return { wheelhouseSockets, at, bowCleat, cleat, floodLamps, helmAssist, midCleat, rampBow, ribHelm, sternCleat, wl };
 }
 export type PlacesPart = ReturnType<typeof placesPart>;

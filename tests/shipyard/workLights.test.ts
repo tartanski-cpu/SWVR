@@ -16,7 +16,8 @@ const typeOf = (hull: number, controls: number, facets = 0): ShipDesign => ({ ..
 describe('the working lights', () => {
   it('advanced: every hull type has the overhead panel (two switches), both floods, no rail lights (owner: not for now); the recipe checks out', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
-      for (const facets of [0, 1]) {
+      for (const facets of DESIGN_HULLS[hull].open ? [] : [0, 1]) {
+        // (Not an open boat: no roof for the panel and floods.)
         useDesign(typeOf(hull, 1, facets));
         expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}`).toEqual([]);
         const got = ids();

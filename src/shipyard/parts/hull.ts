@@ -9,6 +9,7 @@ import { CONFIG } from '../../config';
 import { SCALES } from '../design';
 import type { BuildArgs } from './common';
 import { DESIGN_HULLS, sizeScale } from './catalog';
+import { ribTubes } from './rib';
 
 /** Her lines: her type's hull scaled to her length, beam and depth (and raised or lowered to float at her weight, `raise`), and the stations she floats and is drawn on. */
 export function hullPart(a: BuildArgs) {
@@ -36,7 +37,8 @@ export function hullPart(a: BuildArgs) {
   const st = shape.stations;
   const transom = st[0].z;
   const stem = st[st.length - 1].z;
-  const bulwarkHeight = Math.round(SCALES.bulwark(d.bulwark) * 100) / 100;
+  // (An open boat, the RIB's: no bulwarks, her tubes' top over her deck edge, their radius.)
+  const bulwarkHeight = base.open ? ribTubes({ L, D }, d).radius : Math.round(SCALES.bulwark(d.bulwark) * 100) / 100;
 
   return { base, bulwarkHeight, form, grownPlate, loft, shape, size: { L, B, D }, st, stem, transom, warnings };
 }

@@ -36,7 +36,8 @@ describe('what she is built of, and what she weighs', () => {
       expect(Math.abs(h.sinkage), `hull ${hull} sinkage`).toBeLessThan(0.02);
       expect(Math.abs(h.lcgMinusLcb), `hull ${hull} trim`).toBeLessThan(0.02);
       expect(h.gmt, `hull ${hull} GM`).toBeGreaterThan(0.5);
-      expect(boat.figures.freeboardM, `hull ${hull}`).toBeGreaterThan(0.6);
+      // (An open boat, the RIB: her tubes' top above her deck edge counts.)
+      expect(boat.figures.freeboardM + (DESIGN_HULLS[hull].open ? boat.hull.layout.bulwarkHeight : 0), `hull ${hull}`).toBeGreaterThan(0.6);
       expect(boat.warnings, `hull ${hull}`).toEqual([]);
     }
   });

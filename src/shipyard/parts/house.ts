@@ -3,6 +3,7 @@
  * Each part takes the design (`a`) and what the parts before it worked out (`p`), and gives
  * what the parts after it need.
  */
+import { ribTubes } from './rib';
 import { BODY_RADIUS, CONFIG } from '../../config';
 import { hullQueries } from '../../modular/hull';
 import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, OverheadLayout } from '../../vessel/vesselDef';
@@ -129,7 +130,11 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const tugAft = d.hull === TUG_HULL ? (stem + transom) / 2 + CONFIG.shipyard.deckGear.tug.houseAftOfMidships * (transom - stem) : Infinity;
   const zAft = transom - base.cockpit;
   const zFwd = stem + base.foredeck + (base.ramp ? 0.6 : 0);
-  let houseL = d.houseLength;
+  // (An open boat, the RIB's: no wheelhouse. Its box is her helm's place, the console and the
+  // leaning post aft of it, CONFIG.shipyard.rib.console: nothing of it is drawn or walled,
+  // layoutPart `open`; housePos still moves it along her.)
+  const rc = CONFIG.shipyard.rib.console;
+  let houseL = base.open ? rc.depth + rc.postGap + rc.postDepth + 0.1 : d.houseLength;
   if (houseL > zAft - zFwd) {
     houseL = zAft - zFwd;
     warnings.push(`The wheelhouse is longer than her deck allows: cut to ${houseL.toFixed(1)} m.`);
@@ -165,11 +170,11 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const along = (n: number) => Array.from({ length: n + 1 }, (_, i) => front + ((aft - front) * i) / n);
   const narrowest = Math.min(...along(8).map((z) => q.halfBeam(z)));
   const sideDeck = 0.28;
-  let hw = d.houseWidth * (narrowest - sideDeck);
+  let hw = base.open ? rc.halfWidth + 0.24 : d.houseWidth * (narrowest - sideDeck);
   // No narrower than `minInside` inside (CS6, owner, Oct 2026: about 1.2 m, one at a short
   // console; it was 1.7 m when the console had to hold a full row of screens and switches).
   const minHw = CONFIG.shipyard.helm.minInside / 2 + 0.06;
-  if (hw < minHw) {
+  if (hw < minHw && !base.open) {
     warnings.push(`Her wheelhouse is too narrow: widened to ${CONFIG.shipyard.helm.minInside.toFixed(1)} m inside, leaving narrow side decks.`);
     hw = Math.min(minHw, narrowest - 0.12);
   }
@@ -501,7 +506,7 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, ...(p.hx ? { x: p.hx } : {}), front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: lowSills(d) ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
+    wheelhouse: { halfWidth: hw, ...(p.hx ? { x: p.hx } : {}), ...(base.open ? { open: true } : {}), front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: lowSills(d) ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     // A cockpit overhead (design.overhead): fitted below, once the deck gear has its places.
     overhead: undefined as OverheadLayout | undefined,
@@ -514,7 +519,8 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
     railHeight: d.rails ? 0 : bulwarkHeight + 0.4,
     // The notch in the transom bulwark for a stern roller (set below if she has one).
     fairleadGap: d.sternRoller ? CONFIG.vessels.workboat.layout.fairleadGap : 0,
-    deckEdgeMargin: 0.25,
+    // (An open boat's, the RIB's: walked inside her tubes, parts/rib.ts.)
+    deckEdgeMargin: base.open ? Math.round((ribTubes(p.size, d).inset + ribTubes(p.size, d).radius + 0.02) * 100) / 100 : 0.25,
     bodyRadius: BODY_RADIUS,
   } as LayoutConfig;
   // A deckhouse's stair: its landing walked as a floor (its treads as one slope: vessel/layout.ts; drawn by the hull mesh with its rail).
@@ -529,7 +535,7 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
   // of it (not the highest deck under the house, which forward on a hull rising to her bow is
   // well above it). The side door's own height is worked out below.
   const doorDeck = Math.max(...[aft, aft + 0.3].map((z) => q.deckY(Math.min(z, st[0].z))));
-  if (layout.wheelhouse && roofY - doorDeck < 1.8) warnings.push('Her wheelhouse roof is low over the deck outside: the doorway will be a squeeze.');
+  if (layout.wheelhouse && !base.open && roofY - doorDeck < 1.8) warnings.push('Her wheelhouse roof is low over the deck outside: the doorway will be a squeeze.');
 
   return { bowRamp, layout };
 }

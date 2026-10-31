@@ -2673,6 +2673,7 @@ export class App {
     const v = vesselId === this.testVesselId ? this.world.vessels[vesselId] : undefined;
     if (!v) return area;
     const wh = this.testDef.layout.wheelhouse;
+    if (wh.open) return area; // (an open helm: no doors)
     const sd = wh.sideDoor;
     const aftShut = v.controls.door <= 0.5;
     const sideShut = !!sd && (v.controls.sideDoor ?? 0) <= 0.5;

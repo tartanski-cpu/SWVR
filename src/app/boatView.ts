@@ -89,7 +89,8 @@ export class BoatView {
     // modules, inside and out), the rain on the glass.
     const layout = def.layout;
     const wh = layout.wheelhouse;
-    if (wh) {
+    // (An open helm has no door: wheelhouse.open.)
+    if (wh && !wh.open) {
       this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight, 'door', !!wh.doorHinged);
       this.door.root.position.set(houseX(wh), houseFloorAt(wh, wh.aft), wh.aft + 0.03);
       this.root.add(this.door.root);
@@ -122,7 +123,7 @@ export class BoatView {
       this.root.add(ramp.root);
       this.bowRamp = ramp;
     }
-    if (hasWheelhouse(def)) {
+    if (hasWheelhouse(def) && !def.layout.wheelhouse.open) {
       this.rainGlass = new RainGlass(def);
       this.root.add(this.rainGlass.root);
     }

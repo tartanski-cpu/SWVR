@@ -21,6 +21,9 @@ import type { HullDefPart } from './hullDef';
 import type { FurniturePart } from './furniture';
 import type { HoldPart } from './hold';
 import { electricOf, motorSpec } from './solar';
+import { ribTubes } from './rib';
+import type { RibConsoleConfig } from '../../modules/ribConsole';
+import type { TubesConfig } from '../../modules/tubes';
 
 /**
  * An electric pod's steering (CONFIG.shipyard.electricPods): its lock, and its side as its
@@ -73,7 +76,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // Twin shaft engines are worked separately (owner, Oct 2026: a twin engine control, a START
   // each): a lever each on the console (control.twin-throttle, below).
   // (Twin stern drives too, each leg its own engine's: owner, Oct 2026; outboards keep one lever.)
-  const splitTwin = !!twin && !pods && !outboards && (!sdLegs || sdLegs.units.length === 2);
+  // (Not on an open boat, the RIB's: one lever at her jockey console, whatever drives her.)
+  const splitTwin = !!twin && !pods && !outboards && !p.base.open && (!sdLegs || sdLegs.units.length === 2);
   if (twin) engine.twin = { x: twinX, ...(splitTwin ? { split: true } : {}) };
   Object.assign(engine.maintenance, {
     engine: { ...engine.maintenance.engine, x: engX, z: rnd(engMid), length: engL, width: engW, height: engH },
@@ -567,7 +571,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     cc.consoleMin = len;
     // (Only for a console shorter than any before CS6, set short or in a narrow wheelhouse: a long
     // row on a small boat was always drawn smaller together, quietly.)
-    if ((d.consoleLen || 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow) && dashScale < 0.98) p.warnings.push(`Her console is too short to show her instruments full size: drawn at ${Math.round(dashScale * 100)}%. A console of ${(cc.consoleMin as number).toFixed(2)} m holds them full size${d.controls && !touch ? ' (or a touchscreen needs less)' : ''}.`);
+    if (!p.base.open && (d.consoleLen || 2 * (dashHalf + 0.11) < hcfg.lampsUpBelow) && dashScale < 0.98) p.warnings.push(`Her console is too short to show her instruments full size: drawn at ${Math.round(dashScale * 100)}%. A console of ${(cc.consoleMin as number).toFixed(2)} m holds them full size${d.controls && !touch ? ' (or a touchscreen needs less)' : ''}.`);
   }
   // The dash's face leans back as far as its screens do (from its foot, so the switch panel in
   // front stays as it was; never so far its top is under 2 cm deep), and the screens and gauges
@@ -853,7 +857,69 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   recipe.modules.push(...p.furnitureMounts);
   // Her fish hold, if she has one.
   if (p.holdMount) recipe.modules.push(p.holdMount);
+  // An open boat (the RIB's, places.ts ribHelm): her console in place of a wheelhouse.
+  if (p.ribHelm) {
+    openBoat(recipe, p.ribHelm, ribTubes(p.size, d), p.hull.sockets.map((s) => s.id));
+    // Her inboard's engine box (engineRoom.ts: its lid the hatch), solid on her deck.
+    const hatch = recipe.modules.find((m) => m.socket === 'engineHatch');
+    const deck = p.q.deckY((eh.z0 + eh.z1) / 2);
+    if (hatch && eh.y !== undefined && eh.y > deck + 0.2) hatch.config = { ...(hatch.config ?? {}), box: { x0: eh.x0, x1: eh.x1, z0: eh.z0, z1: eh.z1, base: r2(deck), top: eh.y } };
+  }
 
   return { recipe };
 }
 export type RecipePart = ReturnType<typeof recipePart>;
+
+/**
+ * An open boat's recipe (the RIB's; owner, 31 Oct 2026: "it just has a control console"):
+ * only what has its place on her (the wheelhouse's fittings, radios, boards and lights go:
+ * she has no wheelhouse), and in their place her tubes, her console and leaning post, and
+ * at its top her jockey helm, as the crane RIB's (boats/rib.ts): the wheel on its aft face,
+ * the throttle to starboard, the key and START to port, the speed and rev screens in a small
+ * dash, the NAV LIGHTS switch and the horn. Her navigation lights on a pole over the leaning
+ * post, her sidelights on the console's forward corners.
+ */
+function openBoat(recipe: Recipe, c: RibConsoleConfig & { colour?: number }, tubes: TubesConfig, sockets: string[]): void {
+  const has = new Set(sockets);
+  recipe.modules = recipe.modules.filter((m) => has.has(m.socket));
+  const helm = recipe.modules.find((m) => m.socket === 'helm')!;
+  helm.config = {
+    instrumentsAmps: 1,
+    dash: { front: -0.6, aft: -0.36, bottom: 0, top: 0.2, halfWidth: c.halfWidth - 0.02 },
+    leanDeg: 25,
+    pedestals: { x: [], halfWidth: 0.1, front: 0, aft: 0.1, floor: -1 },
+    groups: [
+      { title: 'ENGINE', x: [-(c.halfWidth - 0.02), -0.02], color: 0x5cc46c },
+      { title: 'LIGHTS', x: [0.02, c.halfWidth - 0.02], color: 0xd8b028 },
+    ],
+    plates: { front: -0.3, aft: -0.04 },
+    slots: {
+      wheel: { position: [0, -0.16, 0.06], rotationDeg: [-35, 0, 0] },
+      throttle: { position: [0.24, 0.01, -0.14] },
+      key: { position: [-0.28, 0.01, -0.18] },
+      start: { position: [-0.14, 0.01, -0.18] },
+      navLights: { position: [0.1, 0.01, -0.2] },
+      horn: { position: [-0.02, 0.01, -0.2] },
+      speed: { position: [-0.15, 0.1, -0.35] },
+      rpm: { position: [0.15, 0.1, -0.35] },
+    },
+  };
+  const keep = new Set(['wheel', 'throttle', 'key', 'start', 'navLights', 'horn', 'speed', 'rpm']);
+  helm.modules = (helm.modules ?? []).filter((m) => keep.has(m.socket));
+  const nav = recipe.modules.find((m) => m.socket === 'navLights');
+  if (nav) {
+    const foot = Math.round((c.post.top + 0.42) * 100) / 100;
+    const z = Math.round((c.post.aft + 0.04) * 100) / 100;
+    const side = (s: number): V3 => [Math.round(s * (c.halfWidth + 0.02) * 100) / 100, Math.round((c.top - 0.12) * 100) / 100, Math.round((c.front + 0.12) * 100) / 100];
+    nav.config = { mast: { footY: foot }, lights: { masthead: [0, Math.round((foot + 0.9) * 100) / 100, z], port: side(-1), starboard: side(1), stern: [0, Math.round((foot + 0.6) * 100) / 100, z] } };
+    // (No wind vane on her pole.)
+    nav.modules = [];
+  }
+  recipe.modules.push(
+    { socket: 'tubes', module: 'hull.tubes', config: tubes as unknown as Record<string, unknown> },
+    { socket: 'ribConsole', module: 'deck.rib-console', config: c as unknown as Record<string, unknown> },
+  );
+  // (Interlocks on controls she hasn't: the engine hatch's oil checks stay with an inboard.)
+  const controls = new Set(recipe.modules.map((m) => m.socket));
+  recipe.interlocks = (recipe.interlocks ?? []).filter((l) => !l.disable || l.disable.every((x) => controls.has(x.replace(/^control:/, ''))));
+}
