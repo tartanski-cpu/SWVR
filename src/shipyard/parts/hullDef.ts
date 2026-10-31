@@ -129,9 +129,10 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     ...(prot.side ? [{ id: 'hullGuard', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: prot.side === 'strake' ? 'Her sheer, all round: the rubbing strake' : 'Her sides: the tyres' }] : []),
     ...engineSockets,
     ...wheelhouseSockets,
-    ...interiorSockets,
+    // (An open boat has no wheelhouse inside or out: her places are her console's, places.ts.)
+    ...(p.base.open ? [] : interiorSockets),
     ...deckSockets,
-    ...houseGearSockets,
+    ...(p.base.open ? [] : houseGearSockets),
   ];
   // (Her open deck aft of the house, for the rescue places below.)
   const aftDeck = transom - 0.5 - aft;
@@ -155,11 +156,29 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const sunkBy = CONFIG.shipyard.weights.payloadFreeboard * deckMid;
   const payloadKg = Math.max(0, Math.round((atDWL({ ...shape, stations: st.map((s) => ({ ...s, polygon: s.polygon.map(([x, y]) => [x, y - sunkBy] as [number, number]) })) }).volume * rho - mass) / 100) * 100);
   if (af) for (const s of sockets) if (s.transform?.position) s.transform.position = intoFacets(s.transform.position as V3);
+  // An open boat (the RIB's): her helm at her console (places.ts ribHelm), her hand gear stowed
+  // in and on it, her windage her tubes and hull side-on and the console standing up from her deck.
+  const rh = p.ribHelm;
+  const ribWindage = () => {
+    const tubeTop = layout.bulwarkHeight;
+    const cH = rh!.top - q.deckY((rh!.front + rh!.aft) / 2);
+    return { side: Math.round(lengthM * (freeboard + tubeTop) + (rh!.aft - rh!.front) * cH), front: Math.round(beamDeck * (freeboard + tubeTop) + 2 * rh!.halfWidth * cH), center: [0, r2(freeboard + 0.4), r2((rh!.front + rh!.aft) / 2)] as V3 };
+  };
+  const ribStowage = () => {
+    const mid = (rh!.front + rh!.aft) / 2;
+    const deck = q.deckY(mid);
+    return {
+      extinguisher: [r2(rh!.halfWidth + 0.08), r2(deck + 0.32), r2(rh!.front + 0.15)] as V3,
+      torch: [r2(-rh!.halfWidth - 0.06), r2(deck + 0.85), r2(rh!.aft - 0.12)] as V3,
+      binoculars: { at: [-0.18, r2(rh!.top + 0.04), r2(rh!.front + 0.28)] as V3, yawDeg: 0 },
+    };
+  };
   const hull: HullDefinition = {
     id: `hull.${id}`,
     version: 1,
     name: `Shipyard design ${code}`,
-    helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
+    // (An open boat's: between her console and the leaning post.)
+    helm: { stand: rh ? [0, r2(q.deckY(rh.aft + 0.3)), r2((rh.aft + rh.post.front) / 2)] : [cx, F, cf + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipLess(weighed, [
       outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : pods ? (electric ? electricOf(d).podKg : pdc.legKg) : 0)) * n, at: at.engineBed },
@@ -189,7 +208,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
       return tyres.length ? { ...r, formFactor: r.formFactor + hg.tyres.formFactorAdd } : r;
     })(),
     ...(planing ? { planing } : {}),
-    windage: {
+    windage: rh ? ribWindage() : {
       side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) - saloonL * roofDrop + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * d.dhHeight : 0)),
       front: Math.round(beamDeck * freeboard + 2 * hw * (roofY + 0.3 - level) + (deckhouse ? 2 * Math.max(0, dhW - hw) * d.dhHeight : 0)),
       center: [0, Math.round((freeboard + 0.4) * 100) / 100, Math.round(((front + aft) / 4) * 100) / 100],
@@ -201,7 +220,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
       exhaust: stack
         ? { ...stackTops[0], stack: true, ...(stackTops.length > 1 ? { more: stackTops.slice(1).map((t) => t.position) } : {}), water: stack.water }
         : { position: [0.55, 0.2, transom + 0.05], direction: [0, -0.12, 1] },
-      stowage: {
+      stowage: rh ? ribStowage() : {
         // (Inboard of a twin's port exhaust stack, in that corner.)
         // (Across from the house's middle: an offset house's, `hx`.)
         extinguisher: intoFacets([hx - (hw - 0.2 - portStack), F + 0.58, aft - 0.15]),
@@ -219,7 +238,7 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     sockets,
     provides: [{ power: 'electrical', circuits: BREAKERS }],
     features: [
-      { id: 'door.aft', kind: 'door', openKey: 'door.aft.open' },
+      ...(rh ? [] : [{ id: 'door.aft', kind: 'door' as const, openKey: 'door.aft.open' as const }]),
       ...(sideDoor ? [{ id: 'door.side', kind: 'door' as const, openKey: 'door.side.open' as const }] : []),
       { id: 'hatch.engine', kind: 'hatch', openKey: 'hatch.engine.open' },
       ...(bowRamp ? [{ id: 'ramp.bow', kind: 'door' as const, openKey: 'ramp.bow.down' as const }] : []),

@@ -204,6 +204,13 @@ export interface DesignHull {
   /** A solar roof over her house charging her battery (the solar catamaran's; modules/solarRoof, parts/recipe.ts). */
   solarRoof?: boolean;
   /**
+   * An open boat (the RIB's; owner, 31 Oct 2026: "the console should be fixed so it doesn't
+   * need a wheelhouse at all. It just has a control console"): no wheelhouse, her helm on a
+   * console on her open deck (the house part lays out the console and leaning post where a
+   * wheelhouse would stand: design.housePos moves it), her sides her tubes (modules/tubes).
+   */
+  open?: boolean;
+  /**
    * Her drive in pods on her foils' struts (the foiling ferry's; owner, 28 Oct 2026: "the
    * bulbs on the stern foils are her motors"): one at the foot of each strut her lines give a
    * pod (`podDragArea`: her aft struts, one under each hull), its motor inside it, so no engine
@@ -222,7 +229,7 @@ export function withFixed<D extends Pick<ShipDesign, 'hull'>>(d: D): D {
 }
 
 /** What a hull and its houses are built of (CONFIG.shipyard.materials). */
-export type Material = 'aluminium' | 'steel' | 'foam and plywood' | 'composite';
+export type Material = 'aluminium' | 'steel' | 'foam and plywood' | 'composite' | 'GRP';
 /**
  * Her length as a factor of her type's base (the length slider's step `i`): every hull's
  * 0.8 to 1.175 (SCALES.scale); a hull that `growsTo` more, the same up to her base size
@@ -426,7 +433,7 @@ const HOUSE_KEYS: (keyof ShipDesign)[] = [
   ...Object.values(DASH_SLOTS),
   ...Object.values(PANEL_SLOTS),
 ];
-const { battery: _battery, paint: _p, houseColour: _h, frames: _f, roofPaint: _r, roofTop: _t, finish: _fi, ...EVERYTHING } = DEFAULT_DESIGN;
+const { battery: _battery, paint: _p, houseColour: _h, frames: _f, roofPaint: _r, roofTop: _t, finish: _fi, tubeColour: _tc, ...EVERYTHING } = DEFAULT_DESIGN;
 const SOLAR_CAT_FIXED: Partial<ShipDesign> = {
   ...Object.fromEntries(Object.entries(EVERYTHING).filter(([k]) => !HOUSE_KEYS.includes(k as keyof ShipDesign))),
   ...fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 0, bow: 0 }),
@@ -483,6 +490,40 @@ const SOLAR_CAT_HOUSE: Partial<ShipDesign> = {
   galleyAt: furnitureCell(1.8, 4.7),
   berthAt: furnitureCell(-1.8, 8.5),
   headAt: furnitureCell(1.8, 8.3),
+};
+
+/** The RIB's index in DESIGN_HULLS. */
+export const RIB = 10;
+/**
+ * The RIB (owner, 31 Oct 2026): what's hers to choose: her size (length, beam, depth), where
+ * her console stands (housePos), her engines (outboards, one to four and their size, or an
+ * inboard on a stern drive) and her paint (her hull, console and tubes). The rest is fixed:
+ * no wheelhouse, no bulwarks but her tubes, no deck gear yet (RIB stop 3).
+ */
+const RIB_KEYS: (keyof ShipDesign)[] = ['length', 'beam', 'depth', 'housePos', 'engine', 'twin', 'outboards', 'oneOutboard', 'outboardSize', 'gear'];
+const RIB_FIXED: Partial<ShipDesign> = {
+  ...Object.fromEntries(Object.entries(EVERYTHING).filter(([k]) => !RIB_KEYS.includes(k as keyof ShipDesign))),
+  hull: RIB,
+  // (An inboard goes on a stern drive, owner: "like a V8 or something with a Z drive": she has
+  // no depth for a shaft. Outboards, if chosen, instead.)
+  sternDrive: 1,
+  bow: 0,
+  sheer: 0,
+  bulwark: 0,
+  pods: 0,
+  nozzle: 0,
+  guard: 0,
+  rails: 1,
+  noAnchor: 1,
+  controls: 0,
+  markings: 0,
+  // (Her deck gear comes later: RIB stop 3.)
+  searchlight: 0,
+  lifeRing: 0,
+  // (No roof or window frames to paint.)
+  roofPaint: 0,
+  roofTop: 0,
+  frames: 0,
 };
 
 /** The foiling ferry's index in DESIGN_HULLS. */
@@ -816,7 +857,32 @@ export const DESIGN_HULLS: DesignHull[] = [
     // White, a light house, a dark roof, as new; her biggest battery.
     defaults: { ...FOIL_FERRY_HOUSE, ...FOIL_FERRY_FIXED, paint: 4, houseColour: 0, frames: 0, roofPaint: 4, roofTop: 0, finish: 2, battery: BATTERY_STEPS - 1 },
   },
+  {
+    name: 'RIB: 5 to 12 m, a deep-V hull under inflatable tubes, an open console',
+    material: 'GRP',
+    // The crane RIB's lines (CONFIG.vessels.rib.hull), 6 m as she comes, stretched 5 to 12 m
+    // (CONFIG.shipyard.rib); her beam and depth as any hull's.
+    shrinksTo: CONFIG.shipyard.rib.shrinksTo,
+    growsTo: CONFIG.shipyard.rib.growsTo,
+    form: (L, B, D) => {
+      const h = CONFIG.vessels.rib.hull;
+      return { kind: 'chine', params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D } };
+    },
+    regime: 'planing',
+    ramp: false,
+    open: true,
+    // Her console amidships, a little aft (housePos), deck clear forward of it for the crew.
+    cockpit: 0.6,
+    foredeck: 1.0,
+    fixed: RIB_FIXED,
+    oneOffNote: 'A RIB: an open boat with her helm at a console, her sides inflatable tubes. Yours to choose: her length (5 to 12 m), beam and depth, where her console stands, her engines (one to four outboards, or an inboard on a stern drive) and her paint: her hull, her console and her tubes.',
+    // As the crane RIB: 6 m, one 150 hp outboard, dark grey under orange tubes, the console light grey.
+    defaults: { ...RIB_FIXED, ...fromSteps({ length: 8, beam: 8, depth: 8 }), housePos: 0.35, engine: 0, twin: 0, outboards: 0, oneOutboard: 1, outboardSize: 1, paint: 0, houseColour: 0, tubeColour: 0, finish: 2 },
+  },
 ];
+
+/** The RIB's tube colours (design.tubeColour; design.ts TUBE_COLOURS names them). */
+export const TUBE_PAINTS = [0xe2601e, 0x5b6168, 0x26292c, 0xb8302a, 0xe0b020, 0x1f3550];
 
 /**
  * Engine packages: power, weight, sound, and how quickly its governor adds fuel.

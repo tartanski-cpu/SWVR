@@ -42,6 +42,8 @@ export const HULL_ROLES: (HullRoles | null)[] = [
   { main: ['Exploring'], light: ['Search & rescue'] },
   // The foiling ferry (owner, Oct 2026): a one-off, fast and quiet, flying over the chop.
   { main: ['Exploring'], light: ['Search & rescue'] },
+  // The RIB (owner, 31 Oct 2026): fast and handy, for reaching people in the water.
+  { main: ['Search & rescue'], light: ['Exploring'] },
 ];
 
 export interface HullCard {

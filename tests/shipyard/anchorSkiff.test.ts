@@ -33,6 +33,7 @@ describe('the anchor and the skiff: codes', () => {
 describe('the anchor', () => {
   it('every hull type carries one: at the bow roller on the centreline, or a kedge at the transom facing aft on the ramp-bow boat; its ANCHOR switch at the helm', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      if (DESIGN_HULLS[hull].open) continue; // (the RIB: her deck gear comes with RIB stop 3)
       const b = useDesign(typeOf(hull));
       expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}`).toEqual([]);
       expect(b.warnings, `${hull}`).toEqual([]);

@@ -102,6 +102,7 @@ describe('the switch panel grid (CS2)', () => {
   it('on her console: each switch in its group’s plate, the groups apart, none off the panel (every hull type, basic and advanced)', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
       if (DESIGN_HULLS[hull].retired) continue;
+      if (DESIGN_HULLS[hull].open) continue; // (an open boat's helm is her jockey console's: no switch panel grid)
       for (const controls of [0, 1]) {
         const helm = buildDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, controls }).recipe.modules.find((m) => m.socket === 'helm')!;
         const cc = helm.config as { dash: { halfWidth: number }; groups: { title: string; x: [number, number] }[]; slots: Record<string, { position: number[] }>; panelGrid: { runs: { title: string; members: string[] }[] } };

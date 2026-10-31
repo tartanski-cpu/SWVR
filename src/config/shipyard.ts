@@ -111,6 +111,9 @@ export const SHIPYARD_CONFIG = {
       // A carbon and glass sandwich over a foam core (the foiling ferry's, owner, 28 Oct 2026: a
       // foiler lives or dies by her weight): lighter still a square metre, and the dearest by the kilo.
       composite: { shellKgPerM2: 12, houseKgPerM2: 7, pricePerKg: 90 },
+      // Solid glass-reinforced plastic (the RIB's, owner, 31 Oct 2026: as most RIBs' hulls are
+      // laid up): lighter than aluminium plate for a small hull, cheap to build by the kilo.
+      GRP: { shellKgPerM2: 20, houseKgPerM2: 12, pricePerKg: 25 },
     },
     /**
      * Her other weights (build.ts), and her load as trialled:
@@ -149,6 +152,38 @@ export const SHIPYARD_CONFIG = {
      * (m). The builder still checks there's room for her cradle, and says so if not.
      */
     secondBoatMinLength: 12.5,
+    /**
+     * The RIB (owner, 31 Oct 2026: "take the existing rib ... and turn it into a parametric
+     * boat"; DESIGN_HULLS 'RIB'), her hull the crane RIB's lines (CONFIG.vessels.rib.hull)
+     * stretched 5 to 12 m (`shrinksTo`, `growsTo` of her 6 m), her beam and depth on their
+     * own sliders. No wheelhouse: an open helm (vessel/layout.ts `open`) at her console:
+     *   tubes          her tubes (modules/tubes, CONFIG.modules.tubes.rib) scaled with her
+     *                  depth (their radius) and length; `kgPerM` of tube a metre;
+     *   console        the jockey console and leaning post (modules/ribConsole), as the crane
+     *                  RIB's: its body `halfWidth` across, `depth` fore and aft, `top` above her
+     *                  deck; the leaning post `postGap` aft of it, `postDepth` deep; `kg` for
+     *                  both (GRP, the windscreen, the post's frame);
+     *   smallOutboard  the 150 hp outboard (CONFIG.vessels.rib.motor): `spacing` between
+     *                  units, its `bracket` (a short transom plate: a RIB's motors hang on her
+     *                  transom), `pricePerKw`.
+     */
+    rib: {
+      shrinksTo: 0.84,
+      growsTo: 2.0,
+      tubes: { kgPerM: 9 },
+      /** An open boat's fit-out (wiring, fittings, paint: no interior or windows) as this share of a wheelhouse boat's; her stores this share. */
+      outfitShare: 0.3,
+      storesShare: 0.2,
+      console: { halfWidth: 0.36, depth: 0.65, top: 1.08, postGap: 0.8, postDepth: 0.4, kg: 90 },
+      /**
+       * An inboard (on a stern drive) under an engine box on her open deck, as RIBs carry them
+       * (she has no depth under her deck for it): the engine may stand up to `maxHeight` over
+       * her deck aft of her helm; the box over it `margin` clear all round, its top at least
+       * `seat` over the deck (it's sat on), its lid the engine hatch (her oil checks).
+       */
+      engineBox: { maxHeight: 0.8, margin: 0.1, seat: 0.45 },
+      smallOutboard: { spacing: 0.55, bracket: { length: 0.08, belowMount: 0.2, margin: 0.25 }, pricePerKw: 160 },
+    },
     /**
      * Live sea trials at the Trials step (shipyard/liveTrial.ts; owner, Oct 2026: see how the
      * hull behaves). Calm deep water; she settles for `settleS` first.

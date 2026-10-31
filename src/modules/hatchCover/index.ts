@@ -13,6 +13,12 @@ import type { EngravedLabel, ModuleDefinition } from '../../modular/module';
 export interface HatchCoverConfig {
   /** Engraved on the floor beside it ('' for none). */
   engrave: string;
+  /**
+   * The lid of a box standing on deck (the RIB's engine box, owner Oct 2026: her inboard
+   * stands up out of her shallow hull): the box's plan and height (boat axes), solid to walk
+   * round. Unset: a hatch flush in the floor or deck.
+   */
+  box?: { x0: number; x1: number; z0: number; z1: number; base: number; top: number };
 }
 
 export const HATCH_COVER: ModuleDefinition<HatchCoverConfig> = {
@@ -21,6 +27,7 @@ export const HATCH_COVER: ModuleDefinition<HatchCoverConfig> = {
   fits: ['deck.fitting'],
   defaults: { engrave: '' },
   ports: { open: { dir: 'write' } },
+  footprints: (c) => (c.box ? [{ ...c.box }] : []),
   view: {
     build({ config, keys, socket }) {
       const size = socket.capacity?.size;
