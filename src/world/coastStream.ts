@@ -8,6 +8,12 @@
  * The ground is part of the simulation (a hull grounds on it), so the host streams round
  * every boat as well as round its own eye; a crew's game round its own eye and boat. No
  * drawing here: the view (coastView.ts) draws whatever chunks are in.
+ *
+ * A chart zoomed in on somewhere else (the planning chart, voyage/planChart.ts; owner, Oct
+ * 2026: "it only seems to load one area in with detail when I scroll around") asks for the
+ * chunks it shows too (`viewChart`), so its coast is cut from the detailed ground there as
+ * well (nav/chartLand.ts): only within `coastChartSpan` across (wider, the coarse grid is as
+ * sharp as the chart can show), and kept while it's looked at (`coastChartHold` s).
  */
 import { CONFIG } from '../config';
 import { addCoastChunk, coastTerrains, removeCoastChunk, type CoastTerrain } from './coastTerrain';
@@ -29,11 +35,21 @@ function toSquare(t: CoastTerrain, k: number, x: number, z: number): number {
   return Math.hypot(dx, dz);
 }
 
+/** Whether a chunk's square and a chart's view (world m) overlap. */
+function overlaps(t: CoastTerrain, k: number, v: { x0: number; z0: number; x1: number; z1: number }): boolean {
+  const c = t.chunked!.chunks[k];
+  const x0 = c.x0 + t.ox;
+  const z0 = c.z0 + t.oz;
+  return x0 < v.x1 && x0 + c.size > v.x0 && z0 < v.z1 && z0 + c.size > v.z0;
+}
+
 export class CoastStreamer {
   /** Chunks being fetched now, by "<region>:<index>". */
   private loading = new Map<string, Promise<void>>();
   /** Chunks that failed: not tried again this session (the coarse grid stands in). */
   private failed = new Set<string>();
+  /** The charts zoomed in, by chart: the ground they show (world m) and when they last asked (ms). */
+  private charts = new Map<object, { x0: number; z0: number; x1: number; z1: number; at: number }>();
 
   /** `base`: the site's root (import.meta.env.BASE_URL), where the region's `dir` is. */
   constructor(
@@ -54,12 +70,17 @@ export class CoastStreamer {
   update(points: readonly { x: number; z: number }[]): Promise<void>[] {
     const r = CONFIG.regions;
     const started: Promise<void>[] = [];
+    const now = performance.now();
+    for (const [key, v] of this.charts) if (now - v.at > r.coastChartHold * 1000) this.charts.delete(key);
+    const charts = [...this.charts.values()];
     for (const t of coastTerrains()) {
       if (!t.chunked) continue;
       const want: { k: number; d: number }[] = [];
       t.chunked.chunks.forEach((_, k) => {
         let d = Infinity;
         for (const p of points) d = Math.min(d, toSquare(t, k, p.x, p.z));
+        // A chart showing its square: wanted (after those near the boats), and kept.
+        if (d >= r.coastLoadDistance && charts.some((v) => overlaps(t, k, v))) d = r.coastLoadDistance - 1;
         if (t.pieces.has(k)) {
           if (d > r.coastUnloadDistance) removeCoastChunk(t.id, k);
         } else if (d < r.coastLoadDistance) want.push({ k, d });
@@ -82,6 +103,27 @@ export class CoastStreamer {
       }
     }
     return started;
+  }
+
+  /**
+   * A chart (any object, one per chart) showing `span` m across (W x H pixels) round (cx, cz):
+   * when zoomed in to `coastChartSpan` or closer, the chunks under it are fetched (the next
+   * `update`) and kept while it keeps asking. Returns whether any of them is still to come
+   * (draw the chart again when it is).
+   */
+  viewChart(chart: object, cx: number, cz: number, span: number, W: number, H: number): boolean {
+    const r = CONFIG.regions;
+    if (span > r.coastChartSpan) {
+      this.charts.delete(chart);
+      return false;
+    }
+    const v = { x0: cx - span / 2, x1: cx + span / 2, z0: cz - (span * H) / W / 2, z1: cz + (span * H) / W / 2, at: performance.now() };
+    this.charts.set(chart, v);
+    for (const t of coastTerrains()) {
+      if (!t.chunked) continue;
+      for (let k = 0; k < t.chunked.chunks.length; k++) if (overlaps(t, k, v) && !t.pieces.has(k) && !this.failed.has(`${t.id}:${k}`)) return true;
+    }
+    return false;
   }
 
   /** One of a region's own files (a streamed chunk's buildings, `buildings/<n>.json`), parsed. */

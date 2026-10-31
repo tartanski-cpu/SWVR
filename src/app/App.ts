@@ -84,7 +84,9 @@ import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS, SKYLINE, SKYLINE_STYLE, WIND_F
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { SurfListener } from '../world/surf';
 import { REGIONS, regionAt, regionById } from '../world/regions';
-import { MODE, VOYAGE_MAP_ID } from '../mode';
+import { MODE, TRAINING, TRAINING_MAP_ID, VOYAGE_MAP_ID } from '../mode';
+import { createTraining } from '../training/training';
+import { TrainingRuns } from '../training/trainingRuns';
 import { forgetPlace, headingOf, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
 import { nextPoint, parsePlan, pointLabel, savePlanText, tableBerthNear, wholeView } from '../voyage/plan';
 import { planFaceAspect, PlanTable, planTableSize, planTableSpot, type PlanTableForm, type PlanTableSpot } from '../voyage/planTable';
@@ -105,7 +107,8 @@ import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, hookNote, kind
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
-import { berthById } from '../vessel/physics/mooring';
+import { berthById, buoyInReach } from '../vessel/physics/mooring';
+import { killCordLine } from '../vessel/killCord';
 import { XRControllers } from '../player/xrControllers';
 import { HandGestures } from '../player/handGesture';
 import { OwnHands } from '../player/ownHands';
@@ -552,6 +555,8 @@ export class App {
    * chart table's PLAN sheet, the plotter's PLAN mode; a hand's ray or the reticle works them.
    */
   private readonly padFaces = new PadFaces();
+  /** Training mode: the runs recorded on this page and their chart review (training/trainingRuns.ts); null elsewhere. */
+  private trainingRuns: TrainingRuns | null = null;
   /** The planning chart, each player's own view (voyage/planChart.ts): full-screen on the desktop (M), on a board in the left hand in VR. */
   private readonly planPanel = new PlanChartPanel({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) });
   private readonly chartBoard = new ChartBoard({ world: () => this.world, ownBoatId: () => this.drivenVesselId(), send: (ref, args) => this.sendPlan(ref, args) }, () => {
@@ -922,7 +927,7 @@ export class App {
     );
 
     // Voyage mode starts in its own boat (CONFIG.voyage.boat), fitted out in full; no career kit.
-    const boat = startBoat() ?? (MODE === 'voyage' ? CONFIG.voyage.boat : CONFIG.career.boat);
+    const boat = startBoat() ?? (TRAINING ? CONFIG.training.boat : MODE === 'voyage' ? CONFIG.voyage.boat : CONFIG.career.boat);
     // The career's boat kitted out as the career has her (any other boat as she is).
     const without = KIT_BOATS.includes(boat) && MODE !== 'voyage' ? startFit() : [];
     useWorkboatFit(socketsWithout(boat === 'workboat' ? without : []));
@@ -937,6 +942,11 @@ export class App {
     if (VOYAGE_MAP_ID) this.world.build.map = VOYAGE_MAP_ID;
     this.world.build.mode = MODE;
     this.world.build.site = SITE;
+    // Training mode: the exercise engine's state (training/training.ts), and no calls while you practise.
+    if (TRAINING) {
+      this.world.training = createTraining();
+      this.world.quietCalls = true;
+    }
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
@@ -954,6 +964,15 @@ export class App {
 
     this.rig = new PlayerRig(this.localPlayerId, this.camera);
     this.scene.add(this.rig.carrier);
+    if (TRAINING) {
+      this.trainingRuns = new TrainingRuns({
+        world: () => this.world,
+        inXR: () => this.renderer.xr.isPresenting,
+        camera: () => this.camera,
+        carrier: () => this.rig.carrier,
+        notify: (text, s) => this.overlay.notify(text, s ?? 4),
+      });
+    }
     this.placePanelOnRig();
     this.camera.add(this.comfortOverlay.mesh);
     // VR messages: a word-wrapped card low in the view, and a buzz on the left hand (debug/overlay.ts).
@@ -1097,8 +1116,8 @@ export class App {
     const modules = recipe ? assembleView(recipe, def, LIBRARY) : null;
     if (modules?.modules.length) {
       const boat = new BoatView(vessel.id, def, modules, vessel.id === this.testVesselId);
-      // Voyage: no career, so no duty board on any boat (world.voyage).
-      if (MODE === 'voyage' && boat.dutyBoard) boat.dutyBoard.root.visible = false;
+      // Voyage: no career, so no duty board on any boat (world.voyage); Training keeps it for the exercise's steps.
+      if (MODE === 'voyage' && !TRAINING && boat.dutyBoard) boat.dutyBoard.root.visible = false;
       view.root.add(boat.root);
       this.boats.set(vessel.id, boat);
       // A boat that came after the start (multi-boat M2): her controls work from now.
@@ -1141,6 +1160,7 @@ export class App {
 
     // 2. Simulation: fixed steps here (alone or hosting), or the host's snapshots (client).
     const renderTime = this.stepSimulation(dt);
+    this.trainingRuns?.update(dt);
     const t1 = performance.now();
 
     // 3. Views, in this order: each reads what the one before posed.
@@ -1249,6 +1269,8 @@ export class App {
           if (s) view.snapshot(s);
         }
         stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+        // Training: each attempt recorded as it goes (training/recording.ts).
+        this.trainingRuns?.afterTick(this.world);
       }
       this.syncVesselViews();
       // Rendering runs one tick behind the simulation and interpolates between the previous
@@ -2651,6 +2673,7 @@ export class App {
     const v = vesselId === this.testVesselId ? this.world.vessels[vesselId] : undefined;
     if (!v) return area;
     const wh = this.testDef.layout.wheelhouse;
+    if (wh.open) return area; // (an open helm: no doors)
     const sd = wh.sideDoor;
     const aftShut = v.controls.door <= 0.5;
     const sideShut = !!sd && (v.controls.sideDoor ?? 0) <= 0.5;
@@ -2961,6 +2984,8 @@ export class App {
   private menuHost(): MenuHost {
     const env = () => this.world.environment;
     const boat = () => this.world.vessels[this.testVesselId];
+    // The boat you're aboard (the skiff, a training RIB), else your own.
+    const myBoat = () => this.world.vessels[this.world.players[this.localPlayerId]?.aboardVesselId ?? ''] ?? boat();
     const saveSettings = () => saveUserSettings();
     return {
       shipyardStatus: () => this.shipyardBlocker() ?? '',
@@ -2968,6 +2993,23 @@ export class App {
       timeOfDay: () => env().timeOfDay,
       shiftTime: (h) => this.pushEnvIntent('timeOfDayDelta', h),
       quietCalls: () => !!this.world.quietCalls,
+      training: () => this.world.training ?? null,
+      trainingRuns: () => this.trainingRuns,
+      trainingSend: (control, ref) => {
+        const home = this.world.vessels[this.world.homeVesselId ?? ''];
+        if (!home) return;
+        // (The exercise puts you aboard its boat, at the helm: training/training.ts.)
+        this.intents.push({ playerId: this.localPlayerId, targetId: home.id, control, value: 1, ...(ref ? { ref } : {}) });
+      },
+      trainingBoat: () => this.world.vessels[this.world.homeVesselId ?? '']?.defId ?? CONFIG.training.boat,
+      setTrainingBoat: (id) => {
+        if (id === this.world.vessels[this.world.homeVesselId ?? '']?.defId) return;
+        // The page starts again in her (the training boat is the page's: ?boat=).
+        const url = new URL(location.href);
+        if (id === CONFIG.training.boat) url.searchParams.delete('boat');
+        else url.searchParams.set('boat', id);
+        location.assign(url.toString());
+      },
       setQuietCalls: (on) => this.pushEnvIntent('quietCalls', on ? 1 : 0),
       timeScale: () => env().timeScale,
       setTimeScale: (v) => this.pushEnvIntent('timeScale', v),
@@ -3157,6 +3199,31 @@ export class App {
         if (b) return { text: `In range: ${b.name} (click the cleats fore and aft, or menu Dock)`, ready: true, docked: false };
         return { text: 'No berth in range (come slowly alongside a yellow-marked berth)', ready: false, docked: false };
       },
+      anchorScope: () => myBoat().anchor.scope ?? 0,
+      setAnchorScope: (r) => this.pushIntentTo(myBoat().id, 'anchorScope', r),
+      spring: () => {
+        const m = myBoat().mooring;
+        const on = m.spring?.end ?? null;
+        if (on) return { on, text: `${on === 'fore' ? 'Fore' : 'Aft'} spring fast` };
+        return { on, text: m.phase !== 'free' || m.berthId ? 'None (alongside: put one on)' : 'None (alongside a berth only)' };
+      },
+      toggleSpring: (end) => {
+        const m = myBoat().mooring;
+        if (m.spring?.end !== end && m.phase === 'free' && !m.berthId) this.overlay.notify('A spring needs a berth: come alongside first');
+        else this.pushIntentTo(myBoat().id, 'spring', m.spring?.end === end ? 0 : end === 'fore' ? 1 : 2);
+      },
+      buoyStatus: () => {
+        const v = myBoat();
+        if (v.mooring.buoy) return { text: `Fast to ${v.mooring.buoy.id}`, fast: true, ready: true };
+        const b = buoyInReach(v);
+        return b ? { text: `${b.id} under the bow: pick it up`, fast: false, ready: true } : { text: 'No buoy in reach', fast: false, ready: false };
+      },
+      toggleBuoy: () => this.pushIntentTo(myBoat().id, 'buoy', 1),
+      killCord: () => {
+        const text = killCordLine(myBoat(), this.localPlayerId);
+        return text === null ? null : { text, on: myBoat().killCord?.by === this.localPlayerId };
+      },
+      toggleKillCord: () => this.pushIntentTo(myBoat().id, 'killCord', myBoat().killCord?.by === this.localPlayerId ? 0 : 1),
       toggleDock: () => {
         if (boat().slip) return this.pushVesselIntent('slipLeave', 1);
         const m = boat().mooring;
@@ -4081,7 +4148,10 @@ export class App {
     const ticks = Math.floor(this.hiddenAcc);
     this.hiddenAcc -= ticks;
     for (const i of this.host.takeIntents()) this.intents.push(i);
-    for (let k = 0; k < ticks; k++) stepWorld(this.world, k === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+    for (let k = 0; k < ticks; k++) {
+      stepWorld(this.world, k === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+      this.trainingRuns?.afterTick(this.world);
+    }
     this.host.tick(since);
   }
   /** The heartbeat's notice given (the host gone quiet), so it's said once. */
@@ -4318,10 +4388,12 @@ export class App {
     // and reloading couldn't fix it): to theirs.
     const site = world.build?.site && world.build.site !== SITE ? world.build.site : null;
     if (mode === MODE && map === VOYAGE_MAP_ID && !site) return true;
-    const url = new URL((site ?? SITE) + (mode === 'voyage' ? 'voyage.html' : 'career.html'), location.origin);
-    if (map) url.searchParams.set('map', map);
+    // (The training harbour is its own page: training.html, the map implied.)
+    const training = map === TRAINING_MAP_ID;
+    const url = new URL((site ?? SITE) + (training ? 'training.html' : mode === 'voyage' ? 'voyage.html' : 'career.html'), location.origin);
+    if (map && !training) url.searchParams.set('map', map);
     url.searchParams.set('join', this.joinCode);
-    const where = site ? `playing at ${location.origin}${site}` : map ? `in Voyage: ${voyageMap(map)?.name ?? map}` : 'in their career';
+    const where = site ? `playing at ${location.origin}${site}` : training ? 'in Training' : map ? `in Voyage: ${voyageMap(map)?.name ?? map}` : 'in their career';
     this.reloadToJoin(url, `The host is ${where}: loading it and joining`);
     return false;
   }
@@ -4693,11 +4765,12 @@ export class App {
     this.searchlight = home.api<SearchlightApi>('deck.searchlight');
     home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
     this.planPanel.setLandSource((id) => this.worldView.terrainPositions(id));
+    this.trainingRuns?.panel.setLandSource((id) => this.worldView.terrainPositions(id));
     this.chartBoard.setLandSource((id) => this.worldView.terrainPositions(id));
     this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
     this.dutyBoard = home.dutyBoard;
-    // Voyage: no career, no duty board (world.voyage).
-    if (MODE === 'voyage' && this.dutyBoard) this.dutyBoard.root.visible = false;
+    // Voyage: no career, no duty board (world.voyage); Training keeps it for the exercise's steps.
+    if (MODE === 'voyage' && !TRAINING && this.dutyBoard) this.dutyBoard.root.visible = false;
     this.chartTools?.root.removeFromParent();
     this.chartTools = null;
     this.chartTable = home.chartTable;
@@ -6219,7 +6292,8 @@ export class App {
    * address says `?start` (the map's start berth again, the place forgotten).
    */
   private restoreVoyagePlace(): void {
-    if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
+    // (Training starts at the harbour's berth every time: each exercise places her itself.)
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || TRAINING) return;
     if (START_PARAMS.has('start')) {
       forgetPlace(VOYAGE_MAP_ID);
       return;
@@ -6370,7 +6444,7 @@ export class App {
 
   /** Voyage mode: remember where we are on this map, every few seconds and as the page closes (alone or hosting). */
   private rememberVoyagePlace(dt: number): void {
-    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || !this.savesHere()) return;
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || TRAINING || !this.savesHere()) return;
     this.rememberT += dt;
     if (this.rememberT < CONFIG.voyage.rememberEveryS) return;
     this.rememberT = 0;

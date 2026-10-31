@@ -20,6 +20,7 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { boatOwnerName, playerBoats } from '../core/launch';
 import { css, LandLayer, PAPER_CHART } from '../nav/landLayer';
+import { coastStreamer } from '../world/coastStream';
 import { FISHING_GROUNDS, MARKS, PLACES, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
 import { siteWorld, sitesOn } from '../dive/diveSites';
 import { foundNames } from '../dive/diveReturn';
@@ -154,7 +155,9 @@ export class PlanChartPainter {
     g.fillStyle = css(PAPER_CHART.deep);
     g.fillRect(0, 0, W, H);
     g.imageSmoothingEnabled = true;
-    const pending = this.land.draw(g, W, H, v.cx, v.cz, mpp);
+    // On a big map, the detailed ground under a chart zoomed in (world/coastStream.ts viewChart): its coast sharp there too.
+    const fetching = coastStreamer()?.viewChart(this, v.cx, v.cz, v.span, W, H) ?? false;
+    const pending = this.land.draw(g, W, H, v.cx, v.cz, mpp) || fetching;
     g.textBaseline = 'middle';
 
     // Wrecks (a cross in a red ring) and marks (small diamonds in their colours).

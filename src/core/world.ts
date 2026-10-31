@@ -34,6 +34,7 @@ import type { TvState } from '../modules/furniture/tvState';
 import { startBerthFor } from '../world/startSpot';
 import type { BerthDef } from '../world/defs';
 import type { VoyagePlan } from '../voyage/plan';
+import type { TrainingState } from '../training/training';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -113,6 +114,8 @@ export interface WorldState {
    * (hasUpgrade), no hull damage or engine wear (simulation.ts), no duty board.
    */
   voyage?: boolean;
+  /** Training mode: the exercise running, its faults, the last verdict (training/training.ts). Absent outside Training. */
+  training?: TrainingState;
   /** Voyage: the log barges brought back from the timber camp (voyage/timber.ts). */
   timber?: TimberState;
   /**

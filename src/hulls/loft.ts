@@ -455,6 +455,18 @@ export function centreBowDrop(cat: NonNullable<HullDesign['catamaran']>, t: numb
 }
 
 /**
+ * The part of the edge u-v (up a section) between heights lo and hi, lower end first, or
+ * null if none of it is.
+ */
+function bandOf(u: THREE.Vector3, v: THREE.Vector3, lo: number, hi: number): [THREE.Vector3, THREE.Vector3] | null {
+  const [a, c] = u.y <= v.y ? [u, v] : [v, u];
+  if (c.y <= lo || a.y >= hi) return null;
+  const at = (y: number) => (c.y - a.y < 1e-9 ? a.clone() : a.clone().lerp(c, Math.min(1, Math.max(0, (y - a.y) / (c.y - a.y)))));
+  const r: [THREE.Vector3, THREE.Vector3] = [at(Math.max(lo, a.y)), at(Math.min(hi, c.y))];
+  return u.y <= v.y ? r : [r[1], r[0]];
+}
+
+/**
  * Plate one hull: both sides, deck, bulwarks, transom, forecastle break. `which` is 0 for
  * a monohull; for a catamaran demihull it is -1 (port) or 1 (starboard), the sections are
  * already shifted off the centreline, mirroring is about the demihull's own centreline,
@@ -481,12 +493,24 @@ function plateHull(b: Builder, h: LoftedHull, paint: typeof PAINT, which: number
       const p1 = at(a, k + 1);
       const q0 = at(c, k);
       const q1 = at(c, k + 1);
-      // Antifouling below the waterline, a boot-top band, topsides above.
-      const yMid = (p0.y + p1.y + q0.y + q1.y) / 4;
-      const col = yMid < 0.0 ? paint.bottom : yMid < 0.2 ? paint.boot : paint.topsides;
+      // Antifouling below the waterline, a boot-top band, topsides above: each panel cut at
+      // those lines, so a tall one (a ship's side, bilge to deck) is painted where it lies,
+      // not all in the colour of its middle.
       const outward = new THREE.Vector3(-1, -0.3, 0);
-      b.quad(p0, p1, q1, q0, col, outward);
-      b.quad(mirror(p0), mirror(p1), mirror(q1), mirror(q0), col, new THREE.Vector3(1, -0.3, 0));
+      const bands: [number, number, number][] = [
+        [-Infinity, 0, paint.bottom],
+        [0, 0.2, paint.boot],
+        [0.2, Infinity, paint.topsides],
+      ];
+      for (const [lo, hi, col] of bands) {
+        const pa = bandOf(p0, p1, lo, hi);
+        const qa = bandOf(q0, q1, lo, hi);
+        if (!pa && !qa) continue;
+        const [a0, a1] = pa ?? [p0.y >= hi ? p0 : p1, p0.y >= hi ? p0 : p1];
+        const [c0, c1] = qa ?? [q0.y >= hi ? q0 : q1, q0.y >= hi ? q0 : q1];
+        b.quad(a0, a1, c1, c0, col, outward);
+        b.quad(mirror(a0), mirror(a1), mirror(c1), mirror(c0), col, new THREE.Vector3(1, -0.3, 0));
+      }
     }
     // Deck: between the deck edges, flat across.
     const dp = a[a.length - 1];
@@ -707,7 +731,10 @@ export function hydrostatics(h: LoftedHull): HydroSummary {
   let zWet0 = -Infinity;
   let zWet1 = Infinity;
   for (let i = 0; i < S.length; i++) {
-    const w = i === 0 || i === S.length - 1 ? Math.abs(S[1].z - S[0].z) / 2 : Math.abs(S[1].z - S[0].z);
+    // Each station's share of her length: half the gap to each neighbour (the trapezoid
+    // rule), so the doubled station at a forecastle break and extra stations round a forefoot
+    // count for the length they stand for, not a whole station's spacing each.
+    const w = (Math.abs(S[Math.min(S.length - 1, i + 1)].z - S[i].z) + Math.abs(S[i].z - S[Math.max(0, i - 1)].z)) / 2;
     const { area, yc, bwl } = immersed(S[i]);
     vol += area * w;
     mz += area * w * S[i].z;

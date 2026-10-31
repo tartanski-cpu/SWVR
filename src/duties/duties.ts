@@ -39,6 +39,7 @@ import { farmName, isFeed } from '../aqua/farmService';
 import { MUSSEL_SITES } from '../aqua/mussels';
 import { towFast } from '../tow/tow';
 import { TUTORIAL } from '../career/tutorial';
+import { trainingDuty } from '../training/training';
 import { answerFogSignal } from '../traffic/traffic';
 import { PORTS } from '../world/archipelago';
 import { BERTH_NEAR_REACH, berthsNear } from '../world/berths';
@@ -57,7 +58,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'farm' | 'longline' | 'damage' | 'wear' | 'tutorial';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'farm' | 'longline' | 'damage' | 'wear' | 'tutorial' | 'training';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -444,6 +445,12 @@ function stepTutorialDuty(world: WorldState, d: DutiesState): void {
   syncJob(d, 'tutorial', on ? 'first-voyage' : null, 'First voyage (the harbour master talks you through it)', TUTORIAL.map((s, i) => ({ text: s.text, done: !!t && i < t.step })), world.time);
 }
 
+/** Training mode: the exercise running, step by step (training/training.ts). */
+function stepTrainingDuty(world: WorldState, d: DutiesState): void {
+  const tr = trainingDuty(world);
+  syncJob(d, 'training', tr?.key ?? null, tr?.title ?? '', tr?.steps ?? [], world.time);
+}
+
 /** Phase 2: a damaged hull (it leaks) and a worn engine, until they're mended in port. */
 function stepDamageDuties(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
   const dmg = v?.damage ?? 0;
@@ -507,6 +514,7 @@ export function stepDuties(world: WorldState): void {
   stepFarmDuty(world, d, v);
   stepLonglineDuty(world, d, v);
   stepTutorialDuty(world, d);
+  stepTrainingDuty(world, d);
   stepDamageDuties(world, d, v);
 
   for (const x of d.items) {

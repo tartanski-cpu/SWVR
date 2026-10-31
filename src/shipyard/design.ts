@@ -93,7 +93,7 @@ export const DESIGN_VERSION = 32;
  * How many hull types there are (build.ts DESIGN_HULLS). The code's first 16 characters
  * hold the first four; the rest ride in its extension (MORE_HULLS, version 16).
  */
-export const HULL_TYPES = 10;
+export const HULL_TYPES = 11;
 /** Hull types the first 16 characters hold. */
 const BASE_HULLS = 4;
 /**
@@ -214,6 +214,16 @@ export interface ShipDesign extends Record<FurnitureField, number>, Record<Conso
    * off the transom (propulsion.outboard), steered by swinging them: no rudder.
    */
   outboards: number;
+  /**
+   * The RIB's outboards (owner, 31 Oct 2026: "from one engine ... up to four"): `oneOutboard`
+   * 1, a single outboard (with `outboards` 0); `outboardSize` which they are (OUTBOARD_SIZES:
+   * 0 the 300 kW petrol V8, 1 the 150 hp, CONFIG.vessels.rib.motor's). Not in the short
+   * code: she travels as a link or file.
+   */
+  oneOutboard: number;
+  outboardSize: number;
+  /** The RIB's tubes' colour (TUBE_COLOURS; owner, 31 Oct 2026: "the rubber ring could be one colour"). Not in the short code. */
+  tubeColour: number;
   /**
    * What her hull and houses are built of (owner, Oct 2026; MATERIALS): 0 aluminium, 1 steel.
    * A choice on the workboat hull only; the other hulls are built of their own (build.ts
@@ -749,6 +759,12 @@ const FISH_HOLD_FIELD: { key: 'fishHold'; steps: number } = { key: 'fishHold', s
 /** The ship's boat on the skiff crane (design.rescueBoat): 0 the dinghy, 1 the rescue boat. Not in the code. */
 const RESCUE_BOAT_FIELD: { key: 'rescueBoat'; steps: number } = { key: 'rescueBoat', steps: 2 };
 /** A second ship's boat (design.skiff2, rescueBoat2): where, as the first's; which. Not in the code. */
+/** The RIB's single outboard, her outboards' size, her tubes' colour (design.oneOutboard, outboardSize, tubeColour). Not in the code. */
+const ONE_OUTBOARD_FIELD: { key: 'oneOutboard'; steps: number } = { key: 'oneOutboard', steps: 2 };
+export const OUTBOARD_SIZES = ['300 kW petrol V8 (400 hp)', '112 kW (150 hp)'] as const;
+const OUTBOARD_SIZE_FIELD: { key: 'outboardSize'; steps: number } = { key: 'outboardSize', steps: OUTBOARD_SIZES.length };
+export const TUBE_COLOURS = ['Orange', 'Grey', 'Black', 'Red', 'Yellow', 'Navy'] as const;
+const TUBE_COLOUR_FIELD: { key: 'tubeColour'; steps: number } = { key: 'tubeColour', steps: TUBE_COLOURS.length };
 const SKIFF2_FIELD: { key: 'skiff2'; steps: number } = { key: 'skiff2', steps: SKIFFS.length };
 const RESCUE_BOAT2_FIELD: { key: 'rescueBoat2'; steps: number } = { key: 'rescueBoat2', steps: 2 };
 /** The trawl deck gear (design.netDrum, trawlWinches): 0 none, 1 fitted. Not in the code. */
@@ -759,14 +775,14 @@ const LINE_HAULER_FIELD: { key: 'lineHauler'; steps: number } = { key: 'lineHaul
 /** The dive A-frame and its sub (design.diveFrame): 0 none, 1 fitted. Not in the code. */
 const DIVE_FRAME_FIELD: { key: 'diveFrame'; steps: number } = { key: 'diveFrame', steps: 2 };
 /** How many outboards a design has (0: an inboard). */
-export const outboardCount = (d: Pick<ShipDesign, 'outboards'>): number => (d.outboards ? d.outboards + 1 : 0);
+export const outboardCount = (d: Pick<ShipDesign, 'outboards'> & Partial<Pick<ShipDesign, 'oneOutboard'>>): number => (d.outboards ? d.outboards + 1 : d.oneOutboard ? 1 : 0);
 /** What a guard choice fits: the crew's fenders, and a fixed strake or tyres. */
 export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 'tyres' | null } {
   return { fenders: guard === 1 || guard === 4, side: guard === 2 || guard === 4 ? 'strake' : guard === 3 ? 'tyres' : null };
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f.key === 'paint' ? { ...f, steps: PAINT_TYPES } : f.key === 'roofPaint' ? { ...f, steps: ROOF_PAINT_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, DH_AFT_FIELD, AFT_FACETS_FIELD, BOW_FENDER_FIELD, FINISH_FIELD, MARKINGS_FIELD, BATTERY_FIELD, KICK_FIELD, STACK_MOUNT_FIELD, STACK_POS_FIELD, STACK_CASING_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, SKIFF2_FIELD, RESCUE_BOAT2_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, LINE_HAULER_FIELD, DIVE_FRAME_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f.key === 'paint' ? { ...f, steps: PAINT_TYPES } : f.key === 'roofPaint' ? { ...f, steps: ROOF_PAINT_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, INTERIOR_FIELD, CABIN_FLOOR_FIELD, HOUSE_COLOUR_FIELD, FRAMES_FIELD, HELM_ASSIST_FIELD, OLD_SCHOOL_FIELD, TOUCH_FIELD, CONSOLE_LEN_FIELD, HOUSE_X_FIELD, OVERHEAD_FIELD, SHEER_FIELD, FC_LENGTH_FIELD, FC_HEIGHT_FIELD, DH_WALK_FIELD, DH_AFT_FIELD, AFT_FACETS_FIELD, BOW_FENDER_FIELD, FINISH_FIELD, MARKINGS_FIELD, BATTERY_FIELD, KICK_FIELD, STACK_MOUNT_FIELD, STACK_POS_FIELD, STACK_CASING_FIELD, FORE_CABIN_FIELD, FISH_HOLD_FIELD, RESCUE_BOAT_FIELD, SKIFF2_FIELD, RESCUE_BOAT2_FIELD, ONE_OUTBOARD_FIELD, OUTBOARD_SIZE_FIELD, TUBE_COLOUR_FIELD, NET_DRUM_FIELD, TRAWL_WINCHES_FIELD, LINE_HAULER_FIELD, DIVE_FRAME_FIELD, ...FURNITURE_FIELDS, ...CONSOLE_FIELDS];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -934,6 +950,9 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   fishHold: 0,
   rescueBoat: 0,
   skiff2: 0,
+  oneOutboard: 0,
+  outboardSize: 0,
+  tubeColour: 0,
   rescueBoat2: 0,
   netDrum: 0,
   diveFrame: 0,
@@ -1003,6 +1022,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (d.foreCabin) throw new Error('the cabin below isn’t in the code: she travels as a link or file');
   if (d.fishHold) throw new Error('a fish hold isn’t in the code: she travels as a link or file');
   if (d.rescueBoat) throw new Error('the rescue boat isn’t in the code: she travels as a link or file');
+  if (d.oneOutboard || d.outboardSize || d.tubeColour) throw new Error('a single outboard, the smaller outboards and tube colours aren’t in the code: she travels as a link or file');
   if (d.skiff2) throw new Error('a second ship’s boat isn’t in the code: she travels as a link or file');
   if ((d.sills ?? 0) >= CODE_SILLS) throw new Error('the high window sills aren’t in the code: she travels as a link or file');
   if (d.netDrum || d.trawlWinches) throw new Error('the trawl deck gear isn’t in the code: she travels as a link or file');
@@ -1222,7 +1242,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, dhAft: 0, aftFacets: 0, bowFender: 0, finish: 0, markings: 0, battery: BATTERY_DEFAULT, kick: 0, stackMount: 0, stackPos: 0, stackCasing: 0, foreCabin: 0, fishHold: 0, rescueBoat: 0, skiff2: 0, rescueBoat2: 0, netDrum: 0, trawlWinches: 0, lineHauler: 0, diveFrame: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, consoleLen: 0, houseX: 20, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, dhAft: 0, aftFacets: 0, bowFender: 0, finish: 0, markings: 0, battery: BATTERY_DEFAULT, kick: 0, stackMount: 0, stackPos: 0, stackCasing: 0, foreCabin: 0, fishHold: 0, rescueBoat: 0, skiff2: 0, rescueBoat2: 0, oneOutboard: 0, outboardSize: 0, tubeColour: 0, netDrum: 0, trawlWinches: 0, lineHauler: 0, diveFrame: 0, ...NO_FURNITURE, ...CONSOLE_AUTO, oldSchool: 0, touch: 0, consoleLen: 0, houseX: 20, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

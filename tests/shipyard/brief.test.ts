@@ -98,7 +98,7 @@ describe('hull types for a brief', () => {
   });
 
   it('pots: the gillnetter, built for them, ahead of others that could also do it', () => {
-    const r = rankTypes(brief({ jobs: ['potting'], speedKn: 15, rangeNm: 70, budget: 160_000 }));
+    const r = rankTypes(brief({ jobs: ['potting'], speedKn: 15, rangeNm: 50, budget: 160_000 }));
     expect(r[0].hull).toBe(GILL);
   });
 

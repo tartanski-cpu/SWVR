@@ -40,6 +40,8 @@ export const LIGHT_CHARACTERS: Record<MarkKind, LightCharacter> = {
   port: { color: 'red', pattern: period([0.5, 0.5], 4), label: 'Fl R 4s' },
   stbd: { color: 'green', pattern: period([0.5, 0.5], 4), label: 'Fl G 4s' },
   special: { color: 'yellow', pattern: period(Array.from({ length: 5 }, () => [0.5, 1.0]).flat(), 20), label: 'Fl(5)Y 20s' },
+  // A mooring buoy has no light (a pattern that is never on).
+  mooring: { color: 'white', pattern: [0, 1], label: 'mooring' },
 };
 
 /** Is a light with this pattern lit at time `t` (s)? `phase` staggers lights of the same kind. */

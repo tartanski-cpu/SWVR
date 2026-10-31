@@ -249,9 +249,12 @@ export interface PortDef {
  *   port, stbd   lateral marks on the approach to Calder Haven: red can, green cone.
  *   special      a special mark (a met buoy, a works area): yellow, a yellow X topmark
  *                (career/projects.ts lays one on a construction site).
+ *   mooring      a mooring buoy (owner, 30 Oct 2026: Training's "pick up the mooring"): a small
+ *                orange pick-up buoy, unlit; a boat's forward cleat makes fast to it from
+ *                close by (vessel/physics/mooring.ts toggleCleat).
  * Lights (navMarks.ts LIGHT_CHARACTERS) are the IALA characters for each kind.
  */
-export type MarkKind = 'N' | 'E' | 'S' | 'W' | 'isolated' | 'port' | 'stbd' | 'special';
+export type MarkKind = 'N' | 'E' | 'S' | 'W' | 'isolated' | 'port' | 'stbd' | 'special' | 'mooring';
 export interface MarkDef {
   name: string;
   kind: MarkKind;

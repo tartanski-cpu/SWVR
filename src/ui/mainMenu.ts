@@ -4,14 +4,15 @@ import { FLEET } from '../boats/fleet';
 import { CONFIG } from '../config';
 import { PORTS } from '../world/archipelago';
 import { REGIONS } from '../world/regions';
-import { MODE, VOYAGE_MAP_ID } from '../mode';
+import { MODE, TRAINING, VOYAGE_MAP_ID } from '../mode';
+import { trainingPage, type TrainingMenuHost } from '../training/trainingMenu';
 import { voyageMap } from '../world/maps';
 import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
 import { ALPHABET } from '../shipyard/design';
 import { groupCode, PER_PAGE, type ShipyardCodes } from '../shipyard/takeHer';
 
 /** What the menu can read and change. Implemented by the App; keeps the menu UI-only. */
-export interface MenuHost {
+export interface MenuHost extends TrainingMenuHost {
   timeOfDay(): number;
   shiftTime(hours: number): void;
   /** Game hours per real second. */
@@ -108,6 +109,18 @@ export interface MenuHost {
   toggleDock(): void;
   /** One-line anchor/windlass status. */
   anchorStatus(): string;
+  /** The anchor's scope chosen (chain over depth; 0: the windlass's own, 5:1), and choosing it. */
+  anchorScope(): number;
+  setAnchorScope(ratio: number): void;
+  /** Springs: which is on ('fore', 'aft' or null) and a status line; put one on or take it off. */
+  spring(): { on: 'fore' | 'aft' | null; text: string };
+  toggleSpring(end: 'fore' | 'aft'): void;
+  /** A mooring buoy: status (made fast, in reach, none) and pick up / slip. */
+  buoyStatus(): { text: string; fast: boolean; ready: boolean };
+  toggleBuoy(): void;
+  /** The kill cord on the boat you're aboard: its line, or null if she has none; clip on / off. */
+  killCord(): { text: string; on: boolean } | null;
+  toggleKillCord(): void;
   /** Ports with bearing (°T) and range (nm) from the boat. */
   ports(): { name: string; bearingDeg: number; rangeNm: number }[];
   /** Cargo run / rescue status line; debug: raise a rescue call now, end the active rescue. */
@@ -389,7 +402,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     active: () => get() === value,
     press: () => set(value),
   });
-  const title = MODE === 'voyage' ? `Voyage: ${voyageMap(VOYAGE_MAP_ID)?.name ?? VOYAGE_MAP_ID}` : 'Workboat World';
+  const title = TRAINING ? 'Training' : MODE === 'voyage' ? `Voyage: ${voyageMap(VOYAGE_MAP_ID)?.name ?? VOYAGE_MAP_ID}` : 'Workboat World';
   const header: MenuRow[] = [{ label: '', buttons: [{ text: `${title}  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
 
   // ---------------------------------------------------------------------------------
@@ -527,6 +540,35 @@ export function mainMenu(h: MenuHost): MainMenu {
       ],
     },
     { label: 'Anchor', buttons: [{ text: () => h.anchorStatus() }] },
+    // The scope to anchor at (owner, 30 Oct 2026, for Training): chain over depth; the windlass veers or heaves in to it.
+    {
+      label: 'Scope',
+      buttons: [2, 3, 5, 7].map((r) => ({ text: `${r}:1`, active: () => (h.anchorScope() || 5) === r, press: () => h.setAnchorScope(r) })),
+    },
+    {
+      label: 'Springs',
+      buttons: [
+        { text: () => h.spring().text, weight: 2 },
+        { text: 'Fore', active: () => h.spring().on === 'fore', press: () => h.toggleSpring('fore') },
+        { text: 'Aft', active: () => h.spring().on === 'aft', press: () => h.toggleSpring('aft') },
+      ],
+    },
+    {
+      label: 'Buoy',
+      when: () => h.buoyStatus().ready || h.buoyStatus().fast,
+      buttons: [
+        { text: () => h.buoyStatus().text, weight: 2.4 },
+        { text: () => (h.buoyStatus().fast ? 'Slip' : 'Pick up'), active: () => h.buoyStatus().fast, press: () => h.toggleBuoy() },
+      ],
+    },
+    {
+      label: 'Kill cord',
+      when: () => !!h.killCord(),
+      buttons: [
+        { text: () => h.killCord()?.text ?? '', weight: 2.4 },
+        { text: () => (h.killCord()?.on ? 'Unclip' : 'Clip on'), active: () => !!h.killCord()?.on, press: () => h.toggleKillCord() },
+      ],
+    },
     { heading: 'Skiff and fuel' },
     {
       label: 'Skiff',
@@ -1110,6 +1152,8 @@ export function mainMenu(h: MenuHost): MainMenu {
   return {
     header,
     pages: [
+      // Training mode's exercises first (training/trainingMenu.ts).
+      ...(TRAINING ? [trainingPage(h)] : []),
       { name: 'Voyage', sections: [{ name: 'Plan', rows: voyagePlan }, { name: 'Job', rows: voyageJob }, { name: 'Weather', rows: voyageWeather }] },
       { name: 'Boat', sections: [{ name: 'Deck', rows: deck }, { name: 'FM radio', rows: fmRadio }] },
       { name: 'Cargo', rows: cargo },

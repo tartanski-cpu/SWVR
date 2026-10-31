@@ -91,6 +91,15 @@ function show(id: string): void {
   group.clear();
   const same = current?.design.id === d.id;
   current = loft(d);
+  // The fog, the sea, the grid and the camera's reach scaled with her (set for boats to about
+  // 26 m; the offshore support vessel is 75).
+  const k = Math.max(1, d.length / 26);
+  (scene.fog as THREE.Fog).near = 40 * k;
+  (scene.fog as THREE.Fog).far = 120 * k;
+  camera.far = 300 * k;
+  camera.updateProjectionMatrix();
+  sea.scale.set(k, k, 1);
+  grid.scale.set(k, 1, k);
   const game = asGame ? gameHull(d, current) : null;
   group.add(game && typeof game !== 'string' ? game : buildHullMesh(current));
   const fenders = fendering(d, current);

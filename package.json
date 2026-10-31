@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:shipyard": "vitest run tests/shipyard",
     "test:modules": "vitest run tests/modular",
+    "test:training": "vitest run tests/training",
     "test:map": "vitest run tests/coast tests/currents tests/places tests/regions tests/regionView tests/skyline tests/surf tests/trees tests/voyagePlace tests/trafficCoast",
     "trials": "vitest run tests/seaTrials.test.ts --silent=false",
     "crewcheck": "node tools/crewCheck.mjs"

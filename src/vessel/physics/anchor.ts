@@ -11,6 +11,10 @@
  *                windlass's limit (it stalls); the boat is drawn up to the anchor. When the
  *                chain is up-and-down the anchor breaks out ("hanging") and is then stowed.
  *
+ * Scope chosen (AnchorState.scope, the menu's Anchor 2:1 / 3:1 / 5:1 / 7:1): the chain runs out to
+ * that over the depth instead; raised with the anchor down, the windlass veers to it; lowered,
+ * it heaves in to it and holds there (the anchor stays down: hold, not weigh).
+ *
  * Chain force at the bow: horizontal, towards the anchor, from a catenary-like law - soft
  * while the chain still lies on the bottom and lifts, stiff once it's bar taut (see config).
  * Above the holding power the anchor drags towards the boat; holding power falls off below a
@@ -59,11 +63,18 @@ export function anchorStep(
   // ── Windlass ──
   if (down) {
     if (a.phase === 'weighing' || (a.phase === 'hanging' && a.rodeM < cfg.chainM)) a.phase = 'paying';
-    const scope = Math.min(cfg.chainM, Math.max(cfg.scopeRatio * depth, cfg.minScopeFromRoller * h));
+    // (A scope chosen may be short of the 3:1 the windlass otherwise keeps to: 2:1 lifts the
+    // shank and holds about half, below; the trainee sees her drag.)
+    const minFromRoller = a.scope !== undefined ? 1.2 : cfg.minScopeFromRoller;
+    const scope = Math.min(cfg.chainM, Math.max((a.scope ?? cfg.scopeRatio) * depth, minFromRoller * h));
+    // A longer scope chosen with the anchor down: veer to it.
+    if (a.scope !== undefined && a.phase === 'set' && a.rodeM < scope - 0.5) a.phase = 'paying';
     if (a.phase === 'paying' && windlass) {
       a.rodeM = Math.min(scope, a.rodeM + cfg.payOutRate * dt);
       if (a.rodeM >= scope) a.phase = 'set';
     }
+    // A shorter one: heave in to it, the anchor left down (unless the pull stalls the windlass).
+    if (a.scope !== undefined && a.phase === 'set' && windlass && a.rodeM > scope + 0.5 && a.tension < cfg.windlassPullN) a.rodeM = Math.max(scope, a.rodeM - cfg.heaveRate * dt);
   } else if (a.phase !== 'weighing' && a.phase !== 'hanging') {
     a.phase = 'weighing';
   }
@@ -107,7 +118,11 @@ export function anchorStep(
   }
   // Short scope lifts the anchor's shank and it holds far less: full holding from 3:1. And
   // the bottom: sand holds, mud less, weed and rock poorly (CONFIG.anchoring, the anchorage's).
-  const holding = cfg.holdingN * clamp((L / h - 1) / 2, 0.15, 1) * CONFIG.anchoring.bottomHolding[bottomAt(a.x, a.z)];
+  // (A scope chosen, the seamanship rule: the holding goes on building as the chain's pull on
+  // the anchor flattens, full only from CONFIG.anchoring.chosenFullScope; so 3:1 holds less
+  // than 5:1, and 7:1 is the heavy-weather figure. Unchosen, the windlass's 5:1 as before.)
+  const fullAt = a.scope !== undefined ? CONFIG.anchoring.chosenFullScope : 3;
+  const holding = cfg.holdingN * clamp((L / h - 1) / (fullAt - 1), 0.15, 1) * CONFIG.anchoring.bottomHolding[bottomAt(a.x, a.z)];
   T = clamp(T, 0, holding * 1.5);
   a.tension = T;
 

@@ -79,7 +79,8 @@ export function houseX(wh: { x?: number }): number {
 }
 
 export function housesOf(layout: { wheelhouse?: WheelhouseLayout; houses?: WheelhouseLayout[] }): WheelhouseLayout[] {
-  return [...(layout.wheelhouse ? [layout.wheelhouse] : []), ...(layout.houses ?? [])];
+  // (Not an open helm: no house there, only deck.)
+  return [...(layout.wheelhouse && !layout.wheelhouse.open ? [layout.wheelhouse] : []), ...(layout.houses ?? [])];
 }
 
 /** A cockpit overhead (LayoutConfig.overhead). */
@@ -232,6 +233,14 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
      * else (walk areas, the door, rain on the glass, module places) still reads this box.
      */
     shell?: 'oneOff';
+    /**
+     * An open helm (owner, Oct 2026: the Shipyard's RIB, "it doesn't need a wheelhouse at all,
+     * it just has a control console"): no walls, windows, roof, floor or door: her helm stands
+     * on her open deck, its console a module (deck.rib-console). The box is the helm's place
+     * (the console and the leaning post, for the app's bridge and its places); nothing of it
+     * is drawn or walled, and it's walked as deck (housesOf leaves it out).
+     */
+    open?: boolean;
     /**
      * The floor on more than one level along the house (the Alaskan 38: the raised
      * pilothouse floor, a tread, the sunk saloon floor), each a stretch of z at a height;

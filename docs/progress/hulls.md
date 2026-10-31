@@ -10,6 +10,30 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### End Game: her name and place; handed over to the Shipyard (owner)
+
+- **The owner** (31 Oct): "I would call her end game. She should only be available in the career mode. And she should be anchored offshore. And when you get her, you get a rib, which spawns in the small harbor, ready to take you to her. And you can do the handoff to the shipyard now."
+- Her name in the hull study (`mpsv`: "End Game: multipurpose offshore support vessel (75 m)"); `docs/OSV_PLAN.md` "Where she works" and PROGRESS.md's line updated. Her hull and the plan merged into `next`; the Shipyard chat handed milestone 2 (her one-off), the main game chat told of the career side (career only, anchored offshore, the RIB in the small harbour).
+- **Shared changes:** `docs/OSV_PLAN.md`, PROGRESS.md (her line).
+
+### The offshore support vessel: the plan, and her hull (milestone 1) (owner)
+
+- **The owner** (31 Oct): "a much larger class of vessel", an offshore support vessel, a one-off for four-player co-op missions, with an interior, an engine room, a big bridge with stations for her cranes, cranes on deck, a RIB to launch. I researched the type (supply, anchor-handling, multipurpose and construction, rescue, walk-to-work ships; split forward and aft bridges) and planned her across the areas. The owner chose the multipurpose type, about 75 m, no walk-to-work gangway, a simple helideck, four players, no moonpool, the ROV hand-off to Submersible World, a pendulum swing on every crane (the small deck cranes too), and the most efficient way between decks (stair-tower doors). The plan, the decisions and who builds what: **`docs/OSV_PLAN.md`** (new; a pointer in PROGRESS.md's decisions).
+- **Her hull and superstructure** (`designs.ts`, `mpsv`, our own lines of the type):
+  - a round-bilge steel ship, 75.0 x 18.0 m, 5.6 m draught, about 5,060 t;
+  - block coefficient 0.68, prismatic 0.71, midship 0.96, waterplane 0.88; LCB 1.1 m aft of amidships; KM 8.6 m (GM about 2 m with her weight 6.5 m over her keel);
+  - a long low working deck aft (1.6 m freeboard, 45 m of it) to a wide transom just under the water for her azimuth thrusters; her bottom flat amidships, rising aft in a long run and forward round her forefoot to a raked, flared bow;
+  - her forecastle a deck (2.8 m) higher from 60 % of her length;
+  - on it three accommodation tiers, the bridge on top (9 raked windows forward, a full row of 9 aft over her working deck, wings to her sides), and a simple helideck about 21 m square on the bridge roof.
+  - The game builds her hull and floats her level on it (within 0.6 % of the study's volume).
+- **Her resistance, for later:** the game's curve for heavy displacement hulls (tuned on small tugs) gives her about twice a ship's: 218 kN at 12 kn (effective 1.35 MW) against about 115 kN (0.7 MW) from a standard ship estimate (ITTC friction plus a residuary coefficient). She'll need her own curve when her drive is built (milestone 5).
+- **Two fixes in the hull study found by her** (my files):
+  - **its volume sum** gave every station the same spacing, so a doubled station at a forecastle step, or the extra stations round a forefoot, counted a whole spacing each: about 12 % too much for her. Each station now counts half the gap to each neighbour (the trapezoid rule). The other designs with a forecastle or extra stations change a little in the viewer's figures; the game never used them.
+  - **its paint** coloured each hull panel by the height of its middle, so a tall panel (a ship's side, bilge to deck) came out all boot-top black. Panels are now cut at the paint lines. The small tug's patchy boot-top band is cleaned up too.
+- **The viewer** scales its fog, sea, grid and camera reach with the boat's length (it was set for boats up to 26 m).
+- **Checked:** typecheck; all 1963 tests pass; new `tests/hulls/mpsv.test.ts` (her size, form, stability, working deck, superstructure and helideck, and the game floating her level); screenshots of her in the hull study (bow, side, stern) and as the game builds her hull.
+- **Shared changes:** `docs/OSV_PLAN.md` (new), PROGRESS.md (one line in the decisions).
+
 ### The Rough-sea test's margin (after the Shipyard's twin pods)
 
 - **The Shipyard chat** put the ferry's twin pods on `next` (the owner: the stern bulbs are her motors) and found `tests/foils.test.ts`'s Rough-sea check (her foils at least 0.1 m under) on a knife-edge: 0.098 m at one pod drag. Measured: the deepest trough brings a foil between about 0.07 and 0.26 m of the surface as her pods' drag goes from 0.004 to 0.01 m² (never out; she stays on her foils throughout, her hulls clear 97-100 % of the time with the pods under her hulls). The check is now "never out, by at least 3 cm". Test only, no change to her.

@@ -91,7 +91,8 @@ const SQUARE_BOW = 0.2;
 type HouseLayout = LayoutConfig & Required<Pick<LayoutConfig, 'wheelhouse' | 'roof'>>;
 
 function hasHouse(layout: LayoutConfig): layout is HouseLayout {
-  return !!(layout.wheelhouse && layout.roof);
+  // (An open helm has none to draw: wheelhouse.open.)
+  return !!(layout.wheelhouse && layout.roof && !layout.wheelhouse.open);
 }
 
 function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number] | undefined, col: Paint, at?: { house: number }): THREE.BufferGeometry[] {
@@ -634,7 +635,7 @@ export function sunkenHouses(form: HullForm, layout: LayoutConfig): { house: num
   // (`zs`: where its edge bends, a plan's points, so the deck's cut edge follows it; `x`: a house standing off her centreline, its middle.)
   const out: { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number; zs?: number[]; x?: number }[] = [];
   for (const [k, wh] of housesOf(layout).entries()) {
-    const helm = k === 0 && !!layout.wheelhouse;
+    const helm = k === 0 && !!layout.wheelhouse && !layout.wheelhouse.open;
     const deck = Math.max(plan.deckY(wh.front), plan.deckY(wh.aft));
     // A cabin below the deck forward of the helm's house (layout.deckOpening: under a trunk
     // cabin): the cut runs on forward, `inset` in from the deck edge there.

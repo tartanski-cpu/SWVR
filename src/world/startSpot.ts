@@ -9,7 +9,7 @@
  * coast map is open water in the middle of nowhere).
  */
 import { CONFIG } from '../config';
-import { VOYAGE_MAP_ID } from '../mode';
+import { TRAINING, VOYAGE_MAP_ID } from '../mode';
 import { berthWithId } from './berths';
 import type { BerthDef } from './defs';
 import { voyageMap } from './maps';
@@ -24,6 +24,8 @@ export interface QuaySpot {
 
 /** The berth the game starts at: the Voyage map's, else the career's. */
 export function startBerthId(): string {
+  // (Training: the training harbour's Berth B, world/regions/training.ts.)
+  if (TRAINING) return 'training-b';
   return voyageMap(VOYAGE_MAP_ID)?.startBerth ?? CONFIG.start.berthId;
 }
 
@@ -36,7 +38,7 @@ export function startBerthId(): string {
  */
 export function startBerthFor(defId: string): string {
   const id = startBerthId();
-  if (voyageMap(VOYAGE_MAP_ID)?.startBerth) return id;
+  if (TRAINING || voyageMap(VOYAGE_MAP_ID)?.startBerth) return id;
   const port = berthWithId(id)?.portId;
   if (!port || freeBerthFor({}, port, defId)) return id;
   // A ship too long for any of its berths still lies at its cargo berth, overhanging the

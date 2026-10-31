@@ -14,7 +14,8 @@ import { CONFIG } from '../../config';
 import type { GearFootprint, ModuleDefinition } from '../../modular/module';
 import { part } from '../../render/geometryUtils';
 
-export type RibConsoleConfig = typeof CONFIG.vessels.rib.console;
+/** (`colour`: its body's paint, the Shipyard RIB's; unset, the crane RIB's grey.) */
+export type RibConsoleConfig = typeof CONFIG.vessels.rib.console & { colour?: number };
 
 const GREY = 0x8d9399;
 const DARK = 0x2b2f33;
@@ -44,7 +45,7 @@ export const RIB_CONSOLE: ModuleDefinition<RibConsoleConfig> = {
       // The console: its body from the deck up, a dark plinth along its foot.
       const deck = hull.deckY((c.front + c.aft) / 2);
       const w = 2 * c.halfWidth;
-      box(w, c.top - deck, c.aft - c.front, 0, (deck + c.top) / 2, (c.front + c.aft) / 2, GREY);
+      box(w, c.top - deck, c.aft - c.front, 0, (deck + c.top) / 2, (c.front + c.aft) / 2, c.colour ?? GREY);
       box(w + 0.04, 0.08, c.aft - c.front + 0.04, 0, deck + 0.04, (c.front + c.aft) / 2, DARK);
       // Its windscreen: a raked pane on the forward edge of its top, in a dark frame.
       const sc = c.screen;

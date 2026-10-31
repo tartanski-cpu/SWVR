@@ -34,6 +34,8 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   // modules weigh. Her deck gear, hull protection, fit-out (wiring, interior, windows,
   // fittings, paint, by her deck area), and her load as she's trialled: half her fuel, crew
   // and stores (CONFIG.shipyard.weights).
+  const open = !!base.open;
+  const rib = CONFIG.shipyard.rib;
   const bulwarkRun = 2 * lengthM + 2 * st[0].halfBeamDeck + (bowRamp ? 0 : 2 * st[st.length - 1].halfBeamDeck);
   const houseM2 = 2 * (houseL + 2 * hw) * (roofY - floorY) - 2 * saloonL * roofDrop + 2 * (2 * hw * houseL);
   const machineKg = outboards ? obc.massKg * nOb : eng.kg * n;
@@ -62,8 +64,11 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const bowAt = pushFender ? { y: (pushFender.top + pushFender.bottom) / 2, z: pushFender.z } : bowFender ? { y: (bowFender.top + bowFender.bottom) / 2, z: bowFender.front } : null;
   const items = [
     { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1) * grownPlate, y: shellM2y / shellM2, z: shellM2z / shellM2 },
-    { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
-    { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
+    // (An open boat, the RIB's: her tubes for bulwarks, her console and leaning post for a wheelhouse.)
+    { name: 'Bulwarks', kg: open ? 0 : bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
+    { name: 'Tubes', kg: open ? 2 * lengthM * rib.tubes.kgPerM : 0, y: deckMid, z: (stem + transom) / 2 },
+    { name: 'Wheelhouse', kg: open ? 0 : houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
+    { name: 'Console and leaning post', kg: open ? rib.console.kg : 0, y: floorY + 0.5, z: front + rib.console.depth },
     { name: 'Deckhouse: the cabin below (sole, lining, berth)', kg: cabinM2 * CONFIG.shipyard.deckhouse.cabin.kgPerM2, y: layout.cabin ? layout.cabin.sole + 0.6 : deckMid, z: layout.cabin ? (layout.cabin.z0 + layout.cabin.z1) / 2 : 0 },
     { name: 'Deckhouse rail and ladder', kg: deckhouse?.walk ? dhRailM * CONFIG.shipyard.deckhouse.walk.railKgPerM + (deckhouse.walk.stair ? CONFIG.shipyard.deckhouse.walk.stair.kg : CONFIG.shipyard.deckhouse.walk.ladder.kg) : 0, y: deckhouse ? deckhouse.top + 0.4 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: 'Cockpit overhead', kg: overheadM2(layout.overhead) * mat.houseKgPerM2, y: layout.overhead ? layout.overhead.y - 0.3 : deckMid, z: layout.overhead ? (layout.overhead.z0 + layout.overhead.z1) / 2 : 0 },
@@ -83,9 +88,9 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     { name: 'Hull protection', kg: guardKg + pushKg, y: guardKg + pushKg > 0 ? (guardKg * guardY + (bowAt ? pushKg * bowAt.y : 0)) / (guardKg + pushKg) : deckMid, z: guardKg + pushKg > 0 ? (guardKg * ((stem + transom) / 2) + (bowAt ? pushKg * bowAt.z : 0)) / (guardKg + pushKg) : 0 },
     { name: 'Furniture', kg: p.furnitureKg, y: floorY + 0.4, z: (front + aft) / 2 },
     { name: 'Fish hold: insulated lining and hatch', kg: p.holdKg, y: p.holdY, z: p.holdZ },
-    { name: 'Fit-out: wiring, interior, windows, fittings, paint', kg: wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, y: deckMid + 0.3, z: shellM2z / shellM2 },
+    { name: open ? 'Fit-out: wiring, fittings, paint' : 'Fit-out: wiring, interior, windows, fittings, paint', kg: wc.outfitKgPerM2 * lengthM * beamDeck * 0.8 * (open ? rib.outfitShare : 1), y: deckMid + 0.3, z: shellM2z / shellM2 },
     { name: 'Fuel (half her tanks)', kg: tankL * wc.fuelShare * wc.fuelDensity, y: keelMid + 0.35 * (deckMid - keelMid), z: h.lcb },
-    { name: 'Crew and stores', kg: wc.crewKg + wc.storesKg, y: deckMid + 0.8, z: (front + aft) / 2 },
+    { name: 'Crew and stores', kg: wc.crewKg + wc.storesKg * (open ? rib.storesShare : 1), y: deckMid + 0.8, z: (front + aft) / 2 },
     // (Scaled with her hull's volume: a smaller tug carries less; owner, Oct 2026.)
     { name: 'Ballast', kg: (base.ballastKg ?? 0) * p.size.L * p.size.B * p.size.D, y: keelMid + (base.ballastAboveKeel ?? 0.15), z: h.lcb },
   ]
@@ -115,7 +120,7 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   return {
     hull,
     recipe,
-    figures: { ...(solar ? { solar } : {}), ...(foils ? { foilsDraughtM: Math.round(-Math.min(...foils.panels.map((fp) => fp.at[1])) * 100) / 100 } : {}), lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : pods ? podPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : pods ? ', on pod drives' : ''}${nozzle ? (twin ? ', in Kort nozzles' : ', in a Kort nozzle') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
+    figures: { ...(solar ? { solar } : {}), ...(foils ? { foilsDraughtM: Math.round(-Math.min(...foils.panels.map((fp) => fp.at[1])) * 100) / 100 } : {}), lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : pods ? podPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW ${d.outboardSize ? `(${Math.round(obc.engine.powerKw * 1.341)} hp) petrol outboard` : 'petrol V8 outboard'}${nOb > 1 ? 's' : ''}` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : pods ? ', on pod drives' : ''}${nozzle ? (twin ? ', in Kort nozzles' : ', in a Kort nozzle') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
     warnings,
     placed: { ...placed, ...p.furniturePlaced },
     placeWhy: { ...p.placeWhy, ...p.furnitureWhy },

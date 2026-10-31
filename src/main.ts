@@ -1,11 +1,11 @@
-import { MODE, VOYAGE_MAP_ID } from './mode';
+import { MODE, TRAINING, VOYAGE_MAP_ID } from './mode';
 import { voyageMap } from './world/maps';
 import { setRemotePackage, type CoastPackage } from './world/coastRegion';
 
 declare const __CHANNEL__: string | undefined;
 // A work-in-progress copy (/SWVR/next/, or a preview: /SWVR/preview/<name>/) says so in the browser tab.
 const channel = typeof __CHANNEL__ === 'string' ? __CHANNEL__.toUpperCase() : '';
-document.title = `Workboat World: ${MODE === 'voyage' ? `Voyage${channel ? ` (${channel})` : ''}` : channel || 'Career'}`;
+document.title = `Workboat World: ${MODE === 'voyage' ? `${TRAINING ? 'Training' : 'Voyage'}${channel ? ` (${channel})` : ''}` : channel || 'Career'}`;
 
 // A coast region's ground (real coastline, tools/coast) is a mesh fetched before the world
 // is built: everything that reads the ground (physics, drawing, charts) needs it from the

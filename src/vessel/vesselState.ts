@@ -179,6 +179,15 @@ export interface MooringState {
    */
   bow?: number;
   stern?: number;
+  /**
+   * A spring (owner, 30 Oct 2026: Training's "springing off"): `fore` from her bow cleat aft
+   * to the berth's aft bollard, `aft` from her stern cleat forward to its forward one. A rope:
+   * it pulls only when stretched past `length` (m, its length when made fast), and it stays
+   * fast with the bow and stern lines let go, so she can motor against it.
+   */
+  spring?: { end: 'fore' | 'aft'; x: number; z: number; length: number };
+  /** Made fast to a mooring buoy (a `mooring` mark): its id, where it is, the pennant's length (m). A rope, from her bow cleat. */
+  buoy?: { id: string; x: number; z: number; length: number };
 }
 
 /** Anchor and windlass (see physics/anchor.ts). */
@@ -200,6 +209,13 @@ export interface AnchorState {
   tension: number;
   /** Tension exceeds holding power: the anchor is ploughing through the bottom. */
   dragging: boolean;
+  /**
+   * The scope chosen (chain out over the depth, e.g. 3, 5, 7; owner, 30 Oct 2026: "the trainee
+   * chooses 3:1 against 5:1 and sees it drag"): the windlass lets go to it, veers more chain
+   * when it's raised, and heaves in to it (holding the anchor) when it's lowered. Unset: the
+   * windlass's own `scopeRatio`, as before.
+   */
+  scope?: number;
 }
 
 /** Contact with seabed, shore or structures on the last tick. */
@@ -344,6 +360,8 @@ export interface VesselState {
   rodCatch?: { count: number; kg: number; last?: string };
   /** Taking fuel at a fuel berth. */
   refuelling: boolean;
+  /** Her kill cord (vessel/killCord.ts; the skiff and the RIB): who wears it, or pulled (the motor stopped). Absent: never clipped on. */
+  killCord?: { by?: EntityId; pulled?: boolean };
   contact: ContactState;
   /**
    * Who has a hand on each grab control (multiplayer): channel -> player id. The first

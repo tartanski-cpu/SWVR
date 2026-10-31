@@ -111,6 +111,9 @@ export const SHIPYARD_CONFIG = {
       // A carbon and glass sandwich over a foam core (the foiling ferry's, owner, 28 Oct 2026: a
       // foiler lives or dies by her weight): lighter still a square metre, and the dearest by the kilo.
       composite: { shellKgPerM2: 12, houseKgPerM2: 7, pricePerKg: 90 },
+      // Solid glass-reinforced plastic (the RIB's, owner, 31 Oct 2026: as most RIBs' hulls are
+      // laid up): lighter than aluminium plate for a small hull, cheap to build by the kilo.
+      GRP: { shellKgPerM2: 20, houseKgPerM2: 12, pricePerKg: 25 },
     },
     /**
      * Her other weights (build.ts), and her load as trialled:
@@ -149,6 +152,38 @@ export const SHIPYARD_CONFIG = {
      * (m). The builder still checks there's room for her cradle, and says so if not.
      */
     secondBoatMinLength: 12.5,
+    /**
+     * The RIB (owner, 31 Oct 2026: "take the existing rib ... and turn it into a parametric
+     * boat"; DESIGN_HULLS 'RIB'), her hull the crane RIB's lines (CONFIG.vessels.rib.hull)
+     * stretched 5 to 12 m (`shrinksTo`, `growsTo` of her 6 m), her beam and depth on their
+     * own sliders. No wheelhouse: an open helm (vessel/layout.ts `open`) at her console:
+     *   tubes          her tubes (modules/tubes, CONFIG.modules.tubes.rib) scaled with her
+     *                  depth (their radius) and length; `kgPerM` of tube a metre;
+     *   console        the jockey console and leaning post (modules/ribConsole), as the crane
+     *                  RIB's: its body `halfWidth` across, `depth` fore and aft, `top` above her
+     *                  deck; the leaning post `postGap` aft of it, `postDepth` deep; `kg` for
+     *                  both (GRP, the windscreen, the post's frame);
+     *   smallOutboard  the 150 hp outboard (CONFIG.vessels.rib.motor): `spacing` between
+     *                  units, its `bracket` (a short transom plate: a RIB's motors hang on her
+     *                  transom), `pricePerKw`.
+     */
+    rib: {
+      shrinksTo: 0.84,
+      growsTo: 2.0,
+      tubes: { kgPerM: 9 },
+      /** An open boat's fit-out (wiring, fittings, paint: no interior or windows) as this share of a wheelhouse boat's; her stores this share. */
+      outfitShare: 0.3,
+      storesShare: 0.2,
+      console: { halfWidth: 0.36, depth: 0.65, top: 1.08, postGap: 0.8, postDepth: 0.4, kg: 90 },
+      /**
+       * An inboard (on a stern drive) under an engine box on her open deck, as RIBs carry them
+       * (she has no depth under her deck for it): the engine may stand up to `maxHeight` over
+       * her deck aft of her helm; the box over it `margin` clear all round, its top at least
+       * `seat` over the deck (it's sat on), its lid the engine hatch (her oil checks).
+       */
+      engineBox: { maxHeight: 0.8, margin: 0.1, seat: 0.45 },
+      smallOutboard: { spacing: 0.55, bracket: { length: 0.08, belowMount: 0.2, margin: 0.25 }, pricePerKw: 160 },
+    },
     /**
      * Live sea trials at the Trials step (shipyard/liveTrial.ts; owner, Oct 2026: see how the
      * hull behaves). Calm deep water; she settles for `settleS` first.
@@ -380,7 +415,7 @@ export const SHIPYARD_CONFIG = {
      * than the build counts (her heavy framing, machinery, tanks of water and stores), carried
      * here as one weight `ballastAboveKeel` m above her keel, where it gives her a real tug's
      * stability (GM about 2 m on her KM of 5.8 m), not all down in her bilge. Her fuel tanks
-     * `fuelL` litres, a ship's (about 60 m³), not the small boats' litre a kW. Her engines (on
+     * (her tanks, as every boat's, by her size and power: CONFIG.shipyard.fuel). Her engines (on
      * the Z-drives she's drawn with) level and low, their gearbox ends `zDriveEngineAft` of her
      * length forward of her transom (owner, Oct 2026: "much lower and further back"). Her propellers reach `propDepth` m below her waterline, as her
      * drive pods would hang under her shallow stern (her real pods reach 5.3 m), until the
@@ -389,7 +424,7 @@ export const SHIPYARD_CONFIG = {
     // Her fendering (parts/fendering.ts): `fenderingKg` of rubber (belts, stern and bow
     // cylinders, the bow's blocks: about 6 t on a 25 m tug); its contact points one to each
     // `probeCell` m cell of its outer face.
-    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9,
+    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 338000, ballastAboveKeel: 3.9, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9,
       /**
        * Her gearbox step (design.gear, 0..15), fixed (owner, 26 Oct 2026: "a fixed engine
        * configuration and a fixed propulsion, so there shouldn't be any resolving of the
@@ -608,13 +643,27 @@ export const SHIPYARD_CONFIG = {
      * framing `scantlings` times the steel's usual (heavy, as a trawler is built), and permanent ballast
      * (kg) low in her hull, so she floats near her lines with her machinery, gear and a light
      * load (a trawler carries hers in fuel, ice and fixed ballast: a deep hull for a big
-     * propeller, and a good GM with a heavy codend coming up over the stern). Her fuel tanks
-     * (`fuelL` litres at 20 m, growing as the cube of her length: about 9,000 at 16 m, 29,000
-     * at 23.5 m; owner, 29 Oct 2026: her litre-a-kW tank gave "only 52 nautical miles range"),
-     * a fishing vessel's for trips of days: about 1,100 nm flat out (52 nm on 850 L), far more at a trawler's
-     * steaming speed.
+     * propeller, and a good GM with a heavy codend coming up over the stern). Her tanks as every
+     * boat's (CONFIG.shipyard.fuel, owner 31 Oct 2026: kept to a few hours flat out for play).
      */
-    sternTrawler: { scantlings: 1.8, ballastKg: 60000, fuelL: 18000 },
+    sternTrawler: { scantlings: 1.8, ballastKg: 67000 },
+    /**
+     * Her fuel tanks (owner, 31 Oct 2026: "the fuel tank sizing doesn't always seem to be
+     * appropriate for the size of the boat ... the bigger vessels are going to have
+     * significantly larger fuel tanks"; then, for play: "if they're like 3 days size of tank,
+     * then nobody's ever going to refuel. So the rib, you should be able to drive full speed
+     * for ... an hour, and then ... bring it back in. But in the bigger ships ... a few hours"):
+     * sized for hours flat out (at her full power, from her engines' consumption), growing with
+     * her size: `minHours` for a boat of `smallT` tonnes or less (her lines' displacement as
+     * drawn: the same on both of build.ts's passes) up to `maxHours` at `largeT` or more,
+     * in between as her tonnage's logarithm. Bigger and more powerful, the bigger her tanks;
+     * at her cruise (half her speed or so) they last two to four times as long. Never under
+     * `minL`; rounded to `round`. Diesel at `dieselKgPerL`, petrol (outboards) at
+     * `petrolKgPerL`. (Real boats' tanks, checked 31 Oct 2026, hold days: a 14 m pilot boat
+     * 1,500-2,300 L, a 20 m stern trawler 20-30 m3; a game's are kept to a session or a few.)
+     * The electric boats have a token tank (DesignHull.fuelL).
+     */
+    fuel: { minHours: 1, maxHours: 6, smallT: 1.5, largeT: 150, minL: 20, dieselKgPerL: 0.84, petrolKgPerL: 0.74, round: 10 },
     /**
      * The fast catamaran's plating and framing, against the material's usual (a monohull's): two
      * slim hulls carry far more plate for her length than one, but each is a small, short-

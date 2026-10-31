@@ -43,9 +43,9 @@ import { tubeParts } from '../modules/tubes';
 import { hullQueries } from '../modular/hull';
 import { MARKING_NAMES, SERVICE_LIVERIES } from './parts/markings';
 import { electricOf } from './parts/solar';
-import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
+import { buildDesign, withFixed, gearFixed, DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, TUBE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, NO_FURNITURE, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { OUTBOARD_SIZES, TUBE_COLOURS, ALL_FIELDS, NO_FURNITURE, FINISHES, CONSOLE_AUTO, CONSOLE_SIDES, consoleLengthM, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, STACK_MOUNTS, STACK_CASINGS, STACK_POS_STEPS, batteryKWh, kickDeg, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, FURNITURE_SLOTS, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -881,7 +881,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'interiors' ? !!DESIGN_HULLS[design.hull]?.interiors?.length : cond === 'solarBattery' ? !!(ENGINES[design.engine] as { electric?: boolean } | undefined)?.electric : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'openBoat' ? !!DESIGN_HULLS[design.hull]?.open : cond === 'interiors' ? !!DESIGN_HULLS[design.hull]?.interiors?.length : cond === 'solarBattery' ? !!(ENGINES[design.engine] as { electric?: boolean } | undefined)?.electric : cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'bowFenderChoice' ? !DESIGN_HULLS[design.hull]?.pushBow : cond === 'tugStacks' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards : cond === 'stackMountChoice' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength : cond === 'stacksOnDeckhouse' ? !!DESIGN_HULLS[design.hull]?.exhaustStacks && !design.outboards && !!design.dhLength && !!design.stackMount : cond === 'offsetHouse' ? !!DESIGN_HULLS[design.hull]?.offsetHouse : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -1279,9 +1279,16 @@ toggleTiles(
       { icon: ENGINE_ICONS.ob3, name: 'Three', sub: `${3 * o.engine.powerKw} kW`, info: `Three outboards: ${each}` },
       { icon: ENGINE_ICONS.ob4, name: 'Four', sub: `${4 * o.engine.powerKw} kW`, info: `Four outboards: ${each}` },
     ],
-    (i) => change({ outboards: i }),
+    // (Two or more: no single outboard, the RIB's.)
+    (i) => change({ outboards: i, ...(i ? { oneOutboard: 0 } : {}) }),
     'Or outboards',
   );
+  // The RIB's (owner, 31 Oct 2026: "from one engine ... up to four"): a single outboard, and
+  // which outboards: the 150 hp (the crane RIB's) or the 300 kW V8.
+  const one = options('oneOutboard', 'Single outboard', ['No', 'One outboard']);
+  one.dataset.when = 'openBoat';
+  one.querySelectorAll<HTMLElement>('.choice').forEach((el) => (el.onclick = () => change({ oneOutboard: Number(el.dataset.i), ...(Number(el.dataset.i) ? { outboards: 0 } : {}) })));
+  options('outboardSize', 'Outboard size', [...OUTBOARD_SIZES]).dataset.when = 'openBoat';
 }
 section('6. Controls');
 {
@@ -1339,7 +1346,7 @@ const PAINT_LIKE: Record<string, (d: ShipDesign) => number> = {
   roof: (d) => ROOF_PAINTS[d.roofPaint].colour ?? PAINT_LIKE.hull(d),
 };
 /** A row of colour swatches for a paint choice; `like` names what a null colour follows. */
-function paintRow(key: keyof ShipDesign, label: string, paints: { name: string; colour: number | null }[], like = ''): void {
+function paintRow(key: keyof ShipDesign, label: string, paints: { name: string; colour: number | null }[], like = ''): HTMLElement {
   labels[key] ??= label;
   optionNames[key] = paints.map((p) => p.name);
   const row = document.createElement('div');
@@ -1360,6 +1367,7 @@ function paintRow(key: keyof ShipDesign, label: string, paints: { name: string; 
     box.appendChild(s);
   });
   controls.appendChild(row);
+  return row;
 }
 group('Service livery', 'A service’s livery (owner, Oct 2026): police, fire, rescue or coastguard. It paints her in its colours (yours to change after) and puts its markings on her topsides: its bands and its name along each side forward. A monohull’s only. Marked, she travels as a link or file, not a code.');
 // Choosing one sets her colours for it too (SERVICE_LIVERIES); None takes the markings off, and leaves her colours.
@@ -1377,8 +1385,14 @@ paintRow('paint', 'Topsides', LIVERIES.map((l) => ({ name: l.name, colour: l.liv
   const box = options('finish', 'Finish', [...FINISHES]).querySelector('div')!;
   box.append(...[...box.children].reverse());
 }
-group('Wheelhouse', 'Its walls outside: her paint’s own wheelhouse colour (=), or one of their own.');
-paintRow('houseColour', 'Walls', HOUSE_PAINTS, 'house');
+// (An open boat, the RIB's: her tubes and her console in place of the wheelhouse's walls,
+// frames and roof; owner, 31 Oct 2026: "the rubber ring could be one colour, the hull could be
+// another colour, and the console could be another colour".)
+group('Tubes and console', 'Her tubes’ colour, and her console’s: her topsides’ (=), or its own.').dataset.when = 'openBoat';
+paintRow('tubeColour', 'Tubes', TUBE_COLOURS.map((name, i) => ({ name, colour: TUBE_PAINTS[i] }))).dataset.when = 'openBoat';
+paintRow('houseColour', 'Console', HOUSE_PAINTS, 'hull').dataset.when = 'openBoat';
+group('Wheelhouse', 'Its walls outside: her paint’s own wheelhouse colour (=), or one of their own.').dataset.unless = 'openBoat';
+paintRow('houseColour', 'Walls', HOUSE_PAINTS, 'house').dataset.unless = 'openBoat';
 // Its window frames, mullions and posts (owner, Oct 2026): black or white.
 paintRow('frames', 'Window frames', FRAME_COLOURS);
 group('Roof', 'The roof’s colour: her topsides’ (=), or its own; an orange roof is common on workboats. Its top can have a panel in a second colour, set in from the edges so the roof’s colour shows as a band round it.');
@@ -1461,6 +1475,9 @@ function showControls(): void {
   // Rows that apply only sometimes (the saloon's floor and roof with a saloon; the front's rake
   // unless the windows are raked out all round, when it leans with them).
   document.querySelectorAll<HTMLElement>('[data-when]').forEach((el) => (el.style.display = rowApplies(el.dataset.when!) ? '' : 'none'));
+  // (An open boat, the RIB's: the Wheelhouse step is her console's.)
+  const whHead = document.querySelector<HTMLElement>('[data-step=wheelhouse] h1');
+  if (whHead) whHead.textContent = rowApplies('openBoat') ? 'Console' : 'Wheelhouse';
   document.querySelectorAll<HTMLElement>('[data-unless]').forEach((el) => (el.style.display = rowApplies(el.dataset.unless!) ? 'none' : ''));
   for (const [el, on] of dhKinds) el.classList.toggle('on', on(design));
   // The instruments' tier: old school, basic electronic, advanced.
@@ -1722,7 +1739,7 @@ function showFigures(): void {
   $('figures').innerHTML = [
     figureGroup('size', 'Size &amp; form', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`, [
       ['Length × beam', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`],
-      ['Built of', f.material === 'steel' ? 'Steel' : f.material === 'aluminium' ? 'Aluminium' : f.material === 'composite' ? 'Carbon and glass composite' : 'Foam and plywood'],
+      ['Built of', f.material === 'steel' ? 'Steel' : f.material === 'aluminium' ? 'Aluminium' : f.material === 'composite' ? 'Carbon and glass composite' : f.material === 'GRP' ? 'GRP (glass-reinforced plastic)' : 'Foam and plywood'],
       ['Displacement', `${f.massT.toFixed(2)} t`],
       ['Draught', `${f.draughtM.toFixed(2)} m`],
       ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
@@ -3457,7 +3474,9 @@ function showStepNav(): void {
     const b = document.createElement('button');
     b.className = `${i === stepAt ? 'on' : ''} ${seen.has(e.dataset.step!) ? 'seen' : ''}`;
     const flag = e.dataset.step === 'handover' && verdict !== null ? `<span class="flag">${verdict ? '✓' : '✗'}</span>` : '';
-    b.innerHTML = `<span class="n">${i + 1}</span>${e.dataset.title}${flag}`;
+    // (An open boat, the RIB's, has a console where the others have a wheelhouse.)
+    const title = e.dataset.step === 'wheelhouse' && DESIGN_HULLS[design.hull]?.open ? 'Console' : e.dataset.title;
+    b.innerHTML = `<span class="n">${i + 1}</span>${title}${flag}`;
     b.onclick = () => goStep(i);
     if (i > 0) {
       const a = document.createElement('span');
