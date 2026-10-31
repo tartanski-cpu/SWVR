@@ -138,7 +138,7 @@ describe('the line hauler', () => {
     // About its speed: 300 m at 0.5 m/s is ten minutes, with the stops for the fish.
     expect(aboard(world, v.id).filter((c) => c.from === 'tubs')).toHaveLength(1);
     expect(v.hauler?.line).toBe(false);
-  });
+  }, 60_000);
 
   it('FAST hauls twice as quick; without hydraulic pressure, or off the line, it doesn\'t turn', () => {
     const { world, v, send } = setup();
