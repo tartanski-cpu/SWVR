@@ -164,5 +164,39 @@ export const TRAINING_CONFIG = {
      * datum within `atM` m; a leg steered within `headingDeg` on average.
      */
     search: { legs: [[0, 100], [90, 100], [180, 200], [270, 200], [0, 300], [90, 300]] as [number, number][], offset: [-90, -150] as [number, number], sightM: 60, atM: 25, headingDeg: 15 },
+    /**
+     * Course 3, Coast practice (M4), outside the breakwater; each start is [x, z, heading].
+     *   steer (C1, SBF "Steuern nach Kompass")  up to `speedKn`, then each leg [course, metres]:
+     *              within `withinDeg` for `share` of it once she's first on it; the turn begun
+     *              (`beganDeg` off the old heading) within `beginS` s of the call, the right way
+     *   forMark (C2)  steering for the mark: its bearing within `withinDeg` of her head for
+     *              `share` of the way, `settleS` after the call; there within `arriveM`; then on
+     *              the leading line (x `lineX`, 180°) north of z `joinZ`, and over the last
+     *              `lastM` m to the entrance within `offM` m of it for `share` of the way
+     *   fix (C3)   a bearing within `bearingDeg` of the true one (a charted mark or light within
+     *              `matchDeg` of it counts as the one meant); the two at least `cutDeg` apart;
+     *              the fix within `fixM` m of where she was at the second bearing
+     *   fastSlalom (C4)  the RIB above `planeKn` for `share` of the run, each mark passed within
+     *              `laneM` m and no closer than `clearM`; under `entranceKn` within `entranceM`
+     *              m of the entrance
+     *   marks (C5, C7)  inside the wreck's `wreckM` or the rock's `rockM` circle fails; a
+     *              cardinal passed within `passM` m is judged on its side
+     *   stream (C6)  the line between the marks, from `insideM` m inside each: within `offM` m of
+     *              it for `share` of each crossing, at the far end within `arriveM`
+     *   night (C7)  the hour it starts
+     *   capKn   the speed limit outside (kn)
+     */
+    coast: {
+      capKn: 8,
+      windKn: 6,
+      windFrom: 220,
+      steer: { start: [-150, -900, 90] as [number, number, number], speedKn: 6, legs: [[60, 300], [120, 300], [90, 300]] as [number, number][], withinDeg: 5, share: 0.8, beganDeg: 3, beginS: 10 },
+      forMark: { start: [-450, -700, 90] as [number, number, number], mark: 'Datum', withinDeg: 10, share: 0.8, settleS: 10, arriveM: 40, lineX: 0, joinZ: -300, lastM: 200, offM: 5 },
+      fix: { start: [-450, -150, 90] as [number, number, number], bearingDeg: 3, matchDeg: 8, cutDeg: 45, fixM: 50 },
+      fastSlalom: { start: [-600, -120, 0] as [number, number, number], planeKn: 14, share: 0.8, laneM: 60, clearM: 3, entranceKn: 6, entranceM: 150, capKn: 45 },
+      marks: { start: [560, -700, 225] as [number, number, number], nightStart: [600, -560, 250] as [number, number, number], wreckM: 40, rockM: 25, passM: 100 },
+      stream: { start: [-790, 150, 90] as [number, number, number], insideM: 20, offM: 10, share: 0.8, arriveM: 10 },
+      night: { hour: 23 },
+    },
   },
 };

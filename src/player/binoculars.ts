@@ -20,6 +20,12 @@ import type { Handedness } from './xrInput';
  * field of view of the eyes themselves. Instead the scene is rendered once more from the
  * head (non-XR, into a render target) and shown on a quad just in front of the eyes,
  * masked to the two lenses. In VR that quad is head-locked, as real binoculars are.
+ *
+ * The bearing (Training M4): a compass in them, as many marine glasses have. The true
+ * bearing of the view's centre shows under the lenses (a small canvas, redrawn only when the
+ * whole degree changes; desktop: a line of text), with a fine tick at the centre to aim by.
+ * A press takes it (VR: the trigger of the hand holding them; desktop: a left click, App):
+ * `takeBearing()` hands it to the App once.
  */
 /** The lens quad's own layer: while looking (VR) the main pass draws nothing else. */
 const LENS_LAYER = 30;
@@ -45,6 +51,15 @@ export class Binoculars {
   /** VR: the scope's eased orientation (see renderScope); is it worth easing from? */
   private steadyFrom = false;
   private lastRender = 0;
+  /** The bearing readout: VR a canvas under the lenses, desktop a line of text; the degree shown. */
+  private readonly readout: THREE.Mesh;
+  private readonly readoutCtx: CanvasRenderingContext2D | null = null;
+  private readonly readoutTex: THREE.CanvasTexture | null = null;
+  private readonly label: HTMLDivElement | null = null;
+  private shown = -1;
+  /** A bearing taken (deg true), and from where (world x, z), waiting for the App. */
+  private taken: { deg: number; x: number; z: number } | null = null;
+  private readonly dir = new THREE.Vector3();
 
   constructor(private readonly camera: THREE.PerspectiveCamera) {
     const c = CONFIG.binoculars;
@@ -85,7 +100,9 @@ export class Binoculars {
           float a = 1.0 - smoothstep(0.92 * lensR, lensR, d);
           vec2 uv = clamp(m / pic + 0.5, 0.0, 1.0);  // the picture is centred on the quad
           vec4 c = texture2D(map, uv);
-          gl_FragColor = vec4(c.rgb * a, 1.0);
+          // The tick to aim by: a fine vertical line at the centre of the view.
+          float tick = (1.0 - step(0.0007, abs(m.x))) * (1.0 - step(0.12 * lensR, abs(m.y)));
+          gl_FragColor = vec4(mix(c.rgb, vec3(1.0, 0.85, 0.3), 0.8 * tick) * a, 1.0);
         }`,
       depthTest: false,
       depthWrite: false,
@@ -99,6 +116,26 @@ export class Binoculars {
     this.view.layers.enable(0);
     camera.add(this.view);
 
+    // The bearing under the lenses (VR): a small canvas just in front of the view quad, low
+    // in the lens pair; drawn on the lens layer, so it shows while looking and only then.
+    const can = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+    if (can) {
+      can.width = 256;
+      can.height = 64;
+      this.readoutCtx = can.getContext('2d');
+      this.readoutTex = new THREE.CanvasTexture(can);
+      this.readoutTex.colorSpace = THREE.SRGBColorSpace;
+    }
+    const rw = lensR * 0.9;
+    this.readout = new THREE.Mesh(new THREE.PlaneGeometry(rw, rw / 4), new THREE.MeshBasicMaterial({ map: this.readoutTex, transparent: true, depthTest: false, depthWrite: false }));
+    this.readout.position.set(0, -lensR * 0.62, -EYE + 0.001);
+    this.readout.renderOrder = 1000;
+    this.readout.frustumCulled = false;
+    this.readout.visible = false;
+    this.readout.layers.set(LENS_LAYER);
+    this.readout.layers.enable(0);
+    camera.add(this.readout);
+
     if (typeof document !== 'undefined' && document.body) {
       // Desktop: black everywhere but two lens circles (each gradient masks out its circle;
       // intersected, only what's outside both stays black).
@@ -111,6 +148,11 @@ export class Binoculars {
       m.style.setProperty('-webkit-mask-composite', 'source-in');
       document.body.appendChild(m);
       this.mask = m;
+      // The bearing (desktop): under the lenses, centred.
+      const l = document.createElement('div');
+      l.style.cssText = 'position:fixed;left:50%;top:calc(50% + 22vh);transform:translateX(-50%);pointer-events:none;display:none;z-index:6;font:600 22px system-ui,sans-serif;color:#ffd970;text-shadow:0 0 4px #000;';
+      document.body.appendChild(l);
+      this.label = l;
     }
   }
 
@@ -173,6 +215,11 @@ export class Binoculars {
     // While at the eyes the binoculars themselves would fill the view: hide them.
     this.mesh.visible = !this.looking;
     this.view.visible = this.looking;
+    this.readout.visible = this.looking;
+    if (this.looking && this.held && hands[this.held].triggerPressed) {
+      this.take();
+      pulse(this.held, 0.6, 40);
+    }
     return used;
   }
 
@@ -190,8 +237,60 @@ export class Binoculars {
       this.camera.fov = held ? this.baseFov / CONFIG.binoculars.magnification : this.baseFov;
       this.camera.updateProjectionMatrix();
       if (this.mask) this.mask.style.display = held ? 'block' : 'none';
+      if (this.label) this.label.style.display = held ? 'block' : 'none';
+    }
+    if (held && this.label) {
+      const deg = Math.round(this.bearing()) % 360;
+      if (deg !== this.shown) {
+        this.shown = deg;
+        this.label.textContent = `${String(deg).padStart(3, '0')}°`;
+      }
     }
     return held ? 1 / CONFIG.binoculars.magnification : 1;
+  }
+
+  /**
+   * The true bearing of the view's centre (deg, 0 north, clockwise): VR the steadied scope's,
+   * desktop the camera's. World axes: +X east, -Z north.
+   */
+  bearing(): number {
+    const cam = this.view.visible ? this.scopeCam : this.camera;
+    cam.getWorldDirection(this.dir);
+    return ((Math.atan2(this.dir.x, -this.dir.z) * 180) / Math.PI + 360) % 360;
+  }
+
+  /** Take the bearing now (desktop: the App on a left click while looking). */
+  take(): void {
+    const cam = this.view.visible ? this.scopeCam : this.camera;
+    cam.getWorldPosition(this.tmp);
+    this.taken = { deg: Math.round(this.bearing() * 10) / 10, x: this.tmp.x, z: this.tmp.z };
+  }
+
+  /** The bearing taken since the last call (and where from), once; else null. */
+  takeBearing(): { deg: number; x: number; z: number } | null {
+    const b = this.taken;
+    this.taken = null;
+    return b;
+  }
+
+  /** VR: the readout's figure, redrawn only when the whole degree changes. */
+  private drawReadout(): void {
+    const g = this.readoutCtx;
+    if (!g || !this.readoutTex) return;
+    const deg = Math.round(this.bearing()) % 360;
+    if (deg === this.shown) return;
+    this.shown = deg;
+    g.clearRect(0, 0, 256, 64);
+    g.font = `600 ${CONFIG.binoculars.bearingFont}px system-ui, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = 6;
+    g.strokeStyle = 'rgba(0,0,0,0.8)';
+    const text = `${String(deg).padStart(3, '0')}°`;
+    g.strokeText(text, 128, 34);
+    g.fillStyle = '#ffd970';
+    g.fillText(text, 128, 34);
+    this.readoutTex.needsUpdate = true;
   }
 
   /** VR, before the main render: the view through the lenses (only while looking). */
@@ -215,9 +314,11 @@ export class Binoculars {
     else this.scopeCam.quaternion.copy(this.tmpQ);
     this.steadyFrom = true;
     this.scopeCam.updateMatrixWorld();
+    this.drawReadout();
     const xr = renderer.xr.enabled;
     renderer.xr.enabled = false;
     this.view.visible = false;
+    this.readout.visible = false;
     // Back to the frame's own target afterwards: in VR that's the headset's framebuffer,
     // set by three.js at the start of each frame (null would be the hidden canvas: the
     // headset's view would never change).
@@ -226,6 +327,7 @@ export class Binoculars {
     renderer.render(scene, this.scopeCam);
     renderer.setRenderTarget(target);
     this.view.visible = true;
+    this.readout.visible = true;
     renderer.xr.enabled = xr;
   }
 
@@ -254,6 +356,7 @@ export class Binoculars {
     renderer.compile(scene, this.camera);
     this.renderScope(renderer, scene);
     this.view.visible = false;
+    this.readout.visible = false;
     this.steadyFrom = false;
   }
 
@@ -262,6 +365,7 @@ export class Binoculars {
     this.held = null;
     this.looking = false;
     this.view.visible = false;
+    this.readout.visible = false;
     this.mesh.visible = true;
     this.toStow();
   }

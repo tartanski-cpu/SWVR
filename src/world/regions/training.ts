@@ -18,6 +18,13 @@
  * four yellow special marks (H5). The water is 6 m deep throughout: a bank (`shoals`) under
  * the whole harbour keeps the breakwater's rubble from spreading into it from deep water.
  *
+ * Outside (Coast practice, M4): the approach from the north-east past a wreck with its four
+ * cardinal marks and a rock with an isolated-danger mark (C5, C7); two fixed white leading
+ * lights behind the quay on a line due south through the entrance (C2); the Harbour Head
+ * lighthouse on the head's west side, to take bearings of (C3); eight fast slalom marks in a
+ * line west of the harbour (C4); and off the head's west side a tidal stream between two
+ * marks (C6).
+ *
  * World axes: +X east, -Z north, metres.
  */
 import type { RegionDef } from '../defs';
@@ -29,7 +36,7 @@ const ALONG = FACE - 2.5;
 export const TRAINING: RegionDef = {
   id: 'training',
   name: 'Training harbour',
-  bounds: { x0: -700, x1: 700, z0: -700, z1: 1100 },
+  bounds: { x0: -1100, x1: 1100, z0: -1150, z1: 1100 },
   landmarks: [{ name: 'Harbour Head', kind: 'hill', x: 0, z: 600, height: 30 }],
   islands: [
     {
@@ -63,6 +70,10 @@ export const TRAINING: RegionDef = {
     { ax: -200, az: -60, bx: -28, bz: -80, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
     { ax: 200, az: 200, bx: 200, bz: -60, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
     { ax: 200, az: -60, bx: 28, bz: -80, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
+    // The rock under the isolated-danger mark (C5), awash.
+    { ax: 196, az: -330, bx: 204, bz: -330, crest: 0.4, halfWidth: 3, slope: 0.6 },
+    // The wreck of the Kittiwake (C5): her hull, drawn as a wreck (`wrecks`).
+    { ax: 368, az: -513, bx: 392, bz: -527, crest: 0.6, halfWidth: 3.5, slope: 0.6, drawn: false },
   ],
   blocks: [
     // The quay: 260 m of fendered wall facing north, its apron running back to the land.
@@ -94,13 +105,30 @@ export const TRAINING: RegionDef = {
     { name: 'Hold-off mark', kind: 'special', x: 100, z: -10 },
     // Picking up a mooring (H15): an orange pick-up buoy.
     { name: 'The mooring', kind: 'mooring', x: -100, z: -10 },
-    // Search and recover (R7): the datum, outside, where the casualty was last seen.
-    { name: 'Datum', kind: 'special', x: 0, z: -420 },
+    // Search and recover (R7): the datum, outside to the north-west, where the casualty was last seen.
+    { name: 'Datum', kind: 'special', x: -220, z: -460 },
+    // The Kittiwake's cardinals (C5, C7), 70 m off her: pass on the side each names.
+    { name: 'Kittiwake N', kind: 'N', x: 380, z: -590 },
+    { name: 'Kittiwake E', kind: 'E', x: 450, z: -520 },
+    { name: 'Kittiwake S', kind: 'S', x: 380, z: -450 },
+    { name: 'Kittiwake W', kind: 'W', x: 310, z: -520 },
+    // The rock (C5, C7): an isolated danger, clear water all round it.
+    { name: 'Gull Rock', kind: 'isolated', x: 200, z: -330 },
+    // The fast slalom (C4): eight yellow marks north-south, 100 m apart, west of the harbour.
+    ...Array.from({ length: 8 }, (_, i) => ({ name: `Fast slalom ${i + 1}`, kind: 'special' as const, x: -650, z: -250 - i * 100 })),
+    // The stream's crossing (C6): one mark each side of it.
+    { name: 'Race W', kind: 'special', x: -750, z: 150 },
+    { name: 'Race E', kind: 'special', x: -450, z: 150 },
   ],
-  wrecks: [],
+  wrecks: [{ name: 'Kittiwake', x: 380, z: -520, headingDeg: 120, length: 28, listDeg: 40 }],
   lights: [
     { name: 'Training E head Fl R 4s', x: 28, z: -80, y: 7, color: 'red', period: 4, tower: 'post' },
     { name: 'Training W head Fl G 4s', x: -28, z: -80, y: 7, color: 'green', period: 4, tower: 'post' },
+    // The leading lights (C2, C7): fixed white, the rear higher, in line on 180° through the entrance.
+    { name: 'Training front leading light F W', x: 0, z: 255, y: 9, color: 'white', period: 0, tower: 'post' },
+    { name: 'Training rear leading light F W', x: 0, z: 335, y: 17, color: 'white', period: 0, tower: 'post' },
+    // Harbour Head lighthouse, on the head's west side (C3's bearings).
+    { name: 'Harbour Head Fl W 10s', x: -300, z: 360, y: 32, color: 'white', period: 10, tower: 'lighthouse' },
   ],
   shelters: [{ x: 0, z: 70, rIn: 170, rOut: 240, factor: 0.08 }],
   ports: [
@@ -145,7 +173,9 @@ export const TRAINING: RegionDef = {
   pottingGrounds: [],
   fishingGrounds: [],
   fogBanks: [],
-  currents: [],
+  // The stream off the head's west side (C6): north-going, 2.5 kn at its height. Training holds
+  // it at slack except while C6 runs (training.ts; EnvironmentState.raceOverride).
+  currents: [{ id: 'training-stream', name: 'Head Stream', x: -600, z: 150, length: 320, width: 200, setDeg: 0, peakKn: 2.5, periodH: 6, phaseH: 0, waveFactor: 1, knocks: 0 }],
   // Fair weather that stays fair: an exercise sets its own wind and sky.
   weather: {
     next: { Clear: { Clear: 1 }, Overcast: { Clear: 1 }, Fog: { Clear: 1 }, Rain: { Clear: 1 }, Squall: { Clear: 1 } },

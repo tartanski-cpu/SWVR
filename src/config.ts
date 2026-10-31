@@ -2551,8 +2551,14 @@ export const CONFIG = {
    * hold the right mouse button (or Z). The view through them is steadied: it eases onto
    * where you look over `steady` s (VR: the scope's orientation; desktop: the mouse look),
    * since the zoom magnifies every tremor too. 0 is direct.
+   * The bearing (Training M4, docs/TRAINING.md C3): a compass in the binoculars, as many
+   * marine glasses have: the true bearing of the centre of the view shown under the lenses
+   * (degrees, `bearingFont` px on the VR readout's canvas), and a press (VR: the trigger of
+   * the hand holding them; desktop: a left click) takes it: noted on screen, and in Training
+   * reported to the exercise. True, as every heading in the game (no variation).
    */
   binoculars: {
+    bearingFont: 44,
     magnification: 7,
     steady: 0.12,
     stow: [-1.05, 2.6, -1.74] as [number, number, number],

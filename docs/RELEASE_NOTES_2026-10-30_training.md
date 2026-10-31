@@ -1,8 +1,24 @@
-# Workboat World Training: release notes, 30 Oct 2026 (milestones 1 to 3)
+# Workboat World Training: release notes, 30 and 31 Oct 2026 (milestones 1 to 4)
 
 The published page: https://claude.ai/artifact/1YCyusD75iMebk1vM7DK5w (with the development screenshots and two things to try). Try it: https://tartanski-cpu.github.io/SWVR/preview/training/training.html
 
 The third way to play has started. A small walled harbour built for practising boat handling, and five exercises modelled on the RYA Powerboat Scheme and the German SBF. The instructor talks you through each over the VHF, the steps tick off on the duty board, and each attempt ends passed or try again, with the reason and the numbers. It is practice, not a course: nothing here is a certificate.
+
+## Coast practice, and a bearing in the binoculars (Coast, M4, 31 Oct)
+
+The owner: "M4 with the binoculars for the bearing."
+
+- **The bearing:** the binoculars show the true bearing of the middle of the view under the lenses. Desktop: hold the right button (or Z) and click to take it. VR: raise them and pull the trigger of that hand. It shows on screen everywhere; in Training the exercise judges it.
+- **C1 Steer the course:** 060, 120, 090 by hand, 300 m each; each turn begun within 10 s the shorter way, each course held within 5° for 80 % of the leg; the autopilot fails it.
+- **C2 Steer for the mark:** straight for the yellow special mark, then in on two fixed white leading lights behind the quay, within 5 m of the line over the last 200 m.
+- **C3 Where are we?:** stopped, bearings of two charted marks or lights at least 45° apart (each within 3°), drawn on the paper chart, a pot marker on the crossing: within 50 m. Needs a chart table: the pilot boat.
+- **C4 Slalom at speed:** in the RIB, on the plane (over 14 kn) through eight marks and back, then under 6 kn by the entrance.
+- **C5 Read the marks:** past the wreck of the Kittiwake by her four cardinal marks and Gull Rock by its isolated danger mark, in red to port; a danger circle or the bottom fails at once.
+- **C6 Set and drift:** across a 2.5 kn tidal stream on the line between two marks, then back at slack.
+- **C7 Lights at night:** 23:00, lights on, the nearest light named by its rhythm (three answers on the Training tab), then C5's marks by their lights.
+- C1 joins the Examiner's Run: seven manoeuvres, two of the four others to pass.
+- The notes page has a fix to try: two marks, an error on each bearing, and where the fix lands.
+- Limits: not yet on the Quest; the marks' lights are small points at a few hundred metres; bearings are true (no variation).
 
 ## Both courses, the Examiner's Run, and four new pieces of seamanship (Courses, M3)
 

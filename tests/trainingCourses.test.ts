@@ -460,7 +460,7 @@ describe("Training M3: the Examiner's Run and badges", { timeout: 120000 }, () =
     const { send, run, t } = setup();
     send('trainingExam');
     const e = t().exam!;
-    expect(e.items).toHaveLength(6);
+    expect(e.items).toHaveLength(7);
     expect(e.items.filter((x) => x.compulsory)).toHaveLength(3);
     expect(t().id).toBe(e.items[0].id);
     // Fail whatever is running by its clock (out of time), item after item.

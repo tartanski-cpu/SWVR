@@ -43,6 +43,10 @@ export class DesktopPointer {
    * them (no laser, no control press).
    */
   chart: ((ray: THREE.Ray | null, b: { down: boolean; right: boolean; shift: boolean; wheel: number }) => { label: string | null; consumed: boolean }) | null = null;
+  /** Looking through the binoculars (set by the App): a left click takes a bearing and does nothing else. */
+  binoculars: (() => boolean) | null = null;
+  /** A left click while looking through the binoculars, this frame. */
+  bearingClick = false;
   /** The mouse wheel's notches since the last frame (+ toward you), for a planning chart's zoom. */
   private wheel = 0;
 
@@ -153,6 +157,8 @@ export class DesktopPointer {
       camera.getWorldDirection(this.ray.direction);
       ray = this.ray;
     }
+    this.bearingClick = locked && this.pressed && !!this.binoculars?.();
+    if (this.bearingClick) this.pressed = false;
     const onMenu = this.menu.updateDesktop(ray, this.pressed);
     const chart = !onMenu && this.chart && !this.cargo?.carrying() ? this.chart(locked ? ray : null, { down: this.down && locked, right: this.rightDown && locked, shift: this.shift, wheel: locked ? this.wheel : 0 }) : null;
     if (chart?.consumed) {

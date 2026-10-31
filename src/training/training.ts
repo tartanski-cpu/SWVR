@@ -100,6 +100,8 @@ export interface TrainingState {
   horn: { down: number | null; blasts: number; lastUp: number; signal: number; signalAt: number; prolongedAt: number };
   /** The Examiner's Run, while one is on. */
   exam?: ExamState;
+  /** A question waiting for the trainee's answer (C7): shown on the Training tab, answered by trainingAnswer. */
+  ask?: { q: string; choices: string[] };
 }
 
 export function createTraining(): TrainingState {
@@ -108,7 +110,7 @@ export function createTraining(): TrainingState {
 
 const freshHorn = (): TrainingState['horn'] => ({ down: null, blasts: 0, lastUp: -Infinity, signal: 0, signalAt: -Infinity, prolongedAt: -Infinity });
 
-const TRAINING_INTENTS = ['trainingStart', 'trainingRetry', 'trainingRestart', 'trainingAbort', 'trainingExam'];
+const TRAINING_INTENTS = ['trainingStart', 'trainingRetry', 'trainingRestart', 'trainingAbort', 'trainingExam', 'trainingBearing', 'trainingFix', 'trainingAnswer'];
 
 export function isTrainingIntent(control: string): boolean {
   return TRAINING_INTENTS.includes(control);
@@ -125,7 +127,10 @@ export function trainingBoat(world: WorldState): VesselState | undefined {
  * attempt after a "try again" (the first again once both are used); trainingRestart the
  * attempt running, from the beginning, not counted (going round again is never a fault);
  * trainingAbort stops it (and an Examiner's Run), no verdict; trainingExam starts the
- * Examiner's Run.
+ * Examiner's Run. What the trainee reports goes to the exercise running (Coast practice):
+ * trainingBearing (value: a bearing in degrees true, args: where it was taken from, x, z),
+ * trainingFix (args: the position marked on the chart, x, z), trainingAnswer (ref: the
+ * answer's index).
  */
 export function applyTrainingIntent(world: WorldState, intent: Intent): void {
   const t = world.training;
@@ -150,6 +155,7 @@ export function applyTrainingIntent(world: WorldState, intent: Intent): void {
     case 'trainingAbort':
       if (t.id || t.exam) {
         t.queue = [];
+        delete t.ask;
         voice(world, t, t.exam ? "Examiner's Run stopped. Start it again when you are ready." : 'Exercise stopped. Pick another, or the same again, when you are ready.');
         t.id = null;
         delete t.exam;
@@ -159,6 +165,21 @@ export function applyTrainingIntent(world: WorldState, intent: Intent): void {
     case 'trainingExam':
       startExam(world, t, intent.playerId);
       break;
+    case 'trainingBearing':
+    case 'trainingFix':
+    case 'trainingAnswer': {
+      const ex = t.id ? exerciseById(t.id) : undefined;
+      const v = trainingBoat(world);
+      if (!ex || !v) break;
+      const c: Ctx = { world, v, t, d: t.data };
+      const [x, z] = intent.args ?? [];
+      const at = Number.isFinite(x) && Number.isFinite(z);
+      if (intent.control === 'trainingBearing' && Number.isFinite(intent.value)) ex.onBearing?.(c, ((intent.value % 360) + 360) % 360, at ? x : v.position[0], at ? z : v.position[2]);
+      else if (intent.control === 'trainingFix' && at) ex.onFix?.(c, x, z);
+      else if (intent.control === 'trainingAnswer' && Number.isInteger(Number(intent.ref))) ex.onAnswer?.(c, Number(intent.ref));
+      t.seq += 1;
+      break;
+    }
   }
 }
 
@@ -211,6 +232,7 @@ function begin(world: WorldState, t: TrainingState, id: string, attempt: number,
   clearScene(world);
   ex.setup(world, v);
   aboard(world, by, v);
+  delete t.ask;
   Object.assign(t, { id, by, attempt, step: 0, said: false, startedAt: world.time, stepAt: world.time, faults: [], lastFault: {}, data: {}, result: null, quietUntil: 0, horn: freshHorn() });
   // (In an Examiner's Run the examiner's own words go first: they're already queued.)
   if (!t.exam) t.queue = [];
@@ -218,8 +240,9 @@ function begin(world: WorldState, t: TrainingState, id: string, attempt: number,
   voice(world, t, `${ex.code} ${ex.name}${t.exam ? '' : `, attempt ${attempt} of ${CONFIG.training.attempts}`}. ${ex.brief}`);
 }
 
-/** The last exercise's scene cleared: the casualty, the tow, the fire. */
+/** The last exercise's scene cleared: the casualty, the tow, the fire; the stream held slack (C6 runs it). */
 function clearScene(world: WorldState): void {
+  world.environment.raceOverride = 'slack';
   if (world.rescue) world.rescue.active = null;
   if (world.tow?.job) {
     const id = world.tow.job.vesselId;
@@ -345,6 +368,11 @@ function trackHorn(world: WorldState, t: TrainingState, v: VesselState): void {
   }
 }
 
+/** Say a line in its turn (an exercise's reply to a bearing, a fix or an answer). */
+export function trainingSay(world: WorldState, text: string): void {
+  if (world.training) voice(world, world.training, text);
+}
+
 /** One tick (host): announce the step, watch for faults, check the step, move on, judge at the end. */
 export function stepTraining(world: WorldState): void {
   const t = world.training;
@@ -416,6 +444,7 @@ function fault(world: WorldState, t: TrainingState, kind: string, weight: number
 
 function finish(world: WorldState, t: TrainingState, code: string, name: string, passed: boolean, reason: string, numbers: [string, string][], ender = false): void {
   const id = t.id!;
+  delete t.ask;
   const total = t.faults.reduce((s, f) => s + f.weight, 0);
   t.result = { id, name: `${code} ${name}`, attempt: t.attempt, passed, reason, numbers, faults: [...t.faults], total, t: world.time };
   if (passed && !t.passed.includes(id)) t.passed.push(id);

@@ -353,12 +353,12 @@ const R7: ExerciseDef = {
   name: 'Search and recover',
   course: 'rescue',
   practises: 'RYA Advanced: search patterns; then man overboard recovery',
-  brief: 'A person was last seen by the yellow datum mark north of the entrance, ten minutes ago, and the fog is in. Go to the datum, then search it in an expanding square: I will call each leg, its course and its length. When you sight them, recover them as before: out of gear by them.',
+  brief: 'A person was last seen by the yellow datum mark north-west of the entrance, ten minutes ago, and the fog is in. Go to the datum, then search it in an expanding square: I will call each leg, its course and its length. When you sight them, recover them as before: out of gear by them.',
   limitS: 1500,
   setup(world, v) {
-    placeFree(v, 0, -330, 0);
-    setFog(world);
     const d = datum();
+    placeFree(v, d.x, d.z + 90, 0);
+    setFog(world);
     dropCasualty(world, d.x + cfg().search.offset[0], d.z + cfg().search.offset[1]);
   },
   steps: [

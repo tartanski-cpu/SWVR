@@ -3,7 +3,8 @@
  * training harbour (world/regions/training.ts), sets the wind, then has its steps, its own
  * faults (`watch`, every tick) and its test at the end (`verdict`), with the numbers the card
  * shows. The limits are CONFIG.training's. Here Milestone 1's five of Course 1 (Harbour
- * practice); the rest of it is harbourCourse.ts, Course 2 (Rescue practice) rescueCourse.ts.
+ * practice); the rest of it is harbourCourse.ts, Course 2 (Rescue practice) rescueCourse.ts,
+ * Course 3 (Coast practice) coastCourse.ts.
  *
  * Each brief says which syllabus item it practises; the game is practice modelled on the RYA
  * Powerboat Scheme and the SBF, never a course or a certificate.
@@ -16,6 +17,7 @@ import type { VesselState } from '../vessel/vesselState';
 import { aheadKn, cfg, DOCK, FACE, fmt, heading, inLane, KN, LANE, lengthOf, placeAt, placeFree, setWind, speedKn, stopped, turnFrom, type ExerciseDef } from './exerciseKit';
 import { HARBOUR_MORE } from './harbourCourse';
 import { RESCUE } from './rescueCourse';
+import { COAST } from './coastCourse';
 
 export { KN, speedKn, heading, turnFrom, type Ctx, type ExerciseDef, type StepDef } from './exerciseKit';
 
@@ -326,16 +328,17 @@ const H5T: ExerciseDef = { ...H5, id: 'stopOnCourseSkiff', code: 'H5T', name: 'S
 const H6T: ExerciseDef = { ...H6, id: 'turnInDockSkiff', code: 'H6T', name: 'Turn in the dock (tiller)', boat: 'skiff', practises: `${H6.practises}; RYA: tiller steering`, brief: SKIFF_START + H6.brief.replace('three of her lengths', 'many of her lengths') };
 
 /** Every exercise, in the order the Training tab lists them (by course, then number). */
-export const EXERCISES: readonly ExerciseDef[] = [...HARBOUR_MORE.filter((e) => ['H1', 'H2', 'H3'].includes(e.code)), H4, H5, H6, ...HARBOUR_MORE.filter((e) => e.code === 'H7'), H8, ...HARBOUR_MORE.filter((e) => e.code === 'H9'), H10, ...HARBOUR_MORE.filter((e) => !['H1', 'H2', 'H3', 'H7', 'H9'].includes(e.code)), H5T, H6T, ...RESCUE];
+export const EXERCISES: readonly ExerciseDef[] = [...HARBOUR_MORE.filter((e) => ['H1', 'H2', 'H3'].includes(e.code)), H4, H5, H6, ...HARBOUR_MORE.filter((e) => e.code === 'H7'), H8, ...HARBOUR_MORE.filter((e) => e.code === 'H9'), H10, ...HARBOUR_MORE.filter((e) => !['H1', 'H2', 'H3', 'H7', 'H9'].includes(e.code)), H5T, H6T, ...RESCUE, ...COAST];
 
 /**
  * The Examiner's Run (docs/TRAINING.md; the SBF practical's form): its compulsory manoeuvres
- * (man overboard, coming alongside, leaving), the others (two of the three must pass), and the
+ * (man overboard, coming alongside, leaving), the others (two of the four must pass; C1, steering
+ * by compass, joined them with Coast practice in M4), and the
  * faults that end it there and then (a prop strike, a hard knock, gear engaged by a swimmer).
  */
 export const EXAM = {
   compulsory: ['mobIntoWind', 'alongsideWindOff', 'leaveSlot'],
-  other: ['stopOnCourse', 'turnInDock', 'hornSignals'],
+  other: ['stopOnCourse', 'turnInDock', 'hornSignals', 'steerCourse'],
   otherToPass: 2,
   enders: ['knock', 'strike', 'gearSwimmer'],
 };

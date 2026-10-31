@@ -1306,6 +1306,7 @@ export class App {
     const onboard = this.world.players[this.localPlayerId]?.aboardVesselId;
     if (onboard) this.vesselViews.get(onboard)?.root.updateMatrixWorld();
     this.updateInteraction(inXR);
+    this.bearingTaken();
     this.updateGestures(inXR);
     this.updateLocomotion(dt, inXR);
     this.updateStrike(dt);
@@ -5099,6 +5100,8 @@ export class App {
       { passive: false },
     );
     this.pointer.gearHeld = () => this.gear.some((g) => g.held === 'desk');
+    // Looking through the binoculars, a click takes a bearing (binoculars.ts).
+    this.pointer.binoculars = () => this.binoculars.looking;
     // The reticle on a planning chart in the world works it (voyage/chartPad.ts); else, with
     // the chart table's leaf unfolded on a paper sheet, the pencil draws.
     this.pointer.chart = (ray, b) => {
@@ -5803,6 +5806,7 @@ export class App {
       return;
     }
     this.pointer?.update(this.camera);
+    if (this.pointer?.bearingClick) this.binoculars.take();
     this.radio.updateDesktop(userSettings.voiceChat && this.keyboard.action('talk'));
     for (const g of this.gear) if (g.aboard) g.updateDesktop(this.camera, !!this.pointer?.gearDown, !!this.pointer?.gearPressed);
     if (this.keyboard.actionPressed('hangGear')) for (const g of this.gear) if (g.held) g.hangBack();
@@ -5903,8 +5907,23 @@ export class App {
     }
   }
 
+  /**
+   * A bearing taken through the binoculars (binoculars.ts): said on screen, and in an exercise
+   * reported to it (training/training.ts: from where it was taken, for the judging).
+   */
+  private bearingTaken(): void {
+    const b = this.binoculars.takeBearing();
+    if (!b) return;
+    this.overlay.notify(`Bearing ${String(Math.round(b.deg) % 360).padStart(3, '0')}°`, 3);
+    const home = this.world.homeVesselId;
+    if (this.world.training?.id && home) this.intents.push({ playerId: this.localPlayerId, targetId: home, control: 'trainingBearing', value: b.deg, args: [b.x, b.z] });
+  }
+
   /** A chart op from this player: apply it here and share it (host: to all; client: to the host). */
   private sendChartOp(op: ChartOp): void {
+    // In an exercise a pot marker put on the chart is the position you've fixed (training.ts).
+    const home = this.world.homeVesselId;
+    if (op.k === 'token' && this.world.training?.id && home) this.intents.push({ playerId: this.localPlayerId, targetId: home, control: 'trainingFix', value: 1, args: [op.x, op.z] });
     applyChartOp(this.marks, op);
     if (this.host) this.host.broadcastChart(op);
     else if (this.client?.status === 'connected') this.client.sendChart(op);

@@ -34,6 +34,8 @@ export interface StepDef {
   /** As it comes up (after its words go out): a measurement to start, the boat to put back. */
   enter?(c: Ctx): void;
   done(c: Ctx): boolean;
+  /** A question's three answers (C7): shown on the Training tab while this step is on; the trainee's pick is `onAnswer`'s. */
+  choices?: string[];
 }
 
 export interface ExerciseDef {
@@ -42,7 +44,7 @@ export interface ExerciseDef {
   code: string;
   name: string;
   /** Which course it's in (the Training tab's sections). */
-  course: 'harbour' | 'rescue';
+  course: 'harbour' | 'rescue' | 'coast';
   /** The syllabus items it practises (shown on the Training tab). */
   practises: string;
   /** The first words over the VHF. */
@@ -62,6 +64,12 @@ export interface ExerciseDef {
   verdict(c: Ctx): { passed: boolean; reason: string };
   /** The numbers on the card. */
   numbers(c: Ctx): [string, string][];
+  /** A bearing taken through the binoculars (deg true) from (x, z) (C3; binoculars.ts). */
+  onBearing?(c: Ctx, deg: number, x: number, z: number): void;
+  /** A position marked on the paper chart with a pot marker (C3). */
+  onFix?(c: Ctx, x: number, z: number): void;
+  /** An answer picked on the Training tab (the step's `choices` index). */
+  onAnswer?(c: Ctx, choice: number): void;
 }
 
 // ── The harbour's places (world/regions/training.ts) ──

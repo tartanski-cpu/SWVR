@@ -15,7 +15,7 @@ export interface TrainingMenuHost {
   /** The world's training state (WorldState.training), or null before the host has made it. */
   training(): TrainingState | null;
   /** Send a training intent (training.ts applyTrainingIntent): to start one, `ref` is its id. */
-  trainingSend(control: 'trainingStart' | 'trainingRetry' | 'trainingRestart' | 'trainingAbort' | 'trainingExam', ref?: string): void;
+  trainingSend(control: 'trainingStart' | 'trainingRetry' | 'trainingRestart' | 'trainingAbort' | 'trainingExam' | 'trainingAnswer', ref?: string): void;
   /** The runs recorded and kept on this page, and their review (trainingRuns.ts); null outside Training. */
   trainingRuns(): TrainingRunsApi | null;
   /** The training boat (her vessel type) and the choice of it: the page starts again in her. */
@@ -23,7 +23,7 @@ export interface TrainingMenuHost {
   setTrainingBoat(id: string): void;
 }
 
-/** The boats the trainee can choose (the fishing boat the course's own; the pilot boat for the fire exercise's monitor). */
+/** The boats the trainee can choose (the fishing boat the course's own; the pilot boat for the fire monitor, the towing post and the chart table). */
 const BOATS: [string, string][] = [
   ['fishingBoat', 'Fishing boat'],
   ['pilotBoat', 'Pilot boat'],
@@ -67,6 +67,9 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
         { text: 'Stop', press: () => h.trainingSend('trainingAbort') },
       ],
     },
+    // A question asked (C7): the three answers to pick from.
+    { label: 'Asked', when: () => !!t()?.ask, buttons: [{ text: () => t()?.ask?.q ?? '', weight: 3 }] },
+    ...[0, 1, 2].map((i): MenuRow => ({ label: '', when: () => !!t()?.ask?.choices[i], buttons: [{ text: () => t()?.ask?.choices[i] ?? '', press: () => h.trainingSend('trainingAnswer', String(i)) }] })),
     // The last verdict in short, with the next attempt (the whole card: the Result section).
     {
       label: 'Last',
@@ -85,26 +88,22 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
     ],
   });
   /** A course's badge: its worst exercise's, once every one of them has one. */
-  const courseBadge = (course: 'harbour' | 'rescue') => {
+  const courseBadge = (course: 'harbour' | 'rescue' | 'coast') => {
     const order = ['gold', 'silver', 'bronze'];
     const all = EXERCISES.filter((e) => e.course === course).map((e) => badge(e.id));
     if (all.some((b) => !b)) return null;
     return all.reduce((w, b) => (order.indexOf(b!) > order.indexOf(w!) ? b : w), 'gold');
   };
-  const course = (which: 'harbour' | 'rescue', title: string): MenuRow[] => [
+  const course = (which: 'harbour' | 'rescue' | 'coast', title: string): MenuRow[] => [
     { heading: title },
     { label: '', buttons: [{ text: () => (courseBadge(which) ? `Course badge: ${BADGE[courseBadge(which)!]}` : 'Practice modelled on the RYA and SBF schemes: not a course, no certificate'), weight: 3 }] },
     ...now,
     { show: CONFIG.training.menuRows, scroll: EXERCISES.filter((e) => e.course === which).map(exerciseRow) },
     { label: '', when: () => !running(), buttons: [{ text: () => EXERCISES.find((e) => e.id === result()?.id)?.practises ?? 'Each one is a few minutes afloat. The steps come over the VHF and on the duty board in the wheelhouse.', weight: 3 }] },
-    ...(which === 'harbour'
-      ? ([
-          {
-            label: 'Boat',
-            buttons: BOATS.map(([id, name]) => ({ text: name, active: () => h.trainingBoat() === id, press: () => h.setTrainingBoat(id) })),
-          },
-        ] as MenuRow[])
-      : []),
+    {
+      label: 'Boat',
+      buttons: BOATS.map(([id, name]) => ({ text: name, active: () => h.trainingBoat() === id, press: () => h.setTrainingBoat(id) })),
+    },
   ];
   const exam: MenuRow[] = [
     { heading: "Examiner's Run" },
@@ -227,6 +226,7 @@ export function trainingPage(h: TrainingMenuHost): MenuPage {
     sections: [
       { name: 'Harbour', rows: course('harbour', 'Harbour practice') },
       { name: 'Rescue', rows: course('rescue', 'Rescue practice') },
+      { name: 'Coast', rows: course('coast', 'Coast practice') },
       { name: 'Exam', rows: exam },
       { name: 'Result', rows: card },
       { name: 'Runs', rows: runs },

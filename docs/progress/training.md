@@ -10,6 +10,36 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### M4: Coast practice, and a bearing in the binoculars (31 Oct 2026)
+
+**On `preview/training` for the owner to try.** Owner, 31 Oct 2026: "M4 with the binoculars for the bearing" (plan question 6: the readout in the binoculars, not a held hand-bearing compass; bearings true, no variation, as every heading in the game).
+
+**The bearing** (shared, `src/player/binoculars.ts`): a compass in the binoculars, as many marine glasses have. The true bearing of the middle of the view shows under the lenses (desktop a line of text; VR a small canvas on the lens layer, redrawn only when the whole degree changes, with a fine tick in the lens shader to aim by). A press takes it: VR the trigger of the hand holding them, desktop a left click while looking (`DesktopPointer.bearingClick`, so the click presses nothing else). The App shows "Bearing 247°" and, in an exercise, sends it as the `trainingBearing` intent with where it was taken from. Everywhere in the game, not only Training. `CONFIG.binoculars.bearingFont`.
+
+**The fix:** a pot marker put on the paper chart during an exercise is sent as `trainingFix` (the chart marks live outside the world state, so this is the small intent the plan asked for). **Answers:** `trainingAnswer`, from the Training tab's question rows (`TrainingState.ask`).
+
+**The harbour outside** (`world/regions/training.ts`; its footprint grown to 2.2 by 2.25 km): the wreck of the Kittiwake (28 m, on her side, solid) with her four cardinal marks 70 m off; Gull Rock, awash, with an isolated-danger mark; two fixed white leading lights behind the quay, in line on 180° through the entrance (front 9 m, rear 17 m); the Harbour Head lighthouse (Fl W 10s) on the head's west side; eight fast slalom marks 100 m apart west of the harbour; the Head Stream (2.5 kn north at its height) between two yellow marks off the head's west side, held at slack except in C6. R7's datum moved north-west, off the leading line (R7 starts south of it as before). All on the paper chart with their light characters.
+
+**The exercises** (`src/training/coastCourse.ts`), on the Training tab's new **Coast** page:
+- **C1 Steer the course** (SBF "Steuern nach Kompass"): up to 6 kn, then 060°, 120°, 090°, 300 m each, by hand: each turn begun within 10 s the shorter way, each course held within 5° for 80 % of its leg. The autopilot on fails it.
+- **C2 Steer for the mark** (SBF steering by marks; RYA Advanced transits): straight for the yellow datum mark (her head within 10° of its bearing for 80 % of the way), then on the leading line well outside and in on it: within 5 m for 80 % of the last 200 m.
+- **C3 Where are we?** (SBF "Peilen"; RYA L2 position fixing): stopped, two bearings of charted marks or lights at least 45° apart (each within 3°; a bearing with nothing charted within 8° isn't counted, nor a second too close to the first), plotted on the chart, a pot marker on the fix: within 50 m. Needs a chart table: the pilot boat (the fishing boat has none; the exercise says so).
+- **C4 Slalom at speed** (RYA L2 high-speed manoeuvres): in the RIB (put in the water with you aboard; kill cord, key, START), on the plane (over 14 kn for 80 % of the run; she makes 28) through the eight marks alternately, round the last and back, none closer than 3 m; then under 6 kn near the entrance. Measured: the RIB is over 16 kn in 5 s.
+- **C5 Read the marks** (RYA L2 buoyage; SBF lateral and cardinal marks): from the north-east, past the wreck (each cardinal passed within 100 m is judged on its side at her closest), Gull Rock left clear, in between the entrance buoys red to port. Inside the wreck's 40 m or the rock's 25 m, or touching the bottom, fails at once.
+- **C6 Set and drift** (RYA L2 and Intermediate; SBF set and drift): across the running stream on the line between the two marks (within 10 m for 80 % of the crossing, arriving within 10 m), then back at slack.
+- **C7 Lights at night** (RYA Advanced night pilotage; SBF light characters): 23:00, nav lights on, then "the nearest white light: what is it?" with three answers on the Training tab (the right one the nearest light's mark, by its rhythm), then C5's marks by their lights.
+- **The Examiner's Run:** C1 joins its others (now seven manoeuvres: three compulsory and two of the four others).
+- **Config keys:** `CONFIG.training.coast` (`capKn`, `windKn`, `windFrom`, `steer`, `forMark`, `fix`, `fastSlalom`, `marks`, `stream`, `night`), `CONFIG.binoculars.bearingFont`.
+- **Tests:** `tests/trainingCoast.test.ts` (12): the marks, the leading line's water, the stream; C1 passed and failed by a turn the wrong way, and the autopilot; C2 on the line and 8 m off it; C3 needing the chart table, bearings matched, too close, nothing charted, a fix at 20 m and at 100 m; C4 through the 16 passes in the RIB; C5 the right way, a cardinal the wrong side, the wreck's circle; C6 the stream running then slack; C7 the light named right and wrong; the binoculars' bearing north and east and the press taken once. `tests/trainingCourses.test.ts`: the Examiner's Run has seven items. The typecheck and all of `npm test` pass.
+- **Seen headless:** the Coast page; the wreck and her cardinals from the start; the leading posts in line from the line; the binoculars' readout (180°); the RIB at the slalom; C7 at night with its question and three answers; the paper chart of the harbour with every new mark. No page errors.
+- **Not checked:** on the Quest (the VR readout and the trigger to take a bearing); the exercises sailed to a pass by hand; plotting a fix on the chart table by hand. The marks' lights at night are small at 200 m (the game's own light points), so C7's rhythm-counting may want the binoculars.
+- **Shared changes:** `src/player/binoculars.ts` (the readout, `bearing()`, `take()`, `takeBearing()`), `src/app/desktopPointer.ts` (`binoculars`, `bearingClick`), `src/app/App.ts` (a click through the binoculars takes a bearing; `bearingTaken`; a pot marker in an exercise sends `trainingFix`), `src/config.ts` (`binoculars.bearingFont`), `README.md`.
+
+**Try it**
+
+- *Desktop:* Training tab, **Coast**. **C1**: F for the helm, W up to 6 kn, then steer each course as called (the heading is on the console). **C2**: Z for the binoculars to find the yellow mark, then the two white posts behind the quay: get one above the other. **C3**: Boat, **Pilot boat** first; stop, hold Z (or the right button) and click on a buoy or a light to take its bearing, then a second well round from it; at the chart table draw both lines and put a pot marker on the crossing. **C4**: the RIB; Boat tab, Kill cord, Clip on; key and START; through the marks. **C7**: at night, nav lights on, Menu, Training, Coast: the question's three answers under "Asked".
+- *VR:* the same; pick the binoculars off the dash, raise them, the bearing is under the lenses; pull the trigger of that hand to take it. Please check the readout is easy to read and steady.
+
 **30 Oct 2026, owner: "Push to next".** M3 merged into `next` (`origin/next` had nothing new). All of `npm test` (1,958) and the typecheck pass.
 
 ### M3: Harbour practice complete, Rescue practice, the Examiner's Run, and the missing mechanics (30 Oct 2026)
