@@ -159,10 +159,27 @@ export const SHIPYARD_CONFIG = {
      * own sliders. No wheelhouse: an open helm (vessel/layout.ts `open`) at her console:
      *   tubes          her tubes (modules/tubes, CONFIG.modules.tubes.rib) scaled with her
      *                  depth (their radius) and length; `kgPerM` of tube a metre;
-     *   console        the jockey console and leaning post (modules/ribConsole), as the crane
-     *                  RIB's: its body `halfWidth` across, `depth` fore and aft, `top` above her
-     *                  deck; the leaning post `postGap` aft of it, `postDepth` deep; `kg` for
-     *                  both (GRP, the windscreen, the post's frame);
+     *   consoles       her console (design.ribConsole; owner, 31 Oct 2026: "on the bigger ones,
+     *                  slightly bigger console with some room for instruments, and on the
+     *                  smaller ones like the existing one, just get on and drive it"), each
+     *                  with its leaning post (modules/ribConsole), from `minLength` (m, her
+     *                  length) up:
+     *                    0 jockey   the crane RIB's: a narrow console, the wheel, throttle,
+     *                               key and two small screens on its top, stood at;
+     *                    1 T-top    a centre console with a T-top over it and the leaning
+     *                               post (a frame on four legs, a canopy on top, the radios
+     *                               and chartplotter hung under it), its dash a wheelhouse
+     *                               helm's (screens and switch panel, the Controls step's);
+     *                    2 wide     as the T-top's, but across her deck to `walkway` from
+     *                               her tubes each side (at most `halfWidth` each side of her
+     *                               centreline), a bench for three aft of it, a hardtop.
+     *                  Each: its body `halfWidth` across (each side), `depth` fore and aft,
+     *                  `top` above her deck, its windscreen `screen` high; the leaning post
+     *                  `postGap` aft of it, `postDepth` deep, `postHalfWidth` across; the
+     *                  `roof` (none on the jockey) `height` over her deck, reaching `fwd` past
+     *                  the console's front and `aft` past the post's back, `halfWidth`
+     *                  across (`overhang` past the console's sides, the wide one's), `thick`;
+     *                  `kg` the lot (GRP, glass, the frame and canopy);
      *   smallOutboard  the 150 hp outboard (CONFIG.vessels.rib.motor): `spacing` between
      *                  units, its `bracket` (a short transom plate: a RIB's motors hang on her
      *                  transom), `pricePerKw`.
@@ -174,7 +191,11 @@ export const SHIPYARD_CONFIG = {
       /** An open boat's fit-out (wiring, fittings, paint: no interior or windows) as this share of a wheelhouse boat's; her stores this share. */
       outfitShare: 0.3,
       storesShare: 0.2,
-      console: { halfWidth: 0.36, depth: 0.65, top: 1.08, postGap: 0.8, postDepth: 0.4, kg: 90 },
+      consoles: [
+        { name: 'Jockey', minLength: 0, halfWidth: 0.36, depth: 0.65, top: 1.08, screen: 0.32, postGap: 0.8, postDepth: 0.4, postHalfWidth: 0.32, roof: null, kg: 90 },
+        { name: 'T-top', minLength: 7, halfWidth: 0.5, depth: 0.7, top: 0.95, screen: 0.45, postGap: 0.75, postDepth: 0.5, postHalfWidth: 0.55, roof: { height: 2.05, fwd: 0.15, aft: 0.25, halfWidth: 0.8, thick: 0.08 }, kg: 240 },
+        { name: 'Wide', minLength: 9, halfWidth: 1.0, walkway: 0.55, depth: 0.75, top: 0.95, screen: 0.5, postGap: 0.8, postDepth: 0.55, postHalfWidth: 0.85, roof: { height: 2.1, fwd: 0.1, aft: 0.3, overhang: 0.15, thick: 0.1 }, kg: 420 },
+      ] as { name: string; minLength: number; halfWidth: number; walkway?: number; depth: number; top: number; screen: number; postGap: number; postDepth: number; postHalfWidth: number; roof: { height: number; fwd: number; aft: number; halfWidth?: number; overhang?: number; thick: number } | null; kg: number }[],
       /**
        * An inboard (on a stern drive) under an engine box on her open deck, as RIBs carry them
        * (she has no depth under her deck for it): the engine may stand up to `maxHeight` over

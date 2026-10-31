@@ -498,7 +498,8 @@ export const RIB = 10;
  * inboard on a stern drive) and her paint (her hull, console and tubes). The rest is fixed:
  * no wheelhouse, no bulwarks but her tubes, no deck gear yet (RIB stop 3).
  */
-const RIB_KEYS: (keyof ShipDesign)[] = ['length', 'beam', 'depth', 'housePos', 'engine', 'twin', 'outboards', 'oneOutboard', 'outboardSize', 'gear'];
+// (Her console, and with the bigger ones the instruments on it: the Controls step's.)
+const RIB_KEYS: (keyof ShipDesign)[] = ['length', 'beam', 'depth', 'housePos', 'ribConsole', 'engine', 'twin', 'outboards', 'oneOutboard', 'outboardSize', 'gear', 'controls', 'helmAssist', 'oldSchool', 'touch'];
 const RIB_FIXED: Partial<ShipDesign> = {
   ...Object.fromEntries(Object.entries(EVERYTHING).filter(([k]) => !RIB_KEYS.includes(k as keyof ShipDesign))),
   hull: RIB,
@@ -513,7 +514,6 @@ const RIB_FIXED: Partial<ShipDesign> = {
   guard: 0,
   rails: 1,
   noAnchor: 1,
-  controls: 0,
   markings: 0,
   // (Her deck gear comes later: RIB stop 3.)
   searchlight: 0,
@@ -869,9 +869,9 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 0.6,
     foredeck: 1.0,
     fixed: RIB_FIXED,
-    oneOffNote: 'A RIB: an open boat with her helm at a console, her sides inflatable tubes. Yours to choose: her length (5 to 12 m), beam and depth, where her console stands, her engines (one to four outboards, or an inboard on a stern drive) and her paint: her hull, her console and her tubes.',
+    oneOffNote: 'A RIB: an open boat with her helm at a console, her sides inflatable tubes. Yours to choose: her length (5 to 12 m), beam and depth, her console (a jockey console, a T-top from 7 m, a wide console from 9 m) and where it stands, the instruments on a bigger one, her engines (one to four outboards, or an inboard on a stern drive) and her paint: her hull, her console and her tubes.',
     // As the crane RIB: 6 m, one 150 hp outboard, dark grey under orange tubes, the console light grey.
-    defaults: { ...RIB_FIXED, ...fromSteps({ length: 8, beam: 8, depth: 8 }), housePos: 0.35, engine: 0, twin: 0, outboards: 0, oneOutboard: 1, outboardSize: 1, paint: 0, houseColour: 0, tubeColour: 0, finish: 2 },
+    defaults: { ...RIB_FIXED, ...fromSteps({ length: 8, beam: 8, depth: 8 }), housePos: 0.35, engine: 0, twin: 0, outboards: 0, oneOutboard: 1, outboardSize: 1, ribConsole: 0, controls: 0, helmAssist: 0, oldSchool: 0, touch: 0, paint: 0, houseColour: 0, tubeColour: 0, finish: 2 },
   },
 ];
 

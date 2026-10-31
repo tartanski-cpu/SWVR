@@ -21,7 +21,7 @@ import type { HullDefPart } from './hullDef';
 import type { FurniturePart } from './furniture';
 import type { HoldPart } from './hold';
 import { electricOf, motorSpec } from './solar';
-import { ribTubes } from './rib';
+import { ribInstruments, ribTubes } from './rib';
 import type { RibConsoleConfig } from '../../modules/ribConsole';
 import type { TubesConfig } from '../../modules/tubes';
 
@@ -208,6 +208,9 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // The console, laid out across her cabin: the landing craft's dash, widened or narrowed.
   const consoleMount = bySocket(recipe.modules, 'helm')!;
   const cc = consoleMount.config as Record<string, any>;
+  // (An open boat's, the RIB's: no cabin light or wipers on her console; her bigger consoles
+  // keep the rest, laid out across them below. Her jockey console's is its own: openBoat.)
+  if (p.base.open) consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'cabinLight' && m.socket !== 'wipers');
   // The helm's searchlight and monitor controls: always for a unit on the roof (the only
   // place to work it from); for one on a pole (which has its own) with the advanced controls.
   const lampAtHelm = lampOnRoof || (!!lampFoot && !!d.controls);
@@ -859,7 +862,8 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   if (p.holdMount) recipe.modules.push(p.holdMount);
   // An open boat (the RIB's, places.ts ribHelm): her console in place of a wheelhouse.
   if (p.ribHelm) {
-    openBoat(recipe, p.ribHelm, ribTubes(p.size, d), p.hull.sockets.map((s) => s.id));
+    openBoat(recipe, p.ribHelm, ribTubes(p.size, d), p.hull.sockets.map((s) => s.id), p.ribKind);
+    if (!ribInstruments(p.ribKind) && (d.controls || d.helmAssist)) p.warnings.push('The jockey console has room for the basics only (the wheel, throttle, key and two small screens): her instruments and helm assist need a T-top or wide console (7 m and up).');
     // Her inboard's engine box (engineRoom.ts: its lid the hatch), solid on her deck.
     const hatch = recipe.modules.find((m) => m.socket === 'engineHatch');
     const deck = p.q.deckY((eh.z0 + eh.z1) / 2);
@@ -877,12 +881,35 @@ export type RecipePart = ReturnType<typeof recipePart>;
  * at its top her jockey helm, as the crane RIB's (boats/rib.ts): the wheel on its aft face,
  * the throttle to starboard, the key and START to port, the speed and rev screens in a small
  * dash, the NAV LIGHTS switch and the horn. Her navigation lights on a pole over the leaning
- * post, her sidelights on the console's forward corners.
+ * post, her sidelights on the console's forward corners. On a bigger console (`kind`: a
+ * T-top's or the wide one's, ribInstruments), its helm as a wheelhouse's, laid out across it
+ * (recipePart: her screens and switch panel, the Controls step's), its pedestals down to her
+ * deck; her navigation lights on its roof.
  */
-function openBoat(recipe: Recipe, c: RibConsoleConfig & { colour?: number }, tubes: TubesConfig, sockets: string[]): void {
+function openBoat(recipe: Recipe, c: RibConsoleConfig & { colour?: number }, tubes: TubesConfig, sockets: string[], kind: number): void {
   const has = new Set(sockets);
   recipe.modules = recipe.modules.filter((m) => has.has(m.socket));
   const helm = recipe.modules.find((m) => m.socket === 'helm')!;
+  const r100 = (v: number) => Math.round(v * 100) / 100;
+  const side = (s: number): V3 => [r100(s * (c.halfWidth + 0.02)), r100(c.top - 0.12), r100(c.front + 0.12)];
+  if (ribInstruments(kind) && c.roof) {
+    const cc = helm.config as Record<string, any>;
+    cc.pedestals = { ...cc.pedestals, floor: -CONFIG.shipyard.rib.consoles[kind].top };
+    const nav = recipe.modules.find((m) => m.socket === 'navLights');
+    if (nav) {
+      const foot = c.roof.top;
+      const z = r100(c.roof.aft - 0.15);
+      nav.config = { mast: { footY: foot }, lights: { masthead: [0, r100(foot + 0.6), z], port: side(-1), starboard: side(1), stern: [0, r100(foot + 0.3), z] } };
+      nav.modules = [];
+    }
+    recipe.modules.push(
+      { socket: 'tubes', module: 'hull.tubes', config: tubes as unknown as Record<string, unknown> },
+      { socket: 'ribConsole', module: 'deck.rib-console', config: c as unknown as Record<string, unknown> },
+    );
+    const controls = new Set([...recipe.modules.map((m) => m.socket), ...(helm.modules ?? []).map((m) => m.socket)]);
+    recipe.interlocks = (recipe.interlocks ?? []).filter((l) => !l.disable || l.disable.every((x) => controls.has(x.replace(/^control:/, ''))));
+    return;
+  }
   helm.config = {
     instrumentsAmps: 1,
     dash: { front: -0.6, aft: -0.36, bottom: 0, top: 0.2, halfWidth: c.halfWidth - 0.02 },
@@ -910,7 +937,6 @@ function openBoat(recipe: Recipe, c: RibConsoleConfig & { colour?: number }, tub
   if (nav) {
     const foot = Math.round((c.post.top + 0.42) * 100) / 100;
     const z = Math.round((c.post.aft + 0.04) * 100) / 100;
-    const side = (s: number): V3 => [Math.round(s * (c.halfWidth + 0.02) * 100) / 100, Math.round((c.top - 0.12) * 100) / 100, Math.round((c.front + 0.12) * 100) / 100];
     nav.config = { mast: { footY: foot }, lights: { masthead: [0, Math.round((foot + 0.9) * 100) / 100, z], port: side(-1), starboard: side(1), stern: [0, Math.round((foot + 0.6) * 100) / 100, z] } };
     // (No wind vane on her pole.)
     nav.modules = [];

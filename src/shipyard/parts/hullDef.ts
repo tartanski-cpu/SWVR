@@ -162,7 +162,11 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
   const ribWindage = () => {
     const tubeTop = layout.bulwarkHeight;
     const cH = rh!.top - q.deckY((rh!.front + rh!.aft) / 2);
-    return { side: Math.round(lengthM * (freeboard + tubeTop) + (rh!.aft - rh!.front) * cH), front: Math.round(beamDeck * (freeboard + tubeTop) + 2 * rh!.halfWidth * cH), center: [0, r2(freeboard + 0.4), r2((rh!.front + rh!.aft) / 2)] as V3 };
+    // (A T-top's or hardtop's roof, its edge a deep canopy's: 0.2 m of it side-on and ahead.)
+    const r = rh!.roof;
+    const roofSide = r ? (r.aft - r.front) * 0.2 : 0;
+    const roofFront = r ? 2 * r.halfWidth * 0.2 : 0;
+    return { side: Math.round(lengthM * (freeboard + tubeTop) + (rh!.aft - rh!.front) * cH + roofSide), front: Math.round(beamDeck * (freeboard + tubeTop) + 2 * rh!.halfWidth * cH + roofFront), center: [0, r2(freeboard + (r ? 0.6 : 0.4)), r2((rh!.front + rh!.aft) / 2)] as V3 };
   };
   const ribStowage = () => {
     const mid = (rh!.front + rh!.aft) / 2;
@@ -170,7 +174,8 @@ export function hullDefPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     return {
       extinguisher: [r2(rh!.halfWidth + 0.08), r2(deck + 0.32), r2(rh!.front + 0.15)] as V3,
       torch: [r2(-rh!.halfWidth - 0.06), r2(deck + 0.85), r2(rh!.aft - 0.12)] as V3,
-      binoculars: { at: [-0.18, r2(rh!.top + 0.04), r2(rh!.front + 0.28)] as V3, yawDeg: 0 },
+      // (A bigger console's top is its dash and switches: on the leaning post's bolster, to port.)
+      binoculars: rh!.roof ? { at: [r2(-(rh!.post.halfWidth - 0.15)), r2(rh!.post.top + 0.04), r2((rh!.post.front + rh!.post.aft) / 2)] as V3, yawDeg: 0 } : { at: [-0.18, r2(rh!.top + 0.04), r2(rh!.front + 0.28)] as V3, yawDeg: 0 },
     };
   };
   const hull: HullDefinition = {

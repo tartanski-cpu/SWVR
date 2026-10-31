@@ -14,14 +14,33 @@ import { CONFIG } from '../../config';
 import type { GearFootprint, ModuleDefinition } from '../../modular/module';
 import { part } from '../../render/geometryUtils';
 
-/** (`colour`: its body's paint, the Shipyard RIB's; unset, the crane RIB's grey.) */
-export type RibConsoleConfig = typeof CONFIG.vessels.rib.console & { colour?: number };
+/**
+ * (`colour`: its body's paint, the Shipyard RIB's; unset, the crane RIB's grey. `roof`: a
+ * T-top's canopy or a hardtop over the console and the leaning post, the Shipyard's bigger
+ * RIBs' (shipyard/parts/rib.ts): from `front` to `aft`, `halfWidth` each side, its top `top`,
+ * `thick`; on four legs, at the console's forward corners and the post's aft ones.)
+ */
+export type RibConsoleConfig = typeof CONFIG.vessels.rib.console & { colour?: number; roof?: { front: number; aft: number; top: number; halfWidth: number; thick: number } };
 
 const GREY = 0x8d9399;
 const DARK = 0x2b2f33;
 const PAD = 0x1f2326;
 const STEEL = 0xc4c8cc;
 const GLASS = 0x8fb3c4;
+const TOP = 0xe8e8e2;
+
+/** A T-top's or hardtop's legs: from the deck by the console's forward corners and the post's aft ones, out to under the roof's edges. */
+function roofLegs(c: RibConsoleConfig, deckAt: (z: number) => number): { foot: [number, number, number]; head: [number, number, number] }[] {
+  const r = c.roof!;
+  const zf = c.front + 0.1;
+  const za = c.post.aft - 0.04;
+  const legs: { foot: [number, number, number]; head: [number, number, number] }[] = [];
+  for (const s of [-1, 1]) {
+    legs.push({ foot: [s * (c.halfWidth + 0.04), deckAt(zf), zf], head: [s * (r.halfWidth - 0.06), r.top - r.thick, zf] });
+    legs.push({ foot: [s * (c.post.halfWidth + 0.06), deckAt(za), za], head: [s * (r.halfWidth - 0.06), r.top - r.thick, za] });
+  }
+  return legs;
+}
 
 export const RIB_CONSOLE: ModuleDefinition<RibConsoleConfig> = {
   id: 'deck.rib-console',
@@ -35,6 +54,8 @@ export const RIB_CONSOLE: ModuleDefinition<RibConsoleConfig> = {
     return [
       { x0: -c.halfWidth, x1: c.halfWidth, z0: c.front, z1: c.aft, base: deck, top: c.top },
       { x0: -c.post.halfWidth, x1: c.post.halfWidth, z0: c.post.front + 0.1, z1: c.post.aft, base: deck, top: c.post.top },
+      // (A roof's legs: their feet.)
+      ...(c.roof ? roofLegs(c, (z) => hull.deckY(z)).map(({ foot: [x, y, z] }) => ({ x0: x - 0.04, x1: x + 0.04, z0: z - 0.04, z1: z + 0.04, base: y, top: y + 1 })) : []),
     ];
   },
   view: {
@@ -62,6 +83,21 @@ export const RIB_CONSOLE: ModuleDefinition<RibConsoleConfig> = {
       box(2 * p.halfWidth, 0.3, 0.08, 0, p.top + 0.17, p.aft - 0.04, PAD);
       box(2 * p.halfWidth + 0.08, 0.03, 0.03, 0, p.top + 0.38, p.aft + 0.04, STEEL);
       for (const s of [-1, 1]) box(0.03, 0.4, 0.03, s * (p.halfWidth + 0.04), p.top + 0.18, p.aft + 0.04, STEEL);
+      // A T-top or hardtop (the bigger Shipyard RIBs'): its top, a dark edge round it, on four
+      // steel legs raked out from the console and the post to under its edges.
+      if (c.roof) {
+        const r = c.roof;
+        box(2 * r.halfWidth, r.thick, r.aft - r.front, 0, r.top - r.thick / 2, (r.front + r.aft) / 2, TOP);
+        box(2 * r.halfWidth + 0.02, 0.03, r.aft - r.front + 0.02, 0, r.top - r.thick, (r.front + r.aft) / 2, DARK);
+        for (const { foot, head } of roofLegs(c, (z) => hull.deckY(z))) {
+          const a = new THREE.Vector3(...foot);
+          const dir = new THREE.Vector3(...head).sub(a);
+          const len = dir.length();
+          const g = new THREE.BoxGeometry(0.05, len, 0.05).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize()));
+          g.translate(a.x + dir.x / 2, a.y + dir.y / 2, a.z + dir.z / 2);
+          parts.push(part(g, STEEL));
+        }
+      }
       return { staticParts: parts, movingParts: [], controls: [], update: () => {} };
     },
   },

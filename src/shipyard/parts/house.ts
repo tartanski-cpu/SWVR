@@ -3,7 +3,7 @@
  * Each part takes the design (`a`) and what the parts before it worked out (`p`), and gives
  * what the parts after it need.
  */
-import { ribTubes } from './rib';
+import { ribConsoleKind, ribTubes } from './rib';
 import { BODY_RADIUS, CONFIG } from '../../config';
 import { hullQueries } from '../../modular/hull';
 import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, OverheadLayout } from '../../vessel/vesselDef';
@@ -133,7 +133,8 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // (An open boat, the RIB's: no wheelhouse. Its box is her helm's place, the console and the
   // leaning post aft of it, CONFIG.shipyard.rib.console: nothing of it is drawn or walled,
   // layoutPart `open`; housePos still moves it along her.)
-  const rc = CONFIG.shipyard.rib.console;
+  const ribKind = base.open ? ribConsoleKind(d, transom - stem, warnings) : 0;
+  const rc = CONFIG.shipyard.rib.consoles[ribKind];
   let houseL = base.open ? rc.depth + rc.postGap + rc.postDepth + 0.1 : d.houseLength;
   if (houseL > zAft - zFwd) {
     houseL = zAft - zFwd;
@@ -170,7 +171,10 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const along = (n: number) => Array.from({ length: n + 1 }, (_, i) => front + ((aft - front) * i) / n);
   const narrowest = Math.min(...along(8).map((z) => q.halfBeam(z)));
   const sideDeck = 0.28;
-  let hw = base.open ? rc.halfWidth + 0.24 : d.houseWidth * (narrowest - sideDeck);
+  // (The wide console's across her deck, `walkway` clear of her tubes each side: from her
+  // narrowest there, no wider than its own `halfWidth`, no narrower than the T-top's.)
+  const ribHalf = !base.open ? 0 : rc.walkway === undefined ? rc.halfWidth : Math.round(Math.max(CONFIG.shipyard.rib.consoles[1].halfWidth, Math.min(rc.halfWidth, narrowest - ribTubes(p.size, d).inset - ribTubes(p.size, d).radius - rc.walkway)) * 100) / 100;
+  let hw = base.open ? ribHalf + 0.24 : d.houseWidth * (narrowest - sideDeck);
   // No narrower than `minInside` inside (CS6, owner, Oct 2026: about 1.2 m, one at a short
   // console; it was 1.7 m when the console had to hold a full row of screens and switches).
   const minHw = CONFIG.shipyard.helm.minInside / 2 + 0.06;
@@ -457,7 +461,8 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const helmCfg = CONFIG.shipyard.helm;
   // (Or as long as set, `consoleLen`: CS6, a short console for a narrow wheelhouse.)
   const setLen = consoleLengthM(d.consoleLen ?? 0);
-  const consoleHalf = Math.min(hw - wall, helmCfg.maxConsole / 2, setLen ? setLen / 2 : Infinity);
+  // (An open boat's, the RIB's: her console's own, its dash 2 cm in from its sides.)
+  const consoleHalf = base.open ? ribHalf + 0.09 : Math.min(hw - wall, helmCfg.maxConsole / 2, setLen ? setLen / 2 : Infinity);
   const short = consoleHalf < hw - wall - 0.005;
   let side = d.consoleSide ?? 0;
   if (side && !short) side = 0; // (as wide as the cabin: nowhere to move to)
@@ -485,7 +490,7 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const roofTopAt = (z: number) => roofAt(z) + roofThickness;
   // On the roof, forward: clear of its front edge (the visor's top, set back by its rake) whichever way the windows rake.
   const roofFront = Math.max(front, zHead - house.visor + roofThickness * Math.tan((house.roofEdgeDeg * Math.PI) / 180));
-  return { F, FA, aft, ahead, along, cf, consoleBack, consoleHalf, cx, deckHi, hx, deckLo, deckhouse, dhArea, dhRailM, dhc, doorHeight, floorY, foreEndAt, foredeck, form, front, headroom, shape, st, helmAft, house, houseL, hw, inside, level, levels, nSteps, onTop, q, rise, rnd, roofAt, roofBack, roofDrop, roofFront, roofThickness, roofTopAt, roofY, saloonDrop, saloonL, saloonRoof, sb, short, side, sill, steps, tread, wall, windowHead, windowRake, zHead };
+  return { F, FA, aft, ahead, along, cf, consoleBack, consoleHalf, cx, ribKind, ribHalf, deckHi, hx, deckLo, deckhouse, dhArea, dhRailM, dhc, doorHeight, floorY, foreEndAt, foredeck, form, front, headroom, shape, st, helmAft, house, houseL, hw, inside, level, levels, nSteps, onTop, q, rise, rnd, roofAt, roofBack, roofDrop, roofFront, roofThickness, roofTopAt, roofY, saloonDrop, saloonL, saloonRoof, sb, short, side, sill, steps, tread, wall, windowHead, windowRake, zHead };
 }
 export type HousePart = ReturnType<typeof housePart>;
 

@@ -996,6 +996,19 @@ section('2. Wheelhouse');
   const signed = (x: number, unit: string, digits = 0) => `${x > 0 ? '+' : ''}${x.toFixed(digits)}${unit}`;
   const houseW = () => (boat.hull.layout.wheelhouse ? 2 * boat.hull.layout.wheelhouse.halfWidth : 0);
 
+  // The RIB's console (owner, 31 Oct 2026: bigger, with room for instruments, on the bigger ones).
+  group('Her console', 'A jockey console you stand at on any RIB; from 7 m a T-top centre console, from 9 m a wide one across her deck. The bigger two have a roof over the helm and a dash for her instruments (the Controls step).').dataset.when = 'openBoat';
+  // (A bigger console comes with her instruments, the advanced controls: on the T-top's narrow
+  // dash one touchscreen with tabs, a chartplotter's way, the wide one's separate screens.
+  // The Controls step changes them.)
+  const ribRow = options('ribConsole', 'Console', ['Jockey', 'T-top (7 m and up)', 'Wide (9 m and up)']);
+  ribRow.dataset.when = 'openBoat';
+  ribRow.querySelectorAll<HTMLElement>('.choice').forEach((el) => {
+    el.onclick = () => {
+      const i = Number(el.dataset.i);
+      change({ ribConsole: i, ...(i && !design.ribConsole ? { controls: 1, touch: i === 1 ? 1 : 0 } : {}) });
+    };
+  });
   group('Size and place');
   measure('housePos', 'Position', (v) => (v <= 0.001 ? 'right aft' : v >= 0.999 ? 'right fwd' : `${pct(v)} fwd`));
   measure('houseLength', 'Length', (v) => m(v));
@@ -1053,7 +1066,7 @@ section('2. Wheelhouse');
   // The cockpit overhead (P2b): the aft roof carried on aft over the working deck, on a wing each side.
   slider('overhead', 'Overhead aft', (v) => (v ? `${SCALES.overhead(v).toFixed(2)} m` : 'none'));
 
-  group('Inside');
+  group('Inside').dataset.unless = 'openBoat';
   // The helm console (owner): no longer than CONFIG.shipyard.helm.maxConsole, so on a wide
   // wheelhouse there's room beside it, and against the port or starboard wall if chosen.
   // (Only with a flat front: a faceted front's console wraps round its middle pane, so it stays there.)
@@ -1547,7 +1560,7 @@ function showConsoleEditor(): void {
   // Under the Console length slider: the shortest console that holds her instruments full size (CS6).
   const note = document.getElementById('consoleMinNote');
   const min = (cc as { consoleMin?: number } | undefined)?.consoleMin;
-  if (note) note.textContent = min ? `Shortest that holds her instruments full size: ${min.toFixed(2)} m${design.controls && !design.touch ? ' (a touchscreen needs less)' : ''}. Shorter, they're drawn smaller; switches move up onto the dash as needed.` : '';
+  if (note) note.textContent = min && !rowApplies('openBoat') ? `Shortest that holds her instruments full size: ${min.toFixed(2)} m${design.controls && !design.touch ? ' (a touchscreen needs less)' : ''}. Shorter, they're drawn smaller; switches move up onto the dash as needed.` : '';
   if (!dg || !pg) {
     box.innerHTML = '<p class="meta">This boat\u2019s console isn\u2019t laid out on a grid.</p>';
     return;

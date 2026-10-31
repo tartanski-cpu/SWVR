@@ -157,8 +157,12 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // leaning post aft of it): the helm console on its top (the wheel on its aft face, as the
   // crane RIB's), the breaker panel on its starboard side and the battery master on its port
   // side (a RIB's switch panel and isolator), the navigation lights on a pole over the leaning
-  // post, the horn nominal on the console. Her tubes along her sides.
-  const ribHelm = p.base.open ? ribConsole(front, q.deckY, HOUSE_PAINTS[d.houseColour ?? 0]?.colour ?? LIVERIES[d.paint]?.livery.topsides) : null;
+  // post, the horn nominal on the console. Her tubes along her sides. A bigger console (a
+  // T-top's or the wide one's: design.ribConsole) takes a wheelhouse's helm on its top (its
+  // dash, screens and switch panel, as wide as the console), the helm assist panel on its port
+  // side, forward, and under its roof the VHF to port, the chartplotter and FM set to
+  // starboard, as under a wheelhouse roof; her navigation lights on the roof.
+  const ribHelm = p.base.open ? ribConsole(front, q.deckY, HOUSE_PAINTS[d.houseColour ?? 0]?.colour ?? LIVERIES[d.paint]?.livery.topsides, p.ribKind, p.ribHalf) : null;
   if (ribHelm) {
     const mid = rnd((ribHelm.front + ribHelm.aft) / 2);
     const deck = rnd(q.deckY(mid));
@@ -167,12 +171,23 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     wheelhouseSockets.push(
       { id: 'tubes', type: 'hull.side', transform: { position: [0, 0, 0] }, label: 'Her sides: the tubes' },
       { id: 'ribConsole', type: 'deck.equipment', transform: { position: [0, deck, mid] }, label: 'The console and the leaning post aft of it' },
-      { id: 'helm', type: 'helm.console', transform: { position: [0, ribHelm.top, ribHelm.aft] }, capacity: { size: [2 * hwC + 0.3, 1.2, 1.0] }, label: 'The console\'s top, at its aft face' },
+      { id: 'helm', type: 'helm.console', transform: { position: [0, ribHelm.top, rnd(ribHelm.aft + (ribHelm.roof ? 0.06 : 0))] }, capacity: { size: [2 * hwC + 0.3, ribHelm.roof ? 1.6 : 1.2, 1.0] }, label: 'The console\'s top, at its aft face' },
       { id: 'breakerPanel', type: 'wall.panel', transform: { position: [rnd(hwC + 0.005), rnd(deck + 0.62), mid], rotationDeg: [0, 90, 0] }, label: 'The console\'s starboard side: the breakers' },
       { id: 'batteryMaster', type: 'wall.panel', transform: { position: [rnd(-hwC - 0.005), rnd(deck + 0.5), mid], rotationDeg: [0, -90, 0] }, label: 'The console\'s port side: the battery master' },
       { id: 'navLights', type: 'hull.light', transform: { position: [0, rnd(ribHelm.post.top + 0.42), rnd(ribHelm.post.aft + 0.04)] }, label: 'Over the leaning post: the navigation lights' },
       { id: 'horn', type: 'roof.mount', transform: { position: [0, ribHelm.top, mid] }, label: 'The console (nominal)' },
     );
+    const r = ribHelm.roof;
+    if (r) {
+      const under = r.top - r.thick;
+      const zc = ribHelm.front;
+      wheelhouseSockets.push(
+        { id: 'vhf', type: 'cabin.overhead', transform: { position: [rnd(-(r.halfWidth - 0.3)), rnd(under - 0.17), rnd(zc + 0.55)], rotationDeg: [0, 20, 0] }, label: 'Under the roof, out to port' },
+        { id: 'chartplotter', type: 'cabin.overhead', transform: { position: [rnd(r.halfWidth - 0.35), rnd(under - 0.17), rnd(zc + 0.5)], rotationDeg: [0, -35, 0] }, label: 'Under the roof, out to starboard ahead of the helm' },
+        { id: 'fm', type: 'cabin.overhead', transform: { position: [rnd(r.halfWidth - 0.35), rnd(under - 0.11), rnd(zc + 1.3)], rotationDeg: [0, -20, 0] }, label: 'Under the roof, out to starboard: the FM set' },
+        ...(helmAssist ? [{ id: 'helmAssist', type: 'wall.panel' as const, transform: { position: [rnd(-hwC - 0.005), rnd(deck + 0.62), rnd(ribHelm.front + 0.15)] as V3, rotationDeg: [0, -90, 0] as V3 }, label: 'The console\'s port side, forward: the helm assist panel' }] : []),
+      );
+    }
   }
   return { wheelhouseSockets, at, bowCleat, cleat, floodLamps, helmAssist, midCleat, rampBow, ribHelm, sternCleat, wl };
 }

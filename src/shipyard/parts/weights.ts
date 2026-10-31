@@ -68,7 +68,8 @@ export function weightsPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart &
     { name: 'Bulwarks', kg: open ? 0 : bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
     { name: 'Tubes', kg: open ? 2 * lengthM * rib.tubes.kgPerM : 0, y: deckMid, z: (stem + transom) / 2 },
     { name: 'Wheelhouse', kg: open ? 0 : houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
-    { name: 'Console and leaning post', kg: open ? rib.console.kg : 0, y: floorY + 0.5, z: front + rib.console.depth },
+    // (A T-top or a hardtop raises its weight: the frame and canopy 2 m up. The wide console's in proportion to its width.)
+    { name: ['Console and leaning post', 'Console, leaning post and T-top', 'Console, bench and hardtop'][p.ribKind], kg: open ? Math.round(rib.consoles[p.ribKind].kg * (p.ribHalf / rib.consoles[p.ribKind].halfWidth)) : 0, y: floorY + (p.ribKind ? 0.95 : 0.5), z: front + rib.consoles[p.ribKind].depth },
     { name: 'Deckhouse: the cabin below (sole, lining, berth)', kg: cabinM2 * CONFIG.shipyard.deckhouse.cabin.kgPerM2, y: layout.cabin ? layout.cabin.sole + 0.6 : deckMid, z: layout.cabin ? (layout.cabin.z0 + layout.cabin.z1) / 2 : 0 },
     { name: 'Deckhouse rail and ladder', kg: deckhouse?.walk ? dhRailM * CONFIG.shipyard.deckhouse.walk.railKgPerM + (deckhouse.walk.stair ? CONFIG.shipyard.deckhouse.walk.stair.kg : CONFIG.shipyard.deckhouse.walk.ladder.kg) : 0, y: deckhouse ? deckhouse.top + 0.4 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: 'Cockpit overhead', kg: overheadM2(layout.overhead) * mat.houseKgPerM2, y: layout.overhead ? layout.overhead.y - 0.3 : deckMid, z: layout.overhead ? (layout.overhead.z0 + layout.overhead.z1) / 2 : 0 },
