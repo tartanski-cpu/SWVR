@@ -67,14 +67,14 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   // reach down as her drives' would, DesignHull.propDepth, until her drives come.)
   const draughtAft = Math.max(-keelAft, base.propDepth ?? 0);
   // The propeller: as big as her draught aft allows (tip clear below her keel by ~1/4 of
-  // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
+  // it, never rounded up past that: a millimetre more draught mustn't jump her a size up), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
   // slower engine turns a bigger one for its power (a propeller's best diameter grows as its
   // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
   // (A catamaran's: each under its own hull's keel, half her hull spacing out.)
   const twinX = shape.catamaran ? Math.round((shape.catamaran.spacing / 2) * 100) / 100 : Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
   // (An electric motor's full torque from rest turns its own big slow propeller, ENGINES propMaxM, whatever its power.)
   // (A pod hung deep under her on her aft foil's strut, the foiling ferry's: as big as her motors turn, her draught aft no bound.)
-  const propD = base.foilPods ? eng.propMaxM : Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, electric ? eng.propMaxM : 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
+  const propD = base.foilPods ? eng.propMaxM : Math.round(Math.max(0.45, Math.min(Math.floor(1.25 * draughtAft * 100 + 1e-6) / 100, electric ? eng.propMaxM : 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
   // Her shaft and the engine on it (machinery.ts): the shaft rises forward from the
   // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
   // must be under the cabin floor (under the house) or the deck (elsewhere): a tall engine in
