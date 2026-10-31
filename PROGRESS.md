@@ -18,6 +18,7 @@ This file lets a new session pick up the work cold. Keep it current at the end o
   - Teleport is not planned.
 - **Physics:** a hand-written rigid-body integrator. No Rapier for now (about 1.5–2 MB of WASM, over the size limit, and buoyancy and hydrodynamic forces are custom anyway). Revisit when we need collisions between bodies.
 - **Branch:** `claude/admiring-dirac-v9wwih`.
+- **The offshore support vessel** (owner, 31 Oct 2026): a 75 m multipurpose one-off for four-player co-op missions, built across the areas in milestones. Its research, the owner's decisions (no walk-to-work gangway, a simple helideck, four players, no moonpool, the ROV hand-off, pendulum swing on every crane, stair-tower doors between decks) and who builds what: `docs/OSV_PLAN.md`.
 
 ## Milestones
 

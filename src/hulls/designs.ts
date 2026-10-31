@@ -1076,4 +1076,125 @@ export const DESIGNS: HullDesign[] = [
     },
     colours: { topsides: 0xeef0ef, bulwark: 0xeef0ef, bottom: 0x1f2326, boot: 0x1f2326, house: 0xeef0ef, deck: 0x6e7470, roof: 0xeef0ef },
   },
+  {
+    // A multipurpose offshore support vessel (owner, Oct 2026: "a much larger class of
+    // vessel", a one-off for co-op missions: cranes, rescue craft, a big bridge; the owner
+    // chose the multipurpose type, no walk-to-work gangway, a simple helideck, no moonpool).
+    // Our own lines of the type: a round-bilge ship with a raked, flared bow under a high
+    // forecastle carrying a four-tier superstructure, a long low working deck aft to a wide
+    // transom for her azimuth thrusters. Hull and superstructure only for now (milestone 1 of
+    // docs/OSV_PLAN.md); her cranes, davits and deck gear come as modules.
+    id: 'mpsv',
+    name: 'Multipurpose offshore support vessel (75 m type)',
+    blurb: 'Multipurpose offshore support vessel: a round-bilge steel ship, full (block coefficient about 0.68, a full waterplane aft) for her deck load, a raked and flared bow under a high forecastle, a four-tier superstructure forward with the bridge on top (windows all round: forward for navigating, aft over the working deck for the cranes and dynamic positioning) and a simple helideck over it; a long, low, open working deck aft (about 40 m of it) for her offshore crane, her cargo and subsea work, to a wide transom over two azimuth thrusters. 75.0 x 18.0 m, draught 5.6 m, about 5,000 t.',
+    length: 75.0,
+    // Parallel midbody over most of her length (a wide working deck to the transom), a full,
+    // flared bow.
+    halfBeam: [
+      [0, 8.47],
+      [0.06, 8.89],
+      [0.12, 9],
+      [0.55, 9],
+      [0.66, 8.79],
+      [0.76, 8.15],
+      [0.85, 6.88],
+      [0.92, 5.08],
+      [0.97, 2.75],
+      [0.993, 1.06],
+      [1, 0],
+    ],
+    // A low working deck aft (1.6 m freeboard at her 5.6 m draught), her forecastle rising a little to her bow.
+    sheer: [
+      [0, 1.6],
+      [0.6, 1.6],
+      [0.8, 1.9],
+      [1, 2.9],
+    ],
+    // A flat bottom amidships, rising aft in a long run to a shallow wide transom (her azimuth
+    // thrusters hang under it), and forward round her forefoot to her stem.
+    keel: [
+      [0, -0.6],
+      [0.08, -1.9],
+      [0.2, -4.1],
+      [0.31, -5.6],
+      [0.7, -5.6],
+      [0.82, -5.0],
+      [0.9, -4.1],
+      [0.96, -2.6],
+      [0.99, -1.1],
+      [1, 0.5],
+    ],
+    // Upright amidships, her stem raked forward.
+    rake: [
+      [0, 0],
+      [0.85, 0],
+      [1, -0.45],
+    ],
+    // A round bilge, drawn as two chines close together (as the harbour tug): a small bilge
+    // radius under near-upright sides amidships, finer and higher forward, flaring at her bow.
+    section: {
+      bilge: true,
+      chineBeam: [
+        [0, 0.7],
+        [0.15, 0.82],
+        [0.27, 0.9],
+        [0.7, 0.9],
+        [0.8, 0.7],
+        [0.9, 0.45],
+        [1, 0.25],
+      ],
+      chineHeight: [
+        [0, 0.3],
+        [0.15, 0.1],
+        [0.27, 0.04],
+        [0.7, 0.04],
+        [0.85, 0.1],
+        [1, 0.3],
+      ],
+      chine2Beam: [
+        [0, 0.9],
+        [0.15, 0.96],
+        [0.3, 0.995],
+        [0.68, 0.995],
+        [0.78, 0.82],
+        [0.88, 0.6],
+        [1, 0.4],
+      ],
+      chine2Height: [
+        [0, 0.45],
+        [0.15, 0.3],
+        [0.3, 0.2],
+        [0.68, 0.2],
+        [0.8, 0.4],
+        [0.9, 0.55],
+        [1, 0.6],
+      ],
+      flare: [
+        [0, 0.05],
+        [0.15, 0],
+        [0.65, 0],
+        [0.8, 0.2],
+        [1, 0.6],
+      ],
+    },
+    // Bulwarks round her working deck and her forecastle.
+    bulwark: [
+      [0, 1.1],
+      [1, 1.2],
+    ],
+    // Her forecastle: one deck (2.8 m) over the working deck, from 60 % of her length forward.
+    forecastle: { from: 0.6, raise: 2.8 },
+    // Her superstructure on the forecastle: three accommodation tiers, the bridge on top
+    // (wider, with wings, raked windows forward and a full row aft over the working deck),
+    // and a simple helideck over it (owner: "just draw a simple version of it for now").
+    houses: [
+      { z0: -7.7, z1: -24.0, halfWidth: 7.4, height: 2.9, sill: 1.0, head: 2.0, panesFront: 5, panesSide: 8, panesBack: 6, overhang: 0.1 },
+      { z0: -8.5, z1: -23.5, halfWidth: 7.2, height: 2.9, sill: 1.0, head: 2.0, panesFront: 5, panesSide: 8, panesBack: 6, overhang: 0.1, above: 2.9 },
+      { z0: -9.5, z1: -23.0, halfWidth: 7.0, height: 2.9, sill: 1.0, head: 2.0, panesFront: 5, panesSide: 7, panesBack: 5, overhang: 0.1, above: 5.8 },
+      { z0: -11.0, z1: -23.0, halfWidth: 9.0, height: 3.1, frontRake: 0.5, sill: 1.0, head: 2.7, panesFront: 9, panesSide: 5, panesBack: 9, overhang: 0.4, above: 8.7 },
+      { z0: -10.5, z1: -31.0, halfWidth: 10.5, height: 0.5, sill: 0, head: 0, panesFront: 0, panesSide: 0, panesBack: 0, above: 11.9 },
+    ],
+    bootTop: 0.3,
+    colours: { topsides: 0x1f4e79, bulwark: 0x1f4e79, bottom: 0x7a2c24, boot: 0x1d2024, house: 0xf2f2ee, deck: 0x6a6f6a, roof: 0x9aa39c },
+  },
 ];
