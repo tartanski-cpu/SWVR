@@ -25,6 +25,7 @@ Their bridges are split in two:
 ## The owner's decisions (31 Oct 2026)
 
 - **Type:** multipurpose (MPSV), with rescue craft and towing.
+- **Name and place:** End Game, career only, anchored offshore, a RIB in the small harbour to take you to her (below).
 - **Size:** about 75 m (the hull study: 75 x 18 m, 5.6 m draught, about 5,000 t).
 - **No walk-to-work gangway** (saves triangles and draw calls).
 - **Helideck:** a simple one, drawn only for now; to be come back to.
@@ -88,7 +89,7 @@ Not every role needs a player: unmanned stations can be left alone, or an AI can
 | # | What | Whose files |
 |---|---|---|
 | 1 | Her hull, superstructure and helideck; her figures | Hull modifications (done: `mpsv` in the hull study) |
-| 2 | Her one-off in the Shipyard: hull, house and gear fixed; paint, name, a few equipment choices | Shipyard |
+| 2 | Her one-off in the Shipyard (handed over 31 Oct): hull, house and gear fixed; paint and a few equipment choices; career only (above) | Shipyard |
 | 3 | "Spaces": the engine room's separate-space technique generalised (bridge, mess and cabins, engine room and its control room), stair-tower doors between decks | Main game |
 | 4 | Her bridge: a navigation console forward; aft, two DP and joystick seats and a crane chair per crane; a COMMAND handover so one station has the ship at a time; numbered crane and station bus keys (`crane.1.slew`, ...) | Modular builder (modules), main game (the helm) |
 | 5 | Her drive: more than two propulsion units (today port and starboard only), bow tunnel thrusters, DP (joystick, heading hold, position hold, follow a target); her own resistance curve (the game's displacement curve gives her about twice a ship's, tuned on small tugs: 218 kN at 12 kn against about 115 kN) | Main game (shared vessel physics), the owner's call on scope |
@@ -102,8 +103,15 @@ The Quest is watched throughout:
 - she'll need her static parts merged, repeated ones instanced and small detail hidden from afar;
 - every interior is hidden unless you're in it.
 
+## Where she works (the owner, 31 Oct 2026)
+
+- **Her name: End Game.** She's the career's end-game ship.
+- **Career mode only.** She isn't in Voyage, Training or free play, and the Shipyard doesn't hand her out as a design to sail anywhere.
+- **Anchored offshore.** She never berths: the game's harbours are too small for her.
+- **When you get her, you get a RIB too.** It spawns in the small harbour, ready to take you out to her. (The main game chat is to confirm which harbour the owner means; in the home region, Brannock Pier is the smaller one.)
+- How the career gives her to you (bought, earned, a contract's reward) is the main game chat's, with the owner.
+
 ## Still open
 
-- Her name.
-- Where she works (career world, Voyage maps, or both). She's too big for the game's harbours' berths, so she'd anchor off.
 - How far DP goes (milestone 5).
+- How the career gives her to you.

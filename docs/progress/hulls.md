@@ -10,6 +10,12 @@ Newest entry first. Each change set: what changed and why, the config keys, the 
 
 ## Changes
 
+### End Game: her name and place; handed over to the Shipyard (owner)
+
+- **The owner** (31 Oct): "I would call her end game. She should only be available in the career mode. And she should be anchored offshore. And when you get her, you get a rib, which spawns in the small harbor, ready to take you to her. And you can do the handoff to the shipyard now."
+- Her name in the hull study (`mpsv`: "End Game: multipurpose offshore support vessel (75 m)"); `docs/OSV_PLAN.md` "Where she works" and PROGRESS.md's line updated. Her hull and the plan merged into `next`; the Shipyard chat handed milestone 2 (her one-off), the main game chat told of the career side (career only, anchored offshore, the RIB in the small harbour).
+- **Shared changes:** `docs/OSV_PLAN.md`, PROGRESS.md (her line).
+
 ### The offshore support vessel: the plan, and her hull (milestone 1) (owner)
 
 - **The owner** (31 Oct): "a much larger class of vessel", an offshore support vessel, a one-off for four-player co-op missions, with an interior, an engine room, a big bridge with stations for her cranes, cranes on deck, a RIB to launch. I researched the type (supply, anchor-handling, multipurpose and construction, rescue, walk-to-work ships; split forward and aft bridges) and planned her across the areas. The owner chose the multipurpose type, about 75 m, no walk-to-work gangway, a simple helideck, four players, no moonpool, the ROV hand-off to Submersible World, a pendulum swing on every crane (the small deck cranes too), and the most efficient way between decks (stair-tower doors). The plan, the decisions and who builds what: **`docs/OSV_PLAN.md`** (new; a pointer in PROGRESS.md's decisions).

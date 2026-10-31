@@ -1085,8 +1085,8 @@ export const DESIGNS: HullDesign[] = [
     // transom for her azimuth thrusters. Hull and superstructure only for now (milestone 1 of
     // docs/OSV_PLAN.md); her cranes, davits and deck gear come as modules.
     id: 'mpsv',
-    name: 'Multipurpose offshore support vessel (75 m type)',
-    blurb: 'Multipurpose offshore support vessel: a round-bilge steel ship, full (block coefficient about 0.68, a full waterplane aft) for her deck load, a raked and flared bow under a high forecastle, a four-tier superstructure forward with the bridge on top (windows all round: forward for navigating, aft over the working deck for the cranes and dynamic positioning) and a simple helideck over it; a long, low, open working deck aft (about 40 m of it) for her offshore crane, her cargo and subsea work, to a wide transom over two azimuth thrusters. 75.0 x 18.0 m, draught 5.6 m, about 5,000 t.',
+    name: 'End Game: multipurpose offshore support vessel (75 m)',
+    blurb: 'End Game (the owner\'s name for her), a multipurpose offshore support vessel, the career\'s end-game ship: a round-bilge steel ship, full (block coefficient about 0.68, a full waterplane aft) for her deck load, a raked and flared bow under a high forecastle, a four-tier superstructure forward with the bridge on top (windows all round: forward for navigating, aft over the working deck for the cranes and dynamic positioning) and a simple helideck over it; a long, low, open working deck aft (about 40 m of it) for her offshore crane, her cargo and subsea work, to a wide transom over two azimuth thrusters. 75.0 x 18.0 m, draught 5.6 m, about 5,000 t.',
     length: 75.0,
     // Parallel midbody over most of her length (a wide working deck to the transom), a full,
     // flared bow.
