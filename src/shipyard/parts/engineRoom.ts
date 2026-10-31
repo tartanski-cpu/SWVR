@@ -7,7 +7,8 @@ import { bottomAt as bottomUnder, FLANGE_SHARE, halfSection, layShaft, sternDriv
 import { CONFIG } from '../../config';
 import { outboardCount, SCALES, SHAFT_ONLY_ENGINES, SINGLE_ONLY_ENGINES } from '../design';
 import type { Socket } from '../../modular/socket';
-import type { BuildArgs, HatchZone, V3 } from './common';
+import { atDWL, type BuildArgs, type HatchZone, type V3 } from './common';
+import { hullFormOf } from '../../modular/hull';
 import { ENGINES, materialOf } from './catalog';
 import { ribOutboard } from '../../boats/ribHull';
 import type { HullPart } from './hull';
@@ -66,14 +67,14 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   // reach down as her drives' would, DesignHull.propDepth, until her drives come.)
   const draughtAft = Math.max(-keelAft, base.propDepth ?? 0);
   // The propeller: as big as her draught aft allows (tip clear below her keel by ~1/4 of
-  // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
+  // it, never rounded up past that: a millimetre more draught mustn't jump her a size up), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
   // slower engine turns a bigger one for its power (a propeller's best diameter grows as its
   // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
   // (A catamaran's: each under its own hull's keel, half her hull spacing out.)
   const twinX = shape.catamaran ? Math.round((shape.catamaran.spacing / 2) * 100) / 100 : Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
   // (An electric motor's full torque from rest turns its own big slow propeller, ENGINES propMaxM, whatever its power.)
   // (A pod hung deep under her on her aft foil's strut, the foiling ferry's: as big as her motors turn, her draught aft no bound.)
-  const propD = base.foilPods ? eng.propMaxM : Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, electric ? eng.propMaxM : 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
+  const propD = base.foilPods ? eng.propMaxM : Math.round(Math.max(0.45, Math.min(Math.floor(1.25 * draughtAft * 100 + 1e-6) / 100, electric ? eng.propMaxM : 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
   // Her shaft and the engine on it (machinery.ts): the shaft rises forward from the
   // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
   // must be under the cabin floor (under the house) or the deck (elsewhere): a tall engine in
@@ -248,9 +249,16 @@ export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
   const rudderArea = Math.round(0.07 * h.lwl * Math.max(0.3, draughtAft) * n * 100) / 100;
   // Her installed power (the outboards': each one's, times their count).
   const powerKw = nOb ? obc.engine.powerKw * nOb : kw * n;
-  // (A ship's tanks, where her type sets them: the harbour tug's, DesignHull.fuelL; the stern
-  // trawler's growing with her length, fuelAtM.)
-  const tankL = base.fuelL ? (base.fuelAtM ? Math.round((base.fuelL * (lengthM / base.fuelAtM) ** 3) / 100) * 100 : base.fuelL) : Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
+  // Her tanks (CONFIG.shipyard.fuel): hours flat out at her full power, more hours the bigger
+  // she is (her lines' displacement as drawn: not raised for her weight, so both passes agree),
+  // from an hour for a small RIB to a few for a ship; the electric boats' a token (DesignHull.fuelL).
+  const fc = CONFIG.shipyard.fuel;
+  const linesT = (atDWL(hullFormOf(base.form(p.size.L, p.size.B, p.size.D, d.bow, SCALES.sheer(d.sheer ?? 0)))).volume * CONFIG.ocean.density) / 1000;
+  const sizeK = Math.max(0, Math.min(1, Math.log(Math.max(linesT, 1e-3) / fc.smallT) / Math.log(fc.largeT / fc.smallT)));
+  const hours = fc.minHours + (fc.maxHours - fc.minHours) * sizeK;
+  const kgPerL = nOb ? fc.petrolKgPerL : fc.dieselKgPerL;
+  const sfc = nOb ? obc.engine.fuel.sfcGPerKWh : CONFIG.vessels.workboat.engine.fuel.sfcGPerKWh;
+  const tankL = base.fuelL ?? Math.max(fc.minL, Math.round((hours * powerKw * sfc) / 1000 / kgPerL / fc.round) * fc.round);
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
   return { electric, zDriveSet, batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, shaftOnly, singleOnly, tankL, twin, twinX, wc };

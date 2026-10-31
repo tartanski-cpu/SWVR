@@ -415,7 +415,7 @@ export const SHIPYARD_CONFIG = {
      * than the build counts (her heavy framing, machinery, tanks of water and stores), carried
      * here as one weight `ballastAboveKeel` m above her keel, where it gives her a real tug's
      * stability (GM about 2 m on her KM of 5.8 m), not all down in her bilge. Her fuel tanks
-     * `fuelL` litres, a ship's (about 60 m³), not the small boats' litre a kW. Her engines (on
+     * (her tanks, as every boat's, by her size and power: CONFIG.shipyard.fuel). Her engines (on
      * the Z-drives she's drawn with) level and low, their gearbox ends `zDriveEngineAft` of her
      * length forward of her transom (owner, Oct 2026: "much lower and further back"). Her propellers reach `propDepth` m below her waterline, as her
      * drive pods would hang under her shallow stern (her real pods reach 5.3 m), until the
@@ -424,7 +424,7 @@ export const SHIPYARD_CONFIG = {
     // Her fendering (parts/fendering.ts): `fenderingKg` of rubber (belts, stern and bow
     // cylinders, the bow's blocks: about 6 t on a 25 m tug); its contact points one to each
     // `probeCell` m cell of its outer face.
-    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 315000, ballastAboveKeel: 3.9, fuelL: 60000, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9,
+    harbourTug: { zDriveEngineAft: 0.29, scantlings: 1.6, ballastKg: 338000, ballastAboveKeel: 3.9, propDepth: 3.0, fenderingKg: 6000, probeCell: 0.9,
       /**
        * Her gearbox step (design.gear, 0..15), fixed (owner, 26 Oct 2026: "a fixed engine
        * configuration and a fixed propulsion, so there shouldn't be any resolving of the
@@ -643,13 +643,27 @@ export const SHIPYARD_CONFIG = {
      * framing `scantlings` times the steel's usual (heavy, as a trawler is built), and permanent ballast
      * (kg) low in her hull, so she floats near her lines with her machinery, gear and a light
      * load (a trawler carries hers in fuel, ice and fixed ballast: a deep hull for a big
-     * propeller, and a good GM with a heavy codend coming up over the stern). Her fuel tanks
-     * (`fuelL` litres at 20 m, growing as the cube of her length: about 9,000 at 16 m, 29,000
-     * at 23.5 m; owner, 29 Oct 2026: her litre-a-kW tank gave "only 52 nautical miles range"),
-     * a fishing vessel's for trips of days: about 1,100 nm flat out (52 nm on 850 L), far more at a trawler's
-     * steaming speed.
+     * propeller, and a good GM with a heavy codend coming up over the stern). Her tanks as every
+     * boat's (CONFIG.shipyard.fuel, owner 31 Oct 2026: kept to a few hours flat out for play).
      */
-    sternTrawler: { scantlings: 1.8, ballastKg: 60000, fuelL: 18000 },
+    sternTrawler: { scantlings: 1.8, ballastKg: 67000 },
+    /**
+     * Her fuel tanks (owner, 31 Oct 2026: "the fuel tank sizing doesn't always seem to be
+     * appropriate for the size of the boat ... the bigger vessels are going to have
+     * significantly larger fuel tanks"; then, for play: "if they're like 3 days size of tank,
+     * then nobody's ever going to refuel. So the rib, you should be able to drive full speed
+     * for ... an hour, and then ... bring it back in. But in the bigger ships ... a few hours"):
+     * sized for hours flat out (at her full power, from her engines' consumption), growing with
+     * her size: `minHours` for a boat of `smallT` tonnes or less (her lines' displacement as
+     * drawn: the same on both of build.ts's passes) up to `maxHours` at `largeT` or more,
+     * in between as her tonnage's logarithm. Bigger and more powerful, the bigger her tanks;
+     * at her cruise (half her speed or so) they last two to four times as long. Never under
+     * `minL`; rounded to `round`. Diesel at `dieselKgPerL`, petrol (outboards) at
+     * `petrolKgPerL`. (Real boats' tanks, checked 31 Oct 2026, hold days: a 14 m pilot boat
+     * 1,500-2,300 L, a 20 m stern trawler 20-30 m3; a game's are kept to a session or a few.)
+     * The electric boats have a token tank (DesignHull.fuelL).
+     */
+    fuel: { minHours: 1, maxHours: 6, smallT: 1.5, largeT: 150, minL: 20, dieselKgPerL: 0.84, petrolKgPerL: 0.74, round: 10 },
     /**
      * The fast catamaran's plating and framing, against the material's usual (a monohull's): two
      * slim hulls carry far more plate for her length than one, but each is a small, short-
