@@ -157,11 +157,13 @@ export const TYPE_FACTS: TypeFacts[] = [
     // (engine 0 stands in for her outboards; measured in the Shipyard 31 Oct 2026). Stretched
     // to 12 m on three or four V8 outboards she does 40-plus.
     what: 'A RIB: a deep-V hull under inflatable tubes, an open console, 5 to 12 m; fast, handy and soft-riding, for reaching people in the water.',
+    // (Not matched to a brief's jobs: a small, short-legged boat, a ship's boat as much as her
+    // own, the pilot boat the brief's rescue boat. No cargo deck: a RIB carries people and light gear.)
     goodFor: [],
-    crates: 5,
-    pots: 3,
-    maxCrates: 60,
-    maxPots: 39,
+    crates: 0,
+    pots: 0,
+    maxCrates: 0,
+    maxPots: 0,
     fits: [fit(0, 0, 24, 118, 0.6, 38_000)],
   },
 ];
@@ -204,7 +206,8 @@ export function rankTypes(brief: Brief, facts: TypeFacts[] = TYPE_FACTS): TypeFi
     // Deck room: as she is, or stretched to it, or not even at her largest.
     const room = (label: string, need: number, std: number, max: number, unit: string) =>
       lines.push({ label, ok: max >= need, value: std >= need ? `${std} ${unit}` : max >= need ? `${need} ${unit}, stretched` : `${max} ${unit} at most` });
-    if (brief.jobs.includes('cargo') && brief.crates) room('Deck', brief.crates, f.crates, f.maxCrates, 'crates');
+    // (A type with no cargo deck at all, the RIB, the solar cat, the ferry: no use for cargo, crates asked or not.)
+    if (brief.jobs.includes('cargo') && (brief.crates || !f.maxCrates)) room('Deck', brief.crates || 1, f.crates, f.maxCrates, 'crates');
     if (brief.jobs.includes('potting') && brief.pots) room('Pots', brief.pots, f.pots, f.maxPots, 'pots');
     return { hull, facts: f, lines, misses: lines.filter((l) => !l.ok).length, suits: brief.jobs.filter((j) => f.goodFor.includes(j)), best };
   });
